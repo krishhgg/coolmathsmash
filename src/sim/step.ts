@@ -2,6 +2,7 @@ import { getFighter } from '../fighters/registry';
 import { getStage } from '../stages/registry';
 import { ACTIONS } from './actions';
 import { runAction } from './actions/registry';
+import { applyLaunch } from './combat/hits';
 import { RESPAWN_DELAY, SHIELD_MAX, SHIELD_REGEN, SHIELD_BREAK_HEIGHT } from './constants';
 import { derived, type Ctx, type FighterState } from './fighter';
 import type { MatchState, PlayerState } from './match';
@@ -37,6 +38,11 @@ export function makeCtx(m: MatchState, f: FighterState, p: PlayerState): Ctx {
 export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): void {
   const x = makeCtx(m, f, p);
   f.prevPos = { x: f.pos.x, y: f.pos.y };
+  if (f.hitlag > 0) {
+    f.hitlag--;
+    return;
+  }
+  if (f.launch) applyLaunch(x);
   f.actionFrame++;
   runAction(x);
   const physics = ACTIONS[f.action]!.physics;
@@ -45,7 +51,12 @@ export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): voi
 
   if (f.intangible > 0) f.intangible--;
   if (f.ledgeLock > 0) f.ledgeLock--;
-  if (f.action !== 'shield' && f.action !== 'shieldBreak' && f.action !== 'dizzy') {
+  if (
+    f.action !== 'shield' &&
+    f.action !== 'shieldStun' &&
+    f.action !== 'shieldBreak' &&
+    f.action !== 'dizzy'
+  ) {
     f.shieldHp = Math.min(SHIELD_MAX, f.shieldHp + SHIELD_REGEN);
   }
   checkBlastZones(x);
@@ -65,4 +76,7 @@ function checkBlastZones(x: Ctx): void {
   f.ledge = -1;
   f.vel = { x: 0, y: 0 };
   f.kb = { x: 0, y: 0 };
+  f.launch = null;
+  f.hitstun = 0;
+  f.speedUpFaf = 0;
 }

@@ -9,6 +9,7 @@ import { stickY } from './control';
 import type { Ctx, FighterState, GroundRef } from './fighter';
 import { edgeMaxX, edgeMinX, floorY, type CompiledStage, type Edge } from './stage';
 import { approach } from './vec';
+import { LAUNCH_DECAY, speedUp } from './combat/formulas';
 import { ACTIONS, enterAction } from './actions/registry';
 
 const EPS = 0.001;
@@ -103,7 +104,7 @@ export function restoreAirOptions(f: FighterState): void {
 }
 
 export function land(x: Ctx, g: GroundRef): void {
-  const { f, s, stage } = x;
+  const { f, stage } = x;
   f.ground = g;
   f.pos.y = surfaceY(stage, g, f.pos.x);
   f.vel.y = 0;
@@ -113,13 +114,35 @@ export function land(x: Ctx, g: GroundRef): void {
   if (action.land) {
     action.land(x);
   } else {
-    f.landingLag = f.airFrames < HARD_LANDING_AIRTIME ? s.softLandingLag : s.hardLandingLag;
+    f.landingLag = normalLandingLag(x);
     enterAction(x, 'land', 0);
   }
 }
 
+/** Soft landing lag after a short airtime, hard landing lag after a longer one. */
+export function normalLandingLag(x: Ctx): number {
+  return x.f.airFrames < HARD_LANDING_AIRTIME ? x.s.softLandingLag : x.s.hardLandingLag;
+}
+
 function crossing(prev: number, next: number): boolean {
   return prev >= -EPS && next < 0;
+}
+
+/**
+ * Balloon knockback: during a tumble launch's speed-up, how many frames of trajectory (and hitstun) the fighter
+ * covers on this real frame. 1 otherwise.
+ */
+export function launchTimeScale(f: FighterState): number {
+  if (f.speedUpFaf === 0 || f.hitstun <= 0 || (f.action !== 'tumble' && f.action !== 'hitstun')) return 1;
+  return speedUp(f.speedUpFaf).steps[f.actionFrame - 1] ?? 1;
+}
+
+/** Launch speed shrinks by `amount` along its own direction (Ultimate: 0.051 u/frame). */
+function decayKnockback(f: FighterState, amount: number): void {
+  const speed = Math.hypot(f.kb.x, f.kb.y);
+  const k = speed > amount ? (speed - amount) / speed : 0;
+  f.kb.x *= k;
+  f.kb.y *= k;
 }
 
 /** Air physics: drift, sub-stepped movement with landing/wall/ceiling collision, gravity, ledge grabs. */
@@ -129,8 +152,9 @@ export function airMove(x: Ctx): void {
   f.airFrames++;
   const drift = typeof action.drift === 'function' ? action.drift(x) : (action.drift ?? true);
   if (drift) airDrift(x, drift === 'helpless' ? s.airSpeed * HELPLESS_AIR_SPEED : s.airSpeed);
-  const dx = f.vel.x + f.kb.x;
-  const dy = f.vel.y + f.kb.y;
+  const dt = launchTimeScale(f);
+  const dx = (f.vel.x + f.kb.x) * dt;
+  const dy = (f.vel.y + f.kb.y) * dt;
   const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / MAX_SUBSTEP));
   for (let i = 0; i < steps; i++) {
     const prev = { x: f.pos.x, y: f.pos.y };
@@ -142,9 +166,10 @@ export function airMove(x: Ctx): void {
       return;
     }
   }
+  decayKnockback(f, LAUNCH_DECAY * dt);
   const gravity = typeof action.gravity === 'function' ? action.gravity(x) : (action.gravity ?? true);
   if (gravity) {
-    f.vel.y = Math.max(f.vel.y - s.gravity, -s.fallSpeed);
+    f.vel.y = Math.max(f.vel.y - s.gravity * dt, -s.fallSpeed);
     if (f.fastFalling) f.vel.y = -s.fastFallSpeed;
   }
   tryLedgeGrab(x);

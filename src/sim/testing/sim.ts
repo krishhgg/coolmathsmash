@@ -73,4 +73,26 @@ export function placeInAir(m: MatchState, x: number, y: number, facing: 1 | -1 =
   return f;
 }
 
+/** Put fighter `port` into `move`; its frame 1 is the next simulated frame. */
+export function attack(m: MatchState, port: number, move: string): FighterState {
+  const f = m.fighters[port]!;
+  Object.assign(f, {
+    action: f.ground ? 'attack' : 'aerial',
+    actionFrame: 0,
+    move,
+    hitVictims: [],
+    moveStale: 0,
+  });
+  return f;
+}
+
+/** Step with one input per port. */
+export function runPorts(m: MatchState, frames: number, holds: Hold[]): void {
+  for (let i = 0; i < frames; i++)
+    stepMatch(
+      m,
+      m.players.map((p) => input(holds[p.port])),
+    );
+}
+
 export const stage = () => compiledStage('battlefield');

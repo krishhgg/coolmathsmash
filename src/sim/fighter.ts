@@ -46,8 +46,19 @@ export interface FighterState {
   damage: number;
   stocks: number;
   shieldHp: number;
+  /** Frozen frames left (attacker and victim both freeze when a hit connects). */
   hitlag: number;
+  /** Hitstun left, counted in un-sped frames: the fighter can act on the frame it reaches 0. */
   hitstun: number;
+  /** Un-sped first actionable frame of the current tumble launch, for balloon speed-up (0 = none). */
+  speedUpFaf: number;
+  launch: PendingLaunch | null;
+  /** Ports the current move has already hit. */
+  hitVictims: number[];
+  /** Stale multiplier of the current move activation, fixed when it first connects (0 = not connected yet). */
+  moveStale: number;
+  /** Names of the last moves that hit, most recent first (stale-move negation). */
+  staleQueue: string[];
   /** Intangibility from outside the current action (ledge grab, respawn), counting down. */
   intangible: number;
   ledge: number;
@@ -90,6 +101,11 @@ export function createFighter(
     shieldHp: SHIELD_MAX,
     hitlag: 0,
     hitstun: 0,
+    speedUpFaf: 0,
+    launch: null,
+    hitVictims: [],
+    moveStale: 0,
+    staleQueue: [],
     intangible: 0,
     ledge: -1,
     ledgeGrabs: 0,
@@ -97,6 +113,16 @@ export function createFighter(
     ledgeFresh: true,
     respawnTimer: 0,
   };
+}
+
+/** Knockback waiting for hitlag to end; DI is read when it is applied. */
+export interface PendingLaunch {
+  kb: number;
+  /** Hitbox angle (361 = Sakurai), relative to `dir`. */
+  angle: number;
+  /** World direction the attacker was facing: launch angles are measured from it. */
+  dir: 1 | -1;
+  setKnockback: boolean;
 }
 
 /** Values derived from a fighter's stats once (initial jump speeds that hit the stated apex heights). */
