@@ -151,23 +151,27 @@ export class AudioEngine {
     );
   }
 
-  /** A decoded file, or null when it failed to load (the game stays silent rather than throwing). */
+  /** A decoded sound effect, kept for the session, or null when it failed to load (the game stays silent). */
   file(path: string): Promise<AudioBuffer | null> {
     let p = this.files.get(path);
     if (!p) {
-      p = this.load(path)
-        .then((data) => this.ctx.decodeAudioData(data))
-        .then((buf) => {
-          this.decoded.set(path, buf);
-          return buf;
-        })
-        .catch((err: unknown) => {
-          console.warn(`audio: could not load ${path}`, err);
-          return null;
-        });
+      p = this.decode(path).then((buf) => {
+        if (buf) this.decoded.set(path, buf);
+        return buf;
+      });
       this.files.set(path, p);
     }
     return p;
+  }
+
+  /** Fetch and decode a file without keeping it (music: the caller holds the one it plays). */
+  decode(path: string): Promise<AudioBuffer | null> {
+    return this.load(path)
+      .then((data) => this.ctx.decodeAudioData(data))
+      .catch((err: unknown) => {
+        console.warn(`audio: could not load ${path}`, err);
+        return null;
+      });
   }
 
   get running(): boolean {

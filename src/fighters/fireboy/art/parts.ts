@@ -1,9 +1,9 @@
 import type { PathShape } from '../../../render/rig/types';
 
 /**
- * Hand-authored parts in the original's style: red limbs with a bright left edge, a dark right edge and a thick
- * black brush outline (the 2009 body is one traced blob, so limbs are rebuilt as tubes to animate them).
- * Every limb hangs from its bone's origin down the +y axis.
+ * The placeholder mannequin, drawn by hand on Fireboy's rig until his own drawing lands: wooden limbs with a
+ * bright left edge, a dark right edge and a thick ink outline. Every limb hangs from its bone's origin down the
+ * +y axis. Nothing here is traced or converted from original game files (docs/art.md).
  */
 
 const K = 0.5523;
@@ -33,7 +33,7 @@ export function ellipse(x: number, y: number, rx: number, ry: number): string {
   ].join('');
 }
 
-/** Outline width of the body parts (the original brush is about 6 px at 0.036 units/px). */
+/** Outline width of the body parts. */
 export const LINE = 0.16;
 
 /**
@@ -61,7 +61,7 @@ export const thigh = limb(THIGH, LEG_R, LEG_R * 0.95);
 /** Ends with a rounded, slightly flared foot whose bottom sits SHIN below the knee. */
 export const shin = limb(SHIN - LEG_R - LINE, LEG_R * 0.95, LEG_R + 0.02);
 export const upperArm = limb(UPPER_ARM, ARM_R, ARM_R * 0.95);
-/** Ends in a plain rounded tip, like the 2009 drawing's stick arms. */
+/** Ends in a plain rounded tip. */
 export const foreArm = limb(FORE_ARM - ARM_R - LINE, ARM_R * 0.95, ARM_R * 1.05);
 /** A forearm ending in a rounded mitten, for gripping. */
 export const mitten = limb(FORE_ARM - ARM_R * 1.35 - LINE, ARM_R * 0.95, ARM_R * 1.35);
@@ -79,7 +79,7 @@ export const fist = {
 
 /**
  * Torso in hip space: from the hips (y 0) up to the neck, mostly hidden under the head. Its fill is drawn over
- * the tops of both legs so body and legs read as one blob, as in the original.
+ * the tops of both legs so body and legs read as one piece.
  */
 export const torso = {
   line: [{ d: tube(0, -1.3, -0.25, 0.66 + LINE, 0.7 + LINE), fill: 'line' }],
@@ -93,56 +93,115 @@ export const torso = {
 const stroke = (d: string, width = 0.2): PathShape => ({ d, stroke: { color: 'line', width } });
 
 /**
- * Expressions, in head space (the head centre is the origin). Front faces follow the 2009 drawing: the big eye
- * sits left of centre at (-1.13, -0.6), the small one at (1.27, -0.55). The side face's eye is at (1.45, -0.65).
+ * The mannequin's head: a plain wooden egg drawn around the head centre, chin `HEAD_R` below it, with the
+ * same inked outline as the limbs. Faces are drawn over it in head space, so a fighter's own head only has to
+ * keep the head centre where the rig puts it.
  */
-export const lidsFront: PathShape[] = [
-  { d: 'M-0.18 -0.7L-2.1 -1.2L-2.1 -1.75L-0.18 -1.75Z', fill: 'fire' },
-  { d: 'M0.52 -0.62L2 -0.98L2 -1.5L0.52 -1.5Z', fill: 'fire' },
-  stroke('M-0.2 -0.68L-2.02 -1.16', 0.22),
-  stroke('M0.5 -0.6L1.95 -0.96', 0.2),
-];
-export const blinkFront: PathShape[] = [
-  stroke('M-0.38 -0.55Q-1.13 -0.05 -1.9 -0.55'),
-  stroke('M1.82 -0.5Q1.27 -0.1 0.72 -0.5'),
-];
-export const squintFront: PathShape[] = [
-  stroke('M-1.75 -1.05L-0.7 -0.6L-1.75 -0.15', 0.3),
-  stroke('M1.8 -0.95L0.9 -0.55L1.8 -0.15', 0.3),
-];
-export const shoutFront: PathShape[] = [
-  { d: 'M0.9 1.3Q-0.25 1.6 -1.4 1.15Q-1.2 2.45 -0.2 2.42Q0.75 2.35 0.9 1.3Z', fill: 'line' },
-  { d: 'M0.45 1.95Q-0.25 1.75 -0.95 1.85Q-0.7 2.25 -0.2 2.25Q0.25 2.22 0.45 1.95Z', fill: 'mouth' },
-];
-export const ouchFront: PathShape[] = [{ d: ellipse(-0.2, 1.75, 0.42, 0.34), fill: 'line' }];
-/** A short gritted mouth, for effort. */
-export const gritFront: PathShape[] = [
-  { d: 'M-1.0 1.38Q-0.2 1.62 0.75 1.36L0.7 1.82Q-0.2 2.02 -0.95 1.8Z', fill: 'line' },
-  { d: 'M-0.72 1.58L0.5 1.55L0.48 1.7L-0.7 1.72Z', fill: 'eye0' },
-];
+const HEAD_RX = 3.7;
+/** The head reaches well above its centre, so the drawn fighter fills the 15-unit hurtbox. */
+const HEAD_TOP = 7.5;
+const HEAD_CHIN = 3.41;
+function egg(rx: number, top: number, chin: number): string {
+  const p = (x: number, y: number) => `${n(x)} ${n(y)}`;
+  return [
+    `M${p(rx, 0)}`,
+    `C${p(rx, K * chin)} ${p(K * rx, chin)} ${p(0, chin)}`,
+    `C${p(-K * rx, chin)} ${p(-rx, K * chin)} ${p(-rx, 0)}`,
+    `C${p(-rx, -K * top)} ${p(-K * rx, -top)} ${p(0, -top)}`,
+    `C${p(K * rx, -top)} ${p(rx, -K * top)} ${p(rx, 0)}Z`,
+  ].join('');
+}
+function head(dx: number): PathShape[] {
+  return [
+    { d: egg(HEAD_RX + LINE, HEAD_TOP + LINE, HEAD_CHIN + LINE), fill: 'line' },
+    { d: egg(HEAD_RX, HEAD_TOP, HEAD_CHIN), fill: 'skin' },
+    { d: ellipse(2.1 + dx, -0.6, 1.1, 3.2), fill: 'skinLo' },
+    { d: ellipse(-1.7 + dx, -4.2, 0.9, 1.6), fill: 'skinHi' },
+  ];
+}
+export const headFront = head(0);
+export const headSide = head(0.6);
+export const headUp = head(0);
 
-export const lidsSide: PathShape[] = [
-  { d: 'M0.45 -1.5L2.45 -0.88L2.45 -1.85L0.45 -1.85Z', fill: 'fire' },
-  stroke('M0.5 -1.45L2.35 -0.88', 0.22),
+/** Eye line in head space: about two fifths of the way down the head. */
+const EYE_Y = -2.2;
+const MOUTH_Y = -0.3;
+const dot = (x: number, y: number, r = 0.32): PathShape => ({ d: ellipse(x, y, r, r * 1.25), fill: 'line' });
+const line = (pts: [number, number][], width = 0.22): PathShape =>
+  stroke(pts.map(([x, y], i) => `${i ? 'L' : 'M'}${n(x)} ${n(y)}`).join(''), width);
+const EYES_FRONT = [dot(-1.1, EYE_Y), dot(1.1, EYE_Y)];
+const BROWS_FRONT = [
+  line([
+    [-1.8, EYE_Y - 1.0],
+    [-0.6, EYE_Y - 0.6],
+  ]),
+  line([
+    [0.6, EYE_Y - 0.6],
+    [1.8, EYE_Y - 1.0],
+  ]),
 ];
-export const blinkSide: PathShape[] = [stroke('M0.7 -0.6Q1.45 -0.1 2.2 -0.6')];
-export const squintSide: PathShape[] = [stroke('M2.2 -1.05L1.0 -0.6L2.2 -0.15', 0.3)];
-export const shoutSide: PathShape[] = [
-  { d: 'M0.85 0.85Q1.6 1.05 2.25 0.7Q2.2 1.85 1.5 1.88Q0.95 1.8 0.85 0.85Z', fill: 'line' },
-  { d: 'M1.15 1.5Q1.6 1.35 2.0 1.45Q1.85 1.75 1.5 1.75Q1.25 1.7 1.15 1.5Z', fill: 'mouth' },
-];
-export const ouchSide: PathShape[] = [{ d: ellipse(1.55, 1.25, 0.32, 0.28), fill: 'line' }];
+const EYE_SIDE = [dot(2.2, EYE_Y)];
+const BROW_SIDE = line([
+  [1.5, EYE_Y - 0.6],
+  [2.9, EYE_Y - 1.0],
+]);
+const squint = (x: number, dir: 1 | -1): PathShape =>
+  line(
+    [
+      [x + 0.45 * dir, EYE_Y - 0.4],
+      [x - 0.4 * dir, EYE_Y],
+      [x + 0.45 * dir, EYE_Y + 0.4],
+    ],
+    0.26,
+  );
+const SMALL_O: PathShape = { d: ellipse(0, MOUTH_Y, 0.38, 0.32), fill: 'line' };
+
+/** Face drawings in head space (the head centre is the origin, facing right). */
+export const faces: Record<string, PathShape[]> = {
+  faceFront: EYES_FRONT,
+  faceFrontBlink: [
+    line([
+      [-1.5, EYE_Y],
+      [-0.7, EYE_Y],
+    ]),
+    line([
+      [0.7, EYE_Y],
+      [1.5, EYE_Y],
+    ]),
+  ],
+  faceFrontAngry: [...EYES_FRONT, ...BROWS_FRONT],
+  faceFrontShout: [...EYES_FRONT, ...BROWS_FRONT, { d: ellipse(0, MOUTH_Y, 0.75, 0.6), fill: 'line' }],
+  faceFrontHurt: [squint(-1.1, -1), squint(1.1, 1), SMALL_O],
+  faceFrontDazed: [...EYES_FRONT, SMALL_O],
+  faceFrontStrain: [
+    ...EYES_FRONT,
+    line([
+      [-0.65, MOUTH_Y],
+      [0.65, MOUTH_Y],
+    ]),
+  ],
+  faceSide: EYE_SIDE,
+  faceSideBlink: [
+    line([
+      [1.8, EYE_Y],
+      [2.6, EYE_Y],
+    ]),
+  ],
+  faceSideAngry: [...EYE_SIDE, BROW_SIDE],
+  faceSideShout: [...EYE_SIDE, BROW_SIDE, { d: ellipse(2.5, MOUTH_Y, 0.5, 0.45), fill: 'line' }],
+  faceSideHurt: [squint(2.2, 1)],
+  faceUp: [dot(-1.0, EYE_Y - 1.6), dot(1.0, EYE_Y - 1.6)],
+};
 
 /**
- * A strike flame pointing up from its base at the origin, sized like the head's ball (radius 3.6) so
- * `flame()` in poses.ts places it the same way: a yellow core in an orange-red teardrop with three swept
- * tongues and a thin dark-red outline, so an attack's fire never reads as a second head. `tips` nudges the
- * left, middle and right tongues for the flicker drawings.
+ * A strike flame pointing up from its base at the origin, sized like the fireball (radius 3.6) so `flame()`
+ * in poses.ts places it the same way: a pale core in an orange teardrop with three swept tongues and a thin
+ * dark outline. `tips` nudges the left, middle and right tongues for the flicker drawings.
  */
 /** How far the jet's middle tongue reaches from its base centre, in ball units. */
 export const JET_TIP = 10.6;
 
-function jet(s: number, dy: number, [l, m, r]: [number, number, number]): string {
+export function jet(s: number, dy: number, [l, m, r]: [number, number, number]): string {
   const p = (x: number, y: number) => `${n(x * s)} ${n(y * s + dy)}`;
   return [
     `M${p(0, 3)}`,
@@ -157,32 +216,32 @@ function jet(s: number, dy: number, [l, m, r]: [number, number, number]): string
   ].join('');
 }
 
-export const jets: PathShape[][] = (
-  [
-    [0, 0, 0],
-    [0.5, -0.7, 0.4],
-    [-0.5, 0.6, -0.4],
-  ] as [number, number, number][]
-).map((tips) => [
-  { d: jet(1, 0, tips), fill: 'fire', stroke: { color: 'mouth', width: 0.35 } },
-  { d: jet(0.64, 1.0, tips), fill: 'eye1' },
-  { d: jet(0.34, 1.75, tips), fill: 'eye0' },
+const FLICKER: [number, number, number][] = [
+  [0, 0, 0],
+  [0.5, -0.7, 0.4],
+  [-0.5, 0.6, -0.4],
+];
+
+export const jets: PathShape[][] = FLICKER.map((tips) => [
+  { d: jet(1, 0, tips), fill: 'fx', stroke: { color: 'fxLine', width: 0.35 } },
+  { d: jet(0.64, 1.0, tips), fill: 'fxHot' },
+  { d: jet(0.34, 1.75, tips), fill: 'fxCore' },
 ]);
 
-/** A soft glow around the whole fighter, in body space (the body bone sits at his middle). */
-export const aura: PathShape[] = [
-  {
-    d: ellipse(0, -0.6, 6.2, 8.4),
-    fill: {
-      type: 'radial',
-      cx: 0,
-      cy: -0.9,
-      r: 7.6,
-      stops: [
-        { offset: 0, color: 'aura', alpha: 0.34 },
-        { offset: 0.55, color: 'aura', alpha: 0.2 },
-        { offset: 1, color: 'aura', alpha: 0 },
-      ],
-    },
-  },
-];
+/** A ball of radius `r` centred on the origin with a tail swept back towards -x, `t` nudging the tail tip. */
+function comet(r: number, t: number): string {
+  return [
+    `M${n(0)} ${n(-r)}`,
+    `C${n(K * r)} ${n(-r)} ${n(r)} ${n(-K * r)} ${n(r)} 0`,
+    `C${n(r)} ${n(K * r)} ${n(K * r)} ${n(r)} 0 ${n(r)}`,
+    `C${n(-0.8 * r)} ${n(r)} ${n(-1.5 * r)} ${n(0.5 * r)} ${n(-(2.2 + t * 0.2) * r)} ${n(t * 0.15 * r)}`,
+    `C${n(-1.5 * r)} ${n(-0.4 * r)} ${n(-0.8 * r)} ${n(-r)} 0 ${n(-r)}Z`,
+  ].join('');
+}
+
+/** Fireball drawings (radius 3.6 at scale 1, trailing towards -x). */
+export const balls: PathShape[][] = FLICKER.map(([l, m]) => [
+  { d: comet(3.6, l + m), fill: 'fx', stroke: { color: 'fxLine', width: 0.35 } },
+  { d: comet(2.5, m), fill: 'fxHot' },
+  { d: ellipse(0.5, 0, 1.3, 1.3), fill: 'fxCore' },
+]);

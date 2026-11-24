@@ -8,6 +8,7 @@ import { emit } from './events';
 import { derived, type Ctx, type FighterState } from './fighter';
 import type { MatchState, PlayerState } from './match';
 import { airMove, groundMove } from './movement';
+import { posedStage } from './movingStage';
 import { compileStage, type CompiledStage } from './stage';
 
 const compiled = new Map<string, CompiledStage>();
@@ -31,7 +32,7 @@ export function makeCtx(m: MatchState, f: FighterState, p: PlayerState): Ctx {
     def,
     s: def.stats,
     d: derived(def.stats, SHIELD_BREAK_HEIGHT),
-    stage: compiledStage(m.config.stage),
+    stage: posedStage(m),
   };
 }
 

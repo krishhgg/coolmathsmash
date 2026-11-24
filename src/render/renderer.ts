@@ -10,6 +10,7 @@ import { EventLog } from './debug/eventLog';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView } from './fighterView';
 import { MatchHud } from './hud';
+import { drawMovingPieces, isMoving } from './stagePieces';
 
 export interface Overlays {
   inputs: boolean;
@@ -31,6 +32,7 @@ export class Renderer {
   private readonly inputDisplay = new InputDisplay();
   private readonly matchHud = new MatchHud();
   private readonly stageLayer = new Container();
+  private readonly stagePieces = new Graphics();
   private readonly fighterLayer = new Container();
   private readonly boxes = new Graphics();
   private fighters: FighterView[] = [];
@@ -41,7 +43,7 @@ export class Renderer {
   private matchKey: unknown = null;
 
   private constructor(readonly app: Application) {
-    this.world.addChild(this.stageLayer, this.fighterLayer, this.boxes);
+    this.world.addChild(this.stageLayer, this.stagePieces, this.fighterLayer, this.boxes);
     app.stage.addChild(this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
     this.hud.addChild(this.matchHud.hud.container);
@@ -101,6 +103,7 @@ export class Renderer {
     const view = this.camera.viewFor(state, this.stage!);
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
+    drawMovingPieces(this.stagePieces, this.stage!, state.stage, state.frame, alpha);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
     this.drawBoxes(state);
     this.matchHud.update(
@@ -140,6 +143,7 @@ export class Renderer {
 function placeholderStage(stage: StageGeometry): Graphics {
   const g = new Graphics();
   for (const solid of stage.solids) {
+    if (isMoving(solid)) continue;
     g.poly(solid.points.flatMap(([x, y]) => [x, -y])).fill('#7a5230');
     const top = solid.points.filter(([, y]) => y === Math.max(...solid.points.map((p) => p[1])));
     const xs = top.map(([x]) => x);
@@ -150,6 +154,7 @@ function placeholderStage(stage: StageGeometry): Graphics {
       3,
     ).fill('#3d8f3a');
   }
-  for (const p of stage.platforms) g.roundRect(p.x1, -p.y, p.x2 - p.x1, 2.2, 1.1).fill('#d9d2c0');
+  for (const p of stage.platforms)
+    if (!isMoving(p)) g.roundRect(p.x1, -p.y, p.x2 - p.x1, 2.2, 1.1).fill('#d9d2c0');
   return g;
 }

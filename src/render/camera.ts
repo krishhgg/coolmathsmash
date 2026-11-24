@@ -1,4 +1,5 @@
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../config';
+import type { SimEvent } from '../sim/events';
 import type { MatchState } from '../sim/match';
 import type { StageGeometry } from '../sim/stage';
 
@@ -53,6 +54,54 @@ export function cameraTarget(state: MatchState, stage: StageGeometry): CameraVie
   return { x: cx, y: cy, zoom };
 }
 
+/** A screen shake: `amplitude` screen pixels, fading out over `frames` frames from frame `start`. */
+export interface Shake {
+  start: number;
+  amplitude: number;
+  frames: number;
+}
+
+/** A move asking the camera to shake, in screen pixels (until `SimEvent` carries it itself). */
+type ShakeEvent = { type: 'shake'; port: number; amplitude: number; frames: number };
+
+/**
+ * Ultimate's screen shake, tuned by eye in screen pixels at 1280x720: launches strong enough to KO at mid
+ * percent shake the camera through their hitlag and a little after, harder ones more, and a blast-zone KO
+ * shakes it hardest.
+ */
+export const SHAKE = {
+  heavy: { kb: 100, amplitude: 2.5, after: 8 },
+  severe: { kb: 150, amplitude: 5, after: 12 },
+  ko: { amplitude: 10, frames: 30 },
+};
+
+/** The shakes a frame's events start. */
+export function shakesFrom(events: readonly (SimEvent | ShakeEvent)[], frame: number): Shake[] {
+  const shakes: Shake[] = [];
+  for (const e of events) {
+    if (e.type === 'shake') shakes.push({ start: frame, amplitude: e.amplitude, frames: e.frames });
+    if (e.type === 'ko') shakes.push({ start: frame, ...SHAKE.ko });
+    if (e.type !== 'hit' || e.kb < SHAKE.heavy.kb) continue;
+    const tier = e.kb >= SHAKE.severe.kb ? SHAKE.severe : SHAKE.heavy;
+    shakes.push({ start: frame, amplitude: tier.amplitude, frames: e.hitlag + tier.after });
+  }
+  return shakes;
+}
+
+/**
+ * Screen offset in pixels at `frame`: the strongest live shake's fading amplitude on a fast, mostly vertical
+ * jitter. A pure function of the frame, so a frame shakes the same however it was reached.
+ */
+export function shakeOffset(shakes: readonly Shake[], frame: number): { x: number; y: number } {
+  let amplitude = 0;
+  for (const s of shakes) {
+    const t = frame - s.start;
+    if (t >= 0 && t < s.frames) amplitude = Math.max(amplitude, s.amplitude * (1 - t / s.frames));
+  }
+  if (amplitude === 0) return { x: 0, y: 0 };
+  return { x: amplitude * 0.6 * Math.sin(frame * 1.9 + 1), y: amplitude * Math.sin(frame * 2.6) };
+}
+
 /**
  * Smoothed camera. `step` runs once after every simulated frame (Game.step), easing toward that frame's target, so the
  * view at a frame depends only on the frames simulated and never on how often or when they were drawn.
@@ -60,23 +109,34 @@ export function cameraTarget(state: MatchState, stage: StageGeometry): CameraVie
 export class Camera {
   private view: CameraView | null = null;
   private frame = -1;
+  private shakes: Shake[] = [];
 
   step(state: MatchState, stage: StageGeometry): void {
     const target = cameraTarget(state, stage);
     const v = this.view;
-    this.view =
-      v && state.frame === this.frame + 1
-        ? {
-            x: v.x + (target.x - v.x) * SMOOTHING,
-            y: v.y + (target.y - v.y) * SMOOTHING,
-            zoom: v.zoom + (target.zoom - v.zoom) * SMOOTHING,
-          }
-        : target;
+    const next = v !== null && state.frame === this.frame + 1;
+    this.shakes = [
+      ...(next ? this.shakes.filter((s) => state.frame - s.start < s.frames) : []),
+      ...shakesFrom(state.events, state.frame),
+    ];
+    this.view = next
+      ? {
+          x: v.x + (target.x - v.x) * SMOOTHING,
+          y: v.y + (target.y - v.y) * SMOOTHING,
+          zoom: v.zoom + (target.zoom - v.zoom) * SMOOTHING,
+        }
+      : target;
     this.frame = state.frame;
   }
 
-  /** The view to draw `state` with: the smoothed view once stepped to its frame, else that frame's target. */
+  /**
+   * The view to draw `state` with: the smoothed view once stepped to its frame, shaken by the live screen shakes
+   * (which never feed back into the smoothing), else that frame's target.
+   */
   viewFor(state: MatchState, stage: StageGeometry): CameraView {
-    return this.view && this.frame === state.frame ? this.view : cameraTarget(state, stage);
+    const v = this.view;
+    if (!v || this.frame !== state.frame) return cameraTarget(state, stage);
+    const s = shakeOffset(this.shakes, state.frame);
+    return { x: v.x - s.x / v.zoom, y: v.y + s.y / v.zoom, zoom: v.zoom };
   }
 }

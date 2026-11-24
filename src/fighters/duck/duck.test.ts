@@ -233,3 +233,128 @@ describe('The Duck: throws', () => {
     expect(duckFree).toBeLessThan(victimFree);
   });
 });
+
+describe('The Duck: Flight Training (up special)', () => {
+  it('climbs about 100 units from frame 4, then leaves him helpless with 18 frames of landing lag', () => {
+    const m = duck();
+    const f = m.fighters[0]!;
+    const y0 = f.pos.y;
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    let top = y0;
+    let firstRise = 0;
+    until(m, (g) => {
+      if (!firstRise && g.pos.y > y0 + 0.5) firstRise = g.actionFrame;
+      top = Math.max(top, g.pos.y);
+      return g.action === 'helpless';
+    });
+    expect(firstRise).toBeLessThanOrEqual(5);
+    expect(top - y0).toBeGreaterThan(90);
+    expect(top - y0).toBeLessThan(110);
+    until(m, (g) => g.ground !== null, {}, 900);
+    expect(f.action).toBe('land');
+    expect(f.landingLag).toBe(18);
+  });
+
+  it('steers with the stick', () => {
+    const drift = (x: number) => {
+      const m = duck();
+      const f = m.fighters[0]!;
+      const x0 = f.pos.x;
+      run(m, 1, { y: 100, buttons: ['special'] });
+      run(m, 40, { x });
+      return f.pos.x - x0;
+    };
+    expect(drift(100)).toBeGreaterThan(30);
+    expect(drift(-100)).toBeLessThan(-30);
+    expect(Math.abs(drift(0))).toBeLessThan(2);
+  });
+});
+
+describe('The Duck: Dive Ram (down special)', () => {
+  it('in the air: winds up, then dives steeply down and forward from frame 10', () => {
+    const m = duck();
+    const f = placeInAir(m, -40, 120, 1);
+    run(m, 1, { y: -100, buttons: ['special'] });
+    expect(f.move).toBe('downB');
+    run(m, 9);
+    const start = { ...f.pos };
+    run(m, 10);
+    const dx = f.pos.x - start.x;
+    const dy = f.pos.y - start.y;
+    expect(dx).toBeGreaterThan(10);
+    expect(-dy).toBeGreaterThan(1.5 * dx);
+  });
+
+  it('landing mid-dive turns into the belly-flop slide, which ends standing', () => {
+    const m = duck();
+    const f = placeInAir(m, -40, 20, 1);
+    run(m, 1, { y: -100, buttons: ['special'] });
+    until(m, (g) => g.ground !== null);
+    run(m, 1);
+    expect(f.move).toBe('downB');
+    expect(f.action).toBe('attack');
+    expect(f.actionFrame).toBeGreaterThanOrEqual(45);
+    until(m, (g) => g.move !== 'downB');
+    expect(f.action).toBe('idle');
+  });
+
+  it('landing on the last dive frame still launches the slide at full speed', () => {
+    const m = duck();
+    const f = placeInAir(m, -75, 120, 1);
+    run(m, 1, { y: -100, buttons: ['special'] });
+    until(m, (g) => g.actionFrame === 43);
+    Object.assign(f, { pos: { x: f.pos.x, y: 1 }, prevPos: { x: f.pos.x, y: 1 } });
+    run(m, 1);
+    expect(f.ground).not.toBeNull();
+    expect(f.actionFrame).toBe(44);
+    run(m, 1);
+    expect(f.actionFrame).toBe(45);
+    expect(f.vel.x).toBeGreaterThan(2.2);
+  });
+
+  it('on the ground it is a slide forward from frame 10 with the 8% hitbox', () => {
+    const m = duck();
+    const f = m.fighters[0]!;
+    f.facing = 1;
+    const x0 = f.pos.x;
+    run(m, 1, { y: -100, buttons: ['special'] });
+    expect(f.move).toBe('downB');
+    run(m, 9);
+    expect(f.actionFrame).toBe(45);
+    expect(activeHitboxes(f)[0]!.box.damage).toBe(8);
+    run(m, 10);
+    expect(f.pos.x - x0).toBeGreaterThan(10);
+    expect(f.ground).not.toBeNull();
+  });
+
+  it('a dive that runs out in the air leaves him helpless', () => {
+    const m = duck();
+    const f = placeInAir(m, 100, 150, 1);
+    run(m, 1, { y: -100, buttons: ['special'] });
+    until(m, (g) => g.action !== 'aerial');
+    expect(f.action).toBe('helpless');
+  });
+
+  it('the dive semi-spikes an airborne opponent for 13%', () => {
+    const m = testMatch({ fighter: 'duck', players: 2 });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    placeInAir(m, -20, 80, 1);
+    Object.assign(v, {
+      pos: { x: -14, y: 70 },
+      prevPos: { x: -14, y: 70 },
+      ground: null,
+      action: 'fall',
+      vel: { x: 0, y: 0 },
+      damage: 60,
+    });
+    v.intangible = 0;
+    runPorts(m, 1, [{ y: -100, buttons: ['special'] }, {}]);
+    expect(a.move).toBe('downB');
+    for (let i = 0; i < 30 && v.damage === 60; i++) runPorts(m, 1, [{}, {}]);
+    expect(v.damage).toBeCloseTo(60 + 13 * 1.05 * 1.2, 6);
+    runPorts(m, v.hitlag + 2, [{}, {}]);
+    expect(v.kb.y).toBeLessThan(0);
+    expect(v.kb.x).toBeGreaterThan(0);
+  });
+});
