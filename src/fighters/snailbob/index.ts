@@ -7,5 +7,7 @@ export const fighter = defineFighter({
   name: 'Snail Bob',
   series: 'Snail Bob (2010)',
   stats,
+  /** Rocket Hover's tank: 120 frames of thrust (roster), rising like the engine's hover reference. */
+  hover: { fuel: 120, rise: 1, accel: 0.1 },
   moves,
 });

@@ -338,6 +338,18 @@ export const moves: Record<string, MoveDef> = {
       f.vel.x = f.facing * (slow + ((fast - slow) * f.charge) / SMASH_CHARGE_FRAMES);
     },
   },
+  /**
+   * Rocket Hover (the video's R.O.B. hover): a little Snail Bob 4 rocket fires under the shell and thrusts him up
+   * while Special is held, on the fuel in FighterDef.hover (R.O.B.'s Robo Burner rules: letting go falls without
+   * going helpless, and the tank refills only on the ground). The nozzle's flame hits on frames 6-7 (Falco's Fire
+   * Bird startup flame).
+   */
+  upB: {
+    kind: 'other',
+    faf: 12,
+    action: 'hover',
+    hits: [{ frames: [6, 7], boxes: [box(0, -1, 0, 4.5, { damage: 3, angle: 110, kbg: 40, bkb: 25 })] }],
+  },
   /** Grabs: slow, short-armed (frame 9, about 11.5 units against Mario's 12 from a wider body). */
   grab: { kind: 'other', faf: 40, hits: [{ frames: [9, 10], boxes: [grabBox(0, 7.5, 6, 4)] }] },
   dashGrab: { kind: 'other', faf: 48, hits: [{ frames: [11, 12], boxes: [grabBox(0, 8.5, 6, 4.5)] }] },

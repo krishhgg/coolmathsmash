@@ -445,3 +445,41 @@ describe('Snail Bob: Shell Spin (side special)', () => {
     expect(f.pos.x - x).toBeGreaterThan(5);
   });
 });
+
+describe('Snail Bob: Rocket Hover (up special)', () => {
+  const UP_B: Hold = { y: 50, buttons: ['special'] };
+
+  it('thrusts on a 120-frame tank, rising over 100 units, then falls with his midair jump left', () => {
+    const m = snail();
+    const f = m.fighters[0]!;
+    run(m, 1, UP_B);
+    expect([f.move, f.action]).toEqual(['upB', 'hover']);
+    const y0 = f.pos.y;
+    let top = y0;
+    while (f.action === 'hover') {
+      run(m, 1, { buttons: ['special'] });
+      top = Math.max(top, f.pos.y);
+    }
+    expect(f.mobility.hoverFuel).toBe(0);
+    expect(f.action).toBe('fall');
+    expect(top - y0).toBeGreaterThan(100);
+    run(m, 1, { buttons: ['jump'] });
+    expect(f.action).toBe('doubleJump');
+  });
+
+  it('the nozzle flame hits on frame 6 for 3% and pops them upward', () => {
+    const { m, a, v } = vsMario();
+    place(a, 0).facing = 1;
+    place(v, 3);
+    Object.assign(v, { ground: a.ground, action: 'idle', intangible: 0, facing: -1 });
+    runPorts(m, 1, [UP_B, {}]);
+    runPorts(m, 4, [{ buttons: ['special'] }, {}]);
+    expect(v.damage).toBe(0);
+    runPorts(m, 1, [{ buttons: ['special'] }, {}]);
+    expect(v.damage).toBeCloseTo(3 * 1.05 * 1.2, 6);
+    for (let i = 0; i < 30 && v.hitlag > 0; i++) runPorts(m, 1, [{ buttons: ['special'] }, {}]);
+    runPorts(m, 6, [{ buttons: ['special'] }, {}]);
+    expect(v.ground).toBeNull();
+    expect(v.pos.y).toBeGreaterThan(2);
+  });
+});
