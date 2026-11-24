@@ -45,7 +45,17 @@ export type SimEvent =
   | { type: 'move'; port: number; move: string }
   /** A fighter transformed into another fighter (Fireboy and Watergirl's swap). */
   | { type: 'transform'; port: number; from: string; to: string }
-  | { type: 'action'; port: number; from: string; to: string };
+  | { type: 'action'; port: number; from: string; to: string }
+  /** A grab caught someone; `move` is the grab (grab, dashGrab or pivotGrab). */
+  | { type: 'grab'; attacker: number; victim: number; move: string }
+  /** A pummel landed on the held fighter; `damage` is what it added to their %. */
+  | { type: 'pummel'; attacker: number; victim: number; damage: number }
+  /** A throw let go of the held fighter; the `hit` event that launches them follows. */
+  | { type: 'throw'; attacker: number; victim: number; move: string }
+  /** A grab ended without a throw and both slid apart; `holder` is -1 when the holder was already gone. */
+  | { type: 'grabRelease'; holder: number; held: number }
+  /** Two fighters grabbed each other on the same frame and both bounced off (Ultimate's grab clank). */
+  | { type: 'grabClank'; ports: [number, number] };
 
 export type SimEventType = SimEvent['type'];
 
