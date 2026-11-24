@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import { TURN_FLIP, TURN_FRAMES } from '../actions';
+import { LEDGE_ATTACK, LEDGE_CLIMB, LEDGE_JUMP, LEDGE_ROLL } from '../../../sim/constants';
 import { moves } from '../moves';
+import { stats } from '../stats';
 import { authored } from './clips';
 import { art } from '.';
 
@@ -12,7 +15,7 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   dash: 10,
   run: 'loop',
   runBrake: 14,
-  turn: 8,
+  turn: TURN_FRAMES - 1,
   crouch: 'hold',
   jumpSquat: 3,
   jump: 40,
@@ -158,6 +161,13 @@ describe('wheely art', () => {
     expect(sunk).toEqual([]);
   });
 
+  it('swings round in the turn on the frame the engine faces him the new way', () => {
+    for (const f of [TURN_FLIP - 1, TURN_FLIP])
+      expect(samplePose(art, 'turn', f, f).local.body!.sx).toBeLessThan(0.5);
+    for (const f of [TURN_FLIP - 5, TURN_FLIP + 3])
+      expect(samplePose(art, 'turn', f, f).local.body!.sx).toBeGreaterThan(0.75);
+  });
+
   it('hangs by the front tyre with the car clear of the ledge block', () => {
     const [gx, gy] = art.ledgeGrip!;
     for (const [name, f] of [
@@ -173,6 +183,51 @@ describe('wheely art', () => {
           if (slotsCovering(art, pose, x, y).length) inside.push(`(${x.toFixed(1)}, ${y.toFixed(1)})`);
       expect(inside, `${name}@${f}`).toEqual([]);
     }
+  });
+
+  /**
+   * The corner in rig space through each getup, from his size and the engine's getup paths (src/sim/movement.ts
+   * hangPos, src/sim/actions/ledge.ts). The car may scrape the lip by about a unit as it rolls over it, no more.
+   */
+  it('hangs and climbs where the engine puts the ledge corner for his size', () => {
+    const smooth = (u: number) => u * u * (3 - 2 * u);
+    const [hx, hy] = [stats.width / 2 + 0.5, -stats.height * 0.85];
+    expect(art.ledgeGrip).toEqual([hx, hy]);
+    const getup = (moveEnd: number, dist: number) => (f: number) => {
+      const u = smooth(Math.min(1, f / moveEnd));
+      return [hx - (hx + dist) * u, hy * (1 - Math.min(1, 1.6 * u))];
+    };
+    const rise = (f: number) => {
+      const u = smooth(Math.min(1, f / LEDGE_JUMP.rise));
+      return [hx - (hx + stats.width / 2) * u, hy + (1 - hy) * u];
+    };
+    const clips: [string, number, (f: number) => number[]][] = [
+      ['ledgeClimb', LEDGE_CLIMB.moveEnd, getup(LEDGE_CLIMB.moveEnd, stats.width / 2 + 2)],
+      ['ledgeAttack', LEDGE_ATTACK.moveEnd, getup(LEDGE_ATTACK.moveEnd, stats.width / 2 + 2)],
+      ['ledgeRoll', LEDGE_ROLL.moveEnd, getup(LEDGE_ROLL.moveEnd, LEDGE_ROLL.distance)],
+      ['ledgeJump', LEDGE_JUMP.rise, rise],
+    ];
+    const car = new Set(
+      art.rig.slots.filter((s) => !s.bone.startsWith('fx') && s.bone !== 'prop').map((s) => s.name),
+    );
+    const inside: string[] = [];
+    const floating: string[] = [];
+    for (const [name, end, corner] of clips) {
+      for (let f = 0; f <= end; f += 2) {
+        const [cx = 0, cy = 0] = corner(f);
+        const pose = samplePose(art, name, f, f);
+        const block: [number, number][] = [];
+        for (let d = 0; d < 10; d += 0.5)
+          block.push([cx + 1.2 + d, cy + 1.2], [cx + 1.2 + d, cy + 3], [cx + 1.2, cy + 1.2 + d]);
+        if (block.some(([x, y]) => slotsCovering(art, pose, x, y).some((s) => car.has(s))))
+          inside.push(name + '@' + f);
+      }
+      const y1 = poseBounds(art, samplePose(art, name, end, end))[3];
+      const top = corner(end)[1]!;
+      if (name !== 'ledgeJump' && Math.abs(y1 - top) > 0.3) floating.push(name + ' ' + (y1 - top).toFixed(2));
+    }
+    expect(inside).toEqual([]);
+    expect(floating).toEqual([]);
   });
 
   it('has a red default, a blue and two alternates with the same colour keys, and an icon', () => {
