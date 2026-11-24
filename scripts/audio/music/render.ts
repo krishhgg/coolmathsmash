@@ -65,8 +65,10 @@ export interface Echo {
   lp?: number;
 }
 
-/** Master bus: glue compression, then the static gain to the song's loudness, then a look-ahead limiter. */
+/** Master bus: EQ, glue compression, the static gain to the song's loudness, then a look-ahead limiter. */
 export interface Master {
+  /** EQ bands on the whole mix, before the glue (default none): an air shelf, a low-mid cut. */
+  eq?: EqBand[];
   /** Glue threshold in dB above the loop's RMS level (default 3), so only the loudest passages squeeze. */
   threshold?: number;
   /** Glue ratio (default 2). */
@@ -210,13 +212,15 @@ function sidechain(song: Song, notesOf: (tr: Track) => Note[], len: number, wrap
   return env;
 }
 
+const equalize = (x: Float32Array, bands: EqBand[]) =>
+  bands.reduce((y, b) => filter(y, b.type ?? 'peak', b.f, b.q ?? (b.type ? 0.7 : 1), b.gain), x);
+
 /** A track's filters and EQ. */
 function channel(x: Float32Array, tr: Track): Float32Array {
   let y = x;
   if (tr.hp) y = filter(y, 'highpass', tr.hp);
   if (tr.lp) y = filter(y, 'lowpass', tr.lp);
-  for (const b of tr.eq ?? []) y = filter(y, b.type ?? 'peak', b.f, b.q ?? (b.type ? 0.7 : 1), b.gain);
-  return y;
+  return equalize(y, tr.eq ?? []);
 }
 
 /** The widener's side signal: a slowly modulated ~14 ms copy, high-passed so the lows stay mono. */
@@ -433,14 +437,16 @@ function limit(L: Float32Array, R: Float32Array, ceiling: number, circular: bool
   }
 }
 
-/** The master chain: glue at a fixed threshold, the static gain, then the limiter. */
-function finish(L: Float32Array, R: Float32Array, m: Master, threshold: number, gain: number, loop: boolean) {
+/** The master chain on the intro: EQ, glue at the loop's threshold, the loop's static gain, then the limiter. */
+function finish(L: Float32Array, R: Float32Array, m: Master, threshold: number, gain: number) {
+  L.set(equalize(L, m.eq ?? []));
+  R.set(equalize(R, m.eq ?? []));
   glue(L, R, threshold, m.ratio ?? 2);
   for (let i = 0; i < L.length; i++) {
     L[i]! *= gain;
     R[i]! *= gain;
   }
-  limit(L, R, dbGain(m.ceiling ?? -1.2), loop);
+  limit(L, R, dbGain(m.ceiling ?? -1.2), false);
 }
 
 export function renderSong(song: Song): Rendered {
@@ -450,7 +456,7 @@ export function renderSong(song: Song): Rendered {
 
   // The loop body: notes wrap around, and the effects and bus compressor run over two passes keeping the
   // second, so their state where the body ends matches where it starts.
-  const [L2, R2] = mix(song, renderSection(song, 'loop', loopLen, true), true);
+  let [L2, R2] = mix(song, renderSection(song, 'loop', loopLen, true), true);
   let bodyL: Float32Array;
   let bodyR: Float32Array;
   let threshold = 0;
@@ -460,8 +466,10 @@ export function renderSong(song: Song): Rendered {
     bodyL = L2.subarray(loopLen);
     bodyR = R2.subarray(loopLen);
   } else {
-    // Glue over both passes, then aim the static gain at the target loudness, measured after limiting.
+    // EQ and glue over both passes, then aim the static gain at the target loudness, measured after limiting.
     const m = song.master;
+    L2 = equalize(L2, m.eq ?? []);
+    R2 = equalize(R2, m.eq ?? []);
     threshold = rmsOf(L2.subarray(loopLen), R2.subarray(loopLen)) * dbGain(m.threshold ?? 3);
     glue(L2, R2, threshold, m.ratio ?? 2);
     const glued = [L2.slice(loopLen), R2.slice(loopLen)] as const;
@@ -486,7 +494,7 @@ export function renderSong(song: Song): Rendered {
   let introR: Float32Array = new Float32Array(introLen);
   if (introLen > 0) {
     [introL, introR] = mix(song, renderSection(song, 'intro', introLen, false), false);
-    if (song.master) finish(introL, introR, song.master, threshold, gain, false);
+    if (song.master) finish(introL, introR, song.master, threshold, gain);
     else master(introL, introR);
   }
 
