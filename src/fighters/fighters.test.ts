@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import ref from '../sim/reference/physics-constants.json';
+import { entityDef } from '../sim/entities/entities';
 import { FIGHTERS } from './registry';
 import type { FighterStats } from './types';
 
@@ -58,5 +59,25 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
     }
     if (move.kind === 'aerial') expect(move.landingLag).toBeGreaterThan(0);
     for (const [a, b] of move.autoCancel ?? []) expect(b).toBeGreaterThanOrEqual(a);
+    for (const s of move.spawn ?? []) {
+      expect(s.frame).toBeGreaterThanOrEqual(1);
+      expect(s.frame).toBeLessThan(move.faf);
+      if (move.charge !== undefined) expect(s.frame).toBeGreaterThan(move.charge);
+      expect(() => entityDef(s.entity.includes('/') ? s.entity : `${def.id}/${s.entity}`)).not.toThrow();
+    }
+    for (const b of [...(move.reflectors ?? []), ...(move.absorbers ?? [])]) {
+      expect(b.frames[1]).toBeGreaterThanOrEqual(b.frames[0]);
+      expect(b.frames[1]).toBeLessThan(move.faf);
+      expect(b.radius).toBeGreaterThan(0);
+    }
+  });
+
+  it.each(Object.entries(def.entities ?? {}))('entity %s has consistent data', (_, e) => {
+    expect(e.radius).toBeGreaterThan(0);
+    for (const w of e.hits ?? []) {
+      expect(w.frames[1]).toBeGreaterThanOrEqual(w.frames[0]);
+      if (e.lifetime !== undefined) expect(w.frames[1]).toBeLessThanOrEqual(e.lifetime);
+      expect(new Set(w.boxes.map((b) => b.id)).size).toBe(w.boxes.length);
+    }
   });
 });

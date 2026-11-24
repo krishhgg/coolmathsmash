@@ -8,6 +8,8 @@ import { stickX, stickY } from '../control';
 import type { Ctx, FighterState } from '../fighter';
 import { emit } from '../events';
 import type { MatchState } from '../match';
+import { destroyEntity, entityDef, entityHitboxes, sweepEntities } from '../entities/entities';
+import type { EntityState } from '../entities/types';
 import { leaveGround } from '../movement';
 import {
   hitlagFrames,
@@ -65,9 +67,16 @@ export function hittable(f: FighterState): boolean {
   return f.action !== 'ko' && f.action !== 'out' && !isIntangible(f);
 }
 
-/** One connection, with everything about both fighters captured before any of this frame's hits land. */
+/** One connection, with everything about both sides captured before any of this frame's hits land. */
 interface Connection {
-  a: FighterState;
+  /** The attacking fighter, who shares the hitlag and is pushed back by a shield; null for an entity's hit. */
+  a: FighterState | null;
+  /** Port credited with the hit: the attacker, or the entity's owner (-1 for nobody). */
+  attacker: number;
+  /** Id of the entity whose hit this is. */
+  entity?: number;
+  /** Where the hit came from (the attacker's or the entity's x), for shield pushback. */
+  fromX: number;
   v: FighterState;
   box: HitboxDef;
   kind: MoveKind;
@@ -98,27 +107,81 @@ function connection(
   at: { x: number; y: number },
 ): Connection {
   const move = a.move!;
-  if (a.moveStale === 0) {
-    a.moveStale = staleMultiplier(a.staleQueue.flatMap((name, i) => (name === move ? [i + 1] : [])));
-    a.staleQueue = [move, ...a.staleQueue].slice(0, STALE_QUEUE_LENGTH);
-  }
+  if (a.moveStale === 0) a.moveStale = stale(a, move);
   return {
+    ...victim(v),
     a,
-    v,
+    attacker: a.port,
+    fromX: a.pos.x,
     box,
     kind: moveOf(a)?.kind ?? 'other',
     damage: box.damage * chargeMultiplier(a),
     stale: a.moveStale,
     rage: rageMultiplier(a.damage),
-    dir: { forward: a.facing, back: -a.facing, away: Math.sign(v.pos.x - a.pos.x) || a.facing }[
-      box.direction ?? 'forward'
-    ] as 1 | -1,
-    percent: v.damage,
-    crouch: v.action === 'crouch' && v.ground !== null,
-    shielding: v.action === 'shield' || v.action === 'shieldStun',
+    dir: launchDir(box, a.facing, a.pos.x, v),
     at,
     move,
   };
+}
+
+/**
+ * An entity's hits go down the same path as a fighter's, as a projectile: staled by the owner's move, scaled by the
+ * owner's rage and by reflections, and DI'd and shielded like any hit. Only the victim freezes. It hits each fighter
+ * once (per rehit window) and, unless it pierces, is used up by its first victim: true when it was.
+ */
+function entityHits(e: EntityState, fighters: FighterState[], hits: Connection[]): boolean {
+  const boxes = entityHitboxes(e);
+  if (boxes.length === 0) return false;
+  const def = entityDef(e.kind);
+  const owner = fighters.find((f) => f.port === e.owner) ?? null;
+  for (const v of fighters) {
+    if (v.port === e.owner || e.hitVictims.includes(v.port) || !hittable(v)) continue;
+    const body = hurtbox(v, getFighter(v.fighter).stats);
+    const hit = boxes.filter((h) => touches(h, body)).sort((p, q) => p.box.id - q.box.id)[0];
+    if (!hit) continue;
+    e.hitVictims.push(v.port);
+    if (e.stale === 0) e.stale = owner && e.move ? stale(owner, e.move) : 1;
+    hits.push({
+      ...victim(v),
+      a: null,
+      attacker: e.owner,
+      entity: e.id,
+      fromX: e.pos.x,
+      box: hit.box,
+      kind: def.kind ?? 'projectile',
+      damage: hit.box.damage * e.damageMul,
+      stale: e.stale,
+      rage: owner ? rageMultiplier(owner.damage) : 1,
+      dir: launchDir(hit.box, e.facing, e.pos.x, v),
+      at: { x: hit.x, y: hit.y },
+      move: e.move,
+    });
+    if (!def.pierce) return true;
+  }
+  return false;
+}
+
+/** The stale multiplier for one activation of `move`, which then enters the stale queue. */
+function stale(a: FighterState, move: string): number {
+  const mult = staleMultiplier(a.staleQueue.flatMap((name, i) => (name === move ? [i + 1] : [])));
+  a.staleQueue = [move, ...a.staleQueue].slice(0, STALE_QUEUE_LENGTH);
+  return mult;
+}
+
+/** The victim's state before any of this frame's hits land. */
+function victim(v: FighterState): Pick<Connection, 'v' | 'percent' | 'crouch' | 'shielding'> {
+  return {
+    v,
+    percent: v.damage,
+    crouch: v.action === 'crouch' && v.ground !== null,
+    shielding: v.action === 'shield' || v.action === 'shieldStun',
+  };
+}
+
+/** Ultimate's LR check: the side a hit launches toward, from the source's facing and position. */
+function launchDir(box: HitboxDef, facing: 1 | -1, fromX: number, v: FighterState): 1 | -1 {
+  const away = (Math.sign(v.pos.x - fromX) || facing) as 1 | -1;
+  return { forward: facing, back: -facing as 1 | -1, away }[box.direction ?? 'forward'];
 }
 
 /**
@@ -161,6 +224,7 @@ export function resolveHits(m: MatchState): void {
       hits.push(connection(a, v, box, at));
     }
   }
+  const used = m.entities.filter((e) => entityHits(e, m.fighters, hits));
   const struck = new Set<FighterState>();
   for (const h of hits) {
     const again = struck.has(h.v);
@@ -168,6 +232,8 @@ export function resolveHits(m: MatchState): void {
     if (h.shielding) shieldHit(m, h, again);
     else hit(m, h, again);
   }
+  for (const e of used) destroyEntity(m, e, 'hit');
+  sweepEntities(m);
   resolveGrabs(m, grabs, struck);
 }
 
@@ -182,7 +248,7 @@ export function addDamage(m: MatchState, v: FighterState, damage: number): void 
  */
 function hit(
   m: MatchState,
-  { a, v, box, damage: base, stale, rage, dir, percent, crouch, at, move }: Connection,
+  { a, attacker, entity, v, box, damage: base, stale, rage, dir, percent, crouch, at, move }: Connection,
   again: boolean,
 ): void {
   const kb = knockback({
@@ -200,11 +266,12 @@ function hit(
   const before = v.damage;
   addDamage(m, v, damage);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric', crouch });
-  a.hitlag = lag;
+  if (a) a.hitlag = lag;
   v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
   emit(m, {
     type: 'hit',
-    attacker: a.port,
+    attacker,
+    ...(entity !== undefined && { entity }),
     victim: v.port,
     move,
     damage: v.damage - before,
@@ -226,25 +293,26 @@ function hit(
 
 function shieldHit(
   m: MatchState,
-  { a, v, box, kind, damage: base, stale, dir, at, move }: Connection,
+  { a, attacker, entity, fromX, v, box, kind, damage: base, stale, dir, at, move }: Connection,
   again: boolean,
 ): void {
   const damage = base * stale;
   const stun = shieldstunFrames(damage, kind);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric' });
-  a.hitlag = lag;
+  if (a) a.hitlag = lag;
   v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
   v.shieldHp -= damage * SHIELD_DAMAGE_MULT + (box.shieldDamage ?? 0);
-  const away = Math.sign(v.pos.x - a.pos.x) || dir;
+  const away = Math.sign(v.pos.x - fromX) || dir;
   const push = shieldPushback(damage, stun);
   v.kb.x = away * push.defender;
-  if (a.ground) a.kb.x = -away * push.attacker;
+  if (a?.ground) a.kb.x = -away * push.attacker;
   v.hitstun = again ? Math.max(v.hitstun, stun) : stun;
   v.action = 'shieldStun';
   v.actionFrame = 0;
   emit(m, {
     type: 'shieldHit',
-    attacker: a.port,
+    attacker,
+    ...(entity !== undefined && { entity }),
     victim: v.port,
     move,
     damage,

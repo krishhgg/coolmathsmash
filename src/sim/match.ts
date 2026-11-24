@@ -3,6 +3,9 @@ import { getStage } from '../stages/registry';
 import { createControl, feedControl, type ControlState } from './control';
 import { createFighter, type FighterState } from './fighter';
 import { resolveHits } from './combat/hits';
+import { resolveEntityContacts } from './entities/contacts';
+import { stepEntities } from './entities/step';
+import type { EntityState } from './entities/types';
 import { emit, type SimEvent } from './events';
 import { pushApart } from './movement';
 import { compiledStage, stepFighter } from './step';
@@ -35,6 +38,9 @@ export interface MatchState {
   config: MatchConfig;
   players: PlayerState[];
   fighters: FighterState[];
+  /** Projectiles, minions, objects and items, in spawn order. */
+  entities: EntityState[];
+  nextEntityId: number;
   /** What happened during the last frame (see SimEvent). */
   events: SimEvent[];
 }
@@ -56,6 +62,8 @@ export function createMatch(config: MatchConfig = DEFAULT_MATCH): MatchState {
     fighters: config.ports.map((p, port) =>
       createFighter(port, p.fighter, stage.spawns[port % stage.spawns.length]!, config.stocks),
     ),
+    entities: [],
+    nextEntityId: 1,
     events: [],
   };
 }
@@ -67,6 +75,8 @@ export function stepMatch(state: MatchState, inputs: readonly InputFrame[]): voi
   for (const player of state.players) feedControl(player.control, inputs[player.port] ?? neutralInput());
   for (const f of state.fighters) stepFighter(state, f, state.players[f.port]!);
   pushApart(state, compiledStage(state.config.stage));
+  stepEntities(state);
+  resolveEntityContacts(state);
   resolveHits(state);
   state.fighters.forEach((f, i) => {
     if (f.action !== before[i]) emit(state, { type: 'action', port: f.port, from: before[i]!, to: f.action });

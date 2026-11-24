@@ -7,6 +7,7 @@ import type { StageGeometry } from '../sim/stage';
 import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
+import { drawEntities, drawEntityBoxes } from './entities';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView } from './fighterView';
 import { MatchHud } from './hud';
@@ -33,6 +34,7 @@ export class Renderer {
   private readonly stageLayer = new Container();
   private readonly fighterLayer = new Container();
   private readonly boxes = new Graphics();
+  private readonly entities = new Graphics();
   private fighters: FighterView[] = [];
   /** Fighter id each view was built for; a transform swaps the view. */
   private fighterIds: string[] = [];
@@ -41,7 +43,7 @@ export class Renderer {
   private matchKey: unknown = null;
 
   private constructor(readonly app: Application) {
-    this.world.addChild(this.stageLayer, this.fighterLayer, this.boxes);
+    this.world.addChild(this.stageLayer, this.fighterLayer, this.entities, this.boxes);
     app.stage.addChild(this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
     this.hud.addChild(this.matchHud.hud.container);
@@ -102,6 +104,7 @@ export class Renderer {
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
+    drawEntities(this.entities, state, alpha);
     this.drawBoxes(state);
     this.matchHud.update(
       state,
@@ -132,6 +135,7 @@ export class Renderer {
       for (const b of activeHitboxes(f))
         g.circle(b.x, -b.y, b.box.radius).fill({ color: b.box.grab ? '#a33cff' : '#ff2a2a', alpha: 0.55 });
     }
+    drawEntityBoxes(g, state);
   }
 }
 
