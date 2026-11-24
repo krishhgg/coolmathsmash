@@ -53,3 +53,28 @@ test('special/B backs out: first undoes a pick, then leaves for the main menu', 
   await page.keyboard.press('KeyG');
   await expect(page.locator('.main-menu')).toBeVisible();
 });
+
+test('the planned roster fills the grid; locked fighters cannot be picked', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.main-menu')).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.css-screen')).toBeVisible();
+  await expect(page.locator('.css-tile-name').first()).toHaveText('Papa Louie');
+  await expect(page.locator('.css-tile-name').last()).toHaveText('Random');
+
+  const name = page.locator('.css-panel').first().locator('.css-name');
+  const locked = page.locator('.css-tile.is-locked');
+  if ((await locked.count()) > 0) {
+    await locked.first().click();
+    await expect(name).toHaveText('Choose');
+    await expect(page.locator('.css-ready')).toBeHidden();
+  }
+
+  const open = page.locator('.css-tile:not(.is-locked)').nth(1);
+  const openName = (await open.locator('.css-tile-name').textContent())!;
+  await open.click();
+  await expect(name).toHaveText(openName);
+  await expect(page.locator('.css-ready')).toBeVisible();
+});
