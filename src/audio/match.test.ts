@@ -169,6 +169,26 @@ describe('match audio', () => {
     expect(engine.played.find((p) => p.id === 'ko-blast')!.opts.pan).toBeGreaterThan(0.5);
   });
 
+  it('a missed tech plays one landing sound', () => {
+    const m = testMatch();
+    const { engine, step } = listened(m);
+    const f = placeInAir(m, 0, 20);
+    Object.assign(f, { action: 'tumble', vel: { x: 0, y: -2 } });
+    for (let i = 0; i < 120 && f.ground === null; i++) step(1);
+    expect(f.action).toBe('downBound');
+    expect(engine.ids()).toEqual(['land-heavy']);
+  });
+
+  it('a charged smash whooshes on release, not while charging', () => {
+    const m = testMatch({ fighter: 'fireboy' });
+    const { engine, step } = listened(m);
+    step(40, [{ cy: -100 }]);
+    expect(m.fighters[0]!.move).toBe('dsmash');
+    expect(engine.ids().filter((id) => id.startsWith('swing-'))).toEqual([]);
+    for (let i = 0; i < 30 && !engine.ids().includes('swing-heavy'); i++) step(1);
+    expect(engine.ids()).toContain('swing-heavy');
+  });
+
   it('a smash charge loops until the attack comes out', () => {
     const m = testMatch({ fighter: 'fireboy' });
     const { engine, step } = listened(m);

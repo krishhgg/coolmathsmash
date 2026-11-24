@@ -40,6 +40,9 @@ const ENTER: Record<string, SoundId> = {
   downBound: 'land-heavy',
 };
 
+/** Landings that go straight into a tech or a missed tech, which play their own sound (ENTER). */
+const TECH_LANDINGS = new Set(['techInPlace', 'techRoll', 'downBound']);
+
 /** Hit strength tiers, by the % a hit added or its knockback. */
 export function hitSound(damage: number, kb: number, ko: boolean): SoundId {
   if (ko) return 'hit-ko';
@@ -83,7 +86,7 @@ function swingFrame(
   if (!def || !first || def.kind === 'projectile') return null;
   const damage = Math.max(...first.boxes.map((b) => b.damage));
   return {
-    at: Math.max(1, first.frames[0] - SWING_LEAD),
+    at: Math.max(1, (def.charge ?? 0) + 1, first.frames[0] - SWING_LEAD),
     weight: def.kind === 'smash' || damage >= 12 ? 'heavy' : damage >= 6 ? 'medium' : 'light',
   };
 }
@@ -153,6 +156,7 @@ export class MatchAudio {
           });
           break;
         case 'land': {
+          if (TECH_LANDINGS.has(state.fighters[e.port]?.action ?? '')) break;
           const s = this.seen[e.port];
           const heavy = s !== undefined && (s.fastFalling || s.fallSpeed > HEAVY_LANDING);
           play(heavy ? 'land-heavy' : 'land', { pan: at(e.port) });
