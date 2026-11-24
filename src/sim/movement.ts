@@ -104,7 +104,7 @@ export function restoreAirOptions(f: FighterState): void {
 }
 
 export function land(x: Ctx, g: GroundRef): void {
-  const { f, s, stage } = x;
+  const { f, stage } = x;
   f.ground = g;
   f.pos.y = surfaceY(stage, g, f.pos.x);
   f.vel.y = 0;
