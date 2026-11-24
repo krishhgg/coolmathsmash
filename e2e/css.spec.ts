@@ -12,8 +12,9 @@ test('character select: pick, join a second keyboard, add and remove a CPU', asy
   await expect(page.locator('.css-panel')).toHaveCount(2);
   await expect(page.locator('.css-ready')).toBeHidden();
 
+  const firstTile = (await page.locator('.css-tile-name').first().textContent())!;
   await page.keyboard.press('KeyF');
-  await expect(page.locator('.css-panel').first().locator('.css-name')).toHaveText('Fireboy');
+  await expect(page.locator('.css-panel').first().locator('.css-name')).toHaveText(firstTile);
   await expect(page.locator('.css-ready')).toBeVisible();
 
   await page.keyboard.press('KeyJ');
