@@ -24,8 +24,11 @@ export const CROUCH_THRESHOLD = 0.45;
 /** Any stick magnitude above this picks a direction for tilts, specials and dodges. */
 export const DIRECTION_THRESHOLD = 0.25;
 
-/** Button presses are remembered this many frames, so an input made during lag comes out on the first actionable frame. */
-export const INPUT_BUFFER_FRAMES = 5;
+/**
+ * Button presses are remembered this many frames, so an input made during lag comes out on the first actionable frame.
+ * Ultimate's `precede` param is 7; its 2-frame `precede_extension` for held inputs is covered by HOLD_BUFFER.
+ */
+export const INPUT_BUFFER_FRAMES = 7;
 /**
  * Ultimate's "hold buffer": a press made during lag that is still held when the fighter becomes actionable
  * is used then, however long ago it was pressed.
