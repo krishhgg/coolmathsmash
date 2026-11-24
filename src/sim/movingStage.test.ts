@@ -195,19 +195,19 @@ describe('riding moving pieces', () => {
   });
 
   /** Port `holder` grabs the other fighter on the testbed's blinking platform, one frame before it vanishes. */
-  function grabOnBlinker(holder: number) {
+  function grabOnBlinker(holder: number, players = 2) {
     const m = createMatch({
       seed: 1,
       stage: 'testbed',
       stocks: 3,
-      ports: [{ fighter: 'fireboy' }, { fighter: 'fireboy' }],
+      ports: Array.from({ length: players }, () => ({ fighter: 'fireboy' })),
     });
     const a = m.fighters[holder]!;
     const v = m.fighters[1 - holder]!;
     Object.assign(a, { pos: { x: -6, y: 58.001 }, prevPos: { x: -6, y: 58.001 }, facing: 1 });
     Object.assign(v, { pos: { x: 6, y: 58.001 }, prevPos: { x: 6, y: 58.001 }, facing: -1 });
     const step = (grab = false) => {
-      const inputs = [neutralInput(), neutralInput()];
+      const inputs = m.players.map(() => neutralInput());
       if (grab) inputs[holder] = input({ buttons: ['grab'] });
       stepMatch(m, inputs);
     };
@@ -236,6 +236,27 @@ describe('riding moving pieces', () => {
       expect([a.action, v.action]).toEqual(['fall', 'fall']);
       expect(v.grabbableFrom).toBeGreaterThan(m.frame);
     }
+  });
+
+  it('lets a holder whose victim was grabbed away since drop only its own link', () => {
+    const { m, a, v, step } = grabOnBlinker(0, 3);
+    const c = m.fighters[2]!;
+    Object.assign(c, {
+      pos: { x: 10, y: 58 },
+      prevPos: { x: 10, y: 58 },
+      ground: { kind: 'platform', index: 1 },
+      action: 'grabHold',
+      actionFrame: 1,
+      facing: -1,
+      grabPartner: v.port,
+    });
+    v.grabPartner = c.port;
+    step();
+    expect(m.events.filter((e) => e.type === 'grabRelease')).toEqual([
+      { type: 'grabRelease', holder: c.port, held: v.port },
+    ]);
+    expect([a.grabPartner, v.grabPartner, c.grabPartner]).toEqual([-1, -1, -1]);
+    expect([a.ground, v.ground, c.ground]).toEqual([null, null, null]);
   });
 
   it("lets go of a partner KO'd during the grab without bringing it back", () => {
