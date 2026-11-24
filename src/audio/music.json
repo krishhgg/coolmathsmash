@@ -1,4 +1,11 @@
 {
+  "duck-life-world": {
+    "file": "music/duck-life-world.mp3",
+    "title": "Duck Life",
+    "evokes": "Duck Life (Wix Games): an original sunny countryside training two-step",
+    "loopStart": 0,
+    "loopEnd": 45
+  },
   "menu": {
     "file": "music/menu.mp3",
     "title": "Main Menu",
