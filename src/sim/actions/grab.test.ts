@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { moves } from '../../fighters/fireboy/moves';
 import { stats } from '../../fighters/fireboy/stats';
 import ref from '../reference/physics-constants.json';
-import { knockback, launch, rageMultiplier, speedUp } from '../combat/formulas';
+import { knockback, launch, LAUNCH_DECAY, rageMultiplier, speedUp } from '../combat/formulas';
 import { GRAB } from '../constants';
 import type { FighterState } from '../fighter';
 import type { MatchState } from '../match';
@@ -253,7 +253,10 @@ describe('pummel and throws', () => {
     step(m, 1);
     const l = launch({ kb, angle: t.hit.angle, aerial: false, gravity: stats.gravity });
     const sped = speedUp(Math.floor(kb * 0.4)).steps[0]!;
-    expect((v.pos.x - from.x) / sped).toBeCloseTo(l.vx * a.facing, 5);
+    const speed = Math.hypot(v.kb.x, v.kb.y) + LAUNCH_DECAY * sped;
+    expect(speed).toBeCloseTo(Math.hypot(l.vx, l.vy), 5);
+    expect(Math.atan2(v.kb.y, v.kb.x * a.facing)).toBeCloseTo(Math.atan2(l.vy, l.vx), 5);
+    expect(Math.sign(v.pos.x - from.x)).toBe(a.facing);
     expect(v.ground).toBeNull();
   });
 

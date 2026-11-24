@@ -32,6 +32,11 @@ export interface FighterStats {
   gravity: number;
   fallSpeed: number;
   fastFallSpeed: number;
+  /**
+   * Ultimate's DamageFlyTopGravity: gravity during hitstun after a near-vertical (70-110 degree) tumble launch. Mario
+   * 0.074928; it ranges 0.0628-0.0874 across the cast. Defaults to the cast median, DAMAGE_FLY_TOP_GRAVITY.
+   */
+  damageFlyTopGravity?: number;
 
   jumpSquat: number;
   /** Apex heights in units above the take-off point. */
