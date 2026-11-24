@@ -21,8 +21,9 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
   box(id, x, y, radius, { damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true });
 
 /**
- * The Duck's normals, from the roster sheet ("### 7. The Duck"): damage and first active frame per move, kill
- * percents against Mario at Battlefield's ledge (pinned in duck.test.ts). He has no fists, so the head is the
+ * The Duck's normals, from the roster sheet ("### 7. The Duck"): damage and first active frame per move, with
+ * Ultimate-style knockback (the roster's kill percents are checked loosely in duck.test.ts until COOL-3's KO
+ * calibration lands). He has no fists, so the head is the
  * weapon: pecks, headbutts and the battering-ram dash, with wing flaps and webbed-foot kicks around it. Frame
  * windows are inclusive and faf is the first actionable frame; move names double as animation clip names.
  */
@@ -74,8 +75,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [7, 9],
         boxes: [
-          box(0, 9, 6.5, 3.5, { damage: 9, angle: 361, kbg: 91, bkb: 10 }),
-          box(1, 4.5, 6, 3.5, { damage: 9, angle: 361, kbg: 91, bkb: 10 }),
+          box(0, 9, 6.5, 3.5, { damage: 9, angle: 361, kbg: 100, bkb: 10 }),
+          box(1, 4.5, 6, 3.5, { damage: 9, angle: 361, kbg: 100, bkb: 10 }),
         ],
       },
     ],
@@ -113,8 +114,8 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 40,
     hits: [
-      { frames: [7, 10], boxes: [box(0, 6, 5.5, 4.5, { damage: 11, angle: 45, kbg: 60, bkb: 60 })] },
-      { frames: [11, 20], boxes: [box(0, 5.5, 5.5, 4, { damage: 7, angle: 50, kbg: 60, bkb: 45 })] },
+      { frames: [7, 10], boxes: [box(0, 6, 5.5, 4.5, { damage: 11, angle: 45, kbg: 75, bkb: 70 })] },
+      { frames: [11, 20], boxes: [box(0, 5.5, 5.5, 4, { damage: 7, angle: 50, kbg: 70, bkb: 50 })] },
     ],
   },
   /** Big Headbutt: winds the neck back, then slams forward. His strongest grounded hit. */
@@ -126,8 +127,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [14, 16],
         boxes: [
-          box(0, 11, 6.5, 4, { damage: 16, angle: 361, kbg: 78, bkb: 20 }),
-          box(1, 5.5, 6, 3.5, { damage: 13, angle: 361, kbg: 78, bkb: 20 }),
+          box(0, 11, 6.5, 4, { damage: 16, angle: 361, kbg: 100, bkb: 32 }),
+          box(1, 5.5, 6, 3.5, { damage: 13, angle: 361, kbg: 100, bkb: 28 }),
         ],
       },
     ],
@@ -141,8 +142,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [10, 13],
         boxes: [
-          box(0, 0, 13, 5.5, { damage: 14, angle: 88, kbg: 91, bkb: 36, direction: 'away' }),
-          box(1, 0, 6, 5, { damage: 12, angle: 88, kbg: 91, bkb: 32, direction: 'away' }),
+          box(0, 0, 13, 5.5, { damage: 14, angle: 88, kbg: 96, bkb: 36, direction: 'away' }),
+          box(1, 0, 6, 5, { damage: 12, angle: 88, kbg: 96, bkb: 32, direction: 'away' }),
         ],
       },
     ],
@@ -156,8 +157,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [7, 8],
         boxes: [
-          box(0, 8.5, 2, 4, { damage: 12, angle: 30, kbg: 82, bkb: 25 }),
-          box(1, -8.5, 2, 4, { damage: 12, angle: 30, kbg: 82, bkb: 25, direction: 'back' }),
+          box(0, 8.5, 2, 4, { damage: 12, angle: 30, kbg: 95, bkb: 25 }),
+          box(1, -8.5, 2, 4, { damage: 12, angle: 30, kbg: 95, bkb: 25, direction: 'back' }),
         ],
       },
     ],
@@ -208,8 +209,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [9, 12],
         boxes: [
-          box(0, 8.5, 4.5, 4, { damage: 11, angle: 40, kbg: 80, bkb: 25 }),
-          box(1, 4, 5, 3.5, { damage: 9, angle: 40, kbg: 80, bkb: 20 }),
+          box(0, 8.5, 4.5, 4, { damage: 11, angle: 40, kbg: 95, bkb: 30 }),
+          box(1, 4, 5, 3.5, { damage: 9, angle: 40, kbg: 95, bkb: 25 }),
         ],
       },
     ],
@@ -226,11 +227,11 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [8, 10],
-        boxes: [box(0, -8.5, 4, 4, { damage: 12, angle: 361, kbg: 79, bkb: 15, direction: 'back' })],
+        boxes: [box(0, -8.5, 4, 4, { damage: 12, angle: 361, kbg: 100, bkb: 15, direction: 'back' })],
       },
       {
         frames: [11, 15],
-        boxes: [box(0, -7.5, 4, 3.5, { damage: 8, angle: 361, kbg: 79, bkb: 5, direction: 'back' })],
+        boxes: [box(0, -7.5, 4, 3.5, { damage: 8, angle: 361, kbg: 100, bkb: 5, direction: 'back' })],
       },
     ],
   },
@@ -297,7 +298,7 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 42,
     hits: [],
-    throw: { frame: 22, hit: { damage: 10, angle: 45, kbg: 59, bkb: 60, direction: 'back' } },
+    throw: { frame: 22, hit: { damage: 10, angle: 45, kbg: 70, bkb: 60, direction: 'back' } },
   },
   /** Carry & Drop: flaps up holding them, then lets go overhead. */
   uthrow: {
