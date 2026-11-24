@@ -19,11 +19,12 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 export const HOP = { frame: 3, speed: 0.8 };
 
 /**
- * The kick flurry's timeline: a kick on each of these frames, then Attack during [loop, loop + 1] starts the next
- * four (presses buffer, so mashing anywhere in the cycle counts). Otherwise the shove comes out three frames
- * after the window closes, on Kirby's finisher timing (startup 3, 39 frames in all).
+ * The kick flurry's timeline: a kick on each of these frames. Attack during [loop, loop + 1], after the last kick,
+ * restarts it on frame 1, which kicks again, so mashing keeps a kick every other frame (presses buffer, so a press
+ * anywhere in the cycle counts). Otherwise the shove comes out three frames after the window closes, on Kirby's
+ * finisher timing (startup 3, 39 frames in all).
  */
-export const RAPID_JAB = { kicks: [2, 4, 6, 8], loop: 8, shove: [12, 13] as [number, number], faf: 49 };
+export const RAPID_JAB = { kicks: [1, 3, 5, 7], loop: 9, shove: [13, 14] as [number, number], faf: 50 };
 
 /** Down throw's treadmill steps: the frames on which each footfall lands and the % it deals. */
 export const TREADMILL = { frames: [8, 12, 16, 20], damage: 1 };

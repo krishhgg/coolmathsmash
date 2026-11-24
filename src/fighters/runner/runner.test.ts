@@ -294,11 +294,13 @@ describe('Runner: Jog Flurry (jab: two punches, a kick flurry, a shove)', () => 
     put(v, 7, -1, v.ground);
     const seen: string[] = [];
     let flurries = 0;
+    let last = { move: '', frame: 0 };
     let shovedAt = -1;
     for (let i = 0; i < frames; i++) {
       runPorts(m, 1, [i % 4 === 0 && i < mash ? { buttons: ['attack'] } : {}, {}]);
       if (a.move && seen.at(-1) !== a.move) seen.push(a.move);
-      if (a.move === 'jabRapid' && a.actionFrame === 1) flurries++;
+      if (a.move === 'jabRapid' && (last.move !== 'jabRapid' || a.actionFrame < last.frame)) flurries++;
+      last = { move: a.move ?? '', frame: a.actionFrame };
       if (shovedAt < 0 && v.action === 'tumble') shovedAt = i;
     }
     return { a, v, seen, flurries, shovedAt };
@@ -319,6 +321,17 @@ describe('Runner: Jog Flurry (jab: two punches, a kick flurry, a shove)', () => 
     expect(long.flurries).toBeGreaterThan(short.flurries);
     expect(long.shovedAt).toBeGreaterThan(80);
     expect(long.v.damage).toBeGreaterThan(short.v.damage);
+  });
+
+  it('keeps all four kicks in every loop: a kick every other frame for as long as she mashes', () => {
+    const m = testMatch({ fighter: 'runner' });
+    const f = attack(m, 0, 'jabRapid');
+    const ticks: number[] = [];
+    for (let i = 0; i < 40; i++) {
+      run(m, 1, i % 3 === 0 ? { buttons: ['attack'] } : {});
+      if (f.move === 'jabRapid' && activeHitboxes(f).length > 0) ticks.push(i);
+    }
+    expect(ticks).toEqual(Array.from({ length: 20 }, (_, i) => 2 * i));
   });
 
   it('kicks every other frame, then shoves three frames after the loop window closes', () => {
