@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
+import { getFighter } from '../../registry';
 import { moves } from '../moves';
 import { art } from '.';
 
@@ -117,5 +118,8 @@ describe('watergirl art', () => {
     }
     expect(art.icon).toMatch(/^<svg [^>]*viewBox="[-\d. ]+"/);
     expect(art.icon.length).toBeGreaterThan(1000);
+  });
+  it('is the art the game draws for her, so swapping in shows it', () => {
+    expect(getFighter('watergirl').art).toBe(art);
   });
 });
