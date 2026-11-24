@@ -128,13 +128,13 @@ function drawUnderside(g: Graphics): void {
     ]),
   );
   const ys = [CAP_BOTTOM - 1.2, -12, -16, -20, -25.1, -30, -35, HULL_BOTTOM + 1];
-  for (let k = 0; k < 6; k++) {
-    ys.forEach((y, i) => {
-      const x = hullSpan(y)[0] + 0.9 + k * 1.5;
-      if (i === 0) g.moveTo(x, -y);
-      else g.lineTo(x, -y);
+  for (const band of [3.2, 6.4, 9.6]) {
+    const edge = ys.map((y) => [hullSpan(y)[0], -y]);
+    const inner = ys.map((y) => {
+      const [l, r] = hullSpan(y);
+      return [Math.min(l + band, (l + r) / 2), -y];
     });
-    g.stroke({ width: 1.6, color: 0x19140a, alpha: 0.1 - k * 0.014, join: 'round' });
+    g.poly([...edge, ...inner.reverse()].flat()).fill({ color: 0x19140a, alpha: 0.075 });
   }
   ys.forEach((y, i) => {
     const x = hullSpan(y)[1] - 0.95;
@@ -281,11 +281,11 @@ function drawCap(g: Graphics): void {
   g.poly(rear).fill(mix(STONE_MID, STONE_LIGHT, 0.35));
   g.moveTo(-78.4, -TOP_Y - 1.3)
     .lineTo(78.4, -TOP_Y - 1.3)
-    .stroke({ width: 0.3, color: INK, alpha: 0.55 });
+    .stroke({ width: 0.2, color: STONE_DARK, alpha: 0.45 });
   for (const side of [-1, 1])
     g.moveTo(80 * side, -TOP_Y)
       .lineTo(78.4 * side, -TOP_Y - 1.3)
-      .stroke({ width: 0.3, color: INK, alpha: 0.55 });
+      .stroke({ width: 0.2, color: STONE_DARK, alpha: 0.45 });
   g.rect(-80, -TOP_Y, 160, CAP_H).fill(
     vGradient([
       [0, STONE_LIGHT],

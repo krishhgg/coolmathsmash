@@ -95,8 +95,8 @@ function sky(): Layer {
 /** The Coolmath Games planet (green world, blue ring) hanging in the sky, with slow Flash-style sun rays. */
 function planet(): Layer {
   const node = new Container({ label: 'planet' });
-  const cx = 1120;
-  const cy = 78;
+  const cx = 1150;
+  const cy = 92;
   const r = 56;
   const rays = new Graphics();
   const count = 18;
@@ -319,7 +319,7 @@ function floatingIsland(g: Graphics, spec: IslandSpec): void {
   const jitter = (i: number) => 1 + (hash01(seed * 13 + i) - 0.5) * 0.16;
   const toXY = ([u, v]: number[], i: number) => [cx + u! * half * jitter(i), top + v! * depth];
   const body = [...right.map(toXY), ...left.map((p, i) => toXY(p, i + 20))].flat();
-  const ink = haze(0x3a2f1a, h * 0.7);
+  const ink = haze(mix(0x3a2f1a, 0x506684, 0.35), h * 0.85);
   for (let i = 0; i < 4; i++) {
     const rx = cx + (hash01(seed * 5 + i) - 0.5) * half * 0.9;
     const ry = top + depth * (0.55 + 0.1 * i);
@@ -348,7 +348,11 @@ function floatingIsland(g: Graphics, spec: IslandSpec): void {
   }
   g.poly(body).stroke({ width: 2, color: ink, join: 'round' });
   const grassTop = top - 6;
-  const grass: number[] = [cx - half - 5, grassTop, cx + half + 5, grassTop];
+  const grass: number[] = [];
+  for (let i = 0; i <= 8; i++) {
+    const u = i / 8;
+    grass.push(cx - half - 5 + (w + 10) * u, grassTop - Math.sin(u * Math.PI) * 7);
+  }
   const drips = Math.max(4, Math.round(w / 22));
   for (let i = drips; i >= 0; i--) {
     const x = cx - half - 5 + ((w + 10) * i) / drips;
@@ -358,7 +362,7 @@ function floatingIsland(g: Graphics, spec: IslandSpec): void {
   g.poly(grass).fill(haze(MOSS, h));
   g.poly(grass).stroke({ width: 2, color: haze(MOSS_DARK, h * 0.8), join: 'round' });
   g.moveTo(cx - half - 2, grassTop + 2)
-    .lineTo(cx + half + 2, grassTop + 2)
+    .quadraticCurveTo(cx, grassTop - 12, cx + half + 2, grassTop + 2)
     .stroke({ width: 2.5, color: haze(MOSS_LIGHT, h), alpha: 0.8 });
 }
 
@@ -440,7 +444,19 @@ function floatingRock(g: Graphics, spec: IslandSpec): void {
     color: ink,
     join: 'round',
   });
-  g.ellipse(cx + half * 0.3, top + 4, 16, 5).fill(haze(MOSS, h));
+  const tuftX = cx + half * 0.3;
+  const tuftY = top + 6;
+  for (let i = 0; i < 4; i++)
+    g.circle(tuftX - 12 + i * 8, tuftY - (i % 2) * 3, 6 - (i % 3)).fill(haze(MOSS, h));
+  for (let i = 0; i < 4; i++)
+    g.circle(tuftX - 12 + i * 8, tuftY - (i % 2) * 3, 6 - (i % 3)).stroke({
+      width: 1.2,
+      color: haze(MOSS_DARK, h),
+      alpha: 0.7,
+    });
+  g.moveTo(tuftX - 14, tuftY - 4)
+    .quadraticCurveTo(tuftX, tuftY - 10, tuftX + 14, tuftY - 5)
+    .stroke({ width: 1.6, color: haze(MOSS_LIGHT, h), alpha: 0.7, cap: 'round' });
 }
 
 const rgba = (color: number, alpha: number) =>

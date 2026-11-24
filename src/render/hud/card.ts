@@ -140,8 +140,8 @@ export class DamageCard {
       this.whole.text = whole;
       this.tenth.text = tenth;
       this.whole.scale.set(whole.length >= 3 ? 0.94 : 1);
-      this.tenth.position.set(0, 0);
-      this.whole.position.set(-this.tenth.width + 8, 3);
+      this.tenth.position.set(0, -2);
+      this.whole.position.set(-this.tenth.width + 10, 3);
     }
     if (
       p.stocks !== s.stocks ||
@@ -187,16 +187,16 @@ export class DamageCard {
     const color = portColor(p.port);
     const half = PORTRAIT.size / 2;
     const frame = new Graphics();
-    frame.roundRect(-half - 3, -half - 3, PORTRAIT.size + 6, PORTRAIT.size + 6, 13).fill(INK);
+    frame.roundRect(-half - 2, -half - 2, PORTRAIT.size + 4, PORTRAIT.size + 4, 12).fill(INK);
     frame.roundRect(-half, -half, PORTRAIT.size, PORTRAIT.size, 11).fill(
       new FillGradient({
         type: 'linear',
         start: { x: 0, y: 0 },
         end: { x: 0, y: 1 },
         colorStops: [
-          { offset: 0, color: mixColor(color, 0xffffff, 0.3) },
-          { offset: 0.6, color },
-          { offset: 1, color: mixColor(color, 0x000000, 0.35) },
+          { offset: 0, color: mixColor(color, 0xffffff, 0.16) },
+          { offset: 0.6, color: mixColor(color, 0x000000, 0.08) },
+          { offset: 1, color: mixColor(color, 0x000000, 0.28) },
         ],
         textureSpace: 'local',
       }),
@@ -209,7 +209,7 @@ export class DamageCard {
       const a1 = a0 + Math.PI / 14;
       rays.poly([0, 0, Math.cos(a0) * 90, Math.sin(a0) * 90, Math.cos(a1) * 90, Math.sin(a1) * 90]).fill({
         color: 0xffffff,
-        alpha: 0.12,
+        alpha: 0.08,
       });
     }
     rays.position.set(0, 10);
@@ -217,7 +217,7 @@ export class DamageCard {
     head.position.set(0, 5);
     const gloss = new Graphics()
       .ellipse(-8, -half + 9, half * 0.95, 18)
-      .fill({ color: 0xffffff, alpha: 0.16 });
+      .fill({ color: 0xffffff, alpha: 0.08 });
     inside.addChild(rays, head, gloss);
     inside.mask = mask;
     this.portrait.addChild(frame, inside, mask);
