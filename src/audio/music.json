@@ -1,4 +1,11 @@
 {
+  "bob-the-robber-level-1": {
+    "file": "music/bob-the-robber-level-1.mp3",
+    "title": "Bob's First Heist",
+    "evokes": "Bob the Robber (Flazm): an original sneaky heist-jazz theme in the spirit of the game",
+    "loopStart": 0,
+    "loopEnd": 40
+  },
   "menu": {
     "file": "music/menu.mp3",
     "title": "Main Menu",
