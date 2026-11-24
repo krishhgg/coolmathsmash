@@ -8,6 +8,7 @@ import {
   BLUR,
   CLOSED,
   DEG,
+  smooth,
   DIZZY,
   DOWN,
   FOCUS,
@@ -55,7 +56,6 @@ const HONK = { ...SHOUT, fx1: 'fxHonk' };
 export const LEDGE_GRIP: [number, number] = [6.5, -9.35];
 const [GX, GY] = LEDGE_GRIP;
 
-const smooth = (t: number) => t * t * (3 - 2 * t);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 /**

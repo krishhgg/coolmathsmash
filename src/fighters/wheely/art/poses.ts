@@ -81,6 +81,8 @@ export const SCOOP = { door: 'doorInside', doorGap: 'doorGap' };
 export const OPEN_HOOD = { hood: 'hood', hoodBay: 'hoodBay' };
 
 export const DEG = Math.PI / 180;
+/** Smoothstep: eases 0..1 in and out. */
+export const smooth = (t: number) => t * t * (3 - 2 * t);
 /** Tyre contact patches: wheelies pivot on the rear one, nose dives on the front one. */
 export const REAR: Pt = [-WHEEL_X, 0];
 export const FRONT: Pt = [WHEEL_X, 0];

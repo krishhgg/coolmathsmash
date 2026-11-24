@@ -6,6 +6,7 @@ import {
   BACK,
   BLUR,
   CLOSED,
+  DEG,
   FOCUS,
   FRONT,
   IDLE_FACE,
@@ -26,6 +27,7 @@ import {
   mix,
   roll,
   smoke,
+  smooth,
   spin,
   squash,
   tilt,
@@ -89,6 +91,66 @@ function scoop(
     key(hold + 17, PARK, { swaps: {} }),
     key(length, PARK),
   ];
+}
+
+/** The ramp: dropped with its foot this far in front of his frame-3 origin, scaled up to the engine's climb. */
+const RAMP_FOOT = 2.25;
+const RAMP_RISE = 1.5;
+const RAMP_LEN = 7.45;
+const RAMP_SLOPE = (3.3 * RAMP_RISE) / RAMP_LEN;
+
+/** Up special keys to the launch: world-space ramp and tyres, drawn relative to the origin the engine moves. */
+function rampJump(): Key[] {
+  const backUp = 2.5;
+  const keys: Key[] = [];
+  for (let f = 0; f <= 3; f++) {
+    const back = -backUp * smooth(f / 3);
+    const drop = [-6, -2.4, 0.3, 0][f]!;
+    keys.push(
+      key(
+        f,
+        mix(tilt(0, REAR, back), f === 3 ? SQUAT : PARK, spin(roll(back)), {
+          prop: at(RAMP_FOOT, drop, 1, 0, RAMP_RISE),
+        }),
+        {
+          ease: 'linear',
+          ...(f === 0
+            ? { swaps: { ...FOCUS, prop: 'fxRamp' } }
+            : f === 3
+              ? { swaps: { ...ANGRY, prop: 'fxRamp' } }
+              : {}),
+        },
+      ),
+    );
+  }
+  for (let f = 4; f <= 9; f++) {
+    const k = f - 3;
+    const [ox, oy] = [0.9 * k, -0.6 * k];
+    const u = (7.9 * k) / 6;
+    const front = WHEEL_X - backUp + u;
+    const h = Math.min(RAMP_SLOPE * RAMP_LEN, Math.max(0, front - RAMP_FOOT) * RAMP_SLOPE);
+    const theta = Math.asin(h / (2 * WHEEL_X)) / DEG;
+    const rear = front - 2 * WHEEL_X * Math.cos(theta * DEG);
+    keys.push(
+      key(
+        f,
+        mix(tilt(-theta, REAR, rear + WHEEL_X - ox, -oy), bob(0.15), spin(roll(u - backUp)), {
+          prop: at(RAMP_FOOT - ox, -oy, 1, 0, RAMP_RISE),
+        }),
+        {
+          ease: 'linear',
+          ...(f === 4 ? { swaps: { ...ANGRY, ...BLUR, prop: 'fxRamp' } } : {}),
+        },
+      ),
+    );
+  }
+  keys.push(
+    key(11, mix(AIR, tilt(-30, BODY), spin(roll(12)), { prop: at(RAMP_FOOT - 9.4, 11.4, 1, 0, RAMP_RISE) }), {
+      ease: 'out',
+      swaps: { ...SHOUT, ...BLUR, prop: 'fxRamp' },
+    }),
+  );
+  return keys;
 }
 
 /** Holding someone in the open door (the grabHold pose). */
@@ -502,7 +564,7 @@ export const attacks: Record<string, AnimClip> = {
         mix(bob(-0.1, 1.1), tilt(-190, BODY, 0, -2.2), spin(-1000), { fx1: trail(0, -8, 6.6, 165, false) }),
         { ease: 'in' },
       ),
-      key(12, undefined, { swaps: { ...SHOUT, ...BLUR } }),
+      key(14, undefined, { swaps: { ...SHOUT, ...BLUR } }),
       key(18, mix(AIR, tilt(-300, BODY, 0, -1), spin(-1300)), { ease: 'out', swaps: IDLE_FACE }),
       key(24, mix(AIR, tilt(-360, BODY), spin(-1440))),
       key(34, mix(AIR, tilt(-360, BODY), spin(-1440))),
@@ -681,36 +743,19 @@ export const attacks: Record<string, AnimClip> = {
       key(51, spin(3450)),
     ],
   },
-  /** Ramp Jump: his little wooden ramp drops in front of him, he drives up it and launches on a long diagonal. */
+  /**
+   * Ramp Jump. His little wooden ramp drops in front of him and he backs up a touch; the engine then carries his
+   * origin 0.9 forward and 0.6 up a frame on frames 4-9 and launches him on frame 10 (moves.ts upB). The ramp stays
+   * put in the world, pitched to that same climb, and he drives up it so his front tyre reaches the lip as he takes off.
+   */
   upB: {
     length: 39,
-    swaps: FOCUS,
+    swaps: ANGRY,
     keys: [
-      key(0, mix(PARK, { prop: at(WHEEL_X + 1.2, -5, 1) }), { ease: 'in', swaps: { prop: 'fxRamp' } }),
-      key(3, mix(SQUAT, { prop: at(WHEEL_X + 1.2, 0, 1) }), {
-        ease: 'out',
-        swaps: { ...ANGRY, prop: 'fxRamp' },
-      }),
-      ...[4, 6, 8, 10].map((f) => {
-        const t = (f - 4) / 6;
-        return key(
-          f,
-          mix(tilt(-22 * t, REAR, 0.6 * t, -1.4 * t), spin(roll(5.4 * t)), {
-            prop: at(WHEEL_X + 1.2 - 0.9 * (f - 4), 0.6 * (f - 4), 1),
-          }),
-          {
-            ease: 'linear',
-            ...(f === 4 ? { swaps: { ...ANGRY, ...BLUR, prop: 'fxRamp' } } : {}),
-          },
-        );
-      }),
-      key(12, mix(AIR, tilt(-30, BODY), spin(roll(9)), { prop: at(-2.8, 7, 1) }), {
-        ease: 'out',
-        swaps: { ...SHOUT, ...BLUR, prop: 'fxRamp' },
-      }),
-      key(14, undefined, { swaps: { ...SHOUT, ...BLUR } }),
-      key(24, mix(AIR, tilt(-18, BODY), spin(roll(12))), { ease: 'inOut', swaps: UP }),
-      key(39, mix(AIR, tilt(-8, BODY), spin(roll(13)))),
+      ...rampJump(),
+      key(12, undefined, { swaps: { ...SHOUT, ...BLUR } }),
+      key(24, mix(AIR, tilt(-18, BODY), spin(roll(16))), { ease: 'inOut', swaps: UP }),
+      key(39, mix(AIR, tilt(-8, BODY), spin(roll(17)))),
     ],
   },
 };
