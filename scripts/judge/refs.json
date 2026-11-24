@@ -1,0 +1,49 @@
+{
+  "$comment": "Reference images per capture state, as globs under root (~ = home). Patterns take turns filling maxPerState slots, so list the Smash Ultimate presentation reference first and the character's own art after it. A state with no match gets a placeholder on its sheet. See docs/hill-climb.md.",
+  "root": "~/.capy/drive/captain-coolmath-games-smash/handoffs/research/refs",
+  "maxPerState": 4,
+  "states": {
+    "idle": [
+      "smash/battlefield-idle-1v1-*",
+      "characters/fireboy-watergirl/ingame-fireboy-idle-*",
+      "characters/fireboy-watergirl/sprite-fireboy-flash-*",
+      "brawlhalla/*idle*",
+      "characters/fireboy-watergirl/official-art-fireboy-*"
+    ],
+    "run": ["smash/run-*", "characters/fireboy-watergirl/ingame-fireboy-run-*"],
+    "jump-apex": [
+      "smash/jump-apex-*",
+      "characters/fireboy-watergirl/ingame-fireboy-jump-apex-*",
+      "characters/fireboy-watergirl/ingame-fireboy-jump-rise-*"
+    ],
+    "attack-active": [
+      "smash/attack-active-*",
+      "brawlhalla/*attack-hit*",
+      "characters/fireboy-watergirl/sprite-fireboy-flash-*",
+      "characters/fireboy-watergirl/official-art-fireboy-*"
+    ],
+    "launch-high-percent": [
+      "smash/launch-high-percent-*",
+      "brawlhalla/*launch-smoke*",
+      "characters/fireboy-watergirl/sprite-fireboy-flash-*"
+    ],
+    "shield": [
+      "smash/shield-0*",
+      "characters/fireboy-watergirl/ingame-fireboy-idle-*",
+      "smash/shield-perfect-*"
+    ],
+    "ledge-hang": ["smash/ledge-hang-*", "characters/fireboy-watergirl/sprite-fireboy-flash-*"],
+    "hud": ["smash/hud-closeup-*", "brawlhalla/*hud*", "smash/battlefield-idle-1v1-*"],
+    "stage": [
+      "smash/battlefield-stage-empty-*",
+      "stages/coolmath-planet/planet-icon-*",
+      "smash/battlefield-idle-1v1-*",
+      "stages/coolmath-planet/logo-2009-*"
+    ],
+    "fighter-sheet": [
+      "characters/fireboy-watergirl/sprite-fireboy-flash-*",
+      "characters/fireboy-watergirl/official-art-fireboy-*",
+      "characters/fireboy-watergirl/ingame-fireboy-*"
+    ]
+  }
+}
