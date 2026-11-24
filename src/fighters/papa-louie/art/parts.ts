@@ -170,7 +170,7 @@ export const torso = resize(
     ],
   ),
   0.82,
-  1,
+  0.93,
 );
 
 /** The red apron tied round his middle, with the bow's tail flying behind. Origin at the hips. */
@@ -204,118 +204,115 @@ export const scarf = inked(
 
 // --- Head ------------------------------------------------------------------------------------------------
 
-/** Head size against the coat: smaller than a chibi, bigger than the official art, for readability. */
-export const HEAD = 0.72;
-
-/** Bald egg of a head, centred on the origin, facing right (three-quarter view): ear behind, nose in front. */
-export const head = resize(
-  inked(
+/**
+ * His tall bald egg of a head, centred on the origin, turned three-quarters to the right like Flipline's art: no
+ * nose or ears drawn, just the dot eyes, high arched brows and the moustache doing all the work.
+ */
+export const head = inked(
+  [
     [
-      [
-        'M0 -2.35C1.25 -2.35 2.05 -1.3 2.05 0.1C2.05 1.45 1.2 2.3 0 2.3C-1.2 2.3 -2 1.45 -2 0.1C-2 -1.3 -1.25 -2.35 0 -2.35Z',
-        'skin',
-      ],
-      [ellipse(-1.15, 0.3, 0.42, 0.6), 'skin'],
+      'M0 -1.75C0.95 -1.75 1.45 -1 1.45 0C1.45 0.9 0.85 1.45 0.05 1.45C-0.8 1.45 -1.35 0.9 -1.35 0C-1.35 -1 -0.9 -1.75 0 -1.75Z',
+      'skin',
     ],
-    [
-      {
-        d: 'M-0.6 -2.25C-1.5 -2 -2 -1.1 -2 0.1C-2 1.45 -1.2 2.3 0 2.3C-1 1.9 -1.45 1 -1.45 0C-1.45 -1 -1.15 -1.8 -0.6 -2.25Z',
-        fill: 'skinLo',
-      },
-      { d: ellipse(-0.35, -1.55, 0.6, 0.3), fill: 'skinHi' },
-      line('M-1.25 0C-1.05 0.2 -1.05 0.5 -1.2 0.7', 'skinLo', 0.12),
-      { d: ellipse(1.5, 0.75, 0.48, 0.3), fill: 'cheek' },
-      outlined(ellipse(1.75, 0.3, 0.52, 0.45), 'skin'),
-      { d: ellipse(1.92, 0.15, 0.17, 0.12), fill: 'skinHi' },
-    ],
-  ),
-  HEAD,
+  ],
+  [
+    {
+      d: 'M-0.45 -1.68C-1.05 -1.45 -1.35 -0.8 -1.35 0C-1.35 0.9 -0.8 1.45 0.05 1.45C-0.55 1.2 -0.9 0.65 -0.95 0C-1 -0.75 -0.8 -1.3 -0.45 -1.68Z',
+      fill: 'skinLo',
+    },
+    { d: ellipse(-0.25, -1.2, 0.55, 0.26), fill: 'skinHi' },
+  ],
 );
 
-/** Big black brows high on the forehead, as Flipline draws them. */
-const browsUp = [
-  'M0.05 -0.95C0.15 -1.45 0.7 -1.65 1.05 -1.35C0.75 -1.4 0.35 -1.3 0.2 -0.85Z',
-  'M1.2 -1.35C1.55 -1.65 2.05 -1.4 2.05 -0.95C1.85 -1.25 1.55 -1.35 1.3 -1.2Z',
-];
-const browsAngry = [
-  'M0.05 -1.3C0.4 -1.5 0.85 -1.25 1.1 -0.85C0.8 -1.05 0.4 -1.15 0.1 -1.05Z',
-  'M1.2 -0.85C1.4 -1.25 1.8 -1.45 2.1 -1.3C2.05 -1.1 1.7 -1.1 1.3 -0.75Z',
-];
-const browsWorried = [
-  'M0.05 -1.05C0.3 -1.3 0.7 -1.55 1.05 -1.6C0.75 -1.35 0.4 -1.15 0.15 -0.9Z',
-  'M1.25 -1.6C1.6 -1.55 1.9 -1.3 2.1 -1.05C1.8 -1.15 1.55 -1.3 1.3 -1.45Z',
-];
-const brows = (ds: string[]): PathShape[] =>
-  ds.map((d) => ({ d, fill: 'brow', stroke: { color: 'brow', width: 0.1 } }));
+/** The thin neck between his collar and his chin, from the neck bone up. */
+export const neckSkin = inked(
+  [[tube(0, 0.1, -1.5, 0.3, 0.32), 'skin']],
+  [{ d: tube(-0.12, 0, -1.3, 0.12, 0.12), fill: 'skinLo' }],
+);
 
-/** Small oval eyes with a dark ring and a big pupil looking ahead. */
-function eyes(look = 0.08, open = 1): PathShape[] {
-  return [0.6, 1.45].flatMap((x) => [
-    outlined(ellipse(x, -0.45, 0.3, 0.42 * open), 'eyeWhite', 0.12),
-    { d: ellipse(x + look, -0.42, 0.16, 0.22 * open), fill: 'eye' },
+const EYES = [0.2, 0.85];
+const EYE_Y = -0.1;
+
+/** Arched brows high on the forehead: each a crescent, thick in the middle. `tilt` lifts the inner ends (+) or drops them (-). */
+function browArcs(tilt = 0, lift = 0): PathShape[] {
+  return EYES.map((x, i) => {
+    const inner = i === 0 ? 1 : -1;
+    const yIn = -0.95 - lift - tilt * 0.25;
+    const yOut = -0.95 - lift + tilt * 0.25;
+    const [yl, yr] = inner === 1 ? [yOut, yIn] : [yIn, yOut];
+    const top = -1.45 - lift;
+    return {
+      d: `M${n(x - 0.36)} ${n(yl)}C${n(x - 0.27)} ${n(top - 0.05)} ${n(x + 0.27)} ${n(top - 0.05)} ${n(x + 0.36)} ${n(yr)}C${n(x + 0.18)} ${n(top + 0.24)} ${n(x - 0.18)} ${n(top + 0.24)} ${n(x - 0.36)} ${n(yl)}Z`,
+      fill: 'brow',
+      stroke: { color: 'brow', width: 0.06 },
+    };
+  });
+}
+
+/** Small round eyes: a thin white ring round a big black pupil, as Flipline draws them. */
+function eyes(look = 0.05, open = 1, up = 0): PathShape[] {
+  return EYES.flatMap((x) => [
+    outlined(ellipse(x, EYE_Y, 0.22, 0.3 * open), 'eyeWhite', 0.07),
+    { d: ellipse(x + look, EYE_Y - up, 0.15, 0.22 * open), fill: 'eye' },
+    { d: ellipse(x + look + 0.04, EYE_Y - up - 0.07 * open, 0.04, 0.05), fill: 'eyeWhite' },
   ]);
 }
-const shut = (lift = 0): PathShape[] =>
-  [0.6, 1.45].map((x) =>
+const shut = (): PathShape[] =>
+  EYES.map((x) =>
     line(
-      `M${x - 0.32} ${-0.4 - lift}C${x - 0.1} ${-0.25 - lift} ${x + 0.12} ${-0.25 - lift} ${x + 0.32} ${-0.4 - lift}`,
+      `M${n(x - 0.2)} ${n(EYE_Y)}C${n(x - 0.07)} ${n(EYE_Y + 0.12)} ${n(x + 0.07)} ${n(EYE_Y + 0.12)} ${n(x + 0.2)} ${n(EYE_Y)}`,
       'eye',
-      0.13,
+      0.1,
     ),
   );
-const squint: PathShape[] = [
-  line('M0.3 -0.7L0.85 -0.45L0.3 -0.2', 'eye', 0.14),
-  line('M1.75 -0.7L1.2 -0.45L1.75 -0.2', 'eye', 0.14),
-];
-const dazed: PathShape[] = [0.6, 1.45].flatMap((x) => [
-  outlined(ellipse(x, -0.45, 0.32, 0.42), 'eyeWhite', 0.12),
+const squint: PathShape[] = EYES.map((x, i) =>
   line(
-    `M${x - 0.15} -0.55C${x - 0.05} -0.75 ${x + 0.2} -0.6 ${x + 0.12} -0.4C${x + 0.05} -0.2 ${x - 0.2} -0.3 ${x - 0.1} -0.45`,
+    i === 0
+      ? `M${n(x - 0.2)} ${n(EYE_Y - 0.18)}L${n(x + 0.18)} ${n(EYE_Y)}L${n(x - 0.2)} ${n(EYE_Y + 0.18)}`
+      : `M${n(x + 0.2)} ${n(EYE_Y - 0.18)}L${n(x - 0.18)} ${n(EYE_Y)}L${n(x + 0.2)} ${n(EYE_Y + 0.18)}`,
     'eye',
-    0.09,
+    0.1,
+  ),
+);
+const dazed: PathShape[] = EYES.flatMap((x) => [
+  outlined(ellipse(x, EYE_Y, 0.22, 0.28), 'eyeWhite', 0.07),
+  line(
+    `M${n(x - 0.1)} ${n(EYE_Y - 0.08)}C${n(x - 0.03)} ${n(EYE_Y - 0.22)} ${n(x + 0.14)} ${n(EYE_Y - 0.12)} ${n(x + 0.08)} ${n(EYE_Y + 0.02)}C${n(x + 0.03)} ${n(EYE_Y + 0.15)} ${n(x - 0.14)} ${n(EYE_Y + 0.08)} ${n(x - 0.07)} ${n(EYE_Y - 0.02)}`,
+    'eye',
+    0.06,
   ),
 ]);
 
-const faceShapes: Record<string, PathShape[]> = {
-  face: [...eyes(), ...brows(browsUp)],
-  faceBlink: [...shut(), ...brows(browsUp)],
-  faceAngry: [...eyes(0.1, 0.85), ...brows(browsAngry)],
-  faceHurt: [...squint, ...brows(browsWorried)],
-  faceWorried: [...eyes(-0.02, 1.05), ...brows(browsWorried)],
-  faceDazed: [...dazed, ...brows(browsWorried)],
-  faceBack: [...eyes(-0.12), ...brows(browsUp)],
-  faceUp: [
-    ...[0.6, 1.45].flatMap((x) => [
-      outlined(ellipse(x, -0.5, 0.3, 0.42), 'eyeWhite', 0.12),
-      { d: ellipse(x + 0.06, -0.66, 0.16, 0.2), fill: 'eye' },
-    ]),
-    ...brows(browsUp),
-  ],
+export const faces: Record<string, PathShape[]> = {
+  face: [...eyes(), ...browArcs()],
+  faceBlink: [...shut(), ...browArcs()],
+  faceAngry: [...eyes(0.06, 0.85), ...browArcs(-1, -0.08)],
+  faceHurt: [...squint, ...browArcs(1)],
+  faceWorried: [...eyes(-0.01, 1.05), ...browArcs(1, 0.05)],
+  faceDazed: [...dazed, ...browArcs(1)],
+  faceBack: [...eyes(-0.07), ...browArcs()],
+  faceUp: [...eyes(0.03, 1, 0.07), ...browArcs(0, 0.1)],
 };
 
-export const faces: Record<string, PathShape[]> = Object.fromEntries(
-  Object.entries(faceShapes).map(([name, shapes]) => [name, resize(shapes, HEAD)]),
-);
-
-/** The handlebar moustache, centred on the origin, tips curling up. */
+/** The great black handlebar moustache, centred under his eyes, each side drooping and then curling up. */
 const STACHE_R =
-  'M0 -0.25C0.6 -0.55 1.3 -0.4 1.8 0.05C2.15 0.35 2.35 0.15 2.3 -0.3C2.55 0 2.6 0.55 2.15 0.85C1.6 1.2 0.7 0.85 0 0.45Z';
+  'M0 -0.3C0.55 -0.6 1.2 -0.45 1.6 -0.05C1.75 0.1 1.9 0.12 1.98 -0.05C2.02 -0.2 1.9 -0.32 1.78 -0.28C1.95 -0.5 2.35 -0.4 2.38 -0.02C2.4 0.45 1.95 0.8 1.4 0.78C0.85 0.75 0.4 0.55 0 0.4Z';
 const STACHE_L = mirror(STACHE_R);
 const stacheShapes = (): PathShape[] => [
-  { d: STACHE_R + STACHE_L, fill: 'stache', stroke: { color: 'stache', width: 0.12 } },
-  line('M0.35 -0.05C0.9 -0.25 1.45 -0.1 1.85 0.25', 'stacheHi', 0.1),
-  line(mirror('M0.35 -0.05C0.9 -0.25 1.45 -0.1 1.85 0.25'), 'stacheHi', 0.1),
+  { d: STACHE_R + STACHE_L, fill: 'stache', stroke: { color: 'stache', width: 0.1 } },
+  line('M0.3 -0.12C0.85 -0.3 1.35 -0.15 1.7 0.25', 'stacheHi', 0.08),
+  line(mirror('M0.3 -0.12C0.85 -0.3 1.35 -0.15 1.7 0.25'), 'stacheHi', 0.08),
 ];
 export const stache = stacheShapes();
 /** Mouth wide open under the moustache (shouting, hurt). */
 export const stacheShout: PathShape[] = [
-  outlined('M-0.55 0.35C-0.5 1.3 0.5 1.3 0.55 0.35Z', 'mouth', 0.12),
-  { d: 'M-0.3 0.95C-0.1 0.8 0.15 0.8 0.32 0.95C0.15 1.12 -0.15 1.12 -0.3 0.95Z', fill: 'tongue' },
+  outlined('M-0.5 0.3C-0.45 1.2 0.45 1.2 0.5 0.3Z', 'mouth', 0.1),
+  { d: 'M-0.28 0.88C-0.1 0.74 0.12 0.74 0.3 0.88C0.14 1.04 -0.14 1.04 -0.28 0.88Z', fill: 'tongue' },
   ...stacheShapes(),
 ];
 /** A gritted grin under the moustache (effort). */
 export const stacheGrit: PathShape[] = [
-  outlined('M-0.6 0.4C-0.3 0.8 0.3 0.8 0.6 0.4C0.3 0.55 -0.3 0.55 -0.6 0.4Z', 'eyeWhite', 0.1),
+  outlined('M-0.55 0.35C-0.28 0.75 0.28 0.75 0.55 0.35C0.28 0.5 -0.28 0.5 -0.55 0.35Z', 'eyeWhite', 0.08),
   ...stacheShapes(),
 ];
 
@@ -345,8 +342,8 @@ export const hat = resize(
       line('M1.4 -3.15C1.15 -2.8 1.1 -2.4 1.25 -2.15', 'hatLo', 0.12),
     ],
   ),
+  0.64,
   0.85,
-  0.95,
 );
 
 /** The toque held overhead and puffed out like a parachute: his glide in When Pizzas Attack!. */
