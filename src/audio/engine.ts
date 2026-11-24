@@ -50,10 +50,10 @@ interface Active {
 }
 
 /**
- * A gesture's resume() settles a few milliseconds later, so sounds asked for within this window of one (the
- * click that opens a menu) are scheduled; after it, a context that is still suspended drops them.
+ * Longest wait for a gesture's resume() to settle. Until it settles, sounds are scheduled (the click that opens a
+ * menu plays its sound); a resume that never settles stops holding them after this.
  */
-const RESUME_GRACE_MS = 250;
+const RESUME_WAIT_MS = 1500;
 
 /** Volume changes and duck releases glide instead of stepping, so they never click. */
 const GLIDE = 0.03;
@@ -80,8 +80,8 @@ export class AudioEngine {
   private readonly lastVariant = new Map<SoundId, number>();
   private readonly vary: Variation;
   private duckUntil = 0;
-  /** When the last key, click or touch asked a suspended context to resume (performance.now() ms). */
-  private gestureAt = -Infinity;
+  /** Until when (performance.now() ms) a resume() asked for by a gesture is still pending; 0 when none is. */
+  private resumeUntil = 0;
 
   constructor(opts: EngineOptions) {
     const ctx = (this.ctx = opts.context);
@@ -185,8 +185,13 @@ export class AudioEngine {
     if (typeof ctx.resume !== 'function') return;
     const resume = () => {
       if (ctx.state === 'running') return;
-      this.gestureAt = performance.now();
-      void ctx.resume().catch(() => undefined);
+      const until = (this.resumeUntil = performance.now() + RESUME_WAIT_MS);
+      void ctx
+        .resume()
+        .catch(() => undefined)
+        .finally(() => {
+          if (this.resumeUntil === until) this.resumeUntil = 0;
+        });
     };
     for (const e of ['keydown', 'pointerdown', 'touchend']) target.addEventListener(e, resume, true);
   }
@@ -197,8 +202,7 @@ export class AudioEngine {
    */
   play(id: SoundId, opts: PlayOptions = {}): Voice | null {
     const def = soundDef(id);
-    if (this.dropWhileSuspended && !this.running && performance.now() - this.gestureAt > RESUME_GRACE_MS)
-      return null;
+    if (this.dropWhileSuspended && !this.running && performance.now() > this.resumeUntil) return null;
     const variant = this.vary.pick(def.files.length, this.lastVariant.get(id) ?? -1);
     const path = def.files[variant]!;
     const buf = this.decoded.get(path);

@@ -137,7 +137,7 @@ describe('AudioEngine', () => {
     clock.mockRestore();
   });
 
-  it('keeps asking a context that has not resumed yet on every gesture, and drops effects once the gesture is old', async () => {
+  it('keeps asking a context that has not resumed on every gesture, holding effects until a stuck resume times out', async () => {
     const { ctx, engine } = await setup({ suspended: true });
     let asked = 0;
     ctx.resume = () => {
@@ -153,6 +153,8 @@ describe('AudioEngine', () => {
     expect(asked).toBe(2);
     expect(engine.play('menu-select')).not.toBeNull();
     clock.mockReturnValue(t0 + 1000);
+    expect(engine.play('menu-select')).not.toBeNull();
+    clock.mockReturnValue(t0 + 2000);
     expect(engine.play('menu-select')).toBeNull();
     clock.mockRestore();
   });
