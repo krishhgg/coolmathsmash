@@ -192,6 +192,44 @@ describe('riding moving pieces', () => {
     until(m, (g) => g.pos.y < 50);
     expect(m.stage.platforms[1]!.on).toBe(false);
   });
+
+  it('ends a grab when its platform vanishes, whichever port holds: a grab release, then both fall', () => {
+    for (const holder of [0, 1]) {
+      const m = createMatch({
+        seed: 1,
+        stage: 'testbed',
+        stocks: 3,
+        ports: [{ fighter: 'fireboy' }, { fighter: 'fireboy' }],
+      });
+      const a = m.fighters[holder]!;
+      const v = m.fighters[1 - holder]!;
+      Object.assign(a, { pos: { x: -6, y: 58.001 }, prevPos: { x: -6, y: 58.001 }, facing: 1 });
+      Object.assign(v, { pos: { x: 6, y: 58.001 }, prevPos: { x: 6, y: 58.001 }, facing: -1 });
+      const step = (grab = false) => {
+        const inputs = [neutralInput(), neutralInput()];
+        if (grab) inputs[holder] = input({ buttons: ['grab'] });
+        stepMatch(m, inputs);
+      };
+      while (m.frame < 185) step();
+      step(true);
+      while (m.frame < 199) step();
+      expect([a.action, v.action, a.grabPartner, v.grabPartner]).toEqual([
+        'grabHold',
+        'grabbed',
+        v.port,
+        a.port,
+      ]);
+      step();
+      expect(m.stage.platforms[1]!.on).toBe(false);
+      expect(m.events.filter((e) => e.type === 'grabRelease')).toEqual([
+        { type: 'grabRelease', holder: a.port, held: v.port },
+      ]);
+      expect([a.grabPartner, v.grabPartner]).toEqual([-1, -1]);
+      expect([a.ground, v.ground]).toEqual([null, null]);
+      expect([a.action, v.action]).toEqual(['fall', 'fall']);
+      expect(v.grabbableFrom).toBeGreaterThan(m.frame);
+    }
+  });
 });
 
 describe('collision with moving solids', () => {

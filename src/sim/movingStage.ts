@@ -1,3 +1,4 @@
+import { breakGrab } from './actions/grab';
 import { dropLedge } from './actions/ledge';
 import { ACTIONS, enterAction } from './actions/registry';
 import { DOWN_FLICK_THRESHOLD } from './constants';
@@ -309,9 +310,10 @@ function standOn(x: Ctx, g: GroundRef): void {
   f.pos.y = surfaceY(x.stage, g, f.pos.x);
 }
 
-/** The stage left the fighter without ground: it falls, unless it is being launched or is in hitstun. */
+/** The stage left the fighter without ground: a grab it is in ends, and it falls unless launched or in hitstun. */
 function loseGround(x: Ctx): void {
-  const { f } = x;
+  const { f, m } = x;
+  if (f.grabPartner >= 0) breakGrab(m, f);
   const keep = f.launch !== null || f.action === 'hitstun' || ACTIONS[f.action]!.physics === 'air';
   leaveGround(x);
   if (!keep) enterAction(x, 'fall', 0);
