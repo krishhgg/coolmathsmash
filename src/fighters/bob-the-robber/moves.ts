@@ -1,4 +1,5 @@
 import type { HitboxDef, MoveDef } from '../types';
+import { sideB, upB } from './specials';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -340,4 +341,6 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 18, hit: { damage: 6, angle: 75, kbg: 40, bkb: 60 } },
   },
+  sideB,
+  upB,
 };
