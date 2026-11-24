@@ -54,13 +54,16 @@ Jump velocities are derived from the heights (`src/sim/physics.ts`), so you give
 `FighterState.move` holds it while the move runs. Inputs pick moves by these names
 (`src/sim/actions/attack.ts`):
 
-| Input                                      | Grounded                                         | Airborne                                            |
-| ------------------------------------------ | ------------------------------------------------ | --------------------------------------------------- |
-| Attack                                     | `jab`                                            | `nair`                                              |
-| Attack + held direction (or walk modifier) | `ftilt`, `utilt`, `dtilt`                        | `fair`, `bair`, `uair`, `dair` (relative to facing) |
-| Attack + tapped direction, or C-stick      | `fsmash`, `usmash`, `dsmash` (back turns around) | the matching aerial                                 |
-| Attack while dashing or running            | `dashAttack`                                     |                                                     |
-| Special + direction                        | `neutralB`, `sideB`, `upB`, `downB`              | same                                                |
+| Input                                       | Grounded                                                                | Airborne                                            |
+| ------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------- |
+| Attack                                      | `jab`                                                                   | `nair`                                              |
+| Attack + held direction (or walk modifier)  | `ftilt`, `utilt`, `dtilt`                                               | `fair`, `bair`, `uair`, `dair` (relative to facing) |
+| Attack + tapped direction, or C-stick       | `fsmash`, `usmash`, `dsmash` (back turns around)                        | the matching aerial                                 |
+| Attack while dashing or running             | `dashAttack`                                                            |                                                     |
+| Special + direction                         | `neutralB`, `sideB`, `upB`, `downB`                                     | same                                                |
+| Grab, or Shield + Attack (also in shield)   | `grab`, `dashGrab` (dash or run), `pivotGrab` (dash or run, stick back) |                                                     |
+| Holding someone: stick or C-stick direction | `fthrow`, `bthrow`, `uthrow`, `dthrow`                                  |                                                     |
+| Holding someone: Attack or Grab             | `pummel`                                                                |                                                     |
 
 Up smash and up special also come out of jumpsquat, so up + Attack with tap jump still up-smashes. A fighter
 without a move simply does nothing for that input.
@@ -120,10 +123,58 @@ The combat math (knockback, hitlag, hitstun, DI, shieldstun, staleness) is share
 Every move start, hit and landing is reported as a sim event (`docs/sim-events.md`). Audio and effects key off
 move names, so keep them to the canonical names above.
 
+### Grabs and throws
+
+A grab is a grounded move whose boxes are grab boxes; pummels and throws are moves with no boxes that act on the
+fighter being held (Fireboy's, in `src/fighters/fireboy/moves.ts`):
+
+```ts
+grab: {
+  kind: 'other',
+  faf: 35,
+  hits: [
+    {
+      frames: [6, 7],
+      boxes: [{ id: 0, x: 7.5, y: 7, radius: 4.5, damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true }],
+    },
+  ],
+},
+pummel: { kind: 'other', faf: 6, hits: [], pummel: { frame: 1, damage: 1.3, hitlag: 2.1 } },
+bthrow: {
+  kind: 'other',
+  faf: 60,
+  hits: [],
+  throw: { frame: 44, hit: { damage: 11, angle: 45, kbg: 75, bkb: 50, direction: 'back' } },
+},
+```
+
+- **Grab boxes.** A box with `grab: true` catches instead of hitting (leave its damage and knockback at 0). It
+  catches the nearest fighter in front of the grabber, straight through shields, and shrinks to half its radius
+  against airborne fighters. The grabber goes into `grabHold` and the victim into `grabbed`, held just in front of
+  him; a grab that catches nobody plays the whole move. Grab range is the box's far edge, `x + radius` (Mario's
+  is 12).
+- **`pummel: { frame, damage, hitlag? }`.** On `frame` the held fighter takes `damage` and hitlag (times
+  `hitlag`) but no knockback, and stays held.
+- **`throw: { frame, hit }`.** On `frame` the held fighter is let go and takes `hit`, a hitbox without a position,
+  through the same knockback path as any hit (staleness, rage and DI included). As in Ultimate a throw has no
+  hitlag unless `hit.hitlag` sets a multiplier; `direction: 'back'` throws behind. The thrower is intangible until
+  the release, and a started throw can't be escaped.
+- **Hold time** is floor(90 + 1.7 × %) frames at the moment of the grab. Each new stick direction the victim
+  mashes cuts 8 frames and each button press 14.4, but a hold lasts at least 19 frames. Then both slide apart into
+  `grabRelease` (29 frames of lag each, so neither has the advantage), and the freed fighter can't be grabbed for
+  60 frames.
+- **More players.** Hitting the holder frees the held fighter. A held fighter takes hits from others without being
+  launched until they add up to 10%; then it breaks free and is launched as usual.
+- **Same frame.** Grabs resolve after the frame's hits (`src/sim/actions/grab.ts`). An attack beats a grab: a
+  fighter struck this frame neither grabs nor is grabbed. Two fighters grabbing each other clank, as in
+  Ultimate: both go into grab release and take 1% (1.2% in 1v1). Otherwise grabs resolve in port order, so when
+  two grabs catch the same fighter the lower port wins.
+- **Shield grabs** use `grab` and come out from 4 frames after shieldstun ends.
+
 ### Tuning tools
 
-- `?hitboxes` on the game URL (or **F4**) draws hurtboxes in yellow and active hitboxes in red; `?actions` (F3)
-  labels each fighter's action and frame.
+- `?hitboxes` on the game URL (or **F4**) draws hurtboxes in yellow, active hitboxes in red and grab boxes in
+  purple; `?actions` (F3) labels each fighter's action and frame.
 - `/lab.html?scene=knockback` charts a hit's knockback and hitstun against target % for four weights.
 - `/lab.html?scene=launch` simulates the real launch trajectories of a hit at 0–200% on your fighter:
   `__lab.call('hit', { damage, kbg, bkb, angle, fighter: '<id>' })`.

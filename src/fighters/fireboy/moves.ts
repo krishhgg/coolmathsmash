@@ -256,14 +256,14 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 28,
     hits: [],
-    throw: { frame: 13, hit: { damage: 8, angle: 45, kbg: 70, bkb: 60, effect: fire } },
+    throw: { frame: 13, hit: { damage: 8, angle: 45, kbg: 55, bkb: 45, effect: fire } },
   },
   /** Spins the opponent round in a fire wheel and flings them behind: his kill throw near the ledge. */
   bthrow: {
     kind: 'other',
     faf: 60,
     hits: [],
-    throw: { frame: 44, hit: { damage: 11, angle: 45, kbg: 70, bkb: 60, effect: fire, direction: 'back' } },
+    throw: { frame: 44, hit: { damage: 11, angle: 45, kbg: 75, bkb: 50, effect: fire, direction: 'back' } },
   },
   /** Heaves the opponent overhead on a burst of flame. */
   uthrow: {

@@ -167,7 +167,8 @@ export function findGrabs(m: MatchState): GrabContact[] {
       if (v === a || !grabbable(m, v) || (v.pos.x - a.pos.x) * a.facing < 0) continue;
       const body = hurtbox(v, getFighter(v.fighter).stats);
       const scale = v.ground ? 1 : GRAB.airborneRadius;
-      if (!boxes.some((h) => touches({ ...h, box: { ...h.box, radius: h.box.radius * scale } }, body))) continue;
+      if (!boxes.some((h) => touches({ ...h, box: { ...h.box, radius: h.box.radius * scale } }, body)))
+        continue;
       if (!best || Math.abs(v.pos.x - a.pos.x) < Math.abs(best.pos.x - a.pos.x)) best = v;
     }
     if (best) contacts.push({ a, v: best });
@@ -233,7 +234,12 @@ function toRelease(f: FighterState, dir: number): void {
  * End a grab without a throw: both slide apart into grab release, except `launched`, whom a hit is launching
  * instead. The held fighter can't be grabbed again for GRAB.regrabImmunity frames.
  */
-function endGrab(m: MatchState, holder: FighterState | undefined, held: FighterState, launched?: FighterState) {
+function endGrab(
+  m: MatchState,
+  holder: FighterState | undefined,
+  held: FighterState,
+  launched?: FighterState,
+) {
   const dir = holder ? Math.sign(held.pos.x - holder.pos.x) || holder.facing : -held.facing;
   for (const [f, d] of [
     [holder, -dir],
