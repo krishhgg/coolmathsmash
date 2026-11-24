@@ -1,5 +1,6 @@
 import { setAction } from '../../sim/actions/registry';
 import type { HitboxDef, MoveDef } from '../types';
+import { specials } from './specials';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -35,12 +36,14 @@ export const moves: Record<string, MoveDef> = {
   jab: {
     kind: 'other',
     faf: 20,
+    next: { window: [6, 19], move: 'jab2' },
     hits: [{ frames: [3, 4], boxes: [box(0, 6.5, 5.5, 3.5, { damage: 2, angle: 361, kbg: 35, bkb: 22 })] }],
   },
   /** Second bump. */
   jab2: {
     kind: 'other',
     faf: 21,
+    next: { window: [6, 20], move: 'jab3' },
     hits: [{ frames: [3, 4], boxes: [box(0, 7, 5.5, 3.5, { damage: 2, angle: 361, kbg: 35, bkb: 20 })] }],
   },
   /** Lick: the tongue shoots out and pushes them away. */
@@ -288,4 +291,5 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55 } },
   },
+  ...specials,
 };
