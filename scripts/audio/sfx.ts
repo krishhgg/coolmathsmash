@@ -199,12 +199,13 @@ function hitKo(rng: Rng): Float32Array {
     [crackle(rng, [0, 0.004, 0.009, 0.016, 0.026], 3000, 0.003), 1.3],
     [slap(rng, 5200, 1.2, 0.03, 0.2), 0.7],
     [click(rng, 0.01, 1800), 0.9],
-    [slap(rng, 2000, 1, 0.03, 0.2), 0.8],
-    [crunch(rng, 1200, 0.8, 0.05, 4, 0.3), 0.6],
-    [drive(thump(130, 34, 0.05, 0.22, 1.1), 2.2), 1.4],
-    [glint, 0.16, 0.01],
+    [slap(rng, 2000, 1, 0.03, 0.2), 0.45],
+    [crunch(rng, 1200, 0.8, 0.05, 4, 0.3), 0.5],
+    [drive(thump(130, 34, 0.05, 0.22, 1.1), 2.2), 1.75],
+    [glint, 0.12, 0.01],
   );
-  return finish(reverbMono(dry, { room: 0.6, damp: 0.5, wet: 0.25, tail: 0.45, predelay: 0.015 }));
+  const wet = reverbMono(dry, { room: 0.6, damp: 0.5, wet: 0.25, tail: 0.45, predelay: 0.015 });
+  return finish(filter(filter(wet, 'peak', 2000, 1.1, -6), 'lowshelf', 70, Math.SQRT1_2, 2));
 }
 
 /** Layer for fire hitboxes: a warm flame whoosh with ember pops. */
@@ -241,41 +242,58 @@ function hitElectric(rng: Rng): Float32Array {
   const arcs = buffer(len);
   for (let t = 0.005; t < len - 0.03;) {
     const on = rng.range(0.004, 0.014);
-    const burst = mul(filter(noise(on, rng), 'bandpass', rng.range(2500, 6000), 1.2), 1);
     add(
       arcs,
-      mul(
-        burst,
-        osc(on, rng.range(500, 900), 'square').map((s) => 0.7 + 0.3 * s),
-      ),
+      mul(filter(noise(on, rng), 'bandpass', rng.range(3000, 7000), 1.2), decay(on, on / 2, 0.01)),
       t,
       Math.exp(-t / 0.15),
     );
     t += on + rng.range(0.004, 0.02) * (1 + t * 6);
   }
   const sizzle = mul(filter(noise(len, rng), 'highpass', 6000), decay(len, 0.1, 0.002));
-  const hum = mul(filter(osc(len, 120, 'saw'), 'lowpass', 700), decay(len, 0.12, 0.002));
-  return finish(layer(len, [click(rng, 0.006, 3000), 0.8], [arcs, 1], [sizzle, 0.35], [hum, 0.25]));
+  const hum = mul(filter(osc(len, 120, 'saw'), 'lowpass', 400), decay(len, 0.08, 0.002));
+  const micro = crackle(
+    rng,
+    Array.from({ length: 18 }, () => 0.3 * rng.next() ** 1.5),
+    6000,
+    0.0012,
+  );
+  return finish(
+    filter(
+      layer(len, [click(rng, 0.006, 3000), 0.8], [arcs, 1], [micro, 0.6], [sizzle, 0.35], [hum, 0.08]),
+      'peak',
+      1100,
+      0.8,
+      -6,
+    ),
+  );
 }
 
 // ---------------------------------------------------------------- shield
 
-/** A hit on the shield: a damped, muffled thud with a short glassy sheen. */
+/** A hit on the shield: a tight damped thud against a taut barrier, with a crisp glassy force-field ping. */
 function shieldHit(rng: Rng, v: number): Float32Array {
   const p = [1, 1.06][v] ?? 1;
-  const sheen = partials(0.25, 2350 * p, [
-    [1, 1, 0.035],
-    [1.41, 0.6, 0.03],
-    [2.17, 0.4, 0.02],
+  const ping = partials(0.3, 3300 * p, [
+    [1, 1, 0.05],
+    [1.41, 0.6, 0.04],
+    [2.17, 0.35, 0.03],
+    [2.9, 0.2, 0.02],
   ]);
-  return finish(
-    layer(
-      0.3,
-      [click(rng, 0.004, 2000), 0.4],
-      [drive(thump(210 * p, 92, 0.02, 0.05, 0.3), 1.5), 1],
-      [slap(rng, 600 * p, 0.7, 0.03, 0.2, 'pink'), 0.7],
-      [sheen, 0.22],
+  return filter(
+    finish(
+      layer(
+        0.3,
+        [click(rng, 0.004, 2500), 0.5],
+        [thump(240 * p, 150, 0.008, 0.03, 0.2), 1],
+        [slap(rng, 1800 * p, 1, 0.012, 0.1), 0.35],
+        [ping, 0.45],
+      ),
     ),
+    'peak',
+    900,
+    1,
+    -4,
   );
 }
 
@@ -589,7 +607,19 @@ function dodge(rng: Rng): Float32Array {
     [1.5, 0.4, 0.06],
     [2.01, 0.25, 0.05],
   ]);
-  return finish(layer(0.32, [flange(air, 0.0025, 0.002, 14), 1], [sparkle, 0.12, 0.03]));
+  const zipF = (t: number) => 1400 + 2600 * Math.min(1, t / 0.05);
+  const zip = mul(
+    layer(0.1, [osc(0.1, zipF, 'triangle'), 1], [osc(0.1, (t) => zipF(t) * 1.5), 0.4]),
+    decay(0.1, 0.03, 0.002),
+  );
+  return finish(
+    layer(
+      0.32,
+      [flange(air, 0.0025, 0.002, 14), 0.65],
+      [flange(zip, 0.0015, 0.001, 20), 0.55],
+      [sparkle, 0.2, 0.03],
+    ),
+  );
 }
 
 /** Roll: two cloth-and-floor scuffs under a low swoosh. */
@@ -608,66 +638,82 @@ function roll(rng: Rng): Float32Array {
   return finish(
     layer(
       0.38,
-      [air, 0.6],
-      [slap(rng, 900, 0.9, 0.035, 0.2, 'pink'), 1],
-      [slap(rng, 750, 0.9, 0.045, 0.2, 'pink'), 0.9, 0.17],
-      [thump(150, 70, 0.015, 0.03, 0.12), 0.5, 0.17],
+      [filter(air, 'lowpass', 1800), 0.4],
+      [slap(rng, 520, 0.9, 0.035, 0.2, 'pink'), 0.8],
+      [slap(rng, 460, 0.9, 0.045, 0.2, 'pink'), 0.75, 0.16],
+      [thump(190, 90, 0.02, 0.04, 0.2), 0.9],
+      [thump(170, 80, 0.02, 0.045, 0.2), 0.9, 0.16],
     ),
   );
 }
 
-/** The smash charge: a tense pulsing hum with crystalline glints that thicken, rising a little (60 frames max). */
+/**
+ * The smash charge: a crystalline glint, then a warm shimmering swell that rises and brightens under a gentle
+ * pulsing aura, with a power hum underneath (60 frames max).
+ */
 function smashCharge(rng: Rng): Float32Array {
   const len = 1.05;
-  const f = (t: number) => 110 * 2 ** (t * 0.35);
-  const hum = filter(
+  const f = (t: number) => 146.8 * 2 ** (t * 0.5);
+  const vib = (t: number) => 1 + 0.004 * Math.sin(2 * Math.PI * 5.5 * t) * Math.min(1, t / 0.3);
+  const swell = filter(
     layer(
       len,
-      [osc(len, f, 'saw'), 0.5],
-      [osc(len, (t) => f(t) * 1.505, 'saw'), 0.3],
-      [osc(len, (t) => f(t) * 2.01, 'saw'), 0.2],
+      [osc(len, (t) => f(t) * vib(t), 'saw'), 0.3],
+      [osc(len, (t) => f(t) * 1.005 * vib(t), 'saw', { phase: 0.4 }), 0.3],
+      [osc(len, (t) => f(t) * 2 * vib(t), 'triangle'), 0.3],
+      [osc(len, (t) => f(t) * 3.01, 'sine'), 0.12],
     ),
     'lowpass',
-    (t) => 700 + 1100 * t,
-    2,
+    (t) => 900 + 2600 * t,
+    0.9,
+  );
+  const hum = mul(
+    layer(len, [osc(len, f), 0.7], [osc(len, (t) => f(t) / 2), 0.4]),
+    env(len, [
+      [0, 0.3],
+      [len, 1],
+    ]),
   );
   let ph = 0;
-  const pulse = new Float32Array(hum.length);
-  for (let i = 0; i < pulse.length; i++) {
-    ph += (9 + 13 * (i / pulse.length)) / SR;
-    pulse[i] = 0.55 + 0.45 * Math.sin(2 * Math.PI * ph);
+  const aura = new Float32Array(swell.length);
+  for (let i = 0; i < aura.length; i++) {
+    ph += (5 + 4 * (i / aura.length)) / SR;
+    aura[i] = 0.85 + 0.15 * Math.sin(2 * Math.PI * ph);
   }
+  const glint = partials(0.35, 4186, [
+    [1, 1, 0.07],
+    [1.5, 0.5, 0.06],
+    [2, 0.4, 0.05],
+    [3, 0.2, 0.03],
+  ]);
   const glints = buffer(len);
-  for (let i = 0; i < 26; i++) {
-    const t = len * Math.sqrt(rng.next());
+  for (let i = 0; i < 14; i++)
     add(
       glints,
-      partials(0.12, rng.range(3000, 8000), [
-        [1, 1, 0.025],
-        [2.4, 0.3, 0.012],
+      partials(0.15, rng.range(3500, 7000), [
+        [1, 1, 0.03],
+        [2.4, 0.3, 0.015],
       ]),
-      t,
-      rng.range(0.3, 1),
+      len * (0.2 + 0.8 * Math.sqrt(rng.next())),
+      rng.range(0.2, 0.6),
     );
-  }
   const air = mul(
     filter(noise(len, rng), 'highpass', 5000),
     env(len, [
-      [0, 0.1],
-      [len, 0.6],
+      [0, 0.05],
+      [len, 0.4],
     ]),
   );
-  return normalize(
-    mul(
-      layer(len, [mul(hum, pulse), 1], [glints, 0.35], [air, 0.12]),
-      env(len, [
-        [0, 0],
-        [0.04, 0.55],
-        [len, 1],
-      ]),
-    ),
-    0.85,
+  const body = mul(
+    layer(len, [mul(swell, aura), 1], [hum, 0.45], [glints, 0.25], [air, 0.08]),
+    env(len, [
+      [0, 0],
+      [0.06, 0.45],
+      [len - 0.1, 1],
+      [len, 0.75],
+    ]),
   );
+  return normalize(layer(len, [body, 1], [glint, 0.5]), 0.85);
 }
 
 function swing(rng: Rng, v: number): Float32Array {
@@ -754,14 +800,16 @@ function menuError(): Float32Array {
   );
 }
 
-/** A two-stage switch: a light tick then a firmer snap. */
+/** A two-step pitched switch: a light tick, then a firmer snap a fifth up. */
 function menuToggle(rng: Rng): Float32Array {
+  const blip = (f: number) => mul(osc(0.05, f, 'triangle'), decay(0.05, 0.012, 0.002));
   return finish(
     layer(
-      0.06,
-      [click(rng, 0.003, 4000), 0.5],
-      [click(rng, 0.005, 1800), 1, 0.018],
-      [thump(1000, 650, 0.005, 0.008, 0.04), 0.5, 0.018],
+      0.11,
+      [click(rng, 0.003, 4000), 0.4],
+      [blip(midiHz(84)), 0.6],
+      [click(rng, 0.005, 1800), 0.8, 0.045],
+      [blip(midiHz(91)), 0.7, 0.045],
     ),
     0.7,
   );
