@@ -567,7 +567,28 @@ export const attacks: Record<string, AnimClip> = {
       key(37, STAND),
     ],
   },
+  /** Plants against the slide, swings round to the new facing and lunges with both hands. */
+  pivotGrab: {
+    active: [[10, 11]],
+    length: 36,
+    swaps: ANGRY,
+    keys: [
+      key(0, hands(stance(-16, 0.5, -1.2, 1.0), [-2.0, -3.2], [-1.6, -3.5]), { ease: 'in' }),
+      key(6, hands(stance(10, 0.6, -1.2, 1.4), [-0.8, -3.3], [-0.3, -3.6]), { ease: 'in' }),
+      ...strike(
+        10,
+        11,
+        mix(DASH_GRAB, { body: { x: 2.8 }, fx1: ball(9, -6.8, 1.7, 0) }),
+        { fx1: 'fxBall' },
+        ARMS_IN_FRONT,
+      ),
+      key(18, mix(DASH_GRAB, { body: { x: 1.8, rot: 14 }, fx1: ball(8.6, -6.4, 0.4, 0) }), { ease: 'inOut' }),
+      done(19),
+      key(36, STAND),
+    ],
+  },
   pummel: {
+    active: [[2, 4]],
     length: 17,
     swaps: ANGRY,
     keys: [
@@ -585,6 +606,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   fthrow: {
+    active: [[11, 13]],
     length: 29,
     swaps: ANGRY,
     keys: [
@@ -611,6 +633,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   bthrow: {
+    active: [[15, 17]],
     length: 37,
     swaps: ANGRY,
     keys: [
@@ -644,6 +667,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   uthrow: {
+    active: [[11, 13]],
     length: 33,
     swaps: ANGRY,
     keys: [
@@ -664,6 +688,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   dthrow: {
+    active: [[17, 19]],
     length: 37,
     swaps: ANGRY,
     keys: [

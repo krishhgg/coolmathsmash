@@ -46,4 +46,20 @@ describe('moveClipFrame', () => {
     expect(moveClipFrame(clip(60), 15, move(31))).toBe(30);
     expect(moveClipFrame(clip(60), 15, undefined)).toBe(15);
   });
+
+  it("lines a throw's or pummel's impact frame up with the clip's active window", () => {
+    const c = clip(29, [[11, 13]]);
+    const fthrow: MoveDef = {
+      kind: 'other',
+      faf: 30,
+      hits: [],
+      throw: { frame: 18, hit: { damage: 8, angle: 45, kbg: 55, bkb: 45 } },
+    };
+    expect(moveClipFrame(c, 9, fthrow)).toBeCloseTo(5.5);
+    expect(moveClipFrame(c, 18, fthrow)).toBe(11);
+    expect(moveClipFrame(c, 19, fthrow)).toBeGreaterThanOrEqual(13);
+    expect(moveClipFrame(c, 29, fthrow)).toBe(29);
+    const pummel: MoveDef = { kind: 'other', faf: 6, hits: [], pummel: { frame: 1, damage: 1.3 } };
+    expect(moveClipFrame(clip(17, [[2, 4]]), 1, pummel)).toBe(2);
+  });
 });
