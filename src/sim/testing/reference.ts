@@ -28,6 +28,7 @@ export const marioReference = defineFighter({
     gravity: 0.087,
     fallSpeed: 1.5,
     fastFallSpeed: 2.4,
+    damageFlyTopGravity: 0.074928,
     jumpSquat: 3,
     fullHopHeight: 36.33,
     shortHopHeight: 17.54,

@@ -33,6 +33,11 @@ export interface FighterStats {
   gravity: number;
   fallSpeed: number;
   fastFallSpeed: number;
+  /**
+   * Ultimate's DamageFlyTopGravity: gravity during hitstun after a near-vertical (70-110 degree) tumble launch. Mario
+   * 0.074928; it ranges 0.0628-0.0874 across the cast. Defaults to the cast median, DAMAGE_FLY_TOP_GRAVITY.
+   */
+  damageFlyTopGravity?: number;
 
   jumpSquat: number;
   /** Apex heights in units above the take-off point. */
@@ -137,6 +142,8 @@ export interface MoveDef {
   ledgeFrom?: number;
   /** Landing doesn't end the move: it carries on from the same frame on the ground, with no landing lag. */
   continuesOnLanding?: boolean;
+  /** Airborne moves: false turns off the stick's air drift (and air friction) while the move plays, for scripted paths. */
+  drift?: boolean;
   /**
    * Ground/air variants (Ultimate's SpecialN and SpecialAirN): started in the air, this move plays the move named
    * `air` instead, which is also the clip and the name in the `move` event.
