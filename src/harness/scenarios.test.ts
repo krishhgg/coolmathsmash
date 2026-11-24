@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { registerFighter } from '../fighters/registry';
 import { createMatch } from '../sim/match';
+import { marioReference } from '../sim/testing/reference';
 import {
   FIGHTER_STATES,
   SCENARIOS,
@@ -121,7 +123,7 @@ describe('fighter scenarios (src/fighters/<id>/scenarios.ts)', () => {
 
   it('give a fighter its own copy of every standard state against Fireboy, with its references', () => {
     const list = fighterScenarios(spec);
-    expect(list.map((s) => s.name)).toEqual(
+    expect(list.map((s) => s.name).filter((n) => n !== 'redball-sheet')).toEqual(
       FIGHTER_STATES.filter((n) => n !== 'sheet').map((n) => `redball-${n}`),
     );
     const run = list.find((s) => s.name === 'redball-run')!;
@@ -130,9 +132,12 @@ describe('fighter scenarios (src/fighters/<id>/scenarios.ts)', () => {
     expect(scenarioConfig(run).ports.map((p) => p.fighter)).toEqual(['redball', 'fireboy']);
   });
 
-  it('add the rig sheet once the fighter has art', () => {
+  it('add the rig sheet once the fighter has an art directory, and leave it out before', () => {
     const sheet = fighterScenarios({ fighter: 'fireboy', refs: {} }).find((s) => s.name === 'fireboy-sheet');
     expect(sheet?.page).toEqual({ kind: 'lab', scene: 'fighter', params: { fighter: 'fireboy' } });
+    registerFighter(marioReference);
+    const names = fighterScenarios({ fighter: marioReference.id, refs: {} }).map((s) => s.name);
+    expect(names).not.toContain(`${marioReference.id}-sheet`);
   });
 
   it('are discovered and appended after the shared states', () => {
