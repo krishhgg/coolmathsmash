@@ -106,6 +106,13 @@ fsmash: {
   - `helpless` ends the move in helpless fall.
   - `ledgeFrom` lets the move grab a ledge from that frame.
   - Fireboy's `upB` uses all three.
+  - `continuesOnLanding` lets an airborne special carry on from the same frame when it lands, instead of
+    ending in landing lag.
+- **Transform.** `transform: { frame, into }` turns the fighter into fighter `into` on that frame of the move
+  (Zelda/Sheik style). FighterState carries over (%, stocks, position, momentum), and stats, moves and art switch;
+  `into` needs a move of the same name, which plays the rest of the move. Fireboy and Watergirl's down special
+  (`src/fighters/fireboy/swap.ts`) is the example. A form that is only reached by transforming sets
+  `selectable: false` on its FighterDef, so menus list only the fighter that starts the match.
 
 The combat math (knockback, hitlag, hitstun, DI, shieldstun, staleness) is shared and lives in
 `src/sim/combat/`; a fighter only supplies numbers.
