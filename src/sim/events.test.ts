@@ -136,6 +136,55 @@ describe('sim events', () => {
     expect(of(m, 'action')).toEqual([]);
   });
 
+  it('grabs report the catch, pummels, the throw before its hit, releases and clanks', () => {
+    const grabbed = () => {
+      const m = testMatch({ fighter: 'fireboy', players: 2 });
+      const [a, v] = m.fighters as [FighterState, FighterState];
+      const at = { x: a.pos.x + 12 * a.facing, y: a.pos.y };
+      Object.assign(v, {
+        pos: { ...at },
+        prevPos: { ...at },
+        ground: a.ground,
+        action: 'idle',
+        intangible: 0,
+      });
+      runPorts(m, 1, [{ buttons: ['grab'] }, {}]);
+      for (let i = 0; i < 6 && of(m, 'grab').length === 0; i++) runPorts(m, 1, [{}, {}]);
+      expect(of(m, 'grab')).toEqual([{ type: 'grab', attacker: 0, victim: 1, move: 'grab' }]);
+      return { m, a, v };
+    };
+    const { m, a, v } = grabbed();
+    const before = v.damage;
+    runPorts(m, 1, [{ buttons: ['attack'] }, {}]);
+    expect(of(m, 'pummel')).toEqual([{ type: 'pummel', attacker: 0, victim: 1, damage: v.damage - before }]);
+    runPorts(m, 30, [{}, {}]);
+    runPorts(m, 1, [{ x: 100 * a.facing }, {}]);
+    for (let i = 0; i < 30 && of(m, 'throw').length === 0; i++) runPorts(m, 1, [{}, {}]);
+    expect(m.events.filter((e) => e.type === 'throw' || e.type === 'hit').map((e) => e.type)).toEqual([
+      'throw',
+      'hit',
+    ]);
+    expect(of(m, 'throw')[0]).toEqual({ type: 'throw', attacker: 0, victim: 1, move: 'fthrow' });
+
+    const held = grabbed();
+    for (let i = 0; i < 120 && of(held.m, 'grabRelease').length === 0; i++) runPorts(held.m, 1, [{}, {}]);
+    expect(of(held.m, 'grabRelease')).toEqual([{ type: 'grabRelease', holder: 0, held: 1 }]);
+
+    const clank = testMatch({ fighter: 'fireboy', players: 2 });
+    const [p1, p2] = clank.fighters as [FighterState, FighterState];
+    const at = { x: p1.pos.x + 12 * p1.facing, y: p1.pos.y };
+    Object.assign(p2, {
+      pos: { ...at },
+      prevPos: { ...at },
+      ground: p1.ground,
+      action: 'idle',
+      facing: -p1.facing,
+    });
+    runPorts(clank, 1, [{ buttons: ['grab'] }, { buttons: ['grab'] }]);
+    for (let i = 0; i < 6 && of(clank, 'grabClank').length === 0; i++) runPorts(clank, 1, [{}, {}]);
+    expect(of(clank, 'grabClank')).toEqual([{ type: 'grabClank', ports: [0, 1] }]);
+  });
+
   it('the event stream is deterministic', () => {
     const stream = () => {
       const { m } = duel();

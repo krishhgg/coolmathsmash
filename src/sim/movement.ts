@@ -86,7 +86,7 @@ export function groundMove(x: Ctx): void {
   }
   f.pos.x = nx;
   leaveGround(x);
-  enterAction(x, 'fall', 0);
+  if (action.edge === 'fall') enterAction(x, 'fall', 0);
 }
 
 export function leaveGround(x: Ctx): void {
