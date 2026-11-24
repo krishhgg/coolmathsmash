@@ -41,6 +41,8 @@ export interface Target {
   path: Sample[];
   /** Spacing misjudgement added to the target's x. */
   errX: number;
+  /** Frames from now until grabs can catch it again (regrab immunity after escaping a grab). */
+  grabbableIn: number;
 }
 
 export interface Self {
@@ -76,7 +78,12 @@ function firstHit(
     const p = at(pf, t);
     if (!p) return null;
     const hurt = { ...s.hurt, x: s.hurt.x + target.errX };
-    const grabbable = s.grounded && s.ledge < 0 && !UNGRABBABLE.has(s.action) && (s.x - p.x) * facing >= 0;
+    const grabbable =
+      t >= target.grabbableIn &&
+      s.grounded &&
+      s.ledge < 0 &&
+      !UNGRABBABLE.has(s.action) &&
+      (s.x - p.x) * facing >= 0;
     let best: HitboxDef | null = null;
     for (const b of pf.boxes) {
       if (b.box.grab && !grabbable) continue;

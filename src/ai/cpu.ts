@@ -63,7 +63,13 @@ export class Cpu {
   private ledgePlan: { option: LedgeOption; at: number } | null = null;
   private techPlan: { tech: boolean; dir: number; pressed: boolean } | null = null;
   private getupPlan: { option: GetupOption; at: number; dir: number } | null = null;
-  private grabPlan: { at: number; pummels: number; stick: InputFrame } | null = null;
+  private grabPlan: {
+    at: number;
+    pummels: number;
+    stick: InputFrame;
+    start: number;
+    timer: number;
+  } | null = null;
   private mashDir = 1;
   private respawnAt = -1;
   private diStick: InputFrame | null = null;
@@ -268,8 +274,10 @@ export class Cpu {
   }
 
   /**
-   * Holding someone: after a reaction-length pause, pummel up to the level's count while the hold lasts, then
-   * throw: one that KOs if any does (checked by simulating each throw's launch), else toward the nearer blast zone.
+   * Holding someone: after a reaction-length pause, pummel up to the level's count, but only while the hold would
+   * outlast another pummel at the rate the opponent has been mashing (plus one more direction and button), then throw:
+   * one that KOs if any does (checked by simulating each throw's launch), else toward the nearer blast zone. A started
+   * throw can't be escaped.
    */
   private onGrabHold(state: Readonly<MatchState>, me: Readonly<FighterState>): InputFrame {
     this.prog = null;
@@ -278,11 +286,15 @@ export class Cpu {
     if (!this.grabPlan) {
       const pummels = Math.floor(this.rand() * (this.lv.pummels + 1));
       const at = state.frame + Math.round(this.lv.reaction / 2);
-      this.grabPlan = { at, pummels, stick: this.pickThrow(state, me, held) };
+      const stick = this.pickThrow(state, me, held);
+      this.grabPlan = { at, pummels, stick, start: state.frame, timer: held.grabTimer };
     }
     const plan = this.grabPlan;
     if (state.frame < plan.at) return NEUTRAL;
-    if (plan.pummels > 0 && held.grabTimer > PUMMEL_MARGIN) {
+    const drain = Math.max(1, (plan.timer - held.grabTimer) / Math.max(1, state.frame - plan.start));
+    const pummel = (getFighter(me.fighter).moves?.pummel?.faf ?? 6) + PUMMEL_HITLAG;
+    const margin = pummel * drain * 1.5 + GRAB.mashStick + GRAB.mashButton;
+    if (plan.pummels > 0 && held.grabTimer > margin) {
       if (this.last.buttons & Btn.Attack) return NEUTRAL;
       plan.pummels--;
       return press({ buttons: Btn.Attack });
@@ -433,7 +445,11 @@ export class Cpu {
     }
     const k = this.knowledge(state, me);
     const { path, snap } = this.foresee(state, opp);
-    const target: Target = { path, errX: (this.rand() * 2 - 1) * this.lv.spacingError };
+    const target: Target = {
+      path,
+      errX: (this.rand() * 2 - 1) * this.lv.spacingError,
+      grabbableIn: snap.grabbableFrom - state.frame,
+    };
     const now = path[0]!;
     const dir = (Math.sign(now.x - me.pos.x) || me.facing) as 1 | -1;
     const shielding = me.action === 'shield' || me.action === 'shieldStun';
@@ -791,8 +807,8 @@ function throwDamage(k: FighterKnowledge): number {
   return Math.max(0, ...THROWS.map(([name]) => k.def.moves?.[name]?.throw?.hit.damage ?? 0));
 }
 
-/** Pummels only while the hold has this many frames left, so a mashing opponent can't escape mid-pummel. */
-const PUMMEL_MARGIN = 30;
+/** Frames of hitlag a pummel adds on top of its own length (an estimate, for the escape margin). */
+const PUMMEL_HITLAG = 3;
 
 /** Run the launch `hit` would cause on a private copy of `victim` standing at `at`, and see if it reaches a blast zone. */
 function launchKills(
