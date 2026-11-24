@@ -7,6 +7,7 @@ import {
   RUN_TURN_FRAMES,
 } from '../constants';
 import { flickX, isHeld, stickX, stickY } from '../control';
+import { emit } from '../events';
 import type { Ctx } from '../fighter';
 import { approach, clamp } from '../vec';
 import { jumpSquatAttack } from './attack';
@@ -133,6 +134,7 @@ export const GROUND: Record<string, ActionDef> = {
       if (jumpSquatAttack(x)) return;
       if (f.actionFrame <= s.jumpSquat) return;
       const full = f.jumpByStick ? stickY(c) >= 0.5 : isHeld(c, Btn.Jump);
+      emit(x.m, { type: 'jump', port: f.port, kind: full ? 'full' : 'short' });
       takeOff(x, full ? d.fullHopV : d.shortHopV);
     },
   },

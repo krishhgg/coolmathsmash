@@ -5,6 +5,7 @@ import { inWindow, isIntangible } from '../actions/registry';
 import { LEDGE_HIT_LOCK } from '../constants';
 import { stickX, stickY } from '../control';
 import type { Ctx, FighterState } from '../fighter';
+import { emit } from '../events';
 import type { MatchState } from '../match';
 import { leaveGround } from '../movement';
 import {
@@ -78,6 +79,10 @@ interface Connection {
   percent: number;
   crouch: boolean;
   shielding: boolean;
+  /** World position of the hitbox that connected. */
+  at: { x: number; y: number };
+  /** The attacker's move, kept here because an earlier hit this frame may clear it. */
+  move: string | null;
 }
 
 /**
@@ -92,12 +97,12 @@ export function resolveHits(m: MatchState): void {
     if (a.hitlag > 0) continue;
     const boxes = activeHitboxes(a);
     if (boxes.length === 0) continue;
-    const found: { v: FighterState; box: HitboxDef }[] = [];
+    const found: { v: FighterState; box: HitboxDef; at: { x: number; y: number } }[] = [];
     for (const v of m.fighters) {
       if (v === a || a.hitVictims.includes(v.port) || !hittable(v)) continue;
       const body = hurtbox(v, getFighter(v.fighter).stats);
       const hit = boxes.filter((h) => touches(h, body)).sort((p, q) => p.box.id - q.box.id)[0];
-      if (hit) found.push({ v, box: hit.box });
+      if (hit) found.push({ v, box: hit.box, at: { x: hit.x, y: hit.y } });
     }
     if (found.length === 0) continue;
     const move = a.move!;
@@ -106,7 +111,7 @@ export function resolveHits(m: MatchState): void {
       a.staleQueue = [move, ...a.staleQueue].slice(0, STALE_QUEUE_LENGTH);
     }
     const kind = moveOf(a)?.kind ?? 'other';
-    for (const { v, box } of found) {
+    for (const { v, box, at } of found) {
       a.hitVictims.push(v.port);
       const damage = box.damage * chargeMultiplier(a);
       hits.push({
@@ -123,6 +128,8 @@ export function resolveHits(m: MatchState): void {
         percent: v.damage,
         crouch: v.action === 'crouch' && v.ground !== null,
         shielding: v.action === 'shield' || v.action === 'shieldStun',
+        at,
+        move,
       });
     }
   }
@@ -130,7 +137,7 @@ export function resolveHits(m: MatchState): void {
   for (const h of hits) {
     const again = struck.has(h.v);
     struck.add(h.v);
-    if (h.shielding) shieldHit(h, again);
+    if (h.shielding) shieldHit(m, h, again);
     else hit(m, h, again);
   }
 }
@@ -141,7 +148,7 @@ export function resolveHits(m: MatchState): void {
  */
 function hit(
   m: MatchState,
-  { a, v, box, damage: base, stale, rage, dir, percent, crouch }: Connection,
+  { a, v, box, damage: base, stale, rage, dir, percent, crouch, at, move }: Connection,
   again: boolean,
 ): void {
   const kb = knockback({
@@ -156,10 +163,24 @@ function hit(
     crouch,
   });
   const damage = base * stale;
+  const before = v.damage;
   v.damage = Math.min(DAMAGE_MAX, v.damage + damage * (m.players.length === 2 ? ONE_V_ONE_DAMAGE : 1));
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric', crouch });
   a.hitlag = lag;
   v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
+  emit(m, {
+    type: 'hit',
+    attacker: a.port,
+    victim: v.port,
+    move,
+    damage: v.damage - before,
+    kb,
+    tumble: isTumble(kb),
+    hitlag: lag,
+    effect: box.effect ?? 'normal',
+    x: at.x,
+    y: at.y,
+  });
   if (again && v.launch && v.launch.kb >= kb) return;
   v.launch = { kb, angle: box.angle, dir, setKnockback: (box.wbkb ?? 0) > 0 };
   v.action = isTumble(kb) ? 'tumble' : 'hitstun';
@@ -167,7 +188,11 @@ function hit(
   v.move = null;
 }
 
-function shieldHit({ a, v, box, kind, damage: base, stale, dir }: Connection, again: boolean): void {
+function shieldHit(
+  m: MatchState,
+  { a, v, box, kind, damage: base, stale, dir, at, move }: Connection,
+  again: boolean,
+): void {
   const damage = base * stale;
   const stun = shieldstunFrames(damage, kind);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric' });
@@ -181,6 +206,16 @@ function shieldHit({ a, v, box, kind, damage: base, stale, dir }: Connection, ag
   v.hitstun = again ? Math.max(v.hitstun, stun) : stun;
   v.action = 'shieldStun';
   v.actionFrame = 0;
+  emit(m, {
+    type: 'shieldHit',
+    attacker: a.port,
+    victim: v.port,
+    move,
+    damage,
+    shieldHp: v.shieldHp,
+    x: at.x,
+    y: at.y,
+  });
 }
 
 /**

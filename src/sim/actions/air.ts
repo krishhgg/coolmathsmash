@@ -7,6 +7,7 @@ import {
   DOUBLE_JUMP_FRAMES,
 } from '../constants';
 import { buffered, consume, flickDown, stickX, stickY } from '../control';
+import { emit } from '../events';
 import type { Ctx } from '../fighter';
 import { airAttack } from './attack';
 import { consumeJump, wantsJump } from './common';
@@ -63,6 +64,7 @@ export const AIR: Record<string, ActionDef> = {
     update(x) {
       const { f, s, d, c } = x;
       if (f.actionFrame === 1) {
+        emit(x.m, { type: 'jump', port: f.port, kind: 'air' });
         f.jumpsUsed++;
         f.vel.y = d.doubleJumpV;
         f.vel.x = stickX(c) * s.airSpeed;
