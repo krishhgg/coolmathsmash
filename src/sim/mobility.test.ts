@@ -166,6 +166,16 @@ describe('glide (Papa Louie: max fall 0.6, horizontal 1.2, one per airtime)', ()
     until(m, (g) => g.action === 'land');
     expect(f.landingLag).toBe(20);
   });
+
+  it("landing still gliding out of up special takes the move's landing lag", () => {
+    const m = testMatch({ fighter: testGlider.id });
+    const f = m.fighters[0]!;
+    run(m, 1, { y: 50, buttons: ['special'] });
+    until(m, (g) => g.action === 'glide', JUMP, 60);
+    until(m, (g) => g.ground !== null, { y: -100, buttons: ['jump'] });
+    expect(f.action).toBe('land');
+    expect(f.landingLag).toBe(20);
+  });
 });
 
 describe('float (Balloon Boy: 120 frames per airtime)', () => {

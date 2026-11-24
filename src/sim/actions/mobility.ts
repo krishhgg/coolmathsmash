@@ -79,9 +79,10 @@ export function glideAfterMove(x: Ctx, move: MoveDef): boolean {
   return true;
 }
 
-/** End the float; it is spent for the airtime unless the fighter is standing (landing ended it). */
+/** End the float, once; it is spent for the airtime unless the fighter is standing (landing ended it). */
 function endFloat(x: Ctx): void {
   const { f, def } = x;
+  if (!f.mobility.floating) return;
   f.mobility.floating = false;
   f.mobility.floatFrames = f.ground ? 0 : (def.float?.frames ?? 0);
   emit(x.m, { type: 'float', port: f.port, phase: 'end' });
