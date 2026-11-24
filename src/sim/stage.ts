@@ -2,7 +2,7 @@ import type { Vec } from './vec';
 
 /**
  * Offset of a moving piece from its authored position, as a deterministic function of the match frame (see
- * docs/stages.md): keyframes that loop every `period` frames, or a function of the frame.
+ * docs/stage-geometry.md): keyframes that loop every `period` frames, or a function of the frame.
  */
 export type Motion =
   | {

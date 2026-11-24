@@ -21,7 +21,7 @@ import { compiledStage, makeCtx } from './step';
 import { clamp, type Vec } from './vec';
 
 /**
- * Moving platforms and solids (docs/stages.md). A piece's position and presence are pure functions of the match
+ * Moving platforms and solids (docs/stage-geometry.md). A piece's position and presence are pure functions of the match
  * frame; MatchState.stage holds them for the current frame so the renderer, hashes and replays see them.
  */
 

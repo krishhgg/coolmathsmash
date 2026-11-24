@@ -1,4 +1,4 @@
-# Stages
+# Stage geometry
 
 A stage is collision geometry plus (later) art. Its geometry is one `StageGeometry` (`src/sim/stage.ts`) in
 `src/stages/<id>/geometry.ts`; the registry finds it there, so adding a stage edits no shared file. Units are

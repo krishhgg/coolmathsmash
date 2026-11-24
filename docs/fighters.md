@@ -186,7 +186,7 @@ bthrow: {
 
 ## Stages
 
-Stages can move (docs/stages.md): a fighter standing on a moving platform or solid rides it, one hanging from a
+Stages can move (docs/stage-geometry.md): a fighter standing on a moving platform or solid rides it, one hanging from a
 moving ledge moves with it, and a solid that runs into a fighter pushes them out or squeezes them out on top of
 it. Nothing in a fighter needs to change for that. A move's `script` that reads the stage (`x.stage`) sees it
 as it stands on the current frame, moved pieces and all, and should skip absent pieces
