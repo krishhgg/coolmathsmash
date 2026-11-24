@@ -12,5 +12,12 @@
     "evokes": "a Smash Ultimate-style menu theme",
     "loopStart": 0,
     "loopEnd": 51.2
+  },
+  "run-tunnel": {
+    "file": "music/run-tunnel.mp3",
+    "title": "Run Tunnel",
+    "evokes": "an original theme in the spirit of Run and Run 3's spacey electronica",
+    "loopStart": 0,
+    "loopEnd": 37.5
   }
 }
