@@ -1,0 +1,30 @@
+name: Captures
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: captures-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: Capture named scenarios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: npm run capture -- --build --out captures/ci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: captures-${{ github.event.pull_request.head.sha || github.sha }}
+          path: captures/ci
+          retention-days: 14
