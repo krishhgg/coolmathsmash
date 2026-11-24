@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { hashState } from '../engine/hash';
+import { registerFighter } from '../fighters/registry';
+import { defineFighter } from '../fighters/types';
 import { registerStage } from '../stages/registry';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
@@ -8,7 +10,7 @@ import { createMatch, type MatchState } from './match';
 import type { DamageZone } from './stage';
 import { compiledStage } from './step';
 import { marioReference as mario } from './testing/reference';
-import { run, runPorts, until } from './testing/sim';
+import { attack, run, runPorts, until } from './testing/sim';
 
 /** A match on the hazard testbed with fighter `p` placed on the floor (or a platform) at `xs[p]`. */
 function hazardMatch(
@@ -69,6 +71,15 @@ registerStage({
   respawns: [[0, 80]],
 });
 
+registerFighter(
+  defineFighter({
+    ...mario,
+    id: 'test-hazard-armor',
+    name: 'Test hazard armor',
+    moves: { ...mario.moves, brace: { kind: 'other', faf: 50, hits: [], armor: { frames: [1, 30] } } },
+  }),
+);
+
 describe('damage zones', () => {
   it('goo hurts everyone: 2% and the same weak pop straight up at any %', () => {
     const m = hazardMatch(['fireboy', 'watergirl', 'fireboy'], [-88, -82, -76]);
@@ -108,6 +119,18 @@ describe('damage zones', () => {
     const m = hazardMatch([mario.id], [0], { stage: 'test-deep-goo' });
     const frames = stageHitsOver(m, 60).map((h) => h.frame);
     expect(frames).toEqual([1, 11, 21, 31, 41, 51]);
+  });
+
+  it('hit through armor like any other hit: damage and hitlag, no launch', () => {
+    const m = hazardMatch(['test-hazard-armor'], [-25]);
+    const f = m.fighters[0]!;
+    run(m, 5);
+    f.pos.x = f.prevPos.x = -48;
+    attack(m, 0, 'brace');
+    const hits = stageHitsOver(m, 1);
+    expect(hits.map((h) => [h.element, h.damage])).toEqual([['lava', 12]]);
+    expect([f.action, f.move, f.launch]).toEqual(['attack', 'brace', null]);
+    expect(f.hitlag).toBeGreaterThan(0);
   });
 
   it('skips intangible fighters', () => {
