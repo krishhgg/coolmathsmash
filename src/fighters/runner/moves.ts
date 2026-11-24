@@ -1,6 +1,11 @@
 import type { HitboxDef, MoveDef } from '../types';
+import { Btn } from '../../input/types';
 import { addDamage } from '../../sim/combat/hits';
+import { buffered, consume, stickX } from '../../sim/control';
 import { emit } from '../../sim/events';
+import type { Ctx } from '../../sim/fighter';
+import { ecb } from '../../sim/movement';
+import { edgeMaxX, edgeMinX, floorY } from '../../sim/stage';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -17,6 +22,93 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 
 /** Tile Flip's air hop: the upward speed it sets and on which frame. Less than a cycle of gravity, so no stall. */
 export const HOP = { frame: 3, speed: 0.8 };
+
+/**
+ * Gravity Switch's timeline. She falls upward through RISE, speeding up to riseSpeed. Touching a ceiling or the
+ * underside of a platform jumps to CLING, where she runs along it upside down; running off its end jumps to POP,
+ * a short upward fall that carries her past the edge (onto a ledge, from under the stage). Running out of RISE or
+ * CLING, or pressing Special again, ends it in helpless fall.
+ */
+export const GRAVITY_SWITCH = {
+  rise: [4, 53] as [number, number],
+  riseAccel: 0.2,
+  riseSpeed: 2,
+  cling: [60, 119] as [number, number],
+  clingSpeed: 2.31,
+  pop: [120, 127] as [number, number],
+  faf: 128,
+  /** Special ends it from this frame. */
+  cancelFrom: 10,
+};
+
+/** Downward-facing surfaces she can cling to: platform undersides and solid edges that face mostly down. */
+const CLING_NORMAL_Y = -0.25;
+
+/**
+ * The lowest ceiling over `x` whose height lies between `from` and `to` (y up), or null. Platforms count from
+ * below, though they are one-way for everyone else.
+ */
+function ceilingAt(x: Ctx, px: number, from: number, to: number): number | null {
+  let best: number | null = null;
+  const consider = (y: number) => {
+    if (y >= from && y <= to && (best === null || y < best)) best = y;
+  };
+  for (const p of x.stage.geo.platforms) if (px >= p.x1 && px <= p.x2) consider(p.y);
+  for (const e of x.stage.edges) {
+    if (e.n.y > CLING_NORMAL_Y || px < edgeMinX(e) || px > edgeMaxX(e)) continue;
+    consider(floorY(e, px));
+  }
+  return best;
+}
+
+/** Ends Gravity Switch now: gravity flips back (the upward fall stops) and she drops into helpless fall. */
+function endSwitch(f: Ctx['f']): void {
+  f.actionFrame = GRAVITY_SWITCH.faf;
+  f.vel.y = 0;
+}
+
+/** Gravity Switch, frame by frame. See GRAVITY_SWITCH. */
+function gravitySwitch(x: Ctx): void {
+  const { f, s, c } = x;
+  const g = GRAVITY_SWITCH;
+  const frame = f.actionFrame;
+  const head = f.pos.y + s.height;
+  /** Where her collision box stops her against a solid ceiling, below her drawn head. */
+  const top = f.pos.y + ecb(f, x)[1]!.y;
+  if (frame < g.rise[0]) {
+    f.vel.x *= 0.8;
+    f.vel.y = 0;
+    return;
+  }
+  if (frame >= g.cancelFrom && buffered(c, Btn.Special)) {
+    consume(c, Btn.Special);
+    return endSwitch(f);
+  }
+  if (frame <= g.rise[1]) {
+    f.vel.x = stickX(c) * s.airSpeed;
+    f.vel.y = Math.min(g.riseSpeed, (frame - g.rise[0] + 1) * g.riseAccel);
+    const ceiling = ceilingAt(x, f.pos.x + f.vel.x, top - 0.01, head + f.vel.y);
+    if (ceiling !== null) {
+      f.vel.y = ceiling - head;
+      f.actionFrame = g.cling[0];
+    } else if (frame === g.rise[1]) endSwitch(f);
+    return;
+  }
+  if (frame <= g.cling[1]) {
+    const dir = Math.sign(stickX(c));
+    if (dir !== 0) f.facing = dir as 1 | -1;
+    f.vel.x = stickX(c) * g.clingSpeed;
+    const ceiling = ceilingAt(x, f.pos.x + f.vel.x, head - 3, head + 3);
+    if (ceiling === null) {
+      f.actionFrame = g.pop[0];
+      f.vel.x = 0;
+      f.vel.y = g.riseSpeed;
+    } else if (frame === g.cling[1]) endSwitch(f);
+    else f.vel.y = ceiling - head;
+    return;
+  }
+  f.vel.y = g.riseSpeed;
+}
 
 /** Down throw's treadmill steps: the frames on which each footfall lands and the % it deals. */
 export const TREADMILL = { frames: [8, 12, 16, 20], damage: 1 };
@@ -252,6 +344,26 @@ export const moves: Record<string, MoveDef> = {
     script(x) {
       if (x.f.actionFrame === HOP.frame) x.f.vel.y = HOP.speed;
     },
+  },
+  /**
+   * Gravity Switch (up special): she "jumps onto the wall" as in Run, so her gravity flips and she falls upward,
+   * steering left and right. A ceiling or a platform's underside becomes her floor and she runs along it upside
+   * down, even under the stage to reach the ledge. Special again flips gravity back early; helpless afterwards.
+   */
+  upB: {
+    kind: 'other',
+    faf: GRAVITY_SWITCH.faf,
+    leavesGround: true,
+    helpless: true,
+    ledgeFrom: 8,
+    landingLag: 20,
+    hits: [
+      {
+        frames: [4, 6],
+        boxes: [box(0, 0, 7, 6, { damage: 6, angle: 80, kbg: 50, bkb: 60, direction: 'away' })],
+      },
+    ],
+    script: gravitySwitch,
   },
   /** Grabs, on Kirby's frame data; her arms are short, so the standing grab reaches 10.5 units. */
   grab: { kind: 'other', faf: 34, hits: [{ frames: [6, 7], boxes: [grabBox(0, 6.5, 6, 4)] }] },

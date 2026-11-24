@@ -35,9 +35,11 @@ function place(a: FighterState, v: FighterState, ax: number, vx: number, facing:
     });
     f.intangible = 0;
   }
+  if (v !== a) {
+    v.facing = -facing as 1 | -1;
+    v.damage = percent;
+  }
   a.facing = facing;
-  v.facing = -facing as 1 | -1;
-  v.damage = percent;
 }
 
 /** Step until P2 is KO'd (or 400 frames pass) and return the blast zone it crossed, '' when it survived. */
@@ -230,5 +232,116 @@ describe('Raft Wars kids: throws', () => {
     }
     expect(kidsFree).toBeGreaterThan(0);
     expect(kidsFree).toBeLessThan(victimFree);
+  });
+});
+
+describe('Raft Wars kids: Rocket Ride (up special)', () => {
+  /** Up special from the ground at x = 0 with the stick at `x` after the first frame; the path until helpless. */
+  function ride(stick = 0): { a: FighterState; m: MatchState; top: number; dx: number } {
+    const { m, a } = versus();
+    place(a, a, 0, 0, 1);
+    runPorts(m, 1, [{ y: 100, buttons: ['special'] }, {}]);
+    expect(a.move).toBe('upB');
+    expect(a.ground).toBeNull();
+    let top = 0;
+    while (a.action !== 'helpless') {
+      runPorts(m, 1, [{ x: stick }, {}]);
+      top = Math.max(top, a.pos.y);
+    }
+    return { a, m, top, dx: a.pos.x };
+  }
+
+  it('rides about 110 units up and forward, then falls helpless and lands with 24 frames of lag', () => {
+    const { a, m, top, dx } = ride();
+    expect(top).toBeGreaterThan(95);
+    expect(top).toBeLessThan(120);
+    expect(dx).toBeGreaterThan(20);
+    expect(dx).toBeLessThan(40);
+    for (let i = 0; i < 400 && a.ground === null; i++) runPorts(m, 1, [{}, {}]);
+    expect(a.action).toBe('land');
+    expect(a.landingLag).toBe(24);
+  });
+
+  it('steers within 30 degrees of vertical: forward goes further out, back goes backward', () => {
+    const forward = ride(100).dx;
+    const back = ride(-100).dx;
+    expect(forward).toBeGreaterThan(ride().dx);
+    expect(forward).toBeLessThan(75);
+    expect(back).toBeLessThan(-40);
+    expect(back).toBeGreaterThan(-75);
+  });
+
+  it('the explosion at the end of the ride is the big hit', () => {
+    const end = ride();
+    const { m, a, v } = versus();
+    place(a, v, 0, 200, 1);
+    const at = { x: end.a.pos.x, y: end.top };
+    runPorts(m, 1, [{ y: 100, buttons: ['special'] }, {}]);
+    until(m, () => a.actionFrame === 46, {}, 60);
+    Object.assign(v, {
+      pos: { ...at },
+      prevPos: { ...at },
+      ground: null,
+      action: 'fall',
+      vel: { x: 0, y: 0 },
+    });
+    until(m, () => a.actionFrame === 53, {}, 60);
+    expect(v.damage).toBeGreaterThanOrEqual(12 * 1.2);
+  });
+
+  it.each([
+    ['neutral', 0, 1],
+    ['back', -100, -1],
+  ] as const)(
+    'a ceiling does not knock the rocket off course: pressed against the underside it still steers (stick %s from frame 20)',
+    (_, stick, direction) => {
+      const { m, a } = versus();
+      Object.assign(a, {
+        pos: { x: 0, y: -58 },
+        prevPos: { x: 0, y: -58 },
+        ground: null,
+        action: 'fall',
+        vel: { x: 0, y: 0 },
+        facing: 1,
+        jumpsUsed: 2,
+      });
+      runPorts(m, 1, [{ y: 100, buttons: ['special'] }, {}]);
+      expect(a.move).toBe('upB');
+      let blocked = 0;
+      let x20 = 0;
+      while (a.actionFrame < 40) {
+        const { x, y } = a.pos;
+        runPorts(m, 1, [{ x: a.actionFrame >= 20 ? stick : 0 }, {}]);
+        if (a.actionFrame === 20) x20 = a.pos.x;
+        if (a.actionFrame <= 12) continue;
+        expect(a.pos.y - y).toBeGreaterThan(-0.1);
+        if (a.pos.y - y > 1) continue;
+        blocked++;
+        expect(Math.abs(a.pos.x - x)).toBeLessThan(2.95 * Math.sin(Math.PI / 6) + 0.1);
+      }
+      expect(blocked).toBeGreaterThan(10);
+      expect(Math.sign(a.pos.x - x20)).toBe(direction);
+    },
+  );
+
+  it('grabs the ledge on the way up from below the stage', () => {
+    const { m, a } = versus();
+    Object.assign(a, {
+      pos: { x: 92, y: -30 },
+      prevPos: { x: 92, y: -30 },
+      ground: null,
+      action: 'fall',
+      vel: { x: 0, y: 0 },
+      facing: -1,
+      jumpsUsed: 2,
+    });
+    runPorts(m, 1, [{ y: 100, buttons: ['special'] }, {}]);
+    expect(a.move).toBe('upB');
+    let caught = false;
+    for (let i = 0; i < 90 && !caught; i++) {
+      runPorts(m, 1, [{}, {}]);
+      caught = a.action === 'ledgeCatch' || a.action === 'ledgeHang';
+    }
+    expect(caught).toBe(true);
   });
 });
