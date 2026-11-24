@@ -109,6 +109,7 @@ export const GRAB_ACTIONS: Record<string, ActionDef> = {
    */
   grabThrow: {
     physics: 'ground',
+    drift: (x) => moveOf(x.f)?.drift ?? true,
     intangible: (f) => f.grabPartner >= 0,
     update(x) {
       if (x.f.actionFrame >= playMove(x).faf) setAction(x, x.f.ground ? 'idle' : 'fall');

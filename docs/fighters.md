@@ -255,7 +255,7 @@ beastChew: {
 - **The throw.** On the catch the grabber goes into `grabThrow` playing the named move from frame 1, and the
   victim into `grabbed`. As with any started throw the victim can't mash out, and the grabber is intangible until
   the release. A command grab caught in the air plays on in the air and through the landing, then ends in a fall
-  if the grabber is still airborne.
+  if the grabber is still airborne. In the air the stick drifts it, unless the throw move sets `drift: false`.
 - **`holdHits: [{ frame, damage, hitlag? }]`** land in order like pummels: damage and hitlag, no knockback. Their
   damage counts towards the release's knockback.
 - **Third parties.** Hits from others break the victim free after 10%, as in any grab.

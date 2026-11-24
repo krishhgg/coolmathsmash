@@ -99,8 +99,8 @@ describe('command grabs', () => {
   });
 
   /** P1 side-specials in the air from (-10, y) and catches P2, placed in front of him just before the grab box. */
-  function airCatch(y: number) {
-    const d = duel(40);
+  function airCatch(y: number, fighter = lungeTester.id) {
+    const d = duel(40, fighter);
     place(d.a, -10, y, 1);
     runPorts(d.m, 1, [{ x: 100, buttons: ['special'] }, {}]);
     expect([d.a.move, d.a.ground]).toEqual(['sideB', null]);
@@ -130,6 +130,23 @@ describe('command grabs', () => {
     const { m, a } = airCatch(150);
     for (let i = 0; i < 120 && a.action === 'grabThrow'; i++) runPorts(m, 1, []);
     expect([a.action, a.ground]).toEqual(['fall', null]);
+  });
+
+  it('an airborne throw drifts with the stick unless its move sets drift: false', () => {
+    const still = {
+      ...lungeTester,
+      id: 'test-lunge-still',
+      moves: { ...lungeTester.moves, beastChew: { ...beastChew, drift: false } },
+    } satisfies typeof lungeTester;
+    registerFighter(still);
+    const xAfter = (fighter: string, stick: number): number => {
+      const { m, a } = airCatch(150, fighter);
+      runPorts(m, 20, [{ x: stick }, {}]);
+      expect([a.action, a.ground]).toEqual(['grabThrow', null]);
+      return a.pos.x;
+    };
+    expect(xAfter(lungeTester.id, 100)).toBeGreaterThan(xAfter(lungeTester.id, 0) + 1);
+    expect(xAfter(still.id, 100)).toBe(xAfter(still.id, 0));
   });
 
   it('a lunge that hits before it catches still lands every chew, and its throw enters the stale queue itself', () => {
