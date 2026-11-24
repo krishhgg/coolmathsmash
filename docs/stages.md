@@ -86,7 +86,8 @@ variety comes from `hash01(n)` (a fixed integer hash). Build Graphics once and o
 ## Making a new stage
 
 1. Add `src/stages/<slug>/geometry.ts` (collision, owned by the sim side) and `src/stages/<slug>/view.ts`
-   exporting `createStageView(): StageView`.
+   exporting `createStageView(): StageView`. The renderer finds every `src/stages/<slug>/view.ts` by glob, so no
+   shared file changes; a stage without a view is drawn as flat collision shapes.
 2. Put art in `src/stages/<slug>/art/`: a palette, the playfield (world units) and background layers (screen
    pixels at the reference camera plus a depth). Reuse `parallax.ts` and `util.ts` from Battlefield.
 3. Copy `src/lab/scenes/stage.ts` (or parameterise it) to view the stage at any camera
