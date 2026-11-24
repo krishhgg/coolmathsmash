@@ -1,4 +1,5 @@
 import { Btn } from '../../input/types';
+import { startMove } from '../../sim/actions/attack';
 import { isHeld, stickDir, stickX } from '../../sim/control';
 import type { HitboxDef, MoveDef } from '../types';
 
@@ -54,7 +55,7 @@ export const moves: Record<string, MoveDef> = {
     script(x) {
       const { f, c } = x;
       if (f.actionFrame === 14 && isHeld(c, Btn.Attack) && stickDir(c, f.facing) === 'neutral')
-        f.actionFrame = 2;
+        startMove(x, 'jab3');
     },
     hits: [
       ...[3, 6, 9, 12].map((f) => ({

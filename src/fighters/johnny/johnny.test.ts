@@ -198,11 +198,14 @@ describe('Johnny Upgrade: One-Two into Rush', () => {
     });
     v.intangible = 0;
     const started: string[] = [];
+    let last = 0;
     for (let i = 0; i < frames; i++) {
+      const before = v.damage;
       runPorts(m, 1, [press(i) ? { buttons: ['attack'] } : {}, {}]);
+      if (v.damage > before) last = v.damage - before;
       for (const e of m.events) if (e.type === 'move' && e.port === 0) started.push(e.move);
     }
-    return { a, v, started };
+    return { a, v, started, last };
   }
 
   it('Attack three times throws jab, jab2 and the Rush', () => {
@@ -221,13 +224,16 @@ describe('Johnny Upgrade: One-Two into Rush', () => {
   it('holding Attack through the Rush keeps it going until he lets go', () => {
     const press = (i: number) => i === 0 || i === 6 || (i >= 18 && i < 110);
     const held = rush(press, 110);
-    expect(held.started).toEqual(['jab', 'jab2', 'jab3']);
+    expect(held.started.slice(0, 3)).toEqual(['jab', 'jab2', 'jab3']);
+    expect(held.started.filter((s) => s === 'jab3').length).toBeGreaterThanOrEqual(4);
     expect(held.a.move).toBe('jab3');
-    const flurry = held.v.damage;
-    expect(flurry).toBeGreaterThan((1.5 + 1 + 0.5 * 12) * 1.2);
     const done = rush(press, 170);
     expect(done.a.action).toBe('idle');
     expect(Math.abs(done.v.pos.x - done.a.pos.x)).toBeGreaterThan(25);
+    const fresh = 2 * 1.05 * 1.2;
+    const mashed = rush((i) => i < 110 && i % 4 === 0, 170);
+    expect(done.last).toBeLessThan(fresh * 0.8);
+    expect(Math.abs(done.last - mashed.last)).toBeLessThan(0.25);
   });
 
   it('a single press is just the first punch', () => {
