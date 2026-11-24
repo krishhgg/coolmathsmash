@@ -53,25 +53,30 @@ export function cameraTarget(state: MatchState, stage: StageGeometry): CameraVie
   return { x: cx, y: cy, zoom };
 }
 
-/** Smoothed camera, advanced once per simulated frame so captures of the same frame always match. */
+/**
+ * Smoothed camera. `step` runs once after every simulated frame (Game.step), easing toward that frame's target, so the
+ * view at a frame depends only on the frames simulated and never on how often or when they were drawn.
+ */
 export class Camera {
-  view: CameraView = { x: 0, y: 20, zoom: 5 };
+  private view: CameraView | null = null;
   private frame = -1;
 
-  update(state: MatchState, stage: StageGeometry): CameraView {
+  step(state: MatchState, stage: StageGeometry): void {
     const target = cameraTarget(state, stage);
-    if (this.frame < 0 || state.frame < this.frame || state.frame - this.frame > 600) {
-      this.view = target;
-    } else {
-      for (let i = this.frame; i < state.frame; i++) {
-        this.view = {
-          x: this.view.x + (target.x - this.view.x) * SMOOTHING,
-          y: this.view.y + (target.y - this.view.y) * SMOOTHING,
-          zoom: this.view.zoom + (target.zoom - this.view.zoom) * SMOOTHING,
-        };
-      }
-    }
+    const v = this.view;
+    this.view =
+      v && state.frame === this.frame + 1
+        ? {
+            x: v.x + (target.x - v.x) * SMOOTHING,
+            y: v.y + (target.y - v.y) * SMOOTHING,
+            zoom: v.zoom + (target.zoom - v.zoom) * SMOOTHING,
+          }
+        : target;
     this.frame = state.frame;
-    return this.view;
+  }
+
+  /** The view to draw `state` with: the smoothed view once stepped to its frame, else that frame's target. */
+  viewFor(state: MatchState, stage: StageGeometry): CameraView {
+    return this.view && this.frame === state.frame ? this.view : cameraTarget(state, stage);
   }
 }

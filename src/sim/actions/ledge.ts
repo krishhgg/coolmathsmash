@@ -4,14 +4,15 @@ import {
   LEDGE_ATTACK,
   LEDGE_CATCH_FRAMES,
   LEDGE_CLIMB,
+  LEDGE_GETUP_INTANGIBILITY_SCALE,
   LEDGE_HANG_MAX,
   LEDGE_JUMP,
   LEDGE_REGRAB_LOCK,
   LEDGE_ROLL,
 } from '../constants';
 import { buffered, consume, stickX, stickY } from '../control';
-import type { Ctx } from '../fighter';
-import { floorAt, hangAt, hangPos } from '../movement';
+import type { Ctx, FighterState } from '../fighter';
+import { floorAt, hangAt, hangPos, restoreAirOptions } from '../movement';
 import { consumeJump, wantsJump } from './common';
 import { inWindow, setAction, type ActionDef } from './registry';
 
@@ -31,6 +32,11 @@ export function dropLedge(x: Ctx): void {
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
+/** Last intangible frame of a getup, shrunk by the regrabs made since the fighter last touched ground. */
+function getupIntangibleEnd(f: FighterState, end: number): number {
+  return Math.floor(end * (LEDGE_GETUP_INTANGIBILITY_SCALE[Math.max(0, f.ledgeGrabs - 1)] ?? 0));
+}
+
 /** Climb, roll and attack getups: move from the hang position onto the stage, `distance` past the corner. */
 function getup(
   spec: { faf: number; intangible: [number, number]; moveEnd: number },
@@ -38,7 +44,8 @@ function getup(
 ): ActionDef {
   return {
     physics: 'none',
-    intangible: (f) => inWindow(f.actionFrame, spec.intangible),
+    intangible: (f) =>
+      inWindow(f.actionFrame, [spec.intangible[0], getupIntangibleEnd(f, spec.intangible[1])]),
     update(x) {
       const { f, stage } = x;
       if (f.actionFrame === 1) f.intangible = 0;
@@ -56,7 +63,10 @@ function getup(
           f.ledge = -1;
         }
       }
-      if (f.actionFrame >= spec.faf) setAction(x, 'idle');
+      if (f.actionFrame >= spec.faf) {
+        restoreAirOptions(f);
+        setAction(x, 'idle');
+      }
     },
   };
 }
@@ -104,7 +114,8 @@ export const LEDGE: Record<string, ActionDef> = {
   /** Rise over the corner, then a jump that keeps the double jump. */
   ledgeJump: {
     physics: 'none',
-    intangible: (f) => inWindow(f.actionFrame, LEDGE_JUMP.intangible),
+    intangible: (f) =>
+      inWindow(f.actionFrame, [LEDGE_JUMP.intangible[0], getupIntangibleEnd(f, LEDGE_JUMP.intangible[1])]),
     update(x) {
       const { f, d, s, stage } = x;
       if (f.actionFrame === 1) f.intangible = 0;
@@ -116,7 +127,7 @@ export const LEDGE: Record<string, ActionDef> = {
       f.pos.y = from.y + (to.y - from.y) * t;
       if (f.actionFrame > LEDGE_JUMP.rise) {
         f.ledge = -1;
-        f.intangible = LEDGE_JUMP.intangible[1] - LEDGE_JUMP.rise;
+        f.intangible = Math.max(0, getupIntangibleEnd(f, LEDGE_JUMP.intangible[1]) - LEDGE_JUMP.rise + 1);
         f.vel.x = -L.side * LEDGE_JUMP.hSpeed;
         f.vel.y = d.ledgeJumpV;
         f.ground = null;

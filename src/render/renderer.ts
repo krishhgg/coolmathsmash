@@ -64,10 +64,15 @@ export class Renderer {
     }
   }
 
+  /** Advance the camera by the frame just simulated; Game.step calls this after every frame. */
+  stepCamera(state: MatchState): void {
+    this.camera.step(state, getStage(state.config.stage));
+  }
+
   /** Draw `state`; `alpha` interpolates between the previous and current simulated frame. */
   render(state: MatchState, alpha: number): void {
     this.sync(state);
-    const view = this.camera.update(state, this.stage!);
+    const view = this.camera.viewFor(state, this.stage!);
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));

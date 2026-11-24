@@ -1,6 +1,7 @@
 import { RESPAWN_INVINCIBILITY, RESPAWN_PLATFORM_MAX } from '../constants';
 import { stickX, stickY } from '../control';
 import type { Ctx } from '../fighter';
+import { restoreAirOptions } from '../movement';
 import { setAction, type ActionDef } from './registry';
 
 export function respawnPoint(x: Ctx): [number, number] {
@@ -37,9 +38,8 @@ export const STATUS: Record<string, ActionDef> = {
         f.ground = null;
         f.ledge = -1;
         f.facing = px > 0 ? -1 : 1;
+        restoreAirOptions(f);
         f.jumpsUsed = 1;
-        f.airDodgeUsed = false;
-        f.fastFalling = false;
         f.hitstun = 0;
         return;
       }

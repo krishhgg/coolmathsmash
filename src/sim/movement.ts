@@ -92,18 +92,23 @@ export function leaveGround(x: Ctx): void {
   f.jumpsUsed = Math.max(f.jumpsUsed, 1);
 }
 
-export function land(x: Ctx, g: GroundRef): void {
-  const { f, s, stage } = x;
-  f.ground = g;
-  f.pos.y = surfaceY(stage, g, f.pos.x);
-  f.vel.y = 0;
-  f.kb.y = 0;
+/** Standing on the stage restores jumps, the air dodge and the ledge-grab allowance. */
+export function restoreAirOptions(f: FighterState): void {
   f.jumpsUsed = 0;
   f.fastFalling = false;
   f.airDodgeUsed = false;
   f.dropPlatform = -1;
   f.ledgeGrabs = 0;
   f.ledgeFresh = true;
+}
+
+export function land(x: Ctx, g: GroundRef): void {
+  const { f, s, stage } = x;
+  f.ground = g;
+  f.pos.y = surfaceY(stage, g, f.pos.x);
+  f.vel.y = 0;
+  f.kb.y = 0;
+  restoreAirOptions(f);
   const action = ACTIONS[f.action]!;
   if (action.land) {
     action.land(x);

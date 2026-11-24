@@ -69,6 +69,8 @@ export const LEDGE_CLIMB = { faf: 34, intangible: [1, 30] as [number, number], m
 export const LEDGE_ROLL = { faf: 50, intangible: [1, 34] as [number, number], moveEnd: 40, distance: 25 };
 export const LEDGE_ATTACK = { faf: 56, intangible: [1, 22] as [number, number], moveEnd: 20 };
 export const LEDGE_JUMP = { rise: 6, intangible: [1, 13] as [number, number], hSpeed: 0.6 };
+/** Getup intangibility by grab count since last touching ground (Ultimate: ×0.8 on the 2nd grab, ×0.5 on the 3rd, none after). */
+export const LEDGE_GETUP_INTANGIBILITY_SCALE = [1, 0.8, 0.5];
 
 /** Hard landing applies after this many airborne frames (Ultimate: 4). */
 export const HARD_LANDING_AIRTIME = 4;

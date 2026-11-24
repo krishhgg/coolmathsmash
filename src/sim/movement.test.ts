@@ -3,6 +3,7 @@ import {
   AIR_DODGE_NEUTRAL,
   LEDGE_INTANGIBILITY,
   LEDGE_MAX_GRABS,
+  LEDGE_GETUP_INTANGIBILITY_SCALE,
   RESPAWN_INVINCIBILITY,
   ROLL,
   SHIELD_DEPLETION,
@@ -13,7 +14,7 @@ import {
 } from './constants';
 import { isIntangible } from './actions/registry';
 import { marioReference as mario } from './testing/reference';
-import { placeInAir, run, testMatch, until } from './testing/sim';
+import { placeInAir, run, testMatch, until, type Hold } from './testing/sim';
 import { apexHeight, jumpVelocity } from './physics';
 
 const S = mario.stats;
@@ -284,6 +285,65 @@ describe('ledges', () => {
     until(jump.m, (g) => g.action === 'jump');
     expect(jump.f.vel.y).toBeGreaterThan(0);
     expect(jump.f.jumpsUsed).toBe(1);
+  });
+
+  it('a getup restores the ledge allowance, so walking off and grabbing again is intangible', () => {
+    const { m, f } = hangOnLeft();
+    f.ledgeGrabs = LEDGE_MAX_GRABS;
+    run(m, 1, { x: 50 });
+    until(m, (g) => g.action === 'idle');
+    expect(f.ledgeGrabs).toBe(0);
+    expect(f.ledgeFresh).toBe(true);
+    placeInAir(m, -85, 4, 1);
+    until(m, (g) => g.action === 'ledgeCatch');
+    expect(f.intangible).toBeGreaterThan(LEDGE_INTANGIBILITY - 3);
+  });
+
+  /** Intangible frames of a getup started with `start`, from a hang reached after `grabs` grabs. */
+  const getupIntangibility = (start: Hold, grabs: number) => {
+    const { m, f } = hangOnLeft();
+    f.ledgeGrabs = grabs;
+    f.intangible = 0;
+    let frames = 0;
+    for (let i = 0; i < 60; i++) {
+      run(m, 1, i === 0 ? start : {});
+      if (isIntangible(f)) frames++;
+    }
+    return frames;
+  };
+
+  it.each([
+    ['climb', { x: 50 }, 30],
+    ['roll', { buttons: ['shield'] }, 34],
+    ['attack', { buttons: ['attack'] }, 22],
+    ['jump', { buttons: ['jump'] }, 13],
+  ] as [string, Hold, number][])(
+    'ledge %s intangibility shrinks on regrabs: x1, x0.8, x0.5, then none',
+    (_, start, full) => {
+      const expected = [1, 2, 3, 4].map((g) =>
+        Math.floor(full * (LEDGE_GETUP_INTANGIBILITY_SCALE[g - 1] ?? 0)),
+      );
+      expect(expected).toEqual([full, Math.floor(full * 0.8), Math.floor(full * 0.5), 0]);
+      expect([1, 2, 3, 4].map((g) => getupIntangibility(start, g))).toEqual(expected);
+    },
+  );
+
+  it('a real drop-and-regrab gets the penalised getup', () => {
+    const { m, f } = hangOnLeft();
+    run(m, 1, { y: -100 });
+    f.ledgeLock = 0;
+    f.pos.y = -4;
+    f.vel.y = 0;
+    until(m, (g) => g.action === 'ledgeHang');
+    expect(f.ledgeGrabs).toBe(2);
+    expect(f.intangible).toBe(0);
+    run(m, 1, { x: 50 });
+    let frames = 0;
+    until(m, (g) => {
+      if (isIntangible(g)) frames++;
+      return g.action === 'idle';
+    });
+    expect(frames).toBe(Math.floor(30 * 0.8));
   });
 });
 
