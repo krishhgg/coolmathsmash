@@ -162,8 +162,8 @@ to `GRAB.breakDamage` (a lava hit breaks free at once, goo takes a few), and a s
 
 A solid or platform with `conveyor` moves every fighter standing on it that many units per frame along x, on
 top of their own movement, whatever they are doing. A belt carries a fighter off the end it runs toward, even
-in actions that otherwise stop at the edge (standing still), and they fall. Leaving the belt keeps none of its
-speed.
+in actions that otherwise stop at the edge (standing still), and they fall; a grab they hold ends, as when the
+stage takes the ground away. Leaving the belt keeps none of its speed.
 
 ### Trapdoors
 

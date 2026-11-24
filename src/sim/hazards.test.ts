@@ -189,6 +189,22 @@ describe('conveyors', () => {
     expect(f.action).toBe('fall');
   });
 
+  it('end a grab whose holder they carry off the end, as when the stage takes the ground away', () => {
+    const m = hazardMatch(['fireboy', 'watergirl', mario.id], [[-55, 30.001], [-45, 30.001], 80]);
+    run(m, 5);
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    Object.assign(a, { action: 'grabHold', actionFrame: 1, move: null, facing: 1, grabPartner: 1 });
+    Object.assign(v, { action: 'grabbed', actionFrame: 1, facing: -1, grabPartner: 0, grabTimer: 999 });
+    const releases: SimEvent[] = [];
+    for (let i = 0; i < 60 && a.ground; i++) {
+      run(m, 1);
+      releases.push(...m.events.filter((e) => e.type === 'grabRelease'));
+    }
+    expect(releases).toEqual([{ type: 'grabRelease', holder: 0, held: 1 }]);
+    expect([a.grabPartner, v.grabPartner]).toEqual([-1, -1]);
+    expect([a.ground, a.action]).toEqual([null, 'fall']);
+  });
+
   it('stand still with hazards off', () => {
     const m = hazardMatch([mario.id], [[-60, 30.001]], { hazards: false });
     run(m, 60);
