@@ -215,7 +215,9 @@ describe('Wheely: kill moves (Mario at the Battlefield ledge, fresh, no DI)', ()
     ['usmash', 115, 3, false],
     ['bair', 135, 12, true],
   ] as const)('%s KOs by %s percent', (move, percent, gap, air) => {
-    expect(kos(move, percent + 5, gap, air)).toBe(true);
+    // TODO(COOL-3 koPercent calibration): vertical kills land about 10-20% later since the engine gained Ultimate's
+    // DamageFlyTop gravity and top-blast-zone rule; retune against koPercent (src/sim/testing/ko.ts).
+    expect(kos(move, percent + (move === 'usmash' ? 15 : 5), gap, air)).toBe(true);
   });
 
   it('forward smash kills earlier than back air', () => {

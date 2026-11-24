@@ -305,6 +305,7 @@ export function applyLaunch(x: Ctx): void {
   const stun = hitstunFrames(pending.kb);
   f.hitstun = stun + 1;
   f.speedUpFaf = l.tumble && !pending.setKnockback ? stun + 1 : 0;
+  f.flyTop = l.vertical;
   if (!f.ground) return;
   const flat = l.angle === 0 || l.angle === 180;
   if (!flat && f.kb.y > 0) return leaveGround(x);
