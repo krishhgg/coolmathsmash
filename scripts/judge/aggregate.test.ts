@@ -98,6 +98,22 @@ describe('judge schema', () => {
   });
 });
 
+describe('mandatory scores', () => {
+  it('requires scores that always apply and physics on motion states, and allows null only where the rubric does', () => {
+    const schema = judgeSchema(2, pack.states);
+    const v = structuredClone(opus);
+    v.states.idle!.scores.readability = null;
+    v.states.run!.scores.physics_feel = null;
+    v.states.run!.scores.smash_presentation = null;
+    v.states.idle!.scores.art_fidelity = null;
+    expect(validate(schema, v)).toEqual([
+      '$.states.idle.scores.readability: expected integer, got null',
+      '$.states.run.scores.physics_feel: expected integer, got null',
+      '$.states.run.scores.smash_presentation: expected integer, got null',
+    ]);
+  });
+});
+
 describe('aggregation', () => {
   const board = aggregate(pack, [sol, opus], '2026-11-24T12:00:00.000Z');
 
@@ -178,7 +194,7 @@ describe('aggregation', () => {
     expect(md).toContain('| Silhouette & proportions | 2 | 4.5 | **3.25** | 3 | +0.25 |');
     expect(md).toContain('- gpt-6.2-sol: run lost its dust');
     expect(md).toContain('- hud: pending, needs the in-match HUD');
-    const history = join(mkdtempSync(join(tmpdir(), 'history-')), 'history.md');
+    const history = join(mkdtempSync(join(tmpdir(), 'history-')), 'renders', 'COOL-9', 'history.md');
     appendHistory(history, board);
     appendHistory(history, { ...board, round: 3 });
     const lines = readFileSync(history, 'utf8').trimEnd().split('\n');

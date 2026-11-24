@@ -32,8 +32,11 @@ export function judgeSchema(
   axes: readonly Axis[] = AXES,
 ): Schema {
   const text: Schema = { type: 'string', minLength: 1 };
-  const score = (applies: boolean): Schema =>
-    applies ? { type: ['integer', 'null'], minimum: 1, maximum: 10 } : { type: 'null' };
+  const score = (axis: Axis, motion: boolean): Schema => {
+    if (axis.scored === 'motion' && !motion) return { type: 'null' };
+    const type = axis.scored === 'when-applicable' ? ['integer', 'null'] : 'integer';
+    return { type, minimum: 1, maximum: 10 };
+  };
   const state = (motion: boolean): Schema => ({
     type: 'object',
     additionalProperties: false,
@@ -43,7 +46,7 @@ export function judgeSchema(
         type: 'object',
         additionalProperties: false,
         required: axes.map((a) => a.id),
-        properties: Object.fromEntries(axes.map((a) => [a.id, score(a.id !== 'physics_feel' || motion)])),
+        properties: Object.fromEntries(axes.map((a) => [a.id, score(a, motion)])),
       },
       notes: text,
     },

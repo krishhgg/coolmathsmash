@@ -6,6 +6,8 @@ export interface Axis {
   id: string;
   title: string;
   question: string;
+  /** When a score is required: on every state, only on motion states (null on stills), or wherever it applies. */
+  scored: 'always' | 'motion' | 'when-applicable';
   /** When the judge must answer null instead of a score. */
   notApplicable: string;
   anchors: Record<1 | 4 | 7 | 10, string>;
@@ -16,6 +18,7 @@ export const AXES: Axis[] = [
     id: 'physics_feel',
     title: 'Controls & physics feel',
     question: 'Does it move, jump, land, attack and launch like Super Smash Bros. Ultimate?',
+    scored: 'motion',
     notApplicable:
       'Scored only for states with motion (a filmstrip, clip and per-frame table); null for still frames.',
     anchors: {
@@ -29,6 +32,7 @@ export const AXES: Axis[] = [
     id: 'silhouette',
     title: 'Silhouette & proportions',
     question: 'Do the fighters read as their characters from outline and proportions alone, in this pose?',
+    scored: 'when-applicable',
     notApplicable: 'null when no fighter is visible (a stage-only or HUD-only frame).',
     anchors: {
       1: 'Generic shapes (capsules, boxes); no character reads from the outline.',
@@ -42,6 +46,7 @@ export const AXES: Axis[] = [
     title: 'Flash-era art fidelity',
     question:
       'Does the art look like the original pre-2015 Coolmath Flash game (Fireboy and Watergirl for Fireboy; the source game for each stage)?',
+    scored: 'when-applicable',
     notApplicable: 'null when the frame shows no fighter or stage art (for example a HUD crop).',
     anchors: {
       1: 'Unrelated to the source art: placeholder shapes or a different style.',
@@ -55,6 +60,7 @@ export const AXES: Axis[] = [
     title: 'Readability',
     question:
       'At gameplay size, can you tell instantly who is where, which player is which, and what each one is doing?',
+    scored: 'always',
     notApplicable: 'Always scored.',
     anchors: {
       1: 'Hard to tell what is happening: who is where, which state, what was hit.',
@@ -68,6 +74,7 @@ export const AXES: Axis[] = [
     title: 'Smash Ultimate presentation',
     question:
       'Camera, HUD, effects and stage framing: would a Smash player recognise the presentation? Judge the presentation, not the rendering technology: 2D Flash-style art in a Smash presentation can score 10.',
+    scored: 'always',
     notApplicable: 'Always scored.',
     anchors: {
       1: 'Nothing reads as Smash.',

@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import type { PackInfo } from './pack.ts';
 import { AXES } from './rubric.ts';
 import type { JudgeVerdict } from './schema.ts';
@@ -248,6 +249,7 @@ export function historyRow(sb: Scoreboard): string {
 
 /** Append this round to a markdown history table, creating the file with its header if needed. */
 export function appendHistory(path: string, sb: Scoreboard): void {
+  mkdirSync(dirname(path), { recursive: true });
   const existing = existsSync(path) ? readFileSync(path, 'utf8').trimEnd() : '';
   writeFileSync(path, `${existing || HISTORY_HEADER}\n${historyRow(sb)}\n`);
 }
