@@ -4,6 +4,7 @@
  * (game units, units/frame, frames at 60 Hz) so reference data can be used as-is. See docs/fighters.md.
  */
 
+import type { ActionDef } from '../sim/actions/registry';
 import type { AbsorberDef, EntityDef, ReflectorDef, SpawnDef } from '../sim/entities/types';
 import type { Ctx } from '../sim/fighter';
 
@@ -125,6 +126,12 @@ export interface MoveDef {
   leavesGround?: boolean;
   /** Frames (inclusive) on which the fighter is intangible, as on a getup attack. */
   intangible?: [number, number];
+  /**
+   * Armor (Ultimate): on `frames` (inclusive) hits still add damage and hitlag, but they don't launch, cause
+   * hitstun or interrupt the move. A hit breaks through when its knockback reaches `threshold` or its damage
+   * reaches `damageThreshold`; with neither set it is heavy armor and nothing breaks through.
+   */
+  armor?: { frames: [number, number]; threshold?: number; damageThreshold?: number };
   /** Recoveries: the move ends in helpless fall instead of a normal fall. */
   helpless?: boolean;
   /** Airborne moves that may grab a ledge from this frame. */
@@ -175,6 +182,12 @@ export interface FighterDef {
    * The name is also the animation clip name.
    */
   moves?: Record<string, MoveDef>;
+  /**
+   * This fighter's own versions of shared actions, by action name (`walk`, `dash`, `run`, `crouch`, ...), used
+   * instead of the shared ones in `src/sim/actions/`, or new actions only this fighter enters. Bloxorz block tips
+   * end over end instead of walking. Keep them deterministic, like move scripts.
+   */
+  actions?: Record<string, ActionDef>;
   /** Kinds of entity this fighter's moves spawn, by name (the entity kind is "<id>/<name>"). */
   entities?: Record<string, EntityDef>;
   /** Art data for the renderer (src/render/rig). Plain data, no renderer imports. */

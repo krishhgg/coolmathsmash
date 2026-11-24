@@ -105,6 +105,10 @@ fsmash: {
   applies when it lands out of the helpless fall.
 - **Auto-cancel.** Landing in an aerial's `autoCancel` window costs only normal landing lag.
 - **Intangibility.** `intangible: [from, to]` makes the fighter intangible on those frames of the move.
+- **Armor.** `armor: { frames: [from, to], threshold?, damageThreshold? }` armours the fighter on those frames of the
+  move, as in Ultimate: hits still add damage and hitlag, but they don't launch, cause hitstun or interrupt the move.
+  A hit breaks through when its knockback reaches `threshold` (threshold armor) or its damage reaches
+  `damageThreshold` (Kirby's Stone); with neither it is heavy armor. Grabs and throws ignore armor.
 - **Getup attack.** A move named `getupAttack` plays when a fighter lying down after a missed tech presses
   Attack. Give it `intangible: [1, 26]` (Ultimate's) and hits on both sides; without one, Attack just stands up.
 - **Specials.** `script(x)` runs every frame of the move before physics and sets velocity or facing. It must be
@@ -124,7 +128,39 @@ fsmash: {
   (`src/fighters/fireboy/swap.ts`) is the example. A form that is only reached by transforming sets
   `selectable: false` on its FighterDef, so menus list only the fighter that starts the match.
 
-The combat math (knockback, hitlag, hitstun, DI, shieldstun, staleness) is shared and lives in
+### Action overrides
+
+`actions` on a FighterDef replaces shared actions (`src/sim/actions/`) for that fighter only, by action name, or adds
+actions only that fighter enters. The engine looks every action up through `actionDef(f)`
+(`src/sim/actions/registry.ts`), so an override's `physics`, `friction`, `edge`, `drift`, `ledge`,
+`intangible` and `land` all apply. Bloxorz block's `walk`, `dash`, `run` and `crouch` tip the block end over end
+instead of sliding:
+
+```ts
+actions: {
+  walk: {
+    physics: 'ground',
+    edge: 'fall',
+    friction: false,
+    update(x) {
+      if (groundActionable(x)) return; // jump, attacks, shield, crouch: the shared options
+      // set x.f.vel.x yourself, setAction(x, 'idle') when the stick lets go
+    },
+  },
+},
+```
+
+Reuse the shared helpers (`groundActionable`, `startMovement`, `setAction`) so inputs keep Smash's priorities, keep
+the names canonical (audio, art and CPUs key off action names), and keep overrides deterministic, like move scripts.
+
+### Hurtbox shape
+
+The hurtbox is a capsule from `width` and `height`: upright (half the width thick, from the feet to the head) for
+most fighters, and lying (half the height thick, along the width) for a fighter wider than it is tall. Crouching
+lowers an upright body only. A form that
+changes shape mid-match (Bloxorz block standing up or lying down) is a separate FighterDef with its own size,
+reached by `transform`. `?hitboxes` draws either shape.
+
 `src/sim/combat/`; a fighter only supplies numbers.
 
 Every move start, hit and landing is reported as a sim event (`docs/sim-events.md`). Audio and effects key off
@@ -238,9 +274,10 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   holder frees the held fighter, and a held fighter armours through it up to the grab's break damage.
 - **Stage.** `floor` is `'bounce'` (up at `bounce` speed), `'land'` (rest on it; `grounded` is set),
   `'destroy'` (default) or `'pass'`; `wall` (walls and ceilings) is `'bounce'`, `'stop'`, `'destroy'` (default) or
-  `'pass'`. Entities land on soft platforms too, and vanish past the blast zones or when `lifetime` runs out. They
-  collide with the stage as it stands after this frame's stage motion (moved pieces where they are, absent pieces
-  skipped), but do not ride moving pieces yet.
+  `'pass'`. Entities land on soft platforms too, and vanish past the blast zones or when `lifetime` runs out. Moving
+  pieces (docs/stage-geometry.md) collide by their motion relative to the entity, absent ones are skipped: a floor
+  rising under a resting entity lifts it, a solid running into one pushes it, and one on a floor that a ceiling comes
+  down on is crushed (destroyed, reason `stage`). Entities don't ride a piece's sideways motion yet.
 - **Scripts.** `script(x)` runs every frame before movement with `x.e` (the entity), `x.owner` and `x.c` (the
   owner's controller, for owner-controlled minions), `x.m` and `x.stage`. It may steer, spawn or
   `destroyEntity`, and keeps its own state in `x.e.data`. Deterministic only: use `x.m.rng`.

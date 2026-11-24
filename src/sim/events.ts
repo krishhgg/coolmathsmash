@@ -66,6 +66,11 @@ export type SimEvent =
   | { type: 'stagePiece'; piece: 'solid' | 'platform'; index: number; on: boolean }
   /** A moving solid squeezed a fighter against other geometry and the fighter popped out on top of it. */
   | { type: 'squeeze'; port: number; solid: number; x: number; y: number }
+  /**
+   * A fighter's move or action asks for a screen shake (a heavy landing, Bloxorz block's every tip): `amplitude`
+   * in screen pixels at 1280x720, fading out over `frames` frames. Emitted by fighter scripts; the camera reacts.
+   */
+  | { type: 'shake'; port: number; amplitude: number; frames: number }
   /** An entity (projectile, minion, object, item) appeared. */
   | { type: 'entitySpawn'; id: number; kind: string; owner: number; x: number; y: number }
   /** An entity left the match, and why (`hit`: used up by its hit; `clank`: cancelled by an attack or projectile). */

@@ -35,17 +35,28 @@ export interface PlacedHitbox {
   y: number;
 }
 
-/** The body: a vertical capsule from the feet to the head, half the fighter's width thick. Crouching lowers it. */
+/**
+ * The body: a capsule around a core segment, `r` thick. Upright fighters have a vertical core from the feet to the
+ * head (`y1` to `y2`, half the width thick). A fighter wider than it is tall (a block lying on its side) has a
+ * horizontal core instead, `hw` either side of `x`, half the height thick. Crouching lowers an upright body;
+ * a lying one is already as low as it gets.
+ */
 export interface Hurtbox {
   x: number;
   y1: number;
   y2: number;
   r: number;
+  /** Half-length of a horizontal core; 0 (or absent) for an upright fighter. */
+  hw?: number;
 }
 
 export function hurtbox(f: FighterState, s: FighterStats): Hurtbox {
-  const r = s.width / 2;
+  if (s.width > s.height) {
+    const r = s.height / 2;
+    return { x: f.pos.x, y1: f.pos.y + r, y2: f.pos.y + r, r, hw: s.width / 2 - r };
+  }
   const height = f.action === 'crouch' ? s.height * 0.6 : s.height;
+  const r = s.width / 2;
   return { x: f.pos.x, y1: f.pos.y + r, y2: f.pos.y + Math.max(height - r, r), r };
 }
 
@@ -58,9 +69,11 @@ export function activeHitboxes(f: FighterState): PlacedHitbox[] {
 }
 
 export function touches(h: PlacedHitbox, body: Hurtbox): boolean {
+  const hw = body.hw ?? 0;
+  const x = Math.min(Math.max(h.x, body.x - hw), body.x + hw);
   const y = Math.min(Math.max(h.y, body.y1), body.y2);
   const r = h.box.radius + body.r;
-  return (h.x - body.x) ** 2 + (h.y - y) ** 2 <= r * r;
+  return (h.x - x) ** 2 + (h.y - y) ** 2 <= r * r;
 }
 
 export function hittable(f: FighterState): boolean {
@@ -93,6 +106,8 @@ interface Connection {
   at: { x: number; y: number };
   /** The attacker's move, kept here because an earlier hit this frame may clear it. */
   move: string | null;
+  /** The victim's armor this frame (MoveDef.armor): hits below both thresholds don't launch. Null without armor. */
+  armor: { kb: number; damage: number } | null;
 }
 
 /**
@@ -122,6 +137,13 @@ function connection(
     at,
     move,
   };
+}
+
+/** The knockback and damage thresholds of `v`'s armor this frame (MoveDef.armor); unset ones never break. */
+function armorOf(v: FighterState): Connection['armor'] {
+  const armor = moveOf(v)?.armor;
+  if (!armor || !inWindow(v.actionFrame, armor.frames)) return null;
+  return { kb: armor.threshold ?? Infinity, damage: armor.damageThreshold ?? Infinity };
 }
 
 /**
@@ -169,12 +191,13 @@ function stale(a: FighterState, move: string): number {
 }
 
 /** The victim's state before any of this frame's hits land. */
-function victim(v: FighterState): Pick<Connection, 'v' | 'percent' | 'crouch' | 'shielding'> {
+function victim(v: FighterState): Pick<Connection, 'v' | 'percent' | 'crouch' | 'shielding' | 'armor'> {
   return {
     v,
     percent: v.damage,
     crouch: v.action === 'crouch' && v.ground !== null,
     shielding: v.action === 'shield' || v.action === 'shieldStun',
+    armor: armorOf(v),
   };
 }
 
@@ -248,7 +271,22 @@ export function addDamage(m: MatchState, v: FighterState, damage: number): void 
  */
 function hit(
   m: MatchState,
-  { a, attacker, entity, v, box, damage: base, stale, rage, dir, percent, crouch, at, move }: Connection,
+  {
+    a,
+    attacker,
+    entity,
+    v,
+    box,
+    damage: base,
+    stale,
+    rage,
+    dir,
+    percent,
+    crouch,
+    at,
+    move,
+    armor,
+  }: Connection,
   again: boolean,
 ): void {
   const kb = knockback({
@@ -282,6 +320,7 @@ function hit(
     x: at.x,
     y: at.y,
   });
+  if (armor && kb < armor.kb && damage < armor.damage) return;
   const held = grabArmour(m, v, damage);
   if (again && v.launch && v.launch.kb >= kb) return;
   v.launch = { kb, angle: box.angle, dir, setKnockback: (box.wbkb ?? 0) > 0 };

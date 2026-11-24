@@ -47,6 +47,8 @@ rig point `(6, -6)`.
   own swaps. A key without `pose` only changes symbols, like a keyframe on the symbol layer.
 - **Palettes** map keys to colours. `default` is the fighter's main look; alternates (the mannequin's `ash`,
   `walnut` and `cherry`) dress other ports.
+- **Costume swaps** (`costumeSwaps`: palette name -> slot -> symbol, or `null`) replace slot defaults for one
+  costume, below clip and key swaps, so a costume can wear a hat the others don't (The Duck's `crown`).
 - `icon` is a standalone SVG string for stock icons and portraits, `projectiles` holds props such as the
   fireball (`PropArt { symbols, symbol, scale }`), and `ledgeGrip` is the rig point the ledge's top corner
   should touch while hanging.

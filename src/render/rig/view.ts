@@ -128,11 +128,12 @@ export function createRigView(art: FighterArt, palette = 'default'): RigView {
     return container.addChild(g);
   });
   const matrix = new Matrix();
-  let colors = art.palettes[palette] ?? art.palettes.default;
+  let costume = art.palettes[palette] ? palette : 'default';
+  let colors = art.palettes[costume] ?? art.palettes.default;
   let last: [string, number, number] = ['idle', 0, 0];
   const pose = (clip: string, frame: number, globalFrame: number) => {
     last = [clip, frame, globalFrame];
-    const p = samplePose(art, clip, frame, globalFrame);
+    const p = samplePose(art, clip, frame, globalFrame, costume);
     art.rig.slots.forEach((slot, i) => {
       const g = graphics[i]!;
       const name = p.symbols[slot.name];
@@ -149,7 +150,8 @@ export function createRigView(art: FighterArt, palette = 'default'): RigView {
     container,
     pose,
     setPalette(name) {
-      colors = art.palettes[name] ?? art.palettes.default;
+      costume = art.palettes[name] ? name : 'default';
+      colors = art.palettes[costume] ?? art.palettes.default;
       pose(...last);
     },
   };

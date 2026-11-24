@@ -1,7 +1,8 @@
 import { LAUNCH_DECAY } from '../combat/formulas';
 import type { MatchState } from '../match';
-import { posedStage } from '../movingStage';
-import { edgeMaxX, edgeMinX, floorY, type CompiledStage, type Edge } from '../stage';
+import { posedStage, type PieceState } from '../movingStage';
+import { edgeMaxX, edgeMinX, floorY, type Edge } from '../stage';
+import { clamp, type Vec } from '../vec';
 import { destroyEntity, entityDef, sweepEntities } from './entities';
 import type { EntityCtx, EntityState } from './types';
 
@@ -58,7 +59,7 @@ function moveEntity(x: EntityCtx): void {
     const prev = { x: e.pos.x, y: e.pos.y };
     e.pos.x += dx / steps;
     e.pos.y += sy;
-    const touched = collide(x, prev);
+    const touched = collide(x, prev, { from: 1 - i / steps, to: 1 - (i + 1) / steps });
     if (e.dead || touched === 'wall') break;
     if (touched === 'floor') sy = 0;
   }
@@ -70,18 +71,31 @@ function moveEntity(x: EntityCtx): void {
   if (def.gravity) e.vel.y = Math.max(e.vel.y - def.gravity, -(def.maxFall ?? Infinity));
 }
 
+/**
+ * How much of each stage piece's motion this frame is still to come at the start and end of a sub-step (1 = the
+ * piece is still where it was last frame, 0 = where it is now), so a sub-step sees the entity's motion relative to
+ * the moving pieces, as fighters do: a floor rising under a resting entity catches it, a solid running into it
+ * pushes it.
+ */
+interface Lag {
+  from: number;
+  to: number;
+}
+
 const crossing = (prev: number, next: number) => prev >= -EPS && next < 0;
 
 /**
  * Resolve one sub-step against the stage: `'floor'` when it landed or bounced (the rest of the frame's move goes on
- * along the floor), `'wall'` when it hit a wall or ceiling (the rest is dropped).
+ * along the floor), `'wall'` when it hit a wall or ceiling (the rest is dropped). An entity on a floor that a ceiling
+ * comes down on is crushed.
  */
-function collide(x: EntityCtx, prev: { x: number; y: number }): 'floor' | 'wall' | null {
+function collide(x: EntityCtx, prev: Vec, lag: Lag): 'floor' | 'wall' | null {
   const { e, def, stage } = x;
   const r = def.radius;
   const floor = def.floor ?? 'destroy';
+  let landed = false;
   if (floor !== 'pass' && e.vel.y + e.kb.y <= 0) {
-    const surface = floorUnder(stage, e, prev, r);
+    const surface = floorUnder(x, prev, lag);
     if (surface !== null) {
       if (floor === 'destroy') {
         destroyEntity(x.m, e, 'stage');
@@ -91,18 +105,20 @@ function collide(x: EntityCtx, prev: { x: number; y: number }): 'floor' | 'wall'
       e.kb.y = 0;
       e.vel.y = floor === 'bounce' ? (def.bounce ?? Math.abs(e.vel.y)) : 0;
       e.grounded = floor === 'land';
-      return 'floor';
+      landed = true;
     }
   }
   const wall = def.wall ?? 'destroy';
-  if (wall === 'pass') return null;
+  if (wall === 'pass') return landed ? 'floor' : null;
   for (const edge of stage.edges) {
-    if (edge.kind === 'floor' || !stage.present.solids[edge.solid] || !hitsEdge(e, prev, edge, r)) continue;
-    if (wall === 'destroy') {
+    if (edge.kind === 'floor' || !there(x, 'solids', edge.solid)) continue;
+    const o = x.m.stage.solids[edge.solid]!;
+    if (!hitsEdge(e, prev, edge, r, o, lag)) continue;
+    if (wall === 'destroy' || ((landed || e.grounded) && edge.kind === 'ceiling')) {
       destroyEntity(x.m, e, 'stage');
       return 'wall';
     }
-    const d = (e.pos.x - edge.a.x) * edge.n.x + (e.pos.y - edge.a.y) * edge.n.y - r;
+    const d = edgeDistance(e.pos, edge, r, o, lag.to);
     e.pos.x += edge.n.x * (-d + EPS);
     e.pos.y += edge.n.y * (-d + EPS);
     for (const v of [e.vel, e.kb]) {
@@ -115,36 +131,51 @@ function collide(x: EntityCtx, prev: { x: number; y: number }): 'floor' | 'wall'
     if (wall === 'bounce' && Math.abs(e.vel.x) > EPS) e.facing = Math.sign(e.vel.x) as 1 | -1;
     return 'wall';
   }
-  return null;
+  return landed ? 'floor' : null;
 }
 
-/** Height of the floor edge or platform the body's bottom crossed on this sub-step, if any. */
-function floorUnder(
-  stage: CompiledStage,
-  e: EntityState,
-  prev: { x: number; y: number },
-  r: number,
-): number | null {
+/** A piece of the stage that is there this frame. */
+const there = ({ stage }: EntityCtx, list: 'solids' | 'platforms', i: number) =>
+  stage.present[list][i] === true;
+
+/** Height of the floor edge or platform the body's bottom crossed on this sub-step (where it is now), if any. */
+function floorUnder(x: EntityCtx, prev: Vec, lag: Lag): number | null {
+  const { e, stage, m } = x;
+  const r = x.def.radius;
   for (const edge of stage.edges) {
-    if (edge.kind !== 'floor' || !stage.present.solids[edge.solid]) continue;
-    if (e.pos.x < edgeMinX(edge) - EPS || e.pos.x > edgeMaxX(edge) + EPS) continue;
-    const now = floorY(edge, e.pos.x);
-    const before = floorY(edge, Math.min(Math.max(prev.x, edgeMinX(edge)), edgeMaxX(edge)));
-    if (crossing(prev.y - r - before, e.pos.y - r - now)) return now;
+    if (edge.kind !== 'floor' || !there(x, 'solids', edge.solid)) continue;
+    const o = m.stage.solids[edge.solid]!;
+    const at = e.pos.x + o.dx * lag.to;
+    if (at < edgeMinX(edge) - EPS || at > edgeMaxX(edge) + EPS) continue;
+    const now = floorY(edge, at) - o.dy * lag.to;
+    const was =
+      floorY(edge, clamp(prev.x + o.dx * lag.from, edgeMinX(edge), edgeMaxX(edge))) - o.dy * lag.from;
+    if (crossing(prev.y - r - was, e.pos.y - r - now)) return now;
   }
   for (const [i, p] of stage.geo.platforms.entries()) {
-    if (!stage.present.platforms[i] || e.pos.x < p.x1 || e.pos.x > p.x2) continue;
-    if (crossing(prev.y - r - p.y, e.pos.y - r - p.y)) return p.y;
+    if (!there(x, 'platforms', i)) continue;
+    const o = m.stage.platforms[i]!;
+    const at = e.pos.x + o.dx * lag.to;
+    if (at < p.x1 || at > p.x2) continue;
+    const now = p.y - o.dy * lag.to;
+    if (crossing(prev.y - r - (p.y - o.dy * lag.from), e.pos.y - r - now)) return now;
   }
   return null;
 }
 
-/** The body circle crossed into a wall or ceiling edge on this sub-step. */
-function hitsEdge(e: EntityState, prev: { x: number; y: number }, edge: Edge, r: number): boolean {
-  const dist = (p: { x: number; y: number }) => (p.x - edge.a.x) * edge.n.x + (p.y - edge.a.y) * edge.n.y - r;
-  if (!crossing(dist(prev), dist(e.pos))) return false;
+/** Signed distance from the body circle to an edge of a piece moving by `o`, `lag` of its motion still to come. */
+function edgeDistance(p: Vec, edge: Edge, r: number, o: PieceState, lag: number): number {
+  return (p.x + o.dx * lag - edge.a.x) * edge.n.x + (p.y + o.dy * lag - edge.a.y) * edge.n.y - r;
+}
+
+/** The body circle crossed into a wall or ceiling edge on this sub-step, relative to the edge's motion. */
+function hitsEdge(e: EntityState, prev: Vec, edge: Edge, r: number, o: PieceState, lag: Lag): boolean {
+  if (!crossing(edgeDistance(prev, edge, r, o, lag.from), edgeDistance(e.pos, edge, r, o, lag.to)))
+    return false;
   const ex = edge.b.x - edge.a.x;
   const ey = edge.b.y - edge.a.y;
-  const t = ((e.pos.x - edge.a.x) * ex + (e.pos.y - edge.a.y) * ey) / (ex * ex + ey * ey);
+  const px = e.pos.x + o.dx * lag.to;
+  const py = e.pos.y + o.dy * lag.to;
+  const t = ((px - edge.a.x) * ex + (py - edge.a.y) * ey) / (ex * ex + ey * ey);
   return t >= -0.05 && t <= 1.05;
 }
