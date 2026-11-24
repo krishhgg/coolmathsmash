@@ -18,6 +18,13 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 /** Tile Flip's air hop: the upward speed it sets and on which frame. Less than a cycle of gravity, so no stall. */
 export const HOP = { frame: 3, speed: 0.8 };
 
+/**
+ * The kick flurry's timeline: a kick on each of these frames, then Attack during [loop, loop + 1] starts the next
+ * four (presses buffer, so mashing anywhere in the cycle counts). Otherwise the shove comes out three frames
+ * after the window closes, on Kirby's finisher timing (startup 3, 39 frames in all).
+ */
+export const RAPID_JAB = { kicks: [2, 4, 6, 8], loop: 8, shove: [12, 13] as [number, number], faf: 49 };
+
 /** Down throw's treadmill steps: the frames on which each footfall lands and the % it deals. */
 export const TREADMILL = { frames: [8, 12, 16, 20], damage: 1 };
 
@@ -28,11 +35,40 @@ export const TREADMILL = { frames: [8, 12, 16, 20], damage: 1 };
  * inclusive, faf is the first actionable frame, and move names double as animation clip names.
  */
 export const moves: Record<string, MoveDef> = {
-  /** Jog Flurry, first punch (Kirby's jab 1). */
+  /** Jog Flurry, first punch (Kirby's jab 1). Attack again from frame 4 throws the second. */
   jab: {
     kind: 'other',
     faf: 15,
+    next: { window: [4, 14], move: 'jab2' },
     hits: [{ frames: [2, 3], boxes: [box(0, 6, 7, 3.5, { damage: 1.8, angle: 361, kbg: 25, bkb: 20 })] }],
+  },
+  /** Jog Flurry, second punch (Kirby's jab 2). Attack again from frame 5 starts the kick flurry. */
+  jab2: {
+    kind: 'other',
+    faf: 16,
+    next: { window: [5, 15], move: 'jabRapid' },
+    hits: [{ frames: [3, 3], boxes: [box(0, 6.5, 7, 3.5, { damage: 1.8, angle: 361, kbg: 15, bkb: 25 })] }],
+  },
+  /**
+   * Jog Flurry, the kick flurry (Kirby's rapid jab): running in place, a kick every other frame. Each press of
+   * Attack keeps it going for another four kicks; once she stops pressing, she finishes with a two-handed shove.
+   */
+  jabRapid: {
+    kind: 'other',
+    faf: RAPID_JAB.faf,
+    next: { window: [RAPID_JAB.loop, RAPID_JAB.loop + 1], move: 'jabRapid' },
+    hits: [
+      ...RAPID_JAB.kicks.map((frame): MoveDef['hits'][number] => ({
+        frames: [frame, frame],
+        rehit: true,
+        boxes: [box(0, 6.5, 5, 4, { damage: 0.3, angle: 361, kbg: 35, bkb: 7 })],
+      })),
+      {
+        frames: RAPID_JAB.shove,
+        rehit: true,
+        boxes: [box(0, 7, 6.5, 4, { damage: 3, angle: 361, kbg: 115, bkb: 70 })],
+      },
+    ],
   },
   /** Strafe Kick: a spinning roundhouse at hip height; the foot is the sweetspot. */
   ftilt: {

@@ -5,7 +5,7 @@ import { createMatch, type MatchState } from '../../sim/match';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
 import { FIGHTERS } from '../registry';
-import { HOP, moves, TREADMILL } from './moves';
+import { HOP, moves, RAPID_JAB, TREADMILL } from './moves';
 import { stats } from './stats';
 
 /** Where Mario stands at Battlefield's right ledge (x = 80) in the kill-% tests. */
@@ -283,6 +283,48 @@ describe('Runner: combo tools', () => {
     };
     expect(side(8.5)).toEqual({ frame: 6, dir: 1 });
     expect(side(-8.5)).toEqual({ frame: 6, dir: -1 });
+  });
+});
+
+describe('Runner: Jog Flurry (jab: two punches, a kick flurry, a shove)', () => {
+  /** Mario standing 7 units in front of her; she presses Attack every 4 frames for `mash` frames. */
+  function flurry(mash: number, frames = 150) {
+    const { m, a, v } = vsMario();
+    put(a, 0, 1, v.ground);
+    put(v, 7, -1, v.ground);
+    const seen: string[] = [];
+    let flurries = 0;
+    let shovedAt = -1;
+    for (let i = 0; i < frames; i++) {
+      runPorts(m, 1, [i % 4 === 0 && i < mash ? { buttons: ['attack'] } : {}, {}]);
+      if (a.move && seen.at(-1) !== a.move) seen.push(a.move);
+      if (a.move === 'jabRapid' && a.actionFrame === 1) flurries++;
+      if (shovedAt < 0 && v.action === 'tumble') shovedAt = i;
+    }
+    return { a, v, seen, flurries, shovedAt };
+  }
+
+  it('Attack again chains jab -> jab2 -> the kick flurry, and the shove launches when she stops', () => {
+    const { a, v, seen, flurries, shovedAt } = flurry(40);
+    expect(seen).toEqual(['jab', 'jab2', 'jabRapid']);
+    expect(flurries).toBe(1);
+    expect(shovedAt).toBeGreaterThan(40);
+    expect(a.action).toBe('idle');
+    expect(v.damage).toBeCloseTo((1.8 + 1.8 + 0.3 * RAPID_JAB.kicks.length + 3) * 1.05 * 1.2, 6);
+  });
+
+  it('mashing keeps the flurry going, and the shove only comes out once she stops', () => {
+    const short = flurry(40);
+    const long = flurry(80);
+    expect(long.flurries).toBeGreaterThan(short.flurries);
+    expect(long.shovedAt).toBeGreaterThan(80);
+    expect(long.v.damage).toBeGreaterThan(short.v.damage);
+  });
+
+  it('kicks every other frame, then shoves three frames after the loop window closes', () => {
+    expect(activeFrames('jabRapid')).toEqual([...RAPID_JAB.kicks, RAPID_JAB.shove[0], RAPID_JAB.shove[1]]);
+    expect(RAPID_JAB.shove[0]).toBe(RAPID_JAB.loop + 1 + 3);
+    expect(moves.jabRapid!.next).toEqual({ window: [RAPID_JAB.loop, RAPID_JAB.loop + 1], move: 'jabRapid' });
   });
 });
 
