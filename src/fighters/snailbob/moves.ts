@@ -226,7 +226,8 @@ export const moves: Record<string, MoveDef> = {
   /**
    * Shell Pound (the video's ground pound): Bob hangs for a moment, rising a little, then drops shell-first.
    * The early drop meteors (frames 16-20), the rest of the drop hits normally, and landing always turns into the
-   * shockwave and its lag (`dairLand`), so `landingLag` only mirrors that.
+   * shockwave and its lag (`dairLand`), so `landingLag` only mirrors that. The script owns the fall, so it marks
+   * him fast-falling to keep a down flick from overriding it; if the move ends in the air he keeps falling fast.
    */
   dair: {
     kind: 'aerial',
@@ -249,7 +250,7 @@ export const moves: Record<string, MoveDef> = {
         startMove(x, 'dairLand');
         return;
       }
-      f.fastFalling = false;
+      f.fastFalling = true;
       if (f.actionFrame < DAIR_PLUNGE_FROM) {
         f.vel.x *= 0.85;
         f.vel.y = 0.5 - f.actionFrame * 0.05;

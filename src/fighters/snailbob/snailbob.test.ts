@@ -229,6 +229,20 @@ describe('Snail Bob: Shell Pound (dair)', () => {
     expect((y - a.pos.y) / 5).toBeGreaterThan(stats.fastFallSpeed);
   });
 
+  it('a down flick during the hang or the plunge does not change his path', () => {
+    const path = (flick: boolean) => {
+      const { m, a } = pound(100);
+      const ys: number[] = [];
+      for (let i = 1; i <= 30; i++) {
+        const down = flick && (i === 6 || i === 20);
+        runPorts(m, 1, [down ? { y: -100 } : {}, {}]);
+        ys.push(a.pos.y);
+      }
+      return ys;
+    };
+    expect(path(true)).toEqual(path(false));
+  });
+
   it('meteors a fighter under him on frames 16-20', () => {
     const { m, v } = pound(40, 10);
     for (let i = 0; i < 40 && v.kb.y === 0; i++) runPorts(m, 1, [{}, {}]);
