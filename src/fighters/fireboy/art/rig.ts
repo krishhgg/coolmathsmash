@@ -1,37 +1,19 @@
 import type { ArtSymbol, PathShape, Rig, Slot } from '../../../render/rig/types';
 import {
-  eyesFront,
-  eyesSide,
-  eyesUp,
-  headFront,
-  headSide,
-  headUp,
-  mouthFront,
-  mouthSide,
-  mouthUp,
-} from './flash';
-import {
   FORE_ARM,
   SHIN,
   THIGH,
   UPPER_ARM,
-  blinkFront,
-  blinkSide,
-  aura,
+  balls,
+  faces,
   fist,
   foreArm,
-  gritFront,
+  headFront,
+  headSide,
+  headUp,
   jets,
   mitten,
-  lidsFront,
-  lidsSide,
-  ouchFront,
-  ouchSide,
   shin,
-  shoutFront,
-  shoutSide,
-  squintFront,
-  squintSide,
   thigh,
   torso,
   upperArm,
@@ -58,12 +40,9 @@ function limbSymbols(
   );
 }
 
-/** Original Flash frame rate: the head flicker cycles 5 drawings at 25 fps. */
-const FLICKER_FPS = 25;
-
 const frames = (name: string, drawings: ArtSymbol[]) =>
   Object.fromEntries(drawings.map((d, i) => [`${name}${i}`, d]));
-const loop = (name: string, count: number, fps: number, order = [0, 1, 2, 3, 4]) => ({
+const loop = (name: string, count: number, fps: number, order = [0, 1, 2]) => ({
   loop: order.slice(0, count).map((i) => `${name}${i}`),
   fps,
 });
@@ -71,7 +50,7 @@ const loop = (name: string, count: number, fps: number, order = [0, 1, 2, 3, 4])
 export const HIP_Y = -(THIGH + SHIN);
 /** Head centre above the chin: the head symbols are drawn around the head centre. */
 export const HEAD_R = 3.41;
-/** The original head drawn 6% larger, so it fills about 78% of Fireboy's height as in the 2009 sprite. */
+/** Head size on the rig: the head fills most of the fighter's height. */
 const HEAD_SCALE = 1.06;
 
 /**
@@ -101,7 +80,7 @@ export const rig: Rig = {
     { name: 'fx4', parent: 'root', x: 0, y: 0 },
   ],
   slots: [
-    { name: 'aura', bone: 'body', symbol: 'aura', decor: true },
+    { name: 'aura', bone: 'body', symbol: null, decor: true },
     { name: 'fxBack', bone: 'fx4', symbol: null },
     ...limbSlots('armB', 'foreB', 'upperArm', 'foreArm'),
     { name: 'torsoLine', bone: 'torso', symbol: 'torsoLine' },
@@ -116,33 +95,17 @@ export const rig: Rig = {
     { name: 'fx3', bone: 'fx3', symbol: null },
   ],
   symbols: {
-    ...frames('headFront', headFront),
-    ...frames('headSide', headSide),
-    ...frames('headUp', headUp),
-    headFront: loop('headFront', 5, FLICKER_FPS),
-    headSide: loop('headSide', 5, FLICKER_FPS),
-    headUp: loop('headUp', 5, FLICKER_FPS),
-    faceFront: [...eyesFront, ...mouthFront],
-    faceFrontBlink: [...blinkFront, ...mouthFront],
-    faceFrontAngry: [...eyesFront, ...lidsFront, ...mouthFront],
-    faceFrontShout: [...eyesFront, ...lidsFront, ...shoutFront],
-    faceFrontHurt: [...squintFront, ...ouchFront],
-    faceFrontDazed: [...eyesFront, ...ouchFront],
-    faceFrontStrain: [...eyesFront, ...gritFront],
-    faceSide: [...eyesSide, ...mouthSide],
-    faceSideBlink: [...blinkSide, ...mouthSide],
-    faceSideAngry: [...eyesSide, ...lidsSide, ...mouthSide],
-    faceSideShout: [...eyesSide, ...lidsSide, ...shoutSide],
-    faceSideHurt: [...squintSide, ...ouchSide],
-    faceUp: [...eyesUp, ...mouthUp],
+    headFront,
+    headSide,
+    headUp,
+    ...faces,
     ...limbSymbols({ upperArm, foreArm, mitten, fist, thigh, shin, torso }),
-    /** A fireball: the side head's ball and trailing flames (trail towards -x), flickering faster. */
-    fxBall: loop('headSide', 5, 30, [2, 0, 3, 1, 4]),
-    /** A flame tongue: the front head's three tips pointing up from the ball. */
-    fxFlame: loop('headFront', 5, 30, [3, 1, 4, 0, 2]),
+    ...frames('fxBall', balls),
+    /** A fireball of radius 3.6 trailing towards -x, flickering through three drawings. */
+    fxBall: loop('fxBall', 3, 30, [0, 2, 1]),
     ...frames('fxJet', jets),
-    /** The soft heat glow the 2009 game draws around him (body space: centred on his middle). */
-    aura,
+    /** A flame tongue pointing up from its base: the strike flame at a faster flicker. */
+    fxFlame: loop('fxJet', 3, 30, [1, 2, 0]),
     /** A strike flame: a yellow-cored teardrop with swept tongues, flickering through three drawings. */
     fxJet: loop('fxJet', 3, 20, [0, 1, 2]),
   },
