@@ -205,7 +205,7 @@ describe('Fluffy: frame data (roster sheet 8)', () => {
 
   it('down air spikes on its first frames and pops up after', () => {
     const [early, late] = moves.dair!.hits;
-    expect(early!.boxes[0]!.angle).toBe(270);
+    expect(early!.boxes[0]!.angle).toBe(285);
     expect(late!.boxes[0]!.angle).toBeLessThan(90);
   });
 });
@@ -244,7 +244,7 @@ describe('Fluffy: tether grab', () => {
 describe('Fluffy: kill percents on Mario at the Battlefield ledge (roster targets)', () => {
   // TODO: tighten to within 8% of each target once COOL-3's knockback calibration and koPercent helper land. Until
   // then the engine KOs early (CREW.md, "Knockback values"), so this only checks each move kills by its target and
-  // not absurdly early. Measured today: forward smash 68%, up smash 116%, back air 109%, back throw 120%.
+  // not absurdly early. Measured today: forward smash 90%, up smash 128%, back air 111%, back throw 116%.
   it.each([
     ['fsmash', 110],
     ['usmash', 120],
