@@ -169,7 +169,9 @@ const COMP = [
 const pianoNotes = CHORDS.flatMap((_, b) =>
   b < 8 || b >= 22
     ? []
-    : COMP[(b + (b >= 16 ? 3 : 0)) % COMP.length]!.flatMap(([beat, d]) => chordAt(b, beat!, d!, 0.55)),
+    : COMP[(b + (b >= 16 ? 3 : 0)) % COMP.length]!.flatMap(([beat, d]) =>
+        chordAt(b, beat!, d!, b >= 16 ? 0.45 : 0.55),
+      ),
 );
 const piano = feel(pianoNotes, 24, 0.015, 0.1);
 const vibesNotes = [
@@ -268,7 +270,8 @@ const snareNotes = [...ghosts, ...backbeat, ...trip(15, 2, 6), ...stopTime, ...f
 const kicks = humanize(
   [
     ...feather,
-    ...beats(16, 22, [0, 2], 0.62),
+    ...beats(16, 22, [0], 0.62),
+    ...beats(16, 22, [2], 0.54),
     ...beats(8, 16, [1.5], 0.45).filter((n) => Math.floor(n.t / BAR) % 2 === 0),
     at(22, 0, 0.25, 0, 0.65),
     at(22, 1.5, 0.25, 0, 0.6),
@@ -284,7 +287,7 @@ const toms = humanize(
       t: 21 * BAR + 2 + i / 3,
       d: 0.3,
       n: midi(['A3', 'A3', 'E3', 'E3', 'B2', 'B2'][i]!),
-      v: 0.55 + 0.07 * i,
+      v: 0.5 + 0.05 * i,
     })),
     ...[0, 1, 2].map((i) => ({
       t: 15 * BAR + 3 + i / 3,
@@ -302,8 +305,8 @@ const crashes: Note[] = [
   at(8, 0, 1, 0, 0.5),
   at(16, 0, 1, 0, 1),
   at(20, 0, 1, 0, 0.6),
-  at(22, 0, 1, 0, 1),
-  at(23, 0, 1, 0, 0.95),
+  at(22, 0, 1, 0, 0.85),
+  at(23, 0, 1, 0, 0.85),
 ];
 
 /** Mix gains, before a common trim that keeps the bus below the master compressor (transients stay intact). */
@@ -326,8 +329,8 @@ const tracks: Track[] = [
   { inst: rim, gain: -2, pan: 0.15, verb: 0.25, loop: crossStick },
   { inst: ride, gain: 0, pan: 0.45, verb: 0.2, loop: rideNotes },
   { inst: pedalHat, gain: 6, pan: -0.35, verb: 0.1, loop: chicks },
-  { inst: snap, gain: 2, pan: -0.45, verb: 0.3, loop: snapsL },
-  { inst: snap, gain: 2, pan: 0.45, verb: 0.3, loop: snapsR },
+  { inst: snap, gain: 0, pan: -0.45, verb: 0.3, loop: snapsL },
+  { inst: snap, gain: 0, pan: 0.45, verb: 0.3, loop: snapsR },
   { inst: tom, gain: -10, pan: -0.25, verb: 0.3, loop: toms },
   { inst: crash, gain: -5, pan: -0.4, verb: 0.35, loop: crashes },
 ];
