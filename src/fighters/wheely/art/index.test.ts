@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import { moves } from '../moves';
+import { authored } from './clips';
 import { art } from '.';
 
 /** Canonical clip lengths (loops: any length). */
@@ -117,19 +118,20 @@ describe('wheely art', () => {
     expect(misses).toEqual([]);
   });
 
-  it('shows an effect only while its keys place it, so none snaps to the origin', () => {
+  it('shows an effect from a key that places it until the posed key after its last placement', () => {
     const fx = art.rig.slots.filter((s) => s.bone.startsWith('fx') || s.bone === 'prop');
     const stray: string[] = [];
     for (const [name, clip] of Object.entries(art.clips)) {
-      const posed = clip.keys.filter((k) => k.pose);
-      for (let f = 0; f < clip.length; f++) {
-        const symbols = samplePose(art, name, f, f).symbols;
-        const from = [...posed].reverse().find((k) => k.frame <= f);
-        const to = posed.find((k) => k.frame > f) ?? (clip.loop ? posed[0] : undefined);
-        for (const slot of fx) {
-          if (!symbols[slot.name]) continue;
-          const placed = from?.pose?.[slot.bone] && (!to || f === from.frame || to.pose?.[slot.bone]);
-          if (!placed) stray.push(`${name}@${f} ${slot.name}`);
+      const posed = (authored[name] ?? clip).keys.filter((k) => k.pose);
+      const wrap = (f: number) => (clip.loop ? (f + clip.length) % clip.length : f);
+      const shown = (slot: string, f: number) =>
+        wrap(f) >= 0 && wrap(f) < clip.length && !!samplePose(art, name, wrap(f), wrap(f)).symbols[slot];
+      for (const slot of fx) {
+        for (let f = 0; f < clip.length; f++) {
+          if (!shown(slot.name, f) || (shown(slot.name, f - 1) && shown(slot.name, f + 1))) continue;
+          const from =
+            [...posed].reverse().find((k) => k.frame <= f) ?? (clip.loop ? posed.at(-1) : posed[0]);
+          if (!from?.pose?.[slot.bone]) stray.push(name + '@' + f + ' ' + slot.name);
         }
       }
     }

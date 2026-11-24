@@ -206,7 +206,8 @@ const walk: AnimClip = {
 const RUN_A = smoke(mix(tilt(-1.5, REAR), bob(0.06), { fx3: at(-8.9, 0) }), 0.45);
 const RUN_B = smoke(mix(tilt(-1, REAR), bob(-0.04), { fx3: at(-9.1, 0.1) }), 0.6);
 
-const authored: Record<string, AnimClip> = {
+/** The clips as written, before effects are held between keys (index.test.ts checks their effect lifetimes). */
+export const authored: Record<string, AnimClip> = {
   idle,
   walk,
   dash: {
