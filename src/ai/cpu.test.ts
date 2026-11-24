@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { hashState } from '../engine/hash';
 import { Btn, neutralInput, type InputFrame } from '../input/types';
+import { DOWN_AUTO_GETUP } from '../sim/constants';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { CPU_LEVELS, cpuLevel, createCpu } from './index';
 import { knowledge } from './knowledge';
@@ -90,6 +91,49 @@ describe('fighter knowledge', () => {
     expect(k.air.nair!.first).toBe(2);
     expect(k.air.bair!.reach.x1).toBeLessThan(0);
     expect(k.air.upB!.helpless).toBe(true);
+  });
+});
+
+describe('CPU knockdowns', () => {
+  /** Drop port 0 into the middle of the stage in tumble and run its CPU until it is back on its feet. */
+  function knockdown(level: number, seed: number): { seen: string[]; down: number } {
+    const m = match();
+    const f = m.fighters[0]!;
+    Object.assign(f, {
+      pos: { x: 10, y: 25 },
+      prevPos: { x: 10, y: 25 },
+      vel: { x: 0, y: -1 },
+      kb: { x: 0, y: -1 },
+      ground: null,
+      action: 'tumble',
+      actionFrame: 0,
+      hitstun: 40,
+    });
+    m.fighters[1]!.pos = { x: -60, y: 0 };
+    const cpu = createCpu({ port: 0, level, seed });
+    const seen: string[] = [];
+    let down = 0;
+    for (let i = 0; i < 400; i++) {
+      stepMatch(m, [cpu.input(m), neutralInput()]);
+      if (seen.at(-1) !== f.action) seen.push(f.action);
+      if (f.action === 'down') down++;
+      if (seen.length > 2 && (f.action === 'idle' || f.action === 'attack')) break;
+    }
+    return { seen, down };
+  }
+
+  it('tech at level 9', () => {
+    const teched = [1, 2, 3, 4, 5].filter((seed) => /^tech/.test(knockdown(9, seed).seen[1] ?? ''));
+    expect(teched.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('miss techs at level 1, then get up long before the automatic getup', () => {
+    for (const seed of [1, 2, 3]) {
+      const { seen, down } = knockdown(1, seed);
+      expect(seen.slice(0, 3)).toEqual(['tumble', 'downBound', 'down']);
+      expect(seen[3]).toMatch(/^getup|attack/);
+      expect(down).toBeLessThan(DOWN_AUTO_GETUP / 2);
+    }
   });
 });
 

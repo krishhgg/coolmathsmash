@@ -45,7 +45,7 @@ const out = resolve(root, args.out);
 mkdirSync(out, { recursive: true });
 
 const { mod: bench, close } = await loadSource<Bench>('/src/ai/bench.ts');
-const { mod: replays } = await loadSource<Replays>('/src/sim/replay.ts');
+const { mod: replays, close: closeReplays } = await loadSource<Replays>('/src/sim/replay.ts');
 const result = bench.runCpuMatch({
   seed,
   levels,
@@ -53,7 +53,7 @@ const result = bench.runCpuMatch({
   stocks: Number(args.stocks),
   record: true,
 });
-await close();
+await Promise.all([close(), closeReplays()]);
 const replay = result.replay!;
 const length = Number(args.frames);
 const firstKo = result.kos[0]?.frame ?? replay.frames.length;
