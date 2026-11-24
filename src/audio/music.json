@@ -1,9 +1,37 @@
 {
+  "bloxorz-platform": {
+    "file": "music/bloxorz-platform.mp3",
+    "title": "Bloxorz Board",
+    "evokes": "an original theme in the spirit of Bloxorz's calm, cerebral puzzle music",
+    "loopStart": 0,
+    "loopEnd": 37.5
+  },
+  "coolmath-planet": {
+    "file": "music/coolmath-planet.mp3",
+    "title": "Coolmath Planet",
+    "evokes": "an original Final Destination theme with a nod to the main menu's motif",
+    "loopStart": 0,
+    "loopEnd": 38.4
+  },
+  "forest-temple": {
+    "file": "music/forest-temple.mp3",
+    "title": "Forest Temple",
+    "evokes": "an original theme in the spirit of Fireboy and Watergirl in the Forest Temple",
+    "loopStart": 0,
+    "loopEnd": 41.142857
+  },
   "menu": {
     "file": "music/menu.mp3",
     "title": "Main Menu",
     "evokes": "a Smash Ultimate-style menu theme",
     "loopStart": 0,
     "loopEnd": 51.2
+  },
+  "run-tunnel": {
+    "file": "music/run-tunnel.mp3",
+    "title": "Run Tunnel",
+    "evokes": "an original theme in the spirit of Run and Run 3's spacey electronica",
+    "loopStart": 0,
+    "loopEnd": 37.5
   }
 }
