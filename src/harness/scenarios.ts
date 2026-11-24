@@ -246,6 +246,18 @@ export const SCENARIOS: Scenario[] = [
     page: { kind: 'lab', scene: 'menu', params: { screen: 'css', preset: '4p' } },
   },
   {
+    name: 'stage-select',
+    description:
+      'Stage select: rules pill (3 Stock · 7:00), Coolmath Battlefield focused in the big preview, Random and every stage in the grid, rule rows under the preview.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'stages', preset: 'default' } },
+  },
+  {
+    name: 'stage-select-rules',
+    description:
+      'Stage select with custom rules (2 Stock · 5:00, items on) and Random focused in the preview.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'stages', preset: 'rules' } },
+  },
+  {
     name: 'stage',
     description: 'Coolmath Battlefield on its own at the reference camera (centre 0,20, zoom 4.5).',
     page: { kind: 'lab', scene: 'stage' },
