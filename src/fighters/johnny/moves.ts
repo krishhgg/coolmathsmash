@@ -300,9 +300,9 @@ export const moves: Record<string, MoveDef> = {
     },
   },
   /**
-   * Double-Jump Boots (up special): his game's double-jump upgrade as a rising boot uppercut. A kick on take-off,
-   * an uppercut near the top, about 95 units of rise steered with the stick, then helpless. Grabs ledges on the
-   * way up.
+   * Double-Jump Boots (up special): his game's double-jump upgrade as a rising boot uppercut. The take-off kick
+   * lifts the opponent at his own climbing speed so the uppercut on frame 14 connects, then he shoots up for
+   * about 95 units in all, steered with the stick, and falls helpless. Grabs ledges on the way up.
    */
   upB: {
     kind: 'other',
@@ -314,12 +314,12 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [8, 10],
-        boxes: [box(0, 4, 8, 5.5, { damage: 4, angle: 85, kbg: 100, bkb: 0, wbkb: 70 })],
+        boxes: [box(0, 4, 7, 5.5, { damage: 4, angle: 88, kbg: 100, bkb: 0, wbkb: 90 })],
       },
       {
-        frames: [18, 21],
+        frames: [14, 17],
         rehit: true,
-        boxes: [box(0, 2, 18, 6, { damage: 8, angle: 80, kbg: 90, bkb: 50, direction: 'away' })],
+        boxes: [box(0, 3, 15, 7, { damage: 8, angle: 80, kbg: 90, bkb: 50, direction: 'away' })],
       },
     ],
     script(x) {
@@ -329,10 +329,9 @@ export const moves: Record<string, MoveDef> = {
         f.vel.y = Math.max(f.vel.y, 0);
         return;
       }
-      if (f.actionFrame <= 40) {
-        f.vel.y = 4.5 - (f.actionFrame - 8) * 0.11;
-        f.vel.x = stickX(c) * 1;
-      }
+      if (f.actionFrame > 42) return;
+      f.vel.x = stickX(c);
+      f.vel.y = f.actionFrame <= 17 ? 2.4 : 3.85 - (f.actionFrame - 18) * 0.11;
     },
   },
 };

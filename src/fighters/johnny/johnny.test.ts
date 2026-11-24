@@ -236,6 +236,29 @@ describe('Johnny Upgrade: specials', () => {
     expect(f.landingLag).toBe(24);
   });
 
+  it('the up special kick carries a standing opponent into the uppercut', () => {
+    for (const percent of [0, 60, 120]) {
+      const m = testMatch({ fighter: 'johnny', players: 2 });
+      const [a, v] = m.fighters as [FighterState, FighterState];
+      const at = { x: a.pos.x + 6 * a.facing, y: a.pos.y };
+      Object.assign(v, {
+        pos: { ...at },
+        prevPos: { ...at },
+        ground: a.ground,
+        action: 'idle',
+        facing: -a.facing,
+      });
+      Object.assign(v, { intangible: 0, damage: percent });
+      runPorts(m, 1, [{ y: 100, buttons: ['special'] }, {}]);
+      const hits: number[] = [];
+      for (let i = 0; i < 40; i++) {
+        runPorts(m, 1, [{}, {}]);
+        for (const e of m.events) if (e.type === 'hit' && e.attacker === 0) hits.push(a.actionFrame);
+      }
+      expect(hits, `at ${percent}%`).toEqual([8, 14]);
+    }
+  });
+
   it('up special from 60 units below the ledge recovers to it', () => {
     const m = johnny();
     const f = placeInAir(m, 92, -60, -1);
