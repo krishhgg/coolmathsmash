@@ -13,6 +13,13 @@
     "loopStart": 0,
     "loopEnd": 51.2
   },
+  "raft-wars-water": {
+    "file": "music/raft-wars-water.mp3",
+    "title": "Raft War Lagoon",
+    "evokes": "Raft Wars (Martijn Kunst): an original sunny calypso-ska water fight in the spirit of the game's music",
+    "loopStart": 0,
+    "loopEnd": 36.455692
+  },
   "worlds-hardest-game": {
     "file": "music/worlds-hardest-game.mp3",
     "title": "World's Hardest Stage",
