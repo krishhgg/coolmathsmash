@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { registerFighter } from '../fighters/registry';
 import { DAMAGE_MAX } from './combat/hits';
+import { spawnEntity } from './entities/entities';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
-import type { MatchState } from './match';
+import { createMatch, type MatchState } from './match';
+import { gadgets } from './testing/gadgets';
 import { marioReference as mario } from './testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from './testing/sim';
+
+registerFighter(gadgets);
 
 function of<T extends SimEvent['type']>(m: MatchState, type: T): Extract<SimEvent, { type: T }>[] {
   return m.events.filter((e): e is Extract<SimEvent, { type: T }> => e.type === type);
@@ -198,5 +203,63 @@ describe('sim events', () => {
     const first = stream();
     expect(first.length).toBeGreaterThan(10);
     expect(stream()).toEqual(first);
+  });
+});
+
+describe('entity events', () => {
+  /** Two `fighter`s standing on the main stage at x0 and x1, facing each other. */
+  function pair(fighter: string, x0: number, x1: number): MatchState {
+    const m = createMatch({ seed: 1, stage: 'battlefield', stocks: 3, ports: [{ fighter }, { fighter }] });
+    m.fighters.forEach((f, i) => {
+      const x = i === 0 ? x0 : x1;
+      Object.assign(f, { pos: { x, y: 0 }, prevPos: { x, y: 0 }, facing: i === 0 ? 1 : -1, intangible: 0 });
+    });
+    runPorts(m, 20, [{}, {}]);
+    return m;
+  }
+
+  it("a fireball reports its spawn, its hit with the entity's id, and being used up", () => {
+    const m = pair('fireboy', -30, 0);
+    runPorts(m, 1, [{ buttons: ['special'] }, {}]);
+    for (let i = 0; i < 30 && of(m, 'entitySpawn').length === 0; i++) runPorts(m, 1, [{}, {}]);
+    expect(of(m, 'entitySpawn')).toEqual([
+      { type: 'entitySpawn', id: 1, kind: 'fireboy/fireball', owner: 0, x: -24, y: 8 },
+    ]);
+    for (let i = 0; i < 60 && of(m, 'hit').length === 0; i++) runPorts(m, 1, [{}, {}]);
+    expect(of(m, 'hit')[0]).toMatchObject({
+      attacker: 0,
+      entity: 1,
+      victim: 1,
+      move: 'neutralB',
+      effect: 'fire',
+    });
+    expect(of(m, 'entityDestroy')).toMatchObject([{ id: 1, kind: 'fireboy/fireball', reason: 'hit' }]);
+    const types = m.events.map((e) => e.type);
+    expect(types.indexOf('hit')).toBeLessThan(types.indexOf('entityDestroy'));
+  });
+
+  it('reflectors, absorbers and hits on hittable entities report who did it', () => {
+    const reflect = pair('test-gadgets', -40, 0);
+    attack(reflect, 1, 'reflect');
+    spawnEntity(reflect, { kind: 'test-gadgets/bolt', owner: 0, pos: { x: -10, y: 8 }, vel: { x: 2, y: 0 } });
+    for (let i = 0; i < 10 && of(reflect, 'reflect').length === 0; i++) runPorts(reflect, 1, [{}, {}]);
+    expect(of(reflect, 'reflect')).toMatchObject([{ id: 1, kind: 'test-gadgets/bolt', port: 1 }]);
+
+    const absorb = pair('test-gadgets', -40, 0);
+    absorb.fighters[1]!.damage = 50;
+    attack(absorb, 1, 'absorb');
+    spawnEntity(absorb, { kind: 'test-gadgets/bolt', owner: 0, pos: { x: -14, y: 8 }, vel: { x: 2, y: 0 } });
+    for (let i = 0; i < 10 && of(absorb, 'absorb').length === 0; i++) runPorts(absorb, 1, [{}, {}]);
+    expect(of(absorb, 'absorb')).toMatchObject([{ id: 1, port: 1 }]);
+    expect(of(absorb, 'absorb')[0]!.heal).toBeCloseTo(6 * 1.6, 9);
+    expect(of(absorb, 'entityDestroy')).toMatchObject([{ id: 1, reason: 'absorbed' }]);
+
+    const crate = pair('test-gadgets', -40, 60);
+    const box = spawnEntity(crate, { kind: 'test-gadgets/crate', owner: 1, pos: { x: -32, y: 4 } });
+    box.hp = 10;
+    attack(crate, 0, 'strike');
+    runPorts(crate, 1, [{}, {}]);
+    expect(of(crate, 'entityHit')).toMatchObject([{ id: 1, attacker: 0, damage: 12, hp: -2 }]);
+    expect(of(crate, 'entityDestroy')).toMatchObject([{ id: 1, reason: 'broken' }]);
   });
 });
