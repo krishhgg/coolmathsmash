@@ -9,6 +9,7 @@ import {
 import { stickY } from './control';
 import { getFighter } from '../fighters/registry';
 import type { FighterStats } from '../fighters/types';
+import { resetMobility } from './mobility';
 import type { Ctx, FighterState, GroundRef } from './fighter';
 import { emit } from './events';
 import type { MatchState } from './match';
@@ -106,6 +107,7 @@ export function restoreAirOptions(f: FighterState): void {
   f.dropPlatform = -1;
   f.ledgeGrabs = 0;
   f.ledgeFresh = true;
+  resetMobility(f.mobility);
 }
 
 export function land(x: Ctx, g: GroundRef): void {

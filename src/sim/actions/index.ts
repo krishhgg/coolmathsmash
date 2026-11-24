@@ -6,9 +6,22 @@ import { GROUND } from './ground';
 import { HITSTUN } from './hitstun';
 import { KNOCKDOWN } from './knockdown';
 import { LEDGE } from './ledge';
+import { MOBILITY } from './mobility';
 import { ACTIONS } from './registry';
 import { STATUS } from './status';
 
-Object.assign(ACTIONS, GROUND, AIR, DEFENSE, LEDGE, STATUS, ATTACK, HITSTUN, KNOCKDOWN, GRAB_ACTIONS);
+Object.assign(
+  ACTIONS,
+  GROUND,
+  AIR,
+  DEFENSE,
+  LEDGE,
+  STATUS,
+  ATTACK,
+  HITSTUN,
+  KNOCKDOWN,
+  GRAB_ACTIONS,
+  MOBILITY,
+);
 
 export { ACTIONS };

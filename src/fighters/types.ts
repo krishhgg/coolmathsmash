@@ -6,6 +6,7 @@
 
 import type { ActionDef } from '../sim/actions/registry';
 import type { Ctx } from '../sim/fighter';
+import type { FloatDef, GlideDef, HoverDef } from '../sim/mobility';
 
 export interface FighterStats {
   /** Ultimate weight (Mario 98). Heavier fighters take less knockback. */
@@ -44,8 +45,14 @@ export interface FighterStats {
   fullHopHeight: number;
   shortHopHeight: number;
   doubleJumpHeight: number;
-  /** Total jumps including the grounded one (2 for most fighters). */
+  /** Total jumps including the grounded one (2 for most fighters; Ultimate's cast has 2 to 6). */
   jumps: number;
+  /**
+   * Apex height of each midair jump in order, for multi-jumpers whose jumps shrink (Kirby, Jigglypuff). The first
+   * entry must equal doubleJumpHeight; jumps past the end of the list repeat its last height. Default: every
+   * midair jump is doubleJumpHeight.
+   */
+  airJumpHeights?: number[];
   ledgeJumpHeight: number;
 
   softLandingLag: number;
@@ -164,6 +171,13 @@ export interface MoveDef {
    */
   throw?: { frame: number; hit: ThrowHitDef };
   /**
+   * The action that plays this move instead of 'attack' / 'aerial', for moves with their own physics:
+   * 'hover' (fuel hover, FighterDef.hover).
+   */
+  action?: string;
+  /** Holding Jump when the move ends glides (FighterDef.glide); after a helpless move it ends in helpless fall. */
+  glide?: boolean;
+  /**
    * Scripted behaviour (specials): runs every frame of the move before physics, after actionFrame advances.
    * It may set velocity or facing. Keep it deterministic: no Math.random, no clocks.
    */
@@ -182,6 +196,10 @@ export interface FighterDef {
    * The name is also the animation clip name.
    */
   moves?: Record<string, MoveDef>;
+  /** Air mobility, each opt-in (src/sim/mobility.ts): Brawl-style glide, Peach-style float, fuel hover. */
+  glide?: GlideDef;
+  float?: FloatDef;
+  hover?: HoverDef;
   /**
    * This fighter's own versions of shared actions, by action name (`walk`, `dash`, `run`, `crouch`, ...), used
    * instead of the shared ones in `src/sim/actions/`, or new actions only this fighter enters. Bloxorz block tips

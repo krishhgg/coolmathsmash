@@ -1,6 +1,7 @@
 import { getFighter } from '../fighters/registry';
 import { getStage } from '../stages/registry';
 import './actions';
+import { tickMobility } from './actions/mobility';
 import { actionDef, runAction } from './actions/registry';
 import { applyLaunch } from './combat/hits';
 import {
@@ -54,6 +55,7 @@ export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): voi
   if (f.launch) applyLaunch(x);
   f.actionFrame++;
   runAction(x);
+  tickMobility(x);
   const physics = actionDef(f).physics;
   if (physics === 'ground' && f.ground) groundMove(x);
   else if (physics === 'air' || (physics === 'ground' && !f.ground)) airMove(x);

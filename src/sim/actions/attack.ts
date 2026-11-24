@@ -19,6 +19,7 @@ import { HELPLESS_LANDING_LAG } from '../constants';
 import { leaveGround, normalLandingLag } from '../movement';
 import { fastFallCheck } from './air';
 import { groundGrab } from './grab';
+import { glideAfterMove } from './mobility';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
 
 /** Ultimate: a smash attack charges for at most 60 frames, reaching 1.4x damage. */
@@ -46,7 +47,7 @@ export function startMove(x: Ctx, requested: string, action?: string): boolean {
   if (!move) return false;
   if (x.f.ground && move.leavesGround) leaveGround(x);
   if (move.helpless) x.f.fastFalling = false;
-  setAction(x, action ?? (x.f.ground ? 'attack' : 'aerial'));
+  setAction(x, action ?? move.action ?? (x.f.ground ? 'attack' : 'aerial'));
   x.f.move = name;
   emit(x.m, { type: 'move', port: x.f.port, move: name });
   x.f.hitVictims = [];
@@ -222,6 +223,7 @@ export const ATTACK: Record<string, ActionDef> = {
       const move = playMove(x);
       if (!move.helpless) fastFallCheck(x);
       if (f.actionFrame < move.faf) return;
+      if (glideAfterMove(x, move)) return;
       if (!move.helpless) return setAction(x, 'fall');
       setAction(x, 'helpless');
       f.landingLag = move.landingLag ?? HELPLESS_LANDING_LAG;

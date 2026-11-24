@@ -3,6 +3,7 @@ import type { FighterDef, FighterStats } from '../fighters/types';
 import { SHIELD_MAX, TECH_LOCKOUT } from './constants';
 import type { ControlState } from './control';
 import type { MatchState, PlayerState } from './match';
+import { createMobility, type MobilityState } from './mobility';
 import { jumpVelocity } from './physics';
 import type { CompiledStage } from './stage';
 import { vec, type Vec } from './vec';
@@ -84,6 +85,8 @@ export interface FighterState {
   grabbableFrom: number;
   /** First match frame a shield grab can come out (GRAB.shieldGrabLock frames after shieldstun). */
   shieldGrabFrom: number;
+  /** Glide, float and hover state (src/sim/mobility.ts). */
+  mobility: MobilityState;
 }
 
 export function createFighter(
@@ -136,6 +139,7 @@ export function createFighter(
     grabDamage: 0,
     grabbableFrom: 0,
     shieldGrabFrom: 0,
+    mobility: createMobility(getFighter(fighterId)),
   };
 }
 
@@ -154,6 +158,8 @@ export interface Derived {
   fullHopV: number;
   shortHopV: number;
   doubleJumpV: number;
+  /** Initial speed of each midair jump in order (the last repeats). */
+  airJumpV: number[];
   ledgeJumpV: number;
   shieldBreakV: number;
 }
@@ -167,6 +173,7 @@ export function derived(stats: FighterStats, shieldBreakHeight: number): Derived
       fullHopV: jumpVelocity(stats.fullHopHeight, stats.gravity),
       shortHopV: jumpVelocity(stats.shortHopHeight, stats.gravity),
       doubleJumpV: jumpVelocity(stats.doubleJumpHeight, stats.gravity),
+      airJumpV: (stats.airJumpHeights ?? [stats.doubleJumpHeight]).map((h) => jumpVelocity(h, stats.gravity)),
       ledgeJumpV: jumpVelocity(stats.ledgeJumpHeight, stats.gravity),
       shieldBreakV: jumpVelocity(shieldBreakHeight, stats.gravity),
     };

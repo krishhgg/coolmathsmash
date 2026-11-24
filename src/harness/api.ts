@@ -1,9 +1,11 @@
+import { registerFighter } from '../fighters/registry';
 import type { Game } from '../game';
 import type { InputFrame } from '../input/types';
 import type { Overlays } from '../render/renderer';
 import type { FighterState } from '../sim/fighter';
 import { DEFAULT_MATCH, type MatchConfig, type MatchState } from '../sim/match';
 import { decodeReplay } from '../sim/replay';
+import { MOBILITY_TEST_FIGHTERS } from '../sim/testing/mobility';
 import { registerStage } from '../stages/registry';
 import { testbed } from '../stages/testbed';
 import {
@@ -66,6 +68,7 @@ declare global {
 }
 
 export function installHarness(game: Game): HarnessApi {
+  for (const def of MOBILITY_TEST_FIGHTERS) registerFighter(def);
   registerStage(testbed);
   const ports = () => game.state.players.length;
   let active: GameScenario | null = null;
