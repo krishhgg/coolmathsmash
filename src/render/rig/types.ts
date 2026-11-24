@@ -62,6 +62,9 @@ export interface Bone {
   x: number;
   y: number;
   rot?: number;
+  /** Rest scale (default 1); pose scales multiply it and children inherit it like a posed scale. */
+  sx?: number;
+  sy?: number;
   /**
    * Keep this bone's scale to itself: children are pushed out along the stretched bone but not skewed when
    * they rotate. Use it on limb segments (rubber-hose stretching); leave it off where scale should carry down

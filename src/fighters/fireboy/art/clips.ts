@@ -1,9 +1,10 @@
-import type { Pose } from '../../../render/rig/author';
+import { pointOf, type Pose } from '../../../render/rig/author';
 import type { AnimClip } from '../../../render/rig/types';
 import { attacks } from './attacks';
 import {
   AIR,
   ANGRY,
+  ARMS_IN_FRONT,
   BLINK,
   CROUCH,
   FRONT,
@@ -21,6 +22,8 @@ import {
   key,
   mix,
 } from './poses';
+import { FORE_ARM, UPPER_ARM } from './parts';
+import { rig } from './rig';
 
 /**
  * Where the hands hold the ledge (rig space): the ledge's top corner while hanging. It matches the engine's
@@ -39,25 +42,40 @@ function belowFloor(frame: number, moveEnd: number): number {
   return -GY * (1 - Math.min(1, 1.6 * t * t * (3 - 2 * t)));
 }
 
-/** Hanging with arms re-rooted behind the head (`reach` scales them) and hands on rig point (hx, hy). */
-function hang(hx: number, hy: number, reach: number, extra: Pose = {}): Pose {
+/**
+ * How far the body hangs below the hang position (negative: above it). Fireboy's arms are short, so like Kirby
+ * he hangs with the ball of his head just under the lip and only his flames above it.
+ */
+const DROP = -1.0;
+
+/**
+ * Hanging from rig point (hx, hy) with the body `drop` lower: both arms re-rooted at the wall side of the
+ * head, in front of it, stretched just enough to reach the lip; legs dangling together.
+ */
+function hang(hx: number, hy: number, drop: number, extra: Pose = {}): Pose {
+  const base = mix(
+    {
+      body: { rot: 5, x: 0.3, y: drop },
+      neck: { rot: -3 },
+      armF: { x: 2.4, y: -6.6 },
+      armB: { x: 2.6, y: -7.2 },
+      thighF: { rot: -6 },
+      shinF: { rot: 16 },
+      thighB: { rot: 4 },
+      shinB: { rot: 12 },
+    },
+    extra,
+  );
+  const back: [number, number] = [hx - 0.5, hy + 0.05];
+  const stretch = (arm: string, [x, y]: [number, number]) => {
+    const [sx, sy] = pointOf(rig, base, arm);
+    return Math.max(1, (Math.hypot(x - sx, y - sy) / (UPPER_ARM + FORE_ARM)) * 1.04);
+  };
+  const f = stretch('armF', [hx, hy]);
+  const bk = stretch('armB', back);
   return hands(
-    mix(
-      {
-        body: { rot: -4, x: 0.4 },
-        neck: { rot: -6 },
-        armF: { x: 1.6, y: -5.8, sy: reach },
-        foreF: { sy: reach },
-        armB: { x: 1.0, y: -6.0, sy: reach },
-        foreB: { sy: reach },
-        thighF: { rot: -10 },
-        shinF: { rot: 14 },
-        thighB: { rot: 8 },
-        shinB: { rot: 10 },
-      },
-      extra,
-    ),
-    [hx - 0.3, hy + 0.1],
+    mix(base, { armF: { sy: f }, foreF: { sy: f }, armB: { sy: bk }, foreB: { sy: bk } }),
+    back,
     [hx, hy],
     1,
   );
@@ -65,11 +83,9 @@ function hang(hx: number, hy: number, reach: number, extra: Pose = {}): Pose {
 
 /** Mid pull-up `frame` frames into a getup: hands still on the corner, which sinks as the engine lifts him. */
 function pull(frame: number, moveEnd: number, progress: number): Pose {
-  const below = belowFloor(frame, moveEnd);
-  const reach = 2.6 - 1.6 * progress;
-  return hang(GX - 1.5 * progress, -below, reach, {
-    armF: { x: 1.6 * (1 - progress), y: -5.8 * (1 - progress), sy: reach },
-    armB: { x: 1.0 * (1 - progress), y: -6.0 * (1 - progress), sy: reach },
+  return hang(GX - 1.5 * progress, -belowFloor(frame, moveEnd), DROP * (1 - progress), {
+    armF: { x: 2.4 * (1 - progress ** 3), y: -6.6 * (1 - progress ** 3) },
+    armB: { x: 2.6 * (1 - progress ** 3), y: -7.2 * (1 - progress ** 3) },
     thighF: { rot: -10 - 70 * progress },
     shinF: { rot: 14 + 90 * progress },
     thighB: { rot: 8 - 30 * progress },
@@ -78,9 +94,9 @@ function pull(frame: number, moveEnd: number, progress: number): Pose {
 }
 
 const BREATHE = hands(
-  feet({ hip: { y: 0.12 }, neck: { rot: 1.5 }, head: { sx: 1.015, sy: 0.99 } }, [-0.45, 0], [0.45, 0], true),
-  [-1.2, -2.1],
-  [1.22, -2.08],
+  feet({ hip: { y: 0.1 }, neck: { rot: 1.5 }, head: { sx: 1.015, sy: 0.99 } }, [-0.45, 0], [0.45, 0], true),
+  [-1.6, -1.68],
+  [1.62, -1.66],
 );
 
 /** A walk or run cycle: two contacts and two passing poses, mirrored. */
@@ -99,6 +115,9 @@ function cycle(length: number, contact: Pose, passing: Pose, swap: (p: Pose) => 
   };
 }
 
+const restRot = (name: string) => rig.bones.find((b) => b.name === name)?.rot ?? 0;
+const ARM_REST = restRot('armB') - restRot('armF');
+
 /** Swaps the legs' and arms' roles (left/right step). */
 function mirrorLimbs(p: Pose): Pose {
   const out: Pose = { ...p };
@@ -114,83 +133,76 @@ function mirrorLimbs(p: Pose): Pose {
   }
   // arm rest angles are mirrored, so a swapped arm offset needs the rest difference
   if (p.armF || p.armB) {
-    out.armF = { ...out.armF, rot: (p.armB?.rot ?? 0) + 48 };
-    out.armB = { ...out.armB, rot: (p.armF?.rot ?? 0) - 48 };
+    out.armF = { ...out.armF, rot: (p.armB?.rot ?? 0) + ARM_REST };
+    out.armB = { ...out.armB, rot: (p.armF?.rot ?? 0) - ARM_REST };
   }
   return out;
 }
 
-const WALK_CONTACT: Pose = {
-  body: { rot: 4 },
-  hip: { y: 0.12 },
-  thighF: { rot: -30 },
-  shinF: { rot: 12 },
-  thighB: { rot: 24 },
-  shinB: { rot: 18 },
-  armF: { rot: 40 },
-  foreF: { rot: -10 },
-  armB: { rot: -34 },
-  foreB: { rot: -20 },
-  neck: { rot: 2 },
-};
-const WALK_PASS: Pose = {
-  body: { rot: 4, y: -0.12 },
-  thighF: { rot: -2 },
-  shinF: { rot: 4 },
-  thighB: { rot: -22 },
-  shinB: { rot: 55 },
-  armF: { rot: 22 },
-  armB: { rot: -24 },
-  neck: { rot: 1 },
-};
+/** Walk: short grounded steps, the body upright. */
+const WALK_CONTACT = hands(
+  feet({ body: { rot: 3 }, hip: { y: 0.12 }, neck: { rot: 1 } }, [-0.75, 0], [0.85, 0]),
+  [0.9, -2.0],
+  [-0.3, -1.9],
+);
+const WALK_PASS = hands(
+  feet({ body: { rot: 3, y: -0.12 }, neck: { rot: 0.5 } }, [-0.15, -0.45], [0.15, 0]),
+  [0.2, -1.9],
+  [0.6, -1.9],
+);
 
-const RUN_CONTACT: Pose = {
-  body: { rot: 14, y: 0.15 },
-  hip: { y: 0.15 },
-  thighF: { rot: -55 },
-  shinF: { rot: 25 },
-  thighB: { rot: 42 },
-  shinB: { rot: 48 },
-  armF: { rot: 70 },
-  foreF: { rot: -60 },
-  armB: { rot: -80 },
-  foreB: { rot: -60 },
-  neck: { rot: 4 },
-};
-const RUN_PASS: Pose = {
-  body: { rot: 12, y: -0.45 },
-  thighF: { rot: 5 },
-  shinF: { rot: 20 },
-  thighB: { rot: -40 },
-  shinB: { rot: 105 },
-  armF: { rot: 20 },
-  foreF: { rot: -50 },
-  armB: { rot: -30 },
-  foreB: { rot: -50 },
-  neck: { rot: 2 },
-};
+/**
+ * Run, after sprite 346: the support leg planted straight and a little behind the hip, the other bent with
+ * its shin kicked back level; then a flight pose with the legs spread. The head bobs down on contact.
+ */
+const RUN_CONTACT = feet(
+  {
+    body: { rot: 6, x: 0.55, y: 0.18 },
+    neck: { rot: -3 },
+    armF: { rot: 40 },
+    foreF: { rot: -70 },
+    armB: { rot: -40 },
+    foreB: { rot: -50 },
+  },
+  [-1.85, -1.3],
+  [1.05, 0],
+);
+const RUN_PASS = feet(
+  {
+    body: { rot: 6, x: 0.55, y: -0.35 },
+    neck: { rot: -3 },
+    armF: { rot: 10 },
+    foreF: { rot: -60 },
+    armB: { rot: -10 },
+    foreB: { rot: -40 },
+  },
+  [-0.95, -0.5],
+  [1.45, -0.9],
+);
 
+/** Falling: legs reaching down for the floor, arms spread wide under the head. */
 const FALL = mix(AIR, {
-  armF: { rot: -100 },
-  foreF: { rot: -40 },
-  armB: { rot: 100 },
-  foreB: { rot: 40 },
-  thighF: { rot: -12 },
-  shinF: { rot: 22 },
-  thighB: { rot: 8 },
-  shinB: { rot: 20 },
+  armF: { rot: -48 },
+  foreF: { rot: -38 },
+  armB: { rot: 48 },
+  foreB: { rot: 38 },
+  thighF: { rot: -6 },
+  shinF: { rot: 10 },
+  thighB: { rot: 5 },
+  shinB: { rot: 6 },
 });
-const FALL_2 = mix(FALL, { armF: { rot: -85 }, armB: { rot: 85 }, foreF: { rot: -55 }, foreB: { rot: 55 } });
+const FALL_2 = mix(FALL, { armF: { rot: -40 }, armB: { rot: 40 }, foreF: { rot: -50 }, foreB: { rot: 50 } });
 
+/** Jump apex: weightless, legs hanging loose, arms floating out. */
 const APEX = mix(AIR, {
-  thighF: { rot: -60 },
-  shinF: { rot: 85 },
-  thighB: { rot: -25 },
-  shinB: { rot: 90 },
-  armF: { rot: -70 },
-  foreF: { rot: -50 },
-  armB: { rot: 70 },
-  foreB: { rot: 50 },
+  thighF: { rot: -22 },
+  shinF: { rot: 30 },
+  thighB: { rot: 10 },
+  shinB: { rot: 24 },
+  armF: { rot: -40 },
+  foreF: { rot: -45 },
+  armB: { rot: 40 },
+  foreB: { rot: 45 },
 });
 
 const RISE: Pose = {
@@ -205,14 +217,17 @@ const RISE: Pose = {
   foreB: { rot: 10 },
 };
 
+/** Braced under the bubble: knees bent, head pulled down, both forearms crossed in front of the chin. */
 const SHIELD = hands(
-  feet({ hip: { y: 0.55 }, neck: { y: 0.25, rot: 6 }, body: { rot: 4 } }, [-0.85, 0], [0.85, 0], true),
-  [1.35, -3.65],
-  [1.65, -3.25],
+  feet({ hip: { y: 0.5 }, neck: { y: 0.45, rot: 4 }, body: { rot: 3 } }, [-0.85, 0], [0.85, 0], true),
+  [1.1, -3.6],
+  [2.0, -3.1],
   -1,
 );
 
-const HANG = hang(GX, GY, 2.6);
+const HANG = hang(GX, GY, DROP);
+/** Looking up at the lip. */
+const HANG_FACE = { head: 'headFront', face: 'faceUp' };
 
 /** Lying on his back, head on the floor behind him, legs drawn up. */
 const DOWN = feet(
@@ -241,18 +256,20 @@ const HIT = mix(AIR, {
   shinB: { rot: 20 },
 });
 
-const SPREAD = mix(AIR, {
-  armF: { rot: -95 },
-  foreF: { rot: -10 },
-  armB: { rot: 95 },
-  foreB: { rot: 10 },
-  thighF: { rot: -45 },
-  shinF: { rot: 10 },
+/** Launched: one knee tucked, the other leg flung out, arms flailing. */
+const TUMBLE = mix(AIR, {
+  armF: { rot: -120 },
+  foreF: { rot: -45 },
+  armB: { rot: 70 },
+  foreB: { rot: 40 },
+  thighF: { rot: -100 },
+  shinF: { rot: 120 },
   thighB: { rot: 45 },
-  shinB: { rot: -10 },
+  shinB: { rot: 5 },
 });
 
-const ROLL_BALL: Pose = { body: { y: 3.7 } };
+/** Rolled into the ball: the head's ball resting on the floor. */
+const ROLL_BALL: Pose = { body: { y: 3.05 } };
 
 export const clips: Record<string, AnimClip> = {
   idle: {
@@ -360,7 +377,7 @@ export const clips: Record<string, AnimClip> = {
   shield: {
     length: 6,
     swaps: ANGRY,
-    keys: [key(0, STAND, { ease: 'out' }), key(6, SHIELD)],
+    keys: [key(0, STAND, { ease: 'out', z: ARMS_IN_FRONT }), key(6, SHIELD)],
   },
   spotDodge: {
     length: 27,
@@ -440,8 +457,9 @@ export const clips: Record<string, AnimClip> = {
     length: 8,
     swaps: ANGRY,
     keys: [
-      key(0, hang(GX, GY, 3.0, { body: { y: 0.8, rot: -10 }, thighF: { rot: -40 }, thighB: { rot: 30 } }), {
+      key(0, hang(GX, GY, DROP + 0.8, { body: { rot: -4 }, thighF: { rot: -40 }, thighB: { rot: 30 } }), {
         ease: 'outBack',
+        z: ARMS_IN_FRONT,
       }),
       key(8, HANG),
     ],
@@ -449,13 +467,13 @@ export const clips: Record<string, AnimClip> = {
   ledgeHang: {
     length: 60,
     loop: true,
-    swaps: FRONT,
+    swaps: HANG_FACE,
     keys: [
-      key(0, HANG),
+      key(0, HANG, { z: ARMS_IN_FRONT }),
       key(
         30,
-        hang(GX, GY, 2.65, {
-          body: { rot: -7, x: 0.3 },
+        hang(GX, GY, DROP + 0.1, {
+          body: { rot: 2, x: 0.4 },
           neck: { rot: -2 },
           thighF: { rot: -4 },
           thighB: { rot: 14 },
@@ -467,9 +485,9 @@ export const clips: Record<string, AnimClip> = {
     length: 34,
     swaps: ANGRY,
     keys: [
-      key(0, HANG, { ease: 'linear' }),
+      key(0, HANG, { ease: 'linear', z: ARMS_IN_FRONT }),
       key(6, pull(6, 30, 0.45), { ease: 'linear' }),
-      key(12, pull(12, 30, 1), { ease: 'out' }),
+      key(12, pull(12, 30, 1), { ease: 'out', z: {} }),
       key(18, mix(CROUCH, { body: { rot: 8 } }), { ease: 'inOut', swaps: FRONT }),
       key(34, STAND),
     ],
@@ -478,13 +496,13 @@ export const clips: Record<string, AnimClip> = {
     length: 50,
     swaps: ANGRY,
     keys: [
-      key(0, HANG, { ease: 'linear' }),
+      key(0, HANG, { ease: 'linear', z: ARMS_IN_FRONT }),
       key(6, pull(6, 40, 0.6), { ease: 'linear' }),
       ...[10, 14, 18, 22, 26, 34].map((f) =>
         key(
           f,
-          { body: { y: 3.7 - belowFloor(f, 40) } },
-          { ease: 'linear', ...(f === 10 ? { swaps: { ...NO_BODY, ...SIDE_ANGRY } } : {}) },
+          { body: { y: ROLL_BALL.body!.y! - belowFloor(f, 40) } },
+          { ease: 'linear', ...(f === 10 ? { swaps: { ...NO_BODY, ...SIDE_ANGRY }, z: {} } : {}) },
         ),
       ),
       key(37, mix(CROUCH, { head: { sx: 1.1, sy: 0.88 } }), { ease: 'out', swaps: FRONT }),
@@ -495,8 +513,11 @@ export const clips: Record<string, AnimClip> = {
     length: 20,
     swaps: FRONT,
     keys: [
-      key(0, HANG, { ease: 'in' }),
-      key(4, pull(4, 6, 0.8), { ease: 'out' }),
+      key(0, HANG, { ease: 'in', z: ARMS_IN_FRONT }),
+      key(3, mix(CROUCH, { body: { rot: -6 }, armF: { rot: -150 }, armB: { rot: 150 } }), {
+        ease: 'out',
+        z: {},
+      }),
       key(6, RISE, { ease: 'out', swaps: UP, z: HEAD_BEHIND }),
       key(20, mix(AIR, { body: { sy: 1.02 } }), { swaps: FRONT, z: {} }),
     ],
@@ -505,9 +526,9 @@ export const clips: Record<string, AnimClip> = {
     length: 55,
     swaps: ANGRY,
     keys: [
-      key(0, HANG, { ease: 'linear' }),
+      key(0, HANG, { ease: 'linear', z: ARMS_IN_FRONT }),
       key(5, pull(5, 20, 0.6), { ease: 'linear' }),
-      key(10, mix(CROUCH, { body: { rot: 6 } }), { ease: 'out', swaps: FRONT }),
+      key(10, mix(CROUCH, { body: { rot: 6 } }), { ease: 'out', swaps: FRONT, z: {} }),
       key(
         16,
         hands(
@@ -570,15 +591,17 @@ export const clips: Record<string, AnimClip> = {
     loop: true,
     swaps: HURT,
     keys: [
-      key(0, mix(SPREAD, { body: { rot: 0 } }), { ease: 'linear' }),
-      key(15, mix(SPREAD, { body: { rot: -180 }, thighF: { rot: -70 } }), { ease: 'linear' }),
-      key(30, mix(SPREAD, { body: { rot: -360 } }), { ease: 'linear' }),
+      key(0, mix(TUMBLE, { body: { rot: 60 } }), { ease: 'linear' }),
+      key(15, mix(TUMBLE, { body: { rot: -120 }, thighF: { rot: -70 }, thighB: { rot: 70 } }), {
+        ease: 'linear',
+      }),
+      key(30, mix(TUMBLE, { body: { rot: -300 } }), { ease: 'linear' }),
     ],
   },
   helpless: {
     length: 32,
     loop: true,
-    swaps: { head: 'headFront', face: 'faceFrontBlink' },
+    swaps: HURT,
     keys: [
       key(0, mix(FALL, { armF: { rot: -70 }, armB: { rot: 70 }, neck: { rot: 6, y: 0.15 } })),
       key(16, mix(FALL_2, { armF: { rot: -55 }, armB: { rot: 55 }, neck: { rot: 3, y: 0.15 } })),

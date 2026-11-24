@@ -82,14 +82,22 @@ const FTILT = hands(
 const FTILT_KICK = mix(FTILT, {
   thighF: { rot: -102 },
   shinF: { rot: -4 },
-  fx1: flame(5.9, -3.4, 2.5, -4, 1.2),
+  fx1: flame(6.4, -3.4, 1.9, -4, 1.25),
 });
 
 const CHARGE = hands(stance(-14, 0.5, -1.2, 1.0, { body: { x: -0.4 } }), [0.9, -3.3], [-1.7, -4.6]);
 const FSMASH = hands(
-  stance(16, 0.5, -1.5, 1.9, { body: { x: 1.2 }, ...stretch(FRONT_ARM, 1.4) }),
-  [-2.1, -3.9],
-  [3.7, -5.7],
+  stance(10, 0.5, -1.6, 1.9, { body: { x: 1.2 }, ...stretch(FRONT_ARM, 1.75) }),
+  [-2.0, -3.0],
+  [3.9, -3.7],
+  -1,
+);
+
+/** Fireball release: weight on the front foot, back leg pushing off, open hand thrust out at shoulder height. */
+const THROW = hands(
+  stance(14, 0.45, -1.4, 1.5, { body: { x: 1.3 }, neck: { rot: 2 }, ...stretch(FRONT_ARM, 1.35) }),
+  [-1.2, -2.6],
+  [3.4, -3.7],
   -1,
 );
 
@@ -264,14 +272,15 @@ export const attacks: Record<string, AnimClip> = {
           stance(6, 0.1, -0.6, 0.7, {
             neck: { rot: 18 },
             head: { sx: 0.92, sy: 1.16 },
-            fx1: flame(2, -15, 2.5, -95, 1.2),
+            fx1: flame(1.7, -12.4, 2.5, -95, 1.6),
           }),
           [-1.6, -2.5],
           [1.9, -2.8],
         ),
         { fx1: 'fxFlame', face: 'faceFrontShout' },
+        { fx1: 0.5 },
       ),
-      key(14, mix(stance(4, 0.15, -0.6, 0.7), { neck: { rot: 12 }, fx1: flame(2.4, -16, 0.6, -95) }), {
+      key(14, mix(stance(4, 0.15, -0.6, 0.7), { neck: { rot: 12 }, fx1: flame(2.0, -15, 0.6, -95) }), {
         ease: 'inOut',
       }),
       done(15),
@@ -355,11 +364,11 @@ export const attacks: Record<string, AnimClip> = {
       ...strike(
         14,
         17,
-        mix(FSMASH, { fx1: flame(6.4, -6.0, 3.0, -3, 1.15) }),
-        { ...FIST_F, ...SIDE_SHOUT, fx1: 'fxFlame' },
+        mix(FSMASH, { fx1: flame(8.2, -5.1, 2.4, -14, 1.1) }),
+        { ...FIST_F, face: 'faceFrontShout', fx1: 'fxFlame' },
         FRONT_ARM_IN_FRONT,
       ),
-      key(22, mix(FSMASH, { body: { rot: 12 }, fx1: flame(8.5, -6.2, 0.8, -3) }), { ease: 'inOut' }),
+      key(22, mix(FSMASH, { body: { rot: 8 }, fx1: flame(10.2, -5.6, 0.7, -14) }), { ease: 'inOut' }),
       done(23),
       key(30, undefined, { swaps: ANGRY }),
       key(49, STAND),
@@ -479,10 +488,10 @@ export const attacks: Record<string, AnimClip> = {
           shinF: { rot: 0 },
           thighB: { rot: 30 },
           shinB: { rot: 40 },
-          fx1: flame(1.9, -12.4, 2.4, -88, 1.3),
+          fx1: flame(1.8, -11.6, 2.4, -88, 1.65),
         }),
         { fx1: 'fxFlame', face: 'faceFrontShout' },
-        { fx1: 22 },
+        { fx1: 0.5 },
       ),
       key(12, mix(TUCK, { body: { rot: -250 }, fx1: flame(2.2, -14, 0.6, -88) }), { ease: 'out' }),
       done(13),
@@ -664,26 +673,23 @@ export const attacks: Record<string, AnimClip> = {
       ),
       key(
         12,
-        mix(hands(stance(10, 0.5, -1.1, 1.3, stretch(FRONT_ARM, 1.3)), [-1.6, -3.4], [2.4, -5.4], -1), {
-          fx1: ball(4.2, -6.5, 2.0, 0),
+        mix(THROW, {
+          fx1: ball(4.9, -4.3, 1.5, 0),
+          fx2: flame(4.1, -3.9, 0.7, 0, 1.2),
         }),
         {
           ease: 'linear',
-          swaps: { ...FIST_F, fx1: 'fxBall', face: 'faceFrontShout' },
+          swaps: { fx1: 'fxBall', fx2: 'fxFlame', face: 'faceFrontShout' },
           z: FRONT_ARM_IN_FRONT,
         },
       ),
-      key(
-        13,
-        mix(hands(stance(12, 0.5, -1.1, 1.3, stretch(FRONT_ARM, 1.3)), [-1.7, -3.4], [2.5, -5.5], -1), {
-          fx1: ball(6.4, -6.9, 2.4, 0),
-        }),
-        { ease: 'out' },
-      ),
-      key(14, undefined, { swaps: { ...FIST_F, face: 'faceFrontShout' } }),
-      key(20, hands(stance(12, 0.5, -1.1, 1.3, stretch(FRONT_ARM, 1.3)), [-1.7, -3.4], [2.5, -5.5], -1), {
-        ease: 'inOut',
+      key(13, mix(THROW, { fx1: ball(6.9, -4.5, 2.1, 0), fx2: flame(4.2, -3.9, 0.95, 0, 1.3) }), {
+        ease: 'out',
       }),
+      key(14, undefined, { swaps: { fx2: 'fxFlame', face: 'faceFrontShout' } }),
+      key(18, mix(THROW, { fx2: flame(4.3, -3.9, 0.4, 0, 1.3) }), { ease: 'inOut' }),
+      key(19, undefined, { swaps: { face: 'faceFrontShout' } }),
+      key(20, THROW, { ease: 'inOut' }),
       done(24),
       key(43, STAND),
     ],

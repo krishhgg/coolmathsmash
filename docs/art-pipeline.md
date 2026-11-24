@@ -127,7 +127,7 @@ circles, feet-relative, y up) and `play=1`. Scripts drive it through `__lab.call
 `__lab.call('sheet', states)`, `__lab.call('palette', name)` and `__lab.call('clips')`.
 
 The key states judges compare with the original are `idle@0`, `run@6`, `jump@40`, `fall@8`, `ftilt@7`,
-`fsmash@16`, `tumble@8`, `shield@10`, `ledgeHang@0` and `neutralSpecial@14`. Each round: capture the sheets,
+`fsmash@16`, `tumble@8`, `shield@10`, `ledgeHang@0` and `neutralSpecial@16`. Each round: capture the sheets,
 put them beside the reference sprites, have the judge panel score them and list concrete gaps, fix the top
 gaps, and repeat.
 

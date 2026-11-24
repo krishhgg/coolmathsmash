@@ -17,7 +17,7 @@ export const KEY_STATES = [
   'tumble@8',
   'shield@10',
   'ledgeHang@0',
-  'neutralSpecial@14',
+  'neutralSpecial@16',
 ];
 
 const LABEL = { fontFamily: 'monospace', fontSize: 14, fill: '#ffffff' } as const;
@@ -30,7 +30,8 @@ function parseState(state: string): [string, number] {
 /**
  * One fighter's rig, large: `?scene=fighter&fighter=fireboy&clip=run&frame=12&zoom=12`. `&sheet=1` shows a
  * contact sheet of the key states (`&states=idle@0,run@6` overrides them), `&palette=blaze` a costume,
- * `&hit=6,6,3.5` a hitbox circle (feet-relative, y up), `&play=1` plays the clip in real time.
+ * `&hit=6,6,3.5` a hitbox circle (feet-relative, y up), `&play=1` plays the clip in real time. Sheet cells
+ * show the heads' first flicker drawing; `&flicker=1` ties the flicker to each cell's frame instead.
  */
 export const scene: LabScene = {
   title: 'Fighter rig',
@@ -69,6 +70,16 @@ export const scene: LabScene = {
       view.container.parent?.addChild(g);
     };
 
+    /** The neutral special's projectile, which the engine spawns and moves in game. */
+    const fireball = (parent: Container, clip: string, frame: number, globalFrame: number, zoom: number) => {
+      if (clip !== 'neutralSpecial' || frame < 14 || !art.projectiles?.fireball) return;
+      const ball = createPropView(art, 'fireball', palette);
+      ball.update(globalFrame);
+      ball.container.position.set((8.5 + (frame - 14) * 1.4) * zoom, -4.6 * zoom);
+      ball.container.scale.set(zoom);
+      parent.addChild(ball.container);
+    };
+
     const show = (clip: string, frame: number, globalFrame = frame) => {
       root.removeChildren().forEach((c) => c.destroy({ children: true }));
       const zoom = Number(params.get('zoom') ?? 12);
@@ -82,20 +93,14 @@ export const scene: LabScene = {
       view.pose(clip, frame, globalFrame);
       ledge(stage, clip, zoom);
       overlay(view, zoom);
-      if (clip === 'neutralSpecial' && art.projectiles?.fireball) {
-        const ball = createPropView(art, 'fireball', palette);
-        ball.update(globalFrame);
-        ball.container.position.set(7 * zoom + Math.max(0, frame - 14) * 1.4 * zoom, -7 * zoom);
-        ball.container.scale.set(zoom);
-        ball.container.visible = frame >= 14;
-        stage.addChild(ball.container);
-      }
+      fireball(stage, clip, frame, globalFrame, zoom);
       const label = new Text({ text: `${name} · ${clip} · frame ${frame} · ${palette}`, style: LABEL });
       label.position.set(16, 12);
       root.addChild(label);
       return { clip, frame };
     };
 
+    const flicker = params.has('flicker');
     const sheet = (states: string[] = KEY_STATES) => {
       root.removeChildren().forEach((c) => c.destroy({ children: true }));
       const cols = Math.min(5, states.length);
@@ -111,9 +116,10 @@ export const scene: LabScene = {
         if (!clip.startsWith('ledge')) cell.addChild(ground(new Graphics(), 0, 0, w * 0.8));
         const view = createRigView(art, palette);
         view.container.scale.set(zoom);
-        view.pose(clip, frame, frame);
+        view.pose(clip, frame, flicker ? frame : 0);
         cell.addChild(view.container);
         ledge(cell, clip, zoom);
+        fireball(cell, clip, frame, flicker ? frame : 0, zoom);
         cell.mask = cell.addChild(new Graphics().rect(-w / 2, -h * 0.8, w, h).fill('#ffffff'));
         const label = new Text({ text: state, style: LABEL });
         label.position.set(w * (i % cols) + 8, h * Math.floor(i / cols) + 6);

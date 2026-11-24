@@ -10,7 +10,7 @@ const original: Palette = {
   glow0: '#ff0000',
   glow1: '#ff0c00',
   glow2: '#ff6600',
-  glow3: '#d38b1b',
+  glow3: '#ff6a00',
   eye0: '#ffff00',
   eye1: '#ff9900',
   skin: '#ce0000',

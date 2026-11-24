@@ -171,8 +171,8 @@ export function samplePose(art: FighterArt, clipName: string, frame: number, glo
       x: bone.x + lerp(a.x ?? 0, b.x ?? 0, k),
       y: bone.y + lerp(a.y ?? 0, b.y ?? 0, k),
       rot: (bone.rot ?? 0) + lerp(a.rot ?? 0, b.rot ?? 0, k),
-      sx: lerp(a.sx ?? 1, b.sx ?? 1, k),
-      sy: lerp(a.sy ?? 1, b.sy ?? 1, k),
+      sx: (bone.sx ?? 1) * lerp(a.sx ?? 1, b.sx ?? 1, k),
+      sy: (bone.sy ?? 1) * lerp(a.sy ?? 1, b.sy ?? 1, k),
     };
   }
   const t = clipTime(clip, frame);

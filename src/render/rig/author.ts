@@ -16,8 +16,8 @@ function locals(rig: Rig, pose: Pose): Record<string, BoneTransform> {
       x: bone.x + (p.x ?? 0),
       y: bone.y + (p.y ?? 0),
       rot: (bone.rot ?? 0) + (p.rot ?? 0),
-      sx: p.sx ?? 1,
-      sy: p.sy ?? 1,
+      sx: (bone.sx ?? 1) * (p.sx ?? 1),
+      sy: (bone.sy ?? 1) * (p.sy ?? 1),
     };
   }
   return out;

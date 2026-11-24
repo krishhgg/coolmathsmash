@@ -67,6 +67,8 @@ const loop = (name: string, count: number, fps: number, order = [0, 1, 2, 3, 4])
 export const HIP_Y = -(THIGH + SHIN);
 /** Head centre above the chin: the head symbols are drawn around the head centre. */
 export const HEAD_R = 3.41;
+/** The original head drawn 6% larger, so it fills about 78% of Fireboy's height as in the 2009 sprite. */
+const HEAD_SCALE = 1.06;
 
 /**
  * Fireboy's skeleton (rest pose: standing, facing right). `body` is the centre of mass, so rotating it flips
@@ -78,16 +80,16 @@ export const rig: Rig = {
     { name: 'body', parent: 'root', x: 0, y: -6 },
     { name: 'hip', parent: 'body', x: 0, y: 6 + HIP_Y },
     { name: 'torso', parent: 'hip', x: 0, y: 0 },
-    { name: 'neck', parent: 'torso', x: 0, y: -1.45 },
-    { name: 'head', parent: 'neck', x: 0, y: -HEAD_R },
+    { name: 'neck', parent: 'torso', x: 0, y: -1.3 },
+    { name: 'head', parent: 'neck', x: 0, y: -HEAD_R * HEAD_SCALE, sx: HEAD_SCALE, sy: HEAD_SCALE },
     { name: 'face', parent: 'head', x: 0, y: 0 },
-    { name: 'armB', parent: 'torso', x: -0.4, y: -1.1, rot: 24, localScale: true },
+    { name: 'armB', parent: 'torso', x: -0.6, y: -1.1, rot: 30, localScale: true },
     { name: 'foreB', parent: 'armB', x: 0, y: UPPER_ARM, localScale: true },
-    { name: 'armF', parent: 'torso', x: 0.4, y: -1.1, rot: -24, localScale: true },
+    { name: 'armF', parent: 'torso', x: 0.6, y: -1.1, rot: -30, localScale: true },
     { name: 'foreF', parent: 'armF', x: 0, y: UPPER_ARM, localScale: true },
-    { name: 'thighB', parent: 'hip', x: -0.3, y: 0, localScale: true },
+    { name: 'thighB', parent: 'hip', x: -0.36, y: 0, localScale: true },
     { name: 'shinB', parent: 'thighB', x: 0, y: THIGH, localScale: true },
-    { name: 'thighF', parent: 'hip', x: 0.3, y: 0, localScale: true },
+    { name: 'thighF', parent: 'hip', x: 0.36, y: 0, localScale: true },
     { name: 'shinF', parent: 'thighF', x: 0, y: THIGH, localScale: true },
     { name: 'fx1', parent: 'root', x: 0, y: 0 },
     { name: 'fx2', parent: 'root', x: 0, y: 0 },
