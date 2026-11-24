@@ -1,5 +1,6 @@
 import { bankFiles, type SoundId } from './bank';
 import { AudioEngine, type PlayOptions, type Voice } from './engine';
+import { MusicPlayer } from './music';
 import { DEFAULT_SETTINGS, type AudioSettings, type Channel } from './settings';
 
 export type { SoundId } from './bank';
@@ -33,8 +34,9 @@ export interface GameAudio {
   /** Any sound in the bank (src/audio/bank.ts). */
   play(id: SoundId, opts?: PlayOptions): Voice | null;
   /**
-   * Crossfade to a music track: 'menu', a stage id, or null to fade the music out. Unknown ids keep the
-   * current music. (Tracks arrive with the music PR; until then this is silent.)
+   * Crossfade to a music track: 'menu', a stage id (each stage has its own track, see src/audio/music.ts), or
+   * null to fade the music out. Unknown ids keep the current music. Safe before the first click: the music
+   * starts as soon as the browser unlocks audio.
    */
   music(track: string | null): void;
   /**
@@ -62,6 +64,7 @@ function storage(): Storage | null {
 
 function createGameAudio(): GameAudio {
   let engine: AudioEngine | null = null;
+  let player: MusicPlayer | null = null;
   let fallback: AudioSettings = { ...DEFAULT_SETTINGS };
   return {
     init(target = globalThis) {
@@ -72,6 +75,7 @@ function createGameAudio(): GameAudio {
         dropWhileSuspended: true,
       });
       engine.unlock(target);
+      player = new MusicPlayer(engine);
       void Promise.all(bankFiles().map((f) => engine!.file(f)));
     },
     ui(sound) {
@@ -80,7 +84,9 @@ function createGameAudio(): GameAudio {
     play(id, opts) {
       return engine?.play(id, opts) ?? null;
     },
-    music() {},
+    music(track) {
+      player?.play(track);
+    },
     announce() {},
     get settings() {
       return engine?.settings ?? fallback;
