@@ -52,6 +52,7 @@ export class Renderer {
     width: VIEW_WIDTH,
     height: VIEW_HEIGHT,
     resolution: 0.5,
+    antialias: true,
   });
   private readonly boxes = new Graphics();
   private fighters: FighterView[] = [];
