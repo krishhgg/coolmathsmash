@@ -247,6 +247,7 @@ export function characterSelectScreen(flow: Flow): Screen {
     const slot = humanOf(e.device);
     if (slot < 0) {
       if (e.action === 'confirm' || e.action === 'start') join(e.device);
+      else if (e.action === 'back') flow.go('main');
       return;
     }
     const hand = hands.get(slot)!;
@@ -270,7 +271,7 @@ export function characterSelectScreen(flow: Flow): Screen {
         else if (s.fighter !== null) {
           hand.key = tileKey(s);
           s.fighter = null;
-        } else return;
+        } else return flow.go('main');
         audio.ui('back');
         return render();
       case 'prev':
