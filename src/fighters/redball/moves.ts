@@ -1,5 +1,6 @@
 import { setAction } from '../../sim/actions/registry';
 import type { HitboxDef, MoveDef } from '../types';
+import { specials } from './specials';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -288,4 +289,5 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55 } },
   },
+  ...specials,
 };
