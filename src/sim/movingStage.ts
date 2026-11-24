@@ -1,6 +1,6 @@
 import { breakGrab } from './actions/grab';
 import { dropLedge } from './actions/ledge';
-import { ACTIONS, enterAction } from './actions/registry';
+import { actionDef, enterAction } from './actions/registry';
 import { DOWN_FLICK_THRESHOLD } from './constants';
 import { stickY } from './control';
 import { emit } from './events';
@@ -166,7 +166,7 @@ function followStage(x: Ctx, before: StageState): void {
   const { f, m, stage } = x;
   if (f.action === 'ko' || f.action === 'out' || f.action === 'respawn') return;
   const carry = ride(x);
-  if (f.ledge >= 0 || ACTIONS[f.action]!.physics === 'none') return;
+  if (f.ledge >= 0 || actionDef(f).physics === 'none') return;
   const box = ecb(f, x);
   let pusher = -1;
   let squeezed = false;
@@ -314,7 +314,7 @@ function standOn(x: Ctx, g: GroundRef): void {
 function loseGround(x: Ctx): void {
   const { f, m } = x;
   if (f.grabPartner >= 0) breakGrab(m, f);
-  const keep = f.launch !== null || f.action === 'hitstun' || ACTIONS[f.action]!.physics === 'air';
+  const keep = f.launch !== null || f.action === 'hitstun' || actionDef(f).physics === 'air';
   leaveGround(x);
   if (!keep) enterAction(x, 'fall', 0);
 }

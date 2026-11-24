@@ -4,6 +4,7 @@
  * (game units, units/frame, frames at 60 Hz) so reference data can be used as-is. See docs/fighters.md.
  */
 
+import type { ActionDef } from '../sim/actions/registry';
 import type { Ctx } from '../sim/fighter';
 
 export interface FighterStats {
@@ -174,6 +175,12 @@ export interface FighterDef {
    * The name is also the animation clip name.
    */
   moves?: Record<string, MoveDef>;
+  /**
+   * This fighter's own versions of shared actions, by action name (`walk`, `dash`, `run`, `crouch`, ...), used
+   * instead of the shared ones in `src/sim/actions/`, or new actions only this fighter enters. Bloxorz block tips
+   * end over end instead of walking. Keep them deterministic, like move scripts.
+   */
+  actions?: Record<string, ActionDef>;
   /** Art data for the renderer (src/render/rig). Plain data, no renderer imports. */
   art?: unknown;
   /** False for forms reached only by transforming (Watergirl), so menus list only the fighter that starts. */
