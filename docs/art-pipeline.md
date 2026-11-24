@@ -34,11 +34,13 @@ rig point `(6, -6)`.
 - A symbol can be a **loop** `{ loop: [...names], fps }`, a Flash movie clip that plays on the match clock
   (`globalFrame`, 60 per second) whatever the action. Fireboy's head flickers through the original's 5 head
   drawings at the SWF's 25 fps.
-- **Bones** `{ name, parent?, x, y, rot? }` form the skeleton; parents come first. A bone's scale stretches its
-  own drawings and carries down to its children, except on bones marked `localScale` (limb segments), whose
-  children are only pushed out along the stretched bone so a stretched forearm never skews the fist.
-- **Slots** `{ name, bone, symbol }` are the layers, back to front. Limbs use two slots per segment (outline
-  symbols first, then fills) so the joint has no visible seam, the way the original inked its tubes.
+- **Bones** `{ name, parent?, x, y, rot?, sx?, sy? }` form the skeleton; parents come first. A bone's scale (its
+  rest `sx`/`sy` times the pose's) stretches its own drawings and carries down to its children, except on bones
+  marked `localScale` (limb segments), whose children are only pushed out along the stretched bone so a
+  stretched forearm never skews the fist.
+- **Slots** `{ name, bone, symbol, decor? }` are the layers, back to front. Limbs use two slots per segment
+  (outline symbols first, then fills) so the joint has no visible seam, the way the original inked its tubes.
+  `decor` slots (Fireboy's heat glow) are drawn but left out of bounds and hitbox-coverage checks.
 - **Clips** are Flash-style timelines with two layers per key. The pose layer: a key with `pose` is a full
   pose (bones it does not mention return to rest) and tweens to the next posed key with its `ease`. The symbol
   layer: `swaps` (slot -> symbol, or `null` to hide) and `z` (slot -> draw order; slot _i_ draws at _i_, so
@@ -115,9 +117,13 @@ Parts the original never drew separately (Fireboy's arms and legs are one body d
 
 `poses.ts` keeps poses short: `key(frame, pose, opts)`, `mix(a, b)` to layer pose offsets, `feet(pose, back,
 front)` and `hands(pose, back, front)` to solve legs or arms with two-bone IK onto rig points, `flame(x, y,
-size, rot)` to place a strike flame on an `fx` bone, and swap sets (`FRONT`, `SIDE`, `ANGRY`, `SHOUT`, `HURT`,
-`UP`, `FIST_F`, ...) to change the head view and expression. `author.ts` holds the IK and `pointOf`, which
-finds where a bone point lands.
+size, rot)` to place a flame on an `fx` bone, and swap sets (`FRONT`, `SIDE`, `ANGRY`, `SHOUT`, `HURT`, `UP`,
+`FIST_F`, `MITTENS`, ...) to change the head view, expression and hands. `author.ts` holds the IK and
+`pointOf`, which finds where a bone point lands.
+
+Attack fire uses the `fxJet` symbol (a yellow-cored teardrop with a dark-red outline, so it never reads as a
+second head). `streak(pose, limb, to, r)` in `attacks.ts` places one with its round hot head on the hitbox at
+`to` and its tail reaching back to the fist or foot in `pose`, so every hit reads as fire thrown by the limb.
 
 ## Lab and the hill-climb loop
 

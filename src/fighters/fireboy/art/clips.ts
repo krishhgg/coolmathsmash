@@ -541,7 +541,7 @@ export const clips: Record<string, AnimClip> = {
             fx1: flame(6, -3.2, 2.5, -4, 1.2),
           },
         ),
-        { ease: 'linear', swaps: { fx1: 'fxFlame', head: 'headFront', face: 'faceFrontShout' } },
+        { ease: 'linear', swaps: { fx1: 'fxJet', head: 'headFront', face: 'faceFrontShout' } },
       ),
       key(
         24,
