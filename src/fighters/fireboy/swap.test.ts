@@ -61,15 +61,38 @@ describe('Fireboy and Watergirl swap', () => {
     expect(f.fighter).toBe('fireboy');
   });
 
-  it('works in the air without giving back a jump', () => {
+  it('works in the air with the same intangible frames, without giving back a jump', () => {
     const m = fireboy();
-    const f = placeInAir(m, -70, 60);
+    const f = placeInAir(m, -70, 150);
     f.jumpsUsed = 2;
     run(m, 1, { y: -100, buttons: ['special'] });
     expect(f.move).toBe('downB');
-    run(m, 20);
+    const intangible: number[] = [];
+    while (f.move === 'downB') {
+      expect(f.ground).toBeNull();
+      if (isIntangible(f)) intangible.push(f.actionFrame);
+      run(m, 1);
+    }
+    expect(intangible).toEqual(range(18, 32));
     expect(f.fighter).toBe('watergirl');
     expect(f.jumpsUsed).toBe(2);
+  });
+
+  it('landing during the swap neither cancels it nor cuts its recovery short', () => {
+    for (const height of [3, 25]) {
+      const m = fireboy();
+      const f = placeInAir(m, -70, height);
+      run(m, 1, { y: -100, buttons: ['special'] });
+      const frames: number[] = [];
+      while (f.move === 'downB') {
+        frames.push(f.actionFrame);
+        run(m, 1);
+      }
+      expect(f.ground, `from ${height}`).not.toBeNull();
+      expect(frames, `from ${height}`).toEqual(range(1, 50));
+      expect(f.fighter).toBe('watergirl');
+      expect(f.action).toBe('idle');
+    }
   });
 });
 
