@@ -43,13 +43,16 @@ const ROCKET_TURN = 2;
  */
 function rocketTarget(x: Ctx): number {
   const forward = stickX(x.c) * x.f.facing;
-  return Math.max(-30, Math.min(30, forward >= 0 ? 15 + 15 * forward : 15 + 45 * forward));
+  return clampHeading(forward >= 0 ? 15 + 15 * forward : 15 + 45 * forward);
 }
+
+const clampHeading = (deg: number) => Math.max(-30, Math.min(30, deg));
 
 /**
  * Rocket Ride (up special): lights the rocket and hangs for 11 frames, rides it from frame 12 along a heading the
  * stick steers within 30 degrees of vertical, and bursts on frame 49, leaving them helpless. The current heading
- * lives in the velocity itself, so the script keeps no state of its own.
+ * lives in the velocity itself, so the script keeps no state of its own; it is clamped back into range because a
+ * ceiling or wall can strip part of the velocity (the rocket then slides along the surface at the limit).
  */
 function rocketRide(x: Ctx): void {
   const { f } = x;
@@ -61,7 +64,7 @@ function rocketRide(x: Ctx): void {
   }
   if (t <= 48) {
     const target = rocketTarget(x);
-    const current = t === 12 ? target : Math.atan2(f.vel.x * f.facing, f.vel.y) / DEG;
+    const current = t === 12 ? target : clampHeading(Math.atan2(f.vel.x * f.facing, f.vel.y) / DEG);
     const heading = current + Math.max(-ROCKET_TURN, Math.min(ROCKET_TURN, target - current));
     f.vel.x = Math.sin(heading * DEG) * ROCKET_SPEED * f.facing;
     f.vel.y = Math.cos(heading * DEG) * ROCKET_SPEED;

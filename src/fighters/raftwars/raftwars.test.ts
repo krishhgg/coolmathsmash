@@ -289,6 +289,32 @@ describe('Raft Wars kids: Rocket Ride (up special)', () => {
     expect(v.damage).toBeGreaterThanOrEqual(12 * 1.2);
   });
 
+  it('a ceiling does not knock the rocket off course: it slides along the underside at its 30-degree limit', () => {
+    const { m, a } = versus();
+    Object.assign(a, {
+      pos: { x: 0, y: -58 },
+      prevPos: { x: 0, y: -58 },
+      ground: null,
+      action: 'fall',
+      vel: { x: 0, y: 0 },
+      facing: 1,
+      jumpsUsed: 2,
+    });
+    runPorts(m, 1, [{ y: 100, buttons: ['special'] }, {}]);
+    expect(a.move).toBe('upB');
+    let blocked = 0;
+    while (a.actionFrame < 48) {
+      const { x, y } = a.pos;
+      runPorts(m, 1, [{}, {}]);
+      if (a.actionFrame <= 12) continue;
+      expect(a.pos.y - y).toBeGreaterThan(-0.1);
+      if (a.pos.y - y > 1) continue;
+      blocked++;
+      expect(a.pos.x - x).toBeLessThan(2.95 * Math.sin(Math.PI / 6) + 0.1);
+    }
+    expect(blocked).toBeGreaterThan(10);
+  });
+
   it('grabs the ledge on the way up from below the stage', () => {
     const { m, a } = versus();
     Object.assign(a, {
