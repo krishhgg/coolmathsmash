@@ -367,6 +367,22 @@ describe('Snail Bob: Shell Spin (side special)', () => {
     expect(a.pos.x).toBeLessThanOrEqual(80);
   });
 
+  it('in the air only the first Shell Spin hops, spending his midair jump', () => {
+    const m = snail();
+    const f = placeInAir(m, 0, 100, 1);
+    const hop = () => {
+      run(m, 1, { x: 100, buttons: ['special'] });
+      expect(f.move).toBe('sideB');
+      until(m, (g) => g.actionFrame === SPIN_ROLL[0] + 1);
+      const v = f.vel.y;
+      until(m, (g) => g.move !== 'sideB');
+      return v > 0;
+    };
+    expect(hop()).toBe(true);
+    expect(f.jumpsUsed).toBe(stats.jumps);
+    expect(hop()).toBe(false);
+  });
+
   it('in the air it hops into the roll and keeps rolling when it lands', () => {
     const m = snail();
     const f = placeInAir(m, -40, 8, 1);

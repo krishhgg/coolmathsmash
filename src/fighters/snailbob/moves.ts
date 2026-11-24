@@ -283,14 +283,15 @@ export const moves: Record<string, MoveDef> = {
    * Shell Spin (side special, the video's Sonic spin): he ducks into the shell and revs while Special is held, up
    * to a second, then rolls forward. Revving speeds the roll up and raises its damage from 10% to 14% (the smash
    * charge multiplier). The roll stops at ledges on the ground, keeps rolling when it lands from the air, and
-   * bounces him back off the first fighter it hits.
+   * bounces him back off the first fighter it hits. In the air the roll starts with a hop that spends his midair
+   * jump, so only one Shell Spin per airtime gains height.
    */
   sideB: {
     kind: 'other',
     faf: 60,
     continuesOnLanding: true,
     hits: [{ frames: SPIN_ROLL, boxes: [box(0, 0, 6, 6.5, { damage: 10, angle: 40, kbg: 70, bkb: 50 })] }],
-    script({ f, c }) {
+    script({ f, c, s }) {
       const frame = f.actionFrame;
       if (frame <= SPIN_REV_FRAME) {
         f.vel.x *= 0.85;
@@ -308,7 +309,10 @@ export const moves: Record<string, MoveDef> = {
         f.actionFrame = SPIN_ROLL[1] + 1;
         return;
       }
-      if (frame === SPIN_ROLL[0] && !f.ground) f.vel.y = 1.2;
+      if (frame === SPIN_ROLL[0] && !f.ground && f.jumpsUsed < s.jumps) {
+        f.vel.y = 1.2;
+        f.jumpsUsed = s.jumps;
+      }
       const [slow, fast] = SPIN_SPEED;
       f.vel.x = f.facing * (slow + ((fast - slow) * f.charge) / SMASH_CHARGE_FRAMES);
     },
