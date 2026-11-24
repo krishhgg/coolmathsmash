@@ -62,7 +62,7 @@ export class FighterView {
     this.body.scale.y = squash;
     this.body.alpha = isIntangible(f) && frame % 8 < 4 ? 0.45 : 1;
     this.shield.clear();
-    if (f.action === 'shield') {
+    if (f.action === 'shield' || f.action === 'shieldStun') {
       const r = this.def.stats.shieldSize * ((f.shieldHp / SHIELD_MAX) * 0.85 + 0.15);
       this.shield.circle(0, -this.def.stats.height / 2, r).fill({ color: this.shieldColor, alpha: 0.45 });
     }
