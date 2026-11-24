@@ -148,7 +148,8 @@ the names canonical (audio, art and CPUs key off action names), and keep overrid
 ### Hurtbox shape
 
 The hurtbox is a capsule from `width` and `height`: upright (half the width thick, from the feet to the head) for
-most fighters, and lying (half the height thick, along the width) for a fighter wider than it is tall. A form that
+most fighters, and lying (half the height thick, along the width) for a fighter wider than it is tall. Crouching
+lowers an upright body only. A form that
 changes shape mid-match (Bloxorz block standing up or lying down) is a separate FighterDef with its own size,
 reached by `transform`. `?hitboxes` draws either shape.
 

@@ -36,7 +36,8 @@ export interface PlacedHitbox {
 /**
  * The body: a capsule around a core segment, `r` thick. Upright fighters have a vertical core from the feet to the
  * head (`y1` to `y2`, half the width thick). A fighter wider than it is tall (a block lying on its side) has a
- * horizontal core instead, `hw` either side of `x`, half the height thick. Crouching lowers it.
+ * horizontal core instead, `hw` either side of `x`, half the height thick. Crouching lowers an upright body;
+ * a lying one is already as low as it gets.
  */
 export interface Hurtbox {
   x: number;
@@ -48,11 +49,11 @@ export interface Hurtbox {
 }
 
 export function hurtbox(f: FighterState, s: FighterStats): Hurtbox {
-  const height = f.action === 'crouch' ? s.height * 0.6 : s.height;
-  if (s.width > height) {
-    const r = height / 2;
+  if (s.width > s.height) {
+    const r = s.height / 2;
     return { x: f.pos.x, y1: f.pos.y + r, y2: f.pos.y + r, r, hw: s.width / 2 - r };
   }
+  const height = f.action === 'crouch' ? s.height * 0.6 : s.height;
   const r = s.width / 2;
   return { x: f.pos.x, y1: f.pos.y + r, y2: f.pos.y + Math.max(height - r, r), r };
 }

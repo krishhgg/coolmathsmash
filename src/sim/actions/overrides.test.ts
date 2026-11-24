@@ -106,6 +106,22 @@ describe('hurtbox shape', () => {
     expect(touches(at(f.pos.x, f.pos.y + 13.5), body)).toBe(false);
   });
 
+  it('crouching lowers an upright body but not a lying one', () => {
+    const m = testMatch({ fighter: 'test-lying-block' });
+    const f = m.fighters[0]!;
+    const before = hurtbox(f, lying.stats);
+    run(m, 3, { y: -100 });
+    expect(f.action).toBe('crouch');
+    expect(hurtbox(f, lying.stats)).toEqual(before);
+
+    const mario = testMatch();
+    const g = mario.fighters[0]!;
+    const standing = hurtbox(g, marioReference.stats).y2;
+    run(mario, 3, { y: -100 });
+    expect(g.action).toBe('crouch');
+    expect(hurtbox(g, marioReference.stats).y2).toBeLessThan(standing);
+  });
+
   it('an upright fighter keeps its vertical capsule', () => {
     const m = testMatch();
     const f = m.fighters[0]!;
