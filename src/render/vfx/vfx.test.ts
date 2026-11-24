@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { getFighter } from '../../fighters/registry';
 import {
   findScenario,
   scenarioConfig,
@@ -7,13 +8,13 @@ import {
   type GameScenario,
 } from '../../harness/scenarios';
 import { createMatch, stepMatch, type MatchState } from '../../sim/match';
-import { ATTACKER_JITTER, hitlagOffset, VICTIM_JITTER } from './hitlag';
+import { ATTACKER_JITTER, hitlagOffset, SHIELD_JITTER, VICTIM_JITTER } from './hitlag';
 import { hitPower, hitSparkShapes, spawnHitSpark } from './hitSpark';
 import { KO_LIFE, koAnchor, koBlastShapes } from './koBlast';
 import { rand, seedOf } from './random';
 import { SHIELD_HIT_LIFE, shieldBubbleShapes } from './shield';
-import { puffShapes, trailPuffs } from './smoke';
-import { emptyVfx, freezeOf, shieldPulse, stepVfx, Vfx, type VfxState } from './system';
+import { puffShapes, TRAIL_CUT, trailPuffs } from './smoke';
+import { emptyVfx, fighterFx, freezeOf, shieldPulse, stepVfx, Vfx, type VfxState } from './system';
 
 const scenario = (name: string) => findScenario(name) as GameScenario;
 
@@ -50,12 +51,13 @@ describe('effect seeds', () => {
 });
 
 describe('hit sparks', () => {
-  it('grow, last longer and add layers, streaks and debris with knockback', () => {
+  it('grow (to under 0.9x fighter height across), last longer and add layers, streaks and debris with knockback', () => {
     const weak = spawnHitSpark({ ...hit, kb: 35, damage: 3.8 }, 10, 1);
     const strong = spawnHitSpark({ ...hit, kb: 311, damage: 22 }, 10, 1);
     expect(hitPower(35, 3.8)).toBeLessThan(0.15);
     expect(strong.power).toBe(1);
-    expect(strong.size).toBeGreaterThan(weak.size * 2.5);
+    expect(strong.size).toBeGreaterThan(weak.size * 1.8);
+    expect(strong.size * 2).toBeLessThan(getFighter('fireboy').stats.height * 0.9);
     expect(strong.life).toBeGreaterThan(weak.life + 10);
     const at = (s: typeof weak, age: number) => hitSparkShapes(s, s.frame + age);
     expect(at(strong, 3).length).toBeGreaterThan(at(weak, 3).length * 2);
@@ -117,6 +119,39 @@ describe('stepping effects from the simulation', () => {
     const v = log[50]!;
     expect(v.kos).toEqual([expect.objectContaining({ frame: 51, port: 1 })]);
     expect(log[51 + KO_LIFE - 1]!.kos).toEqual([]);
+  });
+
+  it("shrinks the KO'd fighter's launch smoke away once the KO lands", () => {
+    const { log } = play('ko-blast', 51 + TRAIL_CUT);
+    const smoke = (v: VfxState) => v.puffs.filter((p) => p.port === 1 && p.tone === 'smoke');
+    expect(smoke(log[49]!).length).toBeGreaterThan(0);
+    expect(smoke(log[50]!).every((p) => p.cut === 51)).toBe(true);
+    expect(smoke(log[50 + TRAIL_CUT]!)).toEqual([]);
+  });
+
+  it('shakes the shielding fighter and the attacker sideways on a shield hit', () => {
+    const v = play('shield-hit', 26).log[24]!;
+    expect(freezeOf(v, 0)).toMatchObject({ frame: 25, amplitude: SHIELD_JITTER, ay: 0 });
+    expect(freezeOf(v, 1)).toMatchObject({ frame: 25, amplitude: SHIELD_JITTER / 2, ay: 0 });
+    expect(freezeOf(v, 0)!.ax).toBe(-1);
+    expect(freezeOf(v, 1)!.ax).toBe(-1);
+  });
+
+  it('flashes and shakes a fighter while it charges a smash attack', () => {
+    const s = scenario('smash-charge');
+    const m = createMatch(scenarioConfig(s));
+    startScenario(m, s);
+    const vfx = new Vfx();
+    const fx: ReturnType<typeof fighterFx>[] = [];
+    while (m.frame < 60) {
+      stepMatch(m, scenarioInputs(s, m));
+      vfx.step(m);
+      if (m.frame > 45) fx.push(fighterFx(vfx.state, m.fighters[0]!, m.frame));
+    }
+    expect(fx.every((f) => f.flash?.color === 0xfff4b0)).toBe(true);
+    expect(fx.some((f) => f.flash!.amount > 0) && fx.some((f) => f.flash!.amount === 0)).toBe(true);
+    expect(fx[0]!.jitter!.x).toBeCloseTo(-fx[1]!.jitter!.x);
+    expect(fighterFx(vfx.state, m.fighters[1]!, m.frame).flash).toBeUndefined();
   });
 
   it('flashes the shield on a shield hit and shatters it on a break', () => {
@@ -235,5 +270,7 @@ describe('shield bubble', () => {
     const flashed = shieldBubbleShapes(0, -7.5, 9, 0xff4b4b, 100, { age: 1, power: 1 });
     expect(flashed.length).toBeGreaterThan(calm.length);
     expect(flashed.some((s) => s.fill?.color === 0xffffff && (s.fill.alpha ?? 1) > 0.4)).toBe(true);
+    const cracked = shieldBubbleShapes(0, -7.5, 4, 0xff4b4b, 100, undefined, true);
+    expect(cracked.filter((s) => s.type === 'poly' && s.open).length).toBe(2);
   });
 });

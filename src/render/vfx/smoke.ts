@@ -17,6 +17,10 @@ export interface Puff {
   r: number;
   life: number;
   tone: PuffTone;
+  /** The fighter whose launch (or feet) left it. */
+  port: number;
+  /** The frame its fighter was KO'd: launch smoke then shrinks away over `TRAIL_CUT` frames. */
+  cut?: number;
   seed: number;
 }
 
@@ -34,6 +38,7 @@ export const TRAIL_FULL_SPEED = 7;
 /** Launch speed past which coloured speed lines streak behind the fighter. */
 export const STREAK_SPEED = 5.5;
 const MAX_PUFFS_PER_FRAME = 48;
+export const TRAIL_CUT = 6;
 
 export function launchSpeed(f: FighterState): number {
   return Math.hypot(f.kb.x, f.kb.y);
@@ -62,7 +67,8 @@ export function trailPuffs(f: FighterState, mid: number, frame: number): Puff[] 
   const puffs: Puff[] = [];
   for (let i = 0; i < n; i++) {
     const u = (i + 1) / n;
-    const side = signed(seed, i) * r * 0.5;
+    const side = signed(seed, i) * r * 0.7;
+    const gap = rand(seed, 400 + Math.floor(i / 3)) < 0.35;
     const drift = signed(seed, 100 + i) * 0.04;
     puffs.push({
       born: frame - 1 + u,
@@ -70,16 +76,20 @@ export function trailPuffs(f: FighterState, mid: number, frame: number): Puff[] 
       y: f.prevPos.y + dy * u + mid + ny * side,
       vx: nx * drift,
       vy: ny * drift + 0.015,
-      r: r * (0.65 + 0.6 * rand(seed, 200 + i)),
-      life: Math.round(lerp(28, 54, s) * (0.85 + 0.3 * rand(seed, 300 + i))),
+      r: r * (0.5 + 0.8 * rand(seed, 200 + i) ** 1.5),
+      life: Math.round(lerp(28, 54, s) * (0.75 + 0.5 * rand(seed, 300 + i)) * (gap ? 0.4 : 1)),
       tone: 'smoke',
+      port: f.port,
       seed: seedOf(frame, f.port, 1000 + i),
     });
   }
   return puffs;
 }
 
-/** Dust kicked out sideways at the feet (`x`, `y`): `n` puffs per side, `spread` units per frame. */
+/**
+ * Dust fanned out low along the ground from the feet at (`x`, `y`): `n` flattened puffs per side, the outer ones
+ * smaller and faster (from `spread` units per frame), all dragging to a stop.
+ */
 export function dustPuffs(
   x: number,
   y: number,
@@ -96,53 +106,65 @@ export function dustPuffs(
     const k = Math.floor(i / 2);
     puffs.push({
       born: frame,
-      x: x + side * (2 + k * 1.8),
-      y: y + 0.6,
-      vx: side * spread * (0.7 + 0.5 * rand(seed, i)) * (1 - k * 0.25),
-      vy: 0.04 + 0.05 * rand(seed, 50 + i),
+      x: x + side * (0.6 + k * 0.5),
+      y: y + r * 0.4,
+      vx: side * spread * (1 + k * 0.6) * (0.85 + 0.3 * rand(seed, i)),
+      vy: 0.015 + 0.02 * rand(seed, 50 + i),
       r: r * (1 - k * 0.2) * (0.85 + 0.3 * rand(seed, 100 + i)),
-      life: Math.round(18 + 8 * rand(seed, 150 + i)),
+      life: Math.round(12 + 4 * rand(seed, 150 + i)),
       tone: 'dust',
+      port,
       seed: seedOf(frame, port, 2000 + i),
     });
   }
   return puffs;
 }
 
-/** Puff radius over its life: swell quickly, hold, then shrink away to nothing (cartoon smoke breaks up, never fades). */
+/**
+ * Puff radius over its life. Smoke swells from small (leaving a clear gap right behind the fighter), holds, then
+ * breaks up and shrinks away; dust spreads to 1.5x and shrinks at the end. Cartoon smoke never fades.
+ */
 function puffRadius(p: Puff, age: number): number {
   const t = age / p.life;
-  if (t < 0.18) return p.r * (0.65 + 0.35 * (t / 0.18));
-  return p.r * (1 + 0.15 * (t - 0.18)) * (1 - clamp01((t - 0.35) / 0.65) ** 1.6);
+  if (p.tone === 'dust') return p.r * (t < 0.6 ? 1 + 0.5 * (t / 0.6) : 1.5 * (1 - ((t - 0.6) / 0.4) ** 1.5));
+  if (t < 0.12) return p.r * (0.3 + 0.7 * (t / 0.12));
+  return p.r * (1 - clamp01((t - 0.3) / 0.7) ** 1.2);
 }
 
 /**
  * Every live puff at `frame` in three passes (rims, bodies, light lobes), so overlapping puffs merge into one cloud
- * with a single outline around the whole silhouette.
+ * with a single outline around the whole silhouette. A puff's outline thins away from 8 frames old, before its body
+ * shrinks, so an ageing trail breaks into soft separate clouds.
  */
 export function puffShapes(puffs: readonly Puff[], frame: number): Shape[] {
-  const live: { x: number; y: number; r: number; tone: PuffTone }[] = [];
+  const live: { x: number; y: number; r: number; rim: number; flat: number; tone: PuffTone }[] = [];
   for (const p of puffs) {
     const age = frame - p.born;
     if (age < 0 || age >= p.life) continue;
-    const r = puffRadius(p, age);
+    const r = puffRadius(p, age) * (p.cut === undefined ? 1 : clamp01(1 - (frame - p.cut) / TRAIL_CUT));
     if (r < 0.08) continue;
     const slow = age * (1 - age / (2 * p.life));
-    live.push({ x: p.x + p.vx * slow, y: -(p.y + p.vy * slow), r, tone: p.tone });
+    live.push({
+      x: p.x + p.vx * slow,
+      y: -(p.y + p.vy * slow),
+      r,
+      rim: p.tone === 'smoke' ? 0.32 * (1 - clamp01((age - 8) / 10)) : 0.32,
+      flat: p.tone === 'dust' ? 0.5 : 1,
+      tone: p.tone,
+    });
   }
   const out: Shape[] = [];
-  for (const q of live)
-    out.push({ type: 'circle', x: q.x, y: q.y, r: q.r + 0.32, fill: { color: TONES[q.tone].rim } });
-  for (const q of live)
-    out.push({ type: 'circle', x: q.x, y: q.y, r: q.r, fill: { color: TONES[q.tone].body } });
-  for (const q of live)
-    out.push({
-      type: 'circle',
-      x: q.x - q.r * 0.2,
-      y: q.y - q.r * 0.26,
-      r: q.r * 0.68,
-      fill: { color: TONES[q.tone].light },
-    });
+  const blob = (q: (typeof live)[number], dx: number, dy: number, r: number, color: number): Shape => ({
+    type: 'ellipse',
+    x: q.x + dx,
+    y: q.y + dy * q.flat,
+    rx: r * (q.flat < 1 ? 1.4 : 1),
+    ry: r * (q.flat < 1 ? 1.4 : 1) * q.flat,
+    fill: { color },
+  });
+  for (const q of live) if (q.rim > 0) out.push(blob(q, 0, 0, q.r + q.rim, TONES[q.tone].rim));
+  for (const q of live) out.push(blob(q, 0, 0, q.r, TONES[q.tone].body));
+  for (const q of live) out.push(blob(q, -q.r * 0.2, -q.r * 0.26, q.r * 0.68, TONES[q.tone].light));
   return out;
 }
 

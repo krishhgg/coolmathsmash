@@ -1,5 +1,5 @@
 import { rand, seedOf, signed } from './random';
-import { arcBand, clamp01, easeOut, lerp, mix, star, TAU, type Shape } from './shapes';
+import { arcBand, blade, clamp01, easeOut, lerp, mix, TAU, type Shape } from './shapes';
 
 /** A shield event's lasting effect: the bubble's flash and wobble after a hit, or the shatter of a break. */
 export interface ShieldBurst {
@@ -15,8 +15,10 @@ export interface ShieldBurst {
   seed: number;
 }
 
-export const SHIELD_HIT_LIFE = 12;
+export const SHIELD_HIT_LIFE = 6;
 export const SHIELD_BREAK_LIFE = 36;
+/** A shield at 0 HP keeps this share of its full size, cracked and blinking, until it shatters from there. */
+export const CRACKED_SHIELD = 0.45;
 
 export const shieldLife = (b: ShieldBurst): number =>
   b.kind === 'hit' ? SHIELD_HIT_LIFE : SHIELD_BREAK_LIFE;
@@ -39,9 +41,10 @@ export function spawnShieldBreak(port: number, frame: number, x: number, y: numb
 }
 
 /**
- * Ultimate's shield bubble as flat Flash layers: a translucent port-coloured sphere that thickens toward a bright
- * rim, a dark outline, a white crescent highlight. A recent hit (`hit`, frames since it landed) flashes it white
- * and makes it wobble. Centre (`cx`, `cy`) in the fighter's space, y down.
+ * Ultimate's shield bubble as flat Flash layers: a clear port-coloured tint, a bright rim in a lighter tint inside a
+ * dark outline, and one white highlight at 10-11 o'clock. A recent hit (`hit`, frames since it landed) fills it
+ * white for 5 frames and sends one ripple out from the rim; a `cracked` (empty) shield blinks its rim and shows
+ * two cracks. Centre (`cx`, `cy`) in the fighter's space, y down.
  */
 export function shieldBubbleShapes(
   cx: number,
@@ -50,174 +53,146 @@ export function shieldBubbleShapes(
   color: number,
   frame: number,
   hit?: { age: number; power: number },
+  cracked = false,
 ): Shape[] {
-  const flash = hit && hit.age < SHIELD_HIT_LIFE ? 1 - hit.age / SHIELD_HIT_LIFE : 0;
-  const wobble = hit ? 0.1 * (0.5 + hit.power) * Math.sin(hit.age * 1.9) * Math.exp(-hit.age / 4) : 0;
-  const breathe = 0.012 * Math.sin(frame * 0.21);
-  const rx = r * (1 + breathe + wobble);
-  const ry = r * (1 + breathe - wobble * 0.8);
-  const light = mix(color, 0xffffff, 0.45);
+  const rr = r * (1 + 0.012 * Math.sin(frame * 0.21));
+  const rim = Math.max(0.3, r * 0.08);
+  const dark = mix(color, 0x000000, 0.55);
+  const rimColor = cracked && frame % 4 < 2 ? 0xffffff : mix(color, 0xffffff, 0.45);
   const out: Shape[] = [
-    { type: 'ellipse', x: cx, y: cy, rx, ry, fill: { color, alpha: 0.5 } },
-    {
-      type: 'ellipse',
-      x: cx,
-      y: cy,
-      rx: rx * 0.87,
-      ry: ry * 0.87,
-      line: { color, width: r * 0.26, alpha: 0.6 },
-    },
-    {
-      type: 'ellipse',
-      x: cx,
-      y: cy,
-      rx: rx * 0.95,
-      ry: ry * 0.95,
-      line: { color: mix(light, 0xffffff, flash), width: r * 0.1, alpha: 0.95 },
-    },
-    {
-      type: 'ellipse',
-      x: cx,
-      y: cy,
-      rx,
-      ry,
-      line: { color: mix(color, 0x000000, 0.55), width: 0.28, alpha: 0.9 },
-    },
+    { type: 'ellipse', x: cx, y: cy, rx: rr, ry: rr, fill: { color, alpha: 0.24 } },
+    { type: 'circle', x: cx, y: cy, r: rr - rim / 2, line: { color: rimColor, width: rim } },
+    { type: 'circle', x: cx, y: cy, r: rr, line: { color: dark, width: 0.28 } },
     {
       type: 'poly',
-      points: ellipseBand(cx, cy, rx, ry, 0.6, 0.76, -2.75, -1.75),
-      fill: { color: 0xffffff, alpha: 0.85 },
-    },
-    {
-      type: 'circle',
-      x: cx + Math.cos(-2.95) * rx * 0.66,
-      y: cy + Math.sin(-2.95) * ry * 0.66,
-      r: r * 0.06,
-      fill: { color: 0xffffff, alpha: 0.85 },
-    },
-    {
-      type: 'poly',
-      points: ellipseBand(cx, cy, rx, ry, 0.74, 0.9, 0.6, 2.5),
-      fill: { color: 0xffffff, alpha: 0.5 },
+      points: arcBand(cx, cy, rr * 0.64, rr * 0.76, -2.75, -2.0),
+      fill: { color: 0xffffff, alpha: 0.9 },
     },
   ];
-  if (flash > 0) {
+  if (cracked)
+    for (const a of [-0.7, 2.2]) {
+      const pts: number[] = [];
+      for (let k = 0; k < 4; k++) {
+        const d = rr * (1 - 0.16 * k);
+        const ak = a + (k % 2 ? 0.14 : -0.04);
+        pts.push(cx + Math.cos(ak) * d, cy + Math.sin(ak) * d);
+      }
+      out.push({ type: 'poly', points: pts, open: true, line: { color: dark, width: 0.3 } });
+    }
+  if (hit && hit.age < 5)
     out.push({
       type: 'ellipse',
       x: cx,
       y: cy,
-      rx,
-      ry,
-      fill: { color: 0xffffff, alpha: 0.7 * flash * flash },
+      rx: rr,
+      ry: rr,
+      fill: { color: 0xffffff, alpha: 0.8 * (1 - hit.age / 5) },
     });
-    const t = 1 - flash;
+  if (hit && hit.age < SHIELD_HIT_LIFE) {
+    const t = hit.age / SHIELD_HIT_LIFE;
     out.push({
-      type: 'ellipse',
+      type: 'circle',
       x: cx,
       y: cy,
-      rx: rx * (1 + 0.35 * easeOut(t)),
-      ry: ry * (1 + 0.35 * easeOut(t)),
-      line: { color: 0xffffff, width: r * 0.12 * flash, alpha: flash },
+      r: rr * (1 + 0.3 * easeOut(t)),
+      line: { color: 0xffffff, width: rim * (1 - t) + 0.1, alpha: 1 - t },
     });
   }
   return out;
 }
 
-function ellipseBand(
-  cx: number,
-  cy: number,
-  rx: number,
-  ry: number,
-  k0: number,
-  k1: number,
-  a0: number,
-  a1: number,
-): number[] {
-  const pts = arcBand(0, 0, k0, k1, a0, a1);
-  for (let i = 0; i < pts.length; i += 2) {
-    pts[i] = cx + pts[i]! * rx;
-    pts[i + 1] = cy + pts[i + 1]! * ry;
-  }
-  return pts;
-}
-
-/** A broken shield shattering: a white flash and shockwave, a spiky burst, and glassy shards flung out and falling. */
+/**
+ * A broken shield shattering from its cracked size: a white core that gives way within 3 frames to curved rim
+ * shards and glassy splinters flung out and falling, spikes around (never over) the fighter, and a shockwave.
+ */
 export function shieldBreakShapes(b: ShieldBurst, color: number, frame: number): Shape[] {
   const age = frame - b.frame;
   if (b.kind !== 'break' || age < 0 || age >= SHIELD_BREAK_LIFE) return [];
   const cx = b.x;
   const cy = -b.y;
+  const rim = b.r * CRACKED_SHIELD;
   const dark = mix(color, 0x000000, 0.55);
-  const light = mix(color, 0xffffff, 0.55);
-  const out: Shape[] = [];
-  if (age < 12) {
-    const k = age < 3 ? 0.7 + 0.15 * age : 1.15 * (1 - (age - 3) / 9);
-    out.push({
-      type: 'poly',
-      points: star(
-        cx,
-        cy,
-        14,
-        (i) => b.r * 1.5 * k * (i % 2 ? 0.7 : 1) * (0.85 + 0.15 * rand(b.seed, i)),
-        b.r * 0.5 * k,
-        rand(b.seed, 99) * TAU,
-      ),
-      fill: { color: light },
-      line: { color: dark, width: 0.35 },
-    });
-    out.push({
-      type: 'poly',
-      points: star(
-        cx,
-        cy,
-        14,
-        (i) => b.r * 0.95 * k * (i % 2 ? 0.7 : 1),
-        b.r * 0.35 * k,
-        rand(b.seed, 98) * TAU,
-      ),
-      fill: { color: 0xffffff },
-    });
-  }
-  const n = 14;
+  const light = mix(color, 0xffffff, 0.5);
   const t = age / SHIELD_BREAK_LIFE;
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * TAU + signed(b.seed, 10 + i) * 0.25;
-    const speed = b.r * (0.09 + 0.08 * rand(b.seed, 20 + i));
-    const dist = b.r * 0.55 + speed * age * (1 - age / (2.4 * SHIELD_BREAK_LIFE));
-    const x = cx + Math.cos(a) * dist;
-    const y = cy + Math.sin(a) * dist + 0.018 * age * age;
-    const size = b.r * lerp(0.16, 0.3, rand(b.seed, 30 + i)) * (1 - clamp01((t - 0.55) / 0.45));
-    if (size < 0.1) continue;
-    const spin = a + age * signed(b.seed, 40 + i) * 0.3;
-    const pts: number[] = [];
-    for (let k = 0; k < 3; k++) {
-      const ang = spin + (k / 3) * TAU + signed(b.seed, 50 + i * 3 + k) * 0.5;
-      const rr = size * (k === 0 ? 1.4 : 0.8);
-      pts.push(x + Math.cos(ang) * rr, y + Math.sin(ang) * rr);
+  const fall = 0.018 * age * age;
+  const out: Shape[] = [];
+  if (age < 6) {
+    const k = age < 2 ? 0.7 + 0.15 * age : 1 - (age - 2) / 4;
+    const rot = rand(b.seed, 99) * TAU;
+    for (let i = 0; i < 12; i++) {
+      const a = rot + (i / 12) * TAU;
+      const len = b.r * (i % 2 ? 0.45 : 0.75) * k * (0.85 + 0.3 * rand(b.seed, i));
+      out.push({
+        type: 'poly',
+        points: blade(cx + Math.cos(a) * rim, cy + Math.sin(a) * rim, a, len, b.r * 0.22 * k, 1),
+        fill: { color: i % 2 ? 0xffffff : light },
+        line: { color: dark, width: 0.25 },
+      });
     }
-    out.push({
-      type: 'poly',
-      points: pts,
-      fill: { color: i % 3 ? light : color, alpha: 0.9 },
-      line: { color: dark, width: 0.22 },
-    });
   }
   if (age < 3)
     out.push({
       type: 'circle',
       x: cx,
       y: cy,
-      r: b.r * (1 + 0.2 * age),
-      fill: { color: 0xffffff, alpha: 0.9 - 0.25 * age },
+      r: rim * (1 + 0.15 * age),
+      fill: { color: 0xffffff, alpha: 0.95 - 0.3 * age },
     });
+  const pieces = 7;
+  const spin0 = rand(b.seed, 70) * TAU;
+  for (let i = 0; i < pieces; i++) {
+    const span = (TAU / pieces) * (0.7 + 0.2 * rand(b.seed, 60 + i));
+    const a0 = spin0 + (i / pieces) * TAU;
+    const mid = a0 + span / 2;
+    const dist = b.r * (0.06 + 0.05 * rand(b.seed, 20 + i)) * age * (1 - age / (2.4 * SHIELD_BREAK_LIFE));
+    const thick = Math.max(0.3, rim * 0.28) * (1 - clamp01((t - 0.5) / 0.5));
+    if (thick < 0.08) continue;
+    const turn = signed(b.seed, 40 + i) * 0.03 * age;
+    out.push({
+      type: 'poly',
+      points: arcBand(
+        cx + Math.cos(mid) * dist,
+        cy + Math.sin(mid) * dist + fall,
+        rim - thick,
+        rim,
+        a0 + turn,
+        a0 + span + turn,
+        6,
+      ),
+      fill: { color: light, alpha: 0.95 },
+      line: { color: dark, width: 0.22 },
+    });
+  }
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * TAU + signed(b.seed, 10 + i) * 0.3;
+    const dist =
+      rim + b.r * (0.09 + 0.08 * rand(b.seed, 30 + i)) * age * (1 - age / (2.4 * SHIELD_BREAK_LIFE));
+    const x = cx + Math.cos(a) * dist;
+    const y = cy + Math.sin(a) * dist + fall;
+    const size = b.r * lerp(0.1, 0.2, rand(b.seed, 50 + i)) * (1 - clamp01((t - 0.55) / 0.45));
+    if (size < 0.1) continue;
+    const spin = a + age * signed(b.seed, 80 + i) * 0.3;
+    const pts: number[] = [];
+    for (let k = 0; k < 3; k++) {
+      const ang = spin + (k / 3) * TAU + signed(b.seed, 90 + i * 3 + k) * 0.5;
+      const d = size * (k === 0 ? 1.4 : 0.8);
+      pts.push(x + Math.cos(ang) * d, y + Math.sin(ang) * d);
+    }
+    out.push({
+      type: 'poly',
+      points: pts,
+      fill: { color: i % 3 ? light : color, alpha: 0.9 },
+      line: { color: dark, width: 0.2 },
+    });
+  }
   if (age < 14) {
     const k = age / 14;
     out.push({
       type: 'circle',
       x: cx,
       y: cy,
-      r: b.r * (1 + 1.4 * easeOut(k)),
-      line: { color: 0xffffff, width: b.r * 0.2 * (1 - k), alpha: 1 - k * k },
+      r: rim + b.r * 1.3 * easeOut(k),
+      line: { color: 0xffffff, width: b.r * 0.1 * (1 - k), alpha: 1 - k * k },
     });
   }
   return out;

@@ -17,6 +17,8 @@ export interface Freeze {
 /** Hitlag jitter amplitude in world units: the victim shakes ±1.5 along the knockback axis, the attacker half that. */
 export const VICTIM_JITTER = 1.5;
 export const ATTACKER_JITTER = VICTIM_JITTER / 2;
+/** A blocked hit shakes the shielding fighter (and its bubble) sideways by this much, the attacker half that. */
+export const SHIELD_JITTER = 0.5;
 
 /** The axis `victim`'s pending launch will send it along (hitbox angle after the Sakurai rule; unit, y up). */
 export function knockbackAxis(victim: FighterState): { x: number; y: number } {
@@ -45,6 +47,24 @@ export function freezesFrom(e: Extract<SimEvent, { type: 'hit' }>, m: MatchState
     ay: axis.y,
   });
   return [freeze(e.victim, VICTIM_JITTER), freeze(e.attacker, ATTACKER_JITTER)];
+}
+
+/** The shielding fighter's and the attacker's freeze from a `shieldHit` event: sideways, away from the attacker. */
+export function shieldFreezes(
+  e: Extract<SimEvent, { type: 'shieldHit' }>,
+  m: MatchState,
+  frame: number,
+): Freeze[] {
+  const ax = m.fighters[e.victim]!.pos.x >= m.fighters[e.attacker]!.pos.x ? 1 : -1;
+  const freeze = (port: number, amplitude: number): Freeze => ({
+    frame,
+    port,
+    lag: Math.max(1, m.fighters[port]!.hitlag),
+    amplitude,
+    ax,
+    ay: 0,
+  });
+  return [freeze(e.victim, SHIELD_JITTER), freeze(e.attacker, SHIELD_JITTER / 2)];
 }
 
 /**

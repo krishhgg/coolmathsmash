@@ -55,7 +55,7 @@ export function spawnHitSpark(
     x: e.x,
     y: e.y,
     power,
-    size: lerp(3.2, 11, power),
+    size: lerp(3, 6.2, power),
     life: Math.round(lerp(10, 22, power)),
     style,
     lean,
@@ -67,7 +67,7 @@ export function spawnHitSpark(
 function pop(age: number, life: number): number {
   if (age < 2) return 0.6 + 0.28 * age;
   if (age < 4) return 1.16 - 0.08 * (age - 2);
-  return 1 - 0.75 * clamp01((age - 4) / Math.max(1, life - 4)) ** 1.3;
+  return 1 - 0.75 * clamp01((age - 4) / Math.max(1, life - 4)) ** 0.9;
 }
 
 /** The spark's shapes at `frame` (world units, y down); empty outside its life. */
@@ -75,47 +75,72 @@ export function hitSparkShapes(s: HitSpark, frame: number): Shape[] {
   const age = frame - s.frame;
   if (age < 0 || age >= s.life) return [];
   const p = PALETTES[s.style];
-  const cx = s.x;
-  const cy = -s.y;
+  const cx = s.x - Math.cos(s.lean) * s.size * 0.2;
+  const cy = -s.y - Math.sin(s.lean) * s.size * 0.2;
   const R = s.size * pop(age, s.life);
   const lw = lerp(0.2, 0.38, s.power);
   const out: Shape[] = [];
+  if (age < 2) {
+    contact(out, s, age, cx, cy, p, lw);
+    return out;
+  }
 
   if (s.power >= 0.45) streaks(out, s, age, cx, cy, p, lw);
   if (s.style === 'fire') flames(out, s, age, cx, cy, R, p, lw);
   else burst(out, s, age, cx, cy, R, p, lw);
   debris(out, s, age, cx, cy, p, lw);
 
-  if (age < 2)
-    out.push({
-      type: 'circle',
-      x: cx,
-      y: cy,
-      r: s.size * (0.5 + 0.2 * age),
-      fill: { color: 0xffffff, alpha: 0.9 - 0.35 * age },
-    });
-  if (s.power >= 0.4 && age < 9) {
-    const k = age < 2 ? 0.7 + 0.15 * age : 1 - (age - 2) / 7;
-    const tilt = signed(s.seed, 40) * 0.25;
-    out.push({
-      type: 'poly',
-      points: twinkle(cx, cy, s.size * 1.7 * k, s.size * 1.2 * k, s.size * 0.12 * k, tilt),
-      fill: { color: 0xffffff },
-      line: { color: p.line, width: lw * 0.6 },
-    });
-  }
   const ringLife = 6 + Math.round(4 * s.power);
-  if (age < ringLife) {
-    const t = age / ringLife;
+  if (s.style !== 'shield' && s.power >= 0.4 && age - 2 < ringLife) {
+    const t = (age - 2) / ringLife;
     out.push({
       type: 'circle',
       x: cx,
       y: cy,
-      r: s.size * (0.5 + 0.95 * easeOut(t)),
-      line: { color: p.ring, width: s.size * lerp(0.16, 0.02, t), alpha: 1 - t * t },
+      r: s.size * (0.7 + 0.8 * easeOut(t)),
+      line: { color: p.ring, width: s.size * lerp(0.1, 0.02, t), alpha: 1 - t * t },
     });
   }
   return out;
+}
+
+/**
+ * The first two frames of contact: one white (then cream) 8-point star with only an outer outline, and short white
+ * streaks bursting out along the launch direction. The burst takes over on frame 2.
+ */
+function contact(
+  out: Shape[],
+  s: HitSpark,
+  age: number,
+  cx: number,
+  cy: number,
+  p: SparkPalette,
+  lw: number,
+) {
+  const R = s.size * (1 + 0.15 * age);
+  for (let i = 0; i < 7; i++) {
+    const a = s.lean + signed(s.seed, 120 + i) * 0.9;
+    const from = R * (0.55 + 0.1 * age);
+    out.push({
+      type: 'poly',
+      points: blade(
+        cx + Math.cos(a) * from,
+        cy + Math.sin(a) * from,
+        a,
+        R * (0.6 + 0.5 * rand(s.seed, 130 + i)) * (1 + 0.5 * age),
+        s.size * 0.14,
+        1,
+      ),
+      fill: { color: 0xffffff },
+      line: { color: p.line, width: lw * 0.5 },
+    });
+  }
+  out.push({
+    type: 'poly',
+    points: star(cx, cy, 8, (i) => R * (i % 2 ? 0.6 : 1), R * 0.38, s.lean),
+    fill: { color: age === 0 ? 0xffffff : 0xfff6c8 },
+    line: { color: p.line, width: lw },
+  });
 }
 
 /** Layered star: outlined outer spikes, a lighter middle star and a white core (one layer fewer for weak hits). */
@@ -201,7 +226,7 @@ function streaks(
   const n = 4 + Math.round(5 * s.power);
   for (let i = 0; i < n; i++) {
     const a = i < n / 2 ? s.lean + signed(s.seed, 50 + i) * 0.75 : rand(s.seed, 50 + i) * TAU;
-    const reach = s.size * (1.5 + 1.1 * rand(s.seed, 60 + i));
+    const reach = s.size * (1.3 + 0.8 * rand(s.seed, 60 + i));
     const head = reach * easeOut(age / 4);
     const tail = s.size * 0.3 + Math.max(0, age - 2) * reach * 0.16;
     if (tail >= head - 0.5) continue;

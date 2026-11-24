@@ -1,4 +1,4 @@
-import { Container, Graphics, Text } from 'pixi.js';
+import { ColorMatrixFilter, Container, Graphics, Text } from 'pixi.js';
 import { isIntangible } from '../sim/actions/registry';
 import { SHIELD_MAX } from '../sim/constants';
 import type { FighterState } from '../sim/fighter';
@@ -10,7 +10,7 @@ import type { FighterArt } from './rig/types';
 import { createRigView, type RigView } from './rig/view';
 import { paint } from './vfx/paint';
 import { hex } from './vfx/shapes';
-import { shieldBubbleShapes } from './vfx/shield';
+import { CRACKED_SHIELD, shieldBubbleShapes } from './vfx/shield';
 import type { FighterFx } from './vfx/system';
 
 /**
@@ -54,12 +54,12 @@ export function pickCostumes(
   return picks;
 }
 
-/** One fighter: its rig posed from the action and frame, plus shield, port tag and debug label. World units, y down. */
 /** Shield bubble radius: shrinks with shield HP to 15% of full size, and never below zero when HP overshoots. */
 export function shieldRadius(def: FighterDef, shieldHp: number): number {
   return Math.max(0, def.stats.shieldSize * ((shieldHp / SHIELD_MAX) * 0.85 + 0.15));
 }
 
+/** One fighter: its rig posed from the action and frame, plus shield, port tag and debug label. World units, y down. */
 export class FighterView {
   readonly container = new Container();
   private readonly body = new Container();
@@ -67,6 +67,7 @@ export class FighterView {
   private readonly rig: RigView | null;
   private readonly shield = new Graphics();
   private readonly shieldColor: string;
+  private readonly flash = new ColorMatrixFilter();
   private readonly tag = new Text({
     text: '',
     style: {
@@ -112,7 +113,7 @@ export class FighterView {
     this.container.addChild(this.body, this.shield, this.tag, this.label);
   }
 
-  /** `fx`: the hitlag jitter and the latest hit on this fighter's shield (src/render/vfx). */
+  /** `fx`: the jitter, flash and latest shield hit the effects put on this fighter (src/render/vfx). */
   update(f: FighterState, alpha: number, frame: number, debug: boolean, fx: FighterFx = {}): void {
     const out = f.action === 'ko' || f.action === 'out';
     this.container.visible = !out;
@@ -120,17 +121,49 @@ export class FighterView {
     const x = f.prevPos.x + (f.pos.x - f.prevPos.x) * alpha;
     const y = f.prevPos.y + (f.pos.y - f.prevPos.y) * alpha;
     this.container.position.set(x, -y);
-    this.body.position.set(fx.jitter?.x ?? 0, -(fx.jitter?.y ?? 0));
+    const jx = fx.jitter?.x ?? 0;
+    const jy = -(fx.jitter?.y ?? 0);
+    this.body.position.set(jx, jy);
+    this.shield.position.set(jx, jy);
     this.body.scale.x = f.facing;
     if (this.rig && this.art) this.rig.pose(...clipFor(this.def, this.art, f), frame);
-    this.body.alpha = isIntangible(f) && frame % 8 < 4 ? 0.55 : 1;
+    this.body.alpha = !fx.flash && isIntangible(f) && frame % 8 < 4 ? 0.55 : 1;
+    const k = fx.flash?.amount ?? 0;
+    if (k > 0) {
+      const c = fx.flash!.color;
+      const ch = (shift: number) => (k * ((c >> shift) & 255)) / 255;
+      this.flash.matrix = [
+        1 - k,
+        0,
+        0,
+        0,
+        ch(16),
+        0,
+        1 - k,
+        0,
+        0,
+        ch(8),
+        0,
+        0,
+        1 - k,
+        0,
+        ch(0),
+        0,
+        0,
+        0,
+        1,
+        0,
+      ];
+    }
+    this.body.filters = k > 0 ? [this.flash] : [];
     this.shield.clear();
     if (f.action === 'shield' || f.action === 'shieldStun') {
-      const r = shieldRadius(this.def, f.shieldHp);
+      const cracked = f.shieldHp <= 0;
+      const r = cracked ? this.def.stats.shieldSize * CRACKED_SHIELD : shieldRadius(this.def, f.shieldHp);
       if (r > 0)
         paint(
           this.shield,
-          shieldBubbleShapes(0, -this.def.stats.height / 2, r, hex(this.shieldColor), frame, fx.shieldHit),
+          shieldBubbleShapes(0, -this.def.stats.height / 2, r, hex(this.shieldColor), frame, fx.shieldHit, cracked),
         );
     }
     this.label.visible = debug;

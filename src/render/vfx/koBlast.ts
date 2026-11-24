@@ -12,7 +12,9 @@ export interface KoBlast {
   seed: number;
 }
 
-export const KO_LIFE = 42;
+export const KO_LIFE = 44;
+/** The beam reaches 1.25 screen diagonals back across the stage. */
+const BEAM_LENGTH = 1.25 * Math.hypot(VIEW_WIDTH, VIEW_HEIGHT);
 
 export function spawnKoBlast(port: number, frame: number, x: number, y: number): KoBlast {
   return { frame, port, x, y, seed: seedOf(frame, port, 7) };
@@ -35,18 +37,18 @@ export function koAnchor(ko: KoBlast, view: CameraView): { x: number; y: number;
 
 /**
  * Ultimate's KO blast in screen pixels: a port-coloured cone of light, widest where it bursts in at the screen edge
- * and tapering inward, with a white core, speed streaks, twinkling sparkles and a starburst at the edge. It shoots
- * in over 6 frames, holds, then pinches thin and vanishes.
+ * and tapering across the whole screen, with a white core, speed streaks, twinkling sparkles and a starburst at the
+ * edge. It shoots across in 4 frames, holds until frame 24, then pinches thin and vanishes over 20.
  */
 export function koBlastShapes(ko: KoBlast, color: number, frame: number, view: CameraView): Shape[] {
   const age = frame - ko.frame;
   if (age < 0 || age >= KO_LIFE) return [];
   const { x: ax, y: ay, ux, uy } = koAnchor(ko, view);
   const a = Math.atan2(uy, ux);
-  const reach = easeOut(age / 6);
-  const pinch = age < 20 ? 1 : 1 - clamp01((age - 20) / (KO_LIFE - 20)) ** 0.8;
+  const reach = easeOut(age / 4);
+  const pinch = age < 24 ? 1 : 1 - clamp01((age - 24) / (KO_LIFE - 24)) ** 0.8;
   const width = 420 * (age < 3 ? 0.65 + 0.12 * age : 1) * pinch;
-  const len = 900 * reach;
+  const len = BEAM_LENGTH * reach;
   const ox = ax - ux * 120;
   const oy = ay - uy * 120;
   const light = mix(color, 0xffffff, 0.5);
@@ -73,9 +75,9 @@ export function koBlastShapes(ko: KoBlast, color: number, frame: number, view: C
   for (let i = 0; i < 12; i++) {
     const off = signed(ko.seed, 10 + i) * width * 0.42;
     const speed = 50 + 40 * rand(ko.seed, 20 + i);
-    const start = 60 + ((age * speed + rand(ko.seed, 30 + i) * 700) % 760);
+    const start = 60 + ((age * speed + rand(ko.seed, 30 + i) * BEAM_LENGTH) % (BEAM_LENGTH * 0.85));
     const sl = (120 + 200 * rand(ko.seed, 40 + i)) * reach * pinch;
-    if (sl < 8) continue;
+    if (sl < 8 || start > len) continue;
     const px = ox - uy * off + ux * start;
     const py = oy + ux * off + uy * start;
     out.push({
@@ -88,7 +90,7 @@ export function koBlastShapes(ko: KoBlast, color: number, frame: number, view: C
     const cycle = 10 + Math.floor(rand(ko.seed, 60 + i) * 6);
     const phase = (age + Math.floor(rand(ko.seed, 70 + i) * cycle)) % cycle;
     const twk = Math.sin((Math.PI * phase) / cycle);
-    const along = 80 + 560 * rand(ko.seed, 80 + i) + age * 6;
+    const along = 80 + BEAM_LENGTH * 0.6 * rand(ko.seed, 80 + i) + age * 6;
     const off = signed(ko.seed, 90 + i) * width * 0.6;
     const size = (10 + 18 * rand(ko.seed, 100 + i)) * twk * Math.max(pinch, 0.25) * reach;
     if (size < 2) continue;

@@ -1,20 +1,21 @@
 # Combat effects (VFX)
 
-Hit sparks, launch smoke, the shield bubble, KO blasts and the small extras (smash-charge sparkle, jump and landing
-dust, the respawn halo) live in `src/render/vfx/`. They read the simulation and never write to it: they look like
-Smash Ultimate's effects, drawn as flat Flash shapes with dark outlines, no blur.
+Hit sparks, launch smoke, the shield bubble, KO blasts, hitlag jitter and the small extras (smash-charge flash and
+sparkle, jump and landing dust, the respawn platform) live in `src/render/vfx/`. They read the simulation and never
+write to it: they look like Smash Ultimate's effects, drawn as flat Flash shapes with dark outlines, no blur. No
+effect draws a character.
 
-| File                  | What it holds                                                                                 |
-| --------------------- | --------------------------------------------------------------------------------------------- |
-| `system.ts`           | `VfxState` (plain spawn records), `stepVfx` (spawn from one frame's events, drop the expired) |
-| `hitSpark.ts`         | Hit sparks: layered star (normal, electric, shield clang) or flame burst (fire), streaks      |
-| `smoke.ts`            | Launch smoke and dust puffs (merged two-tone clouds), speed lines on very fast launches       |
-| `shield.ts`           | Shield bubble, its flash and wobble on `shieldHit`, the shatter on `shieldBreak`              |
-| `koBlast.ts`          | KO blast, in screen pixels, from the screen edge nearest the KO point toward the centre       |
-| `shake.ts`            | Screen shake records and the summed offset                                                    |
-| `extras.ts`           | Smash-charge glow and sparkle, respawn halo                                                   |
-| `shapes.ts`           | The `Shape` list every effect returns, and geometry helpers (star, twinkle, blade, arc band)  |
-| `paint.ts`, `view.ts` | The only Pixi code: `paint` draws shapes, `VfxView` fills the three layers each render        |
+| File                  | What it holds                                                                                   |
+| --------------------- | ----------------------------------------------------------------------------------------------- |
+| `system.ts`           | `VfxState` (plain spawn records), `stepVfx` (spawn from one frame's events, drop the expired)   |
+| `hitSpark.ts`         | Hit sparks: a contact flash, then a layered star (normal, electric, shield clang) or flames     |
+| `hitlag.ts`           | Hitlag jitter: `Freeze` records and `hitlagOffset`, the render-only shake along the launch axis |
+| `smoke.ts`            | Launch smoke and dust puffs (merged two-tone clouds), speed lines on very fast launches         |
+| `shield.ts`           | Shield bubble, its flash and ripple on `shieldHit`, the cracked bubble, the shatter on a break  |
+| `koBlast.ts`          | KO blast, in screen pixels, from the screen edge nearest the KO point across the screen         |
+| `extras.ts`           | Smash-charge sparkle and release flash, respawn platform                                        |
+| `shapes.ts`           | The `Shape` list every effect returns, and geometry helpers (star, twinkle, blade, arc band)    |
+| `paint.ts`, `view.ts` | The only Pixi code: `paint` draws shapes, `VfxView` fills the three layers each render          |
 
 ## Determinism
 
@@ -27,19 +28,21 @@ that does not follow the last stepped one, starts from no effects. No `Math.rand
 
 ## Layers
 
-`VfxView` draws `behind` the fighters (respawn halo, charge glow, dust and launch smoke, speed lines), in `front` of
-them (hit sparks, shield shatters, charge sparkle) and on `screen` above the world (KO blasts). The shield bubble is
-drawn by `FighterView` with `shieldBubbleShapes`. Screen shake moves the camera view (`shakeView` in
-`src/render/camera.ts`) by `shakeOffset` pixels, so the stage, fighters and effects shake together.
+`VfxView` draws `behind` the fighters (respawn platform, dust and launch smoke, speed lines), in `front` of them (hit
+sparks, shield shatters, charge sparkle and release flash) and on `screen` above the world (KO blasts). `FighterView`
+draws what sits on a fighter, from `fighterFx`: the shield bubble (`shieldBubbleShapes`), the jitter offset of body
+and bubble, and a colour flash (smash charge, respawn invincibility) through a `ColorMatrixFilter`. Screen shake is
+the camera's (`SHAKE` and `shakesFrom` in `src/render/camera.ts`); the effects add none of their own.
 
 ## Tuning
 
-| Effect       | Driven by                                                                                        |
-| ------------ | ------------------------------------------------------------------------------------------------ |
-| Hit spark    | `hitPower(kb, damage)` in [0, 1]: radius 3.2-11 units, life 10-22 frames, streaks from 0.45      |
-| Screen shake | tumbling hits 3-10 px for 10 frames, shield break 7 px for 14, KO 16 px for 34                   |
-| Launch smoke | knockback speed from 2.4 units/frame (density, puff size and life grow up to 7); speed lines 5.5 |
-| KO blast     | 42 frames: shoots in over 6, holds, pinches out from frame 20                                    |
+| Effect        | Driven by                                                                                        |
+| ------------- | ------------------------------------------------------------------------------------------------ |
+| Hit spark     | `hitPower(kb, damage)` in [0, 1]: radius 3-6.2 units, life 10-22 frames, streaks from 0.45       |
+| Hitlag jitter | victim ±1.5 units along the knockback axis, attacker ±0.75, fading to 0 at launch; shield ±0.5   |
+| Launch smoke  | knockback speed from 2.4 units/frame (density, puff size and life grow up to 7); speed lines 5.5 |
+| KO blast      | 44 frames: shoots across in 4, holds, pinches out from frame 24; the KO'd trail shrinks over 6   |
+| Smash charge  | flash toward #FFF4B0 every 8 frames, down to every 4 at full charge; ±0.15 units sideways shake  |
 
 Capture scenarios for each effect: `hit-spark`, `hit-spark-weak`, `launch-smoke`, `ko-blast`, `shield-hit`,
 `shield-break`, `smash-charge`, `respawn-halo` and `land-dust` (`npm run capture -- --only <names>`).

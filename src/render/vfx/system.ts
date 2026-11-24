@@ -2,11 +2,11 @@ import { getFighter } from '../../fighters/registry';
 import type { FighterState } from '../../sim/fighter';
 import type { MatchState } from '../../sim/match';
 import { HALO_FADE_LIFE, type HaloFade } from './extras';
-import { freezesFrom, hitlagOffset, type Freeze } from './hitlag';
+import { freezesFrom, hitlagOffset, shieldFreezes, type Freeze } from './hitlag';
 import { spawnHitSpark, type HitSpark } from './hitSpark';
 import { KO_LIFE, spawnKoBlast, type KoBlast } from './koBlast';
 import { shieldLife, spawnShieldBreak, spawnShieldHit, type ShieldBurst } from './shield';
-import { dustPuffs, trailPuffs, type Puff } from './smoke';
+import { dustPuffs, TRAIL_CUT, trailPuffs, type Puff } from './smoke';
 
 /**
  * Every live effect, as plain spawn records. Each record's look is a pure function of the record and the frame
@@ -42,6 +42,13 @@ export function charging(f: FighterState): boolean {
   return at !== undefined && f.actionFrame < at;
 }
 
+/** Frames since `f` let go of a charged smash attack (it charged and is past the charge frame), else undefined. */
+export function chargeReleased(f: FighterState): number | undefined {
+  if (!f.move || f.charge <= 0) return undefined;
+  const at = getFighter(f.fighter).moves?.[f.move]?.charge;
+  return at !== undefined && f.actionFrame >= at ? f.actionFrame - at : undefined;
+}
+
 /**
  * Advance `v` to the frame `m` just simulated: drop effects past their lifetime, then spawn this frame's from its
  * events (hits, shield hits and breaks, KOs, jumps, landings, leaving the respawn platform) and from launched
@@ -51,7 +58,9 @@ export function stepVfx(v: VfxState, m: MatchState): void {
   const frame = m.frame;
   v.frame = frame;
   v.sparks = v.sparks.filter((s) => frame - s.frame < s.life);
-  v.puffs = v.puffs.filter((p) => frame - p.born < p.life);
+  v.puffs = v.puffs.filter(
+    (p) => frame - p.born < p.life && (p.cut === undefined || frame - p.cut < TRAIL_CUT),
+  );
   v.shields = v.shields.filter((b) => frame - b.frame < shieldLife(b));
   v.kos = v.kos.filter((k) => frame - k.frame < KO_LIFE);
   v.halos = v.halos.filter((h) => frame - h.frame < HALO_FADE_LIFE);
@@ -66,9 +75,15 @@ export function stepVfx(v: VfxState, m: MatchState): void {
         break;
       }
       case 'shieldHit': {
-        const away = m.fighters[e.victim]!.pos.x >= m.fighters[e.attacker]!.pos.x ? 0 : Math.PI;
+        const freezes = shieldFreezes(e, m, frame);
+        v.freezes.push(...freezes);
         v.sparks.push(
-          spawnHitSpark({ ...e, kb: 0, damage: e.damage * 0.5, effect: 'normal' }, frame, away, 'shield'),
+          spawnHitSpark(
+            { ...e, kb: 0, damage: e.damage * 0.5, effect: 'normal' },
+            frame,
+            freezes[0]!.ax > 0 ? 0 : Math.PI,
+            'shield',
+          ),
         );
         v.shields.push(spawnShieldHit(e.victim, frame, e.damage));
         break;
@@ -81,6 +96,7 @@ export function stepVfx(v: VfxState, m: MatchState): void {
       }
       case 'ko':
         v.kos.push(spawnKoBlast(e.port, frame, e.x, e.y));
+        for (const p of v.puffs) if (p.port === e.port && p.tone === 'smoke') p.cut = frame;
         break;
       case 'jump': {
         const f = m.fighters[e.port]!;
@@ -90,7 +106,7 @@ export function stepVfx(v: VfxState, m: MatchState): void {
       }
       case 'land': {
         const f = m.fighters[e.port]!;
-        v.puffs.push(...dustPuffs(f.pos.x, f.pos.y, frame, e.port, e.lag > 4 ? 3 : 2, 0.7, 1.7));
+        v.puffs.push(...dustPuffs(f.pos.x, f.pos.y, frame, e.port, e.lag > 4 ? 4 : 3, 0.7, 1.7));
         break;
       }
       case 'action':
@@ -121,14 +137,33 @@ export function shieldPulse(v: VfxState, port: number): { age: number; power: nu
   return undefined;
 }
 
-/** Effects drawn on a fighter itself: its hitlag jitter (world units, y up) and the latest hit on its shield. */
+/**
+ * Effects drawn on a fighter itself: its hitlag (or smash-charge) jitter in world units, y up; the latest hit on its
+ * shield; and a flash toward `color` by `amount` (0 to 1), which replaces the plain intangibility blink.
+ */
 export interface FighterFx {
   jitter?: { x: number; y: number };
   shieldHit?: { age: number; power: number };
+  flash?: { color: number; amount: number };
 }
 
+/** Smash charge: the fighter flashes pale gold, faster as the charge builds (every 8 frames, down to every 4). */
+const CHARGE_FLASH = 0xfff4b0;
+const CHARGE_JITTER = 0.15;
+
 export function fighterFx(v: VfxState, f: FighterState, frame: number): FighterFx {
-  return { jitter: hitlagOffset(f, frame, freezeOf(v, f.port)), shieldHit: shieldPulse(v, f.port) };
+  const fx: FighterFx = {
+    jitter: hitlagOffset(f, frame, freezeOf(v, f.port)),
+    shieldHit: shieldPulse(v, f.port),
+  };
+  if (charging(f)) {
+    const period = Math.round(8 - 4 * Math.min(1, f.charge / 60));
+    fx.flash = { color: CHARGE_FLASH, amount: frame % period < (period > 5 ? 3 : 2) ? 0.6 : 0 };
+    fx.jitter = { x: fx.jitter!.x + (frame % 2 ? -CHARGE_JITTER : CHARGE_JITTER), y: fx.jitter!.y };
+  } else if (f.action === 'respawn' || f.intangible > 0) {
+    fx.flash = { color: 0xffffff, amount: frame % 6 < 2 ? 0.7 : 0 };
+  }
+  return fx;
 }
 
 /**
