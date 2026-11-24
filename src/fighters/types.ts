@@ -121,10 +121,10 @@ export interface MoveDef {
   intangible?: [number, number];
   /**
    * Armor (Ultimate): on `frames` (inclusive) hits still add damage and hitlag, but they don't launch, cause
-   * hitstun or interrupt the move. Without `threshold` it is heavy armor; with one it holds only against hits whose
-   * knockback is below it.
+   * hitstun or interrupt the move. A hit breaks through when its knockback reaches `threshold` or its damage
+   * reaches `damageThreshold`; with neither set it is heavy armor and nothing breaks through.
    */
-  armor?: { frames: [number, number]; threshold?: number };
+  armor?: { frames: [number, number]; threshold?: number; damageThreshold?: number };
   /** Recoveries: the move ends in helpless fall instead of a normal fall. */
   helpless?: boolean;
   /** Airborne moves that may grab a ledge from this frame. */

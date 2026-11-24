@@ -84,8 +84,8 @@ interface Connection {
   at: { x: number; y: number };
   /** The attacker's move, kept here because an earlier hit this frame may clear it. */
   move: string | null;
-  /** Knockback below which the victim's move armours through the hit: 0 without armor, Infinity for heavy armor. */
-  armor: number;
+  /** The victim's armor this frame (MoveDef.armor): hits below both thresholds don't launch. Null without armor. */
+  armor: { kb: number; damage: number } | null;
 }
 
 /**
@@ -120,15 +120,15 @@ function connection(
     shielding: v.action === 'shield' || v.action === 'shieldStun',
     at,
     move,
-    armor: armorThreshold(v),
+    armor: armorOf(v),
   };
 }
 
-/** The knockback below which `v`'s current move armours through hits this frame (MoveDef.armor). */
-function armorThreshold(v: FighterState): number {
+/** The knockback and damage thresholds of `v`'s armor this frame (MoveDef.armor); unset ones never break. */
+function armorOf(v: FighterState): Connection['armor'] {
   const armor = moveOf(v)?.armor;
-  if (!armor || !inWindow(v.actionFrame, armor.frames)) return 0;
-  return armor.threshold ?? Infinity;
+  if (!armor || !inWindow(v.actionFrame, armor.frames)) return null;
+  return { kb: armor.threshold ?? Infinity, damage: armor.damageThreshold ?? Infinity };
 }
 
 /**
@@ -225,7 +225,7 @@ function hit(
     x: at.x,
     y: at.y,
   });
-  if (kb < armor) return;
+  if (armor && kb < armor.kb && damage < armor.damage) return;
   const held = grabArmour(m, v, damage);
   if (again && v.launch && v.launch.kb >= kb) return;
   v.launch = { kb, angle: box.angle, dir, setKnockback: (box.wbkb ?? 0) > 0 };

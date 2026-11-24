@@ -8,8 +8,8 @@ import { attack, runPorts } from '../testing/sim';
 import { knockback } from './formulas';
 
 /**
- * The Mario reference with two armored moves (heavy armor on frames 1-30, and armor that holds below 100 knockback)
- * and a standing grab.
+ * The Mario reference with armored moves (heavy armor on frames 1-30, armor that holds below 100 knockback, and armor
+ * that holds against hits under 12%), its 2.5% jab and a standing grab.
  */
 registerFighter(
   defineFighter({
@@ -19,6 +19,8 @@ registerFighter(
     moves: {
       brace: { kind: 'other', faf: 50, hits: [], armor: { frames: [1, 30] } },
       tough: { kind: 'other', faf: 50, hits: [], armor: { frames: [1, 30], threshold: 100 } },
+      stone: { kind: 'other', faf: 50, hits: [], armor: { frames: [1, 30], damageThreshold: 12 } },
+      jab: marioReference.moves!.jab!,
       grab: {
         kind: 'other',
         faf: 35,
@@ -103,6 +105,19 @@ describe('armor (MoveDef.armor)', () => {
     expect([low.action, low.launch]).toEqual(['attack', null]);
     const high = probed('tough', 120).v;
     expect(high.action).toBe('tumble');
+  });
+
+  it('damage-threshold armor holds against weaker hits and breaks on one that deals the threshold', () => {
+    const weak = duel(0, 'test-armor');
+    const before = weak.v.damage;
+    attack(weak.m, 1, 'stone');
+    attack(weak.m, 0, 'jab');
+    runPorts(weak.m, 3, [{}, {}]);
+    expect(weak.v.damage).toBeGreaterThan(before);
+    expect([weak.v.action, weak.v.launch]).toEqual(['attack', null]);
+    const strong = probed('stone', 0).v;
+    expect(probe.damage * 1.05).toBeGreaterThanOrEqual(12);
+    expect(strong.launch).not.toBeNull();
   });
 
   it('does not stop a grab', () => {
