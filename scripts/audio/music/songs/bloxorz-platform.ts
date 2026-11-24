@@ -19,12 +19,13 @@ import {
   snare,
   sub,
   swell,
+  tom,
   vibes,
 } from '../kits/atmos.ts';
 
 /**
  * Bloxorz Board: an original stage theme in the spirit of Bloxorz's calm, cerebral puzzle music. G Dorian
- * with quartal (stacked-fourth) voicings at 126 BPM: a glass ostinato in threes that turns against the 4/4
+ * with quartal (stacked-fourth) voicings at 128 BPM: a glass ostinato in threes that turns against the 4/4
  * beat like a block tipping end over end, vibraphone comping, a round syncopated bass and a dry, swung
  * kit. Form A (bars 1-8, the glass-bell theme), B (9-16, a Lydian lift with a lyrical vibes melody over a
  * warm pad), and C (17-20, the board collapsing: a falling glass cascade and a fill back to the top).
@@ -112,7 +113,9 @@ const GROOVE = [
   [0, 2, 0, 1],
   [3, 1, 0, 0.55],
   [6, 2, 12, 0.8],
+  [8, 1, 0, 0.5],
   [10, 2, 0, 0.9],
+  [12, 1, 12, 0.55],
   [13, 1, 7, 0.65],
   [14, 2, 10, 0.75],
 ] as const;
@@ -133,14 +136,14 @@ const subs = bars.flatMap((c, bar) => [
 // ---------------------------------------------------------------- melodies
 
 const themeA = [
-  'D5:4 G5:4 C6:6 Bb5:2',
-  'A5:4 F5:4 G5:8',
-  'D5:4 G5:4 A5:6 G5:2',
-  'F5:4 D5:4 Bb4:8',
-  'E5:4 A5:4 D6:6 C6:2',
-  'Bb5:4 G5:4 A5:8',
-  'G5:4 A5:4 C6:4 D6:4',
-  'C6:6 A5:2 F#5:4 D5:4',
+  'D5:2 G5:2 C6:2 Bb5:2 A5:4 G5:2 F5:2',
+  'G5:6 A5:2 Bb5:4 C6:4',
+  'D6:2 C6:2 Bb5:2 G5:2 A5:4 F5:2 G5:2',
+  'D5:8 . . F5:2 G5:2 A5:2',
+  'E5:2 A5:2 D6:2 C6:2 Bb5:4 A5:2 G5:2',
+  'A5:6 Bb5:2 C6:4 D6:4',
+  'G6:2 F6:2 D6:2 C6:2 A5:4 C6:2 D6:2',
+  'C6:4 A5:2 F#5:2 Eb5:4 D5:4',
 ];
 const themeB = [
   'Bb5:6 A5:2 G5:8',
@@ -153,7 +156,9 @@ const themeB = [
   'F#5:6 G5:2 A5:4 C6:4',
 ];
 const bells = arc(seq(themeA.join(' '), { step: 0.25, v: 0.8 }), phrase(8, 0.2));
-const vibesLead = arc(seq(themeB.join(' '), { step: 0.25, start: at(8), v: 0.8 }), phrase(8, 0.25));
+const vibesLead = arc(seq(themeB.join(' '), { step: 0.25, start: at(8), v: 0.8 }), phrase(8, 0.35));
+/** The glass chord at the end of the loop rings across the loop point into the top. */
+const wrapChord = Gm11.voicing.map((n) => ({ t: at(19) + 3, d: 2, n: n + 12, v: 0.5 }));
 
 // ---------------------------------------------------------------- drums
 
@@ -169,17 +174,27 @@ const swing = (notes: Note[], amount: number) =>
   notes.map((n) => (Math.round(n.t / 0.25) % 2 ? { ...n, t: n.t + amount } : n));
 
 const kicks = [
-  ...grid16('x.....x...x.....', 0, 8),
-  ...grid16('x.....x...x..o..', 8, 8),
+  ...grid16('x.....x...x...o.', 0, 7),
+  ...grid16('x.....x...x.....', 7, 1),
+  ...grid16('x.....x...x..o..', 8, 7),
+  ...grid16('x.....x.........', 15, 1),
   ...grid16('x.....x...x.....', 16, 2),
   ...grid16('x.x...x.x.x.x...', 18, 1),
   ...grid16('x...x...x.x.x.x.', 19, 1),
 ];
-const rims = [...grid16('....x.......x..-', 0, 8), ...grid16('....x.......x...', 16, 2)];
+const rims = [
+  ...grid16('....x.......x..-', 0, 7),
+  ...grid16('....x...', 7, 1),
+  ...grid16('....x.......x...', 16, 2),
+];
 const snares = [
-  ...grid16('....x.......x...', 8, 8),
+  ...grid16('....o.......o...', 0, 7),
+  ...grid16('....o...', 7, 1),
+  ...grid16('....x.......x...', 8, 7),
+  ...grid16('....x...x.x.xxxx', 15, 1),
   ...arc(grid16('..x...x.xxxxxxxx', 18, 2), ramp(at(18), at(20), 0.35, 1)),
 ];
+const fillToms = seq('G3 . E3 E3 C3 . A2 A2', { step: 0.25, start: at(7) + 2, v: 0.75 });
 const hats = swing(
   accents(
     [...grid16('xxxxxxxxxxxxxxxx', 0, 16), ...grid16('x.x.x.x.x.x.x.x.', 16, 2)],
@@ -202,12 +217,12 @@ export const song: Song = {
   id: 'bloxorz-platform',
   title: 'Bloxorz Board',
   evokes: "an original theme in the spirit of Bloxorz's calm, cerebral puzzle music",
-  bpm: 126,
+  bpm: 128,
   loopBeats: 20 * BAR,
   seed: 51,
   reverb: { room: 0.68, damp: 0.4, wet: 0.36 },
   tracks: [
-    { inst: glass, gain: -2, pan: 0.1, verb: 0.35, loop: human(bells, 54, 0.05, 0.006) },
+    { inst: glass, gain: -3, pan: 0.1, verb: 0.35, loop: human(bells, 54, 0.05, 0.006) },
     {
       inst: glass,
       gain: -14,
@@ -215,16 +230,20 @@ export const song: Song = {
       verb: 0.5,
       loop: shift(bells, 0.75).map((n) => ({ ...n, v: n.v * 0.5 })),
     },
-    { inst: vibes, gain: -2, pan: -0.1, verb: 0.35, loop: human(vibesLead, 55, 0.05, 0.008) },
-    { inst: glass, gain: -12, pan: -0.4, verb: 0.3, loop: ostinato },
+    { inst: vibes, gain: 0, pan: -0.1, verb: 0.35, loop: human(vibesLead, 55, 0.05, 0.008) },
+    { inst: glass, gain: -12, pan: -0.55, verb: 0.3, loop: ostinato.filter((_, i) => i % 2 === 0) },
+    { inst: glass, gain: -12, pan: 0.55, verb: 0.3, loop: ostinato.filter((_, i) => i % 2 === 1) },
+    { inst: vibes, gain: -9, pan: -0.25, verb: 0.35, loop: human(bells, 61, 0.06, 0.01) },
+    { inst: glass, gain: -8, pan: 0.2, verb: 0.6, loop: wrapChord },
+    { inst: tom, gain: -13, pan: -0.2, verb: 0.3, loop: fillToms },
     { inst: glass, gain: -11, pan: 0.5, verb: 0.55, loop: cascade },
     { inst: vibes, gain: -10, pan: 0.4, verb: 0.3, loop: vibesComp },
     { inst: airPad, gain: -7, pan: -0.45, verb: 0.45, loop: pad },
     { inst: airPad, gain: -7, pan: 0.45, verb: 0.45, loop: shift(pad, 0.02) },
-    { inst: roundBass, gain: -6, pan: 0, verb: 0.05, loop: bassLine },
+    { inst: roundBass, gain: -4, pan: 0, verb: 0.05, loop: bassLine },
     { inst: sub, gain: -13, pan: 0, verb: 0, loop: subs },
     { inst: kick, gain: -10, pan: 0, verb: 0.05, loop: human(kicks, 56, 0.05, 0) },
-    { inst: rim, gain: 3, pan: 0.15, verb: 0.25, loop: human(rims, 57, 0.08, 0.004) },
+    { inst: rim, gain: 1, pan: 0.15, verb: 0.25, loop: human(rims, 57, 0.08, 0.004) },
     { inst: snare, gain: -8, pan: 0.05, verb: 0.25, loop: human(snares, 58, 0.06, 0.004) },
     { inst: hat, gain: 4, pan: 0.4, verb: 0.08, loop: human(hats, 59, 0.08, 0.004) },
     { inst: openHat, gain: -1, pan: 0.3, verb: 0.15, loop: opens },

@@ -52,47 +52,55 @@ const ensemble = (
 
 // ---------------------------------------------------------------- drums
 
-/** Kick with a sub body, a knock an octave up and a beater click. */
+/** Kick: a sub body that settles at 54 Hz after a punchy sweep, a knock an octave up and a beater click. */
 export const kick: Instrument = (_f, _d, vel, rng) => {
   const len = 0.6;
-  const pitch = (t: number) => 47 + 75 * Math.exp(-t / 0.05) + 130 * Math.exp(-t / 0.007);
-  const body = mul(osc(len, pitch), decay(len, 0.24, 0.0015));
+  const pitch = (t: number) => 54 + 68 * Math.exp(-t / 0.045) + 150 * Math.exp(-t / 0.006);
+  const body = mul(osc(len, pitch), decay(len, 0.27, 0.0015));
   const knock = mul(
     osc(len, (t) => 2 * pitch(t)),
-    decay(len, 0.035, 0.001),
+    decay(len, 0.045, 0.001),
   );
-  const click = mul(filter(noise(0.02, rng), 'bandpass', 4200, 0.8), decay(0.02, 0.003, 0.0004));
-  return mul(drive(layer(len, [body, 1], [knock, 0.22], [click, 0.3 * vel]), 1.7), vel * 0.9);
+  const click = mul(filter(noise(0.02, rng), 'bandpass', 3200, 0.7), decay(0.02, 0.0025, 0.0004));
+  return mul(drive(layer(len, [body, 1], [knock, 0.3], [click, 0.22 * vel]), 2.2), vel * 0.9);
 };
 
-/** Snare: two shell modes, a wire rattle that lengthens with velocity, a stick crack. */
+/** Snare: a tuned shell body, a velocity-length wire rattle and snap, in a small wooden room; each hit varies. */
 export const snare: Instrument = (_f, _d, vel, rng) => {
-  const len = 0.55;
+  const len = 0.6;
+  const tune = 1 + rng.range(-0.025, 0.025);
   const n = noise(len, rng);
   const shell = layer(
     len,
     [
       mul(
-        osc(len, (t) => 182 * (1 + 0.35 * Math.exp(-t / 0.01))),
-        decay(len, 0.075, 0.001),
+        osc(len, (t) => 195 * tune * (1 + 0.3 * Math.exp(-t / 0.012))),
+        decay(len, 0.09, 0.001),
       ),
-      0.85,
+      1,
     ],
     [
       mul(
-        osc(len, (t) => 334 * (1 + 0.25 * Math.exp(-t / 0.008))),
-        decay(len, 0.04, 0.001),
+        osc(len, (t) => 340 * tune * (1 + 0.2 * Math.exp(-t / 0.01))),
+        decay(len, 0.05, 0.001),
       ),
-      0.35,
+      0.4,
     ],
   );
   const wires = mul(
-    filter(filter(n, 'highpass', 1100), 'lowpass', 8500),
-    decay(len, 0.06 + 0.1 * vel, 0.001),
+    filter(filter(n, 'highpass', 1400 * tune), 'lowpass', 7000 + 2500 * vel),
+    decay(len, 0.07 + 0.11 * vel, 0.001),
   );
-  const fat = mul(filter(n, 'bandpass', 700, 0.9), decay(len, 0.05, 0.001));
-  const crack = mul(filter(n, 'bandpass', 3300, 1.3), decay(len, 0.014, 0.0005));
-  return mul(drive(layer(len, [shell, 1], [wires, 0.75], [fat, 0.35], [crack, 0.45 * vel]), 1.5), vel * 0.8);
+  const body = mul(filter(n, 'bandpass', 420, 0.8), decay(len, 0.06, 0.001));
+  const snap = mul(filter(n, 'bandpass', 2400, 1.1), decay(len, 0.018, 0.0005));
+  const dry = drive(layer(len, [shell, 1], [wires, 0.6], [body, 0.45], [snap, 0.4 * vel]), 1.6);
+  const room = layer(
+    len,
+    [dry, 1],
+    [filter(dry, 'lowpass', 3000), 0.22, 0.011],
+    [filter(dry, 'lowpass', 2000), 0.15, 0.023],
+  );
+  return mul(room, vel * 0.8);
 };
 
 /** Side stick: a woody click with a short ring. */
@@ -203,20 +211,23 @@ export const boom: Instrument = (_f, _d, vel, rng) => {
   return mul(drive(layer(len, [body, 1], [thump, 0.6]), 1.5), vel * 0.85);
 };
 
-/** Tom, pitched by the note: a falling head tone, a second mode and the stick. */
+/** Tom, pitched by the note: a head with its inharmonic modes, skin noise and the stick; each hit varies. */
 export const tom: Instrument = (f, _d, vel, rng) => {
-  const len = 0.8;
-  const tau = Math.min(0.42, 0.2 * Math.sqrt(140 / f));
+  const len = 0.9;
+  const tune = f * (1 + rng.range(-0.015, 0.015));
+  const tau = Math.min(0.5, 0.24 * Math.sqrt(140 / tune));
   const head = mul(
-    osc(len, (t) => f * (1 + 0.45 * Math.exp(-t / 0.025))),
+    osc(len, (t) => tune * (1 + 0.22 * Math.exp(-t / 0.03))),
     decay(len, tau, 0.001),
   );
-  const mode = mul(
-    osc(len, (t) => 1.59 * f * (1 + 0.3 * Math.exp(-t / 0.02))),
-    decay(len, tau * 0.3, 0.001),
-  );
-  const stick = mul(filter(noise(0.03, rng), 'bandpass', 2600, 0.8), decay(0.03, 0.005, 0.0004));
-  return mul(drive(layer(len, [head, 1], [mode, 0.22], [stick, 0.35]), 1.4), vel * 0.85);
+  const modes = partials(len, tune, [
+    [1.5, 0.3, tau * 0.4],
+    [1.98, 0.18, tau * 0.3],
+    [2.44, 0.1, tau * 0.2],
+  ]);
+  const skin = mul(filter(noise(len, rng), 'bandpass', tune * 4, 0.8), decay(len, 0.04, 0.0005));
+  const stick = mul(filter(noise(0.03, rng), 'bandpass', 3000, 0.8), decay(0.03, 0.004, 0.0004));
+  return mul(drive(layer(len, [head, 1], [modes, 1], [skin, 0.3], [stick, 0.3]), 1.8), vel * 0.85);
 };
 
 /** Timpani: the drum's inharmonic modes and a felt mallet. */
@@ -245,7 +256,7 @@ export const taiko: Instrument = (f, _d, vel, rng) => {
   return mul(drive(layer(len, [head, 1], [skin, 0.7], [slap, 0.25]), 1.6), vel * 0.9);
 };
 
-/** Djembe: bass (low notes), tone, or slap (high notes) by pitch. */
+/** Djembe: bass (low notes), tone, or slap (high notes) by pitch, with the shell's wooden body. */
 export const djembe: Instrument = (f, _d, vel, rng) => {
   const len = 0.5;
   const slap = Math.min(1, Math.max(0, (f - 260) / 400));
@@ -255,11 +266,15 @@ export const djembe: Instrument = (f, _d, vel, rng) => {
     decay(len, tau, 0.0008),
   );
   const mode = mul(osc(len, f * 1.62), decay(len, tau * 0.45, 0.0008));
+  const wood = mul(osc(len, Math.min(240, f * 0.55)), decay(len, 0.07, 0.001));
   const skin = mul(
     filter(noise(len, rng), 'bandpass', 1700 + 1800 * slap, 1),
     decay(len, 0.008 + 0.03 * slap, 0.0004),
   );
-  return mul(layer(len, [head, 1 - 0.45 * slap], [mode, 0.25], [skin, 0.25 + 0.9 * slap]), vel * 0.8);
+  return mul(
+    layer(len, [head, 1 - 0.45 * slap], [mode, 0.25], [wood, f < 150 ? 0 : 0.45], [skin, 0.25 + 0.9 * slap]),
+    vel * 0.8,
+  );
 };
 
 /** Frame drum (bendir): a soft low head with a buzzing snare string. */
@@ -316,28 +331,34 @@ export const block: Instrument = (f, _d, vel, rng) => {
 
 // ---------------------------------------------------------------- winds
 
-/** Concert flute: soft attack with a breathy chiff, a slight scoop, delayed vibrato in pitch and level. */
+/** Concert flute: a warm, mostly-fundamental tone, breath in the 2-4 kHz band, a chiff on the attack, a slight
+ * scoop, and gentle delayed vibrato in pitch and level; velocity sets the brightness. */
 export const flute: Instrument = (f, dur, vel, rng) => {
   const len = dur + 0.18;
-  const bright = 0.4 + 0.8 * vel;
-  const depth = (t: number) => Math.min(1, Math.max(0, (t - 0.22) * 2.5));
+  const bright = 0.35 + 0.65 * vel;
+  const depth = (t: number) => Math.min(1, Math.max(0, (t - 0.3) * 2));
   const p = (t: number) =>
-    f * (1 - 0.009 * Math.exp(-t / 0.035)) * (1 + 0.0045 * depth(t) * Math.sin(TAU * 5.1 * t));
+    f * (1 - 0.008 * Math.exp(-t / 0.04)) * (1 + 0.0038 * depth(t) * Math.sin(TAU * 5 * t));
   const tone = layer(
     len,
     [osc(len, p), 1],
-    [osc(len, (t) => 2 * p(t), 'sine', { phase: 0.25 }), 0.38 * bright],
-    [osc(len, (t) => 3 * p(t)), 0.17 * bright],
-    [osc(len, (t) => 4 * p(t), 'sine', { phase: 0.5 }), 0.07 * bright],
-    [osc(len, (t) => 5 * p(t)), 0.03 * bright],
+    [osc(len, (t) => 2 * p(t), 'sine', { phase: 0.25 }), 0.24 * bright],
+    [osc(len, (t) => 3 * p(t)), 0.08 * bright],
+    [osc(len, (t) => 4 * p(t), 'sine', { phase: 0.5 }), 0.025 * bright],
   );
   const n = noise(len, rng);
-  const breath = filter(n, 'bandpass', Math.min(9000, f * 2.2), 1.1);
-  const chiff = mul(filter(n, 'bandpass', Math.min(10000, f * 3.5), 2.2), decay(len, 0.03, 0.004));
-  const amp = adsr(len, 0.04 + 0.05 * (1 - vel), 0.1, 0.85, 0.15);
-  const trem = (t: number) => 1 + 0.07 * depth(t) * Math.sin(TAU * 5.1 * t + 0.6);
-  const out = layer(len, [tone, 1], [breath, 0.07], [chiff, 0.28 * vel]);
-  for (let i = 0; i < out.length; i++) out[i]! *= amp[i]! * trem(i / SR) * vel * 0.55;
+  const breath = layer(
+    len,
+    [filter(n, 'bandpass', Math.min(9000, f * 2), 1.2), 0.5],
+    [filter(n, 'bandpass', 3000, 0.9), 0.5],
+  );
+  const chiff = mul(filter(n, 'bandpass', 2800, 1.2), decay(len, 0.04, 0.006));
+  const amp = adsr(len, 0.05 + 0.05 * (1 - vel), 0.12, 0.85, 0.16);
+  const out = filter(layer(len, [tone, 1], [breath, 0.07], [chiff, 0.35 * vel]), 'lowpass', 5000, 0.7);
+  for (let i = 0; i < out.length; i++) {
+    const t = i / SR;
+    out[i]! *= amp[i]! * (1 + 0.06 * depth(t) * Math.sin(TAU * 5 * t + 0.6)) * vel * 0.55;
+  }
   return out;
 };
 
@@ -397,41 +418,50 @@ export const kalimba: Instrument = (f, _dur, vel, rng) => {
   return mul(layer(len, [tine, 1], [click, 0.12]), vel * 0.6);
 };
 
-/** Vibraphone: metal bar partials with the motor tremolo, damped after the note. */
-export const vibes: Instrument = (f, dur, vel) => {
-  const len = Math.max(0.5, dur + 0.35);
+/** Vibraphone: metal bar partials, a mallet strike, the motor tremolo, damped by the pedal after the note. */
+export const vibes: Instrument = (f, dur, vel, rng) => {
+  const len = Math.max(0.6, dur + 0.45);
   const bar = partials(len, f, [
-    [1, 1, 1.8],
-    [4.0, 0.18 * (0.5 + vel), 0.25],
-    [10.0, 0.04, 0.05],
+    [1, 1, 2.2],
+    [4.0, 0.22 * (0.5 + vel), 0.3],
+    [10.0, 0.05, 0.05],
   ]);
+  const strike = mul(
+    filter(noise(0.02, rng), 'bandpass', Math.min(9000, f * 6), 1.5),
+    decay(0.02, 0.003, 0.0003),
+  );
+  const ph = rng.next() * TAU;
   const out = new Float32Array(bar.length);
   for (let i = 0; i < out.length; i++) {
     const t = i / SR;
-    const damp = t < dur ? 1 : Math.exp(-(t - dur) / 0.08);
-    const a = Math.min(1, t / 0.002);
-    out[i] = bar[i]! * a * damp * (1 - 0.22 * (1 - Math.cos(TAU * 5.2 * t)) * 0.5);
+    const damp = t < dur ? 1 : Math.exp(-(t - dur) / 0.12);
+    const a = Math.min(1, t / 0.0015);
+    out[i] =
+      (bar[i]! * (1 - 0.32 * (0.5 - 0.5 * Math.cos(TAU * 5 * t + ph))) + 0.12 * vel * (strike[i] ?? 0)) *
+      a *
+      damp;
   }
   return mul(out, vel * 0.6);
 };
 
-/** Glass bell: pure partials with a soft FM shimmer on the attack. */
+/** Glass bell: warm partials, a slightly detuned twin for shimmer, and a soft FM sparkle on the attack. */
 export const glass: Instrument = (f, dur, vel) => {
-  const len = Math.max(1.2, dur + 0.9);
+  const len = Math.max(1.4, dur + 1);
   const body = partials(len, f, [
-    [1, 1, 1.3],
-    [2.0, 0.22, 0.55],
-    [3.0, 0.07, 0.3],
-    [4.24, 0.05, 0.12],
+    [1, 1, 1.5],
+    [2.0, 0.3, 0.7],
+    [3.0, 0.08, 0.35],
+    [4.24, 0.03, 0.1],
   ]);
-  const shimmer = mul(
+  const twin = partials(len, f * 1.003, [[1, 0.35, 1.2]]);
+  const sparkle = mul(
     fm(len, f * 1.0015, 3, (t) => 0.9 * Math.exp(-t / 0.07)),
     decay(len, 0.25, 0.004),
   );
-  const out = layer(len, [body, 1], [shimmer, 0.25 * vel]);
+  const out = layer(len, [body, 1], [twin, 1], [sparkle, 0.2 * vel]);
   const a = Math.round(0.003 * SR);
   for (let i = 0; i < a; i++) out[i]! *= i / a;
-  return mul(out, vel * 0.5);
+  return mul(out, vel * 0.45);
 };
 
 /** Harp-like nylon pluck, warm. */
@@ -485,13 +515,16 @@ export const pumpPad: Instrument = (f, dur, vel, rng) => {
   return mul(tone, mul(g, vel * 0.5));
 };
 
-/** Supersaw lead: seven saws, gentle low-pass, delayed vibrato. */
+/** Supersaw lead: six saws under a gently closing low-pass with a 3 kHz dip, and a warm triangle core. */
 export const superSaw: Instrument = (f, dur, vel, rng) => {
-  const len = dur + 0.25;
-  const p = vibrato(f, 5.4, 0.004, 0.3);
-  const src = ensemble(len, p, 'saw', [-19, -11, -4, 0, 4, 11, 19], rng);
-  const tone = filter(filter(src, 'lowpass', Math.min(7500, f * (2.5 + 2.5 * vel)), 0.8), 'highpass', 140);
-  return mul(tone, mul(adsr(len, 0.02, 0.25, 0.8, 0.25), vel * 0.6));
+  const len = dur + 0.3;
+  const p = vibrato(f, 5.2, 0.0035, 0.35);
+  const src = ensemble(len, p, 'saw', [-15, -8, -3, 3, 8, 15], rng);
+  const open = 1.4 + 1.8 * vel;
+  const cut = (t: number) => Math.min(5500, f * (open + 1.2 * Math.exp(-t / 0.12)));
+  const tone = filter(filter(filter(src, 'lowpass', cut, 0.7), 'highpass', 160), 'peak', 3200, 1, -4);
+  const core = osc(len, p, 'triangle', { phase: rng.next() });
+  return mul(layer(len, [tone, 1], [core, 0.35]), mul(adsr(len, 0.03, 0.3, 0.8, 0.28), vel * 0.65));
 };
 
 /** Soft lead: triangle with a little filtered saw and a sub octave, breathy vibrato. */
@@ -530,65 +563,80 @@ export const roundBass: Instrument = (f, dur, vel, rng) => {
 
 // ---------------------------------------------------------------- orchestra
 
-/** Bowed string section: `cents` voices, vibrato, bow noise; `bright` scales the low-pass. */
+/** Bowed string section: `cents` voices, vibrato, bow noise, a low-pass that blooms with the bow; `bright` scales it. */
 const bowed =
   (cents: number[], bright: number, attack: number): Instrument =>
   (f, dur, vel, rng) => {
     const len = dur + 0.35;
     const p = vibrato(f, 5 + rng.next() * 0.6, 0.0045, 0.18);
     const src = ensemble(len, p, 'saw', cents, rng);
-    const cut = Math.min(7000, f * bright * (0.7 + 0.5 * vel));
+    const top = f * bright * (0.7 + 0.5 * vel);
+    const a = attack * (1.3 - 0.6 * vel);
+    const cut = (t: number) => Math.min(6000, top * (0.6 + 0.4 * Math.min(1, t / (a + 0.05))));
     const tone = filter(filter(src, 'lowpass', cut, 0.7), 'highpass', Math.min(180, f * 0.6));
     const bow = mul(filter(noise(len, rng), 'bandpass', Math.min(8000, f * 4), 1.5), 0.02);
-    const a = attack * (1.3 - 0.6 * vel);
     return mul(layer(len, [tone, 1], [bow, 1]), mul(adsr(len, a, 0.25, 0.9, 0.3), vel * 0.55));
   };
 
 /** Violins and violas, legato. */
-export const strings: Instrument = bowed([-10, -4, 3, 9], 5, 0.12);
+export const strings: Instrument = bowed([-10, -4, 3, 9], 4.2, 0.12);
 /** Cellos and basses: darker, slower. */
-export const lowStrings: Instrument = bowed([-8, -2, 4, 9], 3.2, 0.16);
+export const lowStrings: Instrument = bowed([-8, -2, 4, 9], 2.8, 0.16);
 
-/** Spiccato strings: short bowed notes with a bright bite. */
+/** Spiccato strings: short bowed notes with a bite that closes quickly. */
 export const spiccato: Instrument = (f, dur, vel, rng) => {
   const len = Math.min(dur, 0.25) + 0.18;
   const src = ensemble(len, () => f, 'saw', [-8, 0, 8], rng);
-  const cut = (t: number) => Math.min(8000, f * (2 + (3 + 3 * vel) * Math.exp(-t / 0.05)));
-  const tone = filter(filter(src, 'lowpass', cut, 0.8), 'highpass', Math.min(150, f * 0.5));
-  return mul(tone, mul(decay(len, 0.09, 0.004), vel * 0.65));
+  const cut = (t: number) => Math.min(5000, f * (1.6 + (2 + 2.5 * vel) * Math.exp(-t / 0.04)));
+  const tone = filter(filter(src, 'lowpass', cut, 0.7), 'highpass', Math.min(150, f * 0.5));
+  const bow = mul(filter(noise(len, rng), 'bandpass', Math.min(6000, f * 3), 1.2), decay(len, 0.015, 0.001));
+  return mul(layer(len, [tone, 1], [bow, 0.08]), mul(decay(len, 0.09, 0.004), vel * 0.65));
 };
 
-/** Choir "ah": an ensemble of four voices through vowel formants, with chest and breath. */
+/** Choir "ah": six voices through warm, broad vowel formants, with chest and breath. */
 export const choir: Instrument = (f, dur, vel, rng) => {
-  const len = dur + 0.6;
-  const p = vibrato(f, 4.9 + rng.next() * 0.6, 0.006, 0.25);
-  const src = ensemble(len, p, 'saw', [-9, -3, 3, 9], rng);
+  const len = dur + 0.7;
+  const p = vibrato(f, 4.9 + rng.next() * 0.6, 0.005, 0.3);
+  const src = ensemble(len, p, 'saw', [-12, -6, -2, 2, 6, 12], rng);
   const vowel = layer(
     len,
-    [filter(src, 'bandpass', 720, 5), 1],
-    [filter(src, 'bandpass', 1120, 6), 0.55],
-    [filter(src, 'bandpass', 2650, 8), 0.22],
-    [filter(src, 'bandpass', 3350, 10), 0.1],
+    [filter(src, 'bandpass', 650, 3.5), 1],
+    [filter(src, 'bandpass', 1080, 4.5), 0.5],
+    [filter(src, 'bandpass', 2450, 6), 0.18],
+    [filter(src, 'bandpass', 3300, 8), 0.07],
   );
-  const chest = filter(src, 'lowpass', Math.min(900, f * 2), 0.7);
-  const breath = filter(noise(len, rng), 'bandpass', 2600, 1.2);
+  const chest = filter(src, 'lowpass', Math.min(1000, f * 2.2), 0.7);
+  const breath = filter(noise(len, rng), 'bandpass', 2200, 1);
   return mul(
-    layer(len, [vowel, 2.2], [chest, 0.25], [breath, 0.03]),
-    mul(adsr(len, 0.25, 0.25, 0.9, 0.5), vel * 0.75),
+    layer(len, [vowel, 1.8], [chest, 0.45], [breath, 0.02]),
+    mul(adsr(len, 0.22, 0.25, 0.9, 0.55), vel * 0.75),
   );
 };
 
-/** Brass section: saws with a lip scoop and a filter that opens with velocity. */
+/** Brass: a trumpet-like section that blooms open with velocity over a warm horn core, with breath on the attack. */
 export const brass: Instrument = (f, dur, vel, rng) => {
-  const len = dur + 0.18;
-  const v = vibrato(f, 5, 0.004, 0.3);
-  const p = (t: number) => v(t) * (1 - 0.022 * Math.exp(-t / 0.025));
-  const src = ensemble(len, p, 'saw', [-7, 0, 6], rng);
-  const open = 1.5 + 5.5 * vel;
+  const len = dur + 0.2;
+  const v = vibrato(f, 5, 0.0035, 0.35);
+  const p = (t: number) => v(t) * (1 - 0.018 * Math.exp(-t / 0.03));
+  const src = ensemble(len, p, 'saw', [-6, 0, 5], rng);
+  const open = 1.2 + 4 * vel;
   const cut = (t: number) =>
-    Math.min(8500, f * (1 + open * Math.min(1, t / 0.045) * (0.72 + 0.28 * Math.exp(-t / 0.25))));
-  const tone = drive(filter(src, 'lowpass', cut, 0.8), 1.4);
-  return mul(tone, mul(adsr(len, 0.02, 0.15, 0.8, 0.15), vel * 0.55));
+    Math.min(5000, f * (1 + open * Math.min(1, t / 0.06) * (0.7 + 0.3 * Math.exp(-t / 0.3))));
+  const bright = drive(filter(filter(src, 'lowpass', cut, 0.7), 'peak', 3800, 1, -4), 1.3);
+  const warm = filter(osc(len, p, 'triangle', { phase: rng.next() }), 'lowpass', Math.min(2000, f * 3), 0.7);
+  const breath = mul(
+    filter(noise(len, rng), 'bandpass', Math.min(6000, f * 3), 1.5),
+    env(len, [
+      [0, 0],
+      [0.03, 1],
+      [0.12, 0.2],
+      [len, 0.1],
+    ]),
+  );
+  return mul(
+    layer(len, [bright, 1], [warm, 0.45], [breath, 0.03]),
+    mul(adsr(len, 0.035, 0.15, 0.82, 0.16), vel * 0.55),
+  );
 };
 
 /** French horns: rounder and darker than the brass section. */
@@ -616,25 +664,34 @@ export const rockBass: Instrument = (f, dur, vel, rng) => {
   );
 };
 
-/** Distorted power chord (root, fifth, octave) through a speaker cabinet; short notes are palm-muted. */
+/** Distorted power chord (root, fifth, octave) with a pick click, through a cabinet with the box scooped out;
+ * notes shorter than 0.3 s are palm-muted. */
 export const powerChord: Instrument = (f, dur, vel, rng) => {
   const muted = dur < 0.3;
-  const len = dur + (muted ? 0.05 : 0.15);
+  const len = dur + (muted ? 0.04 : 0.15);
+  const loss = muted ? 0.992 : 0.9995;
   const strings = layer(
     len,
-    [pluck(len, f, rng, 0.8, 0.9995), 1],
-    [pluck(len, f * 1.4983, rng, 0.8, 0.9995), 0.8],
-    [pluck(len, f * 2, rng, 0.8, 0.9995), 0.6],
+    [pluck(len, f, rng, 0.85, loss), 1],
+    [pluck(len, f * 1.4983, rng, 0.85, loss), 0.8],
+    [pluck(len, f * 2, rng, 0.85, loss), 0.55],
   );
-  const fuzz = drive(filter(strings, 'highpass', 90), 5);
+  const pick = mul(filter(noise(0.01, rng), 'bandpass', 2500, 1), decay(0.01, 0.002, 0.0003));
+  const fuzz = drive(filter(layer(len, [strings, 1], [pick, 0.4]), 'highpass', 110), 5);
   const cab = filter(
-    filter(filter(fuzz, 'lowpass', muted ? 1500 : 3000, 0.7), 'lowpass', muted ? 3000 : 5000, 0.7),
+    filter(
+      filter(filter(fuzz, 'lowpass', muted ? 2200 : 3400, 0.7), 'lowpass', 5200, 0.7),
+      'peak',
+      450,
+      1.2,
+      -5,
+    ),
     'peak',
-    1600,
-    1,
-    -4,
+    1500,
+    0.9,
+    3,
   );
-  return mul(cab, mul(adsr(len, 0.003, 0.1, muted ? 0.5 : 0.85, muted ? 0.04 : 0.12), vel * 0.3));
+  return mul(cab, mul(adsr(len, 0.002, 0.08, muted ? 0.45 : 0.85, muted ? 0.03 : 0.12), vel * 0.3));
 };
 
 // ---------------------------------------------------------------- note helpers

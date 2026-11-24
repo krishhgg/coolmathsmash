@@ -53,7 +53,14 @@ const riff = (symbols: string[], pattern: string, octave: number, v: number, sta
   });
 
 /** 3+3+2 grouping: accents on the 1st, 4th, 7th, 9th, 12th and 15th sixteenths of the bar. */
-const TRIBAL = [1, 0.55, 0.7, 0.92, 0.55, 0.7, 0.9, 0.55, 1, 0.55, 0.7, 0.92, 0.6, 0.55, 0.88, 0.65];
+const TRIBAL = [1, 0.45, 0.6, 0.95, 0.45, 0.6, 0.92, 0.45, 1, 0.45, 0.6, 0.95, 0.5, 0.45, 0.9, 0.55];
+
+/** Section A sits back so A' lands as the climax. */
+const softA = (t: number) => (t < at(8) ? 0.86 : 1);
+
+/** A roll that accelerates in level: quiet, then a steep rise into the downbeat. */
+const swellRoll = (t0: number, t1: number, from: number, to: number) => (t: number) =>
+  from + (to - from) * Math.min(1, Math.max(0, (t - t0) / (t1 - t0))) ** 2;
 
 // ---------------------------------------------------------------- melody
 
@@ -88,7 +95,7 @@ const themeB = [
 const melody = (bars: string[], start: number, v: number) =>
   arc(seq(bars.join(' '), { step: 0.25, start, v }), phrase(16, 0.18));
 
-const fluteA = melody([...themeA, ...answerA], 0, 0.72);
+const fluteA = melody([...themeA, ...answerA], 0, 0.68);
 const fluteA2 = melody([...themeA, ...answerA2], at(16), 0.85);
 const panB = melody(themeB, at(8), 0.75);
 const lead = human([...fluteA, ...fluteA2], 3, 0.06, 0.01);
@@ -96,7 +103,7 @@ const violins = human(shift(fluteA2, 0, -12), 4, 0.05, 0.015).map((n) => ({ ...n
 
 // ---------------------------------------------------------------- harmony and riffs
 
-const marimbaA = accents(riff(A, '0.23.24.3.254.32', 4, 0.8, 0), TRIBAL, 0.25, 4);
+const marimbaA = accents(riff(A, '0.23.24.3.254.32', 4, 0.74, 0), TRIBAL, 0.25, 4);
 const marimbaA2 = accents(riff(A, '0.23.24.3.254.32', 4, 0.88, at(16)), TRIBAL, 0.25, 4);
 const marimbaB = arc(riff(B, '..3...4...3...5.', 4, 0.55, at(8)), ramp(at(8), at(16), 0.7, 1.1));
 const mallets = human([...marimbaA, ...marimbaB, ...marimbaA2], 5, 0.07, 0.008);
@@ -112,15 +119,34 @@ const lowA = (start: number, v: number) =>
   ]);
 const cellos = arc([...lowA(0, 0.6), ...lowA(at(16), 0.75)], phrase(8, 0.25));
 
+/** A dark, bowed tresillo ostinato under A and A' (E2-B2), weighting the bottom. */
+const darkA = (start: number, v: number): Note[] =>
+  A.flatMap((s, bar) =>
+    (
+      [
+        [0, 0, 1],
+        [3, 0, 0.7],
+        [6, 7, 0.8],
+        [8, 0, 0.95],
+        [11, 0, 0.7],
+        [14, 7, 0.8],
+      ] as const
+    ).map(([k, off, a]) => ({ t: start + bar * BAR + k * 0.25, d: 0.5, n: root(s, 2) + off, v: v * a })),
+  );
+const darkStrings = human([...darkA(0, 0.7), ...darkA(at(16), 0.85)], 17, 0.06, 0.006);
+const pickup = seq('F#2:2 G2:2 A2:2 B2:2', { step: 0.25, start: at(7) + 2, v: 0.8 });
+
 /** The B section's galloping spiccato. */
 const gallop = arc(
   accents(riff(B, '0.00 0.00 0.00 2.11', 3, 0.75, at(8)), [1, 0.5, 0.6, 0.7], 0.25, 1),
   ramp(at(8), at(16), 0.75, 1.15),
 );
 
-const choirB = pads(B, { octave: 4, v: 0.55, start: at(8) });
-const choirA2 = pads(A, { octave: 4, v: 0.45, start: at(16) });
-const voices = arc([...choirB, ...choirA2], phrase(8, 0.3));
+const choirB = pads(B, { octave: 4, v: 0.6, start: at(8) });
+const choirA2 = pads(A.slice(0, 7), { octave: 4, v: 0.45, start: at(16) });
+/** The last bar's chord swells and rings across the loop point into the top. */
+const choirWrap = pads(['B'], { octave: 4, v: 0.6, beats: 5, start: at(23) });
+const voices = arc([...choirB, ...choirA2, ...choirWrap], phrase(8, 0.3));
 
 // ---------------------------------------------------------------- bass
 
@@ -163,7 +189,7 @@ const kicks = [
   ...bars('x.....x.x..o....', 16, 7),
   ...bars('x.....x.x.....x.', 23, 1),
 ];
-const snareRoll = arc(grid('xxxxxxxxxxxxxxxx', { start: at(15) }), ramp(at(15), at(16), 0.25, 0.95));
+const snareRoll = arc(grid('xxxxxxxxxxxxxxxx', { start: at(15) }), swellRoll(at(15), at(16), 0.18, 0.95));
 const snares = [
   ...bars('....x..-....x..-', 0, 7),
   ...bars('....x.......x...', 7, 1),
@@ -199,7 +225,10 @@ const blocks = [
 ];
 
 const toms = [
-  ...seq('E3 E3 C3 A2', { step: 0.25, start: at(7) + 3, v: 0.75 }),
+  ...arc(
+    seq('E3 . E3 C3 C3 A2 A2 E2', { step: 0.25, start: at(7) + 2, v: 0.8 }),
+    ramp(at(7) + 2, at(8), 0.6, 1),
+  ),
   ...arc(
     seq('A2 . A2 . E3 . A2 E3 A2 . A2 . E3 E3 C3 A2', { step: 0.25, start: at(14), v: 0.8 }),
     ramp(at(14), at(15), 0.6, 1),
@@ -211,11 +240,11 @@ const toms = [
 ];
 const timps = [
   { t: at(8), d: 1, n: 40, v: 0.9 },
-  ...arc(grid('xxxxxxxxxxxxxxxx', { start: at(15), n: 40 }), ramp(at(15), at(16), 0.2, 0.8)),
+  ...arc(grid('xxxxxxxxxxxxxxxx', { start: at(15), n: 40 }), swellRoll(at(15), at(16), 0.15, 0.8)),
   { t: at(16), d: 1, n: 40, v: 1 },
 ];
 const crashes = [
-  { t: 0, d: 1, n: 0, v: 0.8 },
+  { t: 0, d: 1, n: 0, v: 0.9 },
   { t: at(8), d: 1, n: 0, v: 0.7 },
   { t: at(16), d: 1, n: 0, v: 1 },
 ];
@@ -238,25 +267,27 @@ export const song: Song = {
     { inst: flute, gain: -16, pan: -0.55, verb: 0.5, loop: echoes(lead, 0.75, 2, 0.45) },
     { inst: panFlute, gain: -4, pan: -0.08, verb: 0.35, loop: human(panB, 8, 0.06, 0.01) },
     { inst: panFlute, gain: -16, pan: 0.55, verb: 0.5, loop: echoes(panB, 0.75, 2, 0.45) },
-    { inst: strings, gain: -4, pan: 0.3, verb: 0.35, loop: violins },
-    { inst: marimba, gain: -10, pan: -0.35, verb: 0.25, loop: mallets },
+    { inst: strings, gain: -7, pan: 0.35, verb: 0.35, loop: violins },
+    { inst: marimba, gain: -10, pan: -0.5, verb: 0.25, loop: mallets },
     { inst: kalimba, gain: -6, pan: 0.5, verb: 0.35, loop: sparkle },
     { inst: lowStrings, gain: -6, pan: -0.45, verb: 0.3, loop: cellos },
     { inst: lowStrings, gain: -6, pan: 0.45, verb: 0.3, loop: shift(cellos, 0.01) },
     { inst: spiccato, gain: 0, pan: -0.25, verb: 0.2, loop: human(gallop, 9, 0.05, 0.006) },
     { inst: spiccato, gain: -2, pan: 0.25, verb: 0.2, loop: human(shift(gallop, 0, 12), 10, 0.05, 0.006) },
-    { inst: choir, gain: -8, pan: -0.5, verb: 0.5, loop: voices },
-    { inst: choir, gain: -8, pan: 0.5, verb: 0.5, loop: shift(voices, 0.02) },
+    { inst: choir, gain: -5, pan: -0.6, verb: 0.55, loop: voices },
+    { inst: choir, gain: -5, pan: 0.6, verb: 0.55, loop: shift(voices, 0.02) },
+    { inst: spiccato, gain: -3, pan: -0.15, verb: 0.15, loop: darkStrings },
+    { inst: lowStrings, gain: -4, pan: 0.15, verb: 0.3, loop: pickup },
     { inst: sub, gain: -11, pan: 0, verb: 0, loop: bassLine },
-    { inst: kick, gain: -9, pan: 0, verb: 0.05, loop: human(kicks, 11, 0.05, 0) },
-    { inst: snare, gain: -7, pan: 0.06, verb: 0.22, loop: human(snares, 12, 0.08, 0.004) },
-    { inst: djembe, gain: -8, pan: 0.32, verb: 0.15, loop: human(djembes, 13, 0.1, 0.008) },
+    { inst: kick, gain: -9, pan: 0, verb: 0.05, loop: arc(human(kicks, 11, 0.05, 0), softA) },
+    { inst: snare, gain: -7, pan: 0.06, verb: 0.25, loop: arc(human(snares, 12, 0.08, 0.004), softA) },
+    { inst: djembe, gain: -8, pan: 0.35, verb: 0.18, loop: arc(human(djembes, 13, 0.1, 0.008), softA) },
     { inst: frame, gain: -7, pan: -0.2, verb: 0.25, loop: human(frames, 14, 0.08, 0.004) },
     { inst: shaker, gain: -3, pan: 0.55, verb: 0.1, loop: human(shakers, 15, 0.12, 0.006) },
     { inst: tambourine, gain: -4, pan: -0.5, verb: 0.15, loop: human(tambs, 16, 0.1, 0.004) },
     { inst: block, gain: -4, pan: 0.6, verb: 0.3, loop: blocks },
     { inst: tom, gain: -6, pan: -0.15, verb: 0.25, loop: toms },
-    { inst: timpani, gain: -6, pan: 0, verb: 0.35, loop: timps },
+    { inst: timpani, gain: -3, pan: 0, verb: 0.35, loop: timps },
     { inst: crash, gain: -3, pan: -0.3, verb: 0.3, loop: crashes },
     { inst: swell, gain: -2, pan: 0.3, verb: 0.3, loop: swells },
     { inst: riser, gain: -8, pan: 0, verb: 0.3, loop: [{ t: at(15), d: 4, n: 0, v: 0.6 }] },

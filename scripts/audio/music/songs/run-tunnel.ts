@@ -4,6 +4,7 @@ import {
   accents,
   airPad,
   arc,
+  boom,
   clap,
   crash,
   echoes,
@@ -25,6 +26,7 @@ import {
   sub,
   superSaw,
   swell,
+  tom,
 } from '../kits/atmos.ts';
 
 /**
@@ -91,20 +93,22 @@ const each = (from: number, to: number, fn: (c: Chord, t: number) => Note[]) =>
 // ---------------------------------------------------------------- arpeggio, pads and bass
 
 const ARP = [0, 2, 3, 4, 2, 3, 1, 3];
+/** Accents fall every third sixteenth (a dotted-eighth pulse against the beat); a slow swell over 4 bars moves
+ * the pluck's filter, which opens with velocity. */
 const arpeggio = (from: number, to: number, v: number) =>
   each(from, to, (c, t) =>
     ARP.map((k, i) => ({
       t: t + i * 0.25,
       d: 0.2,
       n: midi(c.arp[k]!),
-      v: v * (i % 4 === 0 ? 1 : i % 2 ? 0.72 : 0.85),
+      v: v * (i % 3 === 0 ? 1 : 0.68) * (0.85 + 0.15 * Math.sin((Math.PI * (t + i * 0.25)) / 8)),
     })),
   );
 const arps = human(
   [
     ...arpeggio(0, 8, 0.7),
-    ...arpeggio(8, 16, 0.85),
-    ...arc(arpeggio(16, 20, 0.85), ramp(at(16), at(20), 0.35, 0.95)),
+    ...arpeggio(8, 16, 0.72),
+    ...arc(arpeggio(16, 20, 0.85), ramp(at(16), at(20), 0.5, 0.95)),
   ],
   31,
   0.05,
@@ -124,7 +128,12 @@ const offbeats = (from: number, to: number, v: number) =>
 const downs = (from: number, to: number, v: number) =>
   each(from, to, (c, t) => [{ t, d: 0.4, n: midi(c.bass), v }]);
 const lows = human(
-  [...offbeats(0, 16, 0.85), ...downs(0, 16, 0.45), ...offbeats(18, 20, 0.7)],
+  [
+    ...offbeats(0, 16, 0.85),
+    ...downs(0, 16, 0.45),
+    { t: 0, d: 1.5, n: midi('D1'), v: 0.9 },
+    ...offbeats(18, 20, 0.7),
+  ],
   32,
   0.04,
   0.003,
@@ -153,7 +162,21 @@ const themeB = [
   'E6:8 D6:2 C#6:2 B5:2 A5:2',
 ];
 const leadA = arc(seq(themeA.join(' '), { step: 0.25, v: 0.78 }), phrase(8, 0.2));
-const leadB = arc(seq(themeB.join(' '), { step: 0.25, start: at(8), v: 0.8 }), phrase(8, 0.2));
+/** Supersaw: phrase swells and slightly overlapping (legato) notes. */
+const leadB = arc(seq(themeB.join(' '), { step: 0.25, start: at(8), v: 0.8 }), phrase(8, 0.3)).map((n) => ({
+  ...n,
+  d: n.d + 0.08,
+}));
+/** A counter-phrase answering the theme an octave up in bars 5-8, in the gaps the lead leaves. */
+const counter = seq(
+  [
+    '. . . . . . . . A6:2 F#6:2 C#7:4',
+    'B6:8 . . . . . . . .',
+    '. . . . . . . . D7:2 B6:2 G6:4',
+    'F#6:8 E6:4 . . . .',
+  ].join(' '),
+  { step: 0.25, start: at(4), v: 0.6 },
+);
 const bellMotif = seq('F#6:6 E6:2 A6:8 . . . . . . . . . . . . . . . . E6:4 F#6:4 C#7:6 B6:2', {
   step: 0.25,
   start: at(16),
@@ -182,9 +205,28 @@ const bars = (pattern: string, from: number, count: number) =>
     }),
   ).flat();
 
-const kicks = [...bars('x...x...x...x...', 0, 16), ...bars('x...x...x...x...', 18, 2)];
-const claps = [...bars('....x.......x...', 0, 16), ...bars('....x.......x...', 19, 1)];
-const roll = arc(bars('x.x.x.x.xxxxxxxx', 19, 1), ramp(at(19), at(20), 0.3, 0.9));
+/** Level that rises with the square of time from `t0` to `t1`: a roll that accelerates into the downbeat. */
+const swellRoll = (t0: number, t1: number, from: number, to: number) => (t: number) =>
+  from + (to - from) * Math.min(1, Math.max(0, (t - t0) / (t1 - t0))) ** 2;
+
+const kicks = [
+  ...bars('x...x...x...x...', 0, 7),
+  ...bars('x...x...........', 7, 1),
+  ...bars('x...x...x...x...', 8, 8),
+  ...arc(bars('x...x...x...x...', 17, 1), ramp(at(17), at(18), 0.35, 0.6)),
+  ...bars('x...x...x...x...', 18, 2),
+];
+const claps = [
+  ...bars('....x.......x...', 0, 7),
+  ...bars('....x...........', 7, 1),
+  ...bars('....x.......x...', 8, 8),
+];
+const fill = [
+  ...bars('........x..x.xxx', 7, 1),
+  ...arc(bars('x.x.x.x.xxxxxxxx', 19, 1), swellRoll(at(19), at(20), 0.2, 0.95)),
+];
+const rollClaps = arc(bars('x.x.x.x.x.x.x.x.', 19, 1), swellRoll(at(19), at(20), 0.2, 0.8));
+const fillToms = seq('. . . . . . . . . . . . D3 B2 G2 E2', { step: 0.25, start: at(7), v: 0.75 });
 const hats = accents(
   [...bars('..x...x...x...x.', 0, 8), ...bars('x-x-x-x-x-x-x-xo', 8, 8), ...bars('..x...x...x...x.', 16, 4)],
   [0.7, 0.5, 1, 0.5],
@@ -211,13 +253,14 @@ export const song: Song = {
   tracks: [
     { inst: softLead, gain: -6, pan: 0.05, verb: 0.3, loop: human(leadA, 34, 0.05, 0.006) },
     { inst: softLead, gain: -17, pan: -0.6, verb: 0.5, loop: echoes(leadA, 0.75, 3, 0.5) },
-    { inst: superSaw, gain: 3, pan: -0.05, verb: 0.3, loop: human(leadB, 35, 0.05, 0.006) },
-    { inst: superSaw, gain: -9, pan: 0.6, verb: 0.5, loop: echoes(leadB, 0.75, 3, 0.5) },
-    { inst: glass, gain: -14, pan: 0.35, verb: 0.45, loop: shift(themeAHigh(leadA), 0) },
+    { inst: superSaw, gain: 0, pan: -0.05, verb: 0.3, loop: human(leadB, 35, 0.05, 0.006) },
+    { inst: superSaw, gain: -12, pan: 0.6, verb: 0.5, loop: echoes(leadB, 0.75, 3, 0.5) },
+    { inst: glass, gain: -10, pan: 0.4, verb: 0.5, loop: human(counter, 42, 0.06, 0.006) },
     { inst: glass, gain: -8, pan: 0.2, verb: 0.55, loop: bellMotif },
+    { inst: glass, gain: -16, pan: -0.55, verb: 0.6, loop: echoes(bellMotif, 0.75, 3, 0.55) },
     { inst: glass, gain: -16, pan: -0.5, verb: 0.6, loop: stars },
-    { inst: pluckSynth, gain: -8, pan: -0.3, verb: 0.25, loop: arps },
-    { inst: pluckSynth, gain: -15, pan: 0.5, verb: 0.4, loop: echoes(arps, 0.75, 1, 0.6) },
+    { inst: pluckSynth, gain: -8, pan: -0.4, verb: 0.25, loop: arps },
+    { inst: pluckSynth, gain: -15, pan: 0.6, verb: 0.4, loop: echoes(arps, 0.75, 1, 0.6) },
     { inst: pumpPad, gain: -9, pan: -0.5, verb: 0.35, loop: pumping },
     {
       inst: pumpPad,
@@ -226,27 +269,30 @@ export const song: Song = {
       verb: 0.35,
       loop: shift(pumping, 0.01, 12).map((n) => ({ ...n, v: n.v * 0.6 })),
     },
-    { inst: airPad, gain: -6, pan: 0, verb: 0.5, loop: breakPad },
+    { inst: airPad, gain: -3, pan: 0, verb: 0.5, loop: breakPad },
     { inst: sub, gain: -12, pan: 0, verb: 0, loop: lows },
-    { inst: roundBass, gain: -14, pan: 0, verb: 0.05, loop: shift(lows, 0, 12) },
+    { inst: roundBass, gain: -10, pan: 0, verb: 0.05, loop: shift(lows, 0, 12) },
     { inst: kick, gain: -13, pan: 0, verb: 0.05, loop: human(kicks, 36, 0.04, 0) },
     { inst: clap, gain: 2, pan: 0.08, verb: 0.3, loop: human(claps, 37, 0.06, 0.004) },
-    { inst: snare, gain: -9, pan: -0.05, verb: 0.3, loop: roll },
+    { inst: snare, gain: -11, pan: -0.05, verb: 0.3, loop: fill },
+    { inst: clap, gain: -4, pan: 0.1, verb: 0.3, loop: rollClaps },
+    { inst: tom, gain: -14, pan: -0.2, verb: 0.3, loop: fillToms },
+    { inst: boom, gain: -13, pan: 0, verb: 0.3, loop: [{ t: 0, d: 1, n: 0, v: 0.7 }] },
     { inst: hat, gain: 1, pan: 0.35, verb: 0.1, loop: human(hats, 38, 0.08, 0.004) },
     { inst: openHat, gain: -5, pan: -0.3, verb: 0.15, loop: human(opens, 39, 0.08, 0.004) },
     { inst: ride, gain: -3, pan: -0.45, verb: 0.2, loop: human(rides, 40, 0.08, 0.004) },
     { inst: shaker, gain: -6, pan: 0.6, verb: 0.15, loop: human(shakes, 41, 0.1, 0.006) },
     { inst: crash, gain: -4, pan: -0.35, verb: 0.35, loop: crashes },
     { inst: swell, gain: -3, pan: 0.35, verb: 0.35, loop: [{ t: at(19), d: 4, n: 0, v: 0.8 }] },
-    { inst: riser, gain: -8, pan: 0, verb: 0.4, loop: [{ t: at(16), d: 16, n: 0, v: 0.7 }] },
+    {
+      inst: riser,
+      gain: -11,
+      pan: 0,
+      verb: 0.4,
+      loop: [
+        { t: at(16), d: 16, n: 0, v: 0.7 },
+        { t: at(7) + 2, d: 2, n: 0, v: 0.5 },
+      ],
+    },
   ],
 };
-
-/** The theme an octave up from bar 5, a ghostly glass double. */
-function themeAHigh(lead: Note[]): Note[] {
-  return shift(
-    lead.filter((n) => n.t >= at(4)),
-    0,
-    12,
-  ).map((n) => ({ ...n, v: n.v * 0.7 }));
-}

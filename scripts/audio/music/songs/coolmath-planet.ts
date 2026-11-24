@@ -99,7 +99,11 @@ const triads = (
 const choirHits = triads(RIFF, 0, 4, [0], 1.2, 0.85);
 const choirBed = arc(triads(A, 4, 4, [0], BAR, 0.5), phrase(16, 0.3));
 const choirBridge = triads(BRIDGE, 20, 4, [0], BAR, 0.75);
-const choirs = [...choirHits, ...choirBed, ...choirBridge];
+/** The last bar's A major swells and rings across the loop point into the riff. */
+const choirWrap = triads(['A'], 23, 4, [0], 5, 0.7);
+const choirs = [...choirHits, ...choirBed, ...choirBridge, ...choirWrap];
+/** Basses and tenors an octave under the B melody. */
+const choirLow = shift(choirLine, 0, -12).map((n) => ({ ...n, v: n.v * 0.8 }));
 
 /** Brass stabs: the fanfare push (1, the and of 2, 4) in the riff and bridge. */
 const stabs = [
@@ -121,7 +125,12 @@ const run = (symbols: string[], from: number, v: number): Note[] =>
       }),
     );
   });
-const violinsB = arc(run(B, 12, 0.75), ramp(at(12), at(20), 0.85, 1.1));
+const violinsB = arc(run(B, 12, 0.75), ramp(at(12), at(20), 0.7, 1.1));
+/** An ascending pickup run into B. */
+const pickup = seq('A4 B4 C#5 D5 E5 F5 G5 A5', { step: 0.25, start: at(11) + 2, v: 0.8 }).map((n, i) => ({
+  ...n,
+  v: 0.55 + i * 0.05,
+}));
 
 /** Cellos and basses chug eighths on the root; spiccato doubles them an octave up. */
 const chug = (symbols: string[], from: number, v: number) =>
@@ -140,7 +149,12 @@ const celloChug = [
   ...chug(BRIDGE, 20, 0.85),
 ];
 const cellos = human(celloChug, 72, 0.05, 0.004);
-const horns = arc(shift(themeB, 0, -12), ramp(at(12), at(20), 0.75, 0.95));
+const horns = [
+  ...shift(lead, 0, -12).map((n) => ({ ...n, v: n.v * 0.85 })),
+  ...arc(shift(themeB, 0, -12), ramp(at(12), at(20), 0.75, 0.95)),
+];
+/** B pulls back at its start and swells into the bridge. */
+const buildB = (t: number) => (t >= at(12) && t < at(20) ? 0.72 + (0.28 * (t - at(12))) / at(8) : 1);
 
 /** Guitars: palm-muted eighths with open accents on 1 and the and of 2, double-tracked. */
 const guitar = (symbols: string[], from: number, v: number) =>
@@ -197,12 +211,16 @@ const fill = arc(
   seq('D3 D3 A2 A2 F2 F2 D2 D2', { step: 0.25, start: at(23) + 2, v: 0.8 }),
   ramp(at(23) + 2, at(24), 0.7, 1),
 );
+const fillTaiko = [
+  ...grid('x.x.x.xx', { start: at(23) + 2, n: 33 }),
+  ...grid('x.x.x.x.', { start: at(11) + 2, n: 33 }).map((n) => ({ ...n, v: n.v * 0.7 })),
+];
 const hats = accents(bars('x.x.x.x.x.x.x.x.', 4, 8), [1, 0.6], 0.5, 1);
 const rides = accents(bars('x.x.x.x.x.x.x.x.', 12, 8), [1, 0.55], 0.5, 1);
 const taikos = [...bars('x.......x.......', 0, 4, 33), ...bars('x...x...x...x...', 20, 3, 33)];
 const timps = [
   ...RIFF.map((s, i) => ({ t: at(i), d: 1, n: root(s, 2), v: 0.85 })),
-  ...arc(grid('x.x.x.x.xxxxxxxx', { start: at(11), n: 45 }), ramp(at(11), at(12), 0.1, 0.4)),
+  ...seq('A2 . A2 . D3 D3 A2 A2', { step: 0.25, start: at(11) + 2, v: 0.6 }),
   { t: at(12), d: 1, n: 41, v: 1 },
   ...BRIDGE.map((s, i) => ({ t: at(20 + i), d: 1, n: root(s, 2), v: 0.9 })),
 ];
@@ -218,14 +236,16 @@ export const song: Song = {
   seed: 71,
   reverb: { room: 0.82, damp: 0.4, wet: 0.36 },
   tracks: [
-    { inst: brass, gain: 1, pan: -0.08, verb: 0.3, loop: lead },
-    { inst: horn, gain: -6, pan: 0.3, verb: 0.35, loop: horns },
+    { inst: brass, gain: 4, pan: -0.08, verb: 0.3, loop: lead },
+    { inst: horn, gain: -5, pan: 0.25, verb: 0.35, loop: horns },
     { inst: brass, gain: -8, pan: 0.25, verb: 0.3, loop: human(stabs, 74, 0.06, 0.006) },
-    { inst: choir, gain: -5, pan: -0.45, verb: 0.5, loop: [...choirs, ...choirLine] },
-    { inst: choir, gain: -5, pan: 0.45, verb: 0.5, loop: shift([...choirs, ...choirLine], 0.015) },
+    { inst: choir, gain: -3, pan: -0.55, verb: 0.55, loop: [...choirs, ...choirLine] },
+    { inst: choir, gain: -6, pan: 0, verb: 0.55, loop: choirLow },
+    { inst: choir, gain: -3, pan: 0.55, verb: 0.55, loop: shift([...choirs, ...choirLine], 0.015) },
     { inst: strings, gain: -3, pan: -0.4, verb: 0.4, loop: violinsA },
     { inst: strings, gain: -3, pan: 0.4, verb: 0.4, loop: shift(violinsA, 0.01, -12) },
-    { inst: spiccato, gain: 0, pan: 0.35, verb: 0.3, loop: human(violinsB, 75, 0.05, 0.004) },
+    { inst: spiccato, gain: 0, pan: 0.55, verb: 0.3, loop: human(violinsB, 75, 0.05, 0.004) },
+    { inst: spiccato, gain: -2, pan: -0.3, verb: 0.3, loop: pickup },
     {
       inst: spiccato,
       gain: -2,
@@ -233,18 +253,24 @@ export const song: Song = {
       verb: 0.3,
       loop: human(shift(violinsB, 0, -12), 76, 0.05, 0.004),
     },
-    { inst: lowStrings, gain: -8, pan: -0.2, verb: 0.25, loop: cellos },
-    { inst: spiccato, gain: -6, pan: 0.2, verb: 0.2, loop: shift(cellos, 0.005, 12) },
-    { inst: powerChord, gain: -6, pan: -0.75, verb: 0.15, loop: human(guitars, 77, 0.05, 0.005) },
-    { inst: powerChord, gain: -6, pan: 0.75, verb: 0.15, loop: human(guitars, 78, 0.05, 0.01) },
+    { inst: lowStrings, gain: -8, pan: -0.2, verb: 0.25, loop: arc(cellos, buildB) },
+    { inst: spiccato, gain: -6, pan: 0.2, verb: 0.2, loop: arc(shift(cellos, 0.005, 12), buildB) },
+    {
+      inst: powerChord,
+      gain: -6,
+      pan: -0.85,
+      verb: 0.12,
+      loop: arc(human(guitars, 77, 0.05, 0.005), buildB),
+    },
+    { inst: powerChord, gain: -6, pan: 0.85, verb: 0.12, loop: arc(human(guitars, 78, 0.05, 0.01), buildB) },
     { inst: rockBass, gain: -7, pan: 0, verb: 0.05, loop: bassLine },
-    { inst: kick, gain: -8, pan: 0, verb: 0.05, loop: human(kicks, 79, 0.05, 0) },
+    { inst: kick, gain: -11, pan: 0, verb: 0.05, loop: human(kicks, 79, 0.05, 0) },
     { inst: snare, gain: -5, pan: 0.05, verb: 0.3, loop: human(snares, 80, 0.06, 0.003) },
-    { inst: tom, gain: -5, pan: -0.2, verb: 0.3, loop: fill },
+    { inst: tom, gain: -9, pan: -0.2, verb: 0.3, loop: fill },
     { inst: hat, gain: 6, pan: 0.35, verb: 0.1, loop: human(hats, 81, 0.08, 0.004) },
-    { inst: ride, gain: -3, pan: -0.35, verb: 0.2, loop: human(rides, 82, 0.08, 0.004) },
-    { inst: taiko, gain: -11, pan: 0, verb: 0.4, loop: human(taikos, 83, 0.06, 0) },
-    { inst: timpani, gain: -10, pan: 0.1, verb: 0.4, loop: timps },
+    { inst: ride, gain: -3, pan: -0.4, verb: 0.2, loop: arc(human(rides, 82, 0.14, 0.006), buildB) },
+    { inst: taiko, gain: -11, pan: 0, verb: 0.45, loop: human([...taikos, ...fillTaiko], 83, 0.06, 0) },
+    { inst: timpani, gain: -8, pan: 0.1, verb: 0.4, loop: timps },
     { inst: crash, gain: -2, pan: -0.4, verb: 0.35, loop: crashes },
     { inst: crash, gain: -5, pan: 0.45, verb: 0.35, loop: shift(crashes.slice(1), 0.01) },
     { inst: boom, gain: -6, pan: 0, verb: 0.3, loop: booms },
