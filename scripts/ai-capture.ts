@@ -83,7 +83,7 @@ try {
       const cap = document.createElement('div');
       cap.id = 'cpu-caption';
       cap.style.cssText =
-        'position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-around;padding:10px 0 14px;' +
+        'position:fixed;left:0;right:0;top:0;display:flex;justify-content:space-around;padding:14px 0 10px;' +
         'font:bold 26px system-ui,sans-serif;color:#fff;text-shadow:0 2px 4px #000,0 0 2px #000;pointer-events:none;';
       cap.dataset.labels = JSON.stringify(labels);
       document.body.appendChild(cap);
