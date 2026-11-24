@@ -1,4 +1,4 @@
-import { Application, Container, Graphics } from 'pixi.js';
+import { Application, Container, Graphics, RenderTexture, Sprite } from 'pixi.js';
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../config';
 import { getFighter } from '../fighters/registry';
 import type { MatchState } from '../sim/match';
@@ -27,6 +27,7 @@ export interface Overlays {
 }
 
 export class Renderer {
+  /** Screen-space stage backdrop, drawn into `backdrop` rather than straight to the screen. */
   readonly background = new Container();
   readonly world = new Container();
   readonly hud = new Container();
@@ -39,6 +40,11 @@ export class Renderer {
   private readonly fighterLayer = new Container();
   private readonly foregroundLayer = new Container();
   private stageView: StageView | null = null;
+  /**
+   * The backdrop renders at half resolution: its layers are soft parallax scenery, and drawn at full size they
+   * cost a software renderer (CI's SwiftShader, low-end Chromebooks) four times the fill for no visible gain.
+   */
+  private readonly backdrop = RenderTexture.create({ width: VIEW_WIDTH, height: VIEW_HEIGHT, resolution: 0.5 });
   private readonly boxes = new Graphics();
   private fighters: FighterView[] = [];
   private stageId = '';
@@ -47,7 +53,7 @@ export class Renderer {
 
   private constructor(readonly app: Application) {
     this.world.addChild(this.stageLayer, this.fighterLayer, this.foregroundLayer, this.boxes);
-    app.stage.addChild(this.background, this.world, this.hud, this.debug);
+    app.stage.addChild(new Sprite(this.backdrop), this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
   }
 
@@ -106,6 +112,7 @@ export class Renderer {
     if (this.overlays.inputs) this.inputDisplay.update(state.players);
     this.eventLog.container.visible = this.overlays.events;
     if (this.overlays.events) this.eventLog.update();
+    this.app.renderer.render({ container: this.background, target: this.backdrop, clear: true });
     this.app.render();
   }
 
