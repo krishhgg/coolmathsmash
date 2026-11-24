@@ -301,7 +301,7 @@ describe('The Duck: Dive Ram (down special)', () => {
 
   it('landing on the last dive frame still launches the slide at full speed', () => {
     const m = duck();
-    const f = placeInAir(m, -40, 120, 1);
+    const f = placeInAir(m, -75, 120, 1);
     run(m, 1, { y: -100, buttons: ['special'] });
     until(m, (g) => g.actionFrame === 43);
     Object.assign(f, { pos: { x: f.pos.x, y: 1 }, prevPos: { x: f.pos.x, y: 1 } });
