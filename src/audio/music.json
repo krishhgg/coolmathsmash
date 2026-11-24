@@ -1,4 +1,11 @@
 {
+  "forest-temple": {
+    "file": "music/forest-temple.mp3",
+    "title": "Forest Temple",
+    "evokes": "an original theme in the spirit of Fireboy and Watergirl in the Forest Temple",
+    "loopStart": 0,
+    "loopEnd": 41.142857
+  },
   "menu": {
     "file": "music/menu.mp3",
     "title": "Main Menu",
