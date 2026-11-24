@@ -1,6 +1,7 @@
 import { emit } from '../../sim/events';
 import type { Ctx } from '../../sim/fighter';
 import type { HitboxDef, MoveDef } from '../types';
+import { specials } from './specials';
 import { isLying, setShape, STANDING, tipFrame } from './tip';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -43,10 +44,11 @@ const TUMBLE_CARRY = [
  * force the sheet's kill %, until COOL-3's engine calibration lands). Frame windows are inclusive, faf is the first actionable frame.
  */
 export const moves: Record<string, MoveDef> = {
-  /** Edge Rock: rocks forward onto its front edge and back. */
+  /** Edge Rock: rocks forward onto its front edge and back; Attack again rocks harder (jab2). */
   jab: {
     kind: 'other',
     faf: 24,
+    next: { window: [8, 22], move: 'jab2' },
     hits: [
       {
         frames: [5, 6],
@@ -339,6 +341,7 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 22, hit: { damage: 7, angle: 75, kbg: 45, bkb: 60 } },
   },
+  ...specials,
 };
 
 /**
