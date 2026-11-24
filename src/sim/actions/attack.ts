@@ -180,6 +180,15 @@ function moveIntangible(f: FighterState): boolean {
   return w !== undefined && inWindow(f.actionFrame, w);
 }
 
+/** Jab combos: Attack with the stick neutral inside the move's `next` window starts the combo's next hit. */
+function comboNext(x: Ctx, move: MoveDef): boolean {
+  const { f, c } = x;
+  if (!move.next || !inWindow(f.actionFrame, move.next.window)) return false;
+  if (!buffered(c, Btn.Attack) || stickDir(c, f.facing) !== 'neutral') return false;
+  consume(c, Btn.Attack);
+  return startMove(x, move.next.move);
+}
+
 export const ATTACK: Record<string, ActionDef> = {
   /** A grounded move, played from its frame data until its first actionable frame. */
   attack: {
@@ -187,6 +196,7 @@ export const ATTACK: Record<string, ActionDef> = {
     intangible: moveIntangible,
     update(x) {
       const move = playMove(x);
+      if (comboNext(x, move)) return;
       if (x.f.actionFrame >= move.faf) setAction(x, 'idle');
     },
   },
