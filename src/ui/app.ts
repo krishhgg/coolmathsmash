@@ -1,5 +1,6 @@
 import { padSlots } from '../input/gamepad';
 import { loadSettings, saveSettings, type Settings } from '../session/settings';
+import { defaultSetup, type MatchSetup } from '../session/setup';
 import { MenuInput, type MenuEvent } from './input';
 import type { UiLayer } from './layer';
 
@@ -18,6 +19,8 @@ export type Route = 'title' | 'main' | 'css' | 'stages' | 'match' | 'results' | 
 /** What a screen can do to the rest of the game. */
 export interface Flow {
   readonly settings: Settings;
+  /** Players, stage and rules, kept across screens and rematches. */
+  readonly setup: MatchSetup;
   saveSettings(): void;
   go(route: Route): void;
   /** Whether that screen exists yet. */
@@ -29,6 +32,7 @@ export type ScreenFactory = (flow: Flow) => Screen;
 /** Owns the current screen, feeds it menu input every animation frame, and switches screens by route. */
 export class App implements Flow {
   readonly settings: Settings = loadSettings();
+  readonly setup: MatchSetup = defaultSetup();
   readonly input = new MenuInput(() => this.settings.keyboard);
   private screen: Screen | null = null;
   route: Route | null = null;
