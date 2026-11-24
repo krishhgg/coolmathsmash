@@ -109,6 +109,8 @@ describe('Johnny Upgrade: attack inputs', () => {
 /** The roster's sheet (handoffs/research/roster.md, Johnny Upgrade): first active frame and damage of each hit. */
 const ROSTER: [move: string, startup: number, damage: number[]][] = [
   ['jab', 3, [1.5]],
+  ['jab2', 4, [1]],
+  ['jab3', 3, [0.5, 0.5, 0.5, 0.5, 2]],
   ['ftilt', 7, [9]],
   ['utilt', 14, [11]],
   ['dtilt', 10, [10]],
@@ -178,6 +180,48 @@ describe('Johnny Upgrade: kill percents', () => {
   it('the jab, tilts and forward throw are not kill moves at 120%', () => {
     for (const move of ['jab', 'ftilt', 'dtilt', 'dashAttack', 'fthrow', 'uthrow', 'dthrow'])
       expect(kos(move, 120), move).toBe(false);
+  });
+});
+
+describe('Johnny Upgrade: One-Two into Rush', () => {
+  /** Johnny with a second Johnny standing 9 units in front of him; `press(i)` says when frame i presses Attack. */
+  function rush(press: (i: number) => boolean, frames: number) {
+    const m = testMatch({ fighter: 'johnny', players: 2 });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    const at = { x: a.pos.x + 9 * a.facing, y: a.pos.y };
+    Object.assign(v, {
+      pos: { ...at },
+      prevPos: { ...at },
+      ground: a.ground,
+      action: 'idle',
+      facing: -a.facing,
+    });
+    v.intangible = 0;
+    const started: string[] = [];
+    for (let i = 0; i < frames; i++) {
+      runPorts(m, 1, [press(i) ? { buttons: ['attack'] } : {}, {}]);
+      for (const e of m.events) if (e.type === 'move' && e.port === 0) started.push(e.move);
+    }
+    return { a, v, started };
+  }
+
+  it('Attack three times throws jab, jab2 and the Rush', () => {
+    const { started } = rush((i) => i === 0 || i === 6 || i === 18, 60);
+    expect(started).toEqual(['jab', 'jab2', 'jab3']);
+  });
+
+  it('mashing Attack keeps the Rush going; letting go ends it with the finishing punch, which sends them away', () => {
+    const { a, v, started } = rush((i) => i < 90 && i % 4 === 0, 160);
+    expect(started.slice(0, 2)).toEqual(['jab', 'jab2']);
+    expect(started.filter((s) => s === 'jab3').length).toBeGreaterThanOrEqual(4);
+    expect(a.action).toBe('idle');
+    expect(Math.abs(v.pos.x - a.pos.x)).toBeGreaterThan(25);
+  });
+
+  it('a single press is just the first punch', () => {
+    const { a, started } = rush((i) => i === 0, 40);
+    expect(started).toEqual(['jab']);
+    expect(a.action).toBe('idle');
   });
 });
 
