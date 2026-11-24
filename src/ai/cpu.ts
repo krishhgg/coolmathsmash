@@ -1,9 +1,10 @@
 import { getFighter } from '../fighters/registry';
 import { nextRandom } from '../engine/rng';
+import type { HitboxDef, ThrowHitDef } from '../fighters/types';
 import { Btn, neutralInput, type InputFrame } from '../input/types';
 import { hurtbox } from '../sim/combat/hits';
 import { knockback, shieldstunFrames } from '../sim/combat/formulas';
-import { SHIELD_DROP_FRAMES } from '../sim/constants';
+import { GRAB, SHIELD_DROP_FRAMES } from '../sim/constants';
 import type { FighterState } from '../sim/fighter';
 import type { MatchState } from '../sim/match';
 import { STICK, TURNING_MOVES, press } from './inputs';
@@ -62,6 +63,8 @@ export class Cpu {
   private ledgePlan: { option: LedgeOption; at: number } | null = null;
   private techPlan: { tech: boolean; dir: number; pressed: boolean } | null = null;
   private getupPlan: { option: GetupOption; at: number; dir: number } | null = null;
+  private grabPlan: { at: number; pummels: number; stick: InputFrame } | null = null;
+  private mashDir = 1;
   private respawnAt = -1;
   private diStick: InputFrame | null = null;
   private rolls = new Map<string, boolean>();
@@ -119,6 +122,7 @@ export class Cpu {
     if (!a.startsWith('ledge')) this.ledgePlan = null;
     if (a !== 'tumble' || me.launch) this.techPlan = null;
     if (a !== 'down') this.getupPlan = null;
+    if (a !== 'grabHold' && a !== 'grabPummel') this.grabPlan = null;
     if (a === 'ko' || a === 'out') {
       this.prog = null;
       this.recovery = null;
@@ -131,7 +135,9 @@ export class Cpu {
       if (i) return i;
     }
     if (a === 'down') return this.onDown(state, me);
-    if (a === 'hitstun' || (a === 'tumble' && me.hitstun > 0) || KNOCKDOWN.has(a)) {
+    if (a === 'grabbed') return this.mash(state);
+    if (a === 'grabHold') return this.onGrabHold(state, me);
+    if (a === 'hitstun' || (a === 'tumble' && me.hitstun > 0) || BUSY.has(a)) {
       this.prog = null;
       this.recovery = null;
       return NEUTRAL;
@@ -248,6 +254,64 @@ export class Cpu {
     if (option === 'roll') return press({ x: 100 * dir });
     if (option === 'attack') return press({ buttons: Btn.Attack });
     return press({ y: STICK.full });
+  }
+
+  /** Held in a grab: mash at the level's rate, a new stick direction each time and a button every other time. */
+  private mash(state: Readonly<MatchState>): InputFrame {
+    this.prog = null;
+    if (this.lv.mash <= 0) return NEUTRAL;
+    const every = Math.max(1, Math.round(60 / this.lv.mash));
+    if (state.frame % every !== 0) return press({ x: 100 * this.mashDir });
+    this.mashDir = -this.mashDir;
+    const button = (state.frame / every) % 2 < 1 ? Btn.Attack : 0;
+    return press({ x: 100 * this.mashDir, buttons: button });
+  }
+
+  /**
+   * Holding someone: after a reaction-length pause, pummel up to the level's count while the hold lasts, then
+   * throw: one that KOs if any does (checked by simulating each throw's launch), else toward the nearer blast zone.
+   */
+  private onGrabHold(state: Readonly<MatchState>, me: Readonly<FighterState>): InputFrame {
+    this.prog = null;
+    const held = state.fighters[me.grabPartner];
+    if (!held) return NEUTRAL;
+    if (!this.grabPlan) {
+      const pummels = Math.floor(this.rand() * (this.lv.pummels + 1));
+      const at = state.frame + Math.round(this.lv.reaction / 2);
+      this.grabPlan = { at, pummels, stick: this.pickThrow(state, me, held) };
+    }
+    const plan = this.grabPlan;
+    if (state.frame < plan.at) return NEUTRAL;
+    if (plan.pummels > 0 && held.grabTimer > PUMMEL_MARGIN) {
+      if (this.last.buttons & Btn.Attack) return NEUTRAL;
+      plan.pummels--;
+      return press({ buttons: Btn.Attack });
+    }
+    return { ...plan.stick, x: plan.stick.x * me.facing };
+  }
+
+  private pickThrow(
+    state: Readonly<MatchState>,
+    me: Readonly<FighterState>,
+    held: Readonly<FighterState>,
+  ): InputFrame {
+    const moves = getFighter(me.fighter).moves ?? {};
+    const options = THROWS.filter(([name]) => moves[name]?.throw);
+    if (!options.length) return press({ x: 100 });
+    if (this.rand() >= this.lv.precision) return options[Math.floor(this.rand() * options.length)]![1];
+    const at = { x: held.pos.x, y: held.pos.y, grounded: true };
+    const info = stageInfo(state.config.stage);
+    const outward = Math.sign(held.pos.x - info.centerX) || me.facing;
+    let best = options[0]!;
+    let bestScore = -Infinity;
+    for (const option of options) {
+      const hit = moves[option[0]]!.throw!.hit;
+      const dir = (hit.direction === 'back' ? -me.facing : me.facing) as 1 | -1;
+      let score = hit.damage + (option[1].x !== 0 && dir === outward ? 4 : 0);
+      if (launchKills(state, held, at, hit, dir)) score += 100;
+      if (score > bestScore) [best, bestScore] = [option, score];
+    }
+    return best[1];
   }
 
   /** A random roll direction (0 for in place) among the options that keeps a roll's length on the stage. */
@@ -491,7 +555,14 @@ export class Cpu {
     situation: Situation,
   ): void {
     const stun = me.action === 'shieldStun' ? Math.max(0, me.hitstun - me.actionFrame + 1) : 0;
-    const self: Self = { f: me, k, info, groundDelay: stun + SHIELD_DROP_FRAMES + 1, jumpDelay: stun };
+    const self: Self = {
+      f: me,
+      k,
+      info,
+      groundDelay: stun + SHIELD_DROP_FRAMES + 1,
+      jumpDelay: stun,
+      grabDelay: stun + GRAB.shieldGrabLock + 1,
+    };
     const freeAt = target.path.findIndex((s) => actionable(s) || (s.grounded && s.action === 'shield'));
     const window = freeAt < 0 ? target.path.length : freeAt;
     const attacks = this.rank(state, findAttacks(self, target), target, snap, k, info, false).filter(
@@ -522,6 +593,12 @@ export class Cpu {
       const s = target.path[a.tHit]!;
       const onStage = floorBelow(info, a.endX, a.endY + 1) !== null;
       if (!onStage && !(offstageOk && this.safeOffstage(a, info, k))) continue;
+      if (a.box.grab) {
+        const grabbing = (throwDamage(k) + 4) * (k.hints.prefer?.[a.move] ?? 1);
+        const vsShield = s.action === 'shield' || s.action === 'shieldStun';
+        out.push({ ...a, score: (grabbing * (vsShield ? 2.2 : 1)) / (1 + a.tHit / 30) });
+        continue;
+      }
       const box = a.box;
       const kb = knockback({
         percent: snap.damage,
@@ -557,44 +634,15 @@ export class Cpu {
     return Math.abs(a.endX - L.x) < 25 && a.endY > L.y - 15;
   }
 
-  /** Run the launch this attack would cause on a private copy of the opponent and see if it reaches a blast zone. */
   private wouldKill(state: Readonly<MatchState>, a: Attack, target: Target, snap: FighterState): boolean {
     const s = target.path[a.tHit]!;
-    const opp = getFighter(snap.fighter).stats;
-    const kb = knockback({
-      percent: snap.damage,
-      damage: a.box.damage,
-      kbg: a.box.kbg,
-      bkb: a.box.bkb,
-      wbkb: a.box.wbkb,
-      weight: opp.weight,
-    });
-    if (kb < 80) return false;
     const dir =
       a.box.direction === 'back'
         ? -a.facing
         : a.box.direction === 'away'
           ? Math.sign(s.x - a.endX) || a.facing
           : a.facing;
-    const v: FighterState = {
-      ...snapshot(snap),
-      pos: { x: s.x, y: s.y },
-      prevPos: { x: s.x, y: s.y },
-      vel: { x: 0, y: 0 },
-      kb: { x: 0, y: 0 },
-      ground: s.grounded ? snap.ground : null,
-      action: 'tumble',
-      actionFrame: 0,
-      hitlag: 0,
-      hitstun: 0,
-      ledge: -1,
-      launch: { kb, angle: a.box.angle, dir: dir as 1 | -1, setKnockback: (a.box.wbkb ?? 0) > 0 },
-    };
-    if (v.ground && s.grounded === false) v.ground = null;
-    const m = soloMatch(state, v);
-    const path = run(m, 160, undefined, (g, t) => t > 2 && !g.launch && g.hitstun <= 0);
-    const end = path.at(-1);
-    return end !== undefined && (end.action === 'ko' || end.action === 'out');
+    return launchKills(state, snap, s, a.box, dir as 1 | -1);
   }
 
   private startAttack(ranked: Attack[], me: Readonly<FighterState>, info: StageInfo): void {
@@ -719,8 +767,70 @@ type GetupOption = 'stand' | 'roll' | 'attack';
 
 /** Frames before touching down that the CPU presses Shield to tech (the window is TECH_WINDOW, 11). */
 const TECH_LEAD = 4;
-/** Knocked down or getting up: nothing to input until it ends. */
-const KNOCKDOWN = new Set(['downBound', 'techInPlace', 'techRoll', 'getupStand', 'getupRoll']);
+/** Knocked down, getting up, or in a grab: nothing to input until it ends. */
+const BUSY = new Set([
+  'downBound',
+  'techInPlace',
+  'techRoll',
+  'getupStand',
+  'getupRoll',
+  'grabPummel',
+  'grabThrow',
+  'grabRelease',
+]);
+/** Throws and the stick direction that starts each, facing right. */
+const THROWS: [string, InputFrame][] = [
+  ['fthrow', press({ x: 100 })],
+  ['bthrow', press({ x: -100 })],
+  ['uthrow', press({ y: 100 })],
+  ['dthrow', press({ y: -100 })],
+];
+
+/** The most damage one of the fighter's throws does (what a grab is worth). */
+function throwDamage(k: FighterKnowledge): number {
+  return Math.max(0, ...THROWS.map(([name]) => k.def.moves?.[name]?.throw?.hit.damage ?? 0));
+}
+
+/** Pummels only while the hold has this many frames left, so a mashing opponent can't escape mid-pummel. */
+const PUMMEL_MARGIN = 30;
+
+/** Run the launch `hit` would cause on a private copy of `victim` standing at `at`, and see if it reaches a blast zone. */
+function launchKills(
+  state: Readonly<MatchState>,
+  victim: Readonly<FighterState>,
+  at: { x: number; y: number; grounded: boolean },
+  hit: Pick<HitboxDef | ThrowHitDef, 'damage' | 'kbg' | 'bkb' | 'wbkb' | 'angle'>,
+  dir: 1 | -1,
+): boolean {
+  const kb = knockback({
+    percent: victim.damage,
+    damage: hit.damage,
+    kbg: hit.kbg,
+    bkb: hit.bkb,
+    wbkb: hit.wbkb,
+    weight: getFighter(victim.fighter).stats.weight,
+  });
+  if (kb < 80) return false;
+  const v: FighterState = {
+    ...snapshot(victim),
+    pos: { x: at.x, y: at.y },
+    prevPos: { x: at.x, y: at.y },
+    vel: { x: 0, y: 0 },
+    kb: { x: 0, y: 0 },
+    ground: at.grounded ? victim.ground : null,
+    action: 'tumble',
+    actionFrame: 0,
+    hitlag: 0,
+    hitstun: 0,
+    ledge: -1,
+    grabPartner: -1,
+    launch: { kb, angle: hit.angle, dir, setKnockback: (hit.wbkb ?? 0) > 0 },
+  };
+  const m = soloMatch(state, v);
+  const path = run(m, 160, undefined, (g, t) => t > 2 && !g.launch && g.hitstun <= 0);
+  const end = path.at(-1);
+  return end !== undefined && (end.action === 'ko' || end.action === 'out');
+}
 
 function snapshot(f: Readonly<FighterState>): FighterState {
   const out: Record<string, unknown> = {};
@@ -782,8 +892,9 @@ function classify(path: Sample[]): Situation {
   return 'neutral';
 }
 
-/** What the CPU assumes the opponent keeps doing: running keeps running, drifting keeps drifting, recovering recovers. */
+/** What the CPU assumes the opponent keeps doing: shielding keeps shielding, running keeps running, recovering recovers. */
 function assumedInput(snap: FighterState, info: StageInfo, state: Readonly<MatchState>): Driver {
+  if (snap.action === 'shield' || snap.action === 'shieldStun') return () => press({ buttons: Btn.Shield });
   if (!actionable(snap) && snap.action !== 'helpless') return () => neutralInput();
   if (snap.ground === null && floorBelow(info, snap.pos.x, snap.pos.y) === null) {
     const k = knowledge(snap.fighter, state.config.stage);

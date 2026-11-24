@@ -137,6 +137,46 @@ describe('CPU knockdowns', () => {
   });
 });
 
+describe('CPU grabs', () => {
+  it('grab a held shield and throw at level 9', () => {
+    for (const seed of [1, 2, 3]) {
+      const m = match();
+      const cpu = createCpu({ port: 1, level: 9, seed });
+      const seen = new Set<string>();
+      for (let i = 0; i < 300 && !seen.has('grabThrow'); i++) {
+        stepMatch(m, [{ ...neutralInput(), buttons: Btn.Shield }, cpu.input(m)]);
+        seen.add(m.fighters[1]!.action);
+      }
+      expect(seen.has('grabHold')).toBe(true);
+      expect(seen.has('grabThrow')).toBe(true);
+    }
+  });
+
+  it('mash out of a grab faster as the level rises', () => {
+    const held = (level: number) => {
+      const m = match();
+      for (let i = 0; i < 120; i++) stepMatch(m, [neutralInput(), neutralInput()]);
+      const [a, v] = m.fighters;
+      Object.assign(a!, { pos: { x: 0, y: 0 }, facing: 1, damage: 0 });
+      Object.assign(v!, { pos: { x: 9, y: 0 }, facing: -1, damage: 60 });
+      const cpu = createCpu({ port: 1, level, seed: 4 });
+      let frames = 0;
+      for (let i = 0; i < 400; i++) {
+        const own = cpu.input(m);
+        const grab = i === 0 ? { ...neutralInput(), buttons: Btn.Grab } : neutralInput();
+        stepMatch(m, [grab, v!.action === 'grabbed' ? own : neutralInput()]);
+        if (v!.action === 'grabbed') frames++;
+        else if (frames > 0) break;
+      }
+      return frames;
+    };
+    const [l1, l5, l9] = [held(1), held(5), held(9)];
+    expect(l1).toBeGreaterThan(0);
+    expect(l5).toBeLessThan(l1);
+    expect(l9).toBeLessThan(l5);
+  });
+});
+
 describe('CPU recovery', () => {
   const spots: [number, number][] = [
     [-110, -10],
