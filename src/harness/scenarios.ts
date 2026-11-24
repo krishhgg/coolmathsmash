@@ -223,6 +223,17 @@ export const SCENARIOS: Scenario[] = [
     requires: ['hud', 'move:fsmash'],
   },
   {
+    name: 'title',
+    description: 'Title screen: the Coolmath Smash logo on the Coolmath planet, "Press Start".',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'title' } },
+  },
+  {
+    name: 'main-menu',
+    description:
+      'Main menu: the big Smash tile focused, Controls and Options beside it, description bar below.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'main' } },
+  },
+  {
     name: 'stage',
     description: 'Coolmath Battlefield on its own at the reference camera (centre 0,20, zoom 4.5).',
     page: { kind: 'lab', scene: 'stage' },
