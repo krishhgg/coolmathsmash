@@ -5,6 +5,7 @@ import { createFighter, type FighterState } from './fighter';
 import { resolveHits } from './combat/hits';
 import { emit, type SimEvent } from './events';
 import { pushApart } from './movement';
+import { stageHits } from './hazards';
 import { advanceStage, posedStage, stageStateAt, type StageState } from './movingStage';
 import { stepFighter } from './step';
 
@@ -21,6 +22,8 @@ export interface MatchConfig {
   stage: string;
   stocks: number;
   ports: PortConfig[];
+  /** Stage hazards (damage zones, stage hitboxes, conveyors, pieces flagged `hazard`); off for legal play. Default on. */
+  hazards?: boolean;
 }
 
 export interface PlayerState {
@@ -60,7 +63,7 @@ export function createMatch(config: MatchConfig = DEFAULT_MATCH): MatchState {
       createFighter(port, p.fighter, stage.spawns[port % stage.spawns.length]!, config.stocks),
     ),
     events: [],
-    stage: stageStateAt(stage, 0),
+    stage: stageStateAt(stage, 0, undefined, config.hazards !== false),
   };
 }
 
@@ -73,6 +76,7 @@ export function stepMatch(state: MatchState, inputs: readonly InputFrame[]): voi
   pushApart(state, posedStage(state));
   advanceStage(state);
   resolveHits(state);
+  stageHits(state);
   state.fighters.forEach((f, i) => {
     if (f.action !== before[i]) emit(state, { type: 'action', port: f.port, from: before[i]!, to: f.action });
   });

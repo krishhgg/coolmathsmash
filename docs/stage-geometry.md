@@ -93,14 +93,82 @@ floors that fighters walk along.
 
 ### Events
 
-`stagePiece` reports a scheduled piece appearing or vanishing and `squeeze` a fighter squeezed out on top of
-a solid (docs/sim-events.md), for audio and effects.
+`stagePiece` reports a scheduled piece appearing or vanishing, `squeeze` a fighter squeezed out on top of a
+solid and `stageHit` a stage hazard hitting a fighter (docs/sim-events.md), for audio and effects.
 
 ### Drawing
 
 The placeholder renderer draws static pieces once and moving ones every frame from `MatchState.stage`,
 interpolated between frames (`src/render/stagePieces.ts`). Absent pieces show as faint ghosts and pieces
-about to vanish blink for 45 frames, so a stage's art should telegraph a vanish at least that early.
+about to vanish blink for 45 frames, so a stage's art should telegraph a vanish at least that early. With
+hazards on, damage zones are tinted by element and stage hitboxes are grey discs, faint while they are not out.
+
+## Stage hazards
+
+Hazards are the parts of a stage that act on fighters by themselves. They are on by default;
+`MatchConfig.hazards: false` turns every one of them off for legal play: damage zones and stage hitboxes stop
+hitting, conveyors stop, and pieces flagged `hazard` stay at their authored place, present.
+
+```ts
+// Damaging areas, rectangles that can move and follow a schedule like pieces.
+zones: [{ x1: -12, x2: 12, y1: -1, y2: 4, element: 'goo' }],
+// Stage hitboxes: HitboxDef circles around an anchor that moves with `motion` and is out while `schedule` says.
+hitboxes: [{ x: 0, y: 6, motion, schedule, boxes: [{ id: 0, x: 0, y: 0, radius: 6, damage: 8, angle: 45, kbg: 80, bkb: 50 }] }],
+// On any solid or platform:
+conveyor: 0.35, // a belt: fighters standing on it move 0.35 units per frame along x
+hazard: true, // its motion and schedule are a hazard (a trapdoor): with hazards off it stays put and present
+```
+
+### Damage zones
+
+A zone hits a fighter whose body (its width, from the feet up to its height) overlaps it. Its `element` is
+`goo`, `lava` or `water`, and a fighter lists the elements it is immune to in `FighterDef.immune`: Fireboy
+wades through lava and Watergirl through water, and goo hurts everyone, as in their games. Each element has a
+default hit (`ELEMENT_HITS` in `src/sim/hazards.ts`); a zone can set its own `hit` (a HitboxDef's damage and
+knockback fields) and `rehit`.
+
+| element | damage     | knockback (angle 90, kbg 100, bkb 0) | rehit     |
+| ------- | ---------- | ------------------------------------ | --------- |
+| goo     | 2%         | set 50: a weak pop, hitstun          | 10 frames |
+| lava    | 12% (fire) | set 90: a launch into tumble         | 30 frames |
+| water   | 12%        | set 90: a launch into tumble         | 30 frames |
+
+The pattern is Ultimate's damage floors: set (weight-based) knockback straight up, so a hit pops the fighter out
+of the pool the same height at any %, and the floor then waits before it hits the same fighter again. Between
+pops a fighter can jump or drift clear. Goo follows the roster's Forest Temple pool (2% every 10 frames and a
+weak pop, so nobody stands in it), and lava and water its 12% upward launch. Put a pool's top 3 or 4 units
+above the floor, so standing in it counts and a hop clears it.
+
+### Stage hitboxes
+
+A stage hitbox is a moving blade, a falling weight or a patrolling ball: `HitboxDef` circles placed relative to
+an anchor (`x`, `y`) that moves with `motion` and is out while `schedule` has it on. Its angles count from
++x; `direction: 'back'` mirrors them and `'away'` sends fighters away from the anchor. `rehit` (default 30)
+is the wait before stage hazards hit the same fighter again.
+
+### How hazards hit
+
+After the fighters' own hits each frame, `stageHits` (`src/sim/hazards.ts`) gives each fighter that a zone
+or stage hitbox touches that hazard's hit through `strike` (`src/sim/combat/hits.ts`), the victim's side of
+a fighter's hit: Ultimate's knockback formula, hitlag, a launch with DI when hitlag ends, hitstun or tumble,
+and the 1v1 damage multiplier. There is no attacker, so there is no staleness or rage and only the victim
+freezes. A fighter takes at most one stage hit per frame (zones first, then stage hitboxes, lowest index first),
+and then `stageHitLock`, the hazard's `rehit`, keeps all stage hazards off them. Hazards skip intangible
+fighters and fighters already in hitlag, and go through shields.
+
+### Conveyors
+
+A solid or platform with `conveyor` moves every fighter standing on it that many units per frame along x, on
+top of their own movement, whatever they are doing. A belt carries a fighter off the end it runs toward, even
+in actions that otherwise stop at the edge (standing still). Leaving the belt keeps none of its speed.
+
+### Trapdoors
+
+A trapdoor is a solid set into the floor, flush with it, with a schedule: fighters on it fall when it vanishes,
+and it shuts again when the schedule brings it back (a solid that reappears around a fighter lets them fall
+out). Fighters walk across the seams as across one floor, because a floor of another solid that meets a floor's
+end at the same height continues it. Flag it `hazard: true` so it stays shut with hazards off. A falling or
+tilting floor works the same way with a `motion`.
 
 ## The testbed
 
@@ -113,3 +181,12 @@ the stage list. Under `?harness`, `__smash.newMatch({ stage: 'testbed' })` loads
 - a platform circling off the left edge, its motion a function of the frame (platform 2);
 - an elevator with grabbable corners off the right edge (solid 1), rising 70 and sinking back;
 - a crusher over the left of the slab that stops 5 above the floor (solid 2), squeezing anyone under it.
+
+`src/stages/hazardTestbed.ts` does the same for stage hazards: `__smash.newMatch({ stage: 'hazard-testbed' })`
+loads it, and `hazards: false` turns them off.
+
+- goo, lava and water pools on the floor (zones 0, 1 and 2, left to right);
+- conveyor belts (platforms 0 and 1) carrying fighters toward the middle and off;
+- a trapdoor in the middle of the floor (solid 1), open on frames 180-299 of every 360;
+- a blade (stage hitbox 0) that waits until frame 120, sweeps the floor left to right until frame 300 and
+  retracts to go back.

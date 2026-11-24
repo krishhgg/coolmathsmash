@@ -199,15 +199,33 @@ export function addDamage(m: MatchState, v: FighterState, damage: number): void 
   v.damage = Math.min(DAMAGE_MAX, v.damage + damage * (m.players.length === 2 ? ONE_V_ONE_DAMAGE : 1));
 }
 
+/** What a hit does to its victim, whoever or whatever dealt it (a fighter's move, a stage hazard). */
+export interface Strike {
+  box: Pick<HitboxDef, 'damage' | 'angle' | 'kbg' | 'bkb' | 'wbkb' | 'hitlag' | 'effect'>;
+  /** Damage before staleness. */
+  damage: number;
+  stale: number;
+  rage: number;
+  dir: 1 | -1;
+  /** The victim's % before this frame's hits. */
+  percent: number;
+  crouch: boolean;
+  /** The victim's armor (MoveDef.armor): hits below both thresholds don't launch. Null without armor. */
+  armor: { kb: number; damage: number } | null;
+}
+
 /**
- * Damage always adds up. When several fighters hit the same victim on one frame (`again`), the strongest
- * knockback is the launch and the longest hitlag is the victim's freeze.
+ * The victim's side of a hit: damage, hitlag and the launch waiting for hitlag to end. When several hits land
+ * on one victim on the same frame (`again`), the strongest knockback is the launch and the longest hitlag is
+ * the freeze. An armored victim takes hits below both its thresholds without launching, and a held fighter stays
+ * in the grab, the damage counting toward breaking it. Returns the knockback, the hitlag and the % added.
  */
-function hit(
+export function strike(
   m: MatchState,
-  { a, v, box, damage: base, stale, rage, dir, percent, crouch, at, move, armor }: Connection,
+  v: FighterState,
+  { box, damage: base, stale, rage, dir, percent, crouch, armor }: Strike,
   again: boolean,
-): void {
+): { kb: number; lag: number; added: number } {
   const kb = knockback({
     percent,
     damage: base,
@@ -223,29 +241,36 @@ function hit(
   const before = v.damage;
   addDamage(m, v, damage);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric', crouch });
-  a.hitlag = lag;
   v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
-  emit(m, {
-    type: 'hit',
-    attacker: a.port,
-    victim: v.port,
-    move,
-    damage: v.damage - before,
-    kb,
-    tumble: isTumble(kb),
-    hitlag: lag,
-    effect: box.effect ?? 'normal',
-    x: at.x,
-    y: at.y,
-  });
-  if (armor && kb < armor.kb && damage < armor.damage) return;
+  const result = { kb, lag, added: v.damage - before };
+  if (armor && kb < armor.kb && damage < armor.damage) return result;
   const held = grabArmour(m, v, damage);
-  if (again && v.launch && v.launch.kb >= kb) return;
+  if (again && v.launch && v.launch.kb >= kb) return result;
   v.launch = { kb, angle: box.angle, dir, setKnockback: (box.wbkb ?? 0) > 0 };
-  if (held) return;
+  if (held) return result;
   v.action = isTumble(kb) ? 'tumble' : 'hitstun';
   v.actionFrame = 0;
   v.move = null;
+  return result;
+}
+
+/** Damage always adds up; the attacker freezes for the hitlag too. */
+function hit(m: MatchState, h: Connection, again: boolean): void {
+  const { kb, lag, added } = strike(m, h.v, h, again);
+  h.a.hitlag = lag;
+  emit(m, {
+    type: 'hit',
+    attacker: h.a.port,
+    victim: h.v.port,
+    move: h.move,
+    damage: added,
+    kb,
+    tumble: isTumble(kb),
+    hitlag: lag,
+    effect: h.box.effect ?? 'normal',
+    x: h.at.x,
+    y: h.at.y,
+  });
 }
 
 function shieldHit(
