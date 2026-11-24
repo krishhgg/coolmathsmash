@@ -98,6 +98,15 @@ describe('samplePose', () => {
     expect(after.local.arm!.x).toBeCloseTo(4);
   });
 
+  it('dresses a costume with its slot defaults, below clip and key swaps', () => {
+    const dressed: FighterArt = { ...art, costumeSwaps: { gold: { fx: 'b', arm: 'a' } } };
+    expect(samplePose(dressed, 'idle', 0, 0).symbols.fx).toBeNull();
+    expect(samplePose(dressed, 'idle', 0, 0, 'gold').symbols).toMatchObject({ fx: 'b', arm: 'a' });
+    expect(samplePose(dressed, 'swing', 3, 0, 'gold').symbols).toMatchObject({ fx: 'b', arm: 'b' });
+    expect(samplePose(dressed, 'swing', 4, 0, 'gold').symbols.fx).toBe('a');
+    expect(samplePose(dressed, 'idle', 0, 0, 'nope').symbols.fx).toBeNull();
+  });
+
   it('plays movie-clip symbols on the match clock', () => {
     expect(samplePose(art, 'idle', 0, 0).symbols.hand).toBe('a');
     expect(samplePose(art, 'idle', 0, 2).symbols.hand).toBe('b');
