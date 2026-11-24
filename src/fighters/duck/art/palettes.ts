@@ -23,12 +23,13 @@ const yellow: Palette = {
 };
 
 /**
- * Costumes. `default` is the Duck Life 1 duckling. `evil` is the Champion Duck, DuckLife 3's dark final boss with
- * red eyes and a red beak. Three are Duck Life 1 shop paints (Crazy Red, Sky Blue, Midnight Black). `crown` is the
- * yellow duck wearing the champion's Crown hat, which the `hat` slot draws once costumes can show slots.
+ * Costumes. `default` is the Duck Life 1 duckling. `crown` is the same duckling wearing the champion's Crown hat
+ * (its `hat` slot is switched on in `costumeSwaps`). `evil` is the Champion Duck, DuckLife 3's dark final boss
+ * with red eyes and a red beak. The rest are Duck Life 1 shop paints: Crazy Red, Sky Blue and Midnight Black.
  */
 export const palettes = {
   default: yellow,
+  crown: yellow,
   evil: {
     ...yellow,
     body: '#4a4a4a',
@@ -41,5 +42,4 @@ export const palettes = {
   red: { ...yellow, body: '#ff1a00', feather: '#ff7a66' },
   blue: { ...yellow, body: '#0099ff', feather: '#7cc8ff' },
   black: { ...yellow, body: '#262626', feather: '#4d4d4d', beak: '#ff9900' },
-  crown: yellow,
 } satisfies Record<string, Palette>;

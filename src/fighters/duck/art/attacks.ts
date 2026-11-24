@@ -4,6 +4,7 @@ import {
   ANGRY,
   BLINK,
   CROUCH,
+  DIZZY,
   LOOK_UP,
   PECK,
   SHOUT,
@@ -171,6 +172,61 @@ function grabClip(length: number, from: number, to: number, head: Pt): AnimClip 
 }
 
 const GROUND_PECK: Pose = strike({ lean: 30, shift: 0.5, drop: 1.2, head: [5.1, -3.3], aim: 6, feet: [-1.8, 0.5] });
+
+/**
+ * Flight Training (upB): the flying mini-game's flap as a recovery. Duck Life's line wing runs through its drawings
+ * one a frame, a beat every six frames (twice the falling flap's speed), with a snappy downstroke; the belly
+ * stretches on each downstroke and speed lines trail below him.
+ */
+const FLIGHT_WING = ['wingA', 'wingFlat', 'wingV', 'wingVs', 'wingFlat', 'wingAs'];
+const climb = (down: boolean, lines: number, feathers?: [number, number, number]): Pose =>
+  mix(
+    air(
+      down
+        ? { body: { rot: -6, sx: 0.95, sy: 1.08, y: -0.25 }, head: { rot: -8, y: -0.1 }, wingF: { sx: 1.45, sy: 1.3 }, wingB: { sx: 1.45, sy: 1.3 } }
+        : { body: { rot: -6, sx: 1.04, sy: 0.95 }, head: { rot: -12 }, wingF: { sx: 1.45, sy: 1.3 }, wingB: { sx: 1.45, sy: 1.3 } },
+      80,
+      68,
+    ),
+    { fx3: fx(-0.5, -0.6, lines, -90, 1.1) },
+    feathers ? { fx1: fx(...feathers) } : {},
+  );
+
+/** The first pose of the helpless clip, so the climb hands over to it without a jump. */
+const SPENT = wing(
+  wing(mix(air({ body: { sx: 0.97, sy: 1.04 }, head: { rot: 4, y: 0.1 } }, 70, 60), { body: { rot: -8 } }), 'F', -120, 0.9),
+  'B',
+  -70,
+  0.9,
+);
+
+/** Both legs swung from the hips by (dx, dy), feet at world angle `toe`: trailing behind a dive or a slide. */
+function trail(pose: Pose, dx: number, dy: number, toe: number): Pose {
+  const [bx, by] = at(pose, 'legB');
+  const [hx, hy] = at(pose, 'legF');
+  return leg(leg(pose, 'B', [bx + dx - 0.3, by + dy], toe), 'F', [hx + dx, hy + dy + 0.2], toe);
+}
+
+/**
+ * Dive Ram (downB): neck pulled back and wings raised for the stall, then beak first, steeply down and forwards
+ * with the wings swept back and the feet trailing. Landing turns it into a belly-flop slide along the floor.
+ */
+const DIVE_WIND = wings(strike({ lean: -22, shift: -0.5, drop: -0.4, head: [-1.6, -8.0], aim: -35, feet: null }), [-140, 1.1], [-112, 1.05]);
+const DIVE_COIL = wings(strike({ lean: -27, shift: -0.6, drop: -0.5, head: [-1.9, -8.1], aim: -42, feet: null }), [-134, 1.15], [-106, 1.1]);
+const dive = (flutter: number, lines: number): Pose =>
+  mix(
+    wings(trail(strike({ lean: 62, shift: 1.0, head: [4.7, -3.3], aim: 52, feet: null }), -0.6, -1.5, 235), [-160 + flutter, 1.15], [-148 - flutter, 1.1]),
+    { fx3: fx(-1.5, -6.8, lines, 60) },
+  );
+const slide = (lines: number, puff: number): Pose =>
+  mix(
+    wings(
+      trail(strike({ lean: 12, shift: 1.0, drop: 2.3, squash: [1.24, 0.72], head: [4.9, -2.8], aim: 6, feet: null }), -1.4, -0.6, 190),
+      [-172, 1.1],
+      [-158, 1.05],
+    ),
+    { fx3: fx(-3.6, -2.4, lines, 0), fx1: fx(7.2, -0.5, puff), fx2: fx(-3.8, -0.4, puff * 0.8) },
+  );
 
 export const attacks: Record<string, AnimClip> = {
   jab: {
@@ -521,5 +577,50 @@ export const attacks: Record<string, AnimClip> = {
       key(55, STAND),
     ],
   },
+  upB: {
+    length: 51,
+    swaps: LOOK_UP,
+    keys: [
+      key(0, STAND, { ease: 'out' }),
+      key(3, wings(mix(CROUCH, { head: { rot: -10 } }), [-115, 1.1], [-70, 1.05]), { ease: 'in', swaps: { ...LOOK_UP, ...WINGS } }),
+      key(5, mix(wings(air({ body: { sx: 0.9, sy: 1.14, y: -0.3 }, head: { rot: -12, y: -0.2 } }, 80, 70), [105, 1.15], [75, 1.1]), { fx1: fx(-0.4, -1.0, 0.5) }), {
+        ease: 'out',
+        swaps: { ...SHOUT, ...WINGS, fx1: 'fxFeathers' },
+      }),
+      ...Array.from({ length: 38 }, (_, i) => {
+        const f = 6 + i;
+        const feathers: [number, number, number] | undefined = f < 15 ? [-0.5 - i * 0.05, 0.2 + i * 0.95, 0.6 + i * 0.03] : undefined;
+        const pose = i % 6 === 0 ? climb(false, i % 12 ? 1.25 : 1.0, feathers) : i % 6 === 2 ? climb(true, i % 12 === 2 ? 1.15 : 1.35, feathers) : undefined;
+        const drawing = FLIGHT_WING[i % 6]!;
+        return key(f, pose, { ease: i % 6 === 0 ? 'in' : 'inOut', swaps: { ...LOOK_UP, wingF: drawing, wingB: drawing, fx1: f < 15 ? 'fxFeathers' : null, fxBack: 'fxSpeed' } });
+      }),
+      key(44, climb(false, 0.7), { ease: 'out', swaps: { ...LOOK_UP, wingF: 'wingA', wingB: 'wingA' } }),
+      key(47, wing(wing(air({ body: { rot: -4 }, head: { rot: -6 } }, 70, 60), 'F', -110, 0.95), 'B', -65, 0.95), { swaps: { ...LOOK_UP, ...WINGS } }),
+      key(49, undefined, { swaps: { ...DIZZY, ...WINGS } }),
+      key(51, SPENT),
+    ],
+  },
+  downB: {
+    length: 71,
+    swaps: ANGRY,
+    keys: [
+      key(0, air(), { ease: 'out', swaps: { ...ANGRY, ...WINGS } }),
+      key(5, DIVE_WIND, { ease: 'out' }),
+      key(8, DIVE_COIL, { ease: 'linear' }),
+      key(9, dive(0, 1.0), { ease: 'linear', swaps: { ...ANGRY, ...WINGS, ...WEB, fxBack: 'fxSpeed' } }),
+      key(17, dive(6, 1.25), { ease: 'inOut' }),
+      key(25, dive(-4, 1.05), { ease: 'inOut' }),
+      key(33, dive(6, 1.3), { ease: 'inOut' }),
+      key(41, dive(-4, 1.1), { ease: 'inOut' }),
+      key(44, dive(0, 1.2), { ease: 'linear' }),
+      key(45, slide(1.3, 0.55), { ease: 'out', swaps: { ...SHOUT, ...WINGS, ...WEB, fxBack: 'fxSpeed', fx1: 'fxPuff', fx2: 'fxPuff' } }),
+      key(52, slide(1.0, 0.9), { ease: 'inOut' }),
+      key(58, slide(0.6, 1.1), { ease: 'out' }),
+      key(59, undefined, { swaps: { ...ANGRY, ...WINGS } }),
+      key(64, wings(mix(CROUCH, { body: { rot: 6 } }), [95, 1.0], [80, 1.0]), { ease: 'inOut' }),
+      key(66, undefined, { swaps: BLINK }),
+      key(69, undefined, { swaps: {} }),
+      key(71, STAND),
+    ],
+  },
 };
-
