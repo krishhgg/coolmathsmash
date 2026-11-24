@@ -19,7 +19,17 @@ function iconBox(): [number, number, number, number] {
   return [(x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size, size];
 }
 
-const clips: Record<string, AnimClip> = { ...LOCOMOTION, ...ATTACKS, ...STATES, ...SPECIALS };
+/** The specials also go under docs/art.md's canonical names, which the lab's key-state sheet uses. */
+const clips: Record<string, AnimClip> = {
+  ...LOCOMOTION,
+  ...ATTACKS,
+  ...STATES,
+  ...SPECIALS,
+  neutralSpecial: SPECIALS.neutralB!,
+  sideSpecial: SPECIALS.sideB!,
+  upSpecial: SPECIALS.upB!,
+  downSpecial: SPECIALS.downB!,
+};
 
 /** Fluffy (IQ Ball, Coolmath 2011; Catch the Candy, FedoIT 2011), drawn by hand in their style. Plain data. */
 export const art: FighterArt = {
