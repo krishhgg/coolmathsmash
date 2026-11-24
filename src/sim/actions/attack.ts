@@ -168,6 +168,10 @@ export const ATTACK: Record<string, ActionDef> = {
   /** A grounded move, played from its frame data until its first actionable frame. */
   attack: {
     physics: 'ground',
+    intangible: (f) => {
+      const w = moveOf(f)?.intangible;
+      return w !== undefined && inWindow(f.actionFrame, w);
+    },
     update(x) {
       const move = playMove(x);
       if (x.f.actionFrame >= move.faf) setAction(x, 'idle');

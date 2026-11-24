@@ -73,7 +73,7 @@ export const GROUND: Record<string, ActionDef> = {
         return setAction(x, 'dash');
       }
       f.vel.x = f.facing * s.dashInitialSpeed;
-      if (f.actionFrame >= s.dashFrames) setAction(x, stickX(c) * f.facing > 0 ? 'run' : 'idle');
+      if (f.actionFrame > s.dashFrames) setAction(x, stickX(c) * f.facing > 0 ? 'run' : 'idle');
     },
   },
 

@@ -1,11 +1,12 @@
 import { Btn } from '../../input/types';
-import { HITSTUN_CANCEL_AIR_DODGE } from '../constants';
-import { buffered, consume, isHeld } from '../control';
+import { HITSTUN_CANCEL_AIR_DODGE, TECH_LOCKOUT } from '../constants';
+import { buffered, consume, isHeld, justPressed } from '../control';
 import type { Ctx } from '../fighter';
 import { launchTimeScale } from '../movement';
 import { airActionable } from './air';
 import { breakShield } from './defense';
-import { enterAction, setAction, type ActionDef } from './registry';
+import { tumbleLanding } from './knockdown';
+import { setAction, type ActionDef } from './registry';
 
 /** Count hitstun down (faster during balloon speed-up). True once the fighter can act. */
 function hitstunOver(x: Ctx): boolean {
@@ -27,14 +28,16 @@ export const HITSTUN: Record<string, ActionDef> = {
 
   /**
    * Launched into tumble. No control during hitstun except Ultimate's hitstun-cancel air dodge once the launch
-   * has slowed; afterwards the fighter drifts and acts like falling until it lands.
+   * has slowed; afterwards the fighter drifts and acts like falling. Landing in tumble techs if Shield was
+   * pressed in the last TECH_WINDOW frames (a tech roll with the stick held sideways), else it is a missed tech.
    */
   tumble: {
     physics: 'air',
     drift: (x) => x.f.hitstun <= 0,
     ledge: (x) => x.f.hitstun <= 0,
     update(x) {
-      const { f, c } = x;
+      const { f, c, m } = x;
+      if (justPressed(c, Btn.Shield) && m.frame - f.techPressAt >= TECH_LOCKOUT) f.techPressAt = m.frame;
       if (f.hitstun > 0 && !hitstunOver(x)) {
         const slow = Math.hypot(f.kb.x, f.kb.y) <= HITSTUN_CANCEL_AIR_DODGE.maxSpeed;
         if (
@@ -50,10 +53,7 @@ export const HITSTUN: Record<string, ActionDef> = {
       }
       airActionable(x);
     },
-    land(x) {
-      x.f.landingLag = x.s.hardLandingLag;
-      enterAction(x, 'land', 0);
-    },
+    land: tumbleLanding,
   },
 
   /**
