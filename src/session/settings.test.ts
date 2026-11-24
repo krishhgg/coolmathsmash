@@ -43,5 +43,20 @@ describe('settings', () => {
     expect(s.gamepad.jump).toEqual(d.gamepad.jump);
     expect(s.tapJump).toBe(true);
     expect(loadSettings(memory({ [SETTINGS_KEY]: '{not json' }))).toEqual(d);
+    expect(loadSettings(memory({ [SETTINGS_KEY]: 'null' }))).toEqual(d);
+    expect(loadSettings(memory({ [SETTINGS_KEY]: '7' }))).toEqual(d);
+  });
+
+  it('survives storage that throws', () => {
+    const blocked = {
+      getItem: (): string | null => {
+        throw new DOMException('blocked', 'SecurityError');
+      },
+      setItem: () => {
+        throw new DOMException('full', 'QuotaExceededError');
+      },
+    };
+    expect(loadSettings(blocked)).toEqual(defaultSettings());
+    expect(() => saveSettings(defaultSettings(), blocked)).not.toThrow();
   });
 });
