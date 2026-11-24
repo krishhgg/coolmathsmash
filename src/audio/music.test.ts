@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { AudioEngine } from './engine';
-import { DEFAULT_STAGE_MUSIC, MusicPlayer, STAGE_MUSIC, TRACKS, trackFor } from './music';
+import { MusicPlayer, STAGE_MUSIC, TRACKS, trackFor } from './music';
 import { FakeContext, type FakeGain } from './testing';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -16,7 +16,7 @@ function setup() {
 describe('music', () => {
   it('ships a file for every track, with a sane loop region', () => {
     const root = resolve(import.meta.dirname, '..', '..');
-    expect(Object.keys(TRACKS)).toContain(DEFAULT_STAGE_MUSIC);
+    expect(Object.keys(TRACKS)).toContain('menu');
     for (const t of Object.values(TRACKS)) {
       expect(existsSync(join(root, 'public', 'audio', t.file))).toBe(true);
       expect(t.loopStart).toBeGreaterThanOrEqual(0);

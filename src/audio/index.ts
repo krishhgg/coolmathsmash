@@ -35,8 +35,8 @@ export interface GameAudio {
   play(id: SoundId, opts?: PlayOptions): Voice | null;
   /**
    * Crossfade to a music track: 'menu', a stage id (each stage has its own track, see src/audio/music.ts), or
-   * null to fade the music out. Unknown ids keep the current music. Safe before the first click: the music
-   * starts as soon as the browser unlocks audio.
+   * null to fade the music out. Unknown ids keep the current music. Safe before init and before the first
+   * click: the music starts as soon as the browser unlocks audio.
    */
   music(track: string | null): void;
   /**
@@ -65,6 +65,7 @@ function storage(): Storage | null {
 function createGameAudio(): GameAudio {
   let engine: AudioEngine | null = null;
   let player: MusicPlayer | null = null;
+  let music: string | null = null;
   let fallback: AudioSettings = { ...DEFAULT_SETTINGS };
   return {
     init(target = globalThis) {
@@ -76,6 +77,7 @@ function createGameAudio(): GameAudio {
       });
       engine.unlock(target);
       player = new MusicPlayer(engine);
+      player.play(music);
       void Promise.all(bankFiles().map((f) => engine!.file(f)));
     },
     ui(sound) {
@@ -85,6 +87,7 @@ function createGameAudio(): GameAudio {
       return engine?.play(id, opts) ?? null;
     },
     music(track) {
+      music = track;
       player?.play(track);
     },
     announce() {},

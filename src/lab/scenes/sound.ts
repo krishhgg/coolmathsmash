@@ -111,7 +111,6 @@ export const scene: LabScene = {
       });
       tuneRow.appendChild(b);
     }
-    groups.appendChild(tunes);
 
     const slider = (
       label: string,
@@ -162,6 +161,7 @@ export const scene: LabScene = {
     const note = document.createElement('div');
     note.className = 'note';
     note.textContent = 'Settings are saved in this browser. Audio starts after the first click or key press.';
+    mixer.appendChild(tunes);
     mixer.appendChild(note);
 
     if (!engine) return;

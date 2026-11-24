@@ -13,12 +13,8 @@ export interface TrackInfo {
 
 export const TRACKS: Record<string, TrackInfo> = tracks;
 
-/**
- * Which track each stage plays. Stage ids not listed here fall back to their own id if a track has that id,
- * else to DEFAULT_STAGE_MUSIC.
- */
+/** Which track each stage plays, for stages whose id is not itself a track id. */
 export const STAGE_MUSIC: Record<string, string> = {};
-export const DEFAULT_STAGE_MUSIC = 'menu';
 
 /** The track for a music id or a stage id; null when there is none. */
 export function trackFor(id: string): string | null {
