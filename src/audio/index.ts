@@ -1,10 +1,19 @@
 import { bankFiles, type SoundId } from './bank';
 import { AudioEngine, type PlayOptions, type Voice } from './engine';
+import { MatchAudio } from './match';
+import { MusicPlayer } from './music';
 import { DEFAULT_SETTINGS, type AudioSettings, type Channel } from './settings';
+import type { SimEvent } from '../sim/events';
+import type { MatchState } from '../sim/match';
 
 export type { SoundId } from './bank';
 export type { Voice, PlayOptions } from './engine';
 export type { AudioSettings, Bus, Channel } from './settings';
+
+/** Anything that reports sim events every frame, like `Game`. */
+export interface EventSource {
+  onEvents(listener: (events: readonly SimEvent[], state: MatchState) => void): () => void;
+}
 
 /** Menu feedback sounds. */
 export type UiSound = 'move' | 'select' | 'back' | 'error' | 'toggle' | 'start';
@@ -33,8 +42,14 @@ export interface GameAudio {
   /** Any sound in the bank (src/audio/bank.ts). */
   play(id: SoundId, opts?: PlayOptions): Voice | null;
   /**
-   * Crossfade to a music track: 'menu', a stage id, or null to fade the music out. Unknown ids keep the
-   * current music. (Tracks arrive with the music PR; until then this is silent.)
+   * Give a match its sound: hits, shields, KOs, movement and the rest, from `game.onEvents`. Returns the
+   * function that stops listening. New matches and replays on the same game start over cleanly.
+   */
+  match(game: EventSource): () => void;
+  /**
+   * Crossfade to a music track: 'menu', a stage id (each stage has its own track, see src/audio/music.ts), or
+   * null to fade the music out. Unknown ids keep the current music. Safe before init and before the first
+   * click: the music starts as soon as the browser unlocks audio.
    */
   music(track: string | null): void;
   /**
@@ -62,6 +77,8 @@ function storage(): Storage | null {
 
 function createGameAudio(): GameAudio {
   let engine: AudioEngine | null = null;
+  let player: MusicPlayer | null = null;
+  let music: string | null = null;
   let fallback: AudioSettings = { ...DEFAULT_SETTINGS };
   return {
     init(target = globalThis) {
@@ -72,6 +89,8 @@ function createGameAudio(): GameAudio {
         dropWhileSuspended: true,
       });
       engine.unlock(target);
+      player = new MusicPlayer(engine);
+      player.play(music);
       void Promise.all(bankFiles().map((f) => engine!.file(f)));
     },
     ui(sound) {
@@ -80,7 +99,22 @@ function createGameAudio(): GameAudio {
     play(id, opts) {
       return engine?.play(id, opts) ?? null;
     },
-    music() {},
+    match(game) {
+      let sounds: MatchAudio | null = null;
+      const off = game.onEvents((events, state) => {
+        if (!engine) return;
+        sounds ??= new MatchAudio(engine);
+        sounds.observe(events, state);
+      });
+      return () => {
+        off();
+        sounds?.reset();
+      };
+    },
+    music(track) {
+      music = track;
+      player?.play(track);
+    },
     announce() {},
     get settings() {
       return engine?.settings ?? fallback;

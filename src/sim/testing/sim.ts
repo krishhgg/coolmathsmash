@@ -1,4 +1,6 @@
 import { registerFighter } from '../../fighters/registry';
+import { registerStage } from '../../stages/registry';
+import { testbed } from '../../stages/testbed';
 import { buttonBit, neutralInput, type ButtonName, type InputFrame } from '../../input/types';
 import { createMatch, stepMatch, type MatchState } from '../match';
 import { compiledStage } from '../step';
@@ -6,6 +8,7 @@ import type { FighterState } from '../fighter';
 import { marioReference } from './reference';
 
 registerFighter(marioReference);
+registerStage(testbed);
 
 export type Hold = Partial<Omit<InputFrame, 'buttons'>> & { buttons?: ButtonName[] };
 
@@ -19,12 +22,14 @@ export function input(h: Hold = {}): InputFrame {
   return i;
 }
 
-/** A 1-player (or n-player) match on Battlefield with the Mario reference fighter, settled on the ground. */
-export function testMatch(opts: { fighter?: string; players?: number; x?: number } = {}): MatchState {
+/** A 1-player (or n-player) match on Battlefield (or `stage`) with the Mario reference fighter, settled on the ground. */
+export function testMatch(
+  opts: { fighter?: string; players?: number; x?: number; stage?: string } = {},
+): MatchState {
   const fighter = opts.fighter ?? marioReference.id;
   const m = createMatch({
     seed: 1,
-    stage: 'battlefield',
+    stage: opts.stage ?? 'battlefield',
     stocks: 3,
     ports: Array.from({ length: opts.players ?? 1 }, () => ({ fighter })),
   });

@@ -87,6 +87,9 @@ fsmash: {
 },
 ```
 
+- **Jab combos.** `next: { window: [from, to], move }` on a grounded move: Attack with no stick direction during
+  `window` cancels into `move`, so `jab` -> `jab2` -> `jab3` each name the next hit (The Duck's
+  `src/fighters/duck/moves.ts`). Each hit is its own move and animation clip.
 - **Windows.** `hits` lists frame windows; each puts its `boxes` out on those frames. A move hits each fighter
   once. A window with `rehit: true` forgets earlier victims when it opens, for multi-hit moves (Fireboy's `dair`).
 - **Hitboxes.** These are circles at `x` (forward, in the facing direction) and `y` (up) from the feet. When
@@ -111,6 +114,9 @@ fsmash: {
   - Fireboy's `upB` uses all three.
   - `continuesOnLanding` lets an airborne special carry on from the same frame when it lands, instead of
     ending in landing lag.
+  - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
+    `neutralB: { ..., air: 'neutralBAir' }`. The variant is its own move, so it has its own frame data and clip,
+    and the `move` event carries its name.
 - **Transform.** `transform: { frame, into }` turns the fighter into fighter `into` on that frame of the move
   (Zelda/Sheik style). FighterState carries over (%, stocks, position, momentum), and stats, moves and art switch;
   `into` needs a move of the same name, which plays the rest of the move. Fireboy and Watergirl's down special
@@ -183,6 +189,14 @@ bthrow: {
   `__lab.call('hit', { damage, kbg, bkb, angle, fighter: '<id>' })`.
 - The harness (`/?harness`, `window.__smash`) steps scripted inputs frame by frame for captures and tests; see
   `docs/architecture.md`.
+
+## Stages
+
+Stages can move (docs/stage-geometry.md): a fighter standing on a moving platform or solid rides it, one hanging from a
+moving ledge moves with it, and a solid that runs into a fighter pushes them out or squeezes them out on top of
+it. Nothing in a fighter needs to change for that. A move's `script` that reads the stage (`x.stage`) sees it
+as it stands on the current frame, moved pieces and all, and should skip absent pieces
+(`x.stage.present`).
 
 ## Art
 

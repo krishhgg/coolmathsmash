@@ -1,5 +1,6 @@
 import { Graphics, Text, type Application } from 'pixi.js';
 import { audio, type Channel, type SoundId } from '../../audio';
+import { TRACKS } from '../../audio/music';
 import type { LabScene } from '../types';
 
 /** The sound test: every sound in the bank on a button, the volume sliders, and a stereo level meter. */
@@ -97,6 +98,20 @@ export const scene: LabScene = {
       groups.appendChild(box);
     }
 
+    const tunes = document.createElement('section');
+    tunes.innerHTML = `<h3>Music</h3><div class="row"></div>`;
+    const tuneRow = tunes.querySelector('.row')!;
+    for (const id of [...Object.keys(TRACKS), 'stop']) {
+      const b = document.createElement('button');
+      b.textContent = id === 'stop' ? '■ stop' : TRACKS[id]!.title;
+      b.dataset.music = id;
+      b.addEventListener('click', () => {
+        audio.music(id === 'stop' ? null : id);
+        now.text = id === 'stop' ? '■ music stopped' : `♪ ${TRACKS[id]!.title}  (${TRACKS[id]!.evokes})`;
+      });
+      tuneRow.appendChild(b);
+    }
+
     const slider = (
       label: string,
       value: number,
@@ -146,6 +161,7 @@ export const scene: LabScene = {
     const note = document.createElement('div');
     note.className = 'note';
     note.textContent = 'Settings are saved in this browser. Audio starts after the first click or key press.';
+    mixer.appendChild(tunes);
     mixer.appendChild(note);
 
     if (!engine) return;
@@ -177,5 +193,6 @@ export const scene: LabScene = {
   api: {
     play: (id: SoundId, pan = 0) => audio.play(id, { pan }) !== null,
     settings: () => audio.settings,
+    music: (id: string | null) => audio.music(id),
   },
 };
