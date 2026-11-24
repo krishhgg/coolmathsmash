@@ -46,7 +46,11 @@ export class Renderer {
    * The backdrop renders at half resolution: its layers are soft parallax scenery, and drawn at full size they
    * cost a software renderer (CI's SwiftShader, low-end Chromebooks) four times the fill for no visible gain.
    */
-  private readonly backdrop = RenderTexture.create({ width: VIEW_WIDTH, height: VIEW_HEIGHT, resolution: 0.5 });
+  private readonly backdrop = RenderTexture.create({
+    width: VIEW_WIDTH,
+    height: VIEW_HEIGHT,
+    resolution: 0.5,
+  });
   private readonly boxes = new Graphics();
   private fighters: FighterView[] = [];
   /** Fighter id each view was built for; a transform swaps the view. */
