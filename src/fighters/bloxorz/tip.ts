@@ -127,8 +127,9 @@ export const TIP_ACTIONS: Record<string, ActionDef> = {
       if (groundActionable(x)) return;
       const t = (f.actionFrame - 1) % RUN.period;
       const sx = stickX(c) * f.facing;
-      if (t === 0 && sx <= -DIRECTION_THRESHOLD) f.facing = -f.facing as 1 | -1;
-      else if ((t === 0 || t >= RUN.tip) && sx <= 0) return stop(x);
+      if (sx <= -DIRECTION_THRESHOLD) {
+        if (t === 0) f.facing = -f.facing as 1 | -1;
+      } else if ((t === 0 || t >= RUN.tip) && sx <= 0) return stop(x);
       tipFrame(x, t, RUN.tip);
     },
   },

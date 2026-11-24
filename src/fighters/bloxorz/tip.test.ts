@@ -103,6 +103,21 @@ describe('Bloxorz block: tipping', () => {
     expect(f.pos.x - x1).toBeCloseTo(-18, 6);
   });
 
+  it('holding back from mid-tip keeps running: the tip finishes, then the next one goes the other way', () => {
+    const m = block();
+    const f = m.fighters[0]!;
+    run(m, DASH.period + RUN.period + RUN.tip / 2, { x: 100 });
+    const x1 = f.pos.x;
+    const actions = new Set<string>();
+    for (let i = 0; i < RUN.period / 2 + RUN.period; i++) {
+      run(m, 1, { x: -100 });
+      actions.add(f.action);
+    }
+    expect([...actions]).toEqual(['run']);
+    expect(f.facing).toBe(-1);
+    expect(f.pos.x - x1).toBeCloseTo(TIP_DISTANCE / 2 - TIP_DISTANCE, 6);
+  });
+
   it('crouching lays a standing block on its side: low enough to duck a high hit', () => {
     const m = block();
     const f = m.fighters[0]!;
