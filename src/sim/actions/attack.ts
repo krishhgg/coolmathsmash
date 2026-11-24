@@ -211,6 +211,7 @@ export const ATTACK: Record<string, ActionDef> = {
   aerial: {
     physics: 'air',
     intangible: moveIntangible,
+    drift: (x) => moveOf(x.f)?.drift ?? true,
     ledge: (x) => {
       const from = moveOf(x.f)?.ledgeFrom;
       return from === undefined ? false : from;

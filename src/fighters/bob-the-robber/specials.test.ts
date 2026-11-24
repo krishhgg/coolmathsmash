@@ -104,20 +104,25 @@ describe('Bob the Robber: Grappling Hook (up special)', () => {
     ['neutral', 0, 70],
     ['back', -100, 85],
   ] as const)(
-    'held %s at the start, the zip keeps a straight line, whatever the stick does after',
+    'held %s at the start, the zip keeps a straight line whatever the stick does after',
     (_, x, deg) => {
-      const m = testMatch({ fighter: ID });
-      const f = placeInAir(m, 0, 60, 1);
-      run(m, 1, { y: 100, buttons: ['special'] });
-      run(m, 13, { x });
-      const path: { x: number; y: number }[] = [];
-      for (let i = 0; i < 12; i++) {
-        run(m, 1, { x: i % 2 ? 100 : -100 });
-        path.push({ ...f.pos });
-      }
-      for (let i = 1; i < path.length; i++) {
-        const step = (Math.atan2(path[i]!.y - path[i - 1]!.y, path[i]!.x - path[i - 1]!.x) * 180) / Math.PI;
-        expect(Math.abs(step - deg)).toBeLessThan(2.5);
+      for (const after of [x, -x, 100, -100, 0]) {
+        const m = testMatch({ fighter: ID });
+        const f = placeInAir(m, 0, 60, 1);
+        run(m, 1, { y: 100, buttons: ['special'] });
+        run(m, 13, { x });
+        const start = { ...f.pos };
+        const path: { x: number; y: number }[] = [];
+        for (let i = 0; i < 16; i++) {
+          run(m, 1, { x: after });
+          path.push({ ...f.pos });
+        }
+        for (let i = 1; i < path.length; i++) {
+          const step = (Math.atan2(path[i]!.y - path[i - 1]!.y, path[i]!.x - path[i - 1]!.x) * 180) / Math.PI;
+          expect(Math.abs(step - deg)).toBeLessThan(0.5);
+        }
+        const travel = Math.hypot(path.at(-1)!.x - start.x, path.at(-1)!.y - start.y);
+        expect(path.at(-1)!.x - start.x).toBeCloseTo(travel * Math.cos((deg * Math.PI) / 180), 6);
       }
     },
   );

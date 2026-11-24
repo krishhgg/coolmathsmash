@@ -59,20 +59,19 @@ export const sideB: MoveDef = {
 const ZIP_SPEED = 2.8;
 const ZIP_FROM = 14;
 const ZIP_TO = 30;
-/** The rope's three lines, in degrees above Bob's facing: held forward, neutral, held back. */
-const LINES = [55, 70, 85];
 
 /**
  * Grappling Hook (up special): Bob fires a burglar's grapple up and forward (a 5% hit on the hook) and zips after
  * it in a straight line, rising about 55 units. The stick picks the line when the zip starts: 70 degrees by
- * default, flatter held forward, near vertical held back. He hangs in place while the hook flies, can catch a
- * ledge from the moment the zip starts, and ends helpless.
+ * default, 55 held forward, 85 held back; air drift is off for the whole move, so the stick can't bend it after.
+ * He hangs in place while the hook flies, can catch a ledge from the moment the zip starts, and ends helpless.
  */
 export const upB: MoveDef = {
   kind: 'other',
   faf: 46,
   leavesGround: true,
   helpless: true,
+  drift: false,
   ledgeFrom: ZIP_FROM,
   landingLag: 22,
   hits: [
@@ -85,20 +84,18 @@ export const upB: MoveDef = {
       f.vel.y = Math.max(f.vel.y * 0.5, 0);
       return;
     }
-    if (f.actionFrame > ZIP_TO) return;
-    let deg: number;
     if (f.actionFrame === ZIP_FROM) {
       const lean = stickX(c) * f.facing;
-      deg = LINES[lean > 0.3 ? 0 : lean < -0.3 ? 2 : 1]!;
-    } else {
-      // Air drift and gravity nudge the velocity a little after each frame's reset; snapping back to the nearest
-      // line (they are 15 degrees apart) keeps the zip on the line picked at its start.
-      const now = (Math.atan2(f.vel.y + s.gravity, f.vel.x * f.facing) * 180) / Math.PI;
-      deg = LINES.reduce((best, d) => (Math.abs(d - now) < Math.abs(best - now) ? d : best));
+      const rad = ((lean > 0.3 ? 55 : lean < -0.3 ? 85 : 70) * Math.PI) / 180;
+      f.vel.x = f.facing * ZIP_SPEED * Math.cos(rad);
+      f.vel.y = ZIP_SPEED * Math.sin(rad);
+      return;
     }
-    const rad = (deg * Math.PI) / 180;
-    const speed = ZIP_SPEED * (f.actionFrame > ZIP_TO - 4 ? 0.6 : 1);
-    f.vel.x = f.facing * speed * Math.cos(rad);
-    f.vel.y = speed * Math.sin(rad);
+    if (f.actionFrame > ZIP_TO) return;
+    // Gravity is the only thing that touched the velocity since last frame: undo it and keep the line's speed.
+    const vy = f.vel.y + s.gravity;
+    const scale = (ZIP_SPEED * (f.actionFrame > ZIP_TO - 4 ? 0.6 : 1)) / Math.hypot(f.vel.x, vy);
+    f.vel.x *= scale;
+    f.vel.y = vy * scale;
   },
 };
