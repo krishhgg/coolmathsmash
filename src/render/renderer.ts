@@ -75,13 +75,12 @@ export class Renderer {
     }
   }
 
-  /** Advance the camera by the frame just simulated; Game.step calls this after every frame. */
+  /**
+   * Advance the camera, and the HUD's hit timing, by the frame just simulated; Game.step calls this after every
+   * frame.
+   */
   stepCamera(state: MatchState): void {
     this.camera.step(state, getStage(state.config.stage));
-  }
-
-  /** Advance the HUD's hit timing by the frame just simulated; Game.step calls this after every frame. */
-  stepHud(state: MatchState): void {
     this.matchHud.step(state);
   }
 
