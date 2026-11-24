@@ -6,6 +6,13 @@
     "loopStart": 0,
     "loopEnd": 38.095238
   },
+  "coolmath-planet": {
+    "file": "music/coolmath-planet.mp3",
+    "title": "Coolmath Planet",
+    "evokes": "an original Final Destination theme with a nod to the main menu's motif",
+    "loopStart": 0,
+    "loopEnd": 38.4
+  },
   "forest-temple": {
     "file": "music/forest-temple.mp3",
     "title": "Forest Temple",
