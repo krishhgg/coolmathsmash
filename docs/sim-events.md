@@ -40,6 +40,8 @@ feeds back into the simulation.
 | `throw`       | `attacker`, `victim`, `move`                                                         | a throw lets go; the `hit` that launches the victim follows                                    |
 | `grabRelease` | `holder`, `held`                                                                     | a grab ends without a throw (held too long, or a hit broke it); `holder` is -1 if already gone |
 | `grabClank`   | `ports`                                                                              | two fighters grab each other on the same frame and both bounce off                             |
+| `float`       | `port`, `phase` (`start`, `end`)                                                     | a float starts or ends (including mid-aerial, landing)                                         |
+| `fuelEmpty`   | `port`                                                                               | a fuel hover burns its last fuel while thrusting                                               |
 
 `x` and `y` are world units with y up. `action` events come last in a frame, one per fighter whose action
 differs from the frame before, which also covers states without their own event: `shield`, `spotDodge`,

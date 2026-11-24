@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { registerFighter } from '../fighters/registry';
 import { DAMAGE_MAX } from './combat/hits';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
 import type { MatchState } from './match';
+import { MOBILITY_TEST_FIGHTERS, testFloater, testHover } from './testing/mobility';
 import { marioReference as mario } from './testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from './testing/sim';
 
@@ -198,5 +200,46 @@ describe('sim events', () => {
     const first = stream();
     expect(first.length).toBeGreaterThan(10);
     expect(stream()).toEqual(first);
+  });
+});
+
+describe('air mobility events', () => {
+  for (const def of MOBILITY_TEST_FIGHTERS) registerFighter(def);
+
+  it('a float reports its start, nothing while an aerial carries it on, and its end', () => {
+    const m = testMatch({ fighter: testFloater.id });
+    const float = () => of(m, 'float').map((e) => e.phase);
+    const jump: Hold = { buttons: ['jump'] };
+    expect(next(m, 'float', jump).phase).toBe('start');
+    run(m, 1, { buttons: ['jump', 'attack'] });
+    expect(m.fighters[0]!.action).toBe('aerial');
+    expect(float()).toEqual([]);
+    until(m, () => float().length > 0, jump);
+    expect(float()).toEqual(['end']);
+    expect(m.fighters[0]!.mobility.floatFrames).toBe(testFloater.float.frames);
+  });
+
+  it('a float pushed onto the ground reports its end', () => {
+    const m = testMatch({ fighter: testFloater.id });
+    const f = placeInAir(m, 0, 1);
+    f.jumpsUsed = testFloater.stats.jumps;
+    run(m, 1, { buttons: ['jump'] });
+    expect(f.action).toBe('float');
+    expect(of(m, 'float')[0]?.phase).toBe('start');
+    f.kb.y = -2;
+    run(m, 1, { buttons: ['jump'] });
+    expect(f.ground).not.toBeNull();
+    expect(next(m, 'float', { buttons: ['jump'] }).phase).toBe('end');
+    expect(f.mobility).toMatchObject({ floating: false, floatFrames: 0 });
+  });
+
+  it('a hover reports the frame its fuel runs out', () => {
+    const m = testMatch({ fighter: testHover.id });
+    const f = m.fighters[0]!;
+    run(m, 1, { y: 50, buttons: ['special'] });
+    next(m, 'fuelEmpty', { buttons: ['special'] });
+    expect(f.mobility.hoverFuel).toBe(0);
+    run(m, 5, { buttons: ['special'] });
+    expect(of(m, 'fuelEmpty')).toEqual([]);
   });
 });

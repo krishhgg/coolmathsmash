@@ -55,7 +55,11 @@ export type SimEvent =
   /** A grab ended without a throw and both slid apart; `holder` is -1 when the holder was already gone. */
   | { type: 'grabRelease'; holder: number; held: number }
   /** Two fighters grabbed each other on the same frame and both bounced off (Ultimate's grab clank). */
-  | { type: 'grabClank'; ports: [number, number] };
+  | { type: 'grabClank'; ports: [number, number] }
+  /** A float started or ended (also when it ends during an aerial started from it, or by landing). */
+  | { type: 'float'; port: number; phase: 'start' | 'end' }
+  /** A fuel hover burned its last fuel while thrusting. */
+  | { type: 'fuelEmpty'; port: number };
 
 export type SimEventType = SimEvent['type'];
 

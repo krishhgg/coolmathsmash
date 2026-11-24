@@ -41,6 +41,7 @@ Donkey Kong, Bowser, Fox, Jigglypuff) and adjust.
 | `jumpSquat`                                              | frames on the ground before leaving it                                      | 3                | 3                   | 3–6              |
 | `fullHopHeight`, `shortHopHeight`, `doubleJumpHeight`    | apex heights above take-off                                                 | 34, 16, 33       | 36.33, 17.54, 36.33 | 16.5–50.5        |
 | `jumps`                                                  | total jumps including the grounded one                                      | 2                | 2                   | 2–6              |
+| `airJumpHeights`                                         | optional: each midair jump's apex in order (see Air mobility)               |                  |                     |                  |
 | `ledgeJumpHeight`                                        | apex of a ledge jump                                                        | 36               | 38.165              |                  |
 | `softLandingLag`, `hardLandingLag`                       | landing lag after short / long airtime                                      | 1, 3             | 1, 3                |                  |
 | `shieldSize`                                             | shield bubble radius at full health                                         | 9                | 9.7                 | 8–18.5           |
@@ -111,6 +112,8 @@ fsmash: {
   - Fireboy's `upB` uses all three.
   - `continuesOnLanding` lets an airborne special carry on from the same frame when it lands, instead of
     ending in landing lag.
+  - `glide` glides at the end of the move if Jump is held (see Air mobility).
+  - `action` plays the move in another action with its own physics instead of `attack`/`aerial`: `'hover'`.
 - **Transform.** `transform: { frame, into }` turns the fighter into fighter `into` on that frame of the move
   (Zelda/Sheik style). FighterState carries over (%, stocks, position, momentum), and stats, moves and art switch;
   `into` needs a move of the same name, which plays the rest of the move. Fireboy and Watergirl's down special
@@ -183,6 +186,50 @@ bthrow: {
   `__lab.call('hit', { damage, kbg, bkb, angle, fighter: '<id>' })`.
 - The harness (`/?harness`, `window.__smash`) steps scripted inputs frame by frame for captures and tests; see
   `docs/architecture.md`.
+
+## Air mobility
+
+Multi-jumps, glides, floats and fuel hovers are opt-in data on the fighter; the engine code is
+`src/sim/mobility.ts` (types, state) and `src/sim/actions/mobility.ts` (the `glide`, `float` and `hover` actions).
+Worked examples with the roster's numbers are the test fighters in `src/sim/testing/mobility.ts`; their tests
+(`src/sim/mobility.test.ts`) show how to drive each one, and `?harness` registers them so you can watch them:
+`__smash.newMatch({ ports: [{ fighter: 'test-glider' }, { fighter: 'fireboy' }] })` (also `test-floater`,
+`test-hover`). With `?hitboxes` the overlay shows jumps left as pips over multi-jumpers, float time (blue) and
+hover fuel (orange) as bars, and a glide's pitch as a green line.
+
+**Multi-jump.** `stats.jumps` counts every jump including the grounded one, so Red Ball's 4 is 3 midair jumps.
+Every midair jump rises `doubleJumpHeight` unless `stats.airJumpHeights` lists them in order for jumps that shrink
+(Kirby, Jigglypuff): `[21, 18, 15]` with `jumps: 6` gives 21, 18, 15, 15, 15. Its first entry must equal
+`doubleJumpHeight`. A script can give a jump back with `regainAirJump(x)` (Red Ball's dair bounce, the Duck's
+seed).
+
+**Glide** (Brawl's glide): `glide: { speed: 1.2, fallSpeed: 0.6 }` is Papa Louie.
+
+- Holding Jump once the last midair jump has peaked starts it; so does a move with `glide: true` ending while
+  Jump is held (an up special that rises into a glide). One glide per airtime; landing gives it back.
+- The glider flies along its pitch. Diving gains speed and climbing trades it for height until it stalls into a
+  fall. Horizontal speed never passes `speed` and the sink never passes `fallSpeed`; at the neutral pitch it
+  settles at exactly `speed` across.
+- Up and down tilt the pitch. Holding back brakes, then turns the glide around. Attack or the C-stick plays
+  `glide.attack` (default `nair`) and Special a special. Releasing Jump falls normally, or helpless when the glide
+  came out of a helpless move (it then lands with that move's `landingLag`).
+- Tuning: `angles` (pitch in degrees at neutral, full down and full up; default `[-20, -60, 40]`), `turnRate`
+  (degrees per frame, 3), `accel` (speed gained per frame in a straight dive, 0.06).
+
+**Float** (Peach in Ultimate): `float: { frames: 120 }` is Balloon Boy. Holding Jump while falling, from the apex of a
+jump on, stops vertical motion for up to `frames` frames while the fighter drifts at air speed. Aerials out of it
+keep floating and return to the float. Releasing Jump, a fast fall, a jump, a dodge or getting hit ends it. One
+float per airtime. A new Jump press is still a midair jump, so multi-jumpers float by holding Jump past an apex.
+
+**Fuel hover** (R.O.B.'s Robo Burner): `hover: { fuel: 120, rise: 1, accel: 0.1 }` plus a move with
+`action: 'hover'` (Snail Bob's up special). While Special stays held and fuel lasts, the fighter accelerates up to
+`rise` and burns one frame of fuel per frame. The move's hitboxes and script play as usual. Once its `faf` has
+passed, letting go falls normally (not helpless) and any air option cancels it, and the move can be used again on
+the fuel left. Fuel refills only on the ground, from empty to full in `refillFrames` (default 90, R.O.B.'s 1.5 s).
+
+**State the HUD can read**: `FighterState.mobility` holds `hoverFuel` (frames of thrust left), `floatFrames` (frames
+floated this airtime; equal to the float's `frames` once spent), `floating`, `glideUsed`, `glideAngle` and
+`glideSpeed`. Midair jumps left are `stats.jumps - jumpsUsed`.
 
 ## Art
 
