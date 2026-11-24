@@ -154,13 +154,16 @@ a fighter's hit: Ultimate's knockback formula, hitlag, a launch with DI when hit
 and the 1v1 damage multiplier. There is no attacker, so there is no staleness or rage and only the victim
 freezes. A fighter takes at most one stage hit per frame (zones first, then stage hitboxes, lowest index first),
 and then `stageHitLock`, the hazard's `rehit`, keeps all stage hazards off them. Hazards skip intangible
-fighters and fighters already in hitlag, and go through shields.
+fighters and fighters already in hitlag, and go through shields. Stage hits land before the frame's grabs are
+resolved, so they count like any other hit on a grab: a held fighter armours through them until they add up
+to `GRAB.breakDamage` (a lava hit breaks free at once, goo takes a few), and a struck holder lets go.
 
 ### Conveyors
 
 A solid or platform with `conveyor` moves every fighter standing on it that many units per frame along x, on
 top of their own movement, whatever they are doing. A belt carries a fighter off the end it runs toward, even
-in actions that otherwise stop at the edge (standing still). Leaving the belt keeps none of its speed.
+in actions that otherwise stop at the edge (standing still), and they fall. Leaving the belt keeps none of its
+speed.
 
 ### Trapdoors
 
