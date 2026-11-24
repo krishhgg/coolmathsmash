@@ -119,6 +119,8 @@ fsmash: {
   - Fireboy's `upB` uses all three.
   - `continuesOnLanding` lets an airborne special carry on from the same frame when it lands, instead of
     ending in landing lag.
+  - `drift: false` turns off air drift (and air friction) while an airborne move plays, so a scripted path such
+    as a tether zip (Bob the Robber's `upB`) is not bent by the stick.
   - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
     `neutralB: { ..., air: 'neutralBAir' }`. The variant is its own move, so it has its own frame data and clip,
     and the `move` event carries its name.

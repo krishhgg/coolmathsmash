@@ -142,6 +142,8 @@ export interface MoveDef {
   ledgeFrom?: number;
   /** Landing doesn't end the move: it carries on from the same frame on the ground, with no landing lag. */
   continuesOnLanding?: boolean;
+  /** Airborne moves: false turns off the stick's air drift (and air friction) while the move plays, for scripted paths. */
+  drift?: boolean;
   /**
    * Ground/air variants (Ultimate's SpecialN and SpecialAirN): started in the air, this move plays the move named
    * `air` instead, which is also the clip and the name in the `move` event.

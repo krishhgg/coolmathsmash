@@ -5,7 +5,7 @@ import type { FighterState } from '../../sim/fighter';
 import { createMatch, type MatchState } from '../../sim/match';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
-import { DAIR_PLUNGE_FROM, moves } from './moves';
+import { DAIR_PLUNGE_FROM, SPIN_ROLL, moves } from './moves';
 import { stats } from './stats';
 
 const snail = () => testMatch({ fighter: 'snailbob' });
@@ -320,5 +320,128 @@ describe('Snail Bob: kill percents (Mario at the Battlefield ledge, fresh, no ra
     }
     expect(bobFree).toBeGreaterThan(0);
     expect(bobFree).toBeLessThan(marioFree);
+  });
+});
+
+describe('Snail Bob: Shell Spin (side special)', () => {
+  /** Snail Bob facing Mario `gap` units away; Special + forward, held for `rev` more frames. */
+  function spin(rev: number, gap = 60) {
+    const { m, a, v } = vsMario();
+    place(a, -40).facing = 1;
+    place(v, -40 + gap);
+    Object.assign(v, { ground: a.ground, action: 'idle', intangible: 0, facing: -1 });
+    runPorts(m, 1, [{ x: 100, buttons: ['special'] }, {}]);
+    expect(a.move).toBe('sideB');
+    runPorts(m, rev, [{ buttons: ['special'] }, {}]);
+    return { m, a, v };
+  }
+
+  /** Frames from the press until the roll's hitbox comes out, and how far he has rolled when the move ends. */
+  function roll(rev: number) {
+    const { m, a } = spin(rev, 200);
+    const x0 = a.pos.x;
+    let out = 0;
+    for (let i = 1; i < 200 && a.move === 'sideB'; i++) {
+      if (!out && activeHitboxes(a).length > 0) out = rev + i;
+      runPorts(m, 1, [{}, {}]);
+    }
+    return { out, distance: a.pos.x - x0 };
+  }
+
+  it('rolls on frame 12 when tapped; holding Special revs it for up to a second', () => {
+    expect(roll(0).out).toBe(SPIN_ROLL[0]);
+    expect(roll(30).out).toBeGreaterThan(30);
+    expect(roll(200).out).toBeLessThanOrEqual(SPIN_ROLL[0] + 60);
+  });
+
+  it('a full rev rolls farther than a tap', () => {
+    expect(roll(70).distance).toBeGreaterThan(roll(0).distance * 1.5);
+    expect(roll(0).distance).toBeGreaterThan(40);
+  });
+
+  it('deals 10% tapped and 14% fully revved, then bounces him back', () => {
+    for (const [rev, damage] of [
+      [0, 10],
+      [70, 14],
+    ] as const) {
+      const { m, a, v } = spin(rev, 30);
+      for (let i = 0; i < 120 && v.damage === 0; i++) runPorts(m, 1, [{}, {}]);
+      expect(v.damage).toBeCloseTo(damage * 1.05 * 1.2, 6);
+      for (let i = 0; i < 30 && a.hitlag > 0; i++) runPorts(m, 1, [{}, {}]);
+      runPorts(m, 2, [{}, {}]);
+      expect(a.vel.x).toBeLessThan(0);
+    }
+  });
+
+  it('stops at the ledge instead of rolling off', () => {
+    const { m, a } = spin(70, 300);
+    place(a, 40);
+    for (let i = 0; i < 120 && a.move === 'sideB'; i++) runPorts(m, 1, [{}, {}]);
+    expect(a.ground).not.toBeNull();
+    expect(a.pos.x).toBeLessThanOrEqual(80);
+  });
+
+  it('in the air only the first Shell Spin hops, spending his midair jump', () => {
+    const m = snail();
+    const f = placeInAir(m, 0, 100, 1);
+    const hop = () => {
+      run(m, 1, { x: 100, buttons: ['special'] });
+      expect(f.move).toBe('sideB');
+      until(m, (g) => g.actionFrame === SPIN_ROLL[0] + 1);
+      const v = f.vel.y;
+      until(m, (g) => g.move !== 'sideB');
+      return v > 0;
+    };
+    expect(hop()).toBe(true);
+    expect(f.jumpsUsed).toBe(stats.jumps);
+    expect(hop()).toBe(false);
+  });
+
+  it('started out of a fast fall, it still hops', () => {
+    const m = snail();
+    const f = placeInAir(m, 0, 100, 1);
+    run(m, 3);
+    run(m, 1, { y: -100 });
+    expect(f.fastFalling).toBe(true);
+    run(m, 1);
+    run(m, 1, { x: 100, buttons: ['special'] });
+    expect(f.move).toBe('sideB');
+    until(m, (g) => g.actionFrame === SPIN_ROLL[0]);
+    const y = f.pos.y;
+    run(m, 4);
+    expect(f.pos.y).toBeGreaterThan(y);
+  });
+
+  it('a hit on the last roll frame still bounces him back', () => {
+    const solo = vsMario();
+    place(solo.v, -100);
+    place(solo.a, -40).facing = 1;
+    attack(solo.m, 0, 'sideB');
+    while (solo.a.actionFrame < SPIN_ROLL[1]) runPorts(solo.m, 1, [{}, {}]);
+    const reach = moves.sideB!.hits[0]!.boxes[0]!.radius + 4;
+    const { m, a, v } = vsMario();
+    place(a, -40).facing = 1;
+    place(v, solo.a.pos.x + reach - 0.3);
+    Object.assign(v, { ground: a.ground, action: 'idle', intangible: 0, facing: -1 });
+    attack(m, 0, 'sideB');
+    while (v.damage === 0 && a.move === 'sideB') runPorts(m, 1, [{}, {}]);
+    expect(a.actionFrame).toBe(SPIN_ROLL[1]);
+    while (a.hitlag > 0) runPorts(m, 1, [{}, {}]);
+    runPorts(m, 1, [{}, {}]);
+    expect(a.vel.x).toBeLessThan(0);
+  });
+
+  it('in the air it hops into the roll and keeps rolling when it lands', () => {
+    const m = snail();
+    const f = placeInAir(m, -40, 8, 1);
+    run(m, 1, { x: 100, buttons: ['special'] });
+    expect(f.move).toBe('sideB');
+    until(m, (g) => g.actionFrame === SPIN_ROLL[0] + 1);
+    expect(f.vel.y).toBeGreaterThan(0);
+    until(m, (g) => g.ground !== null);
+    expect(f.move).toBe('sideB');
+    const x = f.pos.x;
+    run(m, 5);
+    expect(f.pos.x - x).toBeGreaterThan(5);
   });
 });

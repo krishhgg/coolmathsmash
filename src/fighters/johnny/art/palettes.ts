@@ -36,6 +36,12 @@ const original: Palette = {
   ink: '#0a0a0a',
   teeth: '#ffffff',
   tongue: '#c8323c',
+  hit: '#ffffff',
+  hitHi: '#ffe94a',
+  hitLine: '#ff9a00',
+  smear: '#ffffff',
+  smearHi: '#fff3a6',
+  smearLine: '#ffd34a',
 };
 
 /**
