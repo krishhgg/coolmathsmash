@@ -4,3 +4,5 @@ test-results
 playwright-report
 captures
 package-lock.json
+docs/physics-reference.md
+src/sim/reference/
