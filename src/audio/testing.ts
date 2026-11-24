@@ -100,7 +100,7 @@ export class FakeContext {
     return Promise.resolve();
   }
   /** Fake files decode to { path } so tests can see which variant played. */
-  static load = (path: string) => Promise.resolve(new TextEncoder().encode(path).buffer as ArrayBuffer);
+  static load = (path: string) => Promise.resolve(new TextEncoder().encode(path).buffer);
 }
 
 export class MemoryStore {
