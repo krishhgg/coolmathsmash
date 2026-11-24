@@ -57,6 +57,11 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
       expect(move.charge).toBeLessThan(Math.min(...move.hits.map((w) => w.frames[0])));
     }
     if (move.kind === 'aerial') expect(move.landingLag).toBeGreaterThan(0);
+    if (move.next) {
+      expect(def.moves?.[move.next.move], `${name} continues into ${move.next.move}`).toBeDefined();
+      expect(move.next.window[1]).toBeGreaterThanOrEqual(move.next.window[0]);
+      expect(move.next.window[1]).toBeLessThanOrEqual(move.faf);
+    }
     if (move.armor) {
       expect(move.armor.frames[0]).toBeGreaterThanOrEqual(1);
       expect(move.armor.frames[1]).toBeGreaterThanOrEqual(move.armor.frames[0]);

@@ -115,6 +115,11 @@ export interface MoveDef {
   autoCancel?: [number, number][];
   /** Smash attacks: holding the input pauses the move on this frame for up to 60 frames, for up to 1.4x damage. */
   charge?: number;
+  /**
+   * Jab combos: Attack (pressed, buffered or held) with no stick direction during `window` (inclusive) cancels this
+   * grounded move into `move`, the next hit of the combo (jab -> jab2 -> jab3).
+   */
+  next?: { window: [number, number]; move: string };
   /** Specials that take off (recoveries): a grounded start leaves the ground and plays as an aerial. */
   leavesGround?: boolean;
   /** Frames (inclusive) on which the fighter is intangible, as on a getup attack. */

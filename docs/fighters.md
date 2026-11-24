@@ -87,6 +87,9 @@ fsmash: {
 },
 ```
 
+- **Jab combos.** `next: { window: [from, to], move }` on a grounded move: Attack with no stick direction during
+  `window` cancels into `move`, so `jab` -> `jab2` -> `jab3` each name the next hit (The Duck's
+  `src/fighters/duck/moves.ts`). Each hit is its own move and animation clip.
 - **Windows.** `hits` lists frame windows; each puts its `boxes` out on those frames. A move hits each fighter
   once. A window with `rehit: true` forgets earlier victims when it opens, for multi-hit moves (Fireboy's `dair`).
 - **Hitboxes.** These are circles at `x` (forward, in the facing direction) and `y` (up) from the feet. When
