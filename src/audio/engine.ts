@@ -74,7 +74,7 @@ export class AudioEngine {
   private readonly lastVariant = new Map<SoundId, number>();
   private readonly vary: Variation;
   private duckUntil = 0;
-  /** A key, click or touch asked the browser to resume audio; it starts within a few milliseconds. */
+  /** A key, click or touch asked the browser to resume audio and it has not answered yet (a few milliseconds). */
   private resuming = false;
 
   constructor(opts: EngineOptions) {
@@ -169,20 +169,24 @@ export class AudioEngine {
   }
 
   /**
-   * Browsers start audio suspended until the page gets a key press, click or touch. Resume on the first one
-   * on `target` (listening in the capture phase, so the gesture that opens a menu can already play its sound).
+   * Browsers start audio suspended until the page gets a key press, click or touch, and may suspend it again
+   * later (a phone call, another tab taking the audio device). Resume on any such input on `target` while it is
+   * not running, listening in the capture phase so the gesture that opens a menu can already play its sound.
    */
   unlock(target: EventTarget): void {
     const ctx = this.ctx as AudioContext;
     if (typeof ctx.resume !== 'function') return;
-    const events = ['keydown', 'pointerdown', 'touchend'];
     const resume = () => {
+      if (ctx.state === 'running' || this.resuming) return;
       this.resuming = true;
-      void ctx.resume().then(() => {
-        if (ctx.state === 'running') for (const e of events) target.removeEventListener(e, resume, true);
-      });
+      void ctx
+        .resume()
+        .catch(() => undefined)
+        .finally(() => {
+          this.resuming = false;
+        });
     };
-    for (const e of events) target.addEventListener(e, resume, true);
+    for (const e of ['keydown', 'pointerdown', 'touchend']) target.addEventListener(e, resume, true);
   }
 
   /**

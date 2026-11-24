@@ -51,6 +51,15 @@ export interface GameAudio {
   readonly engine: AudioEngine | null;
 }
 
+/** localStorage, or null where the browser blocks it (reading the getter itself can throw). */
+function storage(): Storage | null {
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function createGameAudio(): GameAudio {
   let engine: AudioEngine | null = null;
   let fallback: AudioSettings = { ...DEFAULT_SETTINGS };
@@ -59,7 +68,7 @@ function createGameAudio(): GameAudio {
       if (engine || typeof AudioContext === 'undefined') return;
       engine = new AudioEngine({
         context: new AudioContext({ latencyHint: 'interactive' }),
-        store: globalThis.localStorage ?? null,
+        store: storage(),
         dropWhileSuspended: true,
       });
       engine.unlock(target);

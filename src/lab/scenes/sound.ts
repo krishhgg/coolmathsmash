@@ -68,20 +68,17 @@ export const scene: LabScene = {
     const mixer = root.querySelector<HTMLDivElement>('.mixer')!;
 
     let pan = 0;
-    const loops = new Map<SoundId, { stop(fade?: number): void }>();
+    let dizzy: { stop(fade?: number): void } | null = null;
     const play = (id: SoundId, button?: HTMLButtonElement) => {
-      if (id === 'dizzy' || id === 'smash-charge') {
-        const playing = loops.get(id);
-        if (playing) {
-          playing.stop(0.08);
-          loops.delete(id);
-          button?.classList.remove('on');
-          return;
-        }
+      if (id === 'dizzy' && dizzy) {
+        dizzy.stop(0.08);
+        dizzy = null;
+        button?.classList.remove('on');
+        return;
       }
       const v = audio.play(id, { pan });
-      if (v && (id === 'dizzy' || id === 'smash-charge')) {
-        loops.set(id, v);
+      if (v && id === 'dizzy') {
+        dizzy = v;
         button?.classList.add('on');
       }
       now.text = `▶ ${id}  pan ${pan.toFixed(2)}${v ? '' : '  (loading or locked: click again)'}`;

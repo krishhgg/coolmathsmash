@@ -116,14 +116,21 @@ describe('AudioEngine', () => {
     ]);
   });
 
-  it('drops effects while the browser keeps audio locked, and plays from the first key press on', async () => {
+  it('drops effects while audio is suspended and plays from the next key press or click on', async () => {
     const { ctx, engine } = await setup({ suspended: true });
     const page = new EventTarget();
     engine.unlock(page);
     expect(engine.play('menu-select')).toBeNull();
     page.dispatchEvent(new Event('keydown'));
     expect(engine.play('menu-select')).not.toBeNull();
-    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(ctx.state).toBe('running');
+
+    ctx.state = 'suspended';
+    expect(engine.play('menu-select')).toBeNull();
+    page.dispatchEvent(new Event('pointerdown'));
+    expect(engine.play('menu-select')).not.toBeNull();
+    await new Promise((r) => setTimeout(r, 0));
     expect(ctx.state).toBe('running');
   });
 });
