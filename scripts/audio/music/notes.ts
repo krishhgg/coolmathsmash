@@ -110,6 +110,11 @@ export function root(symbol: string, octave = 2): number {
   return midi(`${name}${octave}`);
 }
 
+/** A chord's root (its bass note for slash chords) folded into the octave starting at `low`. */
+export function rootIn(symbol: string, low: number): number {
+  return low + ((((root(symbol, 4) - low) % 12) + 12) % 12);
+}
+
 /**
  * A drum grid: one char per step. `x` full hit, `o` medium, `-` ghost note, anything else a rest.
  * Returns notes with n = `n` (use it to pick a drum variant).

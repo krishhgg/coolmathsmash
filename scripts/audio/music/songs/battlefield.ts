@@ -11,6 +11,7 @@ import {
   pads,
   portamento,
   roll,
+  rootIn,
   seq,
   swell,
   voice,
@@ -88,7 +89,7 @@ const hornBridge = sing(seq(bridge, { start: sec(3), v: 0.8 }), 8);
 // ---------------------------------------------------------------- band
 
 /** Power-chord root folded into the guitar's low register (E2..D#3). */
-const low = (s: string) => voice(s.replace('m', ''), 40)[0]!;
+const low = (s: string) => rootIn(s, 40);
 const chug = (k: number, v = 0.85) =>
   section(k).flatMap((s, i) => {
     const t = sec(k) + i * bar;
@@ -145,8 +146,8 @@ const lowStrings = [
 /** Trombones and tubas on the roots of the half-time bridge. */
 const lowBrass = humanize(
   C.slice(0, 4).flatMap((s, i) => [
-    { t: sec(3) + i * bar, d: 2.4, n: voice(s.replace('m', ''), 40)[0]!, v: 0.9 },
-    { t: sec(3) + i * bar + 2.5, d: 1.3, n: voice(s.replace('m', ''), 40)[0]!, v: 0.7 },
+    { t: sec(3) + i * bar, d: 2.4, n: rootIn(s, 40), v: 0.9 },
+    { t: sec(3) + i * bar + 2.5, d: 1.3, n: rootIn(s, 40), v: 0.7 },
   ]),
   { seed: 12, time: 0.008, vel: 0.05 },
 );

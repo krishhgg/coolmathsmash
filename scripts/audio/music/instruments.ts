@@ -22,6 +22,13 @@ import {
 } from '../dsp.ts';
 
 /** What a note may ask of its instrument beyond pitch, length and velocity; instruments ignore what they lack. */
+
+/** An ADSR whose stages shrink to fit a short note, so the release still reaches zero inside the buffer. */
+const fitAdsr = (len: number, a: number, d: number, s: number, r: number) => {
+  const k = Math.min(1, len / (a + d + r));
+  return adsr(len, a * k, d * k, s, r * k);
+};
+
 export interface NoteOpts {
   /** Slide into the note from this many semitones away (portamento). */
   glide?: number;
@@ -199,7 +206,7 @@ const heroLead: Instrument = (f, dur, vel, rng, o) => {
   const blat = mul(filter(noise(len, rng), 'bandpass', 1800, 0.8), decay(len, 0.05, 0.003));
   return mul(
     drive(layer(len, [voiced, 1], [blat, 0.12 * vel]), 1.3),
-    mul(mul(adsr(len, 0.012 + 0.01 * rng.next(), 0.25, 0.8, 0.14), shape(len, swell)), vel * 0.5),
+    mul(mul(fitAdsr(len, 0.012 + 0.01 * rng.next(), 0.25, 0.8, 0.14), shape(len, swell)), vel * 0.5),
   );
 };
 
@@ -278,7 +285,7 @@ const horns: Instrument = (f, dur, vel, _rng, o) => {
     (t) => cut(t) * 1.5,
     0.6,
   );
-  return mul(filter(tone, 'peak', 500, 0.9, 2), mul(adsr(len, 0.06, 0.2, 0.85, 0.22), vel * 0.6));
+  return mul(filter(tone, 'peak', 500, 0.9, 2), mul(fitAdsr(len, 0.06, 0.2, 0.85, 0.22), vel * 0.6));
 };
 
 /** Flute: sine with breath noise and delayed vibrato. */
@@ -580,7 +587,7 @@ const strings: Instrument = (f, dur, vel, rng, o) => {
   const bow = mul(filter(noise(len, rng), 'bandpass', Math.min(9000, f * 5), 1.2), 0.03);
   return mul(
     layer(len, [saws, 1], [bow, 1]),
-    mul(mul(adsr(len, 0.05 + 0.13 * (1 - vel), 0.25, 0.9, 0.35), shape(len, swell)), vel * 0.54),
+    mul(mul(fitAdsr(len, 0.05 + 0.13 * (1 - vel), 0.25, 0.9, 0.35), shape(len, swell)), vel * 0.54),
   );
 };
 

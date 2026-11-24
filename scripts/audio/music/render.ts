@@ -223,13 +223,18 @@ function channel(x: Float32Array, tr: Track): Float32Array {
   return equalize(y, tr.eq ?? []);
 }
 
-/** The widener's side signal: a slowly modulated ~14 ms copy, high-passed so the lows stay mono. */
-const side = (x: Float32Array) =>
-  filter(
-    modDelay(x, (t) => 0.014 + 0.0025 * Math.sin(2 * Math.PI * 0.31 * t)),
+/**
+ * The widener's side signal: a slowly modulated ~14 ms copy, high-passed so the lows stay mono. The modulation
+ * (about 0.3 Hz) makes a whole number of cycles per `period` seconds, so it lines up again at the loop point.
+ */
+const side = (x: Float32Array, period: number) => {
+  const rate = Math.max(1, Math.round(0.31 * period)) / period;
+  return filter(
+    modDelay(x, (t) => 0.014 + 0.0025 * Math.sin(2 * Math.PI * rate * t)),
     'highpass',
     300,
   );
+};
 
 /** Dry stereo and mono sends (hall, room, delay) for one section, per track, already panned. */
 function renderSection(song: Song, part: 'intro' | 'loop', len: number, wrap: boolean) {
@@ -255,7 +260,7 @@ function renderSection(song: Song, part: 'intro' | 'loop', len: number, wrap: bo
       wrap,
     );
     if (tr.hp || tr.lp || tr.eq?.length) mono = periodic(mono, wrap, (x) => channel(x, tr));
-    const s = tr.width ? periodic(mono, wrap, side) : null;
+    const s = tr.width ? periodic(mono, wrap, (x) => side(x, len / SR)) : null;
     const w = (tr.width ?? 0) * 0.7;
     const g = dbGain(tr.gain ?? 0);
     const [gl, gr] = panGains(tr.pan ?? 0);

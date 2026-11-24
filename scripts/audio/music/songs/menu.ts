@@ -11,6 +11,7 @@ import {
   pads,
   portamento,
   roll,
+  rootIn,
   seq,
   swell,
   voice,
@@ -168,7 +169,7 @@ const chug = (symbols: string[], start: number, v: number) =>
   symbols.flatMap((s, i) =>
     [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5].map((b) => {
       const open = b === 0 || b === 1.5;
-      return { t: start + i * bar + b, d: open ? 1.4 : 0.25, n: voice(s, 40)[0]!, v: v * (open ? 1 : 0.75) };
+      return { t: start + i * bar + b, d: open ? 1.4 : 0.25, n: rootIn(s, 40), v: v * (open ? 1 : 0.75) };
     }),
   );
 const guitars = [
@@ -291,7 +292,7 @@ const swells = [...land(2, 4, 0.85), ...land(3, 4, 0.8), ...land(4, 4, 0.9)];
 const risers = [...rise(2, 8, 0.8), ...rise(4, 8, 0.85)];
 const timps = [
   ...section(3).flatMap((s, i) => {
-    const n = voice(s.replace('sus4', ''), 45)[0]!;
+    const n = rootIn(s, 45);
     return [
       { t: sec(3) + i * bar, d: 1, n, v: 0.9 },
       { t: sec(3) + i * bar + 2, d: 1, n, v: 0.6 },
