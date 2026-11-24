@@ -4,6 +4,7 @@ import { Btn } from '../../input/types';
 import {
   buffered,
   cStickDir,
+  cStickHeld,
   consume,
   consumeCStick,
   isHeld,
@@ -12,6 +13,7 @@ import {
   type Dir,
 } from '../control';
 import type { Ctx, FighterState } from '../fighter';
+import { HELPLESS_LANDING_LAG } from '../constants';
 import { leaveGround, normalLandingLag } from '../movement';
 import { fastFallCheck } from './air';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
@@ -34,6 +36,7 @@ export function startMove(x: Ctx, name: string): boolean {
   const move = x.def.moves?.[name];
   if (!move) return false;
   if (x.f.ground && move.leavesGround) leaveGround(x);
+  if (move.helpless) x.f.fastFalling = false;
   setAction(x, x.f.ground ? 'attack' : 'aerial');
   x.f.move = name;
   x.f.hitVictims = [];
@@ -151,7 +154,7 @@ export function airAttack(x: Ctx): boolean {
 function playMove(x: Ctx): MoveDef {
   const { f, c } = x;
   const move = moveOf(f)!;
-  const holding = isHeld(c, Btn.Attack) || c.cur.cx !== 0 || c.cur.cy !== 0;
+  const holding = isHeld(c, Btn.Attack) || cStickHeld(c);
   if (move.charge === f.actionFrame && f.charge < SMASH_CHARGE_FRAMES && holding) {
     f.charge++;
     f.actionFrame--;
@@ -182,7 +185,10 @@ export const ATTACK: Record<string, ActionDef> = {
       const { f } = x;
       const move = playMove(x);
       if (!move.helpless) fastFallCheck(x);
-      if (f.actionFrame >= move.faf) setAction(x, move.helpless ? 'helpless' : 'fall');
+      if (f.actionFrame < move.faf) return;
+      if (!move.helpless) return setAction(x, 'fall');
+      setAction(x, 'helpless');
+      f.landingLag = move.landingLag ?? HELPLESS_LANDING_LAG;
     },
     land(x) {
       const { f } = x;

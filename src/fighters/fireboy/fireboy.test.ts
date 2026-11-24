@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
-import { placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
+import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
 
 const fireboy = () => testMatch({ fighter: 'fireboy' });
 
@@ -121,5 +121,67 @@ describe('Fireboy: frame data', () => {
     expect(top - y0).toBeGreaterThan(40);
     until(m, (g) => g.ground !== null);
     expect(f.action).toBe('land');
+    expect(f.landingLag).toBe(20);
+  });
+
+  it('up special out of a fast fall still rises and arcs, without fast-falling afterwards', () => {
+    const m = fireboy();
+    const f = placeInAir(m, 0, 60);
+    run(m, 4);
+    run(m, 1, { y: -100 });
+    expect(f.fastFalling).toBe(true);
+    run(m, 1);
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    expect(f.fastFalling).toBe(false);
+    until(m, (g) => g.actionFrame === 30);
+    expect(f.vel.y).toBeGreaterThan(0);
+  });
+
+  it('a C-stick resting inside the dead zone does not hold a smash charge; one held out does', () => {
+    for (const [cx, charged] of [
+      [10, false],
+      [60, true],
+    ] as const) {
+      const m = fireboy();
+      const f = m.fighters[0]!;
+      run(m, 1, { cx: 100 });
+      expect(f.move).toBe('fsmash');
+      run(m, 20, { cx });
+      expect(f.charge > 0).toBe(charged);
+    }
+  });
+});
+
+describe('Fireboy: launch direction', () => {
+  /** P2 `offset` units in front of (or behind, when negative) P1, who is put into `move` facing right. */
+  function launch(move: string, offset: number, air: boolean): number {
+    const m = testMatch({ fighter: 'fireboy', players: 2 });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    if (air) placeInAir(m, 0, 30, 1);
+    else a.facing = 1;
+    Object.assign(v, {
+      pos: { x: a.pos.x + offset, y: a.pos.y },
+      prevPos: { x: a.pos.x + offset, y: a.pos.y },
+      ground: air ? null : a.ground,
+      action: air ? 'fall' : 'idle',
+      vel: { x: 0, y: 0 },
+      damage: 100,
+    });
+    v.intangible = 0;
+    attack(m, 0, move);
+    until(m, () => v.kb.x !== 0);
+    return Math.sign(v.kb.x);
+  }
+
+  it('bair and the rear hit of dsmash launch backward', () => {
+    expect(launch('bair', -8, true)).toBe(-1);
+    expect(launch('dsmash', -8, false)).toBe(-1);
+    expect(launch('dsmash', 8, false)).toBe(1);
+  });
+
+  it('nair sends a target behind Fireboy away from him', () => {
+    expect(launch('nair', -3, true)).toBe(-1);
+    expect(launch('nair', 3, true)).toBe(1);
   });
 });

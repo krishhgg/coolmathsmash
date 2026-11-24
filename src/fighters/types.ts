@@ -73,6 +73,11 @@ export interface HitboxDef {
   /** Extra shield damage on top of the move's damage. */
   shieldDamage?: number;
   effect?: 'normal' | 'fire' | 'electric';
+  /**
+   * Which way the hit launches (Ultimate's LR check): along the attacker's facing (default), against it for hits
+   * behind him, or away from his centre for hits that surround him.
+   */
+  direction?: 'forward' | 'back' | 'away';
 }
 
 /** A window of frames (inclusive) during which a set of hitboxes is out. */
@@ -91,7 +96,10 @@ export interface MoveDef {
   /** First actionable frame (frame data convention: total frames + 1). */
   faf: number;
   hits: HitWindow[];
-  /** Aerials: landing lag, and frames on which landing cancels the move with only normal landing lag. */
+  /**
+   * Aerials: landing lag, and frames on which landing cancels the move with only normal landing lag. Helpless
+   * moves: also the landing lag out of the helpless fall (default HELPLESS_LANDING_LAG).
+   */
   landingLag?: number;
   autoCancel?: [number, number][];
   /** Smash attacks: holding the input pauses the move on this frame for up to 60 frames, for up to 1.4x damage. */

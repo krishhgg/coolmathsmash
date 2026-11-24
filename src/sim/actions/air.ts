@@ -80,7 +80,10 @@ export const AIR: Record<string, ActionDef> = {
     },
   },
 
-  /** Special fall after recovery moves: slow drift, no actions until landing or a ledge. */
+  /**
+   * Special fall after recovery moves: slow drift, no actions until landing or a ledge. The move set the landing
+   * lag when it entered helpless.
+   */
   helpless: {
     physics: 'air',
     drift: 'helpless',

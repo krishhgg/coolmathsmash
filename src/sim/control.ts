@@ -197,6 +197,11 @@ export function cStickDir(c: ControlState, facing: number): Dir {
   return c.cDirX === facing ? 'forward' : 'back';
 }
 
+/** The C-stick is pushed past the dead zone (it keeps a smash charging). */
+export function cStickHeld(c: ControlState): boolean {
+  return Math.max(Math.abs(c.cur.cx), Math.abs(c.cur.cy)) / 100 >= STICK_DEADZONE;
+}
+
 export function consumeCStick(c: ControlState): void {
   c.cConsumed = true;
 }

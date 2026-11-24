@@ -80,7 +80,8 @@ export const LEDGE_HIT_LOCK = 30;
 /** Hard landing applies after this many airborne frames (Ultimate: 4). */
 export const HARD_LANDING_AIRTIME = 4;
 export const HELPLESS_AIR_SPEED = 0.8;
-export const HELPLESS_LANDING_LAG = 30;
+/** Landing out of helpless fall when the move gives none: Mario's landing_fall_special, FAF 30. */
+export const HELPLESS_LANDING_LAG = 29;
 export const RUN_BRAKE_FRAMES = 14;
 export const RUN_TURN_FRAMES = 12;
 export const DOUBLE_JUMP_FRAMES = 30;

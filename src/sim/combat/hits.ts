@@ -117,7 +117,9 @@ export function resolveHits(m: MatchState): void {
         damage,
         stale: a.moveStale,
         rage: rageMultiplier(a.damage),
-        dir: a.facing,
+        dir: { forward: a.facing, back: -a.facing, away: Math.sign(v.pos.x - a.pos.x) || a.facing }[
+          box.direction ?? 'forward'
+        ] as 1 | -1,
         percent: v.damage,
         crouch: v.action === 'crouch' && v.ground !== null,
         shielding: v.action === 'shield' || v.action === 'shieldStun',

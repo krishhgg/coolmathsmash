@@ -39,7 +39,12 @@ export const moves: Record<string, MoveDef> = {
   utilt: {
     kind: 'other',
     faf: 31,
-    hits: [{ frames: [5, 11], boxes: [box(0, 2, 16, 5, { damage: 5.5, angle: 96, kbg: 130, bkb: 22 })] }],
+    hits: [
+      {
+        frames: [5, 11],
+        boxes: [box(0, 2, 16, 5, { damage: 5.5, angle: 96, kbg: 130, bkb: 22, direction: 'away' })],
+      },
+    ],
   },
   /** Low sweep that pops opponents up. */
   dtilt: {
@@ -82,7 +87,9 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [9, 12],
-        boxes: [box(0, 1, 15, 6, { damage: 14, angle: 85, kbg: 97, bkb: 32, effect: fire })],
+        boxes: [
+          box(0, 1, 15, 6, { damage: 14, angle: 85, kbg: 97, bkb: 32, effect: fire, direction: 'away' }),
+        ],
       },
     ],
   },
@@ -98,7 +105,9 @@ export const moves: Record<string, MoveDef> = {
       },
       {
         frames: [14, 15],
-        boxes: [box(0, -8, 2, 4.5, { damage: 12, angle: 25, kbg: 100, bkb: 20, effect: fire })],
+        boxes: [
+          box(0, -8, 2, 4.5, { damage: 12, angle: 25, kbg: 100, bkb: 20, effect: fire, direction: 'back' }),
+        ],
       },
     ],
   },
@@ -112,8 +121,14 @@ export const moves: Record<string, MoveDef> = {
       [39, 45],
     ],
     hits: [
-      { frames: [3, 6], boxes: [box(0, 0, 7.5, 6.5, { damage: 8, angle: 361, kbg: 100, bkb: 10 })] },
-      { frames: [7, 30], boxes: [box(0, 0, 7.5, 6, { damage: 5, angle: 361, kbg: 100, bkb: 10 })] },
+      {
+        frames: [3, 6],
+        boxes: [box(0, 0, 7.5, 6.5, { damage: 8, angle: 361, kbg: 100, bkb: 10, direction: 'away' })],
+      },
+      {
+        frames: [7, 30],
+        boxes: [box(0, 0, 7.5, 6, { damage: 5, angle: 361, kbg: 100, bkb: 10, direction: 'away' })],
+      },
     ],
   },
   /** Slow downward fire punch that meteors at the fist. */
@@ -144,7 +159,12 @@ export const moves: Record<string, MoveDef> = {
       [1, 5],
       [20, 33],
     ],
-    hits: [{ frames: [6, 8], boxes: [box(0, -8, 7, 4.5, { damage: 10.5, angle: 361, kbg: 100, bkb: 10 })] }],
+    hits: [
+      {
+        frames: [6, 8],
+        boxes: [box(0, -8, 7, 4.5, { damage: 10.5, angle: 361, kbg: 100, bkb: 10, direction: 'back' })],
+      },
+    ],
   },
   /** Flame flip overhead. */
   uair: {
@@ -155,7 +175,12 @@ export const moves: Record<string, MoveDef> = {
       [1, 3],
       [17, 30],
     ],
-    hits: [{ frames: [4, 8], boxes: [box(0, 0, 15, 5, { damage: 7, angle: 70, kbg: 120, bkb: 30 })] }],
+    hits: [
+      {
+        frames: [4, 8],
+        boxes: [box(0, 0, 15, 5, { damage: 7, angle: 70, kbg: 120, bkb: 30, direction: 'away' })],
+      },
+    ],
   },
   /** Drilling fire feet: four quick hits that drag down, then a launcher. */
   dair: {
@@ -190,7 +215,9 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [17, 18],
         rehit: true,
-        boxes: [box(0, 1, 2, 6, { damage: 5.5, angle: 361, kbg: 140, bkb: 30, effect: fire })],
+        boxes: [
+          box(0, 1, 2, 6, { damage: 5.5, angle: 361, kbg: 140, bkb: 30, effect: fire, direction: 'away' }),
+        ],
       },
     ],
   },

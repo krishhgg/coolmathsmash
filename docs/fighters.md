@@ -91,8 +91,12 @@ fsmash: {
 - **Knockback.** `damage`, `angle` (degrees from the attacker's facing; 361 is the Sakurai angle), `kbg`
   and `bkb` follow Ultimate's frame data exactly. Optional fields: `wbkb` (set knockback), `hitlag` (a
   multiplier), `shieldDamage` (extra) and `effect` (`'electric'` gives 1.5x hitlag).
-- **Aerials.** Give them `landingLag` and `autoCancel` windows. Landing in an auto-cancel window costs only
-  normal landing lag.
+- **Direction.** A hit launches along the attacker's facing unless its box sets `direction`: `'back'` for boxes
+  behind him (back aerials, the rear hit of a down smash) and `'away'` for boxes around his body (spins, up
+  attacks), which send the target away from his centre.
+- **Landing lag.** Aerials give `landingLag` and `autoCancel` windows; a `helpless` move's `landingLag` also
+  applies when it lands out of the helpless fall.
+- **Auto-cancel.** Landing in an aerial's `autoCancel` window costs only normal landing lag.
 - **Specials.** `script(x)` runs every frame of the move before physics and sets velocity or facing. It must be
   deterministic: no `Math.random`, no clocks; use `x.m.rng` if you need randomness.
   - `leavesGround` makes a grounded start take off.
