@@ -1,7 +1,9 @@
 import { arp, grid, loop, midi, seq, type Note } from '../notes.ts';
-import type { Song } from '../render.ts';
+import type { Song, Track } from '../render.ts';
 import {
+  boom,
   chipArp,
+  chipLead,
   crash,
   dyn,
   hat,
@@ -83,19 +85,19 @@ const bossGtr = [
       return [at(b, s / 4, 0.2, midi('E2'), s % 4 === 0 ? 0.9 : s % 2 ? 0.55 : 0.7)];
     }),
   ),
-  at(22, 0, 1.9, midi('G2'), 0.95),
-  at(22, 2, 1.9, midi('A2'), 0.95),
-  at(23, 0, 3.8, midi('B2'), 1),
+  ...[0, 1, 2, 3, 4, 5, 6, 7].map((e) => at(22, e * 0.5, 0.45, midi(e < 4 ? 'G3' : 'A3'), 0.8 + 0.02 * e)),
+  ...Array.from({ length: 16 }, (_, s) => at(23, s * 0.25, 0.22, midi('B3'), 0.75 + 0.015 * s)),
 ];
 /** Section dynamics: the chorus and the climb push harder than the riff and the boss chugs. */
 const lift = (t: number) =>
-  t < 8 * BAR ? 0.85 : t < 16 * BAR ? 1 : t < 22 * BAR ? 0.85 : t < 24 * BAR ? 1 : 0.88;
+  t < 8 * BAR ? 0.85 : t < 16 * BAR ? 1 : t < 22 * BAR ? 0.95 : t < 24 * BAR ? 1 : 0.95;
 const guitar = dyn(
   [...riff([0, 1, 2, 3, 4, 5, 6, 7]), ...chorusGtr, ...bossGtr, ...riff([24, 25, 26, 27])],
   lift,
 );
 const gtrL = humanize(guitar, 71, 0.006, 0.05);
-const gtrR = humanize(guitar, 72, 0.006, 0.05).map((n) => ({ ...n, t: n.t + 0.012 }));
+/** The right guitar is a second take, 15 ms behind the left. */
+const gtrR = humanize(guitar, 72, 0.006, 0.05).map((n) => ({ ...n, t: n.t + 0.044 }));
 
 // ---------------------------------------------------------------- bass
 const bassNotes: Note[] = CHORDS.flatMap((s, b) => {
@@ -103,6 +105,11 @@ const bassNotes: Note[] = CHORDS.flatMap((s, b) => {
   if (b >= 16 && b < 22)
     return Array.from({ length: 8 }, (_, e) => at(b, e * 0.5, 0.4, r, e === 0 ? 0.95 : 0.75));
   if (s === 'B' && b === 23) return [at(b, 0, 3.8, r, 1)];
+  if (b === 7)
+    return [
+      ...Array.from({ length: 5 }, (_, e) => at(b, e * 0.5, 0.42, r, e % 2 ? 0.72 : 0.88)),
+      ...['G1', 'A1', 'B1'].map((name, i) => at(b, 2.5 + i * 0.5, 0.42, midi(name), 0.85 + 0.05 * i)),
+    ];
   return Array.from({ length: 8 }, (_, e) => at(b, e * 0.5, 0.42, r, e % 2 ? 0.72 : 0.88));
 });
 const bassLine = humanize(bassNotes, 73, 0.004, 0.05);
@@ -190,6 +197,10 @@ const strings = humanize(
   0.004,
   0.05,
 );
+/** The second half of the chorus gets a chip double an octave up. */
+const chipDouble = leadNotes
+  .filter((n) => n.t >= 12 * BAR && n.t < 16 * BAR)
+  .map((n) => ({ ...n, n: n.n + 12, v: n.v * 0.8 }));
 const robot = humanize(
   arp(C.slice(0, 6), [0, 1, 2, 3, 2, 1, 2, 4], {
     octave: 4,
@@ -222,7 +233,13 @@ const build = dyn(
   [...grid('x.x.x.x.x.x.x.x.', { start: 22 * BAR }), ...grid('xxxxxxxxxxxxxxxx', { start: 23 * BAR })],
   ramp(22 * BAR, 24 * BAR, 0.35, 1),
 );
-const fills = [...grid('....xoxoxxxxxxxx', { start: 15 * BAR }).map((n) => ({ ...n, v: n.v * 0.85 }))];
+const fills = [
+  ...dyn(grid('........xoxoxxxx', { start: 7 * BAR }), ramp(7 * BAR + 2, 8 * BAR, 0.5, 1)),
+  ...grid('....xoxoxxxxxxxx', { start: 15 * BAR }).map((n) => ({ ...n, v: n.v * 0.85 })),
+];
+/** Boss slams: a sub drop on one, a big floor tom with the half-time snare on three. */
+const slams = Array.from({ length: 6 }, (_, k) => 16 + k);
+const booms = slams.map((b) => at(b, 0, 1, 0, 0.9));
 const kicks = humanize(
   dyn(
     [
@@ -250,7 +267,15 @@ const hats = humanize(
   0.004,
   0.08,
 );
-const rides = humanize(loop(grid('x.o.x.o.x.o.x.o.', { start: 8 * BAR }), 8, BAR), 84, 0.004, 0.08);
+const rides = humanize(
+  [
+    ...loop(grid('x.o.x.o.x.o.x.o.', { start: 8 * BAR }), 8, BAR),
+    ...loop(grid('x.o.x.o.x.o.x.o.', { start: 24 * BAR }), 3, BAR),
+  ],
+  84,
+  0.004,
+  0.08,
+);
 const tomFill = (bar: number, from: number, names: string[]) =>
   names.map((name, i) => ({
     t: bar * BAR + from + i * 0.25,
@@ -260,7 +285,9 @@ const tomFill = (bar: number, from: number, names: string[]) =>
   }));
 const toms = humanize(
   [
-    ...tomFill(7, 3, ['A3', 'A3', 'E3', 'E3']),
+    ...tomFill(7, 3, ['A3', 'A3', 'E3', 'E3']).map((n) => ({ ...n, v: n.v * 0.9 })),
+    ...tomFill(23, 2, ['A3', 'A3', 'E3', 'E3', 'B2', 'B2', 'G2', 'G2']).map((n) => ({ ...n, v: n.v * 0.8 })),
+    ...slams.map((b) => ({ t: b * BAR + 2, d: 0.5, n: midi('E2'), v: 0.95 })),
     ...tomFill(27, 2, ['A3', 'A3', 'E3', 'E3', 'B2', 'B2', 'G2', 'G2']),
     ...[18, 20].flatMap((b) => tomFill(b, 3, ['E3', 'B2', 'G2', 'G2'])),
   ],
@@ -268,8 +295,44 @@ const toms = humanize(
   0.003,
   0.05,
 );
-const crashes: Note[] = [0, 8, 12, 16, 22, 24].map((b) => at(b, 0, 1, 0, b === 22 ? 0.75 : 0.95));
+const crashes: Note[] = [0, 8, 12, 16, 22, 24].map((b) => at(b, 0, 1, 0, b === 22 ? 0.75 : 1));
+const crashesR: Note[] = [4, 10, 14, 20, 24, 26].map((b) => at(b, 0, 1, 0, b === 24 ? 1 : 0.8));
 const rise: Note[] = [at(22, 0, 2 * BAR, 0, 0.8)];
+
+const echo = (notes: Note[], beats: number, v: number) =>
+  notes.map((n) => ({ ...n, t: (n.t + beats) % (BARS * BAR), v: n.v * v }));
+
+/** Mix gains, before a common trim that keeps the bus below the master compressor (transients stay intact). */
+const HEADROOM = -11;
+const tracks: Track[] = [
+  { inst: heroLead, gain: -4, pan: 0, verb: 0.28, loop: lead },
+  { inst: heroLead, gain: -6, pan: 0.35, verb: 0.32, loop: harmony },
+  { inst: chipLead, gain: -14, pan: -0.35, verb: 0.35, loop: chipDouble },
+  { inst: powerChord(0), gain: -1, pan: -0.9, verb: 0.12, loop: gtrL },
+  { inst: powerChord(1), gain: -1, pan: 0.9, verb: 0.12, loop: gtrR },
+  { inst: pickBass, gain: -2, pan: 0, verb: 0.04, loop: bassLine },
+  { inst: horn, gain: -3, pan: -0.4, verb: 0.4, loop: brass },
+  { inst: horn, gain: -8, pan: 0.4, verb: 0.4, loop: brassHigh },
+  { inst: 'strings', gain: -6, pan: -0.6, verb: 0.45, loop: strings },
+  {
+    inst: 'strings',
+    gain: -10,
+    pan: 0.6,
+    verb: 0.5,
+    loop: echo(strings, 0.04, 0.9).map((n) => ({ ...n, n: n.n + 12 })),
+  },
+  { inst: chipArp, gain: -7, pan: -0.5, verb: 0.25, loop: robot },
+  { inst: chipArp, gain: -11, pan: 0.5, verb: 0.3, loop: echo(robot, 0.75, 0.7) },
+  { inst: kick, gain: -7, pan: 0, verb: 0.04, loop: kicks },
+  { inst: boom, gain: -3, pan: 0, verb: 0.1, loop: booms },
+  { inst: snare, gain: -10, pan: 0.05, verb: 0.25, loop: snares },
+  { inst: hat, gain: 0, pan: 0.4, verb: 0.08, loop: hats },
+  { inst: ride, gain: -5, pan: -0.45, verb: 0.15, loop: rides },
+  { inst: tom, gain: -10, pan: -0.25, verb: 0.35, loop: toms },
+  { inst: crash, gain: -2, pan: -0.5, verb: 0.3, loop: crashes },
+  { inst: crash, gain: -3, pan: 0.5, verb: 0.3, loop: crashesR },
+  { inst: riser, gain: -12, pan: 0, verb: 0.45, loop: rise },
+];
 
 export const song: Song = {
   id: 'johnny-upgrade-boss',
@@ -278,23 +341,6 @@ export const song: Song = {
   bpm: 176,
   loopBeats: BARS * BAR,
   seed: 3,
-  reverb: { room: 0.45, damp: 0.5, wet: 0.2 },
-  tracks: [
-    { inst: heroLead, gain: -4, pan: 0.04, verb: 0.25, loop: lead },
-    { inst: heroLead, gain: -7, pan: 0.35, verb: 0.3, loop: harmony },
-    { inst: powerChord(0), gain: -3, pan: -0.75, verb: 0.12, loop: gtrL },
-    { inst: powerChord(1), gain: -3, pan: 0.75, verb: 0.12, loop: gtrR },
-    { inst: pickBass, gain: -4, pan: 0, verb: 0.04, loop: bassLine },
-    { inst: horn, gain: -6, pan: -0.25, verb: 0.35, loop: brass },
-    { inst: horn, gain: -11, pan: 0.3, verb: 0.35, loop: brassHigh },
-    { inst: 'strings', gain: -8, pan: -0.45, verb: 0.45, loop: strings },
-    { inst: chipArp, gain: -7, pan: 0.5, verb: 0.25, loop: robot },
-    { inst: kick, gain: -7, pan: 0, verb: 0.04, loop: kicks },
-    { inst: snare, gain: -8, pan: 0.05, verb: 0.22, loop: snares },
-    { inst: hat, gain: -1, pan: 0.35, verb: 0.08, loop: hats },
-    { inst: ride, gain: -6, pan: -0.35, verb: 0.15, loop: rides },
-    { inst: tom, gain: -9, pan: -0.2, verb: 0.2, loop: toms },
-    { inst: crash, gain: -2, pan: 0.3, verb: 0.25, loop: crashes },
-    { inst: riser, gain: -12, pan: 0, verb: 0.4, loop: rise },
-  ],
+  reverb: { room: 0.5, damp: 0.5, wet: 0.26 },
+  tracks: tracks.map((t) => ({ ...t, gain: (t.gain ?? 0) + HEADROOM })),
 };

@@ -1,12 +1,14 @@
 import { grid, midi, seq, type Note } from '../notes.ts';
-import type { Song } from '../render.ts';
+import type { Song, Track } from '../render.ts';
 import {
   brushSlap,
   brushSweep,
   compPiano,
   crash,
   dyn,
+  falls,
   horn,
+  hornFall,
   humanize,
   kick,
   meter,
@@ -93,7 +95,7 @@ const melody = seq([...A1, ...A2, ...SHOUT, PICKUP].join(' '), { step: 0.5, v: 0
 const trumpet = feel(
   phrase(
     meter(
-      dyn(melody, (t) => (t < 8 * BAR ? 0.82 : t < 16 * BAR ? 0.92 : 1)),
+      dyn(melody, (t) => (t < 8 * BAR ? 0.82 : t < 16 * BAR ? 0.92 : t < 23 * BAR ? 1 : 1.2)),
       0.7,
     ),
     8,
@@ -106,11 +108,16 @@ const shoutLow = seq(SHOUT.join(' '), { step: 0.5, start: 16 * BAR, v: 0.85, tra
 const HIT_F = ['Eb4', 'A4', 'D5', 'G5'];
 const HIT_B = ['D#4', 'A4', 'C5', 'G5'];
 const hits: Note[] = [
-  ...HIT_F.map((n) => at(22, 0, 0.7, midi(n), 1)),
-  ...HIT_F.map((n) => at(22, 1.5, 0.4, midi(n), 0.9)),
-  ...HIT_B.map((n) => at(23, 0, 1.2, midi(n), 1)),
+  ...HIT_F.map((n, i) => at(22, 0.012 * i, 0.7, midi(n), 0.62)),
+  ...HIT_F.map((n, i) => at(22, 1.5 + 0.012 * i, 0.4, midi(n), 0.58)),
+  ...HIT_B.map((n, i) => at(23, 0.012 * i, 1.2, midi(n), 0.62)),
 ];
-const trombone = feel([...meter(shoutLow, 0.7), ...hits], 22);
+const [lowBody, lowEnds] = falls(feel(meter(shoutLow, 0.7), 22));
+const trombone = [...lowBody, ...feel(hits, 28)];
+/** An open trumpet doubles the shout at pitch on the other side, with fall-offs on its phrase endings. */
+const [highBody, highEnds] = falls(
+  feel(meter(seq(SHOUT.join(' '), { step: 0.5, start: 16 * BAR, v: 0.85 }), 0.7), 29),
+);
 
 /** Tenor sax: guide tones under A2, a tenth under the shout. */
 const saxLine = seq(
@@ -196,9 +203,9 @@ const walk = seq([...WALK, ...WALK2, ...WALK_B].join(' '), { step: 1, v: 0.82 })
   d: 0.92,
 }));
 const bassHits: Note[] = [
-  at(22, 0, 0.7, midi('F2'), 1),
-  at(22, 1.5, 0.4, midi('F2'), 0.9),
-  at(23, 0, 1.2, midi('B1'), 1),
+  at(22, 0, 0.7, midi('F2'), 0.8),
+  at(22, 1.5, 0.4, midi('F2'), 0.75),
+  at(23, 0, 1.2, midi('B1'), 0.8),
   ...seq('C2 C#2 D2 D#2', { step: 0.5, start: 23 * BAR + 2, v: 0.75 }),
 ];
 const bassLine = feel(meter([...walk, ...bassHits], 0.5), 26, 0.008, 0.08);
@@ -213,12 +220,20 @@ const guitar = feel(
 const beats = (from: number, to: number, which: number[], v: number) =>
   Array.from({ length: to - from }, (_, k) => which.map((beat) => at(from + k, beat, 0.25, 0, v))).flat();
 const sweeps = humanize(
-  Array.from({ length: 8 * 4 }, (_, i) => ({ t: i, d: 0.9, n: 0, v: i % 2 ? 0.55 : 0.75 })),
+  Array.from({ length: 8 * 4 }, (_, i) => ({ t: i, d: 0.9, n: 0, v: i % 2 ? 0.8 : 0.55 })),
   31,
-  0.01,
-  0.1,
+  0.012,
+  0.15,
 );
-const slaps = humanize(beats(0, 8, [1, 3], 0.6), 32);
+const trip = (bar: number, from: number, n: number) =>
+  Array.from({ length: n }, (_, i) => ({
+    t: bar * BAR + from + i / 3,
+    d: 0.25,
+    n: 0,
+    v: 0.4 + (0.6 * i) / n,
+  }));
+/** Brushes: slaps on two and four, and a triplet crescendo that hands A1 over to A2. */
+const slaps = humanize([...beats(0, 8, [1, 3], 0.6), ...trip(7, 2, 6)], 32, 0.008, 0.15);
 const feather = humanize(beats(0, 16, [0, 1, 2, 3], 0.28), 33, 0.006, 0.15);
 const chicks = humanize(beats(0, 22, [1, 3], 0.55), 34, 0.006, 0.1);
 const snapsL = humanize(beats(0, 8, [1], 0.75), 35, 0.01, 0.1);
@@ -241,19 +256,12 @@ const ghosts = feel(
   38,
 );
 const crossStick = humanize(beats(8, 16, [3], 0.6), 39);
-const trip = (bar: number, from: number, n: number) =>
-  Array.from({ length: n }, (_, i) => ({
-    t: bar * BAR + from + i / 3,
-    d: 0.25,
-    n: 0,
-    v: 0.4 + (0.5 * i) / n,
-  }));
 const backbeat = humanize(beats(16, 22, [1, 3], 0.72), 40);
 const stopTime: Note[] = [
-  at(22, 0, 0.25, 0, 1),
-  at(22, 1.5, 0.25, 0, 0.9),
+  at(22, 0, 0.25, 0, 0.8),
+  at(22, 1.5, 0.25, 0, 0.75),
   ...trip(22, 2, 6),
-  at(23, 0, 0.25, 0, 1),
+  at(23, 0, 0.25, 0, 0.8),
 ];
 const pickupRoll = dyn(grid('..x.x.x.x.x.x.x.', { start: 23 * BAR }), ramp(23 * BAR, 24 * BAR, 0.25, 0.7));
 const snareNotes = [...ghosts, ...backbeat, ...trip(15, 2, 6), ...stopTime, ...feel(pickupRoll, 43)];
@@ -262,9 +270,9 @@ const kicks = humanize(
     ...feather,
     ...beats(16, 22, [0, 2], 0.62),
     ...beats(8, 16, [1.5], 0.45).filter((n) => Math.floor(n.t / BAR) % 2 === 0),
-    at(22, 0, 0.25, 0, 1),
-    at(22, 1.5, 0.25, 0, 0.9),
-    at(23, 0, 0.25, 0, 1),
+    at(22, 0, 0.25, 0, 0.65),
+    at(22, 1.5, 0.25, 0, 0.6),
+    at(23, 0, 0.25, 0, 0.65),
   ],
   41,
   0.004,
@@ -278,7 +286,12 @@ const toms = humanize(
       n: midi(['A3', 'A3', 'E3', 'E3', 'B2', 'B2'][i]!),
       v: 0.55 + 0.07 * i,
     })),
-    { t: 15 * BAR + 3.667, d: 0.3, n: midi('E3'), v: 0.8 },
+    ...[0, 1, 2].map((i) => ({
+      t: 15 * BAR + 3 + i / 3,
+      d: 0.3,
+      n: midi(['A3', 'E3', 'B2'][i]!),
+      v: 0.75 + 0.1 * i,
+    })),
   ],
   42,
   0.004,
@@ -286,10 +299,37 @@ const toms = humanize(
 );
 const crashes: Note[] = [
   at(0, 0, 1, 0, 0.6),
-  at(16, 0, 1, 0, 0.9),
+  at(8, 0, 1, 0, 0.5),
+  at(16, 0, 1, 0, 1),
   at(20, 0, 1, 0, 0.6),
   at(22, 0, 1, 0, 1),
   at(23, 0, 1, 0, 0.95),
+];
+
+/** Mix gains, before a common trim that keeps the bus below the master compressor (transients stay intact). */
+const HEADROOM = -12;
+const tracks: Track[] = [
+  { inst: mutedTrumpet, gain: 1, pan: 0.15, verb: 0.28, loop: trumpet },
+  { inst: horn, gain: -5, pan: 0.55, verb: 0.35, loop: highBody },
+  { inst: hornFall, gain: -5, pan: 0.55, verb: 0.35, loop: highEnds },
+  { inst: horn, gain: -5, pan: -0.55, verb: 0.4, loop: trombone },
+  { inst: hornFall, gain: -5, pan: -0.55, verb: 0.4, loop: lowEnds },
+  { inst: tenorSax, gain: -7, pan: -0.35, verb: 0.3, loop: sax },
+  { inst: compPiano, gain: -9, pan: -0.6, verb: 0.3, loop: piano },
+  { inst: vibes, gain: -10, pan: 0.6, verb: 0.4, loop: vibesPart },
+  { inst: twang, gain: -9, pan: 0.4, verb: 0.45, loop: guitar },
+  { inst: upright, gain: -5, pan: 0, verb: 0.08, loop: bassLine },
+  { inst: kick, gain: -3, pan: 0, verb: 0.05, loop: kicks },
+  { inst: brushSweep, gain: -2, pan: -0.2, verb: 0.2, loop: sweeps },
+  { inst: brushSlap, gain: -1, pan: 0.2, verb: 0.3, loop: slaps },
+  { inst: snare, gain: -9, pan: 0.05, verb: 0.3, loop: snareNotes },
+  { inst: rim, gain: -2, pan: 0.15, verb: 0.25, loop: crossStick },
+  { inst: ride, gain: 0, pan: 0.45, verb: 0.2, loop: rideNotes },
+  { inst: pedalHat, gain: 6, pan: -0.35, verb: 0.1, loop: chicks },
+  { inst: snap, gain: 2, pan: -0.45, verb: 0.3, loop: snapsL },
+  { inst: snap, gain: 2, pan: 0.45, verb: 0.3, loop: snapsR },
+  { inst: tom, gain: -10, pan: -0.25, verb: 0.3, loop: toms },
+  { inst: crash, gain: -5, pan: -0.4, verb: 0.35, loop: crashes },
 ];
 
 export const song: Song = {
@@ -299,25 +339,6 @@ export const song: Song = {
   bpm: 144,
   loopBeats: BARS * BAR,
   seed: 5,
-  reverb: { room: 0.42, damp: 0.55, wet: 0.24 },
-  tracks: [
-    { inst: mutedTrumpet, gain: 0, pan: 0.08, verb: 0.25, loop: trumpet },
-    { inst: horn, gain: -6, pan: -0.3, verb: 0.3, loop: trombone },
-    { inst: tenorSax, gain: -5, pan: 0.35, verb: 0.3, loop: sax },
-    { inst: compPiano, gain: -11, pan: -0.45, verb: 0.3, loop: piano },
-    { inst: vibes, gain: -10, pan: 0.5, verb: 0.4, loop: vibesPart },
-    { inst: twang, gain: -8, pan: -0.6, verb: 0.45, loop: guitar },
-    { inst: upright, gain: -3, pan: 0, verb: 0.08, loop: bassLine },
-    { inst: kick, gain: -5, pan: 0, verb: 0.05, loop: kicks },
-    { inst: brushSweep, gain: -2, pan: 0.15, verb: 0.2, loop: sweeps },
-    { inst: brushSlap, gain: -2, pan: 0.1, verb: 0.25, loop: slaps },
-    { inst: snare, gain: -10, pan: 0.05, verb: 0.25, loop: snareNotes },
-    { inst: rim, gain: -2, pan: 0.1, verb: 0.25, loop: crossStick },
-    { inst: ride, gain: -2, pan: 0.35, verb: 0.2, loop: rideNotes },
-    { inst: pedalHat, gain: 6, pan: -0.3, verb: 0.1, loop: chicks },
-    { inst: snap, gain: 2, pan: -0.55, verb: 0.3, loop: snapsL },
-    { inst: snap, gain: 2, pan: 0.55, verb: 0.3, loop: snapsR },
-    { inst: tom, gain: -6, pan: -0.2, verb: 0.25, loop: toms },
-    { inst: crash, gain: -5, pan: -0.35, verb: 0.3, loop: crashes },
-  ],
+  reverb: { room: 0.45, damp: 0.55, wet: 0.28 },
+  tracks: tracks.map((t) => ({ ...t, gain: (t.gain ?? 0) + HEADROOM })),
 };
