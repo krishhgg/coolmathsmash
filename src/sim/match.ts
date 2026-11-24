@@ -2,6 +2,7 @@ import { neutralInput, type InputFrame } from '../input/types';
 import { getStage } from '../stages/registry';
 import { createControl, feedControl, type ControlState } from './control';
 import { createFighter, type FighterState } from './fighter';
+import { resolveHits } from './combat/hits';
 import { stepFighter } from './step';
 
 export interface PortConfig {
@@ -56,5 +57,6 @@ export function createMatch(config: MatchConfig = DEFAULT_MATCH): MatchState {
 export function stepMatch(state: MatchState, inputs: readonly InputFrame[]): void {
   for (const player of state.players) feedControl(player.control, inputs[player.port] ?? neutralInput());
   for (const f of state.fighters) stepFighter(state, f, state.players[f.port]!);
+  resolveHits(state);
   state.frame++;
 }

@@ -40,4 +40,42 @@ export const marioReference = defineFighter({
     rollDistance: 28,
     airDodgeSpeed: 2.8,
   },
+  /** Test moves with round numbers (not Mario's real frame data). `probe` is research vector kb10's hit. */
+  moves: {
+    probe: {
+      kind: 'other',
+      faf: 30,
+      hits: [
+        {
+          frames: [1, 3],
+          boxes: [{ id: 0, x: 8, y: 8, radius: 8, damage: 12, angle: 45, kbg: 100, bkb: 30 }],
+        },
+      ],
+    },
+    jab: {
+      kind: 'other',
+      faf: 18,
+      hits: [
+        {
+          frames: [2, 3],
+          boxes: [{ id: 0, x: 7, y: 9, radius: 4, damage: 2.5, angle: 361, kbg: 30, bkb: 20 }],
+        },
+      ],
+    },
+    nair: {
+      kind: 'aerial',
+      faf: 45,
+      landingLag: 6,
+      autoCancel: [
+        [1, 2],
+        [39, 45],
+      ],
+      hits: [
+        {
+          frames: [3, 30],
+          boxes: [{ id: 0, x: 0, y: 8, radius: 7, damage: 8, angle: 361, kbg: 100, bkb: 10 }],
+        },
+      ],
+    },
+  },
 });

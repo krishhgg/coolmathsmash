@@ -72,6 +72,11 @@ export const LEDGE_JUMP = { rise: 6, intangible: [1, 13] as [number, number], hS
 /** Getup intangibility by grab count since last touching ground (Ultimate: ×0.8 on the 2nd grab, ×0.5 on the 3rd, none after). */
 export const LEDGE_GETUP_INTANGIBILITY_SCALE = [1, 0.8, 0.5];
 
+/** Hitstun cancel (Ultimate): air dodge out of tumble from frame 40 once the launch has slowed to 2.5 u/frame. */
+export const HITSTUN_CANCEL_AIR_DODGE = { from: 40, maxSpeed: 2.5 };
+/** Frames a fighter that was just hit cannot grab ledges. */
+export const LEDGE_HIT_LOCK = 30;
+
 /** Hard landing applies after this many airborne frames (Ultimate: 4). */
 export const HARD_LANDING_AIRTIME = 4;
 export const HELPLESS_AIR_SPEED = 0.8;
