@@ -38,7 +38,7 @@
   -webkit-user-select: none;
 }
 
-.ui-root :where(button) {
+:where(.ui-root button) {
   font: inherit;
   color: inherit;
   border: 0;
@@ -47,7 +47,7 @@
   cursor: pointer;
 }
 
-.ui-root :where(button:disabled) {
+:where(.ui-root button:disabled) {
   cursor: default;
 }
 

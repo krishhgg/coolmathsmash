@@ -51,7 +51,12 @@ export function mainMenuScreen(flow: Flow): Screen {
       'button',
       {
         class: `menu-tile ${t.className}`,
-        data: { nav: '', route: t.route, blurb: t.blurb },
+        data: {
+          nav: '',
+          route: t.route,
+          blurb: t.blurb,
+          ...(t.route === 'css' ? { navRight: '.tile-controls' } : {}),
+        },
         disabled: !flow.has(t.route),
         on: { click: () => flow.go(t.route) },
       },
