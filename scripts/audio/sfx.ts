@@ -275,10 +275,11 @@ function hitElectric(rng: Rng): Float32Array {
 function shieldHit(rng: Rng, v: number): Float32Array {
   const p = [1, 1.06][v] ?? 1;
   const ping = partials(0.3, 3300 * p, [
-    [1, 1, 0.05],
-    [1.41, 0.6, 0.04],
-    [2.17, 0.35, 0.03],
-    [2.9, 0.2, 0.02],
+    [1, 1, 0.03],
+    [1.41, 0.6, 0.025],
+    [2.17, 0.35, 0.02],
+    [2.9, 0.2, 0.015],
+    [4.1, 0.15, 0.01],
   ]);
   return filter(
     finish(
@@ -300,17 +301,25 @@ function shieldHit(rng: Rng, v: number): Float32Array {
 function shieldBreak(rng: Rng): Float32Array {
   const shards = scatter(rng, 0.5, 45, 0.16, 4000, 10000, [0.002, 0.008], 1.2);
   const shatter = scatter(rng, 0.9, 40, 0.35, 2200, 7000, [0.015, 0.05]);
+  const crystals = scatter(rng, 0.6, 6, 0.18, 3000, 8000, [0.04, 0.09], 1);
   const burst = mul(filter(noise(0.4, rng), 'highpass', 2500), decay(0.4, 0.06, 0.001));
   const glide = (t: number) => 300 * 2 ** (t * 2);
   const gliss = mul(
     filter(
-      layer(1.2, [osc(1.2, glide, 'saw'), 0.5], [osc(1.2, (t) => glide(t) * 1.008, 'saw'), 0.5]),
+      layer(
+        1.2,
+        [osc(1.2, glide, 'saw'), 0.35],
+        [osc(1.2, (t) => glide(t) * 1.008, 'saw', { phase: 0.3 }), 0.35],
+        [osc(1.2, (t) => glide(t) * 0.993, 'saw', { phase: 0.6 }), 0.3],
+        [osc(1.2, (t) => glide(t) * 2.004, 'triangle'), 0.3],
+        [osc(1.2, (t) => glide(t) * 3.01), 0.12],
+      ),
       'lowpass',
       3200,
     ),
     env(1.2, [
       [0, 0],
-      [0.1, 1],
+      [0.06, 1],
       [0.8, 0.6],
       [1.2, 0],
     ]),
@@ -319,12 +328,13 @@ function shieldBreak(rng: Rng): Float32Array {
     1.5,
     [click(rng, 0.01, 2000), 1],
     [shards, 0.9],
+    [crystals, 0.7],
     [shatter, 0.6],
-    [burst, 0.7],
+    [burst, 0.45],
     [drive(thump(130, 40, 0.05, 0.2, 1), 2), 1.1],
-    [gliss, 0.18, 0.08],
+    [flange(gliss, 0.004, 0.002, 0.8), 0.17, 0.02],
   );
-  return finish(reverbMono(dry, { room: 0.65, wet: 0.28, tail: 0.6 }));
+  return finish(filter(reverbMono(dry, { room: 0.65, wet: 0.28, tail: 0.6 }), 'peak', 2000, 1, -2.5));
 }
 
 function shieldOn(rng: Rng): Float32Array {
@@ -654,7 +664,7 @@ function roll(rng: Rng): Float32Array {
 function smashCharge(rng: Rng): Float32Array {
   const len = 1.05;
   const f = (t: number) => 146.8 * 2 ** (t * 0.5);
-  const vib = (t: number) => 1 + 0.004 * Math.sin(2 * Math.PI * 5.5 * t) * Math.min(1, t / 0.3);
+  const vib = (t: number) => 1 + 0.002 * Math.sin(2 * Math.PI * 5.5 * t) * Math.min(1, t / 0.3);
   const swell = filter(
     layer(
       len,
@@ -704,13 +714,20 @@ function smashCharge(rng: Rng): Float32Array {
       [len, 0.4],
     ]),
   );
+  const shimmer = mul(
+    mul(filter(noise(len, rng), 'bandpass', 4500, 1.5), aura),
+    env(len, [
+      [0, 0.1],
+      [len, 1],
+    ]),
+  );
   const body = mul(
-    layer(len, [mul(swell, aura), 1], [hum, 0.45], [glints, 0.25], [air, 0.08]),
+    layer(len, [mul(swell, aura), 0.7], [hum, 0.45], [glints, 0.4], [shimmer, 0.18], [air, 0.08]),
     env(len, [
       [0, 0],
       [0.06, 0.45],
-      [len - 0.1, 1],
-      [len, 0.75],
+      [len - 0.06, 1],
+      [len, 0],
     ]),
   );
   return normalize(layer(len, [body, 1], [glint, 0.5]), 0.85);
