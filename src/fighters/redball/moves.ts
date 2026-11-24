@@ -17,10 +17,10 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 /** Frame of down air on which Red Ball stops winding up and drops onto the target. */
 export const DAIR_DROP_FRAME = 10;
 /**
- * Down air's wind-up holds a little upward speed, so gravity leaves him hanging and a down flick can't start a
- * fast fall (fast-falling needs a falling fighter).
+ * Down air's wind-up holds a sliver of upward speed, so he hovers in place and a down flick can't start a fast
+ * fall (fast-falling needs a falling fighter). Hovering, he can't land until the drop.
  */
-const DAIR_HANG_LIFT = 0.05;
+const DAIR_HANG_LIFT = 0.01;
 
 /**
  * Red Ball's normals. He has no arms, so everything is his body: bumps, rolls, bounces and squashes, plus the
@@ -220,7 +220,7 @@ export const moves: Record<string, MoveDef> = {
     ],
   },
   /**
-   * Cube Squash, the attack from his game: he hangs for a moment, then drops onto the target at fast-fall speed.
+   * Cube Squash, the attack from his game: he hovers for a moment, then drops onto the target at fast-fall speed.
    * The clean hit meteors. Connecting bounces him back up like squashing a Gray Cube, gives back one midair jump
    * and lets him act.
    */
@@ -228,10 +228,7 @@ export const moves: Record<string, MoveDef> = {
     kind: 'aerial',
     faf: 42,
     landingLag: 18,
-    autoCancel: [
-      [1, 3],
-      [36, 42],
-    ],
+    autoCancel: [[36, 42]],
     hits: [
       { frames: [12, 14], boxes: [box(0, 0, 0.5, 5, { damage: 14, angle: 270, kbg: 75, bkb: 30 })] },
       { frames: [15, 24], boxes: [box(0, 0, 0.5, 4.5, { damage: 10, angle: 70, kbg: 70, bkb: 40 })] },

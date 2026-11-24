@@ -184,11 +184,22 @@ describe('Red Ball: down air (Cube Squash)', () => {
         run(m, 1, { y: -100 });
         expect(f.fastFalling).toBe(false);
       }
-      expect(y0 - f.pos.y).toBeLessThan(2);
+      expect(Math.abs(y0 - f.pos.y)).toBeLessThan(0.2);
       run(m, 3);
       expect(f.vel.y).toBeCloseTo(-stats.fastFallSpeed, 6);
     },
   );
+
+  it('started just above the floor, it hovers through the wind-up, then drops and lands with its 18 frames of lag', () => {
+    const m = redball();
+    const f = placeInAir(m, 0, 0.1);
+    attack(m, 0, 'dair');
+    run(m, DAIR_DROP_FRAME - 1);
+    expect(f.ground).toBeNull();
+    until(m, (g) => g.ground !== null);
+    expect(f.action).toBe('land');
+    expect(f.landingLag).toBe(18);
+  });
 
   it('the clean hit meteors, and Red Ball bounces back up with a midair jump back and can act', () => {
     const { m, a, v } = squash(14);
