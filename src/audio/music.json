@@ -12,5 +12,12 @@
     "evokes": "Papa's Pizzeria (Flipline Studios): an original café swing and tarantella",
     "loopStart": 0,
     "loopEnd": 43.636372
+  },
+  "snail-bob-construction": {
+    "file": "music/snail-bob-construction.mp3",
+    "title": "Snail Bob",
+    "evokes": "Snail Bob's construction site (Hunter Hamster): an original tiptoeing cartoon caper",
+    "loopStart": 0,
+    "loopEnd": 45.714286
   }
 }
