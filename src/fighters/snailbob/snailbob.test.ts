@@ -383,6 +383,40 @@ describe('Snail Bob: Shell Spin (side special)', () => {
     expect(hop()).toBe(false);
   });
 
+  it('started out of a fast fall, it still hops', () => {
+    const m = snail();
+    const f = placeInAir(m, 0, 100, 1);
+    run(m, 3);
+    run(m, 1, { y: -100 });
+    expect(f.fastFalling).toBe(true);
+    run(m, 1);
+    run(m, 1, { x: 100, buttons: ['special'] });
+    expect(f.move).toBe('sideB');
+    until(m, (g) => g.actionFrame === SPIN_ROLL[0]);
+    const y = f.pos.y;
+    run(m, 4);
+    expect(f.pos.y).toBeGreaterThan(y);
+  });
+
+  it('a hit on the last roll frame still bounces him back', () => {
+    const solo = vsMario();
+    place(solo.v, -100);
+    place(solo.a, -40).facing = 1;
+    attack(solo.m, 0, 'sideB');
+    while (solo.a.actionFrame < SPIN_ROLL[1]) runPorts(solo.m, 1, [{}, {}]);
+    const reach = moves.sideB!.hits[0]!.boxes[0]!.radius + 4;
+    const { m, a, v } = vsMario();
+    place(a, -40).facing = 1;
+    place(v, solo.a.pos.x + reach - 0.3);
+    Object.assign(v, { ground: a.ground, action: 'idle', intangible: 0, facing: -1 });
+    attack(m, 0, 'sideB');
+    while (v.damage === 0 && a.move === 'sideB') runPorts(m, 1, [{}, {}]);
+    expect(a.actionFrame).toBe(SPIN_ROLL[1]);
+    while (a.hitlag > 0) runPorts(m, 1, [{}, {}]);
+    runPorts(m, 1, [{}, {}]);
+    expect(a.vel.x).toBeLessThan(0);
+  });
+
   it('in the air it hops into the roll and keeps rolling when it lands', () => {
     const m = snail();
     const f = placeInAir(m, -40, 8, 1);
