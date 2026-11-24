@@ -1,4 +1,5 @@
 import { defineFighter } from '../types';
+import { entities } from './entities';
 import { moves } from './moves';
 import { stats } from './stats';
 
@@ -8,4 +9,5 @@ export const fighter = defineFighter({
   series: 'IQ Ball / Catch the Candy (2010)',
   stats,
   moves,
+  entities,
 });
