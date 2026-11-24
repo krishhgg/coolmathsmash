@@ -170,6 +170,19 @@ describe('Bob the Robber: frame data', () => {
 });
 
 describe('Bob the Robber: the baton', () => {
+  it('Attack, Attack, Attack is the jab combo: two pokes and the bonk, 9% in all', () => {
+    const { m, a, v } = versusMario('jab', 0, { dx: 9 });
+    const seen: string[] = [];
+    for (let i = 0; i < 90; i++) {
+      runPorts(m, 1, [i % 6 === 0 ? { buttons: ['attack'] } : {}, {}]);
+      if (a.move && seen.at(-1) !== a.move) seen.push(a.move);
+      if (a.move === 'jab3') break;
+    }
+    expect(seen).toEqual(['jab', 'jab2', 'jab3']);
+    for (let i = 0; i < 60 && a.move === 'jab3'; i++) runPorts(m, 1, [{}, {}]);
+    expect(v.damage).toBeCloseTo(landed(2.5) + landed(2) + landed(4.5), 6);
+  });
+
   it.each([
     ['ftilt', 17, 11, 10, 9, false],
     ['fsmash', 18, 18, 10, 15, false],

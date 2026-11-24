@@ -27,10 +27,11 @@ const loop = (windows: [number, number][], boxes: HitboxDef[]): MoveDef['hits'] 
  * the end of the baton (Marth's spacing game), rather than whenever it overlaps.
  */
 export const moves: Record<string, MoveDef> = {
-  /** Baton Jab: a quick poke from the hip. */
+  /** Baton Jab: a quick poke from the hip; Attack again chains into the second poke. */
   jab: {
     kind: 'other',
     faf: 20,
+    next: { window: [7, 19], move: 'jab2' },
     hits: [
       {
         frames: [4, 5],
@@ -41,10 +42,11 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Second poke, the other way up. */
+  /** Second poke, the other way up; Attack again finishes with the bonk. */
   jab2: {
     kind: 'other',
     faf: 20,
+    next: { window: [6, 19], move: 'jab3' },
     hits: [
       {
         frames: [3, 4],
