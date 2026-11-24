@@ -1,5 +1,6 @@
 import type { Game } from '../game';
 import type { InputFrame } from '../input/types';
+import type { Overlays } from '../render/renderer';
 import type { FighterState } from '../sim/fighter';
 import { DEFAULT_MATCH, type MatchConfig, type MatchState } from '../sim/match';
 import { decodeReplay } from '../sim/replay';
@@ -42,7 +43,7 @@ export interface HarnessApi {
   hash(): string;
   /** Overwrite parts of a fighter's state (damage, position next to a ledge...). Vectors merge. */
   patch(port: number, state: FighterPatch): FighterState;
-  setOverlay(name: 'inputs' | 'actions', on: boolean): void;
+  setOverlay(name: keyof Overlays, on: boolean): void;
   /** Render the current frame and wait until it is on screen. */
   render(): Promise<void>;
   /** The named capture scenarios (src/harness/scenarios.ts), game and lab. */

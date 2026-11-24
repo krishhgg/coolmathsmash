@@ -13,6 +13,7 @@ import {
   SPOT_DODGE,
 } from './constants';
 import { isIntangible } from './actions/registry';
+import type { FighterState } from './fighter';
 import { marioReference as mario } from './testing/reference';
 import { placeInAir, run, testMatch, until, type Hold } from './testing/sim';
 import { apexHeight, jumpVelocity } from './physics';
@@ -149,6 +150,16 @@ describe('ground movement (Mario reference: walk 1.155, initial dash 1.936, run 
     expect(f.action).toBe('run');
     run(m, 30, { x: 100 });
     expect(f.vel.x).toBeCloseTo(S.runSpeed);
+  });
+
+  it('the initial dash lasts exactly dashFrames frames', () => {
+    const m = testMatch({ x: -60 });
+    const f = fighter(m);
+    run(m, S.dashFrames, { x: 100 });
+    expect(f.action).toBe('dash');
+    expect(f.actionFrame).toBe(S.dashFrames);
+    run(m, 1, { x: 100 });
+    expect(f.action).toBe('run');
   });
 
   it('dash dances when flicked back during the initial dash', () => {
@@ -464,5 +475,51 @@ describe('blast zones and respawn', () => {
     run(m, 1, { x: 100 });
     expect(f.action).toBe('fall');
     expect(f.intangible).toBe(RESPAWN_INVINCIBILITY - 1);
+  });
+});
+
+describe('pushing', () => {
+  /** Two idle fighters on the main stage, P2 `dx` to the right of P1 at x. */
+  function pair(x: number, dx: number) {
+    const m = testMatch({ players: 2 });
+    const [a, b] = m.fighters as [FighterState, FighterState];
+    for (const [f, px] of [
+      [a, x],
+      [b, x + dx],
+    ] as const) {
+      Object.assign(f, {
+        pos: { x: px, y: 0 },
+        prevPos: { x: px, y: 0 },
+        ground: a.ground,
+        action: 'idle',
+        vel: { x: 0, y: 0 },
+      });
+    }
+    return { m, a, b };
+  }
+
+  it('fighters standing in each other separate to their combined half widths', () => {
+    const { m, a, b } = pair(-70, 1);
+    run(m, 30);
+    expect(b.pos.x - a.pos.x).toBeGreaterThan(S.width - 0.1);
+    expect(b.pos.x - a.pos.x).toBeLessThanOrEqual(S.width);
+    expect((a.pos.x + b.pos.x) / 2).toBeCloseTo(-69.5, 6);
+  });
+
+  it('a walking fighter shoves a standing one instead of walking through', () => {
+    const { m, a, b } = pair(-70, S.width);
+    const b0 = b.pos.x;
+    run(m, 60, { x: 50 });
+    expect(a.action).toBe('walk');
+    expect(b.pos.x - b0).toBeGreaterThan(10);
+    expect(b.pos.x - a.pos.x).toBeGreaterThan(S.width / 2);
+  });
+
+  it('pushing never moves a fighter off the stage', () => {
+    const { m, a, b } = pair(-79, -1);
+    run(m, 30);
+    expect(b.pos.x).toBeGreaterThanOrEqual(-80);
+    expect(b.ground).not.toBeNull();
+    expect(a.pos.x - b.pos.x).toBeGreaterThan(S.width - 0.1);
   });
 });

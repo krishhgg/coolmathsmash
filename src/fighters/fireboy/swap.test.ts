@@ -1,0 +1,101 @@
+import { describe, expect, it } from 'vitest';
+import { isIntangible } from '../../sim/actions/registry';
+import { placeInAir, run, testMatch, until } from '../../sim/testing/sim';
+import { stats as watergirl } from '../watergirl/stats';
+
+const fireboy = () => testMatch({ fighter: 'fireboy' });
+
+describe('Fireboy and Watergirl swap', () => {
+  it('down special becomes Watergirl on frame 18, intangible 18-32, actionable on frame 51', () => {
+    const m = fireboy();
+    const f = m.fighters[0]!;
+    Object.assign(f, { damage: 42, stocks: 2 });
+    const x0 = f.pos.x;
+    run(m, 1, { y: -100, buttons: ['special'] });
+    expect(f.move).toBe('downB');
+    const seen: { frame: number; fighter: string; intangible: boolean }[] = [];
+    while (f.move === 'downB') {
+      seen.push({ frame: f.actionFrame, fighter: f.fighter, intangible: isIntangible(f) });
+      run(m, 1);
+    }
+    expect(seen.filter((s) => s.fighter === 'fireboy').map((s) => s.frame)).toEqual(range(1, 17));
+    expect(seen.filter((s) => s.intangible).map((s) => s.frame)).toEqual(range(18, 32));
+    expect(seen.at(-1)!.frame).toBe(50);
+    expect(f.action).toBe('idle');
+    expect(f).toMatchObject({ fighter: 'watergirl', damage: 42, stocks: 2 });
+    expect(f.pos.x).toBeCloseTo(x0, 6);
+  });
+
+  it('reports the transform as a sim event', () => {
+    const m = fireboy();
+    run(m, 1, { y: -100, buttons: ['special'] });
+    until(m, () => m.events.some((e) => e.type === 'transform'));
+    expect(m.events.find((e) => e.type === 'transform')).toEqual({
+      type: 'transform',
+      port: 0,
+      from: 'fireboy',
+      to: 'watergirl',
+    });
+  });
+
+  it("after the swap Watergirl's own stats apply, and her down special swaps back", () => {
+    const m = fireboy();
+    const f = m.fighters[0]!;
+    run(m, 1, { y: -100, buttons: ['special'] });
+    until(m, (g) => g.action === 'idle');
+    const y0 = f.pos.y;
+    let top = y0;
+    until(m, (g) => g.ground === null, { buttons: ['jump'] });
+    until(
+      m,
+      (g) => {
+        top = Math.max(top, g.pos.y);
+        return g.ground !== null;
+      },
+      { buttons: ['jump'] },
+    );
+    expect(top - y0).toBeCloseTo(watergirl.fullHopHeight, 0);
+    run(m, 10);
+    run(m, 1, { y: -100, buttons: ['special'] });
+    until(m, (g) => g.action === 'idle');
+    expect(f.fighter).toBe('fireboy');
+  });
+
+  it('works in the air with the same intangible frames, without giving back a jump', () => {
+    const m = fireboy();
+    const f = placeInAir(m, -70, 150);
+    f.jumpsUsed = 2;
+    run(m, 1, { y: -100, buttons: ['special'] });
+    expect(f.move).toBe('downB');
+    const intangible: number[] = [];
+    while (f.move === 'downB') {
+      expect(f.ground).toBeNull();
+      if (isIntangible(f)) intangible.push(f.actionFrame);
+      run(m, 1);
+    }
+    expect(intangible).toEqual(range(18, 32));
+    expect(f.fighter).toBe('watergirl');
+    expect(f.jumpsUsed).toBe(2);
+  });
+
+  it('landing during the swap neither cancels it nor cuts its recovery short', () => {
+    for (const height of [3, 25]) {
+      const m = fireboy();
+      const f = placeInAir(m, -70, height);
+      run(m, 1, { y: -100, buttons: ['special'] });
+      const frames: number[] = [];
+      while (f.move === 'downB') {
+        frames.push(f.actionFrame);
+        run(m, 1);
+      }
+      expect(f.ground, `from ${height}`).not.toBeNull();
+      expect(frames, `from ${height}`).toEqual(range(1, 50));
+      expect(f.fighter).toBe('watergirl');
+      expect(f.action).toBe('idle');
+    }
+  });
+});
+
+function range(from: number, to: number): number[] {
+  return Array.from({ length: to - from + 1 }, (_, i) => from + i);
+}

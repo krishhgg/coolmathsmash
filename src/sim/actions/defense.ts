@@ -10,18 +10,21 @@ import {
   SPOT_DODGE,
 } from '../constants';
 import { flickDown, flickX, isHeld } from '../control';
+import { emit } from '../events';
 import type { Ctx } from '../fighter';
 import { leaveGround } from '../movement';
 import { consumeJump, wantsJump } from './common';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
 
-/** Share of a roll's distance covered on each movement frame: a smooth ease-in/ease-out. */
-const ROLL_WEIGHTS = (() => {
-  const n = ROLL.move[1] - ROLL.move[0] + 1;
+/** Share of a roll's distance covered on each frame of its movement window: a smooth ease-in/ease-out. */
+export function rollWeights([from, to]: [number, number]): number[] {
+  const n = to - from + 1;
   const raw = Array.from({ length: n }, (_, i) => Math.sin((Math.PI * (i + 0.5)) / n));
   const sum = raw.reduce((a, b) => a + b, 0);
   return raw.map((w) => w / sum);
-})();
+}
+
+const ROLL_WEIGHTS = rollWeights(ROLL.move);
 
 export function breakShield(x: Ctx): void {
   const { f, d } = x;
@@ -30,6 +33,7 @@ export function breakShield(x: Ctx): void {
   f.vel.x = 0;
   f.vel.y = d.shieldBreakV;
   setAction(x, 'shieldBreak');
+  emit(x.m, { type: 'shieldBreak', port: f.port });
 }
 
 function roll(name: 'rollForward' | 'rollBack'): ActionDef {

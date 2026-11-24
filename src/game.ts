@@ -6,6 +6,7 @@ import { KeyboardState } from './input/keyboard';
 import { mergeInputs, neutralInput, type InputFrame } from './input/types';
 import type { Renderer } from './render/renderer';
 import { DEFAULT_MATCH, createMatch, stepMatch, type MatchConfig, type MatchState } from './sim/match';
+import type { SimEvent } from './sim/events';
 import { encodeReplay } from './sim/replay';
 
 /**
@@ -17,6 +18,9 @@ export class Game {
   inputLog: InputFrame[][] = [];
   readonly keyboard = new KeyboardState();
   readonly loop: FixedLoop;
+  /** Where real-time frames get their inputs (the match screen's players and CPUs); the device ports when null. */
+  inputSource: (() => InputFrame[]) | null = null;
+  private readonly eventListeners = new Set<(events: readonly SimEvent[], state: MatchState) => void>();
 
   constructor(
     readonly renderer: Renderer,
@@ -25,7 +29,7 @@ export class Game {
     this.state = createMatch(DEFAULT_MATCH);
     this.loop = new FixedLoop({
       step: () => {
-        if (!this.manual) this.step();
+        if (!this.manual) this.step(this.inputSource?.());
       },
       render: (alpha) => this.renderer.render(this.state, this.manual ? 1 : alpha),
     });
@@ -50,8 +54,17 @@ export class Game {
     const frame = inputs.map((i) => ({ x: i.x, y: i.y, cx: i.cx, cy: i.cy, buttons: i.buttons }));
     stepMatch(this.state, frame);
     this.renderer.stepCamera(this.state);
-    this.renderer.stepHud(this.state);
     this.inputLog.push(frame);
+    for (const listener of this.eventListeners) listener(this.state.events, this.state);
+  }
+
+  /**
+   * Call `listener` after every simulated frame with that frame's events (see SimEvent), for audio, the HUD and
+   * effects. Returns the unsubscribe function.
+   */
+  onEvents(listener: (events: readonly SimEvent[], state: MatchState) => void): () => void {
+    this.eventListeners.add(listener);
+    return () => void this.eventListeners.delete(listener);
   }
 
   hash(): string {

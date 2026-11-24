@@ -24,8 +24,11 @@ export const CROUCH_THRESHOLD = 0.45;
 /** Any stick magnitude above this picks a direction for tilts, specials and dodges. */
 export const DIRECTION_THRESHOLD = 0.25;
 
-/** Button presses are remembered this many frames, so an input made during lag comes out on the first actionable frame. */
-export const INPUT_BUFFER_FRAMES = 5;
+/**
+ * Button presses are remembered this many frames, so an input made during lag comes out on the first actionable frame.
+ * Ultimate's `precede` param is 7; its 2-frame `precede_extension` for held inputs is covered by HOLD_BUFFER.
+ */
+export const INPUT_BUFFER_FRAMES = 7;
 /**
  * Ultimate's "hold buffer": a press made during lag that is still held when the fighter becomes actionable
  * is used then, however long ago it was pressed.
@@ -83,6 +86,38 @@ export const HELPLESS_AIR_SPEED = 0.8;
 /** Landing out of helpless fall when the move gives none: Mario's landing_fall_special, FAF 30. */
 export const HELPLESS_LANDING_LAG = 29;
 export const RUN_BRAKE_FRAMES = 14;
+
+/**
+ * Tech (Ultimate): Shield pressed within TECH_WINDOW frames before a tumble landing techs it, and a press locks
+ * out the next one for TECH_LOCKOUT frames. Floors only allow it at launch speeds up to TECH_MAX_SPEED (calc).
+ */
+export const TECH_WINDOW = 11;
+export const TECH_LOCKOUT = 40;
+export const TECH_MAX_SPEED = 3;
+/** An air dodge out of tumble techs if it touches down within this many frames of its Shield press. */
+export const AIR_DODGE_TECH_WINDOW = 15;
+/** Mario's tech options. The roll's distance and movement frames are not in the reference: it reuses the roll's. */
+export const TECH_IN_PLACE = { faf: 27, intangible: [1, 21] as [number, number] };
+export const TECH_ROLL = {
+  faf: 41,
+  intangible: [1, 21] as [number, number],
+  move: [4, 30] as [number, number],
+};
+/** Missed tech: bounce, then lie down until a getup is picked (automatic after DOWN_AUTO_GETUP frames). */
+export const DOWN_BOUNCE_FRAMES = 26;
+export const DOWN_AUTO_GETUP = 220;
+export const GETUP_STAND = { faf: 30, intangible: [1, 23] as [number, number] };
+export const GETUP_ROLL = {
+  faf: 36,
+  intangible: [1, 23] as [number, number],
+  move: [4, 28] as [number, number],
+};
+
+/**
+ * Grounded fighters standing in each other are pushed apart by this share of their overlap each frame. Not from
+ * the reference: tuned so a walking fighter shoves a standing one at half walk speed instead of passing through.
+ */
+export const PUSH_STIFFNESS = 0.15;
 export const RUN_TURN_FRAMES = 12;
 export const DOUBLE_JUMP_FRAMES = 30;
 
