@@ -125,7 +125,8 @@ export class Renderer {
     for (const f of state.fighters) {
       if (f.action === 'ko' || f.action === 'out') continue;
       const h = hurtbox(f, getFighter(f.fighter).stats);
-      g.roundRect(h.x - h.r, -h.y2 - h.r, h.r * 2, h.y2 - h.y1 + h.r * 2, h.r).fill({
+      const hw = h.hw ?? 0;
+      g.roundRect(h.x - hw - h.r, -h.y2 - h.r, (hw + h.r) * 2, h.y2 - h.y1 + h.r * 2, h.r).fill({
         color: '#ffe14a',
         alpha: 0.35,
       });
