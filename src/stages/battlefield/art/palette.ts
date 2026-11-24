@@ -1,6 +1,6 @@
 /**
  * Coolmath Battlefield palette. Sky and planet come from the Coolmath Games logo (#3E96EE ring, #2DD92D planet),
- * the stone from Fireboy & Watergirl's Forest Temple bricks, kept muted so fighters read on top.
+ * the stone from a sandstone temple's bricks, kept muted so fighters read on top.
  */
 export const INK = 0x2a2114;
 export const INK_SOFT = 0x4a3e24;

@@ -2,8 +2,6 @@ import { Container, FillGradient, Graphics } from 'pixi.js';
 import {
   CLOUD,
   CLOUD_SHADE,
-  GEM_BLUE,
-  GEM_RED,
   MOSS,
   MOSS_DARK,
   MOSS_LIGHT,
@@ -604,7 +602,7 @@ function lowClouds(): Layer {
   };
 }
 
-/** Fireboy & Watergirl's exit doors: dark stone doors, colour only on the red Mars and blue Venus signs and lintels. */
+/** A small stone temple front: two dark doorways under plain lintels, each with a carved round boss above it. */
 function templeDoors(g: Graphics, x: number, y: number, h: number, k: number): void {
   const ink = haze(0x2b2414, h * 0.7);
   const P = (dx: number, dy: number) => [x + dx * k, y + dy * k];
@@ -625,38 +623,19 @@ function templeDoors(g: Graphics, x: number, y: number, h: number, k: number): v
       .stroke({ width: 1, color: ink, alpha: 0.3 });
   }
   g.poly(wall).stroke({ width: 2, color: ink, join: 'round' });
-  const door = (dx: number, sign: number, venus: boolean) => {
+  const door = (dx: number) => {
     const [fx, fy] = P(dx - 16, -40) as [number, number];
     g.rect(fx, fy, 32 * k, 40 * k).fill(haze(STONE_LIGHT, h));
     g.rect(fx, fy, 32 * k, 40 * k).stroke({ width: 1.5, color: ink });
-    const [px, py] = P(dx - 13, -36) as [number, number];
-    g.rect(px, py, 26 * k, 36 * k).fill(haze(0x3a3324, h * 0.8));
-    g.rect(px, py, 26 * k, 36 * k).stroke({ width: 1.5, color: ink });
-    g.rect(px, py, 26 * k, 3 * k).fill(haze(sign, h * 0.8));
-    const [sx, sy] = P(dx, -19) as [number, number];
-    const sym = haze(sign, h * 0.7);
-    const r = 5.5 * k;
-    const lw = 2.6 * k;
-    g.circle(sx, sy, r).stroke({ width: lw, color: sym });
-    if (venus) {
-      g.moveTo(sx, sy + r)
-        .lineTo(sx, sy + r + 7.5 * k)
-        .stroke({ width: lw, color: sym });
-      g.moveTo(sx - 3.5 * k, sy + r + 4 * k)
-        .lineTo(sx + 3.5 * k, sy + r + 4 * k)
-        .stroke({ width: lw, color: sym });
-    } else {
-      g.moveTo(sx + 3.8 * k, sy - 3.8 * k)
-        .lineTo(sx + 9.5 * k, sy - 9.5 * k)
-        .stroke({ width: lw, color: sym });
-      g.moveTo(sx + 4.5 * k, sy - 9.5 * k)
-        .lineTo(sx + 9.5 * k, sy - 9.5 * k)
-        .lineTo(sx + 9.5 * k, sy - 4.5 * k)
-        .stroke({ width: lw, color: sym, join: 'miter' });
-    }
+    const [px, py] = P(dx - 11, -30) as [number, number];
+    g.roundRect(px, py, 22 * k, 30 * k, 10 * k).fill(haze(0x3a3324, h * 0.8));
+    g.roundRect(px, py, 22 * k, 30 * k, 10 * k).stroke({ width: 1.5, color: ink });
+    const [sx, sy] = P(dx, -35) as [number, number];
+    g.circle(sx, sy, 2.6 * k).fill(haze(STONE, h));
+    g.circle(sx, sy, 2.6 * k).stroke({ width: 1.2, color: ink });
   };
-  door(-17, GEM_RED, false);
-  door(17, GEM_BLUE, true);
+  door(-17);
+  door(17);
 }
 
 function midRocks(): Layer {

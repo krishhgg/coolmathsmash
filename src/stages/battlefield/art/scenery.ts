@@ -20,7 +20,7 @@ export interface IslandSpec {
 export const DECO_HEIGHT = 64;
 
 /**
- * Far floating islands, high in the sky at the outer edges: the pi arch (left) and the Fireboy & Watergirl exit doors
+ * Far floating islands, high in the sky at the outer edges: the pi arch (left) and a small temple front
  * (right), kept clear of the planet and of the platform heights at the cameras the game uses.
  */
 export const FAR_ISLANDS = {

@@ -18,7 +18,7 @@ export interface StageView {
   update(frame: number, camera: StageCamera): void;
 }
 
-/** Coolmath Battlefield: a floating Forest Temple island under the Coolmath planet. */
+/** Coolmath Battlefield: a floating temple island under the Coolmath planet. */
 export function createStageView(): StageView {
   const background = createBackground();
   const island = createIsland();

@@ -36,8 +36,8 @@ export interface IslandArt {
 }
 
 /**
- * The main platform in game units: a Forest Temple sandstone cap (the walkable top and the side walls) on a tapered
- * brick underside carrying the Coolmath planet medallion and Fireboy & Watergirl's gems. Key light comes from the
+ * The main platform in game units: a temple sandstone cap (the walkable top and the side walls) on a tapered
+ * brick underside carrying the Coolmath planet medallion and a red and a blue gem. Key light comes from the
  * upper right, where the sky's sun rays are.
  */
 export function createIsland(): IslandArt {
@@ -151,7 +151,7 @@ function drawUnderside(g: Graphics): void {
   );
 }
 
-/** One Forest Temple brick: tinted face, light top-left bevel, dark bottom-right bevel, the odd crack. */
+/** One temple brick: tinted face, light top-left bevel, dark bottom-right bevel, the odd crack. */
 function brick(g: Graphics, x0: number, x1: number, top: number, bottom: number, seed: number): void {
   const v = hash01(seed);
   if (v > 0.5)

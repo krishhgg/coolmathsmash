@@ -62,7 +62,7 @@ export function cloud(
   for (const [px, py, r] of puffs) g.circle(px - r * 0.08, py - r * 0.14, r * 0.86).fill(body);
 }
 
-/** A faceted Fireboy & Watergirl diamond centred on (x, y), `s` half-width, in Pixi (y down) coordinates. */
+/** A faceted diamond centred on (x, y), `s` half-width, in Pixi (y down) coordinates. */
 export function diamond(
   g: Graphics,
   x: number,

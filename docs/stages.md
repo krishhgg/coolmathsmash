@@ -98,8 +98,8 @@ variety comes from `hash01(n)` (a fixed integer hash). Build Graphics once and o
 
 ## Coolmath Battlefield
 
-`src/stages/battlefield/`: Battlefield's exact layout as a floating Forest Temple island under the Coolmath
+`src/stages/battlefield/`: Battlefield's exact layout as a floating sandstone temple island under the Coolmath
 Games planet. The main platform is a sandstone cap carved with a math frieze over a brick underside holding a planet
-medallion and Fireboy's and Watergirl's gems; the soft platforms are thin slabs whose hanging gems are red (left),
+medallion and a red and a blue gem; the soft platforms are thin slabs whose hanging gems are red (left),
 green (top) and blue (right). The background (sky, sun rays, ringed planet, mountains, floating ruins with a pi arch
-and the Fireboy & Watergirl exit doors, a cloud sea, waterfalls) sits in screen space with the depths above.
+and a small temple front, a cloud sea, waterfalls) sits in screen space with the depths above.

@@ -18,7 +18,7 @@ import {
 } from './palette';
 import { diamond, mix, vGradient } from './util';
 
-/** Left platform glows Fireboy red, the top one Coolmath green, the right one Watergirl blue. */
+/** Left platform glows red, the top one Coolmath green, the right one blue. */
 const GEMS = [
   [GEM_RED, GEM_RED_DARK],
   [GEM_GREEN, GEM_GREEN_DARK],
