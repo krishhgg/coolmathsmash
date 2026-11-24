@@ -34,7 +34,7 @@ export interface PackState {
 
 const fmt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2));
 
-/** Per-frame table of the fighters that move during a motion window. */
+/** Per-frame table of the fighters whose position changes during a motion window. */
 export function motionMarkdown(rec: CaptureRecord): string {
   const frames = rec.motion?.frames ?? [];
   const first = frames[0]?.fighters ?? [];
@@ -44,7 +44,7 @@ export function motionMarkdown(rec: CaptureRecord): string {
       frames.some((fr) => {
         const f = fr.fighters[port]!;
         const f0 = first[port]!;
-        return f.action !== f0.action || f.pos.x !== f0.pos.x || f.pos.y !== f0.pos.y;
+        return f.pos.x !== f0.pos.x || f.pos.y !== f0.pos.y;
       }),
     );
   const withKb = moving.filter((port) =>
@@ -76,7 +76,7 @@ export function motionMarkdown(rec: CaptureRecord): string {
     `# ${rec.name}: frames ${rec.motion?.from}-${rec.motion?.to} at ${rec.motion?.fps} fps`,
     '',
     `Capture frame ${rec.frame} in bold. Units: game units (the main platform is 160 wide), units per frame, y up.`,
-    moving.length === 0 ? 'Nothing moves in this window.' : '',
+    ...(moving.length === 0 ? ['Nothing moves in this window.'] : []),
     '',
     `| ${head.join(' | ')} |`,
     `| ${head.map(() => '---').join(' | ')} |`,
