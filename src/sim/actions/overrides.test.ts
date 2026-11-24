@@ -5,8 +5,9 @@ import { stickX, stickY } from '../control';
 import { emit } from '../events';
 import { hurtbox, touches, type PlacedHitbox } from '../combat/hits';
 import type { FighterState } from '../fighter';
+import { createMatch } from '../match';
 import { marioReference } from '../testing/reference';
-import { run, testMatch } from '../testing/sim';
+import { placeInAir, run, testMatch, until } from '../testing/sim';
 import { isIntangible, setAction } from './registry';
 
 /**
@@ -129,5 +130,36 @@ describe('hurtbox shape', () => {
     expect(body.hw ?? 0).toBe(0);
     expect(touches(at(f.pos.x, f.pos.y + 15.5), body)).toBe(true);
     expect(touches(at(f.pos.x + 5.5, f.pos.y + 7), body)).toBe(false);
+  });
+});
+
+describe('override-only actions on moving stage pieces', () => {
+  function sitOn(x: number, y: number) {
+    const m = createMatch({ seed: 1, stage: 'testbed', stocks: 3, ports: [{ fighter: 'test-stepper' }] });
+    const f = placeInAir(m, x, y);
+    until(m, (g) => g.ground !== null);
+    run(m, 5, { x: 50 });
+    run(m, 1, { x: 50, y: -60 });
+    expect(f.action).toBe('sit');
+    return { m, f };
+  }
+
+  it('a fighter sitting on a moving platform rides it', () => {
+    const { m, f } = sitOn(-5, 34);
+    const offset = () => f.pos.x - m.stage.platforms[0]!.x;
+    const start = offset();
+    run(m, 120);
+    expect(f.action).toBe('sit');
+    expect(f.ground).toEqual({ kind: 'platform', index: 0 });
+    expect(offset()).toBeCloseTo(start, 9);
+  });
+
+  it('a fighter sitting on a platform that vanishes falls', () => {
+    const { m, f } = sitOn(0, 62);
+    expect(f.ground).toEqual({ kind: 'platform', index: 1 });
+    while (m.frame < 200) run(m, 1);
+    expect(m.stage.platforms[1]!.on).toBe(false);
+    expect(f.ground).toBeNull();
+    expect(f.action).toBe('fall');
   });
 });
