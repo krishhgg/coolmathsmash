@@ -6,12 +6,15 @@ import { getStage } from '../stages/registry';
 import type { StageView } from '../stages/battlefield/view';
 import type { StageGeometry } from '../sim/stage';
 import { activeHitboxes, hurtbox } from '../sim/combat/hits';
-import { Camera } from './camera';
+import { Camera, shakeView } from './camera';
 import { EventLog } from './debug/eventLog';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud } from './hud';
 import { drawMovingPieces, isMoving } from './stagePieces';
+import { shakeOffset } from './vfx/shake';
+import { shieldPulse, Vfx } from './vfx/system';
+import { VfxView } from './vfx/view';
 
 /** Stage art: src/stages/<id>/view.ts exports createStageView (docs/stages.md). Stages without one draw flat. */
 const STAGE_VIEWS = import.meta.glob<{ createStageView: () => StageView }>('../stages/*/view.ts', {
@@ -37,6 +40,8 @@ export class Renderer {
   readonly overlays: Overlays = { inputs: false, actions: false, hitboxes: false, events: false };
   readonly eventLog = new EventLog();
   readonly camera = new Camera();
+  readonly vfx = new Vfx();
+  private readonly vfxView = new VfxView();
   private readonly inputDisplay = new InputDisplay();
   private readonly matchHud = new MatchHud();
   private readonly stageLayer = new Container();
@@ -68,11 +73,13 @@ export class Renderer {
     this.world.addChild(
       this.stageLayer,
       this.stagePieces,
+      this.vfxView.behind,
       this.fighterLayer,
+      this.vfxView.front,
       this.foregroundLayer,
       this.boxes,
     );
-    app.stage.addChild(new Sprite(this.backdrop), this.world, this.hud, this.debug);
+    app.stage.addChild(new Sprite(this.backdrop), this.world, this.vfxView.screen, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
     this.hud.addChild(this.matchHud.hud.container);
   }
@@ -125,23 +132,36 @@ export class Renderer {
   }
 
   /**
-   * Advance the camera, and the HUD's hit timing, by the frame just simulated; Game.step calls this after every
-   * frame.
+   * Advance the camera and the HUD and VFX timing by the frame just simulated; Game.step calls this after every frame.
    */
   stepCamera(state: MatchState): void {
     this.camera.step(state, getStage(state.config.stage));
     this.matchHud.step(state);
+    this.vfx.step(state);
   }
 
   /** Draw `state`; `alpha` interpolates between the previous and current simulated frame. */
   render(state: MatchState, alpha: number): void {
     this.sync(state);
-    const view = this.camera.viewFor(state, this.stage!);
+    const fx = this.vfx.at(state);
+    const view = shakeView(
+      this.camera.viewFor(state, this.stage!),
+      shakeOffset(fx?.shakes ?? [], state.frame),
+    );
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
     this.stageView?.update(state.frame, view);
     drawMovingPieces(this.stagePieces, this.stage!, state.stage, state.frame, alpha);
-    state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
+    state.fighters.forEach((f, i) =>
+      this.fighters[i]?.update(
+        f,
+        alpha,
+        state.frame,
+        this.overlays.actions,
+        fx ? shieldPulse(fx, i) : undefined,
+      ),
+    );
+    this.vfxView.draw(fx, state, view, alpha);
     this.drawBoxes(state);
     this.matchHud.update(
       state,

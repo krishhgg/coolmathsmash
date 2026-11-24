@@ -8,6 +8,9 @@ import { PORT_COLORS } from './debug/inputDisplay';
 import { moveClipFrame } from './rig/timing';
 import type { FighterArt } from './rig/types';
 import { createRigView, type RigView } from './rig/view';
+import { paint } from './vfx/paint';
+import { hex } from './vfx/shapes';
+import { shieldBubbleShapes } from './vfx/shield';
 
 /**
  * Engine actions drawn with another canonical clip. Everything else plays the clip named after the move while one
@@ -108,7 +111,14 @@ export class FighterView {
     this.container.addChild(this.body, this.shield, this.tag, this.label);
   }
 
-  update(f: FighterState, alpha: number, frame: number, debug: boolean): void {
+  /** `shieldHit`: the latest hit on this fighter's shield, for its flash and wobble. */
+  update(
+    f: FighterState,
+    alpha: number,
+    frame: number,
+    debug: boolean,
+    shieldHit?: { age: number; power: number },
+  ): void {
     const out = f.action === 'ko' || f.action === 'out';
     this.container.visible = !out;
     if (out) return;
@@ -123,7 +133,10 @@ export class FighterView {
     if (f.action === 'shield' || f.action === 'shieldStun') {
       const r = shieldRadius(this.def, f.shieldHp);
       if (r > 0)
-        this.shield.circle(0, -this.def.stats.height / 2, r).fill({ color: this.shieldColor, alpha: 0.45 });
+        paint(
+          this.shield,
+          shieldBubbleShapes(0, -this.def.stats.height / 2, r, hex(this.shieldColor), frame, shieldHit),
+        );
     }
     this.label.visible = debug;
     if (debug) this.label.text = `${f.move ?? f.action} ${f.actionFrame}`;
