@@ -417,6 +417,13 @@ const ledgeHang = wave(60, 4, (t) => add(HANG, sway(t, 4), { body: { y: 0.12 * s
   swaps: { ...HAPPY, ...HANDS },
 });
 
+/** The body's offset while climbing: following the corner up the wall, easing to his standing spot by `moveEnd`. */
+function climbOffset(frame: number, moveEnd: number, distance: number): Pt {
+  const [cx, cy] = corner(frame, moveEnd, distance);
+  const k = Math.min(1, frame / moveEnd);
+  return [(cx - GX + 2.05) * (1 - k), (cy - GY - 1.7) * (1 - k)];
+}
+
 /** Crawls up over the lip as the engine lifts him: the body swings from the wall onto the floor. */
 function climb(
   moveEnd: number,
@@ -428,9 +435,10 @@ function climb(
     const [cx, cy] = corner(f, moveEnd, distance);
     const k = Math.min(1, f / moveEnd);
     const rot = -90 * (1 - Math.min(1, k * 1.4));
+    const [bx, by] = climbOffset(f, moveEnd, distance);
     const lifted = mix(
       {
-        body: { rot, x: (cx - GX + 2.05) * (1 - k) + 0, y: (cy - GY - 1.7) * (1 - k) },
+        body: { rot, x: bx, y: by },
         neck: { rot: 72 * (1 - k) },
       },
       stalks(-6 * (1 - k), 10 * (1 - k), 4 * (1 - k), 10 * (1 - k)),
@@ -455,11 +463,25 @@ const ledgeClimb: AnimClip = {
 
 /**
  * Rolling up in the shell: the engine is still lifting him out of the hang for the first half of the roll, so the
- * ball rides the corner's height (as `climb` does) until it's on the floor, spinning from 90 to 720 degrees.
+ * ball hops from where the climb left him (frame 10) up onto the corner's height, then rides it until he's on the
+ * floor, drifting in over the lip a little later than it rises, spinning from 90 to 720 degrees.
  */
 const LEDGE_ROLL_SPIN = [12, 14, 16, 18, 20, 22, 24, 36].map((f, i) => {
+  const smooth = (v: number) => {
+    const t = Math.min(1, Math.max(0, v));
+    return t * t * (3 - 2 * t);
+  };
+  const [x0, y0] = climbOffset(f, 40, 25);
+  const up = smooth((f - 10) / 4);
+  const over = smooth((f - 12) / 6);
   const u = (f - 12) / 24;
-  const pose = mix(BALL, { body: { rot: 90 + 630 * (1 - (1 - u) ** 2), y: corner(f, 40, 25)[1] } });
+  const pose = mix(BALL, {
+    body: {
+      rot: 90 + 630 * (1 - (1 - u) ** 2),
+      x: x0 * (1 - over),
+      y: y0 + (corner(f, 40, 25)[1] - y0) * up,
+    },
+  });
   return key(f, pose, { ease: f === 36 ? 'out' : 'linear', ...(i === 0 ? { swaps: SPINNING } : {}) });
 });
 
