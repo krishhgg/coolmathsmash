@@ -1,5 +1,6 @@
 import type { HitboxDef, MoveDef } from '../types';
-import { stickX } from '../../sim/control';
+import { Btn } from '../../input/types';
+import { isHeld, stickX } from '../../sim/control';
 import type { Ctx } from '../../sim/fighter';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -79,12 +80,70 @@ function rocketRide(x: Ctx): void {
 }
 
 /**
+ * Rapid Fire: while Attack stays held, the jab loops back from frame 12 to frame 4, so a ball leaves the launcher every
+ * 8 frames (Ultimate's rapid jabs also run while the button is held). Letting go plays out the last shot.
+ */
+function rapidFire(x: Ctx): void {
+  if (x.f.actionFrame === 12 && isHeld(x.c, Btn.Attack)) x.f.actionFrame = 4;
+}
+
+/** A shot's kick on the frame it fires: `dx` along their facing, and a lift up to `dy` (0 for none). */
+const recoil =
+  (frame: number, dx: number, dy = 0) =>
+  (x: Ctx): void => {
+    const { f } = x;
+    if (f.actionFrame !== frame) return;
+    f.vel.x += dx * f.facing;
+    if (dy > 0 && f.vel.y < dy) f.vel.y = dy;
+  };
+
+/** Aerial timings shared by the shots: `autoCancel` early and from `lateFrom`. */
+const aerial = (faf: number, landingLag: number, lateFrom: number) => ({
+  kind: 'aerial' as const,
+  faf,
+  landingLag,
+  autoCancel: [
+    [1, 3],
+    [lateFrom, faf],
+  ] as [number, number][],
+});
+
+/**
  * Raft Wars kids' moves (roster sheet, fighter 9). They are a pure zoner: everything but the floaty moves fires the
- * tennis-ball launcher, so the projectile normals (jab, tilts, aerials) and the specials arrive with the shared
- * projectile system. These are the melee moves and the grab game. Frame windows are inclusive, faf is the first
- * actionable frame, and move names double as animation clip names.
+ * tennis-ball launcher (the balls are in entities.ts), so jab, tilts and aerials are shots, and the floaty is their
+ * only real melee (dash attack, forward and down smash). Frame windows are inclusive, faf is the first actionable
+ * frame, and move names double as animation clip names.
  */
 export const moves: Record<string, MoveDef> = {
+  /** Rapid Fire: point-blank 1.5% balls out of the launcher from frame 5, one every 8 frames while Attack is held. */
+  jab: {
+    kind: 'other',
+    faf: 18,
+    hits: [],
+    spawn: [{ frame: 5, entity: 'jabBall', x: 7, y: 7, vx: 3 }],
+    script: rapidFire,
+  },
+  /** Straight Shot: one 6% ball straight ahead, 100 units. */
+  ftilt: {
+    kind: 'other',
+    faf: 30,
+    hits: [],
+    spawn: [{ frame: 9, entity: 'shot', x: 8, y: 7, vx: 3.2 }],
+  },
+  /** Lob: fires a ball straight up that falls back down; an anti-air that covers platforms above them. */
+  utilt: {
+    kind: 'other',
+    faf: 30,
+    hits: [],
+    spawn: [{ frame: 8, entity: 'lob', x: 2, y: 14, vy: 3.4 }],
+  },
+  /** Skip Shot: from a crouch, a ball that skims along the ground in low hops. */
+  dtilt: {
+    kind: 'other',
+    faf: 28,
+    hits: [],
+    spawn: [{ frame: 9, entity: 'skip', x: 7, y: 2, vx: 2.6, vy: 1 }],
+  },
   /**
    * Raft Slide: belly-slides along the ground on the pool float; strong on the flop, weaker as it slides. Knockback
    * from Duck Hunt's dash attack (60 degrees, then 110 as it slides past; KBG 40, BKB 100): a poke, not a kill move.
@@ -171,6 +230,50 @@ export const moves: Record<string, MoveDef> = {
         boxes: [box(0, -8, 3, 5, { damage: 7, angle: 361, kbg: 48, bkb: 80, direction: 'back' })],
       },
     ],
+  },
+  /** Ring Volley: spins the launcher and fires four 3% balls on the diagonals at once. */
+  nair: {
+    ...aerial(40, 8, 30),
+    hits: [],
+    spawn: [
+      { frame: 8, entity: 'ringBall', x: 4, y: 10, vx: 1.7, vy: 1.7 },
+      { frame: 8, entity: 'ringBall', x: -4, y: 10, vx: -1.7, vy: 1.7 },
+      { frame: 8, entity: 'ringBall', x: 4, y: 3, vx: 1.7, vy: -1.7 },
+      { frame: 8, entity: 'ringBall', x: -4, y: 3, vx: -1.7, vy: -1.7 },
+    ],
+  },
+  /** Air Shot: a 6% ball straight ahead; the kick nudges them back a little. */
+  fair: {
+    ...aerial(36, 9, 28),
+    hits: [],
+    spawn: [{ frame: 9, entity: 'airShot', x: 8, y: 7, vx: 3 }],
+    script: recoil(9, -0.5),
+  },
+  /**
+   * Recoil Blast: fires a 7% ball behind them and the kick shoves them forward, past their normal air speed: their
+   * movement tech for crossing the stage or getting back to it.
+   */
+  bair: {
+    ...aerial(38, 10, 30),
+    hits: [],
+    spawn: [{ frame: 10, entity: 'recoilShot', x: -8, y: 7, vx: -3 }],
+    script: recoil(10, 1.4),
+  },
+  /** Up Shot: a 6% ball straight up. */
+  uair: {
+    ...aerial(34, 8, 26),
+    hits: [],
+    spawn: [{ frame: 8, entity: 'upShot', x: 1, y: 15, vy: 3 }],
+  },
+  /**
+   * Down Shot: a 6% ball straight down, and the kick lifts them to 1.2 units/frame upward (a faster rise is kept).
+   * That is about 8 units of hop per 40-frame down air, so chaining them still loses height.
+   */
+  dair: {
+    ...aerial(40, 12, 32),
+    hits: [],
+    spawn: [{ frame: 10, entity: 'downShot', x: 1, y: -1, vy: -3 }],
+    script: recoil(10, 0, 1.2),
   },
   /** A short grab (10.5 units, Mario reaches 12): kids have short arms, so the grab game is a fallback. */
   grab: { kind: 'other', faf: 36, hits: [{ frames: [7, 8], boxes: [grabBox(0, 6.5, 7, 4)] }] },
