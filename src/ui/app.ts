@@ -1,3 +1,4 @@
+import type { Game } from '../game';
 import { padSlots } from '../input/gamepad';
 import { loadSettings, saveSettings, type Settings } from '../session/settings';
 import { defaultSetup, type MatchSetup } from '../session/setup';
@@ -25,9 +26,34 @@ export interface Flow {
   go(route: Route): void;
   /** Whether that screen exists yet. */
   has(route: Route): boolean;
+  /** The game the match screens drive; null in the lab, which shows screens on their own. */
+  readonly game: Game | null;
 }
 
-export type ScreenFactory = (flow: Flow) => Screen;
+/**
+ * A screen module: every `src/ui/screens/*.ts` exports `screen: ScreenDef` and is found automatically, so adding a
+ * screen edits no shared file.
+ */
+export interface ScreenDef {
+  route: Route;
+  create(flow: Flow): Screen;
+  /** Needs the running game (the match), so the lab cannot show it. */
+  needsGame?: boolean;
+  /**
+   * Named line-ups for the lab and captures (`lab.html?scene=menu&screen=<route>&preset=<name>`): each sets up the
+   * flow (players, results...) before the screen opens.
+   */
+  presets?: Record<string, (flow: Flow) => void>;
+}
+
+/** Every screen module, by route. `modules` is the result of an eager `import.meta.glob` of the screens folder. */
+export function screensByRoute(
+  modules: Record<string, { screen?: ScreenDef }>,
+): Partial<Record<Route, ScreenDef>> {
+  return Object.fromEntries(
+    Object.values(modules).flatMap((m) => (m.screen ? [[m.screen.route, m.screen] as const] : [])),
+  );
+}
 
 /** Owns the current screen, feeds it menu input every animation frame, and switches screens by route. */
 export class App implements Flow {
@@ -39,7 +65,8 @@ export class App implements Flow {
 
   constructor(
     readonly layer: UiLayer,
-    private readonly screens: Partial<Record<Route, ScreenFactory>>,
+    private readonly screens: Partial<Record<Route, ScreenDef>>,
+    readonly game: Game | null = null,
   ) {}
 
   has(route: Route): boolean {
@@ -47,13 +74,13 @@ export class App implements Flow {
   }
 
   go(route: Route): void {
-    const make = this.screens[route];
-    if (!make) return;
+    const def = this.screens[route];
+    if (!def) return;
     this.screen?.leave?.();
     this.screen?.el.remove();
     this.input.clear();
     this.route = route;
-    const next = make(this);
+    const next = def.create(this);
     this.screen = next;
     next.el.classList.add('screen');
     this.layer.root.append(next.el);

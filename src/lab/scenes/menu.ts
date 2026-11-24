@@ -1,38 +1,23 @@
-import type { Flow, Route, ScreenFactory } from '../../ui/app';
+import { defaultSettings } from '../../session/settings';
+import { defaultSetup } from '../../session/setup';
+import { screensByRoute, type Flow, type Route, type ScreenDef } from '../../ui/app';
 import { loadUiFonts } from '../../ui/fonts';
 import { UiLayer } from '../../ui/layer';
-import { mainMenuScreen } from '../../ui/screens/mainMenu';
-import { titleScreen } from '../../ui/screens/title';
-import { defaultSettings } from '../../session/settings';
-import { cpuSlot, defaultSetup, humanSlot, pickFighter, type MatchSetup } from '../../session/setup';
-import { characterSelectScreen } from '../../ui/screens/characterSelect';
 import type { LabScene } from '../types';
 import '../../ui/theme.css';
 
-const SCREENS: Partial<Record<Route, ScreenFactory>> = {
-  title: titleScreen,
-  main: mainMenuScreen,
-  css: characterSelectScreen,
-};
-
-/** Character select line-ups for captures: `&preset=2p|4p`. */
-const PRESETS: Record<string, (setup: MatchSetup) => void> = {
-  '2p': (s) => {
-    pickFighter(s, 0, 'fireboy');
-    s.slots[1]!.level = 9;
-  },
-  '4p': (s) => {
-    s.slots = [humanSlot('kb1'), humanSlot('pad1'), cpuSlot(5), cpuSlot(9)];
-    pickFighter(s, 0, 'fireboy');
-    pickFighter(s, 2, 'fireboy');
-  },
-};
+const SCREENS = screensByRoute(
+  import.meta.glob<{ screen?: ScreenDef }>(['../../ui/screens/*.ts', '!../../ui/screens/*.test.ts'], {
+    eager: true,
+  }),
+);
 
 let show: (route: Route) => void = () => {};
 
 /**
- * One menu screen on its own, for development and captures: ?scene=menu&screen=title|main|css (&preset=2p|4p). Every route counts as
- * available; navigating to one without a lab screen does nothing. Screens with no match behind them get a plain backdrop.
+ * One menu screen on its own, for development and captures: `?scene=menu&screen=<route>&preset=<name>`, where the
+ * preset is one of that screen's `presets`. Navigating between screens works, except into the match (it needs the
+ * game).
  */
 export const scene: LabScene = {
   title: 'Menus',
@@ -40,26 +25,27 @@ export const scene: LabScene = {
     await loadUiFonts();
     const layer = new UiLayer(document.getElementById('app')!, app.canvas);
     let current: HTMLElement | null = null;
-    const setup = defaultSetup();
-    PRESETS[params.get('preset') ?? '']?.(setup);
     const flow: Flow = {
       settings: defaultSettings(),
-      setup,
+      setup: defaultSetup(),
+      game: null,
       saveSettings: () => {},
-      has: () => true,
+      has: (route) => route in SCREENS && !SCREENS[route]!.needsGame,
       go: (route) => show(route),
     };
     show = (route) => {
-      const make = SCREENS[route];
-      if (!make) return;
+      const def = SCREENS[route];
+      if (!def || def.needsGame) return;
       current?.remove();
-      const screen = make(flow);
+      const screen = def.create(flow);
       current = screen.el;
       current.classList.add('screen');
       layer.root.append(current);
       screen.enter?.();
     };
-    show((params.get('screen') as Route | null) ?? 'title');
+    const route = (params.get('screen') as Route | null) ?? 'title';
+    SCREENS[route]?.presets?.[params.get('preset') ?? '']?.(flow);
+    show(route);
   },
   api: {
     show: (route: Route) => show(route),

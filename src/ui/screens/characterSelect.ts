@@ -13,12 +13,13 @@ import {
   type MatchSetup,
   type SlotSetup,
 } from '../../session/setup';
-import type { Flow, Screen } from '../app';
+import type { Flow, Screen, ScreenDef } from '../app';
 import { CPU_SVG, GAMEPAD_SVG, HAND_SVG, KEYBOARD_SVG, SILHOUETTE_SVG } from '../art/icons';
 import { h, svg } from '../dom';
 import { isDirection, type MenuDevice, type MenuEvent } from '../input';
 import { navigable, neighbour } from '../nav';
 import { backTab, footerHints, headerPlate } from '../widgets';
+import './characterSelect.css';
 
 /** A player's hand: where it points (a `data-key`) and the CPU token it carries, if any. */
 interface Hand {
@@ -39,6 +40,24 @@ function portrait(fighter: string | null, className: string): HTMLElement {
   const icon = fighter ? fighterIcon(fighter) : undefined;
   return h('span', { class: className }, svg(icon ?? SILHOUETTE_SVG));
 }
+
+export const screen: ScreenDef = {
+  route: 'css',
+  create: characterSelectScreen,
+  presets: {
+    /** 1v1: P1 picked Fireboy against a level 9 CPU on Random; Ready to fight shows. */
+    '2p': ({ setup }) => {
+      pickFighter(setup, 0, 'fireboy');
+      setup.slots[1]!.level = 9;
+    },
+    /** P1 picked, P2 on a gamepad still choosing, two CPUs. */
+    '4p': ({ setup }) => {
+      setup.slots = [humanSlot('kb1'), humanSlot('pad1'), cpuSlot(5), cpuSlot(9)];
+      pickFighter(setup, 0, 'fireboy');
+      pickFighter(setup, 2, 'fireboy');
+    },
+  },
+};
 
 /**
  * The character select, after Ultimate's: a portrait grid read from the fighter registry (plus Random) over one panel
