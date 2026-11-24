@@ -79,7 +79,11 @@ const FTILT = hands(
   [-1.9, -4.7],
   [-0.9, -5.1],
 );
-const FTILT_KICK = mix(FTILT, { thighF: { rot: -102 }, shinF: { rot: -4 }, fx1: ball(8.5, -3.5, 3.2, -6) });
+const FTILT_KICK = mix(FTILT, {
+  thighF: { rot: -102 },
+  shinF: { rot: -4 },
+  fx1: flame(5.9, -3.4, 2.5, -4, 1.2),
+});
 
 const CHARGE = hands(stance(-14, 0.5, -1.2, 1.0, { body: { x: -0.4 } }), [0.9, -3.3], [-1.7, -4.6]);
 const FSMASH = hands(
@@ -135,7 +139,7 @@ const BAIR = mix(AIR, {
   shinF: { rot: 70 },
   armF: { rot: -40 },
   armB: { rot: -60 },
-  fx1: ball(-8, -6, 3.7, 180),
+  fx1: flame(-5.6, -5.7, 2.6, 188, 1.2),
 });
 
 const DAIR = mix(AIR, {
@@ -148,7 +152,7 @@ const DAIR = mix(AIR, {
   foreF: { rot: -20 },
   armB: { rot: 140 },
   foreB: { rot: 20 },
-  fx1: ball(0, 2, 4.2, 90),
+  fx1: flame(0, 0.7, 2.5, 90, 1.3),
 });
 
 const GRAB = hands(
@@ -180,11 +184,11 @@ export const attacks: Record<string, AnimClip> = {
       ...strike(
         2,
         4,
-        mix(JAB1, { fx1: ball(6, -6, 2.9, -8) }),
-        { ...FIST_F, fx1: 'fxBall' },
+        mix(JAB1, { fx1: flame(4.3, -5.6, 1.9, -8, 1.2) }),
+        { ...FIST_F, fx1: 'fxFlame' },
         FRONT_ARM_IN_FRONT,
       ),
-      key(7, mix(JAB1, { fx1: ball(6.8, -6.2, 0.8, -8) }), { ease: 'inOut' }),
+      key(7, mix(JAB1, { fx1: flame(5.6, -6.0, 0.5, -8) }), { ease: 'inOut' }),
       done(8),
       key(16, READY),
     ],
@@ -197,11 +201,11 @@ export const attacks: Record<string, AnimClip> = {
       ...strike(
         2,
         4,
-        mix(JAB2, { fx1: ball(6.5, -6, 2.9, -8) }),
-        { ...FIST_B, fx1: 'fxBall' },
+        mix(JAB2, { fx1: flame(4.4, -5.6, 1.9, -8, 1.2) }),
+        { ...FIST_B, fx1: 'fxFlame' },
         ARMS_IN_FRONT,
       ),
-      key(7, mix(JAB2, { fx1: ball(7.3, -6.2, 0.8, -8) }), { ease: 'inOut' }),
+      key(7, mix(JAB2, { fx1: flame(5.8, -6.0, 0.5, -8) }), { ease: 'inOut' }),
       done(8),
       key(18, READY),
     ],
@@ -215,11 +219,11 @@ export const attacks: Record<string, AnimClip> = {
       ...strike(
         4,
         7,
-        mix(JAB3, { fx1: ball(7, -6, 4.4, -4), fx2: flame(4.2, -5.2, 1.6, -40) }),
-        { ...FISTS, fx1: 'fxBall', fx2: 'fxFlame', face: 'faceFrontShout' },
+        mix(JAB3, { fx1: flame(5.0, -5.6, 2.9, -4, 1.1), fx2: flame(4.4, -4.3, 1.5, 12, 1.2) }),
+        { ...FISTS, fx1: 'fxFlame', fx2: 'fxFlame', face: 'faceFrontShout' },
         ARMS_IN_FRONT,
       ),
-      key(11, mix(JAB3, { fx1: ball(8.2, -6.4, 1.2, -4), fx2: flame(4.6, -5.4, 0.4, -40) }), {
+      key(11, mix(JAB3, { fx1: flame(6.6, -6.0, 0.8, -4), fx2: flame(5.4, -4.2, 0.4, 12) }), {
         ease: 'inOut',
       }),
       done(12),
@@ -232,8 +236,8 @@ export const attacks: Record<string, AnimClip> = {
     keys: [
       key(0, READY, { ease: 'out' }),
       key(3, mix(FTILT, { thighF: { rot: -75 }, shinF: { rot: 105 } }), { ease: 'in' }),
-      ...strike(5, 8, FTILT_KICK, { fx1: 'fxBall', face: 'faceFrontShout' }, { fx1: 22 }),
-      key(12, mix(FTILT_KICK, { fx1: ball(9.4, -3.7, 0.8, -6), thighF: { rot: -95 } }), { ease: 'inOut' }),
+      ...strike(5, 8, FTILT_KICK, { fx1: 'fxFlame', face: 'faceFrontShout' }, {}),
+      key(12, mix(FTILT_KICK, { fx1: flame(6.4, -3.4, 0.5, -4), thighF: { rot: -95 } }), { ease: 'inOut' }),
       done(13),
       key(18, mix(FTILT, { thighF: { rot: -40 }, shinF: { rot: 60 } }), { ease: 'inOut' }),
       key(27, STAND),
@@ -300,12 +304,12 @@ export const attacks: Record<string, AnimClip> = {
           {
             thighF: { rot: -92 },
             shinF: { rot: -2 },
-            fx1: ball(8, -1, 2.8, 0),
+            fx1: flame(5.0, -1.2, 2.0, 0, 1.3),
           },
         ),
-        { fx1: 'fxBall', face: 'faceFrontShout' },
+        { fx1: 'fxFlame', face: 'faceFrontShout' },
       ),
-      key(10, mix(CROUCH, { thighF: { rot: -70 }, fx1: ball(8.8, -1, 0.6, 0) }), { ease: 'inOut' }),
+      key(10, mix(CROUCH, { thighF: { rot: -70 }, fx1: flame(6.2, -1.2, 0.5, 0) }), { ease: 'inOut' }),
       done(11),
       key(21, CROUCH),
     ],
@@ -342,17 +346,20 @@ export const attacks: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, READY, { ease: 'out' }),
-      key(1, mix(CHARGE, { fx2: flame(-1.7, -5.1, 0.6) }), { swaps: { ...FIST_F, fx2: 'fxFlame' } }),
+      key(1, mix(CHARGE, { fx2: flame(-1.7, -5.1, 0.6) }), {
+        swaps: { ...FIST_F, fx2: 'fxFlame' },
+        z: { fx2: 0.5 },
+      }),
       key(10, mix(CHARGE, { body: { rot: -16 }, fx2: flame(-1.75, -5.2, 0.9) }), { ease: 'in' }),
       key(12, mix(CHARGE, { body: { rot: -4, x: 0 } }), { ease: 'linear', swaps: FIST_F }),
       ...strike(
         14,
         17,
-        mix(FSMASH, { fx1: ball(10, -6, 5.2, -4) }),
-        { ...FIST_F, ...SIDE_SHOUT, fx1: 'fxBall' },
+        mix(FSMASH, { fx1: flame(6.4, -6.0, 3.0, -3, 1.15) }),
+        { ...FIST_F, ...SIDE_SHOUT, fx1: 'fxFlame' },
         FRONT_ARM_IN_FRONT,
       ),
-      key(22, mix(FSMASH, { body: { rot: 12 }, fx1: ball(11.5, -6.4, 1.2, -4) }), { ease: 'inOut' }),
+      key(22, mix(FSMASH, { body: { rot: 12 }, fx1: flame(8.5, -6.2, 0.8, -3) }), { ease: 'inOut' }),
       done(23),
       key(30, undefined, { swaps: ANGRY }),
       key(49, STAND),
@@ -450,8 +457,8 @@ export const attacks: Record<string, AnimClip> = {
     keys: [
       key(0, AIR, { ease: 'out' }),
       key(4, mix(TUCK, { body: { rot: 16 }, head: { sx: -1 } }), { ease: 'in' }),
-      ...strike(5, 9, BAIR, { fx1: 'fxBall', face: 'faceSideShout' }, { fx1: 22 }),
-      key(13, mix(BAIR, { thighB: { rot: 90 }, fx1: ball(-8.8, -6.2, 0.8, 180) }), { ease: 'inOut' }),
+      ...strike(5, 9, BAIR, { fx1: 'fxFlame', face: 'faceSideShout' }, { fx1: 22 }),
+      key(13, mix(BAIR, { thighB: { rot: 90 }, fx1: flame(-6, -5.8, 0.6, 188) }), { ease: 'inOut' }),
       done(14),
       key(20, mix(AIR, { head: { sx: -1 } }), { ease: 'inOut', swaps: ANGRY }),
       key(32, AIR),
@@ -472,12 +479,12 @@ export const attacks: Record<string, AnimClip> = {
           shinF: { rot: 0 },
           thighB: { rot: 30 },
           shinB: { rot: 40 },
-          fx1: ball(2, -15, 4.4, -90),
+          fx1: flame(1.9, -12.4, 2.4, -88, 1.3),
         }),
-        { fx1: 'fxBall', face: 'faceFrontShout' },
+        { fx1: 'fxFlame', face: 'faceFrontShout' },
         { fx1: 22 },
       ),
-      key(12, mix(TUCK, { body: { rot: -250 }, fx1: ball(2.4, -16, 0.8, -90) }), { ease: 'out' }),
+      key(12, mix(TUCK, { body: { rot: -250 }, fx1: flame(2.2, -14, 0.6, -88) }), { ease: 'out' }),
       done(13),
       key(20, mix(AIR, { body: { rot: -360 } }), { ease: 'inOut' }),
       key(31, mix(AIR, { body: { rot: -360 } })),
@@ -489,8 +496,8 @@ export const attacks: Record<string, AnimClip> = {
     keys: [
       key(0, AIR, { ease: 'out' }),
       key(11, mix(TUCK, { body: { y: -0.8 }, armF: { rot: -150 }, armB: { rot: 150 } }), { ease: 'in' }),
-      ...strike(13, 17, DAIR, { fx1: 'fxBall', face: 'faceFrontShout' }),
-      key(22, mix(DAIR, { fx1: ball(0, 3.2, 0.8, 90) }), { ease: 'inOut' }),
+      ...strike(13, 17, DAIR, { fx1: 'fxFlame', face: 'faceFrontShout' }),
+      key(22, mix(DAIR, { fx1: flame(0, 2, 0.6, 90) }), { ease: 'inOut' }),
       done(23),
       key(43, AIR),
     ],
@@ -646,7 +653,7 @@ export const attacks: Record<string, AnimClip> = {
         mix(hands(stance(-8, 0.45, -1.0, 0.9), [0.8, -3.4], [-1.3, -4.4]), {
           fx1: ball(-1.4, -4.7, 0.4, -90),
         }),
-        { swaps: { fx1: 'fxBall' } },
+        { swaps: { fx1: 'fxBall' }, z: { fx1: 0.5 } },
       ),
       key(
         10,
@@ -784,14 +791,16 @@ export const attacks: Record<string, AnimClip> = {
             shinF: { rot: -2 },
             thighB: { rot: 94 },
             shinB: { rot: 2 },
-            fx1: ball(7, -3, 3.6, -4),
-            fx2: ball(-7, -3, 3.6, 184),
+            fx1: flame(4.6, -2.4, 2.3, -6, 1.3),
+            fx2: flame(-4.6, -2.4, 2.3, 186, 1.3),
           },
         ),
-        { fx1: 'fxBall', fx2: 'fxBall', face: 'faceFrontShout' },
+        { fx1: 'fxFlame', fx2: 'fxFlame', face: 'faceFrontShout' },
         { fx1: 22, fx2: 22.5 },
       ),
-      key(25, mix(CROUCH, { fx1: ball(8, -3, 0.5, 0), fx2: ball(-8, -3, 0.5, 180) }), { ease: 'inOut' }),
+      key(25, mix(CROUCH, { fx1: flame(6, -2.4, 0.5, -6), fx2: flame(-6, -2.4, 0.5, 186) }), {
+        ease: 'inOut',
+      }),
       done(26),
       key(49, STAND),
     ],

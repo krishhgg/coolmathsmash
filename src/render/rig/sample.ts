@@ -1,4 +1,4 @@
-import type { AnimClip, ArtSymbol, BonePose, Ease, FighterArt, Key, Rig } from './types';
+import type { AnimClip, ArtSymbol, Bone, BonePose, Ease, FighterArt, Key, Rig } from './types';
 
 /** A bone's local transform: rest plus the sampled key offsets. */
 export interface BoneTransform {
@@ -118,16 +118,30 @@ function compose(p: Affine, l: Affine): Affine {
   };
 }
 
-/** Rig-space matrices for every bone, parents first. */
+/**
+ * Rig-space matrices for every bone, parents first. A bone's scale stretches its own drawing; children inherit
+ * it unless the bone has `localScale`, in which case they are only pushed out along the stretched bone.
+ */
 export function worldTransforms(rig: Rig, local: Record<string, BoneTransform>): Record<string, Affine> {
   const world: Record<string, Affine> = {};
+  const frame: Record<string, Affine> = {};
+  const bones: Record<string, Bone> = {};
   for (const bone of rig.bones) {
+    bones[bone.name] = bone;
     const t = local[bone.name]!;
+    const parent = bone.parent ? bones[bone.parent] : undefined;
+    const p = parent?.localScale ? local[parent.name]! : undefined;
     const r = (t.rot * Math.PI) / 180;
     const cos = Math.cos(r);
     const sin = Math.sin(r);
-    const m: Affine = { a: cos * t.sx, b: sin * t.sx, c: -sin * t.sy, d: cos * t.sy, tx: t.x, ty: t.y };
-    world[bone.name] = bone.parent ? compose(world[bone.parent]!, m) : m;
+    const x = t.x * (p?.sx ?? 1);
+    const y = t.y * (p?.sy ?? 1);
+    const base: Affine = { a: cos, b: sin, c: -sin, d: cos, tx: x, ty: y };
+    const scaled: Affine = { a: cos * t.sx, b: sin * t.sx, c: -sin * t.sy, d: cos * t.sy, tx: x, ty: y };
+    const parentFrame = bone.parent ? frame[bone.parent]! : undefined;
+    const w = parentFrame ? compose(parentFrame, scaled) : scaled;
+    world[bone.name] = w;
+    frame[bone.name] = bone.localScale ? (parentFrame ? compose(parentFrame, base) : base) : w;
   }
   return world;
 }

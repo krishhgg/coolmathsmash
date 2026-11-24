@@ -15,7 +15,6 @@ import {
   STAND,
   TUCK,
   UP,
-  ball,
   feet,
   flame,
   hands,
@@ -23,9 +22,60 @@ import {
   mix,
 } from './poses';
 
-/** Where the hands hold the ledge (rig space). The ledge's top corner belongs here while hanging. */
-export const LEDGE_GRIP: [number, number] = [1.5, -5.2];
+/**
+ * Where the hands hold the ledge (rig space): the ledge's top corner while hanging. It matches the engine's
+ * hang position (feet width / 2 + 0.5 out from the corner and 0.85 x height below it). Fireboy's arms start
+ * under his huge head, so in ledge clips they re-root behind the head and stretch up to the corner.
+ */
+export const LEDGE_GRIP: [number, number] = [4.5, -12.75];
 const [GX, GY] = LEDGE_GRIP;
+
+/**
+ * How far below the floor the fighter's origin still is `frame` frames into a ledge getup: the engine lifts
+ * the origin from the hang position to the floor with a smoothstep that finishes rising at 1/1.6 of `moveEnd`.
+ */
+function belowFloor(frame: number, moveEnd: number): number {
+  const t = Math.min(1, frame / moveEnd);
+  return -GY * (1 - Math.min(1, 1.6 * t * t * (3 - 2 * t)));
+}
+
+/** Hanging with arms re-rooted behind the head (`reach` scales them) and hands on rig point (hx, hy). */
+function hang(hx: number, hy: number, reach: number, extra: Pose = {}): Pose {
+  return hands(
+    mix(
+      {
+        body: { rot: -4, x: 0.4 },
+        neck: { rot: -6 },
+        armF: { x: 1.6, y: -5.8, sy: reach },
+        foreF: { sy: reach },
+        armB: { x: 1.0, y: -6.0, sy: reach },
+        foreB: { sy: reach },
+        thighF: { rot: -10 },
+        shinF: { rot: 14 },
+        thighB: { rot: 8 },
+        shinB: { rot: 10 },
+      },
+      extra,
+    ),
+    [hx - 0.3, hy + 0.1],
+    [hx, hy],
+    1,
+  );
+}
+
+/** Mid pull-up `frame` frames into a getup: hands still on the corner, which sinks as the engine lifts him. */
+function pull(frame: number, moveEnd: number, progress: number): Pose {
+  const below = belowFloor(frame, moveEnd);
+  const reach = 2.6 - 1.6 * progress;
+  return hang(GX - 1.5 * progress, -below, reach, {
+    armF: { x: 1.6 * (1 - progress), y: -5.8 * (1 - progress), sy: reach },
+    armB: { x: 1.0 * (1 - progress), y: -6.0 * (1 - progress), sy: reach },
+    thighF: { rot: -10 - 70 * progress },
+    shinF: { rot: 14 + 90 * progress },
+    thighB: { rot: 8 - 30 * progress },
+    shinB: { rot: 10 + 70 * progress },
+  });
+}
 
 const BREATHE = hands(
   feet({ hip: { y: 0.12 }, neck: { rot: 1.5 }, head: { sx: 1.015, sy: 0.99 } }, [-0.45, 0], [0.45, 0], true),
@@ -162,19 +212,7 @@ const SHIELD = hands(
   -1,
 );
 
-const HANG: Pose = hands(
-  {
-    body: { rot: -6 },
-    neck: { rot: -10 },
-    thighF: { rot: -12 },
-    shinF: { rot: 14 },
-    thighB: { rot: 6 },
-    shinB: { rot: 12 },
-  },
-  [GX - 0.25, GY + 0.05],
-  [GX, GY],
-  -1,
-);
+const HANG = hang(GX, GY, 2.6);
 
 /** Lying on his back, head on the floor behind him, legs drawn up. */
 const DOWN = feet(
@@ -215,13 +253,6 @@ const SPREAD = mix(AIR, {
 });
 
 const ROLL_BALL: Pose = { body: { y: 3.7 } };
-
-const STAND_UP_ON_LEDGE: Pose = feet(
-  hands({ body: { x: GX + 1.6, y: GY } }, [GX + 0.5, GY - 2.2], [GX + 2.8, GY - 2.2]),
-  [GX + 1.15, GY],
-  [GX + 2.05, GY],
-  true,
-);
 
 export const clips: Record<string, AnimClip> = {
   idle: {
@@ -409,7 +440,7 @@ export const clips: Record<string, AnimClip> = {
     length: 8,
     swaps: ANGRY,
     keys: [
-      key(0, mix(HANG, { body: { y: 1.2, rot: -14 }, thighF: { rot: -40 }, thighB: { rot: 30 } }), {
+      key(0, hang(GX, GY, 3.0, { body: { y: 0.8, rot: -10 }, thighF: { rot: -40 }, thighB: { rot: 30 } }), {
         ease: 'outBack',
       }),
       key(8, HANG),
@@ -421,159 +452,108 @@ export const clips: Record<string, AnimClip> = {
     swaps: FRONT,
     keys: [
       key(0, HANG),
-      key(30, mix(HANG, { body: { rot: -9 }, neck: { rot: -6 }, thighF: { rot: -6 }, thighB: { rot: 10 } })),
+      key(
+        30,
+        hang(GX, GY, 2.65, {
+          body: { rot: -7, x: 0.3 },
+          neck: { rot: -2 },
+          thighF: { rot: -4 },
+          thighB: { rot: 14 },
+        }),
+      ),
     ],
   },
   ledgeClimb: {
     length: 34,
     swaps: ANGRY,
     keys: [
-      key(0, HANG, { ease: 'in' }),
-      key(
-        8,
-        hands(
-          {
-            body: { y: -2.6, x: 0.4, rot: 8 },
-            thighF: { rot: -70 },
-            shinF: { rot: 90 },
-            thighB: { rot: -30 },
-            shinB: { rot: 80 },
-          },
-          [GX - 0.2, GY],
-          [GX + 0.2, GY],
-          -1,
-        ),
-        {
-          ease: 'out',
-        },
-      ),
-      key(
-        18,
-        feet(
-          hands(
-            { body: { x: GX + 1.2, y: GY - 0.6, rot: 10 }, hip: { y: 0.8 } },
-            [GX + 0.5, GY - 1.4],
-            [GX + 2.6, GY - 1.5],
-          ),
-          [GX + 0.5, GY],
-          [GX + 2.0, GY],
-          true,
-        ),
-      ),
-      key(26, undefined, { swaps: FRONT }),
-      key(34, STAND_UP_ON_LEDGE),
+      key(0, HANG, { ease: 'linear' }),
+      key(6, pull(6, 30, 0.45), { ease: 'linear' }),
+      key(12, pull(12, 30, 1), { ease: 'out' }),
+      key(18, mix(CROUCH, { body: { rot: 8 } }), { ease: 'inOut', swaps: FRONT }),
+      key(34, STAND),
     ],
   },
   ledgeRoll: {
     length: 50,
     swaps: ANGRY,
     keys: [
-      key(0, HANG, { ease: 'in' }),
-      key(
-        8,
-        hands(
-          { body: { y: -2.4, x: 0.4, rot: 10 }, thighF: { rot: -70 }, shinF: { rot: 90 } },
-          [GX - 0.2, GY],
-          [GX + 0.2, GY],
-          -1,
-        ),
-        { ease: 'out' },
-      ),
-      key(
-        14,
-        { body: { x: GX + 2.5, y: GY + 3.7 } },
-        { ease: 'linear', swaps: { ...NO_BODY, ...SIDE_ANGRY } },
-      ),
-      key(36, { body: { x: GX + 9, y: GY + 3.7 } }, { ease: 'out', swaps: { ...FRONT } }),
-      key(
-        42,
-        mix(
-          feet(
-            { body: { x: GX + 10, y: GY }, hip: { y: 1 }, neck: { y: 0.3 } },
-            [GX + 9.2, GY],
-            [GX + 10.9, GY],
-            true,
-          ),
-          { head: { sx: 1.06, sy: 0.92 } },
+      key(0, HANG, { ease: 'linear' }),
+      key(6, pull(6, 40, 0.6), { ease: 'linear' }),
+      ...[10, 14, 18, 22, 26, 34].map((f) =>
+        key(
+          f,
+          { body: { y: 3.7 - belowFloor(f, 40) } },
+          { ease: 'linear', ...(f === 10 ? { swaps: { ...NO_BODY, ...SIDE_ANGRY } } : {}) },
         ),
       ),
-      key(50, mix(STAND, { body: { x: GX + 10, y: GY } })),
+      key(37, mix(CROUCH, { head: { sx: 1.1, sy: 0.88 } }), { ease: 'out', swaps: FRONT }),
+      key(50, STAND),
     ],
   },
   ledgeJump: {
     length: 20,
-    swaps: UP,
+    swaps: FRONT,
     keys: [
-      key(0, HANG, { ease: 'in', swaps: FRONT }),
-      key(
-        5,
-        hands(
-          { body: { y: -2, rot: 10 }, thighF: { rot: -60 }, shinF: { rot: 80 } },
-          [GX - 0.2, GY],
-          [GX + 0.2, GY],
-          -1,
-        ),
-        {
-          ease: 'out',
-          swaps: UP,
-          z: HEAD_BEHIND,
-        },
-      ),
-      key(12, mix(RISE, { body: { x: GX + 1.5, y: GY - 4, sx: 0.94, sy: 1.08 } }), { ease: 'out' }),
-      key(20, mix(AIR, { body: { x: GX + 2.5, y: GY - 8 } }), { swaps: FRONT, z: {} }),
+      key(0, HANG, { ease: 'in' }),
+      key(4, pull(4, 6, 0.8), { ease: 'out' }),
+      key(6, RISE, { ease: 'out', swaps: UP, z: HEAD_BEHIND }),
+      key(20, mix(AIR, { body: { sy: 1.02 } }), { swaps: FRONT, z: {} }),
     ],
   },
   ledgeAttack: {
     length: 55,
     swaps: ANGRY,
     keys: [
-      key(0, HANG, { ease: 'in' }),
+      key(0, HANG, { ease: 'linear' }),
+      key(5, pull(5, 20, 0.6), { ease: 'linear' }),
+      key(10, mix(CROUCH, { body: { rot: 6 } }), { ease: 'out', swaps: FRONT }),
       key(
-        10,
+        16,
         hands(
-          { body: { y: -2.6, x: 0.4, rot: 8 }, thighF: { rot: -70 }, shinF: { rot: 90 } },
-          [GX - 0.2, GY],
-          [GX + 0.2, GY],
-          -1,
+          feet({ body: { rot: -10 }, hip: { y: 0.3 } }, [-0.8, 0], [0.7, 0], true),
+          [-1.8, -4.6],
+          [-0.9, -5.0],
         ),
-        { ease: 'out' },
-      ),
-      key(18, feet(mix(CROUCH, { body: { x: GX + 1.6, y: GY } }), [GX + 0.8, GY], [GX + 2.4, GY], true), {
-        ease: 'out',
-      }),
-      key(
-        22,
-        mix(
-          hands(
-            feet({ body: { x: GX + 2.2, y: GY, rot: -12 } }, [GX + 1.4, GY], [GX + 2.8, GY - 2.2]),
-            [GX + 0.6, GY - 4.5],
-            null,
-          ),
-          {
-            thighF: { rot: -95 },
-            shinF: { rot: 0 },
-            fx1: ball(GX + 7, GY - 2.6, 3.2),
-          },
-        ),
-        { swaps: { fx1: 'fxBall', head: 'headFront', face: 'faceFrontShout' } },
+        {
+          ease: 'in',
+          swaps: ANGRY,
+        },
       ),
       key(
-        28,
+        19,
         mix(
           hands(
-            feet({ body: { x: GX + 2.2, y: GY, rot: -10 } }, [GX + 1.4, GY], [GX + 2.8, GY - 2.1]),
-            [GX + 0.6, GY - 4.5],
-            null,
+            feet({ body: { rot: -14 }, hip: { y: 0.15 } }, [-0.7, 0], [0.9, 0], true),
+            [-1.9, -4.7],
+            [-0.9, -5.1],
           ),
           {
-            thighF: { rot: -92 },
-            shinF: { rot: 0 },
-            fx1: ball(GX + 7.5, GY - 2.6, 2.2),
+            thighF: { rot: -100 },
+            shinF: { rot: -4 },
+            fx1: flame(6, -3.2, 2.5, -4, 1.2),
           },
         ),
+        { ease: 'linear', swaps: { fx1: 'fxFlame', head: 'headFront', face: 'faceFrontShout' } },
       ),
-      key(31, undefined, { swaps: { head: 'headFront', face: 'faceFrontAngry' } }),
-      key(55, mix(STAND, { body: { x: GX + 1.6, y: GY } })),
+      key(
+        24,
+        mix(
+          hands(
+            feet({ body: { rot: -12 }, hip: { y: 0.15 } }, [-0.7, 0], [0.9, 0], true),
+            [-1.9, -4.7],
+            [-0.9, -5.1],
+          ),
+          {
+            thighF: { rot: -96 },
+            shinF: { rot: -4 },
+            fx1: flame(7, -3.3, 0.6, -4),
+          },
+        ),
+        { ease: 'inOut' },
+      ),
+      key(25, undefined, { swaps: ANGRY }),
+      key(55, STAND),
     ],
   },
   hitstun: {
@@ -737,6 +717,26 @@ export const clips: Record<string, AnimClip> = {
       key(56, undefined, { swaps: {} }),
       key(60, STAND),
     ],
+  },
+  shieldDrop: {
+    length: 11,
+    swaps: FRONT,
+    keys: [key(0, SHIELD, { ease: 'out' }), key(11, STAND)],
+  },
+  shieldBreak: {
+    length: 40,
+    swaps: HURT,
+    keys: [
+      key(0, mix(HIT, { body: { rot: -30 } }), { ease: 'out' }),
+      key(20, mix(TUCK, { body: { rot: -200 } }), { ease: 'linear' }),
+      key(40, mix(HIT, { body: { rot: -360 } })),
+    ],
+  },
+  respawn: {
+    length: 60,
+    loop: true,
+    swaps: FRONT,
+    keys: [key(0, STAND), key(30, BREATHE)],
   },
   ...attacks,
 };

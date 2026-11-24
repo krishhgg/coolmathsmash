@@ -75,7 +75,7 @@ export const scene: LabScene = {
       const stage = new Container();
       stage.position.set(VIEW_WIDTH / 2, VIEW_HEIGHT * 0.82);
       root.addChild(stage);
-      stage.addChild(ground(new Graphics(), 0, 0, VIEW_WIDTH));
+      if (!clip.startsWith('ledge')) stage.addChild(ground(new Graphics(), 0, 0, VIEW_WIDTH));
       const view = createRigView(art, palette);
       view.container.scale.set(zoom);
       stage.addChild(view.container);
@@ -108,7 +108,7 @@ export const scene: LabScene = {
         const cell = new Container();
         cell.position.set(w * (i % cols) + w / 2, h * Math.floor(i / cols) + h * 0.8);
         root.addChild(cell);
-        cell.addChild(ground(new Graphics(), 0, 0, w * 0.8));
+        if (!clip.startsWith('ledge')) cell.addChild(ground(new Graphics(), 0, 0, w * 0.8));
         const view = createRigView(art, palette);
         view.container.scale.set(zoom);
         view.pose(clip, frame, frame);

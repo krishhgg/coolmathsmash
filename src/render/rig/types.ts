@@ -62,6 +62,12 @@ export interface Bone {
   x: number;
   y: number;
   rot?: number;
+  /**
+   * Keep this bone's scale to itself: children are pushed out along the stretched bone but not skewed when
+   * they rotate. Use it on limb segments (rubber-hose stretching); leave it off where scale should carry down
+   * the hierarchy (a body flip or squash).
+   */
+  localScale?: boolean;
 }
 
 /** A draw layer: shows one symbol at a time, transformed by its bone. Slot order is back-to-front. */
