@@ -27,11 +27,43 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
  * His body runs from x = -9 (rear bumper) to x = 9 (front bumper) and up to y = 11 (roof).
  */
 export const moves: Record<string, MoveDef> = {
-  /** Beep: a horn blast, a ring of sound just past the front bumper. */
+  /** Beep: a horn blast, a ring of sound just past the front bumper. Attack again for the second beep. */
   jab: {
     kind: 'other',
     faf: 18,
-    hits: [{ frames: [3, 4], boxes: [box(0, 11, 5.5, 3.5, { damage: 2, angle: 361, kbg: 30, bkb: 25 })] }],
+    next: { window: [6, 17], move: 'jab2' },
+    hits: [
+      {
+        frames: [3, 4],
+        boxes: [box(0, 11, 5.5, 3.5, { damage: 2, angle: 361, kbg: 30, bkb: 25, hitlag: 0.5 })],
+      },
+    ],
+  },
+  /** Beep: the second, slightly bigger ring. */
+  jab2: {
+    kind: 'other',
+    faf: 20,
+    next: { window: [6, 19], move: 'jab3' },
+    hits: [
+      {
+        frames: [3, 4],
+        boxes: [box(0, 11.5, 5.5, 4, { damage: 2, angle: 361, kbg: 30, bkb: 25, hitlag: 0.5 })],
+      },
+    ],
+  },
+  /** HONK: a long blast on the horn whose big sound wave blows them away. */
+  jab3: {
+    kind: 'other',
+    faf: 32,
+    hits: [
+      {
+        frames: [4, 6],
+        boxes: [
+          box(0, 12, 5.5, 5, { damage: 4, angle: 361, kbg: 115, bkb: 45 }),
+          box(1, 6, 5.5, 4, { damage: 4, angle: 361, kbg: 115, bkb: 40 }),
+        ],
+      },
+    ],
   },
   /** Bumper Bump: lurches forward bumper-first. */
   ftilt: {

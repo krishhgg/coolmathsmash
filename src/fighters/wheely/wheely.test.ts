@@ -73,6 +73,22 @@ function throwKos(move: 'fthrow' | 'bthrow', percent: number): boolean {
   return launchKos(m, v, percent);
 }
 
+describe('Wheely: horn jab', () => {
+  it('Attack three times is Beep, Beep, HONK for 2 + 2 + 4', () => {
+    const m = duel();
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    const at = { x: a.pos.x + 12 * a.facing, y: a.pos.y };
+    Object.assign(v, { pos: { ...at }, prevPos: { ...at }, ground: a.ground, action: 'idle', intangible: 0 });
+    const seen: string[] = [];
+    for (let i = 0; i < 60; i++) {
+      runPorts(m, 1, [i % 8 === 0 && i < 24 ? { buttons: ['attack'] } : {}, {}]);
+      if (a.move && seen[seen.length - 1] !== a.move) seen.push(a.move);
+    }
+    expect(seen).toEqual(['jab', 'jab2', 'jab3']);
+    expect(v.damage).toBeCloseTo((2 + 2 + 4) * 1.2 * 1.05, 6);
+  });
+});
+
 describe('Wheely: car handling', () => {
   it('starts slow and builds to top speed over the first 40 frames of the run', () => {
     const m = testMatch({ fighter: 'wheely' });
@@ -94,6 +110,8 @@ describe('Wheely: car handling', () => {
 /** [move, damage of the strongest box, first active frame], from the roster sheet. */
 const FRAME_DATA: [string, number, number][] = [
   ['jab', 2, 3],
+  ['jab2', 2, 3],
+  ['jab3', 4, 4],
   ['ftilt', 9, 7],
   ['utilt', 8, 6],
   ['dtilt', 6, 5],
