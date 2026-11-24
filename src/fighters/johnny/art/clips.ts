@@ -1,5 +1,6 @@
 import type { Pose } from '../../../render/rig/author';
 import type { AnimClip } from '../../../render/rig/types';
+import { attacks } from './attacks';
 import {
   AIR,
   CROUCH,
@@ -337,4 +338,5 @@ export const clips: Record<string, AnimClip> = {
     swaps: { ...SMIRK, ...PALM_F },
     keys: [key(0, mix(FALL, { neck: { rot: 8 } })), key(16, mix(FALL_2, { neck: { rot: 4 } }))],
   },
+  ...attacks,
 };

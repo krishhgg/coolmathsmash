@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { poseBounds } from '../../../render/rig/geometry';
+import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import { moveClipFrame } from '../../../render/rig/timing';
+import { moves } from '../moves';
 import { art } from '.';
 
 /** Canonical clip lengths (loops: any length). */
@@ -32,6 +34,53 @@ describe('johnny art', () => {
       if (len === 'loop') expect(clip!.loop, name).toBe(true);
       else if (typeof len === 'number') expect(clip!.length, name).toBe(len);
       else expect(clip!.loop, name).toBeFalsy();
+    }
+  });
+
+  it('keys every move with its active windows', () => {
+    for (const name of Object.keys(moves)) expect(art.clips[name]?.active, name).toBeDefined();
+  });
+
+  it("reaches into every hitbox's inner half with a drawn part during the move's active frames", () => {
+    const probes = [
+      [0, 0],
+      ...[0, 1, 2, 3, 4, 5, 6, 7].map((i) => [Math.cos(i * 0.785), Math.sin(i * 0.785)]),
+    ];
+    const misses: string[] = [];
+    for (const [name, move] of Object.entries(moves)) {
+      const clip = art.clips[name]!;
+      for (const { frames, boxes } of move.hits)
+        for (let f = frames[0]; f <= frames[1]; f++) {
+          const pose = samplePose(art, name, moveClipFrame(clip, f, move), f);
+          for (const { x, y, radius } of boxes)
+            if (
+              !probes.some(
+                ([dx, dy]) =>
+                  slotsCovering(art, pose, x + dx! * radius * 0.5, -y - dy! * radius * 0.5).length,
+              )
+            )
+              misses.push(`${name}@${f} (${x}, ${y})`);
+        }
+    }
+    expect(misses).toEqual([]);
+  });
+
+  it('keeps knees and boots out of the floor through the grounded moves', () => {
+    const joints: [string, number, number][] = [
+      ['shinB', 0, 0.5],
+      ['footB', 2, 0.35],
+      ['shinF', 0, 0.5],
+      ['footF', 2, 0.35],
+    ];
+    for (const [name, move] of Object.entries(moves)) {
+      if (move.kind === 'aerial' || move.leavesGround) continue;
+      for (let f = 0; f <= art.clips[name]!.length; f++) {
+        const { world } = samplePose(art, name, f, f);
+        for (const [bone, x, y] of joints) {
+          const m = world[bone]!;
+          expect(m.b * x + m.d * y + m.ty, `${name}@${f} ${bone}`).toBeLessThan(1);
+        }
+      }
     }
   });
 

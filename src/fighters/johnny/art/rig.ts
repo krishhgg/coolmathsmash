@@ -1,5 +1,19 @@
 import type { PathShape, Rig, Slot } from '../../../render/rig/types';
-import { FORE_ARM, SHIN, THIGH, UPPER_ARM, boots, head, mouths, parts, torso, type Part } from './parts';
+import {
+  FORE_ARM,
+  SHIN,
+  THIGH,
+  UPPER_ARM,
+  boots,
+  head,
+  impact,
+  mouths,
+  parts,
+  smear,
+  swoosh,
+  torso,
+  type Part,
+} from './parts';
 
 /** Outline slots for both segments of a limb, then their fills, so joints have no seam. */
 function limbSlots(upper: string, lower: string, upperSym: string, lowerSym: string): Slot[] {
@@ -71,6 +85,9 @@ export const rig: Rig = {
     torso,
     ...boots,
     ...partSymbols(parts),
+    impact,
+    smear,
+    swoosh,
   },
 };
 
