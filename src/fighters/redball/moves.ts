@@ -18,15 +18,17 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 export const DAIR_DROP_FRAME = 10;
 /**
  * Down air's wind-up holds a sliver of upward speed, so he hovers in place and a down flick can't start a fast
- * fall (fast-falling needs a falling fighter). Hovering, he can't land until the drop.
+ * fall (fast-falling needs a falling fighter). Hovering, he only lands before the drop if knockback is still
+ * carrying him down, and the early auto-cancel window keeps that landing soft.
  */
 const DAIR_HANG_LIFT = 0.01;
 
 /**
  * Red Ball's normals. He has no arms, so everything is his body: bumps, rolls, bounces and squashes, plus the
  * tongue the roster video gave him for the jab finisher and the grab. Damage and first active frames follow the
- * roster sheet; knockback is tuned so the kill moves KO Mario at the Battlefield ledge near the sheet's
- * percentages (see redball.test.ts). Frame windows are inclusive, faf is the first actionable frame.
+ * roster sheet; knockback growth and base knockback are Ultimate-style values for moves of that size and speed,
+ * not yet tuned to this engine's kill percentages (see redball.test.ts). Frame windows are inclusive, faf is
+ * the first actionable frame.
  */
 export const moves: Record<string, MoveDef> = {
   /** Bump: a quick body bump. */
@@ -86,8 +88,8 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 38,
     hits: [
-      { frames: [6, 9], boxes: [box(0, 5, 5.5, 5.5, { damage: 11, angle: 50, kbg: 64, bkb: 70 })] },
-      { frames: [10, 20], boxes: [box(0, 5, 5.5, 5, { damage: 7, angle: 60, kbg: 60, bkb: 50 })] },
+      { frames: [6, 9], boxes: [box(0, 5, 5.5, 5.5, { damage: 11, angle: 50, kbg: 85, bkb: 70 })] },
+      { frames: [10, 20], boxes: [box(0, 5, 5.5, 5, { damage: 7, angle: 60, kbg: 80, bkb: 50 })] },
     ],
     script({ f }) {
       if (f.actionFrame >= 4 && f.actionFrame <= 16) f.vel.x = f.facing * 2;
@@ -99,8 +101,8 @@ export const moves: Record<string, MoveDef> = {
     faf: 52,
     charge: 10,
     hits: [
-      { frames: [15, 18], boxes: [box(0, 7.5, 5.5, 6, { damage: 16, angle: 361, kbg: 76, bkb: 25 })] },
-      { frames: [19, 22], boxes: [box(0, 7, 5.5, 5, { damage: 11, angle: 361, kbg: 72, bkb: 20 })] },
+      { frames: [15, 18], boxes: [box(0, 7.5, 5.5, 6, { damage: 16, angle: 361, kbg: 97, bkb: 30 })] },
+      { frames: [19, 22], boxes: [box(0, 7, 5.5, 5, { damage: 11, angle: 361, kbg: 90, bkb: 25 })] },
     ],
     script({ f }) {
       if (f.actionFrame >= 13 && f.actionFrame <= 18) f.vel.x = f.facing * 2.4;
@@ -115,8 +117,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [11, 14],
         boxes: [
-          box(0, 0, 13, 6.5, { damage: 15, angle: 88, kbg: 91, bkb: 34, direction: 'away' }),
-          box(1, 0, 6, 5.5, { damage: 13, angle: 88, kbg: 87, bkb: 30, direction: 'away' }),
+          box(0, 0, 13, 6.5, { damage: 15, angle: 88, kbg: 99, bkb: 34, direction: 'away' }),
+          box(1, 0, 6, 5.5, { damage: 13, angle: 88, kbg: 95, bkb: 30, direction: 'away' }),
         ],
       },
     ],
@@ -130,8 +132,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [9, 11],
         boxes: [
-          box(0, 8, 2, 5, { damage: 13, angle: 30, kbg: 74, bkb: 30 }),
-          box(1, -8, 2, 5, { damage: 13, angle: 30, kbg: 74, bkb: 30, direction: 'back' }),
+          box(0, 8, 2, 5, { damage: 13, angle: 30, kbg: 95, bkb: 30 }),
+          box(1, -8, 2, 5, { damage: 13, angle: 30, kbg: 95, bkb: 30, direction: 'back' }),
         ],
       },
     ],
@@ -179,8 +181,8 @@ export const moves: Record<string, MoveDef> = {
       [28, 38],
     ],
     hits: [
-      { frames: [8, 11], boxes: [box(0, 7, 4.5, 5.5, { damage: 10, angle: 45, kbg: 85, bkb: 22 })] },
-      { frames: [12, 16], boxes: [box(0, 6.5, 3.5, 5, { damage: 7, angle: 45, kbg: 80, bkb: 15 })] },
+      { frames: [8, 11], boxes: [box(0, 7, 4.5, 5.5, { damage: 10, angle: 45, kbg: 100, bkb: 22 })] },
+      { frames: [12, 16], boxes: [box(0, 6.5, 3.5, 5, { damage: 7, angle: 45, kbg: 95, bkb: 15 })] },
     ],
   },
   /** Back Bump: bumps backward with his whole body; his air kill move. */
@@ -195,11 +197,11 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [7, 9],
-        boxes: [box(0, -7.5, 5.5, 5, { damage: 12, angle: 361, kbg: 80, bkb: 20, direction: 'back' })],
+        boxes: [box(0, -7.5, 5.5, 5, { damage: 12, angle: 361, kbg: 98, bkb: 20, direction: 'back' })],
       },
       {
         frames: [10, 14],
-        boxes: [box(0, -7, 5.5, 4.5, { damage: 8, angle: 361, kbg: 75, bkb: 10, direction: 'back' })],
+        boxes: [box(0, -7, 5.5, 4.5, { damage: 8, angle: 361, kbg: 90, bkb: 10, direction: 'back' })],
       },
     ],
   },
@@ -228,7 +230,10 @@ export const moves: Record<string, MoveDef> = {
     kind: 'aerial',
     faf: 42,
     landingLag: 18,
-    autoCancel: [[36, 42]],
+    autoCancel: [
+      [1, 3],
+      [36, 42],
+    ],
     hits: [
       { frames: [12, 14], boxes: [box(0, 0, 0.5, 5, { damage: 14, angle: 270, kbg: 75, bkb: 30 })] },
       { frames: [15, 24], boxes: [box(0, 0, 0.5, 4.5, { damage: 10, angle: 70, kbg: 70, bkb: 40 })] },
@@ -267,7 +272,7 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 42,
     hits: [],
-    throw: { frame: 24, hit: { damage: 10, angle: 45, kbg: 58, bkb: 60, direction: 'back' } },
+    throw: { frame: 24, hit: { damage: 10, angle: 45, kbg: 70, bkb: 60, direction: 'back' } },
   },
   /** Bounce Launch: bounces them straight up off his head. */
   uthrow: {
