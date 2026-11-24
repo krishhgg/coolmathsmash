@@ -1,3 +1,5 @@
+import { stage } from '../geometry';
+
 /**
  * Parallax for screen-space background layers. Each layer is drawn in screen pixels as it looks from the
  * reference camera; `depth` places it between the sky (0, never moves) and the playfield (1, moves and zooms
@@ -8,14 +10,7 @@ export const VIEW_H = 720;
 export const REF_CAMERA = { x: 0, y: 20, zoom: 4.5 } as const;
 
 /** Camera bounds and zoom range the background must cover (game units, px per unit). */
-export const CAMERA_LIMITS = {
-  left: -170,
-  right: 170,
-  top: 130,
-  bottom: -80,
-  minZoom: 2.5,
-  maxZoom: 9,
-} as const;
+export const CAMERA_LIMITS = { ...stage.camera, minZoom: 2.5, maxZoom: 9 } as const;
 
 export interface StageCamera {
   /** Game point (y up) at the centre of the screen. */
@@ -70,7 +65,7 @@ export function extremeCameras(): StageCamera[] {
  */
 export const SEA_LAYER = {
   depth: 0.14,
-  horizon: 374,
+  horizon: 488,
   left: -1700,
   right: VIEW_W + 1700,
   bottom: 3400,

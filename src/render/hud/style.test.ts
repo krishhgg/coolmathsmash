@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CARD_H,
+  CARD_SCALE,
   CARD_TOP,
   CARD_W,
   HIT_FRAMES,
+  SCREEN_H,
   SCREEN_W,
   cardSlots,
   damageColor,
@@ -59,11 +62,13 @@ describe('card layout', () => {
     for (let n = 1; n <= 4; n++) {
       const slots = cardSlots(n);
       expect(slots).toHaveLength(n);
-      expect(slots[0]! - CARD_W / 2).toBeGreaterThanOrEqual(0);
-      expect(slots[n - 1]! + CARD_W / 2).toBeLessThanOrEqual(SCREEN_W);
-      for (let i = 1; i < n; i++) expect(slots[i]! - slots[i - 1]!).toBeGreaterThanOrEqual(CARD_W);
+      const w = CARD_W * CARD_SCALE;
+      expect(slots[0]! - w / 2).toBeGreaterThanOrEqual(0);
+      expect(slots[n - 1]! + w / 2).toBeLessThanOrEqual(SCREEN_W);
+      for (let i = 1; i < n; i++) expect(slots[i]! - slots[i - 1]!).toBeGreaterThanOrEqual(w);
     }
-    expect(CARD_TOP).toBeGreaterThan(500);
+    expect(CARD_TOP + CARD_H * CARD_SCALE).toBeLessThanOrEqual(SCREEN_H);
+    expect(CARD_H * CARD_SCALE).toBeLessThan(SCREEN_H * 0.19);
   });
 
   it('uses Smash port colours', () => {

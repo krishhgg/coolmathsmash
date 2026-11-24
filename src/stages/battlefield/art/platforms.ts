@@ -81,7 +81,7 @@ export function createPlatforms(): PlatformsArt {
       );
       g.poly(cap).stroke({ width: 0.25, color: INK, join: 'round' });
     }
-    g.poly(slab).stroke({ width: 0.42, color: INK, join: 'round' });
+    g.poly(slab).stroke({ width: 0.5, color: INK, join: 'round' });
     const glow = new Graphics().circle(cx, top + t + 0.75, 2.2).fill(
       new FillGradient({
         type: 'radial',

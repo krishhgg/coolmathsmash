@@ -1,11 +1,29 @@
 import { Container, Graphics } from 'pixi.js';
-import { MAIN_HULL, SOFT_PLATFORMS } from '../../stages/battlefield/art/outline';
-import { CAMERA_LIMITS, REF_CAMERA, type StageCamera } from '../../stages/battlefield/art/parallax';
+import { REF_CAMERA, type StageCamera } from '../../stages/battlefield/art/parallax';
+import { stage } from '../../stages/battlefield/geometry';
 import { createStageView } from '../../stages/battlefield/view';
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../../config';
 import type { LabScene } from '../types';
 
-const BLAST = { left: -240, right: 240, top: 192, bottom: -140 };
+/** Lab-only stand-ins (port-coloured, Flash-outlined) to judge readability before real fighters exist. */
+function dummies(): Container {
+  const root = new Container({ label: 'dummies' });
+  const spots = [
+    [-40, 0, 0xf2333a],
+    [40, 0, 0x2f84ff],
+    [-42, 24.12, 0xffc21a],
+    [3, 47.19, 0x2fbf45],
+  ] as const;
+  for (const [x, y, color] of spots) {
+    const g = new Graphics();
+    g.roundRect(-4.2, -15, 8.4, 15, 4).fill(color).stroke({ width: 0.7, color: 0x111111 });
+    g.circle(0, -18.5, 4.6).fill(color).stroke({ width: 0.7, color: 0x111111 });
+    g.circle(1.4, -19.2, 1.1).fill(0xffffff).circle(1.7, -19.1, 0.5).fill(0x111111);
+    g.position.set(x, -y);
+    root.addChild(g);
+  }
+  return root;
+}
 
 let setCamera: (x: number, y: number, zoom: number) => void = () => {};
 let setFrame: (n: number) => void = () => {};
@@ -27,6 +45,7 @@ export const scene: LabScene = {
     const foregroundRoot = new Container({ label: 'foreground-root' });
     const overlay = new Graphics({ label: 'collision-overlay' });
     worldRoot.addChild(view.world, overlay);
+    if (params.get('dummies') === '1') worldRoot.addChild(dummies());
     if (view.foreground) foregroundRoot.addChild(view.foreground);
     app.stage.addChild(view.background, worldRoot, foregroundRoot);
 
@@ -43,19 +62,22 @@ export const scene: LabScene = {
       overlay.visible = collision;
       if (!collision) return;
       const px = 1 / camera.zoom;
-      overlay.poly(MAIN_HULL.flatMap(([x, y]) => [x, -y])).fill({ color: 0xff00ff, alpha: 0.18 });
-      overlay.poly(MAIN_HULL.flatMap(([x, y]) => [x, -y])).stroke({ width: 2 * px, color: 0xff00ff });
-      for (const p of SOFT_PLATFORMS) {
+      for (const solid of stage.solids) {
+        const pts = solid.points.flatMap(([x, y]) => [x, -y]);
+        overlay.poly(pts).fill({ color: 0xff00ff, alpha: 0.18 });
+        overlay.poly(pts).stroke({ width: 2 * px, color: 0xff00ff });
+      }
+      for (const p of stage.platforms) {
         overlay
-          .moveTo(p.left, -p.y)
-          .lineTo(p.right, -p.y)
+          .moveTo(p.x1, -p.y)
+          .lineTo(p.x2, -p.y)
           .stroke({ width: 2 * px, color: 0x00ffff });
       }
-      for (const x of [-80, 80]) overlay.circle(x, 0, 4 * px).fill(0xffff00);
-      const rect = (r: typeof BLAST, color: number) =>
+      for (const ledge of stage.ledges) overlay.circle(ledge.x, -ledge.y, 4 * px).fill(0xffff00);
+      const rect = (r: typeof stage.camera, color: number) =>
         overlay.rect(r.left, -r.top, r.right - r.left, r.top - r.bottom).stroke({ width: 2 * px, color });
-      rect(BLAST, 0xff3030);
-      rect(CAMERA_LIMITS, 0xffe000);
+      rect(stage.blastZones, 0xff3030);
+      rect(stage.camera, 0xffe000);
     };
 
     const apply = () => {

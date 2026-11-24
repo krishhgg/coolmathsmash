@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { MAIN_HULL, SOFT_PLATFORMS, SOFT_THICKNESS, hullHalfWidth } from './outline';
+import { stage } from '../geometry';
+import {
+  CAP_BOTTOM,
+  HULL_BOTTOM,
+  MAIN_HULL,
+  SOFT_PLATFORMS,
+  SOFT_THICKNESS,
+  TOP_Y,
+  UNDERSIDE,
+  hullSpan,
+} from './outline';
 import {
   extremeCameras,
   layerRectOnScreen,
@@ -12,31 +22,23 @@ import {
 } from './parallax';
 
 describe('stage art outline', () => {
-  it('matches Battlefield collision geometry exactly', () => {
-    expect(MAIN_HULL).toEqual([
-      [-80, 0],
-      [80, 0],
-      [80, -8.3],
-      [64.4, -25.1],
-      [41.4, -40.1],
-      [-41.4, -40.1],
-      [-64.4, -25.1],
-      [-80, -8.3],
-    ]);
-    expect(SOFT_PLATFORMS).toEqual([
-      { left: -59.42, right: -24.79, y: 24.12 },
-      { left: -17.32, right: 17.32, y: 47.19 },
-      { left: 24.79, right: 59.42, y: 24.12 },
-    ]);
+  it('is drawn from the collision geometry', () => {
+    expect(MAIN_HULL).toBe(stage.solids[0]!.points);
+    expect(SOFT_PLATFORMS).toEqual(stage.platforms.map((p) => ({ left: p.x1, right: p.x2, y: p.y })));
     expect(SOFT_THICKNESS).toBeCloseTo(2);
+    expect(TOP_Y).toBe(0);
+    expect(CAP_BOTTOM).toBeCloseTo(-8.32);
+    expect(HULL_BOTTOM).toBeCloseTo(-40.12);
   });
 
-  it('interpolates the hull width along the walls and slopes', () => {
-    expect(hullHalfWidth(0)).toBe(80);
-    expect(hullHalfWidth(-8.3)).toBe(80);
-    expect(hullHalfWidth(-25.1)).toBeCloseTo(64.4);
-    expect(hullHalfWidth(-40.1)).toBeCloseTo(41.4);
-    expect(hullHalfWidth(-16.7)).toBeCloseTo((80 + 64.4) / 2);
+  it('finds the solid span along the walls and slopes', () => {
+    expect(hullSpan(0)).toEqual([-80, 80]);
+    expect(hullSpan(CAP_BOTTOM)).toEqual([-80, 80]);
+    const [l, r] = hullSpan(-25.1);
+    expect(l).toBeCloseTo(-64.38, 1);
+    expect(r).toBeCloseTo(64.39, 1);
+    expect(hullSpan(HULL_BOTTOM)[1]).toBeCloseTo(41.42, 1);
+    expect(UNDERSIDE.every(([, y]) => y <= CAP_BOTTOM)).toBe(true);
   });
 });
 

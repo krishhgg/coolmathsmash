@@ -85,12 +85,15 @@ export function hitEffect(frame: number, hitFrame: number, port: number): HitEff
 
 export const SCREEN_W = 1280;
 export const SCREEN_H = 720;
-export const CARD_W = 250;
-export const CARD_H = 146;
-export const CARD_TOP = SCREEN_H - CARD_H - 6;
+/** Card layout box before scaling; cards are drawn at CARD_SCALE so they take ~16% of the screen height. */
+export const CARD_W = 262;
+export const CARD_H = 152;
+export const CARD_SCALE = 0.86;
+export const CARD_TOP = Math.round(SCREEN_H - 6 - CARD_H * CARD_SCALE);
 
 /** Horizontal centres of the cards for `count` players, spread like Ultimate's bottom row. */
 export function cardSlots(count: number): number[] {
+  // Card centres; a card spans CARD_W * CARD_SCALE around its centre.
   const spacing = count <= 1 ? 0 : count === 2 ? 470 : count === 3 ? 390 : 300;
   return Array.from({ length: count }, (_, i) => SCREEN_W / 2 + (i - (count - 1) / 2) * spacing);
 }

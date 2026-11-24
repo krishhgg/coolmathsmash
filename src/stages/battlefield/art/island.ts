@@ -1,5 +1,5 @@
 import { Container, FillGradient, Graphics } from 'pixi.js';
-import { CAP_BOTTOM, MAIN_HULL, hullHalfWidth } from './outline';
+import { CAP_BOTTOM, HULL_BOTTOM, MAIN_HULL, TOP_Y, UNDERSIDE, hullSpan } from './outline';
 import {
   BRASS,
   BRASS_DARK,
@@ -25,10 +25,10 @@ import {
   STONE_MID,
   VINE,
 } from './palette';
-import { diamond, flipY, hash01, mix, sparkle, vGradient, type Point } from './util';
+import { diamond, flipY, hash01, mix, sparkle, vGradient } from './util';
 
-const BOTTOM = -40.1;
-const OUTLINE = 0.55;
+const OUTLINE = 0.72;
+const CAP_H = TOP_Y - CAP_BOTTOM;
 
 export interface IslandArt {
   container: Container;
@@ -36,8 +36,9 @@ export interface IslandArt {
 }
 
 /**
- * The main platform in game units: a Forest Temple sandstone cap (the walkable top at y = 0, walls down to
- * y = -8.3) on a tapered brick underside carrying the Coolmath planet medallion and Fireboy & Watergirl's gems.
+ * The main platform in game units: a Forest Temple sandstone cap (the walkable top and the side walls) on a tapered
+ * brick underside carrying the Coolmath planet medallion and Fireboy & Watergirl's gems. Key light comes from the
+ * upper right, where the sky's sun rays are.
  */
 export function createIsland(): IslandArt {
   const container = new Container({ label: 'main-platform' });
@@ -46,6 +47,14 @@ export function createIsland(): IslandArt {
   drawCap(body);
   body.poly(flipY(MAIN_HULL)).stroke({ width: OUTLINE, color: INK, join: 'round' });
   drawLedgeGuards(body);
+  for (const [x, size, seed] of [
+    [-67, 6.5, 1],
+    [-34, 8, 2],
+    [6, 6, 3],
+    [37, 8.5, 4],
+    [67, 5.5, 5],
+  ] as const)
+    mossTuft(body, x, -CAP_BOTTOM, size, seed);
 
   const medallion = createMedallion(0, -24.4);
   const gems = [
@@ -54,14 +63,18 @@ export function createIsland(): IslandArt {
   ];
   const vines = (
     [
-      [-74.5, -14.2, 10, 0],
-      [-52.9, -32.6, 7.5, 1.3],
-      [-27, BOTTOM, 6, 2.1],
-      [17, BOTTOM, 11, 0.7],
-      [57.5, -29.6, 7, 2.9],
-      [70.6, -18.4, 12, 1.8],
+      [-14.2, 0, 10, 0],
+      [-32.6, 0, 7.5, 1.3],
+      [HULL_BOTTOM, -27, 6, 2.1],
+      [HULL_BOTTOM, 17, 11, 0.7],
+      [-29.6, 1, 7, 2.9],
+      [-18.4, 1, 12, 1.8],
     ] as const
-  ).map(([x, y, len, phase], i) => createVine(x, y, len, phase, i));
+  ).map(([y, where, len, phase], i) => {
+    const span = hullSpan(y);
+    const x = y === HULL_BOTTOM ? where : span[where === 0 ? 0 : 1];
+    return createVine(x, y, len, phase, i);
+  });
 
   container.addChild(body, medallion.node, ...gems.map((g) => g.node), ...vines.map((v) => v.node));
   return {
@@ -75,90 +88,132 @@ export function createIsland(): IslandArt {
 }
 
 function drawUnderside(g: Graphics): void {
-  g.poly(flipY(MAIN_HULL.slice(2))).fill(
+  const shape = flipY(UNDERSIDE);
+  g.poly(shape).fill(
     vGradient([
       [0, BRICK_TOP],
       [1, BRICK_BOTTOM],
     ]),
   );
   const course = 4;
-  for (let k = 0; CAP_BOTTOM - k * course > BOTTOM + 0.01; k++) {
+  for (let k = 0; CAP_BOTTOM - k * course > HULL_BOTTOM + 0.05; k++) {
     const top = CAP_BOTTOM - k * course;
-    const bottom = Math.max(top - course, BOTTOM);
-    const inner = hullHalfWidth(bottom) - 0.6;
-    const brick = 9;
-    const offset = k % 2 === 0 ? 0 : brick / 2;
-    let prev = -inner;
-    for (let x = -90 + offset; x <= inner + brick; x += brick) {
-      const joint = Math.min(x, inner);
-      if (joint <= prev) continue;
-      const shadeT = hash01(k * 53 + Math.round(x * 10));
-      if (shadeT > 0.55)
-        g.rect(prev, -top, joint - prev, top - bottom).fill({
-          color: shadeT > 0.8 ? 0xffffff : MORTAR,
-          alpha: shadeT > 0.8 ? 0.07 : 0.1,
-        });
-      if (x < inner) g.moveTo(x, -top).lineTo(x, -bottom).stroke({ width: 0.28, color: MORTAR, alpha: 0.55 });
-      prev = joint;
+    const bottom = Math.max(top - course, HULL_BOTTOM);
+    const [lt, rt] = hullSpan(top);
+    const [lb, rb] = hullSpan(bottom);
+    const left = Math.max(lt, lb) + 0.5;
+    const right = Math.min(rt, rb) - 0.5;
+    let x0 = left;
+    let n = 0;
+    let x1 = left + (k % 2 === 0 ? 4 : 8) + hash01(k * 7) * 3;
+    while (x0 < right - 0.5) {
+      x1 = Math.min(x1, right);
+      brick(g, x0, x1, top, bottom, k * 101 + n);
+      if (x1 < right)
+        g.moveTo(x1, -top).lineTo(x1, -bottom).stroke({ width: 0.34, color: MORTAR, alpha: 0.85 });
+      x0 = x1;
+      x1 = x0 + 7.5 + hash01(k * 31 + n * 7) * 4.5;
+      n++;
     }
-    if (bottom > BOTTOM + 0.01) {
-      const w = hullHalfWidth(bottom);
-      g.moveTo(-w, -bottom).lineTo(w, -bottom).stroke({ width: 0.3, color: MORTAR, alpha: 0.6 });
-      g.moveTo(-w + 0.4, -bottom + 0.35)
-        .lineTo(w - 0.4, -bottom + 0.35)
-        .stroke({ width: 0.25, color: STONE_LIGHT, alpha: 0.18 });
+    if (bottom > HULL_BOTTOM + 0.05) {
+      const [l, r] = hullSpan(bottom);
+      g.moveTo(l, -bottom).lineTo(r, -bottom).stroke({ width: 0.36, color: MORTAR, alpha: 0.85 });
     }
   }
-  g.poly(
-    flipY([
-      [26, CAP_BOTTOM],
-      [80, CAP_BOTTOM],
-      [64.4, -25.1],
-      [41.4, BOTTOM],
-      [12, BOTTOM],
-    ]),
-  ).fill({
-    color: MORTAR,
-    alpha: 0.2,
-  });
-  g.moveTo(-78.8, 9.4)
-    .lineTo(-63.6, 25.6)
-    .lineTo(-40.8, 39.3)
-    .stroke({ width: 0.7, color: STONE_LIGHT, alpha: 0.35, join: 'round' });
-  const lip = hullHalfWidth(CAP_BOTTOM - 1.8);
-  g.poly([-80, -CAP_BOTTOM, 80, -CAP_BOTTOM, lip, -CAP_BOTTOM + 1.8, -lip, -CAP_BOTTOM + 1.8]).fill(
+  g.poly(shape).fill(
     vGradient([
-      [0, 'rgba(40,33,18,0.45)'],
-      [1, 'rgba(40,33,18,0)'],
+      [0, 'rgba(25,20,8,0)'],
+      [0.45, 'rgba(25,20,8,0)'],
+      [1, 'rgba(25,20,8,0.38)'],
     ]),
   );
-  for (const [x, w, seed] of [
-    [-68, 7, 1],
-    [-36, 10, 2],
-    [4, 8, 3],
-    [37, 11, 4],
-    [66, 7, 5],
-  ] as const)
-    mossDrip(g, x, w, seed);
+  const ys = [CAP_BOTTOM, -16, -22, -28, -34, HULL_BOTTOM];
+  const band = [
+    ...ys.map((y) => [hullSpan(y)[0], -y]),
+    ...ys
+      .slice()
+      .reverse()
+      .map((y) => [hullSpan(y)[0] + 9 + (CAP_BOTTOM - y) * 0.12, -y]),
+  ].flat();
+  g.poly(band).fill(
+    new FillGradient({
+      type: 'linear',
+      start: { x: 0, y: 0.5 },
+      end: { x: 1, y: 0.5 },
+      colorStops: [
+        { offset: 0, color: 'rgba(25,20,8,0.42)' },
+        { offset: 1, color: 'rgba(25,20,8,0)' },
+      ],
+      textureSpace: 'local',
+    }),
+  );
+  ys.forEach((y, i) => {
+    const x = hullSpan(y)[1] - 0.95;
+    if (i === 0) g.moveTo(x, -y + 0.6);
+    else g.lineTo(x, -y);
+  });
+  g.stroke({ width: 0.7, color: STONE_HIGHLIGHT, alpha: 0.5, join: 'round' });
+  const [lipL, lipR] = hullSpan(CAP_BOTTOM - 2);
+  g.poly([lipL - 1, -CAP_BOTTOM, lipR + 1, -CAP_BOTTOM, lipR, -CAP_BOTTOM + 2, lipL, -CAP_BOTTOM + 2]).fill(
+    vGradient([
+      [0, 'rgba(25,20,8,0.5)'],
+      [1, 'rgba(25,20,8,0)'],
+    ]),
+  );
 }
 
-function mossDrip(g: Graphics, x: number, w: number, seed: number): void {
-  const pts: number[] = [x - w / 2, -CAP_BOTTOM - 0.4, x + w / 2, -CAP_BOTTOM - 0.4];
-  const n = 4;
-  for (let i = n; i >= 0; i--) {
-    const px = x - w / 2 + (w * i) / n;
-    const drop = i % 2 === 1 ? 1.4 + 1.8 * hash01(seed * 9 + i) : 0.5;
-    pts.push(px, -CAP_BOTTOM + drop);
+/** One Forest Temple brick: tinted face, light top-left bevel, dark bottom-right bevel, the odd crack. */
+function brick(g: Graphics, x0: number, x1: number, top: number, bottom: number, seed: number): void {
+  const v = hash01(seed);
+  if (v > 0.5)
+    g.rect(x0, -top, x1 - x0, top - bottom).fill({ color: v > 0.78 ? 0xfff3c0 : MORTAR, alpha: 0.09 });
+  const i = 0.32;
+  g.moveTo(x0 + i, -bottom - i)
+    .lineTo(x0 + i, -top + i)
+    .lineTo(x1 - i, -top + i)
+    .stroke({ width: 0.3, color: STONE_LIGHT, alpha: 0.3, join: 'round' });
+  g.moveTo(x1 - i, -top + i)
+    .lineTo(x1 - i, -bottom - i)
+    .lineTo(x0 + i, -bottom - i)
+    .stroke({ width: 0.3, color: MORTAR, alpha: 0.4, join: 'round' });
+  if (v > 0.93 && x1 - x0 > 5) {
+    const cx = (x0 + x1) / 2;
+    g.moveTo(cx - 1.6, -top + 0.4)
+      .lineTo(cx - 0.4, -top + 1.6)
+      .lineTo(cx - 1, -top + 2.5)
+      .lineTo(cx + 0.6, -bottom - 0.4)
+      .stroke({ width: 0.25, color: MORTAR, alpha: 0.7, join: 'round' });
   }
+}
+
+/**
+ * A clump of moss hanging under the cap: a lobed blob with a lit top and a couple of leaves poking out.
+ * (x, y) is the top centre in Pixi coordinates.
+ */
+function mossTuft(g: Graphics, x: number, y: number, size: number, seed: number): void {
+  const lobes = 3 + Math.round(hash01(seed * 3) * 2);
+  const half = size / 2;
+  const pts: number[] = [x - half, y - 0.1, x + half, y - 0.1];
+  for (let i = lobes; i >= 0; i--) {
+    const px = x - half + (size * i) / lobes;
+    pts.push(px, y + 0.35);
+    if (i > 0) {
+      const mid = px - size / lobes / 2;
+      const drop = size * (0.16 + 0.2 * hash01(seed * 17 + i)) * (i === 1 || i === lobes ? 0.7 : 1);
+      pts.push(mid + 0.25, y + drop, mid - 0.25, y + drop);
+    }
+  }
+  leaf(g, x - half * 0.55, y + size * 0.18, Math.PI * 0.72, size * 0.34, mix(MOSS, MOSS_DARK, 0.25));
+  leaf(g, x + half * 0.45, y + size * 0.2, Math.PI * 0.3, size * 0.3);
   g.poly(pts).fill(MOSS);
-  g.poly(pts).stroke({ width: 0.25, color: MOSS_DARK, join: 'round' });
-  g.moveTo(x - w / 2 + 0.6, -CAP_BOTTOM + 0.3)
-    .lineTo(x + w / 2 - 0.6, -CAP_BOTTOM + 0.3)
-    .stroke({ width: 0.35, color: MOSS_LIGHT, alpha: 0.9 });
+  g.poly(pts).stroke({ width: 0.22, color: MOSS_DARK, join: 'round' });
+  g.moveTo(x - half + 0.5, y + 0.35)
+    .lineTo(x + half - 0.5, y + 0.35)
+    .stroke({ width: 0.4, color: MOSS_LIGHT, alpha: 0.9, cap: 'round' });
 }
 
 type Stroke = readonly (readonly [number, number])[];
-const GLYPHS: Record<string, { lines: Stroke[]; dots?: Point[] }> = {
+const GLYPHS: Record<string, { lines: Stroke[]; dots?: Stroke }> = {
   '+': {
     lines: [
       [
@@ -233,15 +288,14 @@ function engrave(g: Graphics, glyph: string, x: number, y: number, s: number): v
 }
 
 function drawCap(g: Graphics): void {
-  const capH = -CAP_BOTTOM;
-  g.rect(-80, 0, 160, capH).fill(
+  g.rect(-80, -TOP_Y, 160, CAP_H).fill(
     vGradient([
       [0, STONE_LIGHT],
       [1, STONE],
     ]),
   );
-  g.rect(-80, 0, 160, 1).fill(STONE_HIGHLIGHT);
-  g.moveTo(-80, 1).lineTo(80, 1).stroke({ width: 0.22, color: STONE_DARK, alpha: 0.6 });
+  g.rect(-80, -TOP_Y, 160, 1).fill(STONE_HIGHLIGHT);
+  g.moveTo(-80, 1).lineTo(80, 1).stroke({ width: 0.24, color: STONE_DARK, alpha: 0.7 });
   for (const y of [2.3, 7]) {
     g.moveTo(-77.5, y).lineTo(77.5, y).stroke({ width: 0.25, color: MORTAR, alpha: 0.35 });
     g.moveTo(-77.5, y + 0.22)
@@ -249,9 +303,14 @@ function drawCap(g: Graphics): void {
       .stroke({ width: 0.2, color: STONE_HIGHLIGHT, alpha: 0.6 });
   }
   for (const x of [-70, -50, -30, -10, 10, 30, 50, 70]) {
-    g.moveTo(x, 1).lineTo(x, capH).stroke({ width: 0.3, color: MORTAR, alpha: 0.5 });
-    g.moveTo(x + 0.3, 1.2)
-      .lineTo(x + 0.3, capH)
+    const jog = (hash01(Math.round(x) + 300) - 0.5) * 0.6;
+    g.moveTo(x, 1)
+      .lineTo(x + jog, 4.5)
+      .lineTo(x, CAP_H)
+      .stroke({ width: 0.32, color: MORTAR, alpha: 0.55 });
+    g.moveTo(x + 0.32, 1.2)
+      .lineTo(x + 0.32 + jog, 4.5)
+      .lineTo(x + 0.32, CAP_H)
       .stroke({ width: 0.2, color: STONE_HIGHLIGHT, alpha: 0.45 });
   }
   const frieze = ['+', '×', '÷', 'π', '÷', '×', '+'];
@@ -260,7 +319,8 @@ function drawCap(g: Graphics): void {
     g.circle(x, 4.65, 1.25).stroke({ width: 0.35, color: MORTAR, alpha: 0.5 });
     g.circle(x, 4.65, 0.35).fill({ color: MORTAR, alpha: 0.5 });
   }
-  g.moveTo(-80, capH).lineTo(80, capH).stroke({ width: 0.4, color: INK, alpha: 0.9 });
+  g.rect(-80, CAP_H - 1.1, 160, 1.1).fill({ color: MORTAR, alpha: 0.16 });
+  g.moveTo(-80, CAP_H).lineTo(80, CAP_H).stroke({ width: 0.45, color: INK, alpha: 0.95 });
 }
 
 /** Brass corner guards mark the two grabbable ledges. */
@@ -268,14 +328,14 @@ function drawLedgeGuards(g: Graphics): void {
   for (const side of [-1, 1]) {
     const outer = 80 * side;
     const inner = 77.4 * side;
-    const pts = [outer, 0, inner, 0, inner, 2.6, outer - side * 0.9, 8.3, outer, 8.3];
+    const pts = [outer, 0, inner, 0, inner, 2.6, outer - side * 0.9, CAP_H, outer, CAP_H];
     g.poly(pts).fill(
       vGradient([
         [0, mix(BRASS, 0xffffff, 0.3)],
         [1, BRASS_DARK],
       ]),
     );
-    g.poly(pts).stroke({ width: 0.35, color: INK, join: 'round' });
+    g.poly(pts).stroke({ width: 0.4, color: INK, join: 'round' });
     g.circle((outer + inner) / 2, 1.5, 0.45).fill(BRASS_DARK);
     g.moveTo(inner, 0.25).lineTo(outer, 0.25).stroke({ width: 0.3, color: 0xfff2b8, alpha: 0.9 });
   }
@@ -355,9 +415,9 @@ function createMedallion(x: number, y: number) {
   ball.circle(0, 0, 3.9).fill(
     new FillGradient({
       type: 'radial',
-      center: { x: 0.35, y: 0.3 },
+      center: { x: 0.62, y: 0.3 },
       innerRadius: 0,
-      outerCenter: { x: 0.45, y: 0.42 },
+      outerCenter: { x: 0.55, y: 0.42 },
       outerRadius: 0.62,
       colorStops: [
         { offset: 0, color: 0xa4ffa4 },
@@ -368,7 +428,7 @@ function createMedallion(x: number, y: number) {
     }),
   );
   ball.circle(0, 0, 3.9).stroke({ width: 0.4, color: INK });
-  ball.ellipse(-1.3, -1.6, 1.3, 0.7).fill({ color: 0xffffff, alpha: 0.55 });
+  ball.ellipse(1.3, -1.6, 1.3, 0.7).fill({ color: 0xffffff, alpha: 0.55 });
   const front = new Graphics();
   ring(front, 0, Math.PI);
   node.addChild(plate, glow, back, ball, front);
@@ -391,13 +451,13 @@ function createGem(x: number, y: number, color: number, dark: number, offset: nu
       [1, STONE_MID],
     ]),
   );
-  g.poly(socket(4.6)).stroke({ width: 0.4, color: INK, join: 'round' });
+  g.poly(socket(4.6)).stroke({ width: 0.45, color: INK, join: 'round' });
   g.poly(socket(3.5)).fill(0x2f2a1a);
   g.ellipse(0, 0.2, 2.6, 2.4).fill({ color, alpha: 0.25 });
   diamond(g, 0, 0, 2.3, color, dark, INK, 0.3);
   const glint = new Graphics();
   sparkle(glint, 0, 0, 1.6, 0xffffff);
-  glint.position.set(-0.9, -1.1);
+  glint.position.set(0.9, -1.1);
   node.addChild(g, glint);
   return {
     node,
@@ -411,13 +471,23 @@ function createGem(x: number, y: number, color: number, dark: number, offset: nu
   };
 }
 
-function leaf(g: Graphics, x: number, y: number, angle: number, size: number): void {
+function leaf(g: Graphics, x: number, y: number, angle: number, size: number, color = MOSS): void {
   const c = Math.cos(angle);
   const s = Math.sin(angle);
   const p = (u: number, v: number) => [x + u * c - v * s, y + u * s + v * c];
-  const pts = [...p(0, 0), ...p(size * 0.45, -size * 0.32), ...p(size, 0), ...p(size * 0.45, size * 0.32)];
-  g.poly(pts).fill(MOSS);
-  g.poly(pts).stroke({ width: 0.16, color: MOSS_DARK, join: 'round' });
+  const pts = [
+    ...p(0, 0),
+    ...p(size * 0.3, -size * 0.3),
+    ...p(size * 0.7, -size * 0.24),
+    ...p(size, 0),
+    ...p(size * 0.62, size * 0.28),
+    ...p(size * 0.25, size * 0.26),
+  ];
+  g.poly(pts).fill(color);
+  g.poly(pts).stroke({ width: 0.18, color: MOSS_DARK, join: 'round' });
+  g.moveTo(...(p(size * 0.1, 0) as [number, number]))
+    .lineTo(...(p(size * 0.75, 0) as [number, number]))
+    .stroke({ width: 0.12, color: MOSS_DARK, alpha: 0.7 });
 }
 
 function createVine(x: number, y: number, len: number, phase: number, seed: number) {
@@ -429,7 +499,7 @@ function createVine(x: number, y: number, len: number, phase: number, seed: numb
   const leaves = Math.max(2, Math.round(len / 2.4));
   for (let i = 1; i <= leaves; i++) {
     const t = i / (leaves + 0.3);
-    const vx = (1 - t) * (1 - t) * 0 + 2 * (1 - t) * t * bend + t * t * bend * 0.4;
+    const vx = 2 * (1 - t) * t * bend + t * t * bend * 0.4;
     const vy = 2 * (1 - t) * t * len * 0.5 + t * t * len - 0.3 * (1 - t) * (1 - t);
     const side = i % 2 === 0 ? 1 : -1;
     leaf(node, vx, vy, side > 0 ? 0.5 : Math.PI - 0.5, 1.5 + hash01(seed * 5 + i) * 0.6);

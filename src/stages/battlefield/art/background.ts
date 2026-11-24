@@ -81,9 +81,9 @@ function sky(): Layer {
   g.rect(0, 0, VIEW_W, VIEW_H).fill(
     vGradient([
       [0, SKY_TOP],
-      [0.28, SKY_HIGH],
-      [0.42, SKY_LOW],
-      [0.52, SKY_HORIZON],
+      [0.3, SKY_HIGH],
+      [0.5, SKY_LOW],
+      [0.68, SKY_HORIZON],
       [1, SKY_HORIZON],
     ]),
   );
@@ -93,8 +93,9 @@ function sky(): Layer {
 /** The Coolmath Games planet (green world, blue ring) hanging in the sky, with slow Flash-style sun rays. */
 function planet(): Layer {
   const node = new Container({ label: 'planet' });
-  const cx = 1020;
-  const cy = 132;
+  const cx = 1135;
+  const cy = 98;
+  const r = 56;
   const rays = new Graphics();
   const count = 18;
   for (let i = 0; i < count; i++) {
@@ -104,11 +105,11 @@ function planet(): Layer {
       .poly([0, 0, Math.cos(a0) * 1500, Math.sin(a0) * 1500, Math.cos(a1) * 1500, Math.sin(a1) * 1500])
       .fill({
         color: 0xffffff,
-        alpha: 0.055,
+        alpha: 0.03,
       });
   }
   rays.position.set(cx, cy);
-  const glow = new Graphics().circle(cx, cy, 190).fill(
+  const glow = new Graphics().circle(cx, cy, r * 2.2).fill(
     new FillGradient({
       type: 'radial',
       center: { x: 0.5, y: 0.5 },
@@ -116,20 +117,20 @@ function planet(): Layer {
       outerCenter: { x: 0.5, y: 0.5 },
       outerRadius: 0.5,
       colorStops: [
-        { offset: 0, color: 'rgba(255,255,255,0.4)' },
-        { offset: 0.45, color: 'rgba(230,255,240,0.16)' },
+        { offset: 0, color: 'rgba(255,255,255,0.3)' },
+        { offset: 0.45, color: 'rgba(230,255,240,0.1)' },
         { offset: 1, color: 'rgba(255,255,255,0)' },
       ],
       textureSpace: 'local',
     }),
   );
-  const h = 0.36;
+  const h = 0.5;
   const ringColor = haze(PLANET_BLUE, h);
   const ringDark = haze(PLANET_BLUE_DARK, h);
   const ringInk = haze(0x16406e, h);
   const tilt = -0.2;
-  const rx = 168;
-  const ry = 34;
+  const rx = r * 2;
+  const ry = r * 0.41;
   const ringPath = (g: Graphics, from: number, to: number, scale = 1) => {
     const steps = 48;
     for (let i = 0; i <= steps; i++) {
@@ -144,25 +145,24 @@ function planet(): Layer {
   };
   const ring = (g: Graphics, from: number, to: number) => {
     ringPath(g, from, to);
-    g.stroke({ width: 22, color: ringInk, cap: 'round' });
+    g.stroke({ width: 15, color: ringInk, cap: 'round' });
     ringPath(g, from, to);
-    g.stroke({ width: 17, color: ringColor, cap: 'round' });
+    g.stroke({ width: 11, color: ringColor, cap: 'round' });
     ringPath(g, from, to, 1.02);
-    g.stroke({ width: 4, color: mix(ringColor, 0xffffff, 0.45), cap: 'round' });
+    g.stroke({ width: 3, color: mix(ringColor, 0xffffff, 0.45), cap: 'round' });
     ringPath(g, from, to, 0.97);
-    g.stroke({ width: 3, color: ringDark, cap: 'round' });
+    g.stroke({ width: 2, color: ringDark, cap: 'round' });
   };
   const back = new Graphics();
   ring(back, Math.PI, Math.PI * 2);
   const ball = new Graphics();
-  const r = 84;
-  ball.circle(cx, cy, r + 3).fill(haze(0x135a2a, h));
+  ball.circle(cx, cy, r + 2.5).fill(haze(0x135a2a, h));
   ball.circle(cx, cy, r).fill(
     new FillGradient({
       type: 'radial',
-      center: { x: 0.36, y: 0.32 },
+      center: { x: 0.64, y: 0.32 },
       innerRadius: 0,
-      outerCenter: { x: 0.45, y: 0.42 },
+      outerCenter: { x: 0.55, y: 0.42 },
       outerRadius: 0.62,
       colorStops: [
         { offset: 0, color: haze(0x9af59a, h) },
@@ -172,11 +172,11 @@ function planet(): Layer {
       textureSpace: 'local',
     }),
   );
-  ball.ellipse(cx - 30, cy - 38, 30, 16).fill({ color: 0xffffff, alpha: 0.28 });
+  ball.ellipse(cx + r * 0.3, cy - r * 0.45, r * 0.34, r * 0.18).fill({ color: 0xffffff, alpha: 0.28 });
   for (const [dx, dy, w] of [
-    [-20, 18, 40],
-    [26, -8, 30],
-    [8, 44, 34],
+    [-13, 12, 27],
+    [17, -5, 20],
+    [5, 29, 23],
   ] as const) {
     ball
       .ellipse(cx + dx, cy + dy, w, w * 0.32)
@@ -285,13 +285,13 @@ function hills(color: number, rim: number, base: number, amp: number, floor: num
 function mountains(): Layer {
   const node = new Container({ label: 'mountains' });
   node.addChild(
-    hills(0x8fc0e8, 0xcfe9fb, HORIZON_Y - 8, 92, 14, 4),
-    hills(0x79b2d6, 0xbfe2f3, HORIZON_Y + 2, 52, 8, 9),
+    hills(0x9cc8ea, 0xd3ebfa, HORIZON_Y - 8, 112, 22, 4),
+    hills(0x8bbfdc, 0xc6e5f3, HORIZON_Y + 2, 62, 10, 9),
   );
   return { depth: 0.06, node };
 }
 
-/** Flash-style floating rock: grass cap, tapering temple-stone underside, cel shade on the right. */
+/** Flash-style floating rock: grass cap, tapering temple-stone underside, cel shade away from the sun. */
 function floatingIsland(
   g: Graphics,
   cx: number,
@@ -332,7 +332,10 @@ function floatingIsland(
       [1, haze(STONE_DARK, h)],
     ]),
   );
-  const shade = [...right.map(toXY), ...right.map(([u, v], i) => toXY([u! * 0.45, v!], i)).reverse()].flat();
+  const shade = [
+    ...left.map((p, i) => toXY(p, i + 20)),
+    ...left.map(([u, v], i) => toXY([u! * 0.45, v!], i + 20)).reverse(),
+  ].flat();
   g.poly(shade).fill({ color: haze(0x4c4124, h), alpha: 0.3 });
   for (let k = 1; k <= 3; k++) {
     const y = top + depth * k * 0.22;
@@ -356,31 +359,49 @@ function floatingIsland(
     .stroke({ width: 2.5, color: haze(MOSS_LIGHT, h), alpha: 0.8 });
 }
 
-/** Animated Flash waterfall: pale column with streaks scrolling down, redrawn from the frame number. */
-function waterfall(x: number, top: number, bottom: number, w: number, h: number) {
+const rgba = (color: number, alpha: number) =>
+  `rgba(${(color >> 16) & 255},${(color >> 8) & 255},${color & 255},${alpha})`;
+
+/**
+ * Animated Flash waterfall: a pale column that fades out as it falls (so it never ends in mid-air when the camera
+ * pulls back), with streaks scrolling down, redrawn from the frame number.
+ */
+function waterfall(x: number, top: number, w: number, h: number) {
+  const length = 1100;
   const base = new Graphics();
-  base.rect(x - w / 2, top, w, bottom - top).fill(
+  const water = haze(0xe4f5ff, h);
+  const edge = haze(0x86bde2, h);
+  base.rect(x - w / 2, top, w, length).fill(
     vGradient([
-      [0, haze(0xe9f8ff, h)],
-      [1, haze(0xbfe4fb, h)],
+      [0, rgba(water, 1)],
+      [0.25, rgba(water, 0.85)],
+      [1, rgba(water, 0)],
     ]),
   );
-  base.rect(x - w / 2, top, 2, bottom - top).fill({ color: haze(0x7fb8de, h), alpha: 0.7 });
-  base.rect(x + w / 2 - 2, top, 2, bottom - top).fill({ color: haze(0x7fb8de, h), alpha: 0.7 });
-  cloud(base, x, bottom + 6, w * 2.6, w * 1.1, haze(0xffffff, h), haze(0xd2ecfb, h), Math.round(x));
+  for (const ex of [x - w / 2, x + w / 2 - 2])
+    base.rect(ex, top, 2, length * 0.6).fill(
+      vGradient([
+        [0, rgba(edge, 0.8)],
+        [1, rgba(edge, 0)],
+      ]),
+    );
   const streaks = new Graphics();
   const spacing = 26;
+  const reach = length * 0.45;
   return {
     nodes: [base, streaks],
     tick: (frame: number) => {
       streaks.clear();
       const offset = (frame * 1.6) % spacing;
-      for (let y = top - spacing + offset; y < bottom - 10; y += spacing) {
+      for (let y = top - spacing + offset; y < top + reach; y += spacing) {
         for (let i = 0; i < 3; i++) {
           const sx = x - w / 2 + 3 + ((i + 0.5) * (w - 6)) / 3;
           const sy = y + ((i * 9) % spacing);
-          if (sy < top || sy > bottom - 14) continue;
-          streaks.roundRect(sx - 1, sy, 2, 12, 1).fill({ color: haze(0x8ccbf0, h), alpha: 0.8 });
+          if (sy < top) continue;
+          const fade = 1 - (sy - top) / reach;
+          streaks
+            .roundRect(sx - 1, sy, 2, 12, 1)
+            .fill({ color: haze(0x8ccbf0, h), alpha: 0.8 * Math.max(0, fade) });
         }
       }
     },
@@ -428,16 +449,16 @@ function farIslands(): Layer {
   const node = new Container({ label: 'far-islands' });
   const h = 0.55;
   const specs = [
-    { x: 160, top: 262, w: 150, depth: 90, seed: 1, deco: 'pi', fall: true },
-    { x: 1150, top: 292, w: 120, depth: 70, seed: 2, deco: 'columns', fall: false },
-    { x: 430, top: 150, w: 78, depth: 50, seed: 3, deco: 'tree', fall: false },
+    { x: 150, top: 300, w: 150, depth: 90, seed: 1, deco: 'pi', fall: true },
+    { x: 1140, top: 318, w: 120, depth: 70, seed: 2, deco: 'columns', fall: false },
+    { x: 410, top: 168, w: 78, depth: 50, seed: 3, deco: 'tree', fall: false },
   ] as const;
   const bobbers: { node: Container; phase: number }[] = [];
   const ticks: ((frame: number) => void)[] = [];
   specs.forEach((s, i) => {
     const holder = new Container();
     if (s.fall) {
-      const wf = waterfall(s.x + s.w * 0.22, s.top + 4, HORIZON_Y + 10, 12, h);
+      const wf = waterfall(s.x + s.w * 0.22, s.top + 4, 12, h);
       holder.addChild(...wf.nodes);
       ticks.push(wf.tick);
     }
@@ -472,11 +493,12 @@ function cloudSea(): Layer {
     ]),
   );
   let i = 0;
-  for (let x = WIDE_LEFT; x <= WIDE_RIGHT; x += 230) {
-    const w = 300 + hash01(41 + i) * 160;
-    const ch = 26 + hash01(17 + i) * 18;
-    cloud(g, x, fillTop + 4, w, ch, SEA_TOP, mix(SEA_TOP, SEA_DEEP, 0.38), 100 + i);
-    i++;
+  for (let x = WIDE_LEFT; x <= WIDE_RIGHT; i++) {
+    const size = hash01(41 + i);
+    const w = 160 + size * 380;
+    const ch = 18 + size * 34 + hash01(17 + i) * 8;
+    cloud(g, x, fillTop + 4, w, ch, SEA_TOP, mix(SEA_TOP, SEA_DEEP, 0.4), 100 + i);
+    x += w * (0.55 + hash01(77 + i) * 0.3);
   }
   return { depth: SEA_LAYER.depth, node: g };
 }
@@ -487,10 +509,10 @@ function lowClouds(): Layer {
   const body = mix(SEA_TOP, SEA_DEEP, 0.3);
   const shade = mix(SEA_TOP, SEA_DEEP, 0.75);
   const specs = [
-    { x: -200, y: 560, w: 380, h: 50, speed: 0.1 },
-    { x: 420, y: 610, w: 460, h: 58, speed: 0.08 },
-    { x: 1080, y: 575, w: 400, h: 52, speed: 0.12 },
-    { x: 1700, y: 630, w: 520, h: 60, speed: 0.09 },
+    { x: -200, y: 610, w: 380, h: 46, speed: 0.1 },
+    { x: 420, y: 668, w: 460, h: 54, speed: 0.08 },
+    { x: 1080, y: 630, w: 400, h: 48, speed: 0.12 },
+    { x: 1700, y: 690, w: 520, h: 56, speed: 0.09 },
   ];
   const clouds = specs.map((s, i) => {
     const g = new Graphics();
@@ -531,106 +553,86 @@ function tree(g: Graphics, x: number, y: number, s: number, h: number): void {
     g.circle(x + (dx - 6) * s, y + (dy - 7) * s, r * 0.3 * s).fill(haze(MOSS_LIGHT, h));
 }
 
-/** Fireboy & Watergirl's exit doors (red with the Mars sign, blue with the Venus sign) set in a temple block. */
+/** Fireboy & Watergirl's exit doors: dark doors in stone frames, a red Mars sign and a blue Venus sign. */
 function templeDoors(g: Graphics, x: number, y: number, h: number): void {
   const ink = haze(0x2b2414, h);
-  const wall = haze(0x6f6a3a, h);
-  g.poly([
-    x - 58,
-    y,
-    x - 58,
-    y - 52,
+  const wall = [
     x - 46,
-    y - 52,
-    x - 46,
-    y - 62,
-    x + 46,
-    y - 62,
-    x + 46,
-    y - 52,
-    x + 58,
-    y - 52,
-    x + 58,
     y,
-  ]).fill(wall);
-  for (let row = 0; row < 5; row++) {
-    const yy = y - 10 - row * 10;
-    g.moveTo(x - 56, yy)
-      .lineTo(x + 56, yy)
-      .stroke({ width: 1, color: ink, alpha: 0.35 });
+    x - 46,
+    y - 44,
+    x - 38,
+    y - 44,
+    x - 38,
+    y - 52,
+    x + 38,
+    y - 52,
+    x + 38,
+    y - 44,
+    x + 46,
+    y - 44,
+    x + 46,
+    y,
+  ];
+  g.poly(wall).fill(haze(0x6f6a3a, h));
+  for (let row = 1; row < 5; row++) {
+    const yy = y - row * 9.5;
+    g.moveTo(x - 44, yy)
+      .lineTo(x + 44, yy)
+      .stroke({ width: 1, color: ink, alpha: 0.3 });
   }
-  g.poly([
-    x - 58,
-    y,
-    x - 58,
-    y - 52,
-    x - 46,
-    y - 52,
-    x - 46,
-    y - 62,
-    x + 46,
-    y - 62,
-    x + 46,
-    y - 52,
-    x + 58,
-    y - 52,
-    x + 58,
-    y,
-  ]).stroke({
-    width: 2,
-    color: ink,
-    join: 'round',
-  });
-  const door = (dx: number, color: number, venus: boolean) => {
-    const left = x + dx - 15;
-    g.rect(left - 3, y - 46, 36, 46).fill(haze(0x9a8f58, h));
-    g.rect(left - 3, y - 46, 36, 46).stroke({ width: 1.5, color: ink });
-    g.rect(left, y - 42, 30, 42).fill(haze(color, h));
-    g.rect(left, y - 42, 30, 42).stroke({ width: 1.5, color: ink });
-    const sx = left + 15;
-    const sy = y - 24;
-    const sym = haze(0xffe9c8, h);
-    g.circle(sx, sy, 6.5).stroke({ width: 3, color: sym });
+  g.poly(wall).stroke({ width: 2, color: ink, join: 'round' });
+  const door = (dx: number, panel: number, sign: number, venus: boolean) => {
+    const left = x + dx - 13;
+    g.rect(left - 3, y - 40, 32, 40).fill(haze(STONE_LIGHT, h));
+    g.rect(left - 3, y - 40, 32, 40).stroke({ width: 1.5, color: ink });
+    g.rect(left, y - 36, 26, 36).fill(haze(panel, h));
+    g.rect(left, y - 36, 26, 36).stroke({ width: 1.5, color: ink });
+    g.rect(left, y - 36, 26, 3).fill(haze(sign, h));
+    const sx = left + 13;
+    const sy = y - 19;
+    const sym = haze(sign, h);
+    g.circle(sx, sy, 5.5).stroke({ width: 2.6, color: sym });
     if (venus) {
-      g.moveTo(sx, sy + 6.5)
-        .lineTo(sx, sy + 15)
-        .stroke({ width: 3, color: sym });
-      g.moveTo(sx - 4, sy + 11)
-        .lineTo(sx + 4, sy + 11)
-        .stroke({ width: 3, color: sym });
+      g.moveTo(sx, sy + 5.5)
+        .lineTo(sx, sy + 13)
+        .stroke({ width: 2.6, color: sym });
+      g.moveTo(sx - 3.5, sy + 9.5)
+        .lineTo(sx + 3.5, sy + 9.5)
+        .stroke({ width: 2.6, color: sym });
     } else {
-      g.moveTo(sx + 4.5, sy - 4.5)
-        .lineTo(sx + 11, sy - 11)
-        .stroke({ width: 3, color: sym });
-      g.moveTo(sx + 5, sy - 11)
-        .lineTo(sx + 11, sy - 11)
-        .lineTo(sx + 11, sy - 5)
-        .stroke({ width: 3, color: sym, join: 'miter' });
+      g.moveTo(sx + 3.8, sy - 3.8)
+        .lineTo(sx + 9.5, sy - 9.5)
+        .stroke({ width: 2.6, color: sym });
+      g.moveTo(sx + 4.5, sy - 9.5)
+        .lineTo(sx + 9.5, sy - 9.5)
+        .lineTo(sx + 9.5, sy - 4.5)
+        .stroke({ width: 2.6, color: sym, join: 'miter' });
     }
   };
-  door(-20, mix(GEM_RED, 0x7a2a18, 0.35), false);
-  door(20, mix(GEM_BLUE, 0x1a4a7a, 0.35), true);
+  door(-17, 0x4a2a1c, GEM_RED, false);
+  door(17, 0x1f3550, GEM_BLUE, true);
 }
 
 function midIslands(): Layer {
   const node = new Container({ label: 'mid-islands' });
-  const h = 0.3;
-  const leftFall = waterfall(150, 520, 760, 16, h);
-  const rightFall = waterfall(1150, 470, 760, 14, h);
+  const h = 0.42;
+  const leftFall = waterfall(185, 612, 14, h);
+  const rightFall = waterfall(1065, 600, 12, h);
   const left = new Container();
   const right = new Container();
   const gl = new Graphics();
-  floatingIsland(gl, 30, 512, 300, 150, h, 7);
-  tree(gl, -40, 508, 1, h);
-  tree(gl, 70, 508, 0.7, h);
+  floatingIsland(gl, 105, 598, 230, 120, h, 7);
+  tree(gl, 50, 594, 0.85, h);
+  tree(gl, 140, 594, 0.6, h);
   left.addChild(...leftFall.nodes, gl);
   const gr = new Graphics();
-  floatingIsland(gr, 1250, 470, 270, 130, h, 8);
-  templeDoors(gr, 1255, 466, h);
+  floatingIsland(gr, 1135, 584, 220, 110, h, 8);
+  templeDoors(gr, 1140, 580, h);
   right.addChild(...rightFall.nodes, gr);
   node.addChild(left, right);
   return {
-    depth: 0.3,
+    depth: 0.2,
     node,
     tick(frame) {
       left.y = Math.sin(frame * 0.012) * 4;

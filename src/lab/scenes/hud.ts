@@ -16,10 +16,18 @@ const RED_BALL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
 <ellipse cx="34" cy="26" rx="11" ry="6" fill="#ffffff" opacity="0.45"/>
 </svg>`;
 
-export function samplePlayers(count: number, frame: number): HudPlayer[] {
+export function samplePlayers(count: number, frame: number, hitAgo = 3): HudPlayer[] {
   const all: HudPlayer[] = [
     { port: 0, name: 'Fireboy', damage: 0, stocks: 3, maxStocks: 3, eliminated: false, hitFrame: -1 },
-    { port: 1, name: 'Watergirl', damage: 47.3, stocks: 2, maxStocks: 3, eliminated: false, hitFrame: -1 },
+    {
+      port: 1,
+      name: 'Watergirl',
+      damage: 47.3,
+      stocks: 2,
+      maxStocks: 3,
+      eliminated: false,
+      hitFrame: frame - hitAgo,
+    },
     {
       port: 2,
       name: 'Papa Louie',
@@ -27,7 +35,7 @@ export function samplePlayers(count: number, frame: number): HudPlayer[] {
       stocks: 1,
       maxStocks: 3,
       eliminated: false,
-      hitFrame: frame - 4,
+      hitFrame: -1,
     },
     {
       port: 3,
@@ -40,13 +48,14 @@ export function samplePlayers(count: number, frame: number): HudPlayer[] {
       icon: RED_BALL,
     },
   ];
-  return count <= 2 ? [all[0]!, { ...all[1]!, hitFrame: frame - 3 }] : all.slice(0, count);
+  return count <= 2 ? all.slice(0, 2) : all.slice(0, count);
 }
 
 let setPlayers: (players: HudPlayer[], frame: number) => void = () => {};
 
 /**
- * The bottom HUD over the stage: ?scene=hud&players=2|4&frame=120, &ko=<port> greys a player out,
+ * The bottom HUD over the stage: ?scene=hud&players=2|4&frame=120, &hitAgo=3 frames since P2's hit, &ko=<port> greys
+ * a player out,
  * &stage=0 drops the stage backdrop.
  */
 export const scene: LabScene = {
@@ -69,7 +78,11 @@ export const scene: LabScene = {
     app.stage.addChild(hud.container);
     setPlayers = (players, frame) => hud.update(players, frame);
     const frame = Number(params.get('frame') ?? 120) || 120;
-    const players = samplePlayers(Number(params.get('players') ?? 4), frame);
+    const players = samplePlayers(
+      Number(params.get('players') ?? 4),
+      frame,
+      Number(params.get('hitAgo') ?? 3),
+    );
     const ko = params.get('ko');
     for (const p of players)
       if (ko !== null && p.port === Number(ko)) Object.assign(p, { eliminated: true, stocks: 0 });
