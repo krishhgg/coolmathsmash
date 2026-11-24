@@ -108,12 +108,12 @@ describe('Fluffy: frame data (roster sheet 8)', () => {
     ['utilt', 6, 6],
     ['dtilt', 6, 6],
     ['dashAttack', 8, 9],
-    ['fsmash', 16, 15],
+    ['fsmash', 16, 16],
     ['usmash', 13, 14],
     ['dsmash', 10, 12],
     ['nair', 5, 8],
     ['fair', 9, 10],
-    ['bair', 9, 11],
+    ['bair', 9, 10.5],
     ['uair', 6, 7],
     ['dair', 12, 10],
     ['grab', 12, 0],
@@ -203,20 +203,15 @@ describe('Fluffy: kill percents against his Ultimate analogues', () => {
   const ko = (move: string, setup: Partial<KoSetup> = {}) =>
     koPercent({ hit: { fighter: 'fluffy', move }, ...setup })!;
 
-  /**
-   * Each kill move lands within about 5 points of its analogue's own hit from the same setup. Damage stays the
-   * roster's, and 1% of damage moves the KO by about 7 points, so the forward smash (15% against Min Min's 16%) and
-   * back air (11% against Mario's 10.5%) get that much more room.
-   */
+  /** Each kill move lands within 5 points of its analogue's own hit from the same setup, named in the row. */
   it.each([
-    ['fsmash', "Min Min's Dragon fsmash, far hit", { damage: 16, angle: 361, kbg: 78, bkb: 40 }, {}, 8],
-    ['usmash', "Min Min's usmash", { damage: 14, angle: 75, kbg: 80, bkb: 48 }, {}, 5],
-    ['dsmash', "Min Min's dsmash, front hit", { damage: 13, angle: 361, kbg: 72, bkb: 50 }, {}, 5],
-    ['bair', "Mario's bair", { damage: 10.5, angle: 361, kbg: 106, bkb: 12 }, { air: true }, 6],
-    ['bthrow', "Mario's bthrow", { damage: 11, angle: 45, kbg: 66, bkb: 70 }, {}, 5],
-  ] as const)('%s kills within reach of %s', (move, _analogue, hit, setup, tolerance) => {
-    const analogue = koPercent({ hit, ...setup })!;
-    expect(Math.abs(ko(move, setup) - analogue)).toBeLessThanOrEqual(tolerance);
+    ['fsmash', "Min Min's Dragon fsmash, far hit", { damage: 16, angle: 361, kbg: 78, bkb: 40 }, {}],
+    ['usmash', "Min Min's usmash", { damage: 14, angle: 75, kbg: 80, bkb: 48 }, {}],
+    ['dsmash', "Min Min's dsmash, front hit", { damage: 13, angle: 361, kbg: 72, bkb: 50 }, {}],
+    ['bair', "Mario's bair", { damage: 10.5, angle: 361, kbg: 106, bkb: 12 }, { air: true }],
+    ['bthrow', "Mario's bthrow", { damage: 11, angle: 45, kbg: 66, bkb: 70 }, {}],
+  ] as const)('%s kills within 5 points of %s', (move, _analogue, hit, setup) => {
+    expect(Math.abs(ko(move, setup) - koPercent({ hit, ...setup })!)).toBeLessThanOrEqual(5);
   });
 
   it('forward smash kills earliest, then down smash, back air, back throw and up smash', () => {
