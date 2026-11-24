@@ -106,7 +106,10 @@ describe('Johnny Upgrade: attack inputs', () => {
   });
 });
 
-/** The roster's sheet (handoffs/research/roster.md, Johnny Upgrade): first active frame and damage of each hit. */
+/**
+ * The roster's sheet (handoffs/research/roster.md, Johnny Upgrade): first active frame and damage of each hit. The
+ * up smash, neutral, forward and up airs carry Captain Falcon's damage instead (see the kill percents below).
+ */
 const ROSTER: [move: string, startup: number, damage: number[]][] = [
   ['jab', 3, [1.5]],
   ['jab2', 4, [1]],
@@ -116,12 +119,12 @@ const ROSTER: [move: string, startup: number, damage: number[]][] = [
   ['dtilt', 10, [10]],
   ['dashAttack', 7, [10]],
   ['fsmash', 18, [19]],
-  ['usmash', 14, [6, 11]],
+  ['usmash', 14, [7, 14]],
   ['dsmash', 16, [15]],
-  ['nair', 7, [7, 8]],
-  ['fair', 14, [20]],
+  ['nair', 7, [4, 6]],
+  ['fair', 14, [22]],
   ['bair', 10, [13]],
-  ['uair', 6, [8]],
+  ['uair', 6, [10]],
   ['dair', 16, [14]],
   ['grab', 7, [0]],
 ];
@@ -169,12 +172,12 @@ describe('Johnny Upgrade: frame data', () => {
     expect(moves.pummel!.pummel!.damage).toBe(1.3);
   });
 
-  it("the knee's sweetspot is its first active frame only, with heavy hitlag; the rest is a weak 6%", () => {
+  it("the knee's sweetspot is its first active frame only, with heavy hitlag; the thigh is 6% and the late knee 3%", () => {
     const [sweet, late] = moves.fair!.hits as [HitWindow, HitWindow];
     expect(sweet.frames).toEqual([14, 14]);
-    expect(sweet.boxes[0]).toMatchObject({ id: 0, damage: 20, hitlag: 1.5 });
+    expect(sweet.boxes[0]).toMatchObject({ id: 0, damage: 22, hitlag: 1.5 });
     expect(sweet.boxes[1]!.damage).toBe(6);
-    expect(late.boxes.every((b) => b.damage === 6)).toBe(true);
+    expect(late.boxes.every((b) => b.damage === 3)).toBe(true);
   });
 
   it('dair meteors: its sole sends straight down', () => {
@@ -190,15 +193,19 @@ describe('Johnny Upgrade: frame data', () => {
  * the held opponent lands first (x1.2 in 1v1), so it comes off the release's percent, Falcon's as well.
  */
 const FALCON: [move: string, analogue: string, ko: number, setup: { air?: boolean; held?: number }][] = [
+  ['fair', 'knee sweetspot (22%, 32°, BKB 30, KBG 81)', 55, { air: true }],
   ['fsmash', 'forward smash, unangled (19%, 43°, BKB 36, KBG 94)', 59, {}],
   ['dair', 'down aerial body (14%, 361°, BKB 40, KBG 100)', 74, { air: true }],
   ['dsmash', 'down smash back kick (18%, 28°, BKB 20, KBG 84)', 77, {}],
   ['bair', 'back aerial, clean (13%, 361°, BKB 27, KBG 97)', 97, { air: true }],
+  ['usmash', 'up smash final hit (14%, 83°, BKB 70, KBG 80)', 112, {}],
   ['dtilt', 'down tilt (10%, 25°, BKB 38, KBG 86)', 118, {}],
+  ['nair', 'neutral aerial second kick (6%, 361°, BKB 45, KBG 120)', 129, { air: true }],
   ['bthrow', 'back throw (3.5% hit, then 4%, 135°, BKB 60, KBG 130)', 144, { held: 6 }],
   ['dashAttack', 'dash attack, clean (10%, 65°, BKB 90, KBG 67)', 170, {}],
   ['fthrow', 'forward throw (3.5% hit, then 4%, 45°, BKB 55, KBG 120)', 170, { held: 4 }],
   ['ftilt', 'forward tilt (9%, 361°, BKB 60, KBG 58)', 185, {}],
+  ['uair', 'up aerial, clean (10%, 66°, BKB 20, KBG 96)', 193, { air: true }],
   ['uthrow', 'up throw (4% hit, then 5%, 84°, BKB 68, KBG 100)', 218, { held: 2 }],
   ['dthrow', 'down throw (6%, 68°, BKB 65, KBG 70)', 306, { held: 1 }],
 ];
@@ -213,10 +220,18 @@ describe('Johnny Upgrade: kill percents', () => {
     expect(Math.abs(ko(move, setup) - percent)).toBeLessThanOrEqual(5);
   });
 
-  it('forward smash kills first, then the down smash, the back air and the down tilt; back throw is the kill throw', () => {
-    const kills = ['fsmash', 'dsmash', 'dtilt'].map((m) => ko(m));
+  it('the knee kills first, then the forward smash, stomp, down smash, back air, up smash and down tilt; back throw is the kill throw', () => {
+    const air = { air: true };
+    const kills = [
+      ko('fair', air),
+      ko('fsmash'),
+      ko('dair', air),
+      ko('dsmash'),
+      ko('bair', air),
+      ko('usmash'),
+      ko('dtilt'),
+    ];
     expect(kills).toEqual([...kills].sort((p, q) => p - q));
-    expect(ko('bair', { air: true })).toBeGreaterThan(kills[1]!);
     const throws = [
       ko('bthrow', { held: 6 }),
       ko('fthrow', { held: 4 }),
