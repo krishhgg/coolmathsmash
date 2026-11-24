@@ -383,4 +383,16 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 22, hit: { damage: 6, angle: 75, kbg: 45, bkb: 60 } },
   },
+  /**
+   * Stick Tight (down special): he drives the grabber into the ground and holds on. Heavy armor on frames 4-60, so
+   * hits add damage but no knockback (the video's "he wouldn't have knock back", time-limited by the roster), then
+   * 40 frames of end lag. In the air he braces the same way and keeps holding on when he lands.
+   */
+  downB: {
+    kind: 'other',
+    faf: 101,
+    armor: { frames: [4, 60] },
+    continuesOnLanding: true,
+    hits: [],
+  },
 };
