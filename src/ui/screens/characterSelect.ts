@@ -13,6 +13,7 @@ import {
   type MatchSetup,
   type SlotSetup,
 } from '../../session/setup';
+import { audio } from '../../audio';
 import type { Flow, Screen, ScreenDef } from '../app';
 import { CPU_SVG, GAMEPAD_SVG, HAND_SVG, KEYBOARD_SVG, SILHOUETTE_SVG } from '../art/icons';
 import { h, svg } from '../dom';
@@ -153,25 +154,30 @@ export function characterSelectScreen(flow: Flow): Screen {
       mouse.carrying = mouse.carrying === i ? null : mouse.carrying - +(mouse.carrying > i);
   }
 
+  function start(): void {
+    if (isReady(setup)) flow.go('stages');
+    else audio.ui('error');
+  }
+
   function join(device: DeviceId): void {
     if (setup.slots.length < MAX_PLAYERS) setup.slots.push(humanSlot(device));
     else {
       const cpu = setup.slots.findIndex((s) => s.kind === 'cpu');
-      if (cpu < 0) return;
+      if (cpu < 0) return audio.ui('error');
       setup.slots[cpu] = humanSlot(device);
     }
+    audio.ui('select');
     render();
   }
 
   /** Do what the element under `key` does, for `actor` (a slot index, or -1 for nobody) holding `hand`. */
   function activate(key: string, actor: number, hand: Hand): void {
     const [kind, a, b] = key.split(':');
-    if (kind === 'ready') {
-      if (isReady(setup)) flow.go('stages');
-      return;
-    }
+    if (kind === 'ready') return start();
     if (kind === 'add') {
-      if (setup.slots.length < MAX_PLAYERS) setup.slots.push(cpuSlot());
+      if (setup.slots.length >= MAX_PLAYERS) return audio.ui('error');
+      setup.slots.push(cpuSlot());
+      audio.ui('toggle');
       return render();
     }
     if (kind === 'tile') {
@@ -179,6 +185,8 @@ export function characterSelectScreen(flow: Flow): Screen {
       if (target < 0 || !setup.slots[target]) return;
       pickFighter(setup, target, a!);
       hand.carrying = null;
+      audio.ui('select');
+      if (a !== RANDOM) audio.announce(`fighter:${a}`);
       return render();
     }
     if (kind !== 'panel') return;
@@ -221,12 +229,13 @@ export function characterSelectScreen(flow: Flow): Screen {
         if (s.kind === 'cpu') hand.carrying = hand.carrying === slot ? null : slot;
         break;
     }
+    audio.ui(b === 'remove' ? 'back' : b === 'token' ? 'select' : 'toggle');
     render();
   }
 
   function input(e: MenuEvent): void {
     if (e.device === 'keys') {
-      if (e.action === 'start' && isReady(setup)) flow.go('stages');
+      if (e.action === 'start') start();
       else if (e.action === 'back') flow.go('main');
       else if (e.action === 'confirm') {
         const slot = mouseSlot();
@@ -245,25 +254,29 @@ export function characterSelectScreen(flow: Flow): Screen {
     if (isDirection(e.action)) {
       const from = find(hand.key) ?? tiles[0]!;
       const next = neighbour(from, e.action, navigable(el), el);
-      if (next?.dataset.key) hand.key = next.dataset.key;
+      if (next?.dataset.key) {
+        hand.key = next.dataset.key;
+        audio.ui('move');
+      }
       return placeCursors();
     }
     switch (e.action) {
       case 'confirm':
         return activate(hand.key, slot, hand);
       case 'start':
-        if (isReady(setup)) flow.go('stages');
-        return;
+        return start();
       case 'back':
         if (hand.carrying !== null) hand.carrying = null;
         else if (s.fighter !== null) {
           hand.key = tileKey(s);
           s.fighter = null;
-        }
+        } else return;
+        audio.ui('back');
         return render();
       case 'prev':
       case 'next':
         cycleCostume(setup, slot, e.action === 'next' ? 1 : -1);
+        audio.ui('toggle');
         return render();
     }
   }
