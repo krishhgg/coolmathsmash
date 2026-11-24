@@ -3,12 +3,18 @@ import { VIEW_HEIGHT, VIEW_WIDTH } from '../config';
 import { getFighter } from '../fighters/registry';
 import type { MatchState } from '../sim/match';
 import { getStage } from '../stages/registry';
+import type { StageView } from '../stages/battlefield/view';
 import type { StageGeometry } from '../sim/stage';
 import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView } from './fighterView';
+
+/** Stage art: src/stages/<id>/view.ts exports createStageView (docs/stages.md). Stages without one draw flat. */
+const STAGE_VIEWS = import.meta.glob<{ createStageView: () => StageView }>('../stages/*/view.ts', {
+  eager: true,
+});
 
 export interface Overlays {
   inputs: boolean;
@@ -21,6 +27,7 @@ export interface Overlays {
 }
 
 export class Renderer {
+  readonly background = new Container();
   readonly world = new Container();
   readonly hud = new Container();
   readonly debug = new Container();
@@ -30,6 +37,8 @@ export class Renderer {
   private readonly inputDisplay = new InputDisplay();
   private readonly stageLayer = new Container();
   private readonly fighterLayer = new Container();
+  private readonly foregroundLayer = new Container();
+  private stageView: StageView | null = null;
   private readonly boxes = new Graphics();
   private fighters: FighterView[] = [];
   private stageId = '';
@@ -37,8 +46,8 @@ export class Renderer {
   private matchKey: unknown = null;
 
   private constructor(readonly app: Application) {
-    this.world.addChild(this.stageLayer, this.fighterLayer, this.boxes);
-    app.stage.addChild(this.world, this.hud, this.debug);
+    this.world.addChild(this.stageLayer, this.fighterLayer, this.foregroundLayer, this.boxes);
+    app.stage.addChild(this.background, this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
   }
 
@@ -61,8 +70,15 @@ export class Renderer {
     if (this.stageId !== state.config.stage) {
       this.stageId = state.config.stage;
       this.stage = getStage(state.config.stage);
-      this.stageLayer.removeChildren();
-      this.stageLayer.addChild(placeholderStage(this.stage));
+      for (const layer of [this.background, this.stageLayer, this.foregroundLayer])
+        layer.removeChildren().forEach((c) => c.destroy({ children: true }));
+      const create = STAGE_VIEWS[`../stages/${state.config.stage}/view.ts`]?.createStageView;
+      this.stageView = create ? create() : null;
+      if (this.stageView) {
+        this.background.addChild(this.stageView.background);
+        this.stageLayer.addChild(this.stageView.world);
+        if (this.stageView.foreground) this.foregroundLayer.addChild(this.stageView.foreground);
+      } else this.stageLayer.addChild(placeholderStage(this.stage));
     }
     if (this.matchKey !== state.config) {
       this.matchKey = state.config;
@@ -83,6 +99,7 @@ export class Renderer {
     const view = this.camera.viewFor(state, this.stage!);
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
+    this.stageView?.update(state.frame, view);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
     this.drawBoxes(state);
     this.inputDisplay.container.visible = this.overlays.inputs;
@@ -110,7 +127,7 @@ export class Renderer {
   }
 }
 
-/** Collision geometry drawn flat, until the stage art lands. */
+/** Collision geometry drawn flat, for stages without art. */
 function placeholderStage(stage: StageGeometry): Graphics {
   const g = new Graphics();
   for (const solid of stage.solids) {
