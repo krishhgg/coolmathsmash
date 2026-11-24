@@ -22,12 +22,14 @@ export function input(h: Hold = {}): InputFrame {
   return i;
 }
 
-/** A 1-player (or n-player) match on Battlefield with the Mario reference fighter, settled on the ground. */
-export function testMatch(opts: { fighter?: string; players?: number; x?: number } = {}): MatchState {
+/** A 1-player (or n-player) match on Battlefield (or `stage`) with the Mario reference fighter, settled on the ground. */
+export function testMatch(
+  opts: { fighter?: string; players?: number; x?: number; stage?: string } = {},
+): MatchState {
   const fighter = opts.fighter ?? marioReference.id;
   const m = createMatch({
     seed: 1,
-    stage: 'battlefield',
+    stage: opts.stage ?? 'battlefield',
     stocks: 3,
     ports: Array.from({ length: opts.players ?? 1 }, () => ({ fighter })),
   });

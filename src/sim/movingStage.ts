@@ -2,6 +2,7 @@ import { dropLedge } from './actions/ledge';
 import { ACTIONS, enterAction } from './actions/registry';
 import { DOWN_FLICK_THRESHOLD } from './constants';
 import { stickY } from './control';
+import { emit } from './events';
 import type { Ctx, GroundRef } from './fighter';
 import type { MatchState } from './match';
 import { crossing, ecb, land, leaveGround, pushOut, surfaceRange, surfaceY } from './movement';
@@ -148,6 +149,13 @@ export function advanceStage(m: MatchState): void {
     m.stage.solids.some((p, i) => changed(p, i, before.solids)) ||
     m.stage.platforms.some((p, i) => changed(p, i, before.platforms));
   if (!moved) return;
+  for (const piece of ['solid', 'platform'] as const) {
+    const [was, now] =
+      piece === 'solid' ? [before.solids, m.stage.solids] : [before.platforms, m.stage.platforms];
+    now.forEach((p, index) => {
+      if (p.on !== was[index]!.on) emit(m, { type: 'stagePiece', piece, index, on: p.on });
+    });
+  }
   for (const f of m.fighters) followStage(makeCtx(m, f, m.players[f.port]!), before);
 }
 
@@ -293,6 +301,7 @@ function popOut(x: Ctx, s: number): void {
   }
   f.pos.x = bestX;
   standOn(x, { kind: 'solid', index: best });
+  emit(x.m, { type: 'squeeze', port: f.port, solid: s, x: f.pos.x, y: f.pos.y });
 }
 
 function insideSolid(stage: CompiledStage, px: number, py: number): boolean {
