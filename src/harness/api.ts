@@ -1,7 +1,25 @@
 import type { Game } from '../game';
 import type { InputFrame } from '../input/types';
+import type { FighterState } from '../sim/fighter';
 import { DEFAULT_MATCH, type MatchConfig, type MatchState } from '../sim/match';
 import { decodeReplay } from '../sim/replay';
+import {
+  SCENARIOS,
+  applyPatch,
+  findScenario,
+  isLabScenario,
+  planScenario,
+  scenarioConfig,
+  scenarioInfo,
+  scenarioInputs,
+  startScenario,
+  summarize,
+  type FighterPatch,
+  type FighterSummary,
+  type GameScenario,
+  type ScenarioInfo,
+  type ScenarioResult,
+} from './scenarios';
 import { inputsAt, scriptLength, type ScriptStep } from './script';
 
 /**
@@ -22,9 +40,20 @@ export interface HarnessApi {
   frame(): number;
   getState(): MatchState;
   hash(): string;
+  /** Overwrite parts of a fighter's state (damage, position next to a ledge...). Vectors merge. */
+  patch(port: number, state: FighterPatch): FighterState;
   setOverlay(name: 'inputs' | 'actions', on: boolean): void;
   /** Render the current frame and wait until it is on screen. */
   render(): Promise<void>;
+  /** The named capture scenarios (src/harness/scenarios.ts), game and lab. */
+  scenarios(): ScenarioInfo[];
+  /**
+   * Start a game scenario and run it to its capture frame (or to `frame`), then render. A scenario the game
+   * cannot show yet returns status "pending" with the reason and leaves the match untouched.
+   */
+  runScenario(name: string, opts?: { frame?: number }): Promise<ScenarioResult>;
+  /** Continue the scenario started by runScenario `frames` more frames (its script keeps playing). */
+  stepScenario(frames?: number): Promise<{ frame: number; fighters: FighterSummary[]; hash: string }>;
 }
 
 declare global {
@@ -35,6 +64,8 @@ declare global {
 
 export function installHarness(game: Game): HarnessApi {
   const ports = () => game.state.players.length;
+  let active: GameScenario | null = null;
+  const advance = (s: GameScenario) => game.step(scenarioInputs(s, game.state));
   const api: HarnessApi = {
     version: 1,
     setManual: (on) => {
@@ -64,6 +95,12 @@ export function installHarness(game: Game): HarnessApi {
     frame: () => game.state.frame,
     getState: () => structuredClone(game.state),
     hash: () => game.hash(),
+    patch: (port, state) => {
+      const f = game.state.fighters[port];
+      if (!f) throw new Error(`no fighter on port ${port}`);
+      applyPatch(f, state);
+      return structuredClone(f);
+    },
     setOverlay: (name, on) => {
       game.renderer.overlays[name] = on;
     },
@@ -72,6 +109,28 @@ export function installHarness(game: Game): HarnessApi {
         game.renderer.render(game.state, 1);
         requestAnimationFrame(() => resolve());
       }),
+    scenarios: () => SCENARIOS.map(scenarioInfo),
+    runScenario: async (name, opts = {}) => {
+      const s = findScenario(name);
+      if (isLabScenario(s)) throw new Error(`${name} is a lab scenario: open lab.html?scene=${s.page.scene}`);
+      const plan = planScenario(s, (req) => req === 'hud' && game.renderer.hud.children.length > 0);
+      const target = opts.frame ?? plan.captureFrame;
+      if (plan.status === 'pending' || target === undefined) {
+        return { name, ...plan, frame: game.state.frame, fighters: summarize(game.state), hash: game.hash() };
+      }
+      game.newMatch(scenarioConfig(s));
+      startScenario(game.state, s);
+      active = s;
+      while (game.state.frame < target) advance(s);
+      await api.render();
+      return { name, ...plan, frame: game.state.frame, fighters: summarize(game.state), hash: game.hash() };
+    },
+    stepScenario: async (frames = 1) => {
+      if (!active) throw new Error('no scenario running: call runScenario first');
+      for (let i = 0; i < frames; i++) advance(active);
+      await api.render();
+      return { frame: game.state.frame, fighters: summarize(game.state), hash: game.hash() };
+    },
   };
   window.__smash = api;
   return api;

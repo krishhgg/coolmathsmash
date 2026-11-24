@@ -17,6 +17,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
+    "capture": "node scripts/capture.ts",
+    "judge:pack": "node scripts/judge-pack.ts",
+    "judge:aggregate": "node scripts/judge-aggregate.ts",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
