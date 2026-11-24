@@ -1,5 +1,5 @@
 // Generated from the shapes of the original Fireboy & Watergirl in the Forest Temple (Oslo Albet, 2009) SWF.
-// See docs/art-pipeline.md ("Importing original Flash art"). Units: rig units, y down, facing right.
+// See docs/art.md ("Importing original Flash art"). Units: rig units, y down, facing right.
 import type { PathShape } from '../../../render/rig/types';
 
 export const headFront: PathShape[][] = [

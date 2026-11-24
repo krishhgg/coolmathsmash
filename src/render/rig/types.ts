@@ -146,7 +146,7 @@ export interface FighterArt {
   /** Standing height in units, flames included. */
   height: number;
   rig: Rig;
-  /** Canonical clip names (see docs/art-pipeline.md). Unknown names fall back to `idle`. */
+  /** Canonical clip names (see docs/art.md). Unknown names fall back to `idle`. */
   clips: Record<string, AnimClip>;
   /** Costumes. `default` is required; the rest are alternates for other ports. */
   palettes: { default: Palette } & Record<string, Palette>;

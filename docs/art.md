@@ -1,4 +1,4 @@
-# Art pipeline
+# Art: drawing and animating fighters
 
 Fighters are drawn the way the original Coolmath Flash games drew them: vector symbols (filled SVG paths with
 a hand-inked outline) placed on a skeleton and tweened between keyframes. The data is plain TypeScript, so the
