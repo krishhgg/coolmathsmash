@@ -33,11 +33,25 @@ export const SPIN_SPEED: [number, number] = [1.8, 3.2];
  * inclusive, faf is the first actionable frame, and move names double as animation clip names.
  */
 export const moves: Record<string, MoveDef> = {
-  /** Snail Punches, first hit: a little jab. */
+  /** Snail Punches, first hit: a little jab. Attack again chains into the second punch. */
   jab: {
     kind: 'other',
     faf: 20,
+    next: { window: [7, 19], move: 'jab2' },
     hits: [{ frames: [4, 5], boxes: [box(0, 9, 6, 3.5, { damage: 2, angle: 361, kbg: 30, bkb: 18 })] }],
+  },
+  /** Snail Punches, second hit: the other fist. */
+  jab2: {
+    kind: 'other',
+    faf: 21,
+    next: { window: [6, 20], move: 'jab3' },
+    hits: [{ frames: [3, 4], boxes: [box(0, 9.5, 6, 3.5, { damage: 2, angle: 361, kbg: 30, bkb: 18 })] }],
+  },
+  /** Snail Punches, finisher: shoves forward with the shell. */
+  jab3: {
+    kind: 'other',
+    faf: 34,
+    hits: [{ frames: [5, 6], boxes: [box(0, 9, 6, 4.5, { damage: 3.5, angle: 361, kbg: 120, bkb: 35 })] }],
   },
   /** Shell Bump: turns and bumps with the shell. */
   ftilt: {

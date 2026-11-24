@@ -33,6 +33,7 @@ export const moves: Record<string, MoveDef> = {
   jab: {
     kind: 'other',
     faf: 20,
+    next: { window: [6, 19], move: 'jab2' },
     hits: [
       {
         frames: [4, 5],
@@ -47,6 +48,7 @@ export const moves: Record<string, MoveDef> = {
   jab2: {
     kind: 'other',
     faf: 21,
+    next: { window: [6, 20], move: 'jab3' },
     hits: [
       {
         frames: [4, 5],
@@ -79,8 +81,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [7, 9],
         boxes: [
-          box(0, 15, 7.5, 4, { damage: 9, angle: 361, kbg: 112, bkb: 10 }),
-          box(1, 9, 7.5, 3.5, { damage: 8, angle: 361, kbg: 112, bkb: 8 }),
+          box(0, 15, 7.5, 4, { damage: 9, angle: 361, kbg: 98, bkb: 10 }),
+          box(1, 9, 7.5, 3.5, { damage: 8, angle: 361, kbg: 98, bkb: 8 }),
         ],
       },
     ],
@@ -133,8 +135,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [8, 11],
         boxes: [
-          box(0, 12, 6, 4.5, { damage: 10, angle: 50, kbg: 78, bkb: 62 }),
-          box(1, 5, 6, 4, { damage: 10, angle: 50, kbg: 78, bkb: 62 }),
+          box(0, 12, 6, 4.5, { damage: 10, angle: 50, kbg: 75, bkb: 62 }),
+          box(1, 5, 6, 4, { damage: 10, angle: 50, kbg: 75, bkb: 62 }),
         ],
       },
       {
@@ -155,8 +157,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [15, 17],
         boxes: [
-          box(0, 15.5, 8, 5, { damage: 17, angle: 361, kbg: 92, bkb: 30 }),
-          box(1, 8.5, 9, 3.5, { damage: 14, angle: 361, kbg: 92, bkb: 25 }),
+          box(0, 15.5, 8, 5, { damage: 17, angle: 361, kbg: 99, bkb: 30 }),
+          box(1, 8.5, 9, 3.5, { damage: 14, angle: 361, kbg: 99, bkb: 25 }),
         ],
       },
     ],
@@ -170,8 +172,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [11, 14],
         boxes: [
-          box(0, 2, 18, 6, { damage: 15, angle: 88, kbg: 88, bkb: 33, direction: away }),
-          box(1, 8, 10, 4.5, { damage: 15, angle: 88, kbg: 88, bkb: 33, direction: away }),
+          box(0, 2, 18, 6, { damage: 15, angle: 88, kbg: 96, bkb: 33, direction: away }),
+          box(1, 8, 10, 4.5, { damage: 15, angle: 88, kbg: 96, bkb: 33, direction: away }),
         ],
       },
     ],
@@ -279,8 +281,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [7, 9],
         boxes: [
-          box(0, -12.5, 8, 4.5, { damage: 11, angle: 361, kbg: 110, bkb: 14, direction: 'back' }),
-          box(1, -6.5, 8, 3.5, { damage: 9, angle: 361, kbg: 110, bkb: 10, direction: 'back' }),
+          box(0, -12.5, 8, 4.5, { damage: 11, angle: 361, kbg: 100, bkb: 14, direction: 'back' }),
+          box(1, -6.5, 8, 3.5, { damage: 9, angle: 361, kbg: 100, bkb: 10, direction: 'back' }),
         ],
       },
     ],
@@ -341,14 +343,14 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 30,
     hits: [],
-    throw: { frame: 13, hit: { damage: 9, angle: 40, kbg: 56, bkb: 60 } },
+    throw: { frame: 13, hit: { damage: 9, angle: 40, kbg: 70, bkb: 60 } },
   },
   /** Brick Oven: turns and shoves the opponent into an oven door behind him; his kill throw near the ledge. */
   bthrow: {
     kind: 'other',
     faf: 52,
     hits: [],
-    throw: { frame: 30, hit: { damage: 11, angle: 45, kbg: 68, bkb: 55, effect: fire, direction: 'back' } },
+    throw: { frame: 30, hit: { damage: 11, angle: 45, kbg: 78, bkb: 55, effect: fire, direction: 'back' } },
   },
   /** Dough Spin: spins the opponent overhead like pizza dough and tosses them up; a combo throw at low %. */
   uthrow: {

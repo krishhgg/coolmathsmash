@@ -34,8 +34,8 @@ const TUMBLE_CARRY = [
 /**
  * Bloxorz block's normals: every attack is a tip, a slam or a stand-up of a 12 x 24 block, so hitboxes are big
  * and start late (Ganondorf and King Dedede timings). Damage and first active frames are the roster sheet's;
- * the knockback numbers are tuned so each kill move KOs Mario from the Battlefield ledge at the sheet's %
- * (bloxorz.test.ts). Frame windows are inclusive, faf is the first actionable frame.
+ * knockback follows Ultimate's conventions for moves like these (CREW.md "Knockback values": no retuning to
+ * force the sheet's kill %, until COOL-3's engine calibration lands). Frame windows are inclusive, faf is the first actionable frame.
  */
 export const moves: Record<string, MoveDef> = {
   /** Edge Rock: rocks forward onto its front edge and back. */
@@ -74,8 +74,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [12, 14],
         boxes: [
-          box(0, 24, 6, 6, { damage: 11, angle: 40, kbg: 69, bkb: 38 }),
-          box(1, 14, 9, 6, { damage: 11, angle: 40, kbg: 69, bkb: 38 }),
+          box(0, 24, 6, 6, { damage: 11, angle: 40, kbg: 98, bkb: 38 }),
+          box(1, 14, 9, 6, { damage: 11, angle: 40, kbg: 98, bkb: 38 }),
         ],
       },
     ],
@@ -88,8 +88,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [9, 12],
         boxes: [
-          box(0, 2, 27, 7, { damage: 9, angle: 88, kbg: 93, bkb: 42, direction: 'away' }),
-          box(1, 9, 17, 6, { damage: 9, angle: 80, kbg: 93, bkb: 42 }),
+          box(0, 2, 27, 7, { damage: 9, angle: 88, kbg: 105, bkb: 42, direction: 'away' }),
+          box(1, 9, 17, 6, { damage: 9, angle: 80, kbg: 105, bkb: 42 }),
         ],
       },
     ],
@@ -145,8 +145,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [20, 22],
         boxes: [
-          box(0, 24, 6, 7, { damage: 20, angle: 361, kbg: 65, bkb: 36 }),
-          box(1, 12, 9, 7, { damage: 18, angle: 361, kbg: 65, bkb: 32 }),
+          box(0, 24, 6, 7, { damage: 20, angle: 361, kbg: 94, bkb: 36 }),
+          box(1, 12, 9, 7, { damage: 18, angle: 361, kbg: 94, bkb: 32 }),
         ],
       },
     ],
@@ -160,9 +160,9 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [14, 17],
         boxes: [
-          box(0, 0, 30, 8, { damage: 17, angle: 90, kbg: 98, bkb: 36, direction: 'away' }),
-          box(1, 7, 18, 7, { damage: 15, angle: 85, kbg: 98, bkb: 34, direction: 'away' }),
-          box(2, 9, 5, 6, { damage: 12, angle: 80, kbg: 96, bkb: 30 }),
+          box(0, 0, 30, 8, { damage: 17, angle: 90, kbg: 92, bkb: 36, direction: 'away' }),
+          box(1, 7, 18, 7, { damage: 15, angle: 85, kbg: 92, bkb: 34, direction: 'away' }),
+          box(2, 9, 5, 6, { damage: 12, angle: 80, kbg: 90, bkb: 30 }),
         ],
       },
     ],
@@ -176,15 +176,15 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [13, 15],
         boxes: [
-          box(0, 13, 4, 7, { damage: 15, angle: 30, kbg: 62, bkb: 34 }),
-          box(1, -13, 4, 7, { damage: 15, angle: 30, kbg: 62, bkb: 34, direction: 'back' }),
+          box(0, 13, 4, 7, { damage: 15, angle: 30, kbg: 92, bkb: 34 }),
+          box(1, -13, 4, 7, { damage: 15, angle: 30, kbg: 92, bkb: 34, direction: 'back' }),
         ],
       },
       {
         frames: [16, 19],
         boxes: [
-          box(0, 26, 2.5, 5, { damage: 10, angle: 35, kbg: 58, bkb: 35 }),
-          box(1, -26, 2.5, 5, { damage: 10, angle: 35, kbg: 58, bkb: 35, direction: 'back' }),
+          box(0, 26, 2.5, 5, { damage: 10, angle: 35, kbg: 85, bkb: 35 }),
+          box(1, -26, 2.5, 5, { damage: 10, angle: 35, kbg: 85, bkb: 35, direction: 'back' }),
         ],
       },
     ],
@@ -214,11 +214,11 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [8, 12],
-        boxes: [box(0, 0, 12, 13, { damage: 10, angle: 361, kbg: 80, bkb: 20, direction: 'away' })],
+        boxes: [box(0, 0, 12, 13, { damage: 10, angle: 361, kbg: 100, bkb: 20, direction: 'away' })],
       },
       {
         frames: [13, 22],
-        boxes: [box(0, 0, 12, 12, { damage: 7, angle: 361, kbg: 80, bkb: 10, direction: 'away' })],
+        boxes: [box(0, 0, 12, 12, { damage: 7, angle: 361, kbg: 100, bkb: 10, direction: 'away' })],
       },
     ],
   },
@@ -235,8 +235,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [11, 13],
         boxes: [
-          box(0, 16, 10, 7, { damage: 12, angle: 361, kbg: 73, bkb: 30 }),
-          box(1, 8, 17, 6, { damage: 12, angle: 361, kbg: 73, bkb: 30 }),
+          box(0, 16, 10, 7, { damage: 12, angle: 361, kbg: 96, bkb: 30 }),
+          box(1, 8, 17, 6, { damage: 12, angle: 361, kbg: 96, bkb: 30 }),
         ],
       },
     ],
@@ -254,8 +254,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [10, 12],
         boxes: [
-          box(0, -16, 10, 7, { damage: 13, angle: 361, kbg: 66, bkb: 30, direction: 'back' }),
-          box(1, -8, 16, 6, { damage: 13, angle: 361, kbg: 66, bkb: 30, direction: 'back' }),
+          box(0, -16, 10, 7, { damage: 13, angle: 361, kbg: 98, bkb: 30, direction: 'back' }),
+          box(1, -8, 16, 6, { damage: 13, angle: 361, kbg: 98, bkb: 30, direction: 'back' }),
         ],
       },
     ],
@@ -272,7 +272,7 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [9, 12],
-        boxes: [box(0, 0, 30, 8, { damage: 11, angle: 80, kbg: 97, bkb: 32, direction: 'away' })],
+        boxes: [box(0, 0, 30, 8, { damage: 11, angle: 80, kbg: 100, bkb: 32, direction: 'away' })],
       },
     ],
   },
@@ -308,21 +308,21 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 36,
     hits: [],
-    throw: { frame: 16, hit: { damage: 9, angle: 40, kbg: 48, bkb: 62 } },
+    throw: { frame: 16, hit: { damage: 9, angle: 40, kbg: 60, bkb: 62 } },
   },
   /** Flip Over: flips end over end over them and flings them behind. Its kill throw. */
   bthrow: {
     kind: 'other',
     faf: 52,
     hits: [],
-    throw: { frame: 30, hit: { damage: 11, angle: 42, kbg: 55, bkb: 60, direction: 'back' } },
+    throw: { frame: 30, hit: { damage: 11, angle: 42, kbg: 70, bkb: 60, direction: 'back' } },
   },
   /** Stand Launch: stands up under them and pops them straight up. */
   uthrow: {
     kind: 'other',
     faf: 44,
     hits: [],
-    throw: { frame: 20, hit: { damage: 10, angle: 90, kbg: 68, bkb: 65 } },
+    throw: { frame: 20, hit: { damage: 10, angle: 90, kbg: 75, bkb: 65 } },
   },
   /** Crush: drops its full weight on them; low knockback for follow-ups. */
   dthrow: {

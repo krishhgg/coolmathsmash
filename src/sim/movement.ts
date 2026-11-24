@@ -11,7 +11,7 @@ import { getFighter } from '../fighters/registry';
 import type { Ctx, FighterState, GroundRef } from './fighter';
 import { emit } from './events';
 import type { MatchState } from './match';
-import { edgeMaxX, edgeMinX, floorY, type CompiledStage, type Edge } from './stage';
+import { edgeMaxX, edgeMinX, floorY, ledgePresent, type CompiledStage, type Edge } from './stage';
 import { approach } from './vec';
 import { LAUNCH_DECAY, speedUp } from './combat/formulas';
 import { ACTIONS, enterAction } from './actions/registry';
@@ -35,7 +35,7 @@ export function surfaceY(stage: CompiledStage, g: GroundRef, x: number): number 
   return g.kind === 'platform' ? stage.geo.platforms[g.index]!.y : floorY(stage.edges[g.index]!, x);
 }
 
-function surfaceRange(stage: CompiledStage, g: GroundRef): [number, number] {
+export function surfaceRange(stage: CompiledStage, g: GroundRef): [number, number] {
   if (g.kind === 'platform') {
     const p = stage.geo.platforms[g.index]!;
     return [p.x1, p.x2];
@@ -158,7 +158,7 @@ export function normalLandingLag(x: Ctx): number {
   return x.f.airFrames < HARD_LANDING_AIRTIME ? x.s.softLandingLag : x.s.hardLandingLag;
 }
 
-function crossing(prev: number, next: number): boolean {
+export function crossing(prev: number, next: number): boolean {
   return prev >= -EPS && next < 0;
 }
 
@@ -231,7 +231,7 @@ function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
   const { f, stage } = x;
   const movingDown = f.vel.y + f.kb.y <= 0;
   for (const e of stage.edges) {
-    if (e.kind !== 'floor' || !movingDown) continue;
+    if (e.kind !== 'floor' || !movingDown || !stage.present.solids[e.solid]) continue;
     if (f.pos.x < edgeMinX(e) - EPS || f.pos.x > edgeMaxX(e) + EPS) continue;
     const yNow = floorY(e, f.pos.x);
     const yPrev = floorY(e, Math.min(Math.max(prev.x, edgeMinX(e)), edgeMaxX(e)));
@@ -241,6 +241,7 @@ function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
     const passing = stickY(x.c) <= -DOWN_FLICK_THRESHOLD;
     for (let i = 0; i < stage.geo.platforms.length; i++) {
       const p = stage.geo.platforms[i]!;
+      if (!stage.present.platforms[i]) continue;
       if (i === x.f.dropPlatform) {
         if (f.pos.y < p.y - 1) f.dropPlatform = -1;
         continue;
@@ -251,18 +252,19 @@ function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
   }
   const box = ecb(f, x);
   for (const e of stage.edges) {
-    if (e.kind === 'floor') continue;
+    if (e.kind === 'floor' || !stage.present.solids[e.solid]) continue;
     pushOut(f, prev, e, box);
   }
   return null;
 }
 
-function pushOut(
+/** Push the ECB back out through edge `e` if it crossed it since `prev`, removing velocity into it. True if it did. */
+export function pushOut(
   f: FighterState,
   prev: { x: number; y: number },
   e: Edge,
   box: { x: number; y: number }[],
-): void {
+): boolean {
   let support = box[0]!;
   let best = Infinity;
   for (const v of box) {
@@ -276,11 +278,11 @@ function pushOut(
   const py = f.pos.y + support.y;
   const dNow = (px - e.a.x) * e.n.x + (py - e.a.y) * e.n.y;
   const dPrev = (prev.x + support.x - e.a.x) * e.n.x + (prev.y + support.y - e.a.y) * e.n.y;
-  if (!crossing(dPrev, dNow)) return;
+  if (!crossing(dPrev, dNow)) return false;
   const ex = e.b.x - e.a.x;
   const ey = e.b.y - e.a.y;
   const t = ((px - e.a.x) * ex + (py - e.a.y) * ey) / (ex * ex + ey * ey);
-  if (t < -0.05 || t > 1.05) return;
+  if (t < -0.05 || t > 1.05) return false;
   f.pos.x += e.n.x * (-dNow + EPS);
   f.pos.y += e.n.y * (-dNow + EPS);
   const into = (v: { x: number; y: number }) => {
@@ -292,6 +294,7 @@ function pushOut(
   };
   into(f.vel);
   into(f.kb);
+  return true;
 }
 
 /** Hands-near-ledge check while airborne and falling (or in an action that may grab while rising). */
@@ -306,7 +309,7 @@ export function tryLedgeGrab(x: Ctx): void {
   const reach = s.width / 2 + 4;
   for (let i = 0; i < stage.geo.ledges.length; i++) {
     const L = stage.geo.ledges[i]!;
-    if ((f.pos.x - L.x) * L.side < -1) continue;
+    if (!ledgePresent(stage, i) || (f.pos.x - L.x) * L.side < -1) continue;
     const rx = (L.x - f.pos.x) * f.facing;
     const ry = L.y - f.pos.y;
     const frontReach = rx >= 0 ? reach : reach * 0.6;
@@ -358,7 +361,8 @@ export function hangAt(x: Ctx): void {
 export function floorAt(stage: CompiledStage, px: number, py: number): GroundRef | null {
   for (let i = 0; i < stage.edges.length; i++) {
     const e = stage.edges[i]!;
-    if (e.kind !== 'floor' || px < edgeMinX(e) || px > edgeMaxX(e)) continue;
+    if (e.kind !== 'floor' || !stage.present.solids[e.solid] || px < edgeMinX(e) || px > edgeMaxX(e))
+      continue;
     if (Math.abs(floorY(e, px) - py) < 1) return { kind: 'solid', index: i };
   }
   return null;

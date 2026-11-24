@@ -23,6 +23,8 @@ flowchart LR
 - Inputs are `InputFrame`s: integer sticks in [-100, 100] (y up) and a button bitmask. The sim turns them into
   press edges, a 7-frame input buffer with Ultimate's hold buffer, and flick timing (dash, smash attacks, tap
   jump, fast fall, platform drop) in `src/sim/control.ts`.
+- Stages can move: `MatchState.stage` holds where each solid and platform is on the current frame, a pure
+  function of the frame, and every fighter's `Ctx.stage` is the stage as it stands then (`docs/stage-geometry.md`).
 
 ## Loop (`src/engine/loop.ts`)
 

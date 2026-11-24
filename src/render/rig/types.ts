@@ -129,6 +129,12 @@ export interface AnimClip {
   keys: Key[];
   /** Swaps that apply to the whole clip (keys can override them). */
   swaps?: Record<string, string | null>;
+  /**
+   * Move clips: the frames (inclusive, in clip frames) on which the strike is keyed, one window per hit window of
+   * the move. The renderer stretches the clip so these land on the move's real hit windows and the clip ends at
+   * its FAF (`src/render/rig/timing.ts`), so frame data can change without re-keying the art.
+   */
+  active?: [number, number][];
 }
 
 /** Palette key -> '#rrggbb'. */
