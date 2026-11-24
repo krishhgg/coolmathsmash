@@ -110,6 +110,9 @@ fsmash: {
 The combat math (knockback, hitlag, hitstun, DI, shieldstun, staleness) is shared and lives in
 `src/sim/combat/`; a fighter only supplies numbers.
 
+Every move start, hit and landing is reported as a sim event (`docs/sim-events.md`). Audio and effects key off
+move names, so keep them to the canonical names above.
+
 ### Tuning tools
 
 - `?hitboxes` on the game URL (or **F4**) draws hurtboxes in yellow and active hitboxes in red; `?actions` (F3)

@@ -9,6 +9,7 @@ import {
 import { stickY } from './control';
 import { getFighter } from '../fighters/registry';
 import type { Ctx, FighterState, GroundRef } from './fighter';
+import { emit } from './events';
 import type { MatchState } from './match';
 import { edgeMaxX, edgeMinX, floorY, type CompiledStage, type Edge } from './stage';
 import { approach } from './vec';
@@ -120,6 +121,7 @@ export function land(x: Ctx, g: GroundRef): void {
   }
   f.vel.y = 0;
   f.kb.y = 0;
+  emit(x.m, { type: 'land', port: f.port, lag: f.action === 'land' ? f.landingLag : 0 });
 }
 
 /**
