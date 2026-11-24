@@ -90,7 +90,7 @@ export const LOCOMOTION: Record<string, AnimClip> = {
   },
   runBrake: {
     length: 14,
-    swaps: { ...SHOCK, mouth: null, ...DUST },
+    swaps: { ...SHOCK, mouth: null },
     keys: [
       key(
         0,
@@ -104,15 +104,9 @@ export const LOCOMOTION: Record<string, AnimClip> = {
           look: [0.5, 0],
           fx3: at(4.2, 0, 0.55),
         }),
-        { ease: 'out' },
+        { ease: 'out', swaps: DUST },
       ),
-      key(
-        7,
-        ball({ x: 0.3, y: -0.2, sx: 1.06, sy: 0.95, tilt: -7, face: { x: 0.5 }, fx3: at(5.2, 0, 0.9) }),
-        {
-          swaps: { ...DUST },
-        },
-      ),
+      key(7, ball({ x: 0.3, y: -0.2, sx: 1.06, sy: 0.95, tilt: -7, face: { x: 0.5 }, fx3: at(5.2, 0, 0.9) })),
       key(11, ball({ sx: 0.98, sy: 1.03, tilt: 2, fx3: at(5.8, 0, 0.2) }), { swaps: {} }),
       key(14, ball(STAND)),
     ],
