@@ -49,4 +49,11 @@ describe('koPercent reproduces Ultimate kill percents (Mario on Mario, Battlefie
     expect(kos({ hit }, p - 0.1)).toBe(false);
     expect(koPercent({ hit: { fighter: 'reference-mario', move: 'probe' } })).toBe(p);
   });
+
+  it("a move's hit windows land once: a long nair through the fighter path matches its box passed raw", () => {
+    const nair = { damage: 8, angle: 361, kbg: 100, bkb: 10 };
+    expect(koPercent({ hit: { fighter: 'reference-mario', move: 'nair' }, air: true })).toBe(
+      koPercent({ hit: nair, air: true }),
+    );
+  });
 });

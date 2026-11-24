@@ -83,6 +83,7 @@ function kosWith(setup: KoSetup, move: string, attacker: string, hit: KoHit, per
   });
   if (setup.air) Object.assign(v, { ground: null, action: 'fall', actionFrame: 1 });
   applyHit(m, a, v, { id: 0, x: 0, y: 0, radius: 0, hitlag: 1, ...hit });
+  a.move = null;
   const stick: InputFrame = { ...neutralInput(), ...setup.di };
   for (let i = 0; i < 600; i++) {
     if (v.hitlag <= 0 && v.launch === null && v.hitstun <= 0) return false;
