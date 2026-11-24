@@ -4,6 +4,7 @@ import { getFighter } from '../fighters/registry';
 import type { MatchState } from '../sim/match';
 import { getStage } from '../stages/registry';
 import type { StageGeometry } from '../sim/stage';
+import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView } from './fighterView';
@@ -12,24 +13,27 @@ export interface Overlays {
   inputs: boolean;
   /** Action names over fighters. */
   actions: boolean;
+  /** Hurtboxes (yellow) and active hitboxes (red). */
+  hitboxes: boolean;
 }
 
 export class Renderer {
   readonly world = new Container();
   readonly hud = new Container();
   readonly debug = new Container();
-  readonly overlays: Overlays = { inputs: false, actions: false };
+  readonly overlays: Overlays = { inputs: false, actions: false, hitboxes: false };
   readonly camera = new Camera();
   private readonly inputDisplay = new InputDisplay();
   private readonly stageLayer = new Container();
   private readonly fighterLayer = new Container();
+  private readonly boxes = new Graphics();
   private fighters: FighterView[] = [];
   private stageId = '';
   private stage: StageGeometry | null = null;
   private matchKey: unknown = null;
 
   private constructor(readonly app: Application) {
-    this.world.addChild(this.stageLayer, this.fighterLayer);
+    this.world.addChild(this.stageLayer, this.fighterLayer, this.boxes);
     app.stage.addChild(this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container);
   }
@@ -76,9 +80,27 @@ export class Renderer {
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
+    this.drawBoxes(state);
     this.inputDisplay.container.visible = this.overlays.inputs;
     if (this.overlays.inputs) this.inputDisplay.update(state.players);
     this.app.render();
+  }
+
+  /** Hitbox overlay, in world units (y down inside the world container). */
+  private drawBoxes(state: MatchState): void {
+    const g = this.boxes;
+    g.clear();
+    if (!this.overlays.hitboxes) return;
+    for (const f of state.fighters) {
+      if (f.action === 'ko' || f.action === 'out') continue;
+      const h = hurtbox(f, getFighter(f.fighter).stats);
+      g.roundRect(h.x - h.r, -h.y2 - h.r, h.r * 2, h.y2 - h.y1 + h.r * 2, h.r).fill({
+        color: '#ffe14a',
+        alpha: 0.35,
+      });
+      for (const b of activeHitboxes(f))
+        g.circle(b.x, -b.y, b.box.radius).fill({ color: '#ff2a2a', alpha: 0.55 });
+    }
   }
 }
 

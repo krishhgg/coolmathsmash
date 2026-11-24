@@ -7,6 +7,7 @@ import {
 } from '../constants';
 import { buffered, consume, flickDown, stickX, stickY } from '../control';
 import type { Ctx } from '../fighter';
+import { airAttack } from './attack';
 import { consumeJump, wantsJump } from './common';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
 
@@ -18,9 +19,10 @@ export function fastFallCheck(x: Ctx): void {
   }
 }
 
-/** Options every actionable airborne state shares. Aerials and specials are added by the combat layer. */
+/** Options every actionable airborne state shares. An attack wins over a tap jump flicked with it (up + A is uair). */
 export function airActionable(x: Ctx): boolean {
   const { f, s, c } = x;
+  if (airAttack(x)) return true;
   if (f.jumpsUsed < s.jumps && wantsJump(x)) {
     consumeJump(x);
     setAction(x, 'doubleJump');

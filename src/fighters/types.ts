@@ -4,6 +4,8 @@
  * (game units, units/frame, frames at 60 Hz) so reference data can be used as-is. See docs/fighters.md.
  */
 
+import type { Ctx } from '../sim/fighter';
+
 export interface FighterStats {
   /** Ultimate weight (Mario 98). Heavier fighters take less knockback. */
   weight: number;
@@ -92,6 +94,19 @@ export interface MoveDef {
   /** Aerials: landing lag, and frames on which landing cancels the move with only normal landing lag. */
   landingLag?: number;
   autoCancel?: [number, number][];
+  /** Smash attacks: holding the input pauses the move on this frame for up to 60 frames, for up to 1.4x damage. */
+  charge?: number;
+  /** Specials that take off (recoveries): a grounded start leaves the ground and plays as an aerial. */
+  leavesGround?: boolean;
+  /** Recoveries: the move ends in helpless fall instead of a normal fall. */
+  helpless?: boolean;
+  /** Airborne moves that may grab a ledge from this frame. */
+  ledgeFrom?: number;
+  /**
+   * Scripted behaviour (specials): runs every frame of the move before physics, after actionFrame advances.
+   * It may set velocity or facing. Keep it deterministic: no Math.random, no clocks.
+   */
+  script?: (x: Ctx) => void;
 }
 
 export interface FighterDef {

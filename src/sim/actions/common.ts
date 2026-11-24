@@ -13,6 +13,7 @@ import {
 } from '../control';
 import type { Ctx } from '../fighter';
 import { leaveGround } from '../movement';
+import { groundAttack } from './attack';
 import { setAction } from './registry';
 
 export function wantsJump(x: Ctx): boolean {
@@ -44,7 +45,7 @@ export function dropThroughPlatform(x: Ctx): void {
 
 /**
  * Options every actionable grounded state shares, in Smash's priority order. Returns true when it switched
- * action. Attacks, specials and grabs are added here by the combat layer.
+ * action.
  */
 export function groundActionable(x: Ctx): boolean {
   const { f, c } = x;
@@ -53,6 +54,7 @@ export function groundActionable(x: Ctx): boolean {
     setAction(x, 'jumpSquat');
     return true;
   }
+  if (groundAttack(x)) return true;
   if (buffered(c, Btn.Shield) || isHeld(c, Btn.Shield)) {
     consume(c, Btn.Shield);
     setAction(x, 'shield');

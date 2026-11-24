@@ -1,0 +1,228 @@
+import type { HitboxDef, MoveDef } from '../types';
+import { stickX } from '../../sim/control';
+
+/** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
+const box = (
+  id: number,
+  x: number,
+  y: number,
+  radius: number,
+  hit: Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius'>,
+) => ({
+  id,
+  x,
+  y,
+  radius,
+  ...hit,
+});
+
+const fire = 'fire' as const;
+
+/**
+ * Fireboy's moves, built on Ultimate middleweight frame data (Mario-like timings) with fire on his heavy hits.
+ * Frame windows are inclusive, faf is the first actionable frame. Move names double as animation clip names.
+ */
+export const moves: Record<string, MoveDef> = {
+  /** Quick flame jab. */
+  jab: {
+    kind: 'other',
+    faf: 19,
+    hits: [{ frames: [3, 4], boxes: [box(0, 6.5, 9, 3.5, { damage: 3, angle: 361, kbg: 50, bkb: 25 })] }],
+  },
+  /** Fiery kick at mid height. */
+  ftilt: {
+    kind: 'other',
+    faf: 28,
+    hits: [{ frames: [5, 7], boxes: [box(0, 9, 7, 4, { damage: 8, angle: 361, kbg: 100, bkb: 8 })] }],
+  },
+  /** Overhead flame swipe; launches up for juggles. */
+  utilt: {
+    kind: 'other',
+    faf: 31,
+    hits: [{ frames: [5, 11], boxes: [box(0, 2, 16, 5, { damage: 5.5, angle: 96, kbg: 130, bkb: 22 })] }],
+  },
+  /** Low sweep that pops opponents up. */
+  dtilt: {
+    kind: 'other',
+    faf: 21,
+    hits: [{ frames: [5, 7], boxes: [box(0, 8.5, 2, 4, { damage: 6, angle: 80, kbg: 45, bkb: 50 })] }],
+  },
+  /** Flaming shoulder charge; weaker late. */
+  dashAttack: {
+    kind: 'other',
+    faf: 39,
+    hits: [
+      { frames: [6, 10], boxes: [box(0, 6, 7, 5, { damage: 8, angle: 70, kbg: 90, bkb: 60, effect: fire })] },
+      {
+        frames: [11, 25],
+        boxes: [box(0, 6, 7, 4.5, { damage: 5, angle: 70, kbg: 90, bkb: 40, effect: fire })],
+      },
+    ],
+  },
+  /** Forward fire burst: Fireboy's main kill move. Charges on frame 12. */
+  fsmash: {
+    kind: 'smash',
+    faf: 50,
+    charge: 12,
+    hits: [
+      {
+        frames: [15, 17],
+        boxes: [
+          box(0, 12, 8.5, 5.5, { damage: 17.8, angle: 361, kbg: 102, bkb: 30, effect: fire }),
+          box(1, 6, 8.5, 3.5, { damage: 14.7, angle: 361, kbg: 102, bkb: 25, effect: fire }),
+        ],
+      },
+    ],
+  },
+  /** Flame pillar overhead. */
+  usmash: {
+    kind: 'smash',
+    faf: 40,
+    charge: 6,
+    hits: [
+      {
+        frames: [9, 12],
+        boxes: [box(0, 1, 15, 6, { damage: 14, angle: 85, kbg: 97, bkb: 32, effect: fire })],
+      },
+    ],
+  },
+  /** Flames along the ground on both sides: front first, then back. */
+  dsmash: {
+    kind: 'smash',
+    faf: 49,
+    charge: 3,
+    hits: [
+      {
+        frames: [5, 6],
+        boxes: [box(0, 8, 2, 4.5, { damage: 10, angle: 25, kbg: 100, bkb: 20, effect: fire })],
+      },
+      {
+        frames: [14, 15],
+        boxes: [box(0, -8, 2, 4.5, { damage: 12, angle: 25, kbg: 100, bkb: 20, effect: fire })],
+      },
+    ],
+  },
+  /** Spinning ember: strong early, weaker lingering hit. */
+  nair: {
+    kind: 'aerial',
+    faf: 45,
+    landingLag: 6,
+    autoCancel: [
+      [1, 2],
+      [39, 45],
+    ],
+    hits: [
+      { frames: [3, 6], boxes: [box(0, 0, 7.5, 6.5, { damage: 8, angle: 361, kbg: 100, bkb: 10 })] },
+      { frames: [7, 30], boxes: [box(0, 0, 7.5, 6, { damage: 5, angle: 361, kbg: 100, bkb: 10 })] },
+    ],
+  },
+  /** Slow downward fire punch that meteors at the fist. */
+  fair: {
+    kind: 'aerial',
+    faf: 59,
+    landingLag: 17,
+    autoCancel: [
+      [1, 2],
+      [49, 59],
+    ],
+    hits: [
+      {
+        frames: [16, 18],
+        boxes: [
+          box(0, 9, 6, 4, { damage: 14, angle: 290, kbg: 70, bkb: 20, effect: fire }),
+          box(1, 5, 9, 4, { damage: 12, angle: 361, kbg: 100, bkb: 10, effect: fire }),
+        ],
+      },
+    ],
+  },
+  /** Back kick. */
+  bair: {
+    kind: 'aerial',
+    faf: 33,
+    landingLag: 6,
+    autoCancel: [
+      [1, 5],
+      [20, 33],
+    ],
+    hits: [{ frames: [6, 8], boxes: [box(0, -8, 7, 4.5, { damage: 10.5, angle: 361, kbg: 100, bkb: 10 })] }],
+  },
+  /** Flame flip overhead. */
+  uair: {
+    kind: 'aerial',
+    faf: 30,
+    landingLag: 6,
+    autoCancel: [
+      [1, 3],
+      [17, 30],
+    ],
+    hits: [{ frames: [4, 8], boxes: [box(0, 0, 15, 5, { damage: 7, angle: 70, kbg: 120, bkb: 30 })] }],
+  },
+  /** Drilling fire feet: four quick hits that drag down, then a launcher. */
+  dair: {
+    kind: 'aerial',
+    faf: 37,
+    landingLag: 15,
+    autoCancel: [
+      [1, 4],
+      [32, 37],
+    ],
+    hits: [
+      {
+        frames: [5, 6],
+        rehit: true,
+        boxes: [box(0, 1, 1, 5, { damage: 1.4, angle: 280, kbg: 100, bkb: 0, wbkb: 20 })],
+      },
+      {
+        frames: [8, 9],
+        rehit: true,
+        boxes: [box(0, 1, 1, 5, { damage: 1.4, angle: 280, kbg: 100, bkb: 0, wbkb: 20 })],
+      },
+      {
+        frames: [11, 12],
+        rehit: true,
+        boxes: [box(0, 1, 1, 5, { damage: 1.4, angle: 280, kbg: 100, bkb: 0, wbkb: 20 })],
+      },
+      {
+        frames: [14, 15],
+        rehit: true,
+        boxes: [box(0, 1, 1, 5, { damage: 1.4, angle: 280, kbg: 100, bkb: 0, wbkb: 20 })],
+      },
+      {
+        frames: [17, 18],
+        rehit: true,
+        boxes: [box(0, 1, 2, 6, { damage: 5.5, angle: 361, kbg: 140, bkb: 30, effect: fire })],
+      },
+    ],
+  },
+  /**
+   * Flame Jump (up special): a rising column of fire, steerable with the stick. Leaves Fireboy helpless and can
+   * grab the ledge on the way up.
+   */
+  upB: {
+    kind: 'other',
+    faf: 42,
+    leavesGround: true,
+    helpless: true,
+    ledgeFrom: 12,
+    landingLag: 20,
+    hits: [
+      { frames: [4, 6], boxes: [box(0, 3, 8, 6, { damage: 7, angle: 80, kbg: 60, bkb: 60, effect: fire })] },
+      {
+        frames: [7, 20],
+        boxes: [box(0, 0, 9, 5.5, { damage: 3, angle: 80, kbg: 80, bkb: 30, effect: fire })],
+      },
+    ],
+    script(x) {
+      const { f, c } = x;
+      if (f.actionFrame < 4) {
+        f.vel.x *= 0.8;
+        f.vel.y = Math.max(f.vel.y, 0);
+        return;
+      }
+      if (f.actionFrame <= 24) {
+        f.vel.y = 3.4 - (f.actionFrame - 4) * 0.12;
+        f.vel.x = stickX(c) * 1.1;
+      }
+    },
+  },
+};
