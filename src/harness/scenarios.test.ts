@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { getFighter, registerFighter } from '../fighters/registry';
 import { createMatch } from '../sim/match';
 import {
   FIGHTER_STATES,
@@ -132,11 +131,8 @@ describe('fighter scenarios (src/fighters/<id>/scenarios.ts)', () => {
   });
 
   it('add the rig sheet once the fighter has art', () => {
-    registerFighter({ ...getFighter('redball'), id: 'redball-drawn', art: {} });
-    const sheet = fighterScenarios({ fighter: 'redball-drawn', refs: {} }).find(
-      (s) => s.name === 'redball-drawn-sheet',
-    );
-    expect(sheet?.page).toEqual({ kind: 'lab', scene: 'fighter', params: { fighter: 'redball-drawn' } });
+    const sheet = fighterScenarios({ fighter: 'fireboy', refs: {} }).find((s) => s.name === 'fireboy-sheet');
+    expect(sheet?.page).toEqual({ kind: 'lab', scene: 'fighter', params: { fighter: 'fireboy' } });
   });
 
   it('are discovered and appended after the shared states', () => {

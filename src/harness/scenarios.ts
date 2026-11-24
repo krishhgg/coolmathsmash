@@ -292,8 +292,12 @@ export function fighterScenarios(spec: FighterScenarios): Scenario[] {
     calls: [{ fn: 'sheet' }],
     refs: refs.sheet,
   };
-  return [...states, ...(getFighter(fighter).art ? [sheet] : []), ...(spec.extra ?? [])];
+  const drawn = `../fighters/${fighter}/art/index.ts` in FIGHTER_ART;
+  return [...states, ...(drawn ? [sheet] : []), ...(spec.extra ?? [])];
 }
+
+/** Fighters with rig art, which the lab's fighter scene can draw (not loaded here). */
+const FIGHTER_ART = import.meta.glob('../fighters/*/art/index.ts');
 
 const fighterSpecs = import.meta.glob<{ scenarios: FighterScenarios }>('../fighters/*/scenarios.ts', {
   eager: true,
