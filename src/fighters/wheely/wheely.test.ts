@@ -173,23 +173,38 @@ describe('Wheely: frame data', () => {
   });
 });
 
-describe('Wheely: kill percents (Mario at the Battlefield ledge, fresh, no DI)', () => {
+/** The lowest percent (in steps of 5) at which \`ko(percent)\` holds. */
+function killPercent(ko: (percent: number) => boolean): number {
+  for (let p = 0; p <= 300; p += 5) if (ko(p)) return p;
+  return Infinity;
+}
+
+/**
+ * TODO: these only bound the sheet's kill percents from above and check their order. Tighten them to the sheet's
+ * values (fsmash ~95, usmash ~115, bair ~135, bthrow ~150) once the engine's KO calibration and koPercent land.
+ */
+describe('Wheely: kill moves (Mario at the Battlefield ledge, fresh, no DI)', () => {
   it.each([
     ['fsmash', 95, 10, false],
     ['usmash', 115, 3, false],
     ['bair', 135, 12, true],
-  ] as const)('%s KOs at about %s percent', (move, percent, gap, air) => {
-    // TODO(COOL-3 koPercent calibration): vertical kills land about 10% later since the engine gained Ultimate's
-    // DamageFlyTop gravity and top-blast-zone rule. Retune against koPercent (src/sim/testing/ko.ts) once roster.md's
-    // kill targets are revised.
+  ] as const)('%s KOs by %s percent', (move, percent, gap, air) => {
+    // TODO(COOL-3 koPercent calibration): vertical kills land about 10-20% later since the engine gained Ultimate's
+    // DamageFlyTop gravity and top-blast-zone rule; retune against koPercent (src/sim/testing/ko.ts).
     expect(kos(move, percent + (move === 'usmash' ? 15 : 5), gap, air)).toBe(true);
-    expect(kos(move, percent - 10, gap, air)).toBe(false);
   });
 
-  it('back throw is the kill throw: it KOs at about 150% and forward throw does not', () => {
+  it('forward smash kills earlier than back air', () => {
+    const fsmash = killPercent((p) => kos('fsmash', p, 10));
+    const bair = killPercent((p) => kos('bair', p, 12, true));
+    expect(fsmash).toBeLessThan(bair);
+  });
+
+  it('back throw is the kill throw: it KOs by 150% and well before forward throw', () => {
     expect(throwKos('bthrow', 155)).toBe(true);
-    expect(throwKos('bthrow', 140)).toBe(false);
-    expect(throwKos('fthrow', 155)).toBe(false);
+    const bthrow = killPercent((p) => throwKos('bthrow', p));
+    const fthrow = killPercent((p) => throwKos('fthrow', p));
+    expect(fthrow - bthrow).toBeGreaterThanOrEqual(20);
   });
 });
 

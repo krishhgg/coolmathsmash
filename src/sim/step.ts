@@ -1,7 +1,7 @@
 import { getFighter } from '../fighters/registry';
 import { getStage } from '../stages/registry';
-import { ACTIONS } from './actions';
-import { runAction } from './actions/registry';
+import './actions';
+import { actionDef, runAction } from './actions/registry';
 import { applyLaunch } from './combat/hits';
 import {
   RESPAWN_DELAY,
@@ -54,7 +54,7 @@ export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): voi
   if (f.launch) applyLaunch(x);
   f.actionFrame++;
   runAction(x);
-  const physics = ACTIONS[f.action]!.physics;
+  const physics = actionDef(f).physics;
   if (physics === 'ground' && f.ground) groundMove(x);
   else if (physics === 'air' || (physics === 'ground' && !f.ground)) airMove(x);
 

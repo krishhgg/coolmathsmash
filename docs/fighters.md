@@ -105,6 +105,10 @@ fsmash: {
   applies when it lands out of the helpless fall.
 - **Auto-cancel.** Landing in an aerial's `autoCancel` window costs only normal landing lag.
 - **Intangibility.** `intangible: [from, to]` makes the fighter intangible on those frames of the move.
+- **Armor.** `armor: { frames: [from, to], threshold?, damageThreshold? }` armours the fighter on those frames of the
+  move, as in Ultimate: hits still add damage and hitlag, but they don't launch, cause hitstun or interrupt the move.
+  A hit breaks through when its knockback reaches `threshold` (threshold armor) or its damage reaches
+  `damageThreshold` (Kirby's Stone); with neither it is heavy armor. Grabs and throws ignore armor.
 - **Getup attack.** A move named `getupAttack` plays when a fighter lying down after a missed tech presses
   Attack. Give it `intangible: [1, 26]` (Ultimate's) and hits on both sides; without one, Attack just stands up.
 - **Specials.** `script(x)` runs every frame of the move before physics and sets velocity or facing. It must be
@@ -124,7 +128,39 @@ fsmash: {
   (`src/fighters/fireboy/swap.ts`) is the example. A form that is only reached by transforming sets
   `selectable: false` on its FighterDef, so menus list only the fighter that starts the match.
 
-The combat math (knockback, hitlag, hitstun, DI, shieldstun, staleness) is shared and lives in
+### Action overrides
+
+`actions` on a FighterDef replaces shared actions (`src/sim/actions/`) for that fighter only, by action name, or adds
+actions only that fighter enters. The engine looks every action up through `actionDef(f)`
+(`src/sim/actions/registry.ts`), so an override's `physics`, `friction`, `edge`, `drift`, `ledge`,
+`intangible` and `land` all apply. Bloxorz block's `walk`, `dash`, `run` and `crouch` tip the block end over end
+instead of sliding:
+
+```ts
+actions: {
+  walk: {
+    physics: 'ground',
+    edge: 'fall',
+    friction: false,
+    update(x) {
+      if (groundActionable(x)) return; // jump, attacks, shield, crouch: the shared options
+      // set x.f.vel.x yourself, setAction(x, 'idle') when the stick lets go
+    },
+  },
+},
+```
+
+Reuse the shared helpers (`groundActionable`, `startMovement`, `setAction`) so inputs keep Smash's priorities, keep
+the names canonical (audio, art and CPUs key off action names), and keep overrides deterministic, like move scripts.
+
+### Hurtbox shape
+
+The hurtbox is a capsule from `width` and `height`: upright (half the width thick, from the feet to the head) for
+most fighters, and lying (half the height thick, along the width) for a fighter wider than it is tall. Crouching
+lowers an upright body only. A form that
+changes shape mid-match (Bloxorz block standing up or lying down) is a separate FighterDef with its own size,
+reached by `transform`. `?hitboxes` draws either shape.
+
 `src/sim/combat/`; a fighter only supplies numbers.
 
 Every move start, hit and landing is reported as a sim event (`docs/sim-events.md`). Audio and effects key off

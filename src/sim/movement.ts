@@ -15,7 +15,7 @@ import type { MatchState } from './match';
 import { edgeMaxX, edgeMinX, floorY, ledgePresent, type CompiledStage, type Edge } from './stage';
 import { approach, type Vec } from './vec';
 import { DAMAGE_FLY_TOP_GRAVITY, LAUNCH_DECAY, speedUp, VERTICAL_LAUNCH_FALL_SPEED } from './combat/formulas';
-import { ACTIONS, enterAction } from './actions/registry';
+import { actionDef, enterAction } from './actions/registry';
 
 const EPS = 0.001;
 /** Movement is split into sub-steps no longer than this, so fast fighters never tunnel through thin geometry. */
@@ -60,7 +60,7 @@ function connectedFloor(stage: CompiledStage, g: GroundRef, x: number): GroundRe
 /** Ground physics: traction, then slide along the surface; walk off or stop at its end. */
 export function groundMove(x: Ctx): void {
   const { f, s, stage } = x;
-  const action = ACTIONS[f.action]!;
+  const action = actionDef(f);
   if (action.friction !== false) f.vel.x = approach(f.vel.x, 0, s.groundFriction);
   f.kb.x = approach(f.kb.x, 0, s.groundFriction);
   const g = f.ground!;
@@ -113,7 +113,7 @@ export function land(x: Ctx, g: GroundRef): void {
   f.ground = g;
   f.pos.y = surfaceY(stage, g, f.pos.x);
   restoreAirOptions(f);
-  const action = ACTIONS[f.action]!;
+  const action = actionDef(f);
   if (action.land) {
     action.land(x);
   } else {
@@ -213,7 +213,7 @@ function integrate(f: FighterState, s: FighterStats, vel: Vec, kb: Vec, gravity:
 /** Air physics: drift, sub-stepped movement with landing/wall/ceiling collision, gravity, ledge grabs. */
 export function airMove(x: Ctx): void {
   const { f, s } = x;
-  const action = ACTIONS[f.action]!;
+  const action = actionDef(f);
   f.airFrames++;
   const drift = typeof action.drift === 'function' ? action.drift(x) : (action.drift ?? true);
   if (drift) airDrift(x, drift === 'helpless' ? s.airSpeed * HELPLESS_AIR_SPEED : s.airSpeed);
@@ -327,7 +327,7 @@ export function pushOut(
 /** Hands-near-ledge check while airborne and falling (or in an action that may grab while rising). */
 export function tryLedgeGrab(x: Ctx): void {
   const { f, s, m, stage, c } = x;
-  const action = ACTIONS[f.action]!;
+  const action = actionDef(f);
   const rule = typeof action.ledge === 'function' ? action.ledge(x) : (action.ledge ?? false);
   const allowed = rule === true || (typeof rule === 'number' && f.actionFrame >= rule);
   if (!allowed || f.ledgeLock > 0 || f.ledgeGrabs >= LEDGE_MAX_GRABS) return;

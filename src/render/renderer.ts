@@ -8,7 +8,7 @@ import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
 import { InputDisplay } from './debug/inputDisplay';
-import { FighterView } from './fighterView';
+import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud } from './hud';
 import { drawMovingPieces, isMoving } from './stagePieces';
 
@@ -38,6 +38,8 @@ export class Renderer {
   private fighters: FighterView[] = [];
   /** Fighter id each view was built for; a transform swaps the view. */
   private fighterIds: string[] = [];
+  /** Palette per port, picked when the match starts; a transformed fighter keeps its port's costume name. */
+  private costumes: string[] = [];
   private stageId = '';
   private stage: StageGeometry | null = null;
   private matchKey: unknown = null;
@@ -76,10 +78,11 @@ export class Renderer {
       this.fighterLayer.removeChildren();
       this.fighters = [];
       this.fighterIds = [];
+      this.costumes = pickCostumes(state.config, (id) => fighterArt(getFighter(id)));
     }
     state.fighters.forEach((f, i) => {
       if (this.fighterIds[i] === f.fighter) return;
-      const view = new FighterView(getFighter(f.fighter), f.port);
+      const view = new FighterView(getFighter(f.fighter), f.port, this.costumes[f.port]);
       const old = this.fighters[i];
       if (old) this.fighterLayer.replaceChild(old.container, view.container);
       else this.fighterLayer.addChild(view.container);
@@ -128,7 +131,8 @@ export class Renderer {
     for (const f of state.fighters) {
       if (f.action === 'ko' || f.action === 'out') continue;
       const h = hurtbox(f, getFighter(f.fighter).stats);
-      g.roundRect(h.x - h.r, -h.y2 - h.r, h.r * 2, h.y2 - h.y1 + h.r * 2, h.r).fill({
+      const hw = h.hw ?? 0;
+      g.roundRect(h.x - hw - h.r, -h.y2 - h.r, (hw + h.r) * 2, h.y2 - h.y1 + h.r * 2, h.r).fill({
         color: '#ffe14a',
         alpha: 0.35,
       });
