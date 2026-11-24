@@ -51,8 +51,9 @@ const clampHeading = (deg: number) => Math.max(-30, Math.min(30, deg));
 /**
  * Rocket Ride (up special): lights the rocket and hangs for 11 frames, rides it from frame 12 along a heading the
  * stick steers within 30 degrees of vertical, and bursts on frame 49, leaving them helpless. The current heading
- * lives in the horizontal velocity (its sine times the rocket's speed), so the script keeps no state of its own and a
- * ceiling, which only strips the vertical part, leaves the heading and the steering intact.
+ * lives in the horizontal velocity (its sine times the rocket's speed), so the script keeps no state of its own. A
+ * flat ceiling strips only the vertical part, so the heading and the steering survive it; a sloped underside also
+ * bends the horizontal part, and the heading then turns back toward the stick at the usual rate.
  */
 function rocketRide(x: Ctx): void {
   const { f } = x;
