@@ -1,6 +1,10 @@
 import { Btn } from '../../input/types';
 import { startMove } from '../../sim/actions/attack';
+import { hitlagFrames } from '../../sim/combat/formulas';
+import { addDamage } from '../../sim/combat/hits';
 import { isHeld, stickDir, stickX } from '../../sim/control';
+import { emit } from '../../sim/events';
+import type { Ctx } from '../../sim/fighter';
 import type { HitboxDef, MoveDef } from '../types';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -21,6 +25,22 @@ const box = (
 /** A grab box: catches instead of hitting, so it carries no damage or knockback. */
 const grabBox = (id: number, x: number, y: number, radius: number) =>
   box(id, x, y, radius, { damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true });
+
+/**
+ * A throw's first hit, on the held fighter just before the release. Ultimate's throws (Falcon's among them) split
+ * their damage this way, and only the release's own damage feeds the launch. It lands like a pummel: damage and
+ * hitlag for both.
+ */
+const throwHit =
+  (frame: number, damage: number) =>
+  ({ m, f }: Ctx): void => {
+    const v = m.fighters[f.grabPartner];
+    if (f.actionFrame !== frame || !v || v.grabPartner !== f.port || v.action !== 'grabbed') return;
+    const before = v.damage;
+    addDamage(m, v, damage);
+    f.hitlag = v.hitlag = hitlagFrames(damage);
+    emit(m, { type: 'pummel', attacker: f.port, victim: v.port, damage: v.damage - before });
+  };
 
 /**
  * Johnny Upgrade's normals: the roster's damage and startup (handoffs/research/roster.md, fighter 12) on Captain
@@ -270,7 +290,7 @@ export const moves: Record<string, MoveDef> = {
         frames: [16, 18],
         boxes: [
           box(0, 1, 0, 4.5, { damage: 14, angle: 270, kbg: 100, bkb: 10 }),
-          box(1, 1, 5, 4.5, { damage: 10, angle: 361, kbg: 100, bkb: 40 }),
+          box(1, 1, 5, 4.5, { damage: 14, angle: 361, kbg: 100, bkb: 40 }),
         ],
       },
       { frames: [19, 22], boxes: [box(0, 1, 1, 4.5, { damage: 10, angle: 361, kbg: 100, bkb: 40 })] },
@@ -283,33 +303,47 @@ export const moves: Record<string, MoveDef> = {
   pivotGrab: { kind: 'other', faf: 39, hits: [{ frames: [11, 12], boxes: [grabBox(0, 9, 8, 5.5)] }] },
   /** Knee to the gut. Falcon's 1.3% with about 13 frames of hitlag. */
   pummel: { kind: 'other', faf: 7, hits: [], pummel: { frame: 1, damage: 1.3, hitlag: 2 } },
-  /** Punch Toss: a straight punch that knocks the opponent away. */
+  /**
+   * Throws: the roster's total damage, split like Falcon's into a hit on the held opponent on Falcon's hit frames
+   * and a release with Falcon's throw damage, angle, BKB and KBG.
+   */
+  /** Punch Toss: a straight punch (4%, frame 11) that knocks the opponent away (4%). */
   fthrow: {
     kind: 'other',
     faf: 33,
     hits: [],
-    throw: { frame: 13, hit: { damage: 8, angle: 45, kbg: 120, bkb: 55 } },
+    script: throwHit(11, 4),
+    throw: { frame: 13, hit: { damage: 4, angle: 45, kbg: 120, bkb: 55 } },
   },
-  /** Spin Throw: swings the opponent round once and lets go behind him. His kill throw near the ledge. */
+  /**
+   * Spin Throw: swings the opponent round once (6%, frame 12) and lets go behind him (4%). His kill throw near the
+   * ledge.
+   */
   bthrow: {
     kind: 'other',
     faf: 46,
     hits: [],
-    throw: { frame: 13, hit: { damage: 10, angle: 45, kbg: 130, bkb: 60, direction: 'back' } },
+    script: throwHit(12, 6),
+    throw: { frame: 13, hit: { damage: 4, angle: 45, kbg: 130, bkb: 60, direction: 'back' } },
   },
-  /** Palm Lift: a one-handed heave straight up; at low percent he lands under them in time to follow up. */
+  /**
+   * Palm Lift: a shove (2%, frame 12) into a one-handed heave straight up (5%); at low percent he lands under them
+   * in time to follow up.
+   */
   uthrow: {
     kind: 'other',
     faf: 38,
     hits: [],
-    throw: { frame: 14, hit: { damage: 7, angle: 84, kbg: 100, bkb: 68 } },
+    script: throwHit(12, 2),
+    throw: { frame: 14, hit: { damage: 5, angle: 84, kbg: 100, bkb: 68 } },
   },
-  /** Slam: drives the opponent into the floor so they bounce up in front of him. */
+  /** Slam: drives the opponent into the floor (1%, frame 20) so they bounce up in front of him (6%). */
   dthrow: {
     kind: 'other',
     faf: 40,
     hits: [],
-    throw: { frame: 21, hit: { damage: 7, angle: 68, kbg: 70, bkb: 65 } },
+    script: throwHit(20, 1),
+    throw: { frame: 21, hit: { damage: 6, angle: 68, kbg: 70, bkb: 65 } },
   },
   /**
    * Upgrade Dash (side special, Raptor Boost's role): a wind-up, a burst dash of about 40 units and a punch at the
