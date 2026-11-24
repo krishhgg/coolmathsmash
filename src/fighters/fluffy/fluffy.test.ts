@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, type MatchState } from '../../sim/match';
+import { koPercent, type KoSetup } from '../../sim/testing/ko';
 import { attack, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
 import { moves } from './moves';
 import { stats } from './stats';
@@ -48,50 +49,6 @@ const startup = (move: string) => Math.min(...moves[move]!.hits.map((w) => w.fra
 
 /** The strongest damage any box of the move deals. */
 const damage = (move: string) => Math.max(...moves[move]!.hits.flatMap((w) => w.boxes.map((b) => b.damage)));
-
-type KillMove = 'fsmash' | 'usmash' | 'bair' | 'bthrow';
-
-/**
- * Whether the move KOs the Mario reference standing at Battlefield's right ledge at percent, off the side or top
- * blast zone (the roster's kill-% convention: fresh, no rage, no DI). Each setup lands the move's strongest hit:
- * forward smash from its full range, up smash from beside him, back air in the air facing the stage, and back
- * throw from a grab near the ledge.
- */
-function kos(move: KillMove, percent: number): boolean {
-  const m = vsMario();
-  const [a, v] = m.fighters as [FighterState, FighterState];
-  const ground = v.ground;
-  const ledge = 76;
-  place(v, ledge, 0, -1, ground);
-  if (move === 'fsmash') place(a, ledge - 64, 0, 1, ground);
-  if (move === 'usmash') place(a, ledge - 12, 0, 1, ground);
-  if (move === 'bair') place(a, ledge - 21, 4, -1, null);
-  if (move === 'bthrow') {
-    place(a, ledge - 10, 0, -1, ground);
-    place(v, ledge - 22, 0, 1, ground);
-  }
-  v.damage = percent;
-  if (move === 'bthrow') {
-    runPorts(m, 1, [{ buttons: ['grab'] }, {}]);
-    runPorts(m, 14, [{}, {}]);
-    expect(v.action).toBe('grabbed');
-    runPorts(m, 1, [{ x: 100 }, {}]);
-    expect(a.move).toBe('bthrow');
-  } else attack(m, 0, move);
-  let side = '';
-  for (let i = 0; i < 400 && v.action !== 'ko'; i++) {
-    runPorts(m, 1, [{}, {}]);
-    for (const e of m.events) if (e.type === 'ko') side = e.side;
-  }
-  expect(v.damage, move + ' connects').toBeGreaterThan(percent);
-  return side === 'right' || side === 'top';
-}
-
-/** The lowest whole percent at which the move KOs, searched from 60% below to 40% above the target. */
-function killPercent(move: KillMove, target: number): number {
-  for (let p = target - 60; p <= target + 40; p++) if (kos(move, p)) return p;
-  return Infinity;
-}
 
 describe('Fluffy: stats (roster sheet 8)', () => {
   it('has the roster attributes: heavy, the slowest walker, runner and drifter, and Jigglypuff-floaty', () => {
@@ -241,19 +198,31 @@ describe('Fluffy: tether grab', () => {
   });
 });
 
-describe('Fluffy: kill percents on Mario at the Battlefield ledge (roster targets)', () => {
-  // TODO: tighten to within 8% of each target once COOL-3's knockback calibration and koPercent helper land. Until
-  // then the engine KOs early (CREW.md, "Knockback values"), so this only checks each move kills by its target and
-  // not absurdly early. Measured today: forward smash 90%, up smash 128%, back air 111%, back throw 116%.
+describe('Fluffy: kill percents against his Ultimate analogues', () => {
+  /** Where Fluffy's move KOs the Mario reference at Battlefield's ledge: fresh, no rage, no DI. */
+  const ko = (move: string, setup: Partial<KoSetup> = {}) =>
+    koPercent({ hit: { fighter: 'fluffy', move }, ...setup })!;
+
+  /**
+   * Each kill move lands within about 5 points of its analogue's own hit from the same setup. Damage stays the
+   * roster's, and 1% of damage moves the KO by about 7 points, so the forward smash (15% against Min Min's 16%) and
+   * back air (11% against Mario's 10.5%) get that much more room.
+   */
   it.each([
-    ['fsmash', 110],
-    ['usmash', 120],
-    ['bair', 150],
-    ['bthrow', 150],
-  ] as const)('%s kills by about %i%%', (move, target) => {
-    const p = killPercent(move, target);
-    expect(p).toBeGreaterThanOrEqual(target - 50);
-    expect(p).toBeLessThanOrEqual(target + 8);
+    ['fsmash', "Min Min's Dragon fsmash, far hit", { damage: 16, angle: 361, kbg: 78, bkb: 40 }, {}, 8],
+    ['usmash', "Min Min's usmash", { damage: 14, angle: 75, kbg: 80, bkb: 48 }, {}, 5],
+    ['dsmash', "Min Min's dsmash, front hit", { damage: 13, angle: 361, kbg: 72, bkb: 50 }, {}, 5],
+    ['bair', "Mario's bair", { damage: 10.5, angle: 361, kbg: 106, bkb: 12 }, { air: true }, 6],
+    ['bthrow', "Mario's bthrow", { damage: 11, angle: 45, kbg: 66, bkb: 70 }, {}, 5],
+  ] as const)('%s kills within reach of %s', (move, _analogue, hit, setup, tolerance) => {
+    const analogue = koPercent({ hit, ...setup })!;
+    expect(Math.abs(ko(move, setup) - analogue)).toBeLessThanOrEqual(tolerance);
+  });
+
+  it('forward smash kills earliest, then down smash, back air, back throw and up smash', () => {
+    const order = [ko('fsmash'), ko('dsmash'), ko('bair', { air: true }), ko('bthrow'), ko('usmash')];
+    expect(order).toEqual([...order].sort((x, y) => x - y));
+    expect(new Set(order).size).toBe(order.length);
   });
 });
 
