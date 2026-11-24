@@ -209,6 +209,20 @@ export const SCENARIOS: Scenario[] = [
     requires: ['hud'],
   },
   {
+    name: 'hud-hit',
+    description:
+      "P2 at 48% takes P1's forward smash; capture the frame P2's damage goes up, when the HUD number pops and flashes.",
+    page: { kind: 'game' },
+    patches: faceOff({ damage: 48 }),
+    script: FSMASH,
+    capture: {
+      label: "P2's damage rises",
+      when: (s, prev) => P2(s).damage > P2(prev).damage,
+    },
+    motion: { before: 10, after: 30 },
+    requires: ['hud', 'move:fsmash'],
+  },
+  {
     name: 'stage',
     description: 'Coolmath Battlefield on its own at the reference camera (centre 0,20, zoom 4.5).',
     page: { kind: 'lab', scene: 'stage' },

@@ -23,6 +23,17 @@ function describe(e: SimEvent): string {
       return `${p(e.port)} ${e.move}`;
     case 'action':
       return `${p(e.port)} ${e.from} > ${e.to}`;
+    case 'transform':
+      return `${p(e.port)} transform ${e.from} > ${e.to}`;
+    case 'grab':
+    case 'throw':
+      return `${p(e.attacker)} ${e.move} ${p(e.victim)}`;
+    case 'pummel':
+      return `${p(e.attacker)} pummel ${p(e.victim)} +${n(e.damage)}%`;
+    case 'grabRelease':
+      return `${p(e.held)} grab release`;
+    case 'grabClank':
+      return `${p(e.ports[0])} ${p(e.ports[1])} grab clank`;
     default:
       return `${p(e.port)} ${e.type}`;
   }

@@ -10,6 +10,7 @@ import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView } from './fighterView';
+import { MatchHud } from './hud';
 
 /** Stage art: src/stages/<id>/view.ts exports createStageView (docs/stages.md). Stages without one draw flat. */
 const STAGE_VIEWS = import.meta.glob<{ createStageView: () => StageView }>('../stages/*/view.ts', {
@@ -20,7 +21,7 @@ export interface Overlays {
   inputs: boolean;
   /** Action names over fighters. */
   actions: boolean;
-  /** Hurtboxes (yellow) and active hitboxes (red). */
+  /** Hurtboxes (yellow), active hitboxes (red) and grab boxes (purple). */
   hitboxes: boolean;
   /** The latest sim events. */
   events: boolean;
@@ -36,6 +37,7 @@ export class Renderer {
   readonly eventLog = new EventLog();
   readonly camera = new Camera();
   private readonly inputDisplay = new InputDisplay();
+  private readonly matchHud = new MatchHud();
   private readonly stageLayer = new Container();
   private readonly fighterLayer = new Container();
   private readonly foregroundLayer = new Container();
@@ -47,6 +49,8 @@ export class Renderer {
   private readonly backdrop = RenderTexture.create({ width: VIEW_WIDTH, height: VIEW_HEIGHT, resolution: 0.5 });
   private readonly boxes = new Graphics();
   private fighters: FighterView[] = [];
+  /** Fighter id each view was built for; a transform swaps the view. */
+  private fighterIds: string[] = [];
   private stageId = '';
   private stage: StageGeometry | null = null;
   private matchKey: unknown = null;
@@ -55,6 +59,7 @@ export class Renderer {
     this.world.addChild(this.stageLayer, this.fighterLayer, this.foregroundLayer, this.boxes);
     app.stage.addChild(new Sprite(this.backdrop), this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
+    this.hud.addChild(this.matchHud.hud.container);
   }
 
   static async create(parent: HTMLElement): Promise<Renderer> {
@@ -89,14 +94,27 @@ export class Renderer {
     if (this.matchKey !== state.config) {
       this.matchKey = state.config;
       this.fighterLayer.removeChildren();
-      this.fighters = state.fighters.map((f) => new FighterView(getFighter(f.fighter), f.port));
-      for (const v of this.fighters) this.fighterLayer.addChild(v.container);
+      this.fighters = [];
+      this.fighterIds = [];
     }
+    state.fighters.forEach((f, i) => {
+      if (this.fighterIds[i] === f.fighter) return;
+      const view = new FighterView(getFighter(f.fighter), f.port);
+      const old = this.fighters[i];
+      if (old) this.fighterLayer.replaceChild(old.container, view.container);
+      else this.fighterLayer.addChild(view.container);
+      this.fighters[i] = view;
+      this.fighterIds[i] = f.fighter;
+    });
   }
 
-  /** Advance the camera by the frame just simulated; Game.step calls this after every frame. */
+  /**
+   * Advance the camera, and the HUD's hit timing, by the frame just simulated; Game.step calls this after every
+   * frame.
+   */
   stepCamera(state: MatchState): void {
     this.camera.step(state, getStage(state.config.stage));
+    this.matchHud.step(state);
   }
 
   /** Draw `state`; `alpha` interpolates between the previous and current simulated frame. */
@@ -108,6 +126,13 @@ export class Renderer {
     this.stageView?.update(state.frame, view);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
     this.drawBoxes(state);
+    this.matchHud.update(
+      state,
+      state.fighters.map((f) => ({
+        x: VIEW_WIDTH / 2 + (f.pos.x - view.x) * view.zoom,
+        y: VIEW_HEIGHT / 2 - (f.pos.y + getFighter(f.fighter).stats.height / 2 - view.y) * view.zoom,
+      })),
+    );
     this.inputDisplay.container.visible = this.overlays.inputs;
     if (this.overlays.inputs) this.inputDisplay.update(state.players);
     this.eventLog.container.visible = this.overlays.events;
@@ -129,7 +154,7 @@ export class Renderer {
         alpha: 0.35,
       });
       for (const b of activeHitboxes(f))
-        g.circle(b.x, -b.y, b.box.radius).fill({ color: '#ff2a2a', alpha: 0.55 });
+        g.circle(b.x, -b.y, b.box.radius).fill({ color: b.box.grab ? '#a33cff' : '#ff2a2a', alpha: 0.55 });
     }
   }
 }

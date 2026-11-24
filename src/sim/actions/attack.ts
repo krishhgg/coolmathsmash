@@ -17,6 +17,7 @@ import type { Ctx, FighterState } from '../fighter';
 import { HELPLESS_LANDING_LAG } from '../constants';
 import { leaveGround, normalLandingLag } from '../movement';
 import { fastFallCheck } from './air';
+import { groundGrab } from './grab';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
 
 /** Ultimate: a smash attack charges for at most 60 frames, reaching 1.4x damage. */
@@ -32,13 +33,16 @@ export function chargeMultiplier(f: FighterState): number {
   return 1 + ((SMASH_CHARGE_MAX - 1) * f.charge) / SMASH_CHARGE_FRAMES;
 }
 
-/** Begin one of the fighter's moves now. Grounded moves play as 'attack', airborne ones as 'aerial'. */
-export function startMove(x: Ctx, name: string): boolean {
+/**
+ * Begin one of the fighter's moves now. Grounded moves play as 'attack', airborne ones as 'aerial', unless
+ * `action` names another action that plays moves (the grab actions).
+ */
+export function startMove(x: Ctx, name: string, action?: string): boolean {
   const move = x.def.moves?.[name];
   if (!move) return false;
   if (x.f.ground && move.leavesGround) leaveGround(x);
   if (move.helpless) x.f.fastFalling = false;
-  setAction(x, x.f.ground ? 'attack' : 'aerial');
+  setAction(x, action ?? (x.f.ground ? 'attack' : 'aerial'));
   x.f.move = name;
   emit(x.m, { type: 'move', port: x.f.port, move: name });
   x.f.hitVictims = [];
@@ -81,12 +85,13 @@ function turnFor(x: Ctx, dir: Dir): void {
 }
 
 /**
- * Grounded attack inputs, Smash style: the C-stick smashes; Attack with a freshly flicked stick smashes, with a
- * held stick tilts, and alone jabs; Attack while dashing or running is a dash attack. Backward smashes and tilts
- * turn around first. True when a move started.
+ * Grounded attack inputs, Smash style: Grab (or Attack with Shield held) grabs; the C-stick smashes; Attack with a
+ * freshly flicked stick smashes, with a held stick tilts, and alone jabs; Attack while dashing or running is a
+ * dash attack. Backward smashes and tilts turn around first. True when a move started.
  */
 export function groundAttack(x: Ctx): boolean {
   const { f, c } = x;
+  if (groundGrab(x)) return true;
   const cDir = cStickDir(c, f.facing);
   if (cDir !== 'neutral') {
     consumeCStick(c);
@@ -153,7 +158,7 @@ export function airAttack(x: Ctx): boolean {
  * Per-frame move bookkeeping: hold the charge frame while Attack (or the C-stick) is held, reopen `rehit`
  * windows, run the move's script. Returns the move.
  */
-function playMove(x: Ctx): MoveDef {
+export function playMove(x: Ctx): MoveDef {
   const { f, c } = x;
   const move = moveOf(f)!;
   const holding = isHeld(c, Btn.Attack) || cStickHeld(c);
@@ -163,26 +168,36 @@ function playMove(x: Ctx): MoveDef {
   }
   if (move.hits.some((w) => w.rehit && w.frames[0] === f.actionFrame)) f.hitVictims = [];
   move.script?.(x);
+  if (move.transform?.frame === f.actionFrame) {
+    emit(x.m, { type: 'transform', port: f.port, from: f.fighter, to: move.transform.into });
+    f.fighter = move.transform.into;
+  }
   return move;
+}
+
+function moveIntangible(f: FighterState): boolean {
+  const w = moveOf(f)?.intangible;
+  return w !== undefined && inWindow(f.actionFrame, w);
 }
 
 export const ATTACK: Record<string, ActionDef> = {
   /** A grounded move, played from its frame data until its first actionable frame. */
   attack: {
     physics: 'ground',
-    intangible: (f) => {
-      const w = moveOf(f)?.intangible;
-      return w !== undefined && inWindow(f.actionFrame, w);
-    },
+    intangible: moveIntangible,
     update(x) {
       const move = playMove(x);
       if (x.f.actionFrame >= move.faf) setAction(x, 'idle');
     },
   },
 
-  /** An airborne move. Landing during it costs the move's landing lag, unless it lands in an auto-cancel window. */
+  /**
+   * An airborne move. Landing during it costs the move's landing lag, unless it lands in an auto-cancel window or
+   * the move continues on landing.
+   */
   aerial: {
     physics: 'air',
+    intangible: moveIntangible,
     ledge: (x) => {
       const from = moveOf(x.f)?.ledgeFrom;
       return from === undefined ? false : from;
@@ -199,6 +214,12 @@ export const ATTACK: Record<string, ActionDef> = {
     land(x) {
       const { f } = x;
       const move = moveOf(f)!;
+      if (move.continuesOnLanding) {
+        const { move: name, actionFrame } = f;
+        enterAction(x, 'attack', actionFrame);
+        f.move = name;
+        return;
+      }
       const cancelled = move.autoCancel?.some((w) => inWindow(f.actionFrame, w)) ?? false;
       f.landingLag = !cancelled && move.landingLag !== undefined ? move.landingLag : normalLandingLag(x);
       enterAction(x, 'land', 0);

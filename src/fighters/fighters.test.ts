@@ -34,6 +34,13 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
 
   it.each(Object.entries(def.moves ?? {}))('move %s has consistent frame data', (name, move) => {
     expect(move.faf, name).toBeGreaterThan(1);
+    if (move.transform) {
+      expect(move.transform.frame).toBeLessThan(move.faf);
+      expect(
+        FIGHTERS[move.transform.into]?.moves?.[name],
+        `${move.transform.into} has ${name}`,
+      ).toBeDefined();
+    }
     for (const w of move.hits) {
       expect(w.frames[0]).toBeGreaterThanOrEqual(1);
       expect(w.frames[1]).toBeGreaterThanOrEqual(w.frames[0]);

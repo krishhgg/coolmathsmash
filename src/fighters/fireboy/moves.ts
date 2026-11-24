@@ -1,5 +1,6 @@
 import type { HitboxDef, MoveDef } from '../types';
 import { stickX } from '../../sim/control';
+import { swap } from './swap';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -17,6 +18,10 @@ const box = (
 });
 
 const fire = 'fire' as const;
+
+/** A grab box: catches instead of hitting, so it carries no damage or knockback. */
+const grabBox = (id: number, x: number, y: number, radius: number) =>
+  box(id, x, y, radius, { damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true });
 
 /**
  * Fireboy's moves, built on Ultimate middleweight frame data (Mario-like timings) with fire on his heavy hits.
@@ -239,6 +244,41 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
+  /** Grabs, on Mario's frame data (UFD); the standing grab reaches 12 units, like Mario's. */
+  grab: { kind: 'other', faf: 35, hits: [{ frames: [6, 7], boxes: [grabBox(0, 7.5, 7, 4.5)] }] },
+  dashGrab: { kind: 'other', faf: 43, hits: [{ frames: [9, 10], boxes: [grabBox(0, 8.5, 7, 5)] }] },
+  /** Turns around out of a dash or run and grabs behind; the slide keeps going the old way. */
+  pivotGrab: { kind: 'other', faf: 37, hits: [{ frames: [10, 11], boxes: [grabBox(0, 9, 7, 5.5)] }] },
+  /** Hot-hands squeeze. Mario's 1.3% with his 14 frames of hitlag. */
+  pummel: { kind: 'other', faf: 6, hits: [], pummel: { frame: 1, damage: 1.3, hitlag: 2.1 } },
+  /** Flaming shove. */
+  fthrow: {
+    kind: 'other',
+    faf: 28,
+    hits: [],
+    throw: { frame: 13, hit: { damage: 8, angle: 45, kbg: 55, bkb: 45, effect: fire } },
+  },
+  /** Spins the opponent round in a fire wheel and flings them behind: his kill throw near the ledge. */
+  bthrow: {
+    kind: 'other',
+    faf: 60,
+    hits: [],
+    throw: { frame: 44, hit: { damage: 11, angle: 45, kbg: 75, bkb: 50, effect: fire, direction: 'back' } },
+  },
+  /** Heaves the opponent overhead on a burst of flame. */
+  uthrow: {
+    kind: 'other',
+    faf: 40,
+    hits: [],
+    throw: { frame: 18, hit: { damage: 7, angle: 88, kbg: 70, bkb: 60, effect: fire } },
+  },
+  /** Slams the opponent onto the embers; low knockback for follow-ups at low %. */
+  dthrow: {
+    kind: 'other',
+    faf: 40,
+    hits: [],
+    throw: { frame: 18, hit: { damage: 5, angle: 70, kbg: 45, bkb: 55 } },
+  },
   /**
    * Flame Jump (up special): a rising column of fire, steerable with the stick. Leaves Fireboy helpless and can
    * grab the ledge on the way up.
@@ -270,4 +310,6 @@ export const moves: Record<string, MoveDef> = {
       }
     },
   },
+  /** Swap (down special): Watergirl takes over. */
+  downB: swap('watergirl'),
 };
