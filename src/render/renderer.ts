@@ -9,6 +9,7 @@ import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView } from './fighterView';
+import { MatchHud } from './hud';
 
 export interface Overlays {
   inputs: boolean;
@@ -28,6 +29,7 @@ export class Renderer {
   readonly eventLog = new EventLog();
   readonly camera = new Camera();
   private readonly inputDisplay = new InputDisplay();
+  private readonly matchHud = new MatchHud();
   private readonly stageLayer = new Container();
   private readonly fighterLayer = new Container();
   private readonly boxes = new Graphics();
@@ -42,6 +44,7 @@ export class Renderer {
     this.world.addChild(this.stageLayer, this.fighterLayer, this.boxes);
     app.stage.addChild(this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
+    this.hud.addChild(this.matchHud.hud.container);
   }
 
   static async create(parent: HTMLElement): Promise<Renderer> {
@@ -83,9 +86,13 @@ export class Renderer {
     });
   }
 
-  /** Advance the camera by the frame just simulated; Game.step calls this after every frame. */
+  /**
+   * Advance the camera, and the HUD's hit timing, by the frame just simulated; Game.step calls this after every
+   * frame.
+   */
   stepCamera(state: MatchState): void {
     this.camera.step(state, getStage(state.config.stage));
+    this.matchHud.step(state);
   }
 
   /** Draw `state`; `alpha` interpolates between the previous and current simulated frame. */
@@ -96,6 +103,13 @@ export class Renderer {
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
     this.drawBoxes(state);
+    this.matchHud.update(
+      state,
+      state.fighters.map((f) => ({
+        x: VIEW_WIDTH / 2 + (f.pos.x - view.x) * view.zoom,
+        y: VIEW_HEIGHT / 2 - (f.pos.y + getFighter(f.fighter).stats.height / 2 - view.y) * view.zoom,
+      })),
+    );
     this.inputDisplay.container.visible = this.overlays.inputs;
     if (this.overlays.inputs) this.inputDisplay.update(state.players);
     this.eventLog.container.visible = this.overlays.events;
