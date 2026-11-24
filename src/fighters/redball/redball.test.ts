@@ -160,15 +160,35 @@ describe('Red Ball: down air (Cube Squash)', () => {
     return { m, a, v };
   }
 
-  it('hangs while winding up, then drops at fast-fall speed', () => {
+  /** Red Ball falling high above the stage, already fast-falling or not, then down + Attack. */
+  function dairFrom(fastFalling: boolean) {
     const m = redball();
     const f = placeInAir(m, 0, 120);
-    attack(m, 0, 'dair');
-    run(m, DAIR_DROP_FRAME - 1);
-    expect(f.vel.y).toBeGreaterThan(-0.5);
-    run(m, 2);
-    expect(f.vel.y).toBeCloseTo(-stats.fastFallSpeed, 6);
-  });
+    run(m, 10);
+    if (fastFalling) {
+      run(m, 1, { y: -100 });
+      run(m, 4);
+      expect(f.fastFalling).toBe(true);
+    }
+    run(m, 1, { y: -100, buttons: ['attack'] });
+    expect(f.move).toBe('dair');
+    return { m, f };
+  }
+
+  it.each([false, true])(
+    'hangs through the wind-up, fast-falling before or not (%s), then drops at fast-fall speed',
+    (fastFalling) => {
+      const { m, f } = dairFrom(fastFalling);
+      const y0 = f.pos.y;
+      for (let i = 1; i < DAIR_DROP_FRAME - 1; i++) {
+        run(m, 1, { y: -100 });
+        expect(f.fastFalling).toBe(false);
+      }
+      expect(y0 - f.pos.y).toBeLessThan(2);
+      run(m, 3);
+      expect(f.vel.y).toBeCloseTo(-stats.fastFallSpeed, 6);
+    },
+  );
 
   it('the clean hit meteors, and Red Ball bounces back up with a midair jump back and can act', () => {
     const { m, a, v } = squash(14);

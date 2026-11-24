@@ -16,6 +16,11 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 
 /** Frame of down air on which Red Ball stops winding up and drops onto the target. */
 export const DAIR_DROP_FRAME = 10;
+/**
+ * Down air's wind-up holds a little upward speed, so gravity leaves him hanging and a down flick can't start a
+ * fast fall (fast-falling needs a falling fighter).
+ */
+const DAIR_HANG_LIFT = 0.05;
 
 /**
  * Red Ball's normals. He has no arms, so everything is his body: bumps, rolls, bounces and squashes, plus the
@@ -240,8 +245,10 @@ export const moves: Record<string, MoveDef> = {
         setAction(x, 'fall');
         return;
       }
-      if (f.actionFrame < DAIR_DROP_FRAME) f.vel.y *= 0.7;
-      else if (f.actionFrame <= 24) f.fastFalling = true;
+      if (f.actionFrame < DAIR_DROP_FRAME) {
+        f.fastFalling = false;
+        f.vel.y = Math.max(f.vel.y * 0.7, DAIR_HANG_LIFT);
+      } else if (f.actionFrame <= 24) f.fastFalling = true;
     },
   },
   /** Tongue Grab: a short tongue lash, a little slower than a hand grab and a little longer. */
