@@ -28,6 +28,8 @@ import { setAction, type ActionDef } from './registry';
 
 /** Actions of a fighter holding someone. */
 const HOLDING = new Set(['grabHold', 'grabPummel', 'grabThrow']);
+/** Grabs can't pick up a fighter lying on the floor. */
+const LYING = new Set(['downBound', 'down']);
 const THROWS: Record<Exclude<Dir, 'neutral'>, string> = {
   forward: 'fthrow',
   back: 'bthrow',
@@ -146,6 +148,7 @@ function grabbable(m: MatchState, v: FighterState): boolean {
     hittable(v) &&
     v.action !== 'grabbed' &&
     !HOLDING.has(v.action) &&
+    !LYING.has(v.action) &&
     v.ledge < 0 &&
     m.frame >= v.grabbableFrom
   );

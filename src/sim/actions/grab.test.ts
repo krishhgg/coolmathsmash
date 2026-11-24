@@ -6,6 +6,7 @@ import { knockback, launch, rageMultiplier, speedUp } from '../combat/formulas';
 import type { FighterState } from '../fighter';
 import type { MatchState } from '../match';
 import { attack, runPorts, testMatch, type Hold } from '../testing/sim';
+import { findGrabs } from './grab';
 
 const G = ref.grab;
 
@@ -158,15 +159,18 @@ describe('who gets grabbed', () => {
   });
 
   it('nobody behind the grabber, and grab boxes are half size against airborne fighters', () => {
-    /** P2 overlapping P1 just in front of or just behind his centre, where the grab box reaches his body. */
-    const near = (gap: number) => {
-      const d = duel(gap);
-      step(d.m, 1, [{ buttons: ['grab'] }]);
-      step(d.m, 10);
-      return d.v.action === 'grabbed';
+    /** Whom P1's grab box (on its first active frame) catches with P2 `gap` in front of him, in `action`. */
+    const near = (gap: number, action = 'idle') => {
+      const d = duel(30);
+      d.v.action = action;
+      attack(d.m, 0, 'grab');
+      d.a.actionFrame = moves.grab!.hits[0]!.frames[0];
+      d.v.pos.x = d.a.pos.x + gap;
+      return findGrabs(d.m).map((g) => g.v.port);
     };
-    expect(near(0.5)).toBe(true);
-    expect(near(-0.5)).toBe(false);
+    expect(near(0.5)).toEqual([1]);
+    expect(near(-0.5)).toEqual([]);
+    expect(near(8, 'down')).toEqual([]);
 
     /** P1's grab against P2 `gap` away, lifted into the air just before the grab box comes out. */
     const caught = (gap: number, airborne: boolean) => {
