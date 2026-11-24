@@ -80,13 +80,13 @@ const room = (x: Float32Array, amount: number, tail = 0.08) => {
 /** Clarinet: a woody odd-harmonic tone that opens up with the breath, scooped attacks, jazz vibrato. */
 export const clarinet: Instrument = (f, dur, vel, rng) => {
   const len = dur + 0.14;
-  const v = vib(f, 5.4, dur > 0.3 ? 0.009 : 0.004, 0.18);
+  const v = vib(f, 5.4, dur > 0.3 ? 0.009 : 0.004, 0.12);
   const pitch = (t: number) => v(t) * (1 - 0.009 * Math.exp(-t / 0.035));
-  const body = layer(len, [osc(len, pitch, 'square'), 0.4], [osc(len, pitch), 0.6]);
+  const body = layer(len, [osc(len, pitch, 'square'), 0.55], [osc(len, pitch), 0.45]);
   const cut = env(len, [
     [0, f * 1.2 + 300],
-    [0.06, f * (1.8 + 1.4 * vel) + 600],
-    [Math.max(0.07, dur), f * (1.6 + 1.2 * vel) + 500],
+    [0.06, f * (2.2 + 1.6 * vel) + 700],
+    [Math.max(0.07, dur), f * (1.9 + 1.3 * vel) + 600],
     [len, f * 1.2 + 300],
   ]);
   let tone: Float32Array = filter(body, 'lowpass', follow(cut), 0.5);
@@ -104,7 +104,8 @@ export const clarinet: Instrument = (f, dur, vel, rng) => {
     [dur + 0.12, 0],
     [len, 0],
   ]);
-  return mul(layer(len, [tone, 1], [breath, 0.09]), mul(swell, vel * 0.55));
+  const chiff = mul(filter(noise(0.03, rng), 'bandpass', 2500, 1.2), decay(0.03, 0.008, 0.002));
+  return mul(layer(len, [tone, 1], [breath, 0.09], [chiff, 0.12 * vel]), mul(swell, vel * 0.55));
 };
 
 /** Musette accordion: three saw reeds (one sharp, one flat) through a soft reed formant, bellows swell. */
@@ -117,7 +118,7 @@ export const accordion: Instrument = (f, dur, vel) => {
   const reeds = layer(len, [reed(0, 0), 0.42], [reed(11, 0.31), 0.32], [reed(-8, 0.67), 0.26]);
   let tone: Float32Array = filter(reeds, 'lowpass', Math.min(2800, f * 3.5), 0.55);
   tone = filter(tone, 'peak', 1000, 1.2, 3);
-  tone = filter(tone, 'peak', 3000, 1.2, -5);
+  tone = filter(tone, 'peak', 2600, 1, -6);
   tone = filter(tone, 'highshelf', 4500, 0.7, -10);
   const end = Math.max(0.04, dur);
   const bellows = env(len, [
@@ -160,7 +161,11 @@ export const whistle: Instrument = (f, dur, vel, rng) => {
     [osc(len, (t) => pitch(t) * 3), 0.025],
   );
   const breath = filter(filter(noise(len, rng), 'bandpass', Math.min(6000, f * 1.3), 1.5), 'lowpass', 4000);
-  return mul(layer(len, [tone, 1], [breath, 0.12]), mul(adsr(len, 0.035, 0.1, 0.82, 0.09), vel * 0.48));
+  const chiff = mul(breath, decay(len, 0.04, 0.003));
+  return mul(
+    layer(len, [tone, 1], [breath, 0.1], [chiff, 0.25]),
+    mul(adsr(len, 0.035, 0.1, 0.82, 0.09), vel * 0.48),
+  );
 };
 
 /** Harmonica: two beating reeds through a cupped-hands formant, bent up into each note, hand tremolo. */
@@ -177,12 +182,23 @@ export const harmonica: Instrument = (f, dur, vel, rng) => {
     [filter(reeds, 'bandpass', 1100, 1.2), 1],
     [filter(reeds, 'lowpass', Math.min(2000, f * 2.5), 0.7), 0.7],
   );
+  tone = filter(tone, 'peak', 2800, 1, -4);
   tone = filter(tone, 'highshelf', 3500, 0.7, -8);
   const breath = filter(noise(len, rng), 'bandpass', 1600, 1);
   const trem = tremolo(len, 5.2, dur > 0.35 ? 0.25 : 0);
   return mul(
     mul(drive(layer(len, [tone, 1], [breath, 0.05]), 1.4), trem),
-    mul(adsr(len, 0.03, 0.1, 0.8, 0.07), vel * 0.42),
+    mul(
+      env(len, [
+        [0, 0],
+        [0.05, 0.8],
+        [Math.max(0.06, dur * 0.7), 1],
+        [Math.max(0.07, dur), 0.9],
+        [dur + 0.08, 0],
+        [len, 0],
+      ]),
+      vel * 0.42,
+    ),
   );
 };
 
@@ -286,8 +302,9 @@ export const warmStrings: Instrument = (f, dur, vel) => {
   );
   let tone: Float32Array = filter(layer(len, ...voices), 'lowpass', Math.min(3200, f * 3.5), 0.6);
   tone = filter(tone, 'peak', 2500, 1, -3);
-  const warmth = osc(len, f);
-  return mul(layer(len, [tone, 1], [warmth, 0.25]), mul(adsr(len, 0.22, 0.3, 0.9, 0.4), vel * 0.45));
+  tone = filter(tone, 'peak', 420, 1, -4);
+  tone = filter(tone, 'highpass', 200, 0.7);
+  return mul(tone, mul(adsr(len, 0.35, 0.3, 0.9, 0.45), vel * 0.5));
 };
 
 /** Cartoon duck quack: a nasal buzz through two soft formants, pitch falling. */
@@ -310,15 +327,30 @@ export const quack: Instrument = (f, _dur, vel, rng) => {
   return mul(filter(drive(tone, 1.6), 'lowpass', 3000), mul(shape, vel * 0.6));
 };
 
+/** Sousaphone: a buzzy brass bass that lips up into each note and brightens as it speaks. */
+export const sousaphone: Instrument = (f, dur, vel) => {
+  const len = dur + 0.1;
+  const pitch = (t: number) => f * (1 - 0.04 * Math.exp(-t / 0.03));
+  const cut = env(len, [
+    [0, f * 1.5],
+    [0.04, f * (3 + 3 * vel)],
+    [0.2, f * 3],
+    [len, f * 2.5],
+  ]);
+  const src = layer(len, [osc(len, pitch, 'saw'), 0.6], [osc(len, pitch), 0.7]);
+  const tone = drive(filter(src, 'lowpass', follow(cut), 0.8), 1.8);
+  return mul(tone, mul(adsr(len, 0.02, 0.1, 0.8, 0.08), vel * 0.7));
+};
+
 // ---------------------------------------------------------------- plucked strings
 
 /** Mandolin: doubled steel courses with a pick click; long notes become a hand-played tremolo. */
 export const mandolin: Instrument = (f, dur, vel, rng) => {
   const course = (len: number, v: number) => {
-    const a = pluck(len, f, rng, 0.6 + 0.25 * v, 0.994);
-    const b = pluck(len, f * 1.0025, rng, 0.6 + 0.25 * v, 0.994);
-    const pick = mul(filter(noise(0.006, rng), 'highpass', 2500), decay(0.006, 0.0015));
-    return mul(layer(len, [a, 0.5], [b, 0.5], [pick, 0.15]), mul(decay(len, 0.45, 0.002), v));
+    const a = pluck(len, f, rng, 0.45 + 0.25 * v, 0.994);
+    const b = pluck(len, f * 1.003, rng, 0.45 + 0.25 * v, 0.994);
+    const pick = mul(filter(noise(0.006, rng), 'bandpass', 1800, 1), decay(0.006, 0.0015));
+    return mul(layer(len, [a, 0.5], [b, 0.5], [pick, 0.12]), mul(decay(len, 0.45, 0.002), v));
   };
   const strokes: number[] = [0];
   if (dur > 0.3)
@@ -330,9 +362,9 @@ export const mandolin: Instrument = (f, dur, vel, rng) => {
   });
   let tone: Float32Array = place(len, parts);
   tone = filter(tone, 'highpass', 160);
-  tone = filter(tone, 'peak', 420, 1.2, 3);
-  tone = filter(tone, 'peak', 2400, 1, 1.5);
-  return mul(filter(tone, 'lowpass', 6000), mul(hold(len, dur + 0.1, 0.22), 0.6));
+  tone = filter(tone, 'peak', 380, 1.2, 4);
+  tone = filter(tone, 'peak', 2800, 1, -3);
+  return mul(filter(tone, 'lowpass', 3800, 0.6), mul(hold(len, dur + 0.1, 0.22), 0.66));
 };
 
 /** Banjo: bright twangy pluck through a ringing drum-head resonance. */
@@ -350,9 +382,10 @@ export const banjo: Instrument = (f, dur, vel, rng) => {
 export const acGuitar: Instrument = (f, dur, vel, rng) => {
   const len = Math.max(0.3, dur + 0.25);
   let s: Float32Array = pluck(len, f, rng, 0.55 + 0.3 * vel, 0.996);
-  s = filter(s, 'peak', 2800, 1.2, 3);
+  s = filter(s, 'peak', 5000, 1, 2);
+  s = filter(s, 'peak', 520, 1, -3);
   s = filter(s, 'peak', 180, 1.5, 3);
-  s = filter(s, 'lowpass', 6500);
+  s = filter(s, 'lowpass', 8000);
   return mul(s, mul(hold(len, dur, 0.12), vel * 0.6));
 };
 
@@ -362,8 +395,9 @@ export const upright: Instrument = (f, dur, vel, rng) => {
   const str = filter(pluck(len, f, rng, 0.35, 0.998), 'lowpass', 650);
   const fund = mul(osc(len, f), decay(len, 0.6, 0.004));
   const thump = mul(filter(noise(0.03, rng), 'lowpass', 400), decay(0.03, 0.008));
+  const finger = mul(filter(noise(0.012, rng), 'bandpass', 1200, 1), decay(0.012, 0.003));
   return mul(
-    layer(len, [str, 0.8], [fund, 0.55], [thump, 0.35]),
+    layer(len, [str, 0.8], [fund, 0.7], [thump, 0.35], [finger, 0.12 * vel]),
     mul(mul(hold(len, dur, 0.06), decay(len, 1.2, 0.003)), vel * 0.85),
   );
 };
@@ -423,11 +457,15 @@ export const xylo: Instrument = (f, _dur, vel, rng) => {
   const bar = partials(len, f, [
     [1, 1, 0.2 + 0.1 * (1 - vel)],
     [1, 0.35, 0.45],
-    [3.0, 0.18 * vel, 0.05],
-    [6.1, 0.04 * vel, 0.015],
+    [3.0, 0.16 * vel, 0.03],
+    [6.1, 0.03 * vel, 0.008],
   ]);
-  const tick = mul(filter(noise(0.006, rng), 'bandpass', Math.min(6000, f * 3), 1), decay(0.006, 0.0015));
-  return mul(filter(layer(len, [bar, 1], [tick, 0.1 + 0.1 * vel]), 'lowpass', 7000), vel * 0.6);
+  const knock = mul(filter(noise(0.005, rng), 'bandpass', 2200, 1.5), decay(0.005, 0.0012));
+  const wood = partials(0.03, 1100, [[1, 1, 0.004]]);
+  return mul(
+    filter(layer(len, [bar, 1], [knock, 0.25 * vel], [wood, 0.2 * vel]), 'lowpass', 6500),
+    vel * 0.6,
+  );
 };
 
 /** Vibraphone: soft mallet bars with motor tremolo, damped a little after note-off. */
@@ -494,7 +532,8 @@ export const kick: Instrument = (_f, _d, vel, rng) => {
   );
   const knock = mul(filter(noise(0.03, rng), 'bandpass', 1800, 0.9), decay(0.03, 0.005));
   const thud = mul(filter(noise(0.06, rng), 'lowpass', 220), decay(0.06, 0.02));
-  const hit = drive(layer(len, [body, 1], [knock, 0.12 + 0.12 * vel], [thud, 0.4]), 1.5);
+  const punch = mul(osc(len, 78), decay(len, 0.05, 0.001));
+  const hit = drive(layer(len, [body, 1], [punch, 0.45], [knock, 0.12 + 0.12 * vel], [thud, 0.4]), 1.5);
   return mul(room(hit, 0.12), vel * 0.9);
 };
 
@@ -506,8 +545,8 @@ export const snare: Instrument = (_f, _d, vel, rng) => {
     len,
     [
       mul(
-        osc(len, (t) => 190 * tune * (1 + 0.12 * Math.exp(-t / 0.012))),
-        decay(len, 0.08, 0.001),
+        osc(len, (t) => 200 * tune * (1 + 0.12 * Math.exp(-t / 0.012))),
+        decay(len, 0.11, 0.001),
       ),
       0.7,
     ],
@@ -665,7 +704,10 @@ export const clank: Instrument = (f, _d, vel, rng) => {
   ]);
   const grit = mul(filter(noise(len, rng), 'bandpass', f * 2.3, 6), decay(len, 0.12, 0.001));
   const hit = mul(filter(noise(0.025, rng), 'bandpass', 2500, 0.9), decay(0.025, 0.005));
-  return mul(room(drive(layer(len, [beam, 0.55], [grit, 0.5], [hit, 0.7]), 1.6), 0.3), vel * 0.42);
+  return mul(
+    filter(room(drive(layer(len, [beam, 0.55], [grit, 0.5], [hit, 0.7]), 1.6), 0.3), 'lowpass', 5000),
+    vel * 0.42,
+  );
 };
 
 /** Cowbell: two square tones through a band-pass, quick decay, a touch of room. */
@@ -683,7 +725,14 @@ export const ratchet: Instrument = (_f, dur, vel, rng) => {
     { length: clicks },
     (_, k) =>
       [
-        mul(filter(noise(0.012, rng), 'bandpass', 2600, 2), decay(0.012, 0.0025)),
+        mul(
+          layer(
+            0.015,
+            [filter(noise(0.015, rng), 'bandpass', 1800, 3), 1],
+            [partials(0.015, 950, [[1, 1, 0.003]]), 0.6],
+          ),
+          decay(0.015, 0.002),
+        ),
         0.7 + 0.3 * (k % 2),
         (k * dur) / clicks,
       ] as const,

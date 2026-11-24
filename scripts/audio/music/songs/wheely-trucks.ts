@@ -198,7 +198,7 @@ const crashes = [
   { t: 64, d: 1, n: 60, v: 0.7 },
 ];
 
-const dyn = (t: number) => ({ A: 0.9, B: 1, C: 0.84 })[section(t)];
+const dyn = (t: number) => ({ A: 0.9, B: 1, C: 0.88 })[section(t)];
 /** A light sixteenth-note pocket: every off-sixteenth sits a hair late. */
 const pocket = (notes: Note[]) => swing(notes, 0.55, 0.5);
 

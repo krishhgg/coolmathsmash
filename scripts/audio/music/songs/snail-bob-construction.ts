@@ -26,7 +26,7 @@ import type { Song } from '../render.ts';
  * doubled by bassoon) carries a sneaky clarinet tune over a tick-tock woodblock; B turns to F major for a
  * bouncy building-site romp (xylophone hammer taps, tuba oom-pah, pizzicato, girder clanks and a ratchet);
  * A' brings the tune back on xylophone with the full kit, and a slide whistle hops back into the loop.
- * 24 bars at 126 BPM.
+ * 24 bars at 128 BPM.
  */
 const bar = 4;
 const changes: [number, number, string][] = [
@@ -140,6 +140,10 @@ const xyloLine = [
   ...tiptoe(seq(sneak('D6 . F6 . A6 . . .'), { step: 0.5, v: 0.85, start: 64 }), 1),
 ];
 const bassoonLine = staccato(shift(creepA1, 0, 12)).map((n) => ({ ...n, v: n.v * 0.75 }));
+/** B: the clarinet sustains each chord's third under the xylophone romp. */
+const clarinetPad = spans
+  .filter((s) => inB(s.t))
+  .map((s) => ({ t: s.t, d: s.d - 0.15, n: chord(s.sym, 4)[1]!, v: 0.42 }));
 
 /** Pizzicato: tiptoe offbeats in the A sections, chords on 2 and 4 in B. */
 const pizzChords = spans.flatMap((s) =>
@@ -184,9 +188,10 @@ const snares = [
   ...roll(63, 64, 4, 0.55, 0.95, 4),
   ...loop(grid('..-.x.-...-.x.-.', { step: 0.25, start: 64 }), 7, bar),
   ...grid('....x...', { step: 0.25, start: 92 }),
-  ...roll(94, 96, 4, 0.4, 1, 5),
+  ...roll(94, 96, 4, 0.35, 0.85, 5),
 ];
 const hats = [
+  ...loop(grid('x...o...x...o...', { step: 0.25, n: 40 }), 8, bar).map((n) => ({ ...n, v: n.v * 0.7 })),
   ...loop(grid('x.o.x.o.x.o.x.o.', { step: 0.25, n: 40 }), 8, bar).map((n) => ({ ...n, t: n.t + 32 })),
   ...loop(grid('x-o-x-o-x-o-x-o-', { step: 0.25, n: 40 }), 8, bar).map((n) => ({ ...n, t: n.t + 64 })),
 ];
@@ -228,18 +233,24 @@ const crashes = [
 const oops = [{ t: 7 * bar + 1, d: 0.9, n: 86, v: 0.8 }];
 const hop = [{ t: 23 * bar + 3, d: 0.75, n: 74, v: 0.75 }];
 
-const dyn = (t: number) => (t < 32 ? 0.86 : t < 64 ? 0.94 : 1);
+const dyn = (t: number) => (t < 32 ? 0.92 : 1);
 
 export const song: Song = {
   id: 'snail-bob-construction',
   title: 'Snail Bob',
   evokes: "Snail Bob's construction site (Hunter Hamster): an original tiptoeing cartoon caper",
-  bpm: 126,
+  bpm: 128,
   loopBeats: 24 * bar,
   seed: 31,
   reverb: { room: 0.48, damp: 0.55, wet: 0.3 },
   tracks: [
-    { inst: clarinet, gain: -4, pan: -0.2, verb: 0.3, loop: human(clarinetLine, 51, 0.1, 0.01) },
+    {
+      inst: clarinet,
+      gain: -4,
+      pan: -0.2,
+      verb: 0.3,
+      loop: human([...clarinetLine, ...clarinetPad], 51, 0.1, 0.01),
+    },
     { inst: xylo, gain: -7.5, pan: 0.25, verb: 0.3, loop: human(xyloLine, 52, 0.16, 0.006) },
     { inst: 'marimba', gain: -8, pan: -0.3, verb: 0.3, loop: human(marimbaLine, 63, 0.14, 0.006) },
     { inst: bassoon, gain: -4, pan: 0.48, verb: 0.2, loop: human(shape(bassoonLine, dyn), 53, 0.08, 0.006) },
