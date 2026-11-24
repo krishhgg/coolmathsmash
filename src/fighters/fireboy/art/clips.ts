@@ -134,18 +134,58 @@ const WALK: [Pose, Pose, Pose, Pose] = [
   gait(WALK_UP, [0.05, 0], [0.15, -0.45], 0),
 ];
 
+/** How far the run leans into travel, in degrees. */
+const RUN_LEAN = 14;
+
 /**
- * Run, after sprite 346: the support leg planted straight under the head while the other's shin kicks back
- * level, then a push-off with the free knee swinging through. The head bobs down on contact.
+ * A running foot at phase `p` of its stride (0: planting ahead of the hips). It drives back along the floor for
+ * 45% of the stride, then the heel kicks up behind and the foot swings through to plant again.
  */
-const RUN_DOWN: Pose = { body: { rot: 6, x: 0.55, y: 0.18 }, neck: { rot: -3 } };
-const RUN_UP: Pose = { body: { rot: 6, x: 0.55, y: -0.32 }, neck: { rot: -3 } };
-const RUN: [Pose, Pose, Pose, Pose] = [
-  gait(RUN_DOWN, [-1.85, -1.3], [1.05, 0], 40),
-  gait(RUN_UP, [0.95, -1.15], [-0.45, -0.2], 0),
-  gait(RUN_DOWN, [1.05, 0], [-1.85, -1.3], -40),
-  gait(RUN_UP, [-0.45, -0.2], [0.95, -1.15], 0),
-];
+function runFoot(p: number): Pt {
+  const u = p - Math.floor(p);
+  if (u < 0.45) return [1.0 - (2.5 * u) / 0.45, 0];
+  const s = (u - 0.45) / 0.55;
+  return [
+    -1.5 + 1.25 * (1 - Math.cos(Math.PI * s)) - 0.6 * Math.sin(Math.PI * s),
+    -1.4 * Math.sin(Math.PI * s),
+  ];
+}
+
+/**
+ * The run at phase `t` of its cycle. The body leans into travel, drops on each footfall (mid-stance at t = 0.22
+ * and 0.72) and rises through the flight between them, the arms pump against the legs, and the head trails the
+ * bob by about a frame and a half: it squashes as the body lands and stretches as it rises.
+ */
+function runPose(t: number, lean = RUN_LEAN): Pose {
+  const bob = Math.cos(4 * Math.PI * (t - 0.22));
+  const lag = Math.cos(4 * Math.PI * (t - 0.3));
+  const swing = 55 * Math.cos(2 * Math.PI * t);
+  return feet(
+    {
+      body: { rot: lean, x: 0.4, y: 0.05 + 0.3 * bob },
+      neck: { rot: -lean * 0.35 + 3 * lag },
+      head: { sx: 1 + 0.03 * lag, sy: 1 - 0.045 * lag },
+      armF: { rot: swing },
+      foreF: { rot: -80 },
+      armB: { rot: -swing },
+      foreB: { rot: -70 },
+    },
+    runFoot(t + 0.5),
+    runFoot(t),
+  );
+}
+
+/** A looping clip sampled from `pose(t)`, t in [0, 1), at `count` evenly spaced keys. */
+function sampled(length: number, count: number, pose: (t: number) => Pose): AnimClip {
+  return {
+    length,
+    loop: true,
+    swaps: SIDE,
+    keys: Array.from({ length: count }, (_, i) =>
+      key((i * length) / count, pose(i / count), { ease: 'linear' }),
+    ),
+  };
+}
 
 /** Falling: legs reaching down for the floor, arms spread wide under the head. */
 const FALL = mix(AIR, {
@@ -162,16 +202,20 @@ const FALL = mix(AIR, {
 });
 const FALL_2 = mix(FALL, { armF: { rot: -65 }, armB: { rot: 65 }, foreF: { rot: -60 }, foreB: { rot: 60 } });
 
-/** Jump apex: weightless, legs hanging loose, arms floating out. */
+/**
+ * Jump apex: knees tucked up under the head and the body tipped back a little. The arms are short enough to
+ * vanish behind the head when raised, so they splay down and out where they show.
+ */
 const APEX = mix(AIR, {
-  thighF: { rot: -48 },
-  shinF: { rot: 80 },
-  thighB: { rot: -28 },
-  shinB: { rot: 72 },
-  armF: { rot: -55 },
-  foreF: { rot: -50 },
-  armB: { rot: 55 },
-  foreB: { rot: 50 },
+  body: { rot: -5 },
+  thighF: { rot: -78 },
+  shinF: { rot: 112 },
+  thighB: { rot: -46 },
+  shinB: { rot: 98 },
+  armF: { rot: -48 },
+  foreF: { rot: -62 },
+  armB: { rot: 48 },
+  foreB: { rot: 62 },
 });
 
 const RISE: Pose = {
@@ -207,7 +251,13 @@ const SHIELD = hands(
   -1,
 );
 
-const HANG = hang(GX, GY, DROP);
+/** Hanging with the legs apart: the front knee drawn up against the wall, the back leg dangling straight. */
+const HANG = hang(GX, GY, DROP, {
+  thighF: { rot: -34 },
+  shinF: { rot: 52 },
+  thighB: { rot: 10 },
+  shinB: { rot: 6 },
+});
 /** Holding on: mitten hands, straining. */
 const HANG_FACE = { head: 'headFront', face: 'faceFrontStrain', ...MITTENS };
 
@@ -254,6 +304,16 @@ const TUMBLE = mix(AIR, {
   shinB: { rot: 5 },
 });
 
+const TUMBLE_FLAIL = mix(TUMBLE, {
+  armF: { rot: -110 },
+  foreF: { rot: -45 },
+  armB: { rot: 150 },
+  thighF: { rot: -100 },
+  shinF: { rot: 60 },
+  thighB: { rot: 75 },
+  shinB: { rot: 30 },
+});
+
 /** Rolled into the ball: the head's ball resting on the floor. */
 const ROLL_BALL: Pose = { body: { y: 3.05 } };
 
@@ -274,14 +334,22 @@ export const clips: Record<string, AnimClip> = {
     length: 10,
     swaps: SIDE,
     keys: [
-      key(0, mix(CROUCH, { body: { rot: 18 }, armF: { rot: 30 }, armB: { rot: -30 } }), { ease: 'out' }),
-      key(4, mix(RUN[0], { body: { rot: 18, x: 0.55, y: -0.2 } }), {
-        ease: 'linear',
-      }),
-      key(10, RUN[1]),
+      key(
+        0,
+        mix(CROUCH, {
+          body: { rot: 22 },
+          neck: { rot: -6 },
+          head: { sx: 1.08, sy: 0.9 },
+          armF: { rot: 45 },
+          armB: { rot: -45 },
+        }),
+        { ease: 'out' },
+      ),
+      key(3, mix(runPose(0.55, 24), { head: { sx: 0.95, sy: 1.07 } }), { ease: 'linear' }),
+      key(10, runPose(0)),
     ],
   },
-  run: cycle(24, RUN),
+  run: sampled(20, 10, (t) => runPose(t)),
   runBrake: {
     length: 14,
     swaps: SIDE,
@@ -320,13 +388,14 @@ export const clips: Record<string, AnimClip> = {
   jumpSquat: {
     length: 3,
     swaps: FRONT,
-    keys: [key(0, STAND, { ease: 'out' }), key(3, mix(CROUCH, { head: { sx: 1.1, sy: 0.86 } }))],
+    keys: [key(0, STAND, { ease: 'out' }), key(3, mix(CROUCH, { head: { sx: 1.12, sy: 0.84 } }))],
   },
   jump: {
     length: 40,
     swaps: UP,
     keys: [
-      key(0, RISE, { ease: 'out', z: HEAD_BEHIND }),
+      key(0, mix(RISE, { head: { sx: 0.88, sy: 1.14 } }), { ease: 'out', z: HEAD_BEHIND }),
+      key(4, mix(RISE, { head: { sx: 0.97, sy: 1.04 } }), { ease: 'inOut' }),
       key(14, mix(RISE, { body: { sx: 1, sy: 1 }, armF: { rot: -120 }, armB: { rot: 120 } }), {
         ease: 'inOut',
       }),
@@ -358,7 +427,11 @@ export const clips: Record<string, AnimClip> = {
   land: {
     length: 4,
     swaps: FRONT,
-    keys: [key(0, mix(CROUCH, { head: { sx: 1.14, sy: 0.84 } }), { ease: 'out' }), key(4, STAND)],
+    keys: [
+      key(0, mix(CROUCH, { head: { sx: 1.16, sy: 0.82 } }), { ease: 'out' }),
+      key(2, mix(STAND, { hip: { y: 0.15 }, head: { sx: 0.96, sy: 1.05 } }), { ease: 'inOut' }),
+      key(4, STAND),
+    ],
   },
   shield: {
     length: 6,
@@ -461,8 +534,10 @@ export const clips: Record<string, AnimClip> = {
         hang(GX, GY, DROP + 0.1, {
           body: { rot: 2, x: 0.4 },
           neck: { rot: -2 },
-          thighF: { rot: -4 },
-          thighB: { rot: 14 },
+          thighF: { rot: -20 },
+          shinF: { rot: 34 },
+          thighB: { rot: 20 },
+          shinB: { rot: 18 },
         }),
       ),
     ],
@@ -572,22 +647,17 @@ export const clips: Record<string, AnimClip> = {
       key(20, mix(HIT, { body: { rot: -14 }, armF: { rot: -80 }, armB: { rot: 80 } })),
     ],
   },
+  /**
+   * Head over heels: the whole rig turns once every 30 frames, limbs splayed and flailing between two spreads.
+   * The last key sits a full turn past the first, so the loop's wrap is seamless.
+   */
   tumble: {
     length: 30,
     loop: true,
     swaps: SIDE_HURT,
-    keys: [
-      key(0, TUMBLE),
-      key(
-        15,
-        mix(TUMBLE, {
-          body: { sx: -1, rot: 40 },
-          armF: { rot: -120 },
-          thighF: { rot: -95 },
-          thighB: { rot: 70 },
-        }),
-      ),
-    ],
+    keys: [0, 6, 12, 18, 24, 30].map((f, i) =>
+      key(f, mix(i % 2 ? TUMBLE_FLAIL : TUMBLE, { body: { sx: -1, rot: 32 + 72 * i } }), { ease: 'linear' }),
+    ),
   },
   helpless: {
     length: 32,
