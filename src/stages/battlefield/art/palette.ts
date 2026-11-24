@@ -42,5 +42,5 @@ export const SKY_HORIZON = 0xd6f2ff;
 
 export const CLOUD = 0xffffff;
 export const CLOUD_SHADE = 0xbfdcf2;
-export const SEA_TOP = 0xd8eaf7;
+export const SEA_TOP = 0xc6e0f2;
 export const SEA_DEEP = 0x95c6e8;

@@ -127,26 +127,15 @@ function drawUnderside(g: Graphics): void {
       [1, 'rgba(25,20,8,0.38)'],
     ]),
   );
-  const ys = [CAP_BOTTOM, -16, -22, -28, -34, HULL_BOTTOM];
-  const band = [
-    ...ys.map((y) => [hullSpan(y)[0], -y]),
-    ...ys
-      .slice()
-      .reverse()
-      .map((y) => [hullSpan(y)[0] + 9 + (CAP_BOTTOM - y) * 0.12, -y]),
-  ].flat();
-  g.poly(band).fill(
-    new FillGradient({
-      type: 'linear',
-      start: { x: 0, y: 0.5 },
-      end: { x: 1, y: 0.5 },
-      colorStops: [
-        { offset: 0, color: 'rgba(25,20,8,0.42)' },
-        { offset: 1, color: 'rgba(25,20,8,0)' },
-      ],
-      textureSpace: 'local',
-    }),
-  );
+  const ys = [CAP_BOTTOM - 1.2, -12, -16, -20, -25.1, -30, -35, HULL_BOTTOM + 1];
+  for (let k = 0; k < 6; k++) {
+    ys.forEach((y, i) => {
+      const x = hullSpan(y)[0] + 0.9 + k * 1.5;
+      if (i === 0) g.moveTo(x, -y);
+      else g.lineTo(x, -y);
+    });
+    g.stroke({ width: 1.6, color: 0x19140a, alpha: 0.1 - k * 0.014, join: 'round' });
+  }
   ys.forEach((y, i) => {
     const x = hullSpan(y)[1] - 0.95;
     if (i === 0) g.moveTo(x, -y + 0.6);
@@ -288,6 +277,15 @@ function engrave(g: Graphics, glyph: string, x: number, y: number, s: number): v
 }
 
 function drawCap(g: Graphics): void {
+  const rear = [-80, -TOP_Y, 80, -TOP_Y, 78.4, -TOP_Y - 1.3, -78.4, -TOP_Y - 1.3];
+  g.poly(rear).fill(mix(STONE_MID, STONE_LIGHT, 0.35));
+  g.moveTo(-78.4, -TOP_Y - 1.3)
+    .lineTo(78.4, -TOP_Y - 1.3)
+    .stroke({ width: 0.3, color: INK, alpha: 0.55 });
+  for (const side of [-1, 1])
+    g.moveTo(80 * side, -TOP_Y)
+      .lineTo(78.4 * side, -TOP_Y - 1.3)
+      .stroke({ width: 0.3, color: INK, alpha: 0.55 });
   g.rect(-80, -TOP_Y, 160, CAP_H).fill(
     vGradient([
       [0, STONE_LIGHT],

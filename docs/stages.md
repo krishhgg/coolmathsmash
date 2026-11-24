@@ -55,11 +55,13 @@ for a new stage. Decorative layers (islands, clouds) can drift off-screen freely
 
 ## Lining art up with geometry
 
-Draw the solid parts straight from the geometry numbers: the walkable top edge of the art is exactly the surface,
+Draw the solid parts straight from the geometry (Battlefield's art imports `src/stages/battlefield/geometry.ts`
+through `art/outline.ts`, so it can never drift): the walkable top edge of the art is exactly the surface,
 side walls and slopes follow the hull, and the outline stroke is drawn on the hull polygon so the silhouette is the
 collision shape. Drop-through platforms are thin (about 2 units) with the walkable surface exactly at their y;
 small ornaments may hang below them. Decorations that stick out (vines) should be thin and obviously
-non-solid. Check alignment in the lab: `/lab.html?scene=stage&collision=1` overlays the hull (magenta), platform
+non-solid. A shallow, muted rear plane (about 1.3 units) above the main deck's front edge is fine as a depth cue;
+the crisp front edge stays the walkable surface. Check alignment in the lab: `/lab.html?scene=stage&collision=1` overlays the hull (magenta), platform
 surfaces (cyan), ledge points (yellow dots), camera bounds (yellow) and blast zones (red).
 
 ## Readability
@@ -68,6 +70,11 @@ Fighters come first. Keep the area behind the playfield calm: lower contrast and
 haze distant layers toward the sky colour (`mix(color, HAZE, t)`), and avoid busy detail or bright whites right
 behind the platforms. Use the confident dark outline (`INK`) only on the playfield; far layers get no outline or a
 soft tinted one. `&dummies=1` in the stage lab scene drops port-coloured stand-ins on the platforms to check this.
+
+Background islands must never read as somewhere to land: keep grassy island tops well away (vertically) from
+real surfaces at the cameras the game uses, and make anything near the playfield jagged rather than flat.
+Battlefield keeps its island placement as data in `art/scenery.ts`, and `parallax.test.ts` checks it against the
+start-of-match camera (`src/render/camera.ts`) and views around the playfield.
 
 ## Deterministic animation
 

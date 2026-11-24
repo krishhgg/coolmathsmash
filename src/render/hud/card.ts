@@ -7,9 +7,10 @@ import type { HudPlayer } from './types';
 const INK = 0x15110c;
 const PORTRAIT = { x: 50, y: 64, size: 90, tilt: -0.12 } as const;
 const NUMBER = { right: 254, base: 98 } as const;
-const BAR = { left: 98, right: 260, top: 106, bottom: 125, slant: 6 } as const;
+const BAR = { left: 64, right: 260, top: 106, bottom: 125, slant: 6 } as const;
+const PORT_LABEL_X = 102;
 const STOCK_Y = 139;
-const STOCK_SIZE = 20;
+const STOCK_SIZE = 24;
 
 function mixColor(a: number, b: number, t: number): number {
   let out = 0;
@@ -68,7 +69,6 @@ function labelStyle(size: number, stroke: number): TextStyle {
  */
 export class DamageCard {
   readonly container = new Container({ label: 'damage-card' });
-  private readonly body = new Container();
   private readonly portrait = new Container({ label: 'portrait' });
   private readonly emblem = new Graphics({ label: 'emblem' });
   private readonly burst = new Graphics({ label: 'burst' });
@@ -98,10 +98,18 @@ export class DamageCard {
     this.number.addChild(this.whole, this.tenth);
     this.number.pivot.set(-72, -26);
     this.number.skew.set(-0.2, 0);
-    this.body.addChild(this.emblem, this.portrait, this.bar, this.nameText, this.portText, this.stocks);
-    this.container.addChild(this.body, this.burst, this.number);
+    this.container.addChild(
+      this.emblem,
+      this.burst,
+      this.bar,
+      this.portrait,
+      this.number,
+      this.nameText,
+      this.portText,
+      this.stocks,
+    );
     this.nameText.position.set(BAR.right - BAR.slant - 8, (BAR.top + BAR.bottom) / 2 + 1);
-    this.portText.position.set(BAR.left + 8, (BAR.top + BAR.bottom) / 2 + 1);
+    this.portText.position.set(PORT_LABEL_X, (BAR.top + BAR.bottom) / 2 + 1);
   }
 
   /** `faded` drops the card to 40% while a fighter is behind it, like Ultimate. */
@@ -121,7 +129,7 @@ export class DamageCard {
     }
     if (p.name !== s.name || p.port !== s.port) {
       this.nameText.text = p.name.toUpperCase();
-      const room = BAR.right - BAR.left - 56;
+      const room = BAR.right - PORT_LABEL_X - 44;
       this.nameText.scale.set(1);
       if (this.nameText.width > room) this.nameText.scale.set(room / this.nameText.width);
       this.portText.text = `P${p.port + 1}`;
@@ -131,7 +139,7 @@ export class DamageCard {
       const { whole, tenth } = formatDamage(p.damage);
       this.whole.text = whole;
       this.tenth.text = tenth;
-      this.whole.scale.set(whole.length >= 3 ? 0.88 : 1);
+      this.whole.scale.set(whole.length >= 3 ? 0.94 : 1);
       this.tenth.position.set(0, 0);
       this.whole.position.set(-this.tenth.width + 8, 3);
     }
@@ -263,7 +271,7 @@ export class DamageCard {
 
   private drawStocks(p: HudPlayer): void {
     for (const child of this.stocks.removeChildren()) child.destroy({ children: true });
-    const left = BAR.left + 4 + STOCK_SIZE / 2;
+    const left = PORT_LABEL_X - 2 + STOCK_SIZE / 2;
     const remaining = p.eliminated ? 0 : Math.max(0, p.stocks);
     if (p.maxStocks > 5) {
       const icon = iconView(p.icon, STOCK_SIZE);
@@ -275,9 +283,9 @@ export class DamageCard {
     }
     for (let i = 0; i < Math.max(p.maxStocks, remaining); i++) {
       const icon = iconView(p.icon, STOCK_SIZE);
-      icon.position.set(left + i * (STOCK_SIZE + 3), STOCK_Y);
+      icon.position.set(left + i * (STOCK_SIZE + 2), STOCK_Y);
       if (i >= remaining) {
-        icon.alpha = 0.3;
+        icon.alpha = 0.2;
         icon.tint = 0x202020;
       }
       this.stocks.addChild(icon);
