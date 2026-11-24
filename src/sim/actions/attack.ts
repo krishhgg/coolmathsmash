@@ -35,9 +35,12 @@ export function chargeMultiplier(f: FighterState): number {
 
 /**
  * Begin one of the fighter's moves now. Grounded moves play as 'attack', airborne ones as 'aerial', unless
- * `action` names another action that plays moves (the grab actions).
+ * `action` names another action that plays moves (the grab actions). An airborne start plays the move's `air`
+ * variant instead when it has one.
  */
-export function startMove(x: Ctx, name: string, action?: string): boolean {
+export function startMove(x: Ctx, requested: string, action?: string): boolean {
+  const air = x.f.ground ? undefined : x.def.moves?.[requested]?.air;
+  const name = air ?? requested;
   const move = x.def.moves?.[name];
   if (!move) return false;
   if (x.f.ground && move.leavesGround) leaveGround(x);
