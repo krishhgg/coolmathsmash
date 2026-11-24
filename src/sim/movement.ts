@@ -193,6 +193,23 @@ function fallStep(f: FighterState, s: FighterStats, vy: number, t: number): numb
   return Math.max(vy - s.gravity * t, -s.fallSpeed);
 }
 
+/**
+ * Advances `vel` and `kb` through `scale` frames of launch decay and gravity (whole frames, then the fraction) and
+ * returns the distance they cover.
+ */
+function integrate(f: FighterState, s: FighterStats, vel: Vec, kb: Vec, gravity: boolean, scale: number) {
+  let dx = 0;
+  let dy = 0;
+  for (let left = scale; left > 0; left--) {
+    const t = Math.min(1, left);
+    dx += (vel.x + kb.x) * t;
+    dy += (vel.y + kb.y) * t;
+    decayKnockback(kb, LAUNCH_DECAY * t);
+    if (gravity) vel.y = fallStep(f, s, vel.y, t);
+  }
+  return { dx, dy };
+}
+
 /** Air physics: drift, sub-stepped movement with landing/wall/ceiling collision, gravity, ledge grabs. */
 export function airMove(x: Ctx): void {
   const { f, s } = x;
@@ -201,17 +218,8 @@ export function airMove(x: Ctx): void {
   const drift = typeof action.drift === 'function' ? action.drift(x) : (action.drift ?? true);
   if (drift) airDrift(x, drift === 'helpless' ? s.airSpeed * HELPLESS_AIR_SPEED : s.airSpeed);
   const gravity = typeof action.gravity === 'function' ? action.gravity(x) : (action.gravity ?? true);
-  const vel = { ...f.vel };
-  const kb = { ...f.kb };
-  let dx = 0;
-  let dy = 0;
-  for (let left = launchTimeScale(f); left > 0; left--) {
-    const t = Math.min(1, left);
-    dx += (vel.x + kb.x) * t;
-    dy += (vel.y + kb.y) * t;
-    decayKnockback(kb, LAUNCH_DECAY * t);
-    if (gravity) vel.y = fallStep(f, s, vel.y, t);
-  }
+  const scale = launchTimeScale(f);
+  const { dx, dy } = integrate(f, s, { ...f.vel }, { ...f.kb }, gravity, scale);
   const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / MAX_SUBSTEP));
   for (let i = 0; i < steps; i++) {
     const prev = { x: f.pos.x, y: f.pos.y };
@@ -223,8 +231,7 @@ export function airMove(x: Ctx): void {
       return;
     }
   }
-  f.vel = vel;
-  f.kb = kb;
+  integrate(f, s, f.vel, f.kb, gravity, scale);
   if (gravity && f.fastFalling) f.vel.y = -s.fastFallSpeed;
   tryLedgeGrab(x);
 }
