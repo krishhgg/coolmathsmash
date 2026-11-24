@@ -1,6 +1,32 @@
 import type { Vec } from './vec';
 
 /**
+ * Offset of a moving piece from its authored position, as a deterministic function of the match frame (see
+ * docs/stages.md): keyframes that loop every `period` frames, or a function of the frame.
+ */
+export type Motion =
+  | {
+      period: number;
+      /** [frame within the period, dx, dy], sorted by frame. The path loops from the last key back to the first. */
+      keys: [number, number, number][];
+      /** Ease in and out of every key (smoothstep) instead of moving at constant speed between keys. */
+      ease?: boolean;
+    }
+  | ((frame: number) => [number, number]);
+
+/**
+ * When a piece is there: absent on the listed frames (inclusive ranges) of every `period`, or a function of the
+ * match frame that returns true while the piece is present.
+ */
+export type Schedule = { period: number; off: [number, number][] } | ((frame: number) => boolean);
+
+/** A solid or platform may move and may appear and vanish; without either it stays put. */
+export interface Moving {
+  motion?: Motion;
+  schedule?: Schedule;
+}
+
+/**
  * Collision geometry of a stage, in game units with y up. Rendering lives elsewhere (src/stages/<id>/view.ts);
  * the simulation only ever sees this.
  */
@@ -8,11 +34,14 @@ export interface StageGeometry {
   id: string;
   name: string;
   /** Closed solid polygons. Edges are classified as floor, wall or ceiling from their outward normal. */
-  solids: { points: [number, number][] }[];
+  solids: ({ points: [number, number][] } & Moving)[];
   /** One-way (drop-through) platforms. */
-  platforms: { x1: number; x2: number; y: number }[];
-  /** Grabbable corners. side -1 = left end of the stage (fighter hangs on its left, facing right). */
-  ledges: { x: number; y: number; side: -1 | 1 }[];
+  platforms: ({ x1: number; x2: number; y: number } & Moving)[];
+  /**
+   * Grabbable corners. side -1 = left end of the stage (fighter hangs on its left, facing right). A ledge moves
+   * and vanishes with its `solid`, by default the solid that has a corner at (x, y).
+   */
+  ledges: { x: number; y: number; side: -1 | 1; solid?: number }[];
   blastZones: { left: number; right: number; top: number; bottom: number };
   camera: { left: number; right: number; top: number; bottom: number };
   /** Starting positions per port: x, y, facing. */
@@ -36,6 +65,10 @@ export interface Edge {
 export interface CompiledStage {
   geo: StageGeometry;
   edges: Edge[];
+  /** The solid each ledge belongs to, -1 for none. */
+  ledgeSolid: number[];
+  /** Which solids and platforms are there this frame; collision skips absent ones. */
+  present: { solids: boolean[]; platforms: boolean[] };
 }
 
 const FLOOR_NORMAL_Y = 0.7;
@@ -63,7 +96,24 @@ export function compileStage(geo: StageGeometry): CompiledStage {
       edges.push({ solid: s, index: i, a: { x: ax, y: ay }, b: { x: bx, y: by }, n, kind });
     }
   });
-  return { geo, edges };
+  const ledgeSolid = geo.ledges.map(
+    (l) =>
+      l.solid ??
+      geo.solids.findIndex((s) =>
+        s.points.some(([x, y]) => Math.abs(x - l.x) < 0.01 && Math.abs(y - l.y) < 0.01),
+      ),
+  );
+  return {
+    geo,
+    edges,
+    ledgeSolid,
+    present: { solids: geo.solids.map(() => true), platforms: geo.platforms.map(() => true) },
+  };
+}
+
+export function ledgePresent(stage: CompiledStage, i: number): boolean {
+  const s = stage.ledgeSolid[i] ?? -1;
+  return s < 0 || stage.present.solids[s] === true;
 }
 
 /** Height of a floor edge at x (floors are never vertical). */

@@ -1,4 +1,6 @@
 import { registerFighter } from '../../fighters/registry';
+import { registerStage } from '../../stages/registry';
+import { testbed } from '../../stages/testbed';
 import { buttonBit, neutralInput, type ButtonName, type InputFrame } from '../../input/types';
 import { createMatch, stepMatch, type MatchState } from '../match';
 import { compiledStage } from '../step';
@@ -6,6 +8,7 @@ import type { FighterState } from '../fighter';
 import { marioReference } from './reference';
 
 registerFighter(marioReference);
+registerStage(testbed);
 
 export type Hold = Partial<Omit<InputFrame, 'buttons'>> & { buttons?: ButtonName[] };
 
