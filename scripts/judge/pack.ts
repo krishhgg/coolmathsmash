@@ -182,6 +182,8 @@ export function buildPrompt(
     '- `gaps`: 5 to 12 concrete, actionable gaps across all states, ranked (`rank` 1 = fix first). Rank controls and physics gaps above looks, and bigger visible wins above polish. Each names one state (or `*` for all), the axis it would raise, what is wrong, the evidence (which file and what you saw, or which frames and numbers), and a fix specific enough to implement (values, frames, shapes, colours).',
     '- `regressions`: things that got worse since the previous round; [] in round 1.',
     '',
+    'Where the Coolmath Smash repository is checked out, `npm run judge:aggregate -- <pack dir> --check judges/<your model id>.json` validates your file against the schema without writing anything.',
+    '',
   );
   return out.join('\n');
 }
