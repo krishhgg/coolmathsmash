@@ -40,3 +40,10 @@ reproduces the match bit for bit; tests assert equal state hashes.
 Loading the game with `?harness` stops real-time stepping and exposes `window.__smash` (see
 `src/harness/api.ts`): start a match, feed scripted inputs (`ScriptStep[]`), step frames, read or hash state,
 toggle overlays and render on demand. Playwright tests and the capture harness drive the game only through it.
+
+## Lab (`lab.html`, `src/lab`)
+
+`/lab.html?scene=<name>` mounts one piece of the game in isolation (a fighter's poses, the stage, the HUD) on
+the same 1280×720 canvas. Scenes are discovered from `src/lab/scenes/*.ts` (export `scene: LabScene`), so
+adding one touches no shared file. A scene's `api` functions are callable from tests and the capture harness
+through `window.__lab.call(name, ...args)`.
