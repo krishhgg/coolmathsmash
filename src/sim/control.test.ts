@@ -110,4 +110,11 @@ describe('control state', () => {
     for (const v of [0, 35, 45, 55, 65, 75, 100]) feedControl(c, f({ cy: v }));
     expect(cStickDir(c, 1)).toBe('neutral');
   });
+
+  it('never treats a stick held since the first frame as a flick', () => {
+    const c = createControl();
+    feedControl(c, f({ x: 100, cx: 100 }));
+    expect(flickX(c, 0.6)).toBe(0);
+    expect(cStickDir(c, 1)).toBe('neutral');
+  });
 });
