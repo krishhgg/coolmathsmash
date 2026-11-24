@@ -364,17 +364,18 @@ export const moves: Record<string, MoveDef> = {
         if (!f.ground) f.vel.y = Math.max(f.vel.y * 0.6, -0.4);
         return;
       }
-      if (af <= DIVE.to) {
-        if (f.ground) {
-          f.actionFrame = DIVE.slide;
-          f.vel.x = f.facing * DIVE.slideSpeed;
-          return;
-        }
+      if (af > DIVE.slide) return;
+      if (af <= DIVE.to && !f.ground) {
         f.vel.x = f.facing * DIVE.vx;
         f.vel.y = -DIVE.vy;
         return;
       }
-      if (af === DIVE.slide && !f.ground) f.actionFrame = DIVE.faf;
+      if (!f.ground) {
+        f.actionFrame = DIVE.faf;
+        return;
+      }
+      f.actionFrame = DIVE.slide;
+      f.vel.x = f.facing * DIVE.slideSpeed;
     },
   },
   /** Double Stomp: two stomps on the floored opponent, popping them up at a combo angle. */

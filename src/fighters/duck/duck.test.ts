@@ -299,6 +299,20 @@ describe('The Duck: Dive Ram (down special)', () => {
     expect(f.action).toBe('idle');
   });
 
+  it('landing on the last dive frame still launches the slide at full speed', () => {
+    const m = duck();
+    const f = placeInAir(m, -40, 120, 1);
+    run(m, 1, { y: -100, buttons: ['special'] });
+    until(m, (g) => g.actionFrame === 43);
+    Object.assign(f, { pos: { x: f.pos.x, y: 1 }, prevPos: { x: f.pos.x, y: 1 } });
+    run(m, 1);
+    expect(f.ground).not.toBeNull();
+    expect(f.actionFrame).toBe(44);
+    run(m, 1);
+    expect(f.actionFrame).toBe(45);
+    expect(f.vel.x).toBeGreaterThan(2.2);
+  });
+
   it('on the ground it is a slide forward from frame 10 with the 8% hitbox', () => {
     const m = duck();
     const f = m.fighters[0]!;
