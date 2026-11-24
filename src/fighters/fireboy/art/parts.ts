@@ -126,3 +126,36 @@ export const shoutSide: PathShape[] = [
   { d: 'M1.15 1.5Q1.6 1.35 2.0 1.45Q1.85 1.75 1.5 1.75Q1.25 1.7 1.15 1.5Z', fill: 'mouth' },
 ];
 export const ouchSide: PathShape[] = [{ d: ellipse(1.55, 1.25, 0.32, 0.28), fill: 'line' }];
+
+/**
+ * A strike flame pointing up from its base at the origin, sized like the head's ball (radius 3.6) so
+ * `flame()` in poses.ts places it the same way: a yellow core in an orange-red teardrop with three swept
+ * tongues and a thin dark-red outline, so an attack's fire never reads as a second head. `tips` nudges the
+ * left, middle and right tongues for the flicker drawings.
+ */
+function jet(s: number, dy: number, [l, m, r]: [number, number, number]): string {
+  const p = (x: number, y: number) => `${n(x * s)} ${n(y * s + dy)}`;
+  return [
+    `M${p(0, 3)}`,
+    `C${p(2.2, 3)} ${p(3.2, 1.4)} ${p(3, -0.6)}`,
+    `C${p(2.9, -2.4)} ${p(3.4, -3.8)} ${p(4 + r * 0.3, -5.6 - r)}`,
+    `C${p(2.6, -4.6)} ${p(2, -4.4)} ${p(1.5, -4.2)}`,
+    `C${p(1.6, -6.4)} ${p(1, -8.6)} ${p(m * 0.3, -10.6 - m)}`,
+    `C${p(-0.9, -8.4)} ${p(-1.3, -6.2)} ${p(-1.6, -4.4)}`,
+    `C${p(-2.2, -4.8)} ${p(-2.8, -5.2)} ${p(-3.6 - l * 0.3, -6.6 - l)}`,
+    `C${p(-3.2, -4)} ${p(-3.2, -2.2)} ${p(-3, -0.6)}`,
+    `C${p(-3.2, 1.4)} ${p(-2.2, 3)} ${p(0, 3)}Z`,
+  ].join('');
+}
+
+export const jets: PathShape[][] = (
+  [
+    [0, 0, 0],
+    [0.5, -0.7, 0.4],
+    [-0.5, 0.6, -0.4],
+  ] as [number, number, number][]
+).map((tips) => [
+  { d: jet(1, 0, tips), fill: 'fire', stroke: { color: 'mouth', width: 0.35 } },
+  { d: jet(0.64, 1.0, tips), fill: 'eye1' },
+  { d: jet(0.34, 1.75, tips), fill: 'eye0' },
+]);

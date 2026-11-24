@@ -19,6 +19,7 @@ import {
   blinkSide,
   fist,
   foreArm,
+  jets,
   lidsFront,
   lidsSide,
   ouchFront,
@@ -133,6 +134,9 @@ export const rig: Rig = {
     fxBall: loop('headSide', 5, 30, [2, 0, 3, 1, 4]),
     /** A flame tongue: the front head's three tips pointing up from the ball. */
     fxFlame: loop('headFront', 5, 30, [3, 1, 4, 0, 2]),
+    ...frames('fxJet', jets),
+    /** A strike flame: a yellow-cored teardrop with swept tongues, flickering through three drawings. */
+    fxJet: loop('fxJet', 3, 20, [0, 1, 2]),
   },
 };
 
