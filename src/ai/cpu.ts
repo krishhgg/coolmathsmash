@@ -14,6 +14,7 @@ import { findAttacks, type Attack, type Self, type Target } from './options';
 import {
   airAerial,
   airDodge,
+  canFastFall,
   crouch,
   drift,
   dropJump,
@@ -601,7 +602,7 @@ export class Cpu {
       this.rand() < this.lv.precision
         ? ranked[0]!
         : ranked[Math.floor(this.rand() * Math.min(ranked.length, 6))]!;
-    const ff = this.rand() < this.lv.fastFall;
+    const ff = this.rand() < this.lv.fastFall && floorBelow(info, pick.endX, pick.endY + 1) !== null;
     switch (pick.kind) {
       case 'ground':
         this.start(groundMove(pick.move, TURNING_MOVES.has(pick.move) ? pick.facing : me.facing));
@@ -642,7 +643,7 @@ export class Cpu {
     const s = path[Math.min(path.length - 1, 8)]!;
     const margin = 6;
     if (me.ground === null) {
-      this.start(drift(clampToStage(info, s.x - dir * 10, margin), this.rand() < this.lv.fastFall, 12));
+      this.start(drift(clampToStage(info, s.x - dir * 10, margin), this.rand() < this.lv.fastFall, 12, info));
       return;
     }
     const oppOff = floorBelow(info, snap.pos.x, snap.pos.y) === null && !snap.action.startsWith('ledge');
@@ -690,7 +691,7 @@ export class Cpu {
 
   private aimless(me: Readonly<FighterState>, info: StageInfo): Program {
     const r = this.rand();
-    if (me.ground === null) return drift(info.centerX, false, 10);
+    if (me.ground === null) return drift(info.centerX, false, 10, info);
     if (r < 0.4) return wait(20 + Math.floor(this.rand() * 40));
     if (r < 0.75) {
       const x = info.left + 15 + this.rand() * (info.right - info.left - 30);
@@ -708,7 +709,7 @@ export class Cpu {
     this.fastFallAir = me.airFrames;
     const x =
       me.pos.x < info.left + 10 || me.pos.x > info.right - 10 ? Math.sign(info.centerX - me.pos.x) * 100 : 0;
-    const ff = this.wantFastFall && actionable(me) && me.vel.y <= 0 && !me.fastFalling && this.last.y > -30;
+    const ff = this.wantFastFall && actionable(me) && canFastFall(me, info) && this.last.y > -30;
     return press({ x, y: ff ? -100 : 0 });
   }
 }

@@ -1,3 +1,4 @@
+import { getFighter } from '../fighters/registry';
 import { Btn, neutralInput, type InputFrame } from '../input/types';
 import type { FighterState } from '../sim/fighter';
 import { AIR_INPUTS, GROUND_INPUTS, STICK, press } from './inputs';
@@ -70,8 +71,8 @@ export function goTo(x: number, runFar: boolean, frames: number, info: StageInfo
   };
 }
 
-/** Drift toward x in the air, fast falling once if asked. */
-export function drift(x: number, fastFall: boolean, frames: number): Program {
+/** Drift toward x in the air, fast falling once if asked and it lands on solid ground. */
+export function drift(x: number, fastFall: boolean, frames: number, info: StageInfo): Program {
   let ff = false;
   return {
     name: 'drift',
@@ -81,7 +82,7 @@ export function drift(x: number, fastFall: boolean, frames: number): Program {
       const d = x - f.pos.x;
       const sx = Math.abs(d) < 3 ? d * 20 : Math.sign(d) * 100;
       let y = 0;
-      if (fastFall && !ff && f.vel.y <= 0 && !f.fastFalling && actionable(f)) {
+      if (fastFall && !ff && actionable(f) && canFastFall(f, info)) {
         ff = true;
         y = -100;
       }
@@ -187,7 +188,7 @@ export function dropJump(toward: number): Program {
 
 /** A grounded move: wait until actionable on the ground (out of a shield drop), then input it facing `facing`. */
 export function groundMove(move: string, facing: 1 | -1): Program {
-  const input = GROUND_INPUTS[move] ?? (move === 'dashAttack' ? { x: 100, buttons: Btn.Attack } : null);
+  const input = GROUND_INPUTS[move] ?? (move === 'dashAttack' ? { buttons: Btn.Attack } : null);
   return {
     name: `ground:${move}`,
     interruptible: false,
@@ -199,9 +200,14 @@ export function groundMove(move: string, facing: 1 | -1): Program {
   };
 }
 
-/** Fast fall only over solid ground, never off stage. */
-function canFastFall(f: Readonly<FighterState>, info: StageInfo): boolean {
-  return f.vel.y <= 0 && !f.fastFalling && floorBelow(info, f.pos.x, f.pos.y, false) !== null;
+/**
+ * Fast fall only when falling onto solid ground: over it now, and over it where the current drift would carry the
+ * fall down to the stage's height, so a fast fall never takes the CPU past the ledge.
+ */
+export function canFastFall(f: Readonly<FighterState>, info: StageInfo): boolean {
+  if (f.vel.y > 0 || f.fastFalling || floorBelow(info, f.pos.x, f.pos.y, false) === null) return false;
+  const t = Math.max(0, f.pos.y - info.top) / getFighter(f.fighter).stats.fastFallSpeed;
+  return floorBelow(info, f.pos.x + f.vel.x * t, f.pos.y, false) !== null;
 }
 
 function aerialInput(move: string, facing: 1 | -1, drift: number): InputFrame {
