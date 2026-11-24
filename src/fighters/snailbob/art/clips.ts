@@ -466,15 +466,15 @@ const ledgeClimb: AnimClip = {
  * ball hops from where the climb left him (frame 10) up onto the corner's height, then rides it until he's on the
  * floor, drifting in over the lip a little later than it rises, spinning from 90 to 720 degrees.
  */
-const LEDGE_ROLL_SPIN = [12, 14, 16, 18, 20, 22, 24, 36].map((f, i) => {
+const LEDGE_ROLL_SPIN = [11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 36].map((f, i) => {
   const smooth = (v: number) => {
     const t = Math.min(1, Math.max(0, v));
     return t * t * (3 - 2 * t);
   };
   const [x0, y0] = climbOffset(f, 40, 25);
-  const up = smooth((f - 10) / 4);
+  const up = smooth((f - 10) / 6);
   const over = smooth((f - 12) / 6);
-  const u = (f - 12) / 24;
+  const u = (f - 11) / 25;
   const pose = mix(BALL, {
     body: {
       rot: 90 + 630 * (1 - (1 - u) ** 2),
