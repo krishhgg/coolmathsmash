@@ -1,3 +1,4 @@
+import { audio } from '../audio';
 import { padSlots } from '../input/gamepad';
 import { loadSettings, saveSettings, type Settings } from '../session/settings';
 import { MenuInput, type MenuEvent } from './input';
@@ -14,6 +15,18 @@ export interface Screen {
 }
 
 export type Route = 'title' | 'main' | 'css' | 'stages' | 'match' | 'results' | 'controls' | 'options';
+
+/** How deep each screen sits, so going to a shallower one sounds like "back". */
+const DEPTH: Record<Route, number> = {
+  title: 0,
+  main: 1,
+  controls: 2,
+  options: 2,
+  css: 2,
+  stages: 3,
+  match: 4,
+  results: 5,
+};
 
 /** What a screen can do to the rest of the game. */
 export interface Flow {
@@ -45,6 +58,9 @@ export class App implements Flow {
   go(route: Route): void {
     const make = this.screens[route];
     if (!make) return;
+    if (this.route)
+      audio.ui(route === 'match' ? 'start' : DEPTH[route] < DEPTH[this.route] ? 'back' : 'select');
+    if (route !== 'match') audio.music('menu');
     this.screen?.leave?.();
     this.screen?.el.remove();
     this.input.clear();

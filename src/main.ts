@@ -1,3 +1,4 @@
+import { audio } from './audio';
 import { Game } from './game';
 import { installHarness } from './harness/api';
 import { loadHudFont } from './render/hud';
@@ -34,6 +35,7 @@ async function boot(): Promise<void> {
     renderer.overlays[overlay] = !renderer.overlays[overlay];
   });
   if (harness || params.has('debug')) installHarness(game);
+  if (!harness) audio.init(window);
   if (harness || params.has('match')) game.loop.start();
   else await startUi(root, renderer.app.canvas, game);
   document.body.dataset.ready = 'true';

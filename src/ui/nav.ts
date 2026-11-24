@@ -1,3 +1,4 @@
+import { audio } from '../audio';
 import type { Direction } from './input';
 
 /**
@@ -71,7 +72,10 @@ export class Focus {
       return true;
     }
     const next = neighbour(from, dir, navigable(this.root), this.root);
-    if (next) this.set(next);
+    if (next) {
+      this.set(next);
+      audio.ui('move');
+    }
     return next !== null;
   }
 
@@ -79,7 +83,9 @@ export class Focus {
   hover(): void {
     this.root.addEventListener('pointerover', (e) => {
       const el = (e.target as HTMLElement).closest<HTMLElement>('[data-nav]');
-      if (el && this.root.contains(el) && !el.hasAttribute('disabled')) this.set(el);
+      if (!el || el === this.current || !this.root.contains(el) || el.hasAttribute('disabled')) return;
+      this.set(el);
+      audio.ui('move');
     });
   }
 }
