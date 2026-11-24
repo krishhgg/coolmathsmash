@@ -57,6 +57,9 @@
       "video/thumbnail-roster-art-*"
     ],
     "css-2p": ["smash/character-select-*", "video/roster-select-grid-*"],
-    "css-4p": ["smash/character-select-*", "video/roster-select-grid-*"]
+    "css-4p": ["smash/character-select-*", "video/roster-select-grid-*"],
+    "controls": ["smash/pause-01*", "smash/character-select-01*"],
+    "controls-gamepad": ["smash/pause-01*", "smash/character-select-01*"],
+    "options": ["smash/pause-01*", "smash/character-select-01*"]
   }
 }

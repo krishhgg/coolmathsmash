@@ -246,6 +246,23 @@ export const SCENARIOS: Scenario[] = [
     page: { kind: 'lab', scene: 'menu', params: { screen: 'css', preset: '4p' } },
   },
   {
+    name: 'controls',
+    description:
+      'Controls, Keyboard 1 tab: every action with its keys, Up selected and lit on the keyboard picture beside the list.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'controls', preset: 'keyboard1' } },
+  },
+  {
+    name: 'controls-gamepad',
+    description:
+      'Controls, Gamepad tab: the shared pad mapping, with each button tagged on the controller picture.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'controls', preset: 'gamepad' } },
+  },
+  {
+    name: 'options',
+    description: 'Options: volume sliders, mute, tap jump, fullscreen and reset; Master volume selected.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'options' } },
+  },
+  {
     name: 'stage',
     description: 'Coolmath Battlefield on its own at the reference camera (centre 0,20, zoom 4.5).',
     page: { kind: 'lab', scene: 'stage' },
