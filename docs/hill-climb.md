@@ -26,7 +26,8 @@ npm run capture -- --out ~/.capy/work/round-1/captures
 ```
 
 It rebuilds `dist/` when any source is newer (`--build` forces it), serves it on a free port, runs every scenario
-in a fresh page and prints one line per scenario. Options: `--only idle,run` runs a subset, `--url <base>` uses a
+in a fresh page and prints one line per scenario. Options: `--only idle,run` runs a subset (`--only redball-*` runs
+one fighter's states), `--url <base>` uses a
 running server instead (`npm run dev`, or the GitHub Pages build), `--keep-frames` keeps every frame of the motion
 windows under `frames/<name>/`.
 
@@ -191,15 +192,33 @@ steps: `{ page: { kind: 'lab', scene: 'fighter', params: { fighter: 'watergirl' 
 missing scene or API function makes it pending. Then add its references to `scripts/judge/refs.json`, run
 `npm test` (names must be unique and JSON-safe) and `npm run capture -- --only <name>`, and look at the PNG.
 
-**A new fighter** gets its own copies of the per-fighter states, named `<fighter>-<state>` (for example
-`watergirl-idle`, `watergirl-run`, `watergirl-jump-apex`) with `match: { ports: [{ fighter: 'watergirl' },
-{ fighter: 'fireboy' }] }`, a `<fighter>-sheet` lab scenario on the `fighter` scene with `params: { fighter }`, and
-`refs.json` entries pointing at `characters/<slug>/` in the reference library.
+**A new fighter** adds no shared file. `src/fighters/<id>/scenarios.ts` exports `scenarios: FighterScenarios` and the
+harness finds it (like the fighter registry), so the fighter gets its own copy of every state in `FIGHTER_STATES`
+(`idle`, `run`, `jump-apex`, `attack-active`, `launch-high-percent`, `shield`, `ledge-hang` against `opponent`,
+Fireboy by default, and a `sheet` of its rig in the lab), named `<fighter>-<state>`, plus any `extra` scenarios of its
+own. `refs` gives each state's reference globs, so references stay out of the repo and out of `refs.json`:
+
+```ts
+import type { FighterScenarios } from '../../harness/scenarios';
+
+export const scenarios: FighterScenarios = {
+  fighter: 'redball',
+  refs: {
+    idle: ['smash/battlefield-idle-1v1-*', 'characters/red-ball/ingame-idle-*'],
+    run: ['smash/run-*', 'characters/red-ball/ingame-roll-vs-box-*'],
+    // ... one entry per state in FIGHTER_STATES
+  },
+  extra: [{ name: 'redball-dair-bounce', page: { kind: 'game' }, match: { ports: [...] }, refs: [...], ... }],
+};
+```
+
+Import only types from `src/harness/scenarios.ts` there: it imports your file. `src/fighters/redball/scenarios.ts` is
+the worked example, and `npm run capture -- --only redball-*` captures just that fighter.
 
 ## Add or change references
 
-`scripts/judge/refs.json` maps each state to glob patterns under the reference library (`root`, the Captain drive's
-`handoffs/research/refs/` by default; `*` stays within a folder, `**` crosses folders). Patterns take turns: the
+`scripts/judge/refs.json` maps each shared state to glob patterns under the reference library (a scenario's own
+`refs`, as fighter states have, take its place; `root` is the Captain drive's `handoffs/research/refs/` by default; `*` stays within a folder, `**` crosses folders). Patterns take turns: the
 first match of every pattern, then the second of every pattern, until `maxPerState` (4). So list the Smash
 Ultimate frame first and the character's own art after it, and both get a slot. Captions come from the "what it
 shows" column of the `index.md` table in each reference folder. `npm run judge:pack` prints how many references
