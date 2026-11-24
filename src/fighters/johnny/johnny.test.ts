@@ -218,6 +218,18 @@ describe('Johnny Upgrade: One-Two into Rush', () => {
     expect(Math.abs(v.pos.x - a.pos.x)).toBeGreaterThan(25);
   });
 
+  it('holding Attack through the Rush keeps it going until he lets go', () => {
+    const press = (i: number) => i === 0 || i === 6 || (i >= 18 && i < 110);
+    const held = rush(press, 110);
+    expect(held.started).toEqual(['jab', 'jab2', 'jab3']);
+    expect(held.a.move).toBe('jab3');
+    const flurry = held.v.damage;
+    expect(flurry).toBeGreaterThan((1.5 + 1 + 0.5 * 12) * 1.2);
+    const done = rush(press, 170);
+    expect(done.a.action).toBe('idle');
+    expect(Math.abs(done.v.pos.x - done.a.pos.x)).toBeGreaterThan(25);
+  });
+
   it('a single press is just the first punch', () => {
     const { a, started } = rush((i) => i === 0, 40);
     expect(started).toEqual(['jab']);

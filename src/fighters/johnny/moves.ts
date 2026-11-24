@@ -1,4 +1,5 @@
-import { stickX } from '../../sim/control';
+import { Btn } from '../../input/types';
+import { isHeld, stickDir, stickX } from '../../sim/control';
 import type { HitboxDef, MoveDef } from '../types';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -43,13 +44,18 @@ export const moves: Record<string, MoveDef> = {
   },
   /**
    * Rush: a flurry of four 0.5% punches that hold the opponent in place, then a 2% finishing punch that sends
-   * them away. Pressing or holding Attack during the last punches of the flurry restarts it, so it runs as long
-   * as you keep at it.
+   * them away. Pressing Attack during the last punches of the flurry restarts it, and so does still holding Attack
+   * as the fourth punch lands, so it runs as long as you mash or hold.
    */
   jab3: {
     kind: 'other',
     faf: 45,
     next: { window: [11, 14], move: 'jab3' },
+    script(x) {
+      const { f, c } = x;
+      if (f.actionFrame === 14 && isHeld(c, Btn.Attack) && stickDir(c, f.facing) === 'neutral')
+        f.actionFrame = 2;
+    },
     hits: [
       ...[3, 6, 9, 12].map((f) => ({
         frames: [f, f] as [number, number],
