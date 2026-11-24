@@ -54,43 +54,50 @@ const STOP = new Set(
   ),
 );
 
+/** Content words, lower-cased, with plural and -ed/-ing endings dropped. */
 export function tokens(text: string): Set<string> {
   return new Set(
     text
       .toLowerCase()
       .replace(/[^a-z0-9%.\s-]/g, ' ')
       .split(/\s+/)
-      .map((w) => w.replace(/^[.-]+|[.-]+$/g, ''))
+      .map((w) => w.replace(/^[.-]+|[.-]+$/g, '').replace(/(ing|ed|s)$/, ''))
       .filter((w) => w.length > 2 && !STOP.has(w)),
   );
 }
 
+/** Shared words over the smaller word set: judges word the same gap differently and at different lengths. */
 export function similarity(a: string, b: string): number {
   const ta = tokens(a);
   const tb = tokens(b);
   const shared = [...ta].filter((w) => tb.has(w)).length;
-  const union = new Set([...ta, ...tb]).size;
-  return union === 0 ? 0 : shared / union;
+  return Math.min(ta.size, tb.size) === 0 ? 0 : shared / Math.min(ta.size, tb.size);
 }
 
-/** Gaps on the same axis and state (or "*") whose wording overlaps this much are the same gap. */
-export const SAME_GAP = 0.3;
+/**
+ * Gaps on the same axis and state (or "*") whose gap and fix text overlap at least this much are one gap. Tuned on
+ * round 1's real answers: same-issue pairs scored 0.21-0.56, different issues at most 0.17.
+ */
+export const SAME_GAP = 0.2;
+
+const gapText = (g: { gap: string; fix: string }) => `${g.gap} ${g.fix}`;
 
 export function mergeGaps(verdicts: readonly JudgeVerdict[]): MergedGap[] {
   const merged: MergedGap[] = [];
   for (const v of verdicts) {
     for (const g of [...v.gaps].sort((a, b) => a.rank - b.rank)) {
-      const match = merged.find(
-        (m) =>
-          m.axis === g.axis &&
-          (m.state === g.state || m.state === '*' || g.state === '*') &&
-          !m.judges.some((j) => j.judge === v.judge) &&
-          similarity(m.gap, g.gap) >= SAME_GAP,
-      );
+      let match: MergedGap | undefined;
+      let best = SAME_GAP;
+      for (const m of merged) {
+        if (m.axis !== g.axis || (m.state !== g.state && m.state !== '*' && g.state !== '*')) continue;
+        if (m.judges.some((j) => j.judge === v.judge)) continue;
+        const sim = similarity(gapText(m), gapText(g));
+        if (sim >= best) [match, best] = [m, sim];
+      }
       if (match) {
         match.judges.push({ judge: v.judge, rank: g.rank });
         match.weight = round2(match.weight + 1 / g.rank);
-        if (match.state === '*') match.state = g.state;
+        if (g.state === '*') match.state = '*';
       } else {
         merged.push({ ...g, judges: [{ judge: v.judge, rank: g.rank }], weight: round2(1 / g.rank) });
       }

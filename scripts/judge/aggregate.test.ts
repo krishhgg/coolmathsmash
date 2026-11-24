@@ -1,4 +1,5 @@
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -127,13 +128,42 @@ describe('aggregation', () => {
       { judge: 'claude-opus-5-5', rank: 1 },
       { judge: 'gpt-6.2-sol', rank: 2 },
     ]);
-    expect(gaps[1]).toMatchObject({ state: 'idle', axis: 'silhouette', weight: 1.5 });
+    expect(gaps[1]).toMatchObject({ state: '*', axis: 'silhouette', weight: 1.5 });
     expect(gaps.map((g) => g.axis)).toEqual([
       'physics_feel',
       'silhouette',
       'smash_presentation',
       'readability',
     ]);
+  });
+
+  it('merges paraphrased gaps from real round-1 answers and keeps different issues apart', () => {
+    const push = {
+      gap: 'Fighters have no push collision: the runner passes into the standing opponent at full speed, and the opponent never moves.',
+      fix: "Add a ground pushbox (half-width 4 units, the fighter width / 2). Each frame, for each overlapping pair of grounded fighters processed in port order for determinism, push both apart by min(overlap/2, 0.5 u/f), and cap an approaching runner's speed toward the other fighter at walk speed (1.1) while the pushboxes overlap. Add a unit test: a run into an idle fighter ends with the pair separated within about 10 frames.",
+    };
+    const spacing = {
+      gap: 'A grounded run into an idle opponent shows deep body overlap with no visible spacing response.',
+      fix: 'Measure the same grounded run-into-idle contact in Ultimate and tune a separate grounded body-push region to match it. Add a head-on fixture for spacing and crossing, and keep hurtboxes and any intentional pass-through states independent of the push region.',
+    };
+    const dash = {
+      gap: "The measured dash-to-run handoff is a frame earlier than Fireboy's stated dash duration.",
+      fix: 'Count 11 applied dash-speed steps from the first movement tick before entering run on step 12, and lock the first run frame and accumulated distance in a held-input test.',
+    };
+    const verdict = (judge: string, gaps: { gap: string; fix: string }[]): JudgeVerdict => ({
+      ...opus,
+      judge,
+      gaps: gaps.map((g, i) => ({
+        ...g,
+        rank: i + 1,
+        state: 'run',
+        axis: 'physics_feel',
+        evidence: 'strip.png',
+      })),
+    });
+    const gaps = mergeGaps([verdict('a', [push]), verdict('b', [dash, spacing])]);
+    expect(gaps.map((g) => g.judges.map((j) => j.judge).join('+'))).toEqual(['a+b', 'b']);
+    expect(gaps[0]!.gap).toBe(push.gap);
   });
 
   it('renders a scoreboard and appends history rows', () => {
@@ -156,5 +186,27 @@ describe('aggregation', () => {
     expect(lines).toHaveLength(6);
     expect(lines[4]).toMatch(/^\| 2 \| 2026-11-24 \| abcdef1 \| claude-opus-5-5, gpt-6.2-sol \| 3.5 \|/);
     expect(lines[5]).toMatch(/^\| 3 \|/);
+  });
+});
+
+describe('judge-aggregate CLI', () => {
+  it('checks one answer without writing, then aggregates a pack and appends history', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pack-'));
+    mkdirSync(join(dir, 'judges'));
+    writeFileSync(join(dir, 'pack.json'), JSON.stringify(pack));
+    writeFileSync(join(dir, 'schema.json'), JSON.stringify(judgeSchema(2, pack.states)));
+    writeFileSync(join(dir, 'judges', 'claude-opus-5-5.json'), JSON.stringify(opus));
+    writeFileSync(join(dir, 'judges', 'gpt-6.2-sol.json'), JSON.stringify(sol));
+    const cli = (...args: string[]) =>
+      execFileSync('node', ['scripts/judge-aggregate.ts', dir, ...args], { encoding: 'utf8' });
+    expect(cli('--check', 'judges/gpt-6.2-sol.json')).toContain('1 answer(s) match schema.json');
+    const history = join(dir, 'history.md');
+    expect(cli('--history', history)).toContain('# Judge scoreboard, round 2');
+    expect(readFileSync(join(dir, 'scoreboard.md'), 'utf8')).toContain('| run | 3 · 4 (3.5) |');
+    expect(JSON.parse(readFileSync(join(dir, 'scoreboard.json'), 'utf8'))).toMatchObject({
+      round: 2,
+      overall: 3.28,
+    });
+    expect(readFileSync(history, 'utf8')).toContain('| 2 | 2026-');
   });
 });

@@ -25,9 +25,12 @@ const readJson = <T>(path: string) => JSON.parse(readFileSync(path, 'utf8')) as 
 const packDir = resolve(positionals[0] ?? 'captures/pack');
 const pack = readJson<PackInfo>(join(packDir, 'pack.json'));
 const schema = readJson<Schema>(join(packDir, 'schema.json'));
-const files = readdirSync(join(packDir, 'judges'))
-  .filter((f) => f.endsWith('.json'))
-  .sort();
+const files =
+  args.check?.map((f) => resolve(packDir, f)) ??
+  readdirSync(join(packDir, 'judges'))
+    .filter((f) => f.endsWith('.json'))
+    .sort()
+    .map((f) => join(packDir, 'judges', f));
 if (files.length === 0) throw new Error(`no judge answers in ${join(packDir, 'judges')}`);
 
 const problems: string[] = [];
