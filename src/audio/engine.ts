@@ -49,6 +49,12 @@ interface Active {
   ended: boolean;
 }
 
+/**
+ * A gesture's resume() settles a few milliseconds later, so sounds asked for within this window of one (the
+ * click that opens a menu) are scheduled; after it, a context that is still suspended drops them.
+ */
+const RESUME_GRACE_MS = 250;
+
 /** Volume changes and duck releases glide instead of stepping, so they never click. */
 const GLIDE = 0.03;
 
@@ -74,8 +80,8 @@ export class AudioEngine {
   private readonly lastVariant = new Map<SoundId, number>();
   private readonly vary: Variation;
   private duckUntil = 0;
-  /** A key, click or touch asked the browser to resume audio and it has not answered yet (a few milliseconds). */
-  private resuming = false;
+  /** When the last key, click or touch asked a suspended context to resume (performance.now() ms). */
+  private gestureAt = -Infinity;
 
   constructor(opts: EngineOptions) {
     const ctx = (this.ctx = opts.context);
@@ -170,21 +176,17 @@ export class AudioEngine {
 
   /**
    * Browsers start audio suspended until the page gets a key press, click or touch, and may suspend it again
-   * later (a phone call, another tab taking the audio device). Resume on any such input on `target` while it is
-   * not running, listening in the capture phase so the gesture that opens a menu can already play its sound.
+   * later (a phone call, another tab taking the audio device). Every such input on `target` asks it to resume
+   * while it is not running (a touch's pointerdown may not count as activation, its touchend does), listening
+   * in the capture phase so the gesture that opens a menu can already play its sound.
    */
   unlock(target: EventTarget): void {
     const ctx = this.ctx as AudioContext;
     if (typeof ctx.resume !== 'function') return;
     const resume = () => {
-      if (ctx.state === 'running' || this.resuming) return;
-      this.resuming = true;
-      void ctx
-        .resume()
-        .catch(() => undefined)
-        .finally(() => {
-          this.resuming = false;
-        });
+      if (ctx.state === 'running') return;
+      this.gestureAt = performance.now();
+      void ctx.resume().catch(() => undefined);
     };
     for (const e of ['keydown', 'pointerdown', 'touchend']) target.addEventListener(e, resume, true);
   }
@@ -195,7 +197,8 @@ export class AudioEngine {
    */
   play(id: SoundId, opts: PlayOptions = {}): Voice | null {
     const def = soundDef(id);
-    if (this.dropWhileSuspended && !this.running && !this.resuming) return null;
+    if (this.dropWhileSuspended && !this.running && performance.now() - this.gestureAt > RESUME_GRACE_MS)
+      return null;
     const variant = this.vary.pick(def.files.length, this.lastVariant.get(id) ?? -1);
     const path = def.files[variant]!;
     const buf = this.decoded.get(path);

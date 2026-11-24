@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { soundDef } from './bank';
 import { AudioEngine } from './engine';
 import { dbGain } from './mix';
@@ -127,10 +127,33 @@ describe('AudioEngine', () => {
     expect(ctx.state).toBe('running');
 
     ctx.state = 'suspended';
+    const now = performance.now();
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(now + 1000);
     expect(engine.play('menu-select')).toBeNull();
     page.dispatchEvent(new Event('pointerdown'));
     expect(engine.play('menu-select')).not.toBeNull();
     await new Promise((r) => setTimeout(r, 0));
     expect(ctx.state).toBe('running');
+    clock.mockRestore();
+  });
+
+  it('keeps asking a context that has not resumed yet on every gesture, and drops effects once the gesture is old', async () => {
+    const { ctx, engine } = await setup({ suspended: true });
+    let asked = 0;
+    ctx.resume = () => {
+      asked++;
+      return new Promise(() => {});
+    };
+    const page = new EventTarget();
+    engine.unlock(page);
+    const t0 = performance.now();
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(t0);
+    page.dispatchEvent(new Event('pointerdown'));
+    page.dispatchEvent(new Event('touchend'));
+    expect(asked).toBe(2);
+    expect(engine.play('menu-select')).not.toBeNull();
+    clock.mockReturnValue(t0 + 1000);
+    expect(engine.play('menu-select')).toBeNull();
+    clock.mockRestore();
   });
 });
