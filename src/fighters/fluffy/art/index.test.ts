@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { poseBounds } from '../../../render/rig/geometry';
+import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import { moves } from '../moves';
 import { art } from '.';
 
 /** Canonical clip lengths (loops: any length; holds: any length, not looping). Engine action names (docs/art.md). */
@@ -28,6 +29,23 @@ describe('fluffy art', () => {
       else if (typeof len === 'number') expect(clip!.length, name).toBe(len);
       else expect(clip!.loop, name).toBeFalsy();
     }
+  });
+
+  it('has a clip for every move, ending on its FAF', () => {
+    for (const [name, move] of Object.entries(moves))
+      expect(art.clips[name]?.length, name).toBe(move.faf - 1);
+  });
+
+  it("covers every hitbox centre with a drawn part on each of the move's active frames", () => {
+    const misses: string[] = [];
+    for (const [name, move] of Object.entries(moves))
+      for (const { frames, boxes } of move.hits)
+        for (let f = frames[0]; f <= frames[1]; f++) {
+          const pose = samplePose(art, name, f, f);
+          for (const { x, y } of boxes)
+            if (!slotsCovering(art, pose, x, -y).length) misses.push(`${name}@${f} (${x}, ${y})`);
+        }
+    expect(misses).toEqual([]);
   });
 
   it('only references bones, slots and symbols that exist, with keys in order inside the clip', () => {
