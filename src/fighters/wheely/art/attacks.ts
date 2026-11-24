@@ -125,7 +125,7 @@ function rampJump(): Key[] {
   }
   for (let f = 4; f <= 9; f++) {
     const k = f - 3;
-    const [ox, oy] = [0.9 * k, -0.6 * k];
+    const [ox, oy] = [0.89 * k, -0.6 * k];
     const u = (7.9 * k) / 6;
     const front = WHEEL_X - backUp + u;
     const h = Math.min(RAMP_SLOPE * RAMP_LEN, Math.max(0, front - RAMP_FOOT) * RAMP_SLOPE);
@@ -145,10 +145,14 @@ function rampJump(): Key[] {
     );
   }
   keys.push(
-    key(11, mix(AIR, tilt(-30, BODY), spin(roll(12)), { prop: at(RAMP_FOOT - 9.4, 11.4, 1, 0, RAMP_RISE) }), {
-      ease: 'out',
-      swaps: { ...SHOUT, ...BLUR, prop: 'fxRamp' },
-    }),
+    key(
+      11,
+      mix(AIR, tilt(-30, BODY), spin(roll(12)), { prop: at(RAMP_FOOT - 9.31, 11.28, 1, 0, RAMP_RISE) }),
+      {
+        ease: 'out',
+        swaps: { ...SHOUT, ...BLUR, prop: 'fxRamp' },
+      },
+    ),
   );
   return keys;
 }
@@ -750,7 +754,7 @@ export const attacks: Record<string, AnimClip> = {
   },
   /**
    * Ramp Jump. His little wooden ramp drops in front of him and he backs up a touch; the engine then carries his
-   * origin 0.9 forward and 0.6 up a frame on frames 4-9 and launches him on frame 10 (moves.ts upB). The ramp stays
+   * origin about 0.9 forward and 0.6 up a frame on frames 4-9 and launches him on frame 10 (moves.ts upB). The ramp stays
    * put in the world, pitched to that same climb, and he drives up it so his front tyre reaches the lip as he takes off.
    */
   upB: {
