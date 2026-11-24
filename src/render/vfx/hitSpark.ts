@@ -17,8 +17,8 @@ export interface HitSpark {
   size: number;
   life: number;
   style: SparkStyle;
-  /** Side the victim is sent toward; the streaks lean that way. */
-  dir: 1 | -1;
+  /** Direction the victim is sent (radians, y down); the streaks lean that way. */
+  lean: number;
   seed: number;
 }
 
@@ -46,7 +46,7 @@ export function hitPower(kb: number, damage: number): number {
 export function spawnHitSpark(
   e: Pick<HitEvent, 'x' | 'y' | 'kb' | 'damage' | 'effect' | 'attacker' | 'victim'>,
   frame: number,
-  dir: 1 | -1,
+  lean: number,
   style: SparkStyle = e.effect,
 ): HitSpark {
   const power = hitPower(e.kb, e.damage);
@@ -58,7 +58,7 @@ export function spawnHitSpark(
     size: lerp(3.2, 11, power),
     life: Math.round(lerp(10, 22, power)),
     style,
-    dir,
+    lean,
     seed: seedOf(frame, e.attacker * 8 + e.victim, 1),
   };
 }
@@ -199,9 +199,8 @@ function streaks(
   lw: number,
 ) {
   const n = 4 + Math.round(5 * s.power);
-  const lean = s.dir > 0 ? -0.55 : Math.PI + 0.55;
   for (let i = 0; i < n; i++) {
-    const a = i < n / 2 ? lean + signed(s.seed, 50 + i) * 0.75 : rand(s.seed, 50 + i) * TAU;
+    const a = i < n / 2 ? s.lean + signed(s.seed, 50 + i) * 0.75 : rand(s.seed, 50 + i) * TAU;
     const reach = s.size * (1.5 + 1.1 * rand(s.seed, 60 + i));
     const head = reach * easeOut(age / 4);
     const tail = s.size * 0.3 + Math.max(0, age - 2) * reach * 0.16;

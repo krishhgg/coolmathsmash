@@ -7,13 +7,13 @@ import {
   type GameScenario,
 } from '../../harness/scenarios';
 import { createMatch, stepMatch, type MatchState } from '../../sim/match';
+import { ATTACKER_JITTER, hitlagOffset, VICTIM_JITTER } from './hitlag';
 import { hitPower, hitSparkShapes, spawnHitSpark } from './hitSpark';
 import { KO_LIFE, koAnchor, koBlastShapes } from './koBlast';
 import { rand, seedOf } from './random';
-import { shakeOffset } from './shake';
 import { SHIELD_HIT_LIFE, shieldBubbleShapes } from './shield';
 import { puffShapes, trailPuffs } from './smoke';
-import { emptyVfx, shieldPulse, stepVfx, Vfx, type VfxState } from './system';
+import { emptyVfx, freezeOf, shieldPulse, stepVfx, Vfx, type VfxState } from './system';
 
 const scenario = (name: string) => findScenario(name) as GameScenario;
 
@@ -78,24 +78,21 @@ describe('hit sparks', () => {
 });
 
 describe('stepping effects from the simulation', () => {
-  it('spawns a spark and a shake on a strong hit, then drops both after their lifetimes', () => {
+  it('spawns a spark and freezes both fighters on a hit, then drops them after their lifetimes', () => {
     const { log } = play('hit-spark', 80);
     const hitFrame = log.findIndex((v) => v.sparks.length > 0) + 1;
     expect(hitFrame).toBe(25);
     const v = log[hitFrame - 1]!;
     expect(v.sparks).toHaveLength(1);
     expect(v.sparks[0]).toMatchObject({ frame: 25, x: 0, y: 8.5, style: 'fire' });
-    expect(v.shakes).toHaveLength(1);
+    expect(v.freezes).toEqual([
+      expect.objectContaining({ port: 1, lag: 18, amplitude: VICTIM_JITTER }),
+      expect.objectContaining({ port: 0, lag: 18, amplitude: ATTACKER_JITTER }),
+    ]);
     const life = v.sparks[0]!.life;
     expect(log[hitFrame - 1 + life - 1]!.sparks).toHaveLength(1);
     expect(log[hitFrame - 1 + life]!.sparks).toHaveLength(0);
-    expect(log[hitFrame - 1 + 10]!.shakes).toHaveLength(0);
-  });
-
-  it('only shakes the screen for hits that tumble', () => {
-    const { log } = play('hit-spark-weak', 30);
-    expect(log.some((v) => v.sparks.length > 0)).toBe(true);
-    expect(log.every((v) => v.shakes.length === 0)).toBe(true);
+    expect(log[hitFrame - 1 + 18]!.freezes).toHaveLength(0);
   });
 
   it('leaves launch smoke along the whole path, denser and longer-lived the faster the launch', () => {
@@ -115,11 +112,10 @@ describe('stepping effects from the simulation', () => {
     expect(trailPuffs({ ...f, action: 'idle' }, 7.5, slow.m.frame)).toEqual([]);
   });
 
-  it('blasts and shakes hard on a KO, and both end within their lifetimes', () => {
+  it('blasts on a KO and ends within its lifetime', () => {
     const { log } = play('ko-blast', 51 + KO_LIFE + 1);
     const v = log[50]!;
     expect(v.kos).toEqual([expect.objectContaining({ frame: 51, port: 1 })]);
-    expect(Math.max(...v.shakes.map((s) => s.amp))).toBeGreaterThanOrEqual(15);
     expect(log[51 + KO_LIFE - 1]!.kos).toEqual([]);
   });
 
@@ -173,15 +169,47 @@ describe('determinism', () => {
   });
 });
 
-describe('screen shake', () => {
-  it('jolts every frame and dies away by the end of its life', () => {
-    const shakes = [{ frame: 10, amp: 10, life: 10, seed: seedOf(10, 0) }];
-    const offsets = Array.from({ length: 12 }, (_, i) => shakeOffset(shakes, 10 + i));
-    expect(Math.hypot(offsets[0]!.x, offsets[0]!.y)).toBeGreaterThan(1);
-    expect(offsets[10]).toEqual({ x: 0, y: 0 });
-    expect(shakeOffset(shakes, 9)).toEqual({ x: 0, y: 0 });
-    const mag = (o: { x: number; y: number }) => Math.max(Math.abs(o.x), Math.abs(o.y));
-    expect(mag(offsets[8]!)).toBeLessThan(10 * (2 / 10) ** 1.5 + 1e-9);
+describe('hitlag jitter', () => {
+  it('shakes victim and attacker along the knockback axis, flipping every frame and fading to 0 at launch', () => {
+    const s = scenario('hit-spark');
+    const m = createMatch(scenarioConfig(s));
+    startScenario(m, s);
+    const vfx = new Vfx();
+    const rows: {
+      frame: number;
+      lag: number;
+      victim: { x: number; y: number };
+      attacker: { x: number; y: number };
+    }[] = [];
+    while (m.frame < 45) {
+      stepMatch(m, scenarioInputs(s, m));
+      vfx.step(m);
+      const [a, v] = m.fighters;
+      rows.push({
+        frame: m.frame,
+        lag: v!.hitlag,
+        victim: hitlagOffset(v!, m.frame, freezeOf(vfx.state, 1)),
+        attacker: hitlagOffset(a!, m.frame, freezeOf(vfx.state, 0)),
+      });
+    }
+    const at = (frame: number) => rows.find((r) => r.frame === frame)!;
+    const len = (o: { x: number; y: number }) => Math.hypot(o.x, o.y);
+    expect(len(at(24).victim)).toBe(0);
+    expect(len(at(25).victim)).toBeCloseTo(VICTIM_JITTER);
+    expect(len(at(25).attacker)).toBeCloseTo(ATTACKER_JITTER);
+    const axis = at(25).victim;
+    expect(Math.atan2(Math.abs(axis.y), Math.abs(axis.x)) * (180 / Math.PI)).toBeCloseTo(38);
+    expect(Math.sign(axis.x)).toBe(Math.sign(axis.y));
+    for (let f = 25; f < 43; f++) {
+      const r = at(f);
+      expect(len(r.victim)).toBeCloseTo((VICTIM_JITTER * r.lag) / 18);
+      expect(len(r.attacker)).toBeCloseTo(len(r.victim) / 2);
+      expect(Math.sign(at(f + 1).victim.x || -Math.sign(r.victim.x))).toBe(-Math.sign(r.victim.x));
+    }
+    expect(at(43).lag).toBe(0);
+    expect(len(at(43).victim)).toBe(0);
+    expect(len(at(44).attacker)).toBe(0);
+    expect(m.fighters[1]!.pos.x).not.toBe(6);
   });
 });
 

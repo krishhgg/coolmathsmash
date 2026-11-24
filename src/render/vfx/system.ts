@@ -2,9 +2,9 @@ import { getFighter } from '../../fighters/registry';
 import type { FighterState } from '../../sim/fighter';
 import type { MatchState } from '../../sim/match';
 import { HALO_FADE_LIFE, type HaloFade } from './extras';
+import { freezesFrom, hitlagOffset, type Freeze } from './hitlag';
 import { spawnHitSpark, type HitSpark } from './hitSpark';
 import { KO_LIFE, spawnKoBlast, type KoBlast } from './koBlast';
-import { spawnShake, type Shake } from './shake';
 import { shieldLife, spawnShieldBreak, spawnShieldHit, type ShieldBurst } from './shield';
 import { dustPuffs, trailPuffs, type Puff } from './smoke';
 
@@ -19,8 +19,8 @@ export interface VfxState {
   puffs: Puff[];
   shields: ShieldBurst[];
   kos: KoBlast[];
-  shakes: Shake[];
   halos: HaloFade[];
+  freezes: Freeze[];
 }
 
 export const emptyVfx = (): VfxState => ({
@@ -29,8 +29,8 @@ export const emptyVfx = (): VfxState => ({
   puffs: [],
   shields: [],
   kos: [],
-  shakes: [],
   halos: [],
+  freezes: [],
 });
 
 const height = (f: FighterState): number => getFighter(f.fighter).stats.height;
@@ -54,29 +54,21 @@ export function stepVfx(v: VfxState, m: MatchState): void {
   v.puffs = v.puffs.filter((p) => frame - p.born < p.life);
   v.shields = v.shields.filter((b) => frame - b.frame < shieldLife(b));
   v.kos = v.kos.filter((k) => frame - k.frame < KO_LIFE);
-  v.shakes = v.shakes.filter((s) => frame - s.frame < s.life);
   v.halos = v.halos.filter((h) => frame - h.frame < HALO_FADE_LIFE);
+  v.freezes = v.freezes.filter((z) => frame - z.frame < z.lag);
 
   for (const e of m.events) {
     switch (e.type) {
       case 'hit': {
-        const a = m.fighters[e.attacker]!;
-        const victim = m.fighters[e.victim]!;
-        const dir = victim.launch?.dir ?? ((Math.sign(victim.pos.x - a.pos.x) || a.facing) as 1 | -1);
-        const spark = spawnHitSpark(e, frame, dir);
-        v.sparks.push(spark);
-        if (e.tumble) v.shakes.push(spawnShake(frame, e.victim, 3 + 7 * spark.power, 10));
+        const freezes = freezesFrom(e, m, frame);
+        v.freezes.push(...freezes);
+        v.sparks.push(spawnHitSpark(e, frame, Math.atan2(-freezes[0]!.ay, freezes[0]!.ax)));
         break;
       }
       case 'shieldHit': {
-        const side = Math.sign(m.fighters[e.victim]!.pos.x - m.fighters[e.attacker]!.pos.x) || 1;
+        const away = m.fighters[e.victim]!.pos.x >= m.fighters[e.attacker]!.pos.x ? 0 : Math.PI;
         v.sparks.push(
-          spawnHitSpark(
-            { ...e, kb: 0, damage: e.damage * 0.5, effect: 'normal' },
-            frame,
-            side as 1 | -1,
-            'shield',
-          ),
+          spawnHitSpark({ ...e, kb: 0, damage: e.damage * 0.5, effect: 'normal' }, frame, away, 'shield'),
         );
         v.shields.push(spawnShieldHit(e.victim, frame, e.damage));
         break;
@@ -85,12 +77,10 @@ export function stepVfx(v: VfxState, m: MatchState): void {
         const f = m.fighters[e.port]!;
         const r = getFighter(f.fighter).stats.shieldSize;
         v.shields.push(spawnShieldBreak(e.port, frame, f.pos.x, f.pos.y + height(f) / 2, r));
-        v.shakes.push(spawnShake(frame, e.port, 7, 14));
         break;
       }
       case 'ko':
         v.kos.push(spawnKoBlast(e.port, frame, e.x, e.y));
-        v.shakes.push(spawnShake(frame, e.port, 16, 34));
         break;
       case 'jump': {
         const f = m.fighters[e.port]!;
@@ -116,6 +106,12 @@ export function stepVfx(v: VfxState, m: MatchState): void {
   for (const f of m.fighters) v.puffs.push(...trailPuffs(f, height(f) / 2, frame));
 }
 
+/** The hit that froze `port` most recently, while its hitlag may still be running. */
+export function freezeOf(v: VfxState, port: number): Freeze | undefined {
+  for (let i = v.freezes.length - 1; i >= 0; i--) if (v.freezes[i]!.port === port) return v.freezes[i];
+  return undefined;
+}
+
 /** The latest shield hit on `port` still flashing at `v`'s frame: frames since it landed and its strength. */
 export function shieldPulse(v: VfxState, port: number): { age: number; power: number } | undefined {
   for (let i = v.shields.length - 1; i >= 0; i--) {
@@ -123,6 +119,16 @@ export function shieldPulse(v: VfxState, port: number): { age: number; power: nu
     if (b.kind === 'hit' && b.port === port) return { age: v.frame - b.frame, power: b.power };
   }
   return undefined;
+}
+
+/** Effects drawn on a fighter itself: its hitlag jitter (world units, y up) and the latest hit on its shield. */
+export interface FighterFx {
+  jitter?: { x: number; y: number };
+  shieldHit?: { age: number; power: number };
+}
+
+export function fighterFx(v: VfxState, f: FighterState, frame: number): FighterFx {
+  return { jitter: hitlagOffset(f, frame, freezeOf(v, f.port)), shieldHit: shieldPulse(v, f.port) };
 }
 
 /**

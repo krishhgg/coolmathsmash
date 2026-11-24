@@ -6,14 +6,13 @@ import { getStage } from '../stages/registry';
 import type { StageView } from '../stages/battlefield/view';
 import type { StageGeometry } from '../sim/stage';
 import { activeHitboxes, hurtbox } from '../sim/combat/hits';
-import { Camera, shakeView } from './camera';
+import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud } from './hud';
 import { drawMovingPieces, isMoving } from './stagePieces';
-import { shakeOffset } from './vfx/shake';
-import { shieldPulse, Vfx } from './vfx/system';
+import { fighterFx, Vfx } from './vfx/system';
 import { VfxView } from './vfx/view';
 
 /** Stage art: src/stages/<id>/view.ts exports createStageView (docs/stages.md). Stages without one draw flat. */
@@ -144,10 +143,7 @@ export class Renderer {
   render(state: MatchState, alpha: number): void {
     this.sync(state);
     const fx = this.vfx.at(state);
-    const view = shakeView(
-      this.camera.viewFor(state, this.stage!),
-      shakeOffset(fx?.shakes ?? [], state.frame),
-    );
+    const view = this.camera.viewFor(state, this.stage!);
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
     this.stageView?.update(state.frame, view);
@@ -158,7 +154,7 @@ export class Renderer {
         alpha,
         state.frame,
         this.overlays.actions,
-        fx ? shieldPulse(fx, i) : undefined,
+        fx ? fighterFx(fx, f, state.frame) : {},
       ),
     );
     this.vfxView.draw(fx, state, view, alpha);

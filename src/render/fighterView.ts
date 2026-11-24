@@ -11,6 +11,7 @@ import { createRigView, type RigView } from './rig/view';
 import { paint } from './vfx/paint';
 import { hex } from './vfx/shapes';
 import { shieldBubbleShapes } from './vfx/shield';
+import type { FighterFx } from './vfx/system';
 
 /**
  * Engine actions drawn with another canonical clip. Everything else plays the clip named after the move while one
@@ -111,21 +112,15 @@ export class FighterView {
     this.container.addChild(this.body, this.shield, this.tag, this.label);
   }
 
-  /** `shieldHit`: the latest hit on this fighter's shield, for its flash and wobble. */
-  update(
-    f: FighterState,
-    alpha: number,
-    frame: number,
-    debug: boolean,
-    shieldHit?: { age: number; power: number },
-  ): void {
+  /** `fx`: the hitlag jitter and the latest hit on this fighter's shield (src/render/vfx). */
+  update(f: FighterState, alpha: number, frame: number, debug: boolean, fx: FighterFx = {}): void {
     const out = f.action === 'ko' || f.action === 'out';
     this.container.visible = !out;
     if (out) return;
     const x = f.prevPos.x + (f.pos.x - f.prevPos.x) * alpha;
     const y = f.prevPos.y + (f.pos.y - f.prevPos.y) * alpha;
     this.container.position.set(x, -y);
-    this.body.position.x = f.hitlag > 0 && f.launch ? (frame % 2 ? 0.5 : -0.5) : 0;
+    this.body.position.set(fx.jitter?.x ?? 0, -(fx.jitter?.y ?? 0));
     this.body.scale.x = f.facing;
     if (this.rig && this.art) this.rig.pose(...clipFor(this.def, this.art, f), frame);
     this.body.alpha = isIntangible(f) && frame % 8 < 4 ? 0.55 : 1;
@@ -135,7 +130,7 @@ export class FighterView {
       if (r > 0)
         paint(
           this.shield,
-          shieldBubbleShapes(0, -this.def.stats.height / 2, r, hex(this.shieldColor), frame, shieldHit),
+          shieldBubbleShapes(0, -this.def.stats.height / 2, r, hex(this.shieldColor), frame, fx.shieldHit),
         );
     }
     this.label.visible = debug;

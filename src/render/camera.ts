@@ -102,11 +102,6 @@ export function shakeOffset(shakes: readonly Shake[], frame: number): { x: numbe
   return { x: amplitude * 0.6 * Math.sin(frame * 1.9 + 1), y: amplitude * Math.sin(frame * 2.6) };
 }
 
-/** `view` jolted by a screen shake of (`dx`, `dy`) pixels, y down: the world moves by that many pixels on screen. */
-export function shakeView(view: CameraView, { x: dx, y: dy }: { x: number; y: number }): CameraView {
-  return { x: view.x - dx / view.zoom, y: view.y + dy / view.zoom, zoom: view.zoom };
-}
-
 /**
  * Smoothed camera. `step` runs once after every simulated frame (Game.step), easing toward that frame's target, so the
  * view at a frame depends only on the frames simulated and never on how often or when they were drawn.
