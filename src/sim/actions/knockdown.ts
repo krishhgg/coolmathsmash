@@ -16,18 +16,18 @@ import { startMove } from './attack';
 import { rollWeights } from './defense';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
 
-/** Shield was pressed in tumble within the last TECH_WINDOW frames (see the tumble action). */
-export function techPressed(x: Ctx): boolean {
-  return x.m.frame - x.f.techPressAt < TECH_WINDOW;
+/** Shield was pressed in tumble within the last `window` frames (see the tumble action). */
+export function techPressed(x: Ctx, window = TECH_WINDOW): boolean {
+  return x.m.frame - x.f.techPressAt < window;
 }
 
 /**
  * Touching down from tumble: a tech (a tech roll with the stick held sideways) if Shield was pressed in time and
  * the landing is slow enough, otherwise a missed tech.
  */
-export function tumbleLanding(x: Ctx): void {
+export function tumbleLanding(x: Ctx, window = TECH_WINDOW): void {
   const { f, c } = x;
-  const teched = techPressed(x) && Math.hypot(f.kb.x, f.kb.y) <= TECH_MAX_SPEED;
+  const teched = techPressed(x, window) && Math.hypot(f.kb.x, f.kb.y) <= TECH_MAX_SPEED;
   f.hitstun = 0;
   f.kb = { x: 0, y: 0 };
   f.vel.x = 0;
@@ -37,13 +37,16 @@ export function tumbleLanding(x: Ctx): void {
   enterAction(x, dir === 0 ? 'techInPlace' : 'techRoll', 0);
 }
 
-/** A fixed-length grounded action that is intangible on `spec.intangible` and slides `rollDistance` over `spec.move`. */
+/**
+ * A fixed-length grounded action that slides `rollDistance` over `spec.move`. It is intangible on
+ * `spec.intangible`, and on the touchdown tick (frame 0) when a tech enters it by landing.
+ */
 function timed(spec: { faf: number; intangible: [number, number]; move?: [number, number] }): ActionDef {
   const weights = spec.move ? rollWeights(spec.move) : [];
   return {
     physics: 'ground',
     friction: false,
-    intangible: (f) => inWindow(f.actionFrame, spec.intangible),
+    intangible: (f) => f.actionFrame === 0 || inWindow(f.actionFrame, spec.intangible),
     update(x) {
       const { f, s } = x;
       const k = spec.move ? f.actionFrame - spec.move[0] : -1;

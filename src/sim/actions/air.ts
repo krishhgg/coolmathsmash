@@ -2,6 +2,7 @@ import { Btn } from '../../input/types';
 import {
   AIR_DODGE_DIRECTIONAL,
   AIR_DODGE_NEUTRAL,
+  AIR_DODGE_TECH_WINDOW,
   DIRECTION_THRESHOLD,
   DOUBLE_JUMP_FRAMES,
 } from '../constants';
@@ -98,7 +99,8 @@ export const AIR: Record<string, ActionDef> = {
   /**
    * Ultimate air dodge, once per airtime. Neutral keeps momentum; directional slingshots back briefly, then
    * travels in the stick direction without gravity, and lands with 11-19 frames of lag depending on timing.
-   * Out of tumble, the dodge's Shield press is also a tech press, so landing in the tech window techs.
+   * Out of tumble, the dodge's Shield press is also a tech press: touching down within AIR_DODGE_TECH_WINDOW
+   * frames of it techs.
    */
   airDodge: {
     physics: 'air',
@@ -137,7 +139,7 @@ export const AIR: Record<string, ActionDef> = {
     },
     land(x) {
       const { f } = x;
-      if (techPressed(x)) return tumbleLanding(x);
+      if (techPressed(x, AIR_DODGE_TECH_WINDOW)) return tumbleLanding(x, AIR_DODGE_TECH_WINDOW);
       if (!directional(x) || f.actionFrame >= airDodgeFaf(x)) {
         f.landingLag = AIR_DODGE_NEUTRAL.landingLag;
       } else {

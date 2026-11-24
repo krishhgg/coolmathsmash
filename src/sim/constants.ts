@@ -91,6 +91,8 @@ export const RUN_BRAKE_FRAMES = 14;
 export const TECH_WINDOW = 11;
 export const TECH_LOCKOUT = 40;
 export const TECH_MAX_SPEED = 3;
+/** An air dodge out of tumble techs if it touches down within this many frames of its Shield press. */
+export const AIR_DODGE_TECH_WINDOW = 15;
 /** Mario's tech options. The roll's distance and movement frames are not in the reference: it reuses the roll's. */
 export const TECH_IN_PLACE = { faf: 27, intangible: [1, 21] as [number, number] };
 export const TECH_ROLL = {

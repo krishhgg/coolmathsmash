@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AIR_DODGE_TECH_WINDOW,
   DOWN_AUTO_GETUP,
   DOWN_BOUNCE_FRAMES,
   GETUP_ROLL,
@@ -9,9 +10,10 @@ import {
   TECH_ROLL,
   TECH_WINDOW,
 } from '../constants';
+import type { FighterState } from '../fighter';
 import type { MatchState } from '../match';
 import { marioReference as mario } from '../testing/reference';
-import { placeInAir, run, testMatch, until, type Hold } from '../testing/sim';
+import { attack, placeInAir, run, testMatch, until, type Hold } from '../testing/sim';
 import { isIntangible } from './registry';
 
 /**
@@ -100,6 +102,36 @@ describe('tech', () => {
     expect(f.action).toBe('airDodge');
     until(m, (g) => g.ground !== null);
     expect(f.action).toBe('techInPlace');
+  });
+
+  it('an air dodge out of tumble techs if it touches down within 15 frames of its press', () => {
+    const outcomes = new Set<string>();
+    for (let k = 2; k <= 24; k++) {
+      const m = tumbling(undefined, 0);
+      const f = m.fighters[0]!;
+      run(m, fallFrames - 1 - k);
+      run(m, 1, { buttons: ['shield'] });
+      expect(f.action).toBe('airDodge');
+      const d = until(m, (g) => g.ground !== null);
+      const expected = d < AIR_DODGE_TECH_WINDOW ? 'techInPlace' : 'land';
+      expect(f.action, `touched down ${d} frames after the press`).toBe(expected);
+      outcomes.add(expected);
+    }
+    expect([...outcomes].sort()).toEqual(['land', 'techInPlace']);
+  });
+
+  it('a tech is intangible on the tick it touches down', () => {
+    const m = testMatch({ players: 2 });
+    const [f, v] = m.fighters as [FighterState, FighterState];
+    placeInAir(m, -70, 80);
+    Object.assign(f, { action: 'tumble', actionFrame: 1, hitstun: 100, airDodgeUsed: true });
+    Object.assign(v, { pos: { x: -78, y: 0 }, prevPos: { x: -78, y: 0 }, action: 'idle', facing: 1 });
+    run(m, fallFrames - 1, (i) => (i === fallFrames - 4 ? { buttons: ['shield'] } : {}));
+    expect(f.ground).toBeNull();
+    attack(m, 1, 'probe');
+    run(m, 1);
+    expect(f.action).toBe('techInPlace');
+    expect(f.damage).toBe(0);
   });
 
   it('landing faster than the floor tech limit cannot be teched', () => {
