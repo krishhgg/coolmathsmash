@@ -33,6 +33,7 @@ export const moves: Record<string, MoveDef> = {
   jab: {
     kind: 'other',
     faf: 20,
+    next: { window: [6, 19], move: 'jab2' },
     hits: [
       {
         frames: [4, 5],
@@ -47,6 +48,7 @@ export const moves: Record<string, MoveDef> = {
   jab2: {
     kind: 'other',
     faf: 21,
+    next: { window: [6, 20], move: 'jab3' },
     hits: [
       {
         frames: [4, 5],
