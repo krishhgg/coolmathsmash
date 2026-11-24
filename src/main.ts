@@ -1,3 +1,4 @@
+import { audio } from './audio';
 import { Game } from './game';
 import { installHarness } from './harness/api';
 import { Renderer } from './render/renderer';
@@ -15,6 +16,7 @@ async function boot(): Promise<void> {
   renderer.overlays.events = params.has('events');
   game.onEvents((events, state) => renderer.eventLog.record(events, state.frame));
   game.keyboard.attach(window);
+  audio.match(game);
   const toggles: Record<string, keyof typeof renderer.overlays> = {
     F2: 'inputs',
     F3: 'actions',
