@@ -28,24 +28,24 @@ checks every fighter's stats against the range of Ultimate's 89-fighter cast, so
 `npm test`. Start from the nearest archetype in `docs/physics-reference.md` section 17 (Pichu, Pikachu, Mario,
 Donkey Kong, Bowser, Fox, Jigglypuff) and adjust.
 
-| Field                                                    | Meaning                                                                     | Fireboy           | Mario               | Cast range       |
-| -------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------- | ------------------- | ---------------- |
-| `weight`                                                 | knockback resistance                                                        | 84                | 98                  | 62–135           |
-| `height`, `width`                                        | body size: the hurtbox capsule and the environment box (feet at the origin) | 15, 8             | 15, 8               | (estimate)       |
-| `walkSpeed`, `walkAccelBase`, `walkAccelAdd`             | max walk speed; acceleration = base + add × stick                           | 1.1               | 1.155               | 0.62–1.575       |
-| `groundFriction`                                         | traction: speed lost per frame when not accelerating                        | 0.1               | 0.102               | 0.076–0.138      |
-| `dashInitialSpeed`, `dashFrames`                         | initial dash speed and length (dash-dance window)                           | 1.95, 11          | 1.936, 11           | 1.45–2.45        |
-| `runSpeed`, `runAccelBase`, `runAccelAdd`                | run speed and acceleration                                                  | 1.85              | 1.76                | 1.18–3.85        |
-| `airSpeed`, `airAccelBase`, `airAccelAdd`, `airFriction` | air drift                                                                   | 1.15              | 1.208               | 0.735–1.344      |
-| `gravity`, `fallSpeed`, `fastFallSpeed`                  | per-frame gravity and terminal speeds                                       | 0.09, 1.55, 2.48  | 0.087, 1.5, 2.4     | 0.053–0.23       |
-| `damageFlyTopGravity` (optional)                         | gravity in hitstun after a 70–110° tumble launch (fall speed 1.8 then)      | 0.07392 (default) | 0.074928            | 0.0628–0.0874    |
-| `jumpSquat`                                              | frames on the ground before leaving it                                      | 3                 | 3                   | 3–6              |
-| `fullHopHeight`, `shortHopHeight`, `doubleJumpHeight`    | apex heights above take-off                                                 | 34, 16, 33        | 36.33, 17.54, 36.33 | 16.5–50.5        |
-| `jumps`                                                  | total jumps including the grounded one                                      | 2                 | 2                   | 2–6              |
-| `ledgeJumpHeight`                                        | apex of a ledge jump                                                        | 36                | 38.165              |                  |
-| `softLandingLag`, `hardLandingLag`                       | landing lag after short / long airtime                                      | 1, 3              | 1, 3                |                  |
-| `shieldSize`                                             | shield bubble radius at full health                                         | 9                 | 9.7                 | 8–18.5           |
-| `rollDistance`, `airDodgeSpeed`                          | roll distance, directional air dodge speed                                  | 28, 2.8           | 28, 2.8             | 26.5–39.7 (roll) |
+| Field                                                    | Meaning                                                                     | Fireboy          | Mario               | Cast range       |
+| -------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------- | ------------------- | ---------------- |
+| `weight`                                                 | knockback resistance                                                        | 84               | 98                  | 62–135           |
+| `height`, `width`                                        | body size: the hurtbox capsule and the environment box (feet at the origin) | 15, 8            | 15, 8               | (estimate)       |
+| `walkSpeed`, `walkAccelBase`, `walkAccelAdd`             | max walk speed; acceleration = base + add × stick                           | 1.1              | 1.155               | 0.62–1.575       |
+| `groundFriction`                                         | traction: speed lost per frame when not accelerating                        | 0.1              | 0.102               | 0.076–0.138      |
+| `dashInitialSpeed`, `dashFrames`                         | initial dash speed and length (dash-dance window)                           | 1.95, 11         | 1.936, 11           | 1.45–2.45        |
+| `runSpeed`, `runAccelBase`, `runAccelAdd`                | run speed and acceleration                                                  | 1.85             | 1.76                | 1.18–3.85        |
+| `airSpeed`, `airAccelBase`, `airAccelAdd`, `airFriction` | air drift                                                                   | 1.15             | 1.208               | 0.735–1.344      |
+| `gravity`, `fallSpeed`, `fastFallSpeed`                  | per-frame gravity and terminal speeds                                       | 0.09, 1.55, 2.48 | 0.087, 1.5, 2.4     | 0.053–0.23       |
+| `damageFlyTopGravity` (optional)                         | gravity in hitstun after a 70–110° tumble launch (fall speed 1.8 then)      | (default)        | 0.074928            | 0.0628–0.0874    |
+| `jumpSquat`                                              | frames on the ground before leaving it                                      | 3                | 3                   | 3–6              |
+| `fullHopHeight`, `shortHopHeight`, `doubleJumpHeight`    | apex heights above take-off                                                 | 34, 16, 33       | 36.33, 17.54, 36.33 | 16.5–50.5        |
+| `jumps`                                                  | total jumps including the grounded one                                      | 2                | 2                   | 2–6              |
+| `ledgeJumpHeight`                                        | apex of a ledge jump                                                        | 36               | 38.165              |                  |
+| `softLandingLag`, `hardLandingLag`                       | landing lag after short / long airtime                                      | 1, 3             | 1, 3                |                  |
+| `shieldSize`                                             | shield bubble radius at full health                                         | 9                | 9.7                 | 8–18.5           |
+| `rollDistance`, `airDodgeSpeed`                          | roll distance, directional air dodge speed                                  | 28, 2.8          | 28, 2.8             | 26.5–39.7 (roll) |
 
 Jump velocities are derived from the heights (`src/sim/physics.ts`), so you give heights, not speeds.
 
@@ -193,6 +193,9 @@ koPercent({ hit: { fighter: 'fireboy', move: 'uair' }, air: true, from: 'centre'
 koPercent({ hit: { damage: 17.8, angle: 361, kbg: 99, bkb: 25 }, di: { x: -98, y: 17 } });
 kos({ hit: { fighter: 'fireboy', move: 'bthrow' } }, 150); // does it KO from 150%?
 ```
+
+Kill-% tests take each move's angle, BKB and KBG from its Ultimate analogue and assert `koPercent` within about 5
+points of that analogue's own kill % from the same setup (CREW.md, "Knockback values and kill percents").
 
 It returns the lowest % (to 0.1) from which the hit KOs the target: the target crosses a blast zone **before its
 hitstun ends**, with no input other than the optional DI stick, which is the definition the community KO calculator
