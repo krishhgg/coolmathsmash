@@ -36,6 +36,8 @@ interface Playing {
 export class MusicPlayer {
   private playing: Playing | null = null;
   private wanted: string | null = null;
+  /** Bumped by every change, so a load that finishes after a newer request is dropped. */
+  private request = 0;
 
   constructor(private readonly engine: AudioEngine) {}
 
@@ -49,11 +51,16 @@ export class MusicPlayer {
     if (id !== null && track === null) return;
     if (track === this.wanted) return;
     this.wanted = track;
+    const request = ++this.request;
     this.fadeOut(fade);
     if (!track) return;
     const info = TRACKS[track]!;
     void this.engine.decode(info.file).then((buf) => {
-      if (!buf || this.wanted !== track) return;
+      if (request !== this.request) return;
+      if (!buf) {
+        this.wanted = null;
+        return;
+      }
       const ctx = this.engine.ctx;
       const src = ctx.createBufferSource();
       src.buffer = buf;

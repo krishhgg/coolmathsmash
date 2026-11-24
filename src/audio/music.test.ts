@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { AudioEngine } from './engine';
 import { MusicPlayer, STAGE_MUSIC, TRACKS, trackFor } from './music';
 import { FakeContext, type FakeGain } from './testing';
@@ -73,5 +73,36 @@ describe('music', () => {
     } finally {
       delete TRACKS['test-b'];
     }
+  });
+
+  it('menu, stop, menu while loading starts one source, and stop silences it', async () => {
+    const { ctx, player } = setup();
+    player.play('menu');
+    player.play(null);
+    player.play('menu');
+    await tick();
+    expect(ctx.sources).toHaveLength(1);
+    player.play(null);
+    expect(ctx.sources[0]!.stopped).not.toBeNull();
+  });
+
+  it('retries a track whose load failed', async () => {
+    const ctx = new FakeContext();
+    let fail = true;
+    const engine = new AudioEngine({
+      context: ctx as unknown as BaseAudioContext,
+      load: (path) => (fail ? Promise.reject(new Error('offline')) : FakeContext.load(path)),
+    });
+    const player = new MusicPlayer(engine);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    player.play('menu');
+    await tick();
+    expect(ctx.sources).toHaveLength(0);
+    expect(player.current).toBeNull();
+    fail = false;
+    player.play('menu');
+    await tick();
+    expect(ctx.sources).toHaveLength(1);
+    warn.mockRestore();
   });
 });
