@@ -95,13 +95,14 @@ function collide(x: EntityCtx, prev: Vec, lag: Lag): 'floor' | 'wall' | null {
   const floor = def.floor ?? 'destroy';
   let landed = false;
   if (floor !== 'pass' && e.vel.y + e.kb.y <= 0) {
-    const surface = floorUnder(x, prev, lag);
-    if (surface !== null) {
+    const under = floorUnder(x, prev, lag);
+    if (under) {
       if (floor === 'destroy') {
         destroyEntity(x.m, e, 'stage');
         return 'floor';
       }
-      e.pos.y = surface + r;
+      e.pos.x += under.carry;
+      e.pos.y = under.y + r;
       e.kb.y = 0;
       e.vel.y = floor === 'bounce' ? (def.bounce ?? Math.abs(e.vel.y)) : 0;
       e.grounded = floor === 'land';
@@ -138,27 +139,36 @@ function collide(x: EntityCtx, prev: Vec, lag: Lag): 'floor' | 'wall' | null {
 const there = ({ stage }: EntityCtx, list: 'solids' | 'platforms', i: number) =>
   stage.present[list][i] === true;
 
-/** Height of the floor edge or platform the body's bottom crossed on this sub-step (where it is now), if any. */
-function floorUnder(x: EntityCtx, prev: Vec, lag: Lag): number | null {
+/**
+ * The floor edge or platform under the body on this sub-step, if any: one its bottom crossed, or one it was resting
+ * on, which carries it along (`carry`, sideways) and down as well as up. `y` is the surface height where it ends up.
+ */
+function floorUnder(x: EntityCtx, prev: Vec, lag: Lag): { y: number; carry: number } | null {
   const { e, stage, m } = x;
   const r = x.def.radius;
+  const meets = (was: number, now: (dx: number) => number, o: PieceState) => {
+    const standing = Math.abs(prev.y - r - was) <= EPS;
+    if (!standing && !crossing(prev.y - r - was, e.pos.y - r - now(0))) return null;
+    const carry = standing ? o.dx * (lag.from - lag.to) : 0;
+    return { y: now(carry), carry };
+  };
   for (const edge of stage.edges) {
     if (edge.kind !== 'floor' || !there(x, 'solids', edge.solid)) continue;
     const o = m.stage.solids[edge.solid]!;
     const at = e.pos.x + o.dx * lag.to;
     if (at < edgeMinX(edge) - EPS || at > edgeMaxX(edge) + EPS) continue;
-    const now = floorY(edge, at) - o.dy * lag.to;
-    const was =
-      floorY(edge, clamp(prev.x + o.dx * lag.from, edgeMinX(edge), edgeMaxX(edge))) - o.dy * lag.from;
-    if (crossing(prev.y - r - was, e.pos.y - r - now)) return now;
+    const surface = (px: number) => floorY(edge, clamp(px, edgeMinX(edge), edgeMaxX(edge)));
+    const was = surface(prev.x + o.dx * lag.from) - o.dy * lag.from;
+    const hit = meets(was, (carry) => surface(at + carry) - o.dy * lag.to, o);
+    if (hit) return hit;
   }
   for (const [i, p] of stage.geo.platforms.entries()) {
     if (!there(x, 'platforms', i)) continue;
     const o = m.stage.platforms[i]!;
     const at = e.pos.x + o.dx * lag.to;
     if (at < p.x1 || at > p.x2) continue;
-    const now = p.y - o.dy * lag.to;
-    if (crossing(prev.y - r - (p.y - o.dy * lag.from), e.pos.y - r - now)) return now;
+    const hit = meets(p.y - o.dy * lag.from, () => p.y - o.dy * lag.to, o);
+    if (hit) return hit;
   }
   return null;
 }

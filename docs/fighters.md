@@ -275,9 +275,9 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
 - **Stage.** `floor` is `'bounce'` (up at `bounce` speed), `'land'` (rest on it; `grounded` is set),
   `'destroy'` (default) or `'pass'`; `wall` (walls and ceilings) is `'bounce'`, `'stop'`, `'destroy'` (default) or
   `'pass'`. Entities land on soft platforms too, and vanish past the blast zones or when `lifetime` runs out. Moving
-  pieces (docs/stage-geometry.md) collide by their motion relative to the entity, absent ones are skipped: a floor
-  rising under a resting entity lifts it, a solid running into one pushes it, and one on a floor that a ceiling comes
-  down on is crushed (destroyed, reason `stage`). Entities don't ride a piece's sideways motion yet.
+  pieces (docs/stage-geometry.md) collide by their motion relative to the entity, absent ones are skipped: a resting
+  entity rides the floor or platform under it up, down and sideways, a solid running into one pushes it, and one on a
+  floor that a ceiling comes down on is crushed (destroyed, reason `stage`).
 - **Scripts.** `script(x)` runs every frame before movement with `x.e` (the entity), `x.owner` and `x.c` (the
   owner's controller, for owner-controlled minions), `x.m` and `x.stage`. It may steer, spawn or
   `destroyEntity`, and keeps its own state in `x.e.data`. Deterministic only: use `x.m.rng`.

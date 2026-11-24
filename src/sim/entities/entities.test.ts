@@ -5,7 +5,6 @@ import { testbed } from '../../stages/testbed';
 import { hitlagFrames, shieldstunFrames, knockback } from '../combat/formulas';
 import type { FighterState } from '../fighter';
 import { createMatch, stepMatch, type MatchState } from '../match';
-import { posedStage } from '../movingStage';
 import { gadgets } from '../testing/gadgets';
 import { attack, input, type Hold } from '../testing/sim';
 import { spawnEntity } from './entities';
@@ -537,22 +536,33 @@ describe('entity lifecycle', () => {
     expect(box.pos.y).toBeLessThan(40);
   });
 
-  it('rides a floor rising under it and is crushed by a solid coming down on it (testbed)', () => {
+  it('rides moving floors and platforms up, down and sideways, and is crushed under a descending solid (testbed)', () => {
     const m = createMatch({ seed: 1, stage: 'testbed', stocks: 3, ports: [{ fighter: 'test-gadgets' }] });
-    const lifted = spawnEntity(m, { kind: 'test-gadgets/crate', owner: -1, pos: { x: 120, y: -36 } });
-    const crushed = spawnEntity(m, { kind: 'test-gadgets/crate', owner: -1, pos: { x: -50, y: 4 } });
-    const floated = spawnEntity(m, { kind: 'test-gadgets/crate', owner: -1, pos: { x: -107, y: 31 } });
+    const crate = (x: number, y: number) =>
+      spawnEntity(m, { kind: 'test-gadgets/crate', owner: -1, pos: { x, y } });
+    const lifted = crate(120, -36);
+    const glided = crate(0, 34);
+    const circled = crate(-107, 31);
+    const crushed = crate(-50, 4);
     const reasons: string[] = [];
-    while (m.frame < 215) {
+    const offsets = new Set<string>();
+    while (m.frame < 420) {
       step(m, 1);
       for (const ev of m.events) if (ev.type === 'entityDestroy') reasons.push(`${ev.id}:${ev.reason}`);
-      if (m.frame === 60) expect(floated.pos.y).toBeCloseTo(posedStage(m).geo.platforms[2]!.y + 4, 6);
+      if (m.frame < 30) continue;
+      const st = m.stage;
+      expect(lifted.grounded).toBe(true);
+      expect(lifted.pos.y).toBeCloseTo(st.solids[1]!.y + 4, 6);
+      expect(glided.pos.y).toBeCloseTo(30 + 4, 6);
+      expect(circled.pos.y).toBeCloseTo(25 + st.platforms[2]!.y + 4, 6);
+      offsets.add(
+        [glided.pos.x - st.platforms[0]!.x, circled.pos.x - st.platforms[2]!.x]
+          .map((v) => v.toFixed(6))
+          .join(),
+      );
     }
-    expect(lifted.dead).toBe(false);
-    expect(lifted.grounded).toBe(true);
-    expect(lifted.pos.y).toBeCloseTo(m.stage.solids[1]!.y + 4, 6);
-    expect(m.stage.solids[1]!.y).toBeCloseTo(30, 6);
-    expect(reasons).toEqual([`${crushed.id}:stage`, `${floated.id}:blastZone`]);
+    expect(offsets.size).toBe(1);
+    expect(reasons).toEqual([`${crushed.id}:stage`]);
   });
 
   it('disappears past a blast zone and on the stage when it does not bounce', () => {
