@@ -98,10 +98,11 @@ export const HANDS = { ...arm('F', 'hand'), ...arm('B', 'hand') };
 
 const BODY_SLOTS = ['foot', 'neck', 'head', 'stalkB1', 'stalkB2', 'stalkF1', 'stalkF2'];
 const FACE_SLOTS = ['eyeB', 'pupilB', 'lidB', 'eyeF', 'pupilF', 'lidF', 'mouth'];
-/** Pulled into the shell: body and face hidden, eyes peeking out of the shell's mouth. */
+const ARM_SLOTS = ['armB', 'foreB', 'armF', 'foreF'];
+/** Pulled into the shell: body, arms and face hidden, eyes peeking out of the shell's mouth. */
 export const IN_SHELL: Swaps = {
   ...Object.fromEntries(
-    BODY_SLOTS.flatMap((s) => [
+    [...BODY_SLOTS, ...ARM_SLOTS].flatMap((s) => [
       [s, null],
       [`${s}Line`, null],
     ]),

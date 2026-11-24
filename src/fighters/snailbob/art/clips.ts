@@ -449,17 +449,26 @@ function climb(
 
 const ledgeClimb: AnimClip = {
   length: 33,
-  swaps: { ...HAPPY, ...HANDS },
+  swaps: HAPPY,
   keys: [...climb(30, 8, [0, 6, 12, 18, 24], { ...DETERMINED, ...HANDS }), key(33, STAND)],
 };
 
+/**
+ * Rolling up in the shell: the engine is still lifting him out of the hang for the first half of the roll, so the
+ * ball rides the corner's height (as `climb` does) until it's on the floor, spinning from 90 to 720 degrees.
+ */
+const LEDGE_ROLL_SPIN = [12, 14, 16, 18, 20, 22, 24, 36].map((f, i) => {
+  const u = (f - 12) / 24;
+  const pose = mix(BALL, { body: { rot: 90 + 630 * (1 - (1 - u) ** 2), y: corner(f, 40, 25)[1] } });
+  return key(f, pose, { ease: f === 36 ? 'out' : 'linear', ...(i === 0 ? { swaps: SPINNING } : {}) });
+});
+
 const ledgeRoll: AnimClip = {
   length: 49,
-  swaps: { ...HAPPY, ...HANDS },
+  swaps: HAPPY,
   keys: [
     ...climb(40, 25, [0, 5, 10], { ...DETERMINED, ...HANDS }),
-    key(12, mix(BALL, { body: { rot: 90 } }), { ease: 'linear', swaps: SPINNING }),
-    key(36, mix(BALL, { body: { rot: 720 } }), { ease: 'out' }),
+    ...LEDGE_ROLL_SPIN,
     key(38, mix(SHRINK, { body: { rot: 720 } }), { ease: 'out', swaps: HAPPY }),
     key(49, mix(STAND, { body: { rot: 720 } })),
   ],
@@ -467,9 +476,9 @@ const ledgeRoll: AnimClip = {
 
 const ledgeJump: AnimClip = {
   length: 20,
-  swaps: { ...DETERMINED, ...HANDS },
+  swaps: DETERMINED,
   keys: [
-    key(0, HANG, { ease: 'in' }),
+    key(0, HANG, { ease: 'in', swaps: { ...DETERMINED, ...HANDS } }),
     key(3, cling(GX, GY + 2, { body: { rot: -60 } }), { ease: 'out', swaps: HAPPY }),
     key(6, STRETCH, { ease: 'out' }),
     key(20, APEX),
@@ -478,7 +487,7 @@ const ledgeJump: AnimClip = {
 
 const ledgeAttack: AnimClip = {
   length: 55,
-  swaps: { ...DETERMINED, ...HANDS },
+  swaps: DETERMINED,
   keys: [
     ...climb(20, 8, [0, 5, 10], { ...DETERMINED, ...HANDS }),
     key(12, mix(BALL, { body: { rot: 0 } }), { ease: 'in', swaps: SPINNING }),
