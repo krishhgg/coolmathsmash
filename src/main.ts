@@ -18,11 +18,20 @@ async function boot(): Promise<void> {
   renderer.overlays.inputs = params.has('inputs');
   renderer.overlays.actions = params.has('actions');
   renderer.overlays.hitboxes = params.has('hitboxes');
+  renderer.overlays.events = params.has('events');
+  game.onEvents((events, state) => renderer.eventLog.record(events, state.frame));
   game.keyboard.attach(window);
+  const toggles: Record<string, keyof typeof renderer.overlays> = {
+    F2: 'inputs',
+    F3: 'actions',
+    F4: 'hitboxes',
+    F5: 'events',
+  };
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'F2') renderer.overlays.inputs = !renderer.overlays.inputs;
-    if (e.code === 'F3') renderer.overlays.actions = !renderer.overlays.actions;
-    if (e.code === 'F4') renderer.overlays.hitboxes = !renderer.overlays.hitboxes;
+    const overlay = toggles[e.code];
+    if (!overlay) return;
+    e.preventDefault();
+    renderer.overlays[overlay] = !renderer.overlays[overlay];
   });
   if (harness || params.has('debug')) installHarness(game);
   if (harness || params.has('match')) game.loop.start();

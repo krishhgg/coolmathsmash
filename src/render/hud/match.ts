@@ -10,7 +10,7 @@ export function fighterIcon(id: string): string | undefined {
 }
 
 /**
- * The bottom damage HUD for a running match. `step` runs after every simulated frame (like the camera) and remembers
+ * The bottom damage HUD for a running match. `step` runs after every simulated frame (with the camera) and remembers
  * the frame each fighter last took damage, so the shake and flash depend only on the frames simulated, never on when
  * they were drawn. The first frame it sees of a match is the baseline, so damage set up before the match (harness
  * patches) does not shake.

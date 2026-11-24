@@ -3,7 +3,9 @@ import { getStage } from '../stages/registry';
 import { createControl, feedControl, type ControlState } from './control';
 import { createFighter, type FighterState } from './fighter';
 import { resolveHits } from './combat/hits';
-import { stepFighter } from './step';
+import { emit, type SimEvent } from './events';
+import { pushApart } from './movement';
+import { compiledStage, stepFighter } from './step';
 
 export interface PortConfig {
   fighter: string;
@@ -31,6 +33,8 @@ export interface MatchState {
   config: MatchConfig;
   players: PlayerState[];
   fighters: FighterState[];
+  /** What happened during the last frame (see SimEvent). */
+  events: SimEvent[];
 }
 
 export const DEFAULT_MATCH: MatchConfig = {
@@ -50,13 +54,20 @@ export function createMatch(config: MatchConfig = DEFAULT_MATCH): MatchState {
     fighters: config.ports.map((p, port) =>
       createFighter(port, p.fighter, stage.spawns[port % stage.spawns.length]!, config.stocks),
     ),
+    events: [],
   };
 }
 
 /** Advance the match by exactly one 1/60 s frame. `inputs[port]` is that port's controller this frame. */
 export function stepMatch(state: MatchState, inputs: readonly InputFrame[]): void {
+  state.events = [];
+  const before = state.fighters.map((f) => f.action);
   for (const player of state.players) feedControl(player.control, inputs[player.port] ?? neutralInput());
   for (const f of state.fighters) stepFighter(state, f, state.players[f.port]!);
+  pushApart(state, compiledStage(state.config.stage));
   resolveHits(state);
+  state.fighters.forEach((f, i) => {
+    if (f.action !== before[i]) emit(state, { type: 'action', port: f.port, from: before[i]!, to: f.action });
+  });
   state.frame++;
 }
