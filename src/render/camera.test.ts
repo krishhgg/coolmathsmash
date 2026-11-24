@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { run, testMatch } from '../sim/testing/sim';
 import { getStage } from '../stages/registry';
-import { Camera, cameraTarget } from './camera';
+import { Camera, cameraTarget, SMOOTHING, type CameraView } from './camera';
 
 describe('camera', () => {
   const stage = getStage('battlefield');
@@ -11,18 +11,24 @@ describe('camera', () => {
     expect(new Camera().viewFor(m, stage)).toEqual(cameraTarget(m, stage));
   });
 
-  it('eases once per simulated frame, so the view never depends on which frames were drawn', () => {
+  it("eases toward each simulated frame's own target, however rarely it is drawn", () => {
     const m = testMatch();
-    const everyFrame = new Camera();
-    const onceAtEnd = new Camera();
+    const camera = new Camera();
+    let expected: CameraView | null = null;
     for (let i = 0; i < 45; i++) {
       run(m, 1, { x: 100 });
-      everyFrame.step(m, stage);
-      onceAtEnd.step(m, stage);
-      everyFrame.viewFor(m, stage);
+      camera.step(m, stage);
+      const t = cameraTarget(m, stage);
+      expected = expected
+        ? {
+            x: expected.x + (t.x - expected.x) * SMOOTHING,
+            y: expected.y + (t.y - expected.y) * SMOOTHING,
+            zoom: expected.zoom + (t.zoom - expected.zoom) * SMOOTHING,
+          }
+        : t;
+      if (i % 11 === 0) expect(camera.viewFor(m, stage)).toEqual(expected);
     }
-    const view = onceAtEnd.viewFor(m, stage);
-    expect(everyFrame.viewFor(m, stage)).toEqual(view);
-    expect(view.x).toBeLessThan(cameraTarget(m, stage).x);
+    expect(camera.viewFor(m, stage)).toEqual(expected);
+    expect(expected!.x).toBeLessThan(cameraTarget(m, stage).x);
   });
 });

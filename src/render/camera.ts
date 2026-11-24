@@ -15,7 +15,7 @@ const MARGIN_TOP = 35;
 const MARGIN_BOTTOM = 25;
 const MIN_WIDTH = 150;
 const MAX_ZOOM = 9;
-const SMOOTHING = 0.12;
+export const SMOOTHING = 0.12;
 
 /** Frame-everyone target: the fighters' bounding box plus margins, kept inside the stage's camera bounds. */
 export function cameraTarget(state: MatchState, stage: StageGeometry): CameraView {
