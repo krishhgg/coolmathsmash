@@ -19,3 +19,17 @@ describe('Game.onEvents', () => {
     expect(seen).toHaveLength(30);
   });
 });
+
+describe('Game.inputSource', () => {
+  it('feeds real-time frames, and the loop only renders in manual mode', () => {
+    const game = new Game(renderer, false);
+    const right = { ...neutral(), x: 100 };
+    game.inputSource = () => [right, neutral()];
+    game.loop.tick(0);
+    game.loop.tick(1000 / 60 + 0.01);
+    expect(game.inputLog).toEqual([[right, neutral()]]);
+    game.manual = true;
+    game.loop.tick(1000 / 30);
+    expect(game.inputLog).toHaveLength(1);
+  });
+});
