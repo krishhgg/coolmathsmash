@@ -44,21 +44,52 @@ const tether = (near: number) => [
 /**
  * Fluffy's normals (roster sheet 8). His game is a grabber fired across the screen, so his tilts, smashes and grab
  * reach far (forward tilt 45 units, forward smash and grab 70, Min Min range) and recover slowly, while the
- * close-range moves use his fuzzy body. Damage and first active frames are the roster's; knockback is tuned so
- * forward smash kills Mario at the Battlefield ledge near 110%, up smash near 120%, and back air and back throw
- * near 150% (fluffy.test.ts pins these). Frame windows are inclusive; faf is the first actionable frame.
+ * close-range moves use his fuzzy body. Damage and first active frames are the roster's; the roster gives no growth
+ * or base knockback, so those are Ultimate-standard values for each kind of move. They are not lowered to hit the
+ * roster's kill percents in our engine, which KOs early until COOL-3's calibration lands (CREW.md, "Knockback
+ * values"). Frame windows are inclusive; faf is the first actionable frame.
  */
 export const moves: Record<string, MoveDef> = {
-  /** Fuzz Bump: a quick shove with the fur. */
+  /** Fuzz Bump: a quick shove with the fur. Attack again to bump twice and finish with the Tail Slap. */
   jab: {
     kind: 'other',
     faf: 20,
+    next: { window: [6, 19], move: 'jab2' },
     hits: [
       {
         frames: [3, 4],
         boxes: [
           box(0, 6, 5.5, 3.5, { damage: 2, angle: 361, kbg: 25, bkb: 20 }),
           box(1, 3, 5.5, 4, { damage: 2, angle: 361, kbg: 25, bkb: 20 }),
+        ],
+      },
+    ],
+  },
+  /** Second Fuzz Bump. */
+  jab2: {
+    kind: 'other',
+    faf: 21,
+    next: { window: [6, 20], move: 'jab3' },
+    hits: [
+      {
+        frames: [3, 4],
+        boxes: [
+          box(0, 6.5, 5, 3.5, { damage: 2, angle: 361, kbg: 25, bkb: 25 }),
+          box(1, 3, 5, 4, { damage: 2, angle: 361, kbg: 25, bkb: 25 }),
+        ],
+      },
+    ],
+  },
+  /** Tail Slap: the grabber's tail cracks forward to finish the jab. */
+  jab3: {
+    kind: 'other',
+    faf: 33,
+    hits: [
+      {
+        frames: [5, 6],
+        boxes: [
+          box(0, 10, 5, 4, { damage: 3, angle: 361, kbg: 130, bkb: 45 }),
+          box(1, 4, 5, 4, { damage: 3, angle: 361, kbg: 130, bkb: 45 }),
         ],
       },
     ],
@@ -149,7 +180,7 @@ export const moves: Record<string, MoveDef> = {
           (i) => (i === 0 ? 6 : 3.5),
           (i): Hit =>
             i === 0
-              ? { damage: 15, angle: 361, kbg: 75, bkb: 24 }
+              ? { damage: 15, angle: 361, kbg: 95, bkb: 38 }
               : { damage: 11, angle: 361, kbg: 85, bkb: 30 },
         ),
       },
@@ -195,7 +226,7 @@ export const moves: Record<string, MoveDef> = {
           2,
           3,
           (i) => (i === 0 ? 5 : 4),
-          () => ({ damage: 12, angle: 30, kbg: 83, bkb: 20 }),
+          () => ({ damage: 12, angle: 30, kbg: 95, bkb: 28 }),
         ),
       },
       {
@@ -206,7 +237,7 @@ export const moves: Record<string, MoveDef> = {
           2,
           3,
           (i) => (i === 0 ? 5 : 4),
-          () => ({ damage: 12, angle: 30, kbg: 83, bkb: 20, direction: 'back' }),
+          () => ({ damage: 12, angle: 30, kbg: 95, bkb: 28, direction: 'back' }),
         ),
       },
     ],
@@ -285,7 +316,7 @@ export const moves: Record<string, MoveDef> = {
           5,
           2,
           (i) => (i === 0 ? 5 : 4.5),
-          (i) => ({ damage: i === 0 ? 11 : 9, angle: 361, kbg: 80, bkb: 17, direction: 'back' }),
+          (i) => ({ damage: i === 0 ? 11 : 9, angle: 361, kbg: 100, bkb: 22, direction: 'back' }),
         ),
       },
     ],
@@ -367,7 +398,7 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 56,
     hits: [],
-    throw: { frame: 32, hit: { damage: 11, angle: 42, kbg: 66, bkb: 45, direction: 'back' } },
+    throw: { frame: 32, hit: { damage: 11, angle: 42, kbg: 72, bkb: 55, direction: 'back' } },
   },
   /** Upward Whip: cracks them straight up. */
   uthrow: {
@@ -382,5 +413,17 @@ export const moves: Record<string, MoveDef> = {
     faf: 44,
     hits: [],
     throw: { frame: 22, hit: { damage: 6, angle: 75, kbg: 45, bkb: 60 } },
+  },
+  /**
+   * Stick Tight (down special): he drives the grabber into the ground and holds on. Heavy armor on frames 4-60, so
+   * hits add damage but no knockback (the video's "he wouldn't have knock back", time-limited by the roster), then
+   * 40 frames of end lag. In the air he braces the same way and keeps holding on when he lands.
+   */
+  downB: {
+    kind: 'other',
+    faf: 101,
+    armor: { frames: [4, 60] },
+    continuesOnLanding: true,
+    hits: [],
   },
 };

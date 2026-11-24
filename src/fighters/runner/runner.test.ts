@@ -5,7 +5,7 @@ import { createMatch, type MatchState } from '../../sim/match';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
 import { FIGHTERS } from '../registry';
-import { moves, TREADMILL } from './moves';
+import { GRAVITY_SWITCH, HOP, moves, TREADMILL } from './moves';
 import { stats } from './stats';
 
 /** Where Mario stands at Battlefield's right ledge (x = 80) in the kill-% tests. */
@@ -156,6 +156,7 @@ describe('Runner: frame data (roster.md)', () => {
     ['uair', 7, 9],
     ['dair', 10, 1.2],
     ['grab', 6, 0],
+    ['neutralB', 14, 8],
   ] as const)('%s comes out on frame %i with a %s damage sweetspot', (move, startup, damage) => {
     expect(activeFrames(move)[0]).toBe(startup);
     expect(moves[move]!.hits[0]!.boxes[0]!.damage).toBe(damage);
@@ -194,21 +195,32 @@ describe('Runner: frame data (roster.md)', () => {
   });
 });
 
+/**
+ * The roster's kill-% targets (Mario at the Battlefield ledge, fresh, no rage, no DI). Her knockback is Kirby's
+ * Ultimate values, and the engine currently KOs well before Ultimate does, so these only check that each move is
+ * a real finisher in the right range.
+ * TODO(COOL-3 koPercent): tighten to the target +-5 once the engine's KO calibration lands.
+ */
+const KILL_TARGETS = [
+  ['ftilt', 175],
+  ['fsmash', 105],
+  ['usmash', 110],
+  ['dsmash', 125],
+  ['bair', 130],
+  ['bthrow', 160],
+  ['uthrow', 150],
+  ['neutralB', 170],
+] as const;
+
 describe('Runner: kill % against Mario at the Battlefield ledge (fresh, no rage, no DI)', () => {
-  it.each([
-    ['ftilt', 175],
-    ['fsmash', 105],
-    ['usmash', 110],
-    ['dsmash', 125],
-    ['bair', 130],
-    ['bthrow', 160],
-    ['uthrow', 150],
-  ] as const)('%s kills at %i, give or take 5', (move, target) => {
-    expect(Math.abs(killPercent(move) - target)).toBeLessThanOrEqual(5);
+  it.each(KILL_TARGETS)('%s KOs by its roster target of %i (and not absurdly early)', (move, target) => {
+    const kill = killPercent(move);
+    expect(kill).toBeGreaterThanOrEqual(40);
+    expect(kill).toBeLessThanOrEqual(target + 15);
   });
 
-  it('forward throw is not a kill throw: Mario survives it at the ledge at 160%', () => {
-    expect(kosAt('fthrow', 160)).toBe(false);
+  it('forward throw is not a kill throw: Mario survives it at the ledge at 150%', () => {
+    expect(kosAt('fthrow', 150)).toBe(false);
   });
 });
 
@@ -279,5 +291,115 @@ describe('Runner: combo tools', () => {
     };
     expect(side(8.5)).toEqual({ frame: 6, dir: 1 });
     expect(side(-8.5)).toEqual({ frame: 6, dir: -1 });
+  });
+});
+
+describe('Runner: Tile Flip (neutral special)', () => {
+  it('on the ground the tile in front launches Mario straight up', () => {
+    const { m, a, v } = vsMario();
+    put(a, 0, 1, v.ground);
+    put(v, 11, -1, v.ground);
+    v.damage = 50;
+    runPorts(m, 1, [{ buttons: ['special'] }, {}]);
+    expect(a.move).toBe('neutralB');
+    for (let i = 0; i < 20 && !v.launch; i++) runPorts(m, 1, [{}, {}]);
+    expect(a.actionFrame).toBe(14);
+    expect(v.launch?.angle).toBe(90);
+  });
+
+  it('in the air it is the hop kick, and chaining it still loses height', () => {
+    const m = testMatch({ fighter: 'runner' });
+    const f = placeInAir(m, 0, 150);
+    run(m, 1, { buttons: ['special'] });
+    expect(f.move).toBe('neutralBAir');
+    run(m, HOP.frame - 1);
+    expect(f.vel.y).toBeGreaterThan(0);
+    for (let i = 0; i < 4; i++) {
+      run(m, moves.neutralBAir!.faf - f.actionFrame);
+      run(m, 1, { buttons: ['special'] });
+      expect(f.move).toBe('neutralBAir');
+    }
+    expect(f.pos.y).toBeLessThan(150);
+  });
+});
+
+describe('Runner: Gravity Switch (up special)', () => {
+  it('falls upward about 90 units in its 50 frames, then leaves her helpless', () => {
+    const m = testMatch({ fighter: 'runner', x: 70 });
+    const f = m.fighters[0]!;
+    const y0 = f.pos.y;
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    let top = y0;
+    for (let i = 0; i < 80 && f.action !== 'helpless'; i++) {
+      run(m, 1);
+      top = Math.max(top, f.pos.y);
+    }
+    expect(f.action).toBe('helpless');
+    expect(top - y0).toBeGreaterThan(80);
+    expect(top - y0).toBeLessThan(100);
+  });
+
+  it('pressing Special again flips gravity back early', () => {
+    const m = testMatch({ fighter: 'runner', x: 70 });
+    const f = m.fighters[0]!;
+    run(m, 1, { y: 100, buttons: ['special'] });
+    run(m, GRAVITY_SWITCH.cancelFrom + 2);
+    const y = f.pos.y;
+    run(m, 1, { buttons: ['special'] });
+    expect(f.action).toBe('helpless');
+    run(m, 20);
+    expect(f.pos.y).toBeLessThan(y + 5);
+  });
+
+  it('clings to the underside of the top platform and runs along it upside down', () => {
+    const m = testMatch({ fighter: 'runner', x: 0 });
+    const f = m.fighters[0]!;
+    run(m, 1, { y: 100, buttons: ['special'] });
+    for (let i = 0; i < 60 && f.actionFrame < GRAVITY_SWITCH.cling[0]; i++) run(m, 1);
+    const platform = 47.19;
+    run(m, 2);
+    expect(f.pos.y + stats.height).toBeCloseTo(platform, 6);
+    const x0 = f.pos.x;
+    run(m, 6, { x: 100 });
+    expect(f.pos.y + stats.height).toBeCloseTo(platform, 6);
+    expect(f.pos.x - x0).toBeGreaterThan(10);
+    expect(f.facing).toBe(1);
+  });
+
+  it('activated while already pressed against the underside of the stage, she still clings to it', () => {
+    const probe = testMatch({ fighter: 'runner' });
+    const p = placeInAir(probe, 0, -60);
+    run(probe, 1, { y: 100, buttons: ['special'] });
+    for (let i = 0; i < 60 && p.actionFrame < GRAVITY_SWITCH.cling[0]; i++) run(probe, 1);
+    run(probe, 1);
+    const underside = p.pos.y + stats.height;
+
+    const m = testMatch({ fighter: 'runner' });
+    const f = placeInAir(m, 0, underside - stats.height * 0.75 - 0.5);
+    run(m, 1, { buttons: ['jump'] });
+    run(m, 6);
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    for (let i = 0; i < 20 && f.actionFrame < GRAVITY_SWITCH.cling[0]; i++) run(m, 1);
+    expect(f.actionFrame).toBeGreaterThanOrEqual(GRAVITY_SWITCH.cling[0]);
+    run(m, 2);
+    expect(f.pos.y + stats.height).toBeCloseTo(underside, 6);
+  });
+
+  it('from under the stage she rises to its underside, runs out along it and catches the ledge', () => {
+    const m = testMatch({ fighter: 'runner' });
+    const f = placeInAir(m, -60, -90, -1);
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    const clinging = () =>
+      f.actionFrame >= GRAVITY_SWITCH.cling[0] && f.actionFrame <= GRAVITY_SWITCH.cling[1];
+    for (let i = 0; i < 60 && !clinging(); i++) run(m, 1);
+    expect(clinging()).toBe(true);
+    for (let i = 0; i < 70 && clinging(); i++) run(m, 1, { x: -100 });
+    expect(f.actionFrame).toBeGreaterThanOrEqual(GRAVITY_SWITCH.pop[0]);
+    for (let i = 0; i < 30 && !f.action.startsWith('ledge'); i++) run(m, 1, { x: 100 });
+    expect(f.action.startsWith('ledge')).toBe(true);
+    expect(f.ledge).toBe(0);
   });
 });

@@ -1,3 +1,4 @@
+import { getFighter } from '../../fighters/registry';
 import type { Ctx, FighterState } from '../fighter';
 
 type Dynamic<T> = T | ((x: Ctx) => T);
@@ -30,9 +31,20 @@ export interface ActionDef {
 
 export const ACTIONS: Record<string, ActionDef> = {};
 
+/**
+ * The action `f` is in: its fighter's own version (`FighterDef.actions`) when it has one, else the shared one.
+ */
+export function actionDef(f: FighterState): ActionDef {
+  return getFighter(f.fighter).actions?.[f.action] ?? ACTIONS[f.action]!;
+}
+
+function known(x: Ctx, name: string): boolean {
+  return ACTIONS[name] !== undefined || x.def.actions?.[name] !== undefined;
+}
+
 /** Switch action and run the new action's first frame now. */
 export function setAction(x: Ctx, name: string): void {
-  if (!ACTIONS[name]) throw new Error(`unknown action ${name}`);
+  if (!known(x, name)) throw new Error(`unknown action ${name}`);
   x.f.action = name;
   x.f.actionFrame = 1;
   x.f.move = null;
@@ -40,7 +52,7 @@ export function setAction(x: Ctx, name: string): void {
 
 /** Switch action from physics (landing, ledge grab): its frame 1 is the next simulated frame. */
 export function enterAction(x: Ctx, name: string, frame = 0): void {
-  if (!ACTIONS[name]) throw new Error(`unknown action ${name}`);
+  if (!known(x, name)) throw new Error(`unknown action ${name}`);
   x.f.action = name;
   x.f.actionFrame = frame;
   x.f.move = null;
@@ -49,7 +61,7 @@ export function enterAction(x: Ctx, name: string, frame = 0): void {
 export function runAction(x: Ctx): void {
   for (let i = 0; i < 8; i++) {
     const { action, actionFrame } = x.f;
-    ACTIONS[action]!.update(x);
+    actionDef(x.f).update(x);
     if (x.f.action === action && x.f.actionFrame === actionFrame) return;
   }
 }
@@ -57,5 +69,5 @@ export function runAction(x: Ctx): void {
 export const inWindow = (frame: number, [a, b]: readonly [number, number]) => frame >= a && frame <= b;
 
 export function isIntangible(f: FighterState): boolean {
-  return f.intangible > 0 || (ACTIONS[f.action]?.intangible?.(f) ?? false);
+  return f.intangible > 0 || (actionDef(f).intangible?.(f) ?? false);
 }

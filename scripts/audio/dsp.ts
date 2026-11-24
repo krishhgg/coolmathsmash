@@ -90,7 +90,7 @@ export function osc(
   opts: { phase?: number; width?: Param } = {},
 ): Float32Array {
   const x = buffer(seconds);
-  let ph = opts.phase ?? 0;
+  let ph = (((opts.phase ?? 0) % 1) + 1) % 1;
   const width = opts.width ?? 0.5;
   for (let i = 0; i < x.length; i++) {
     const t = i / SR;

@@ -1,0 +1,9 @@
+{
+  "menu": {
+    "file": "music/menu.mp3",
+    "title": "Main Menu",
+    "evokes": "a Smash Ultimate-style menu theme",
+    "loopStart": 0,
+    "loopEnd": 51.2
+  }
+}
