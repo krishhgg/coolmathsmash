@@ -5,5 +5,12 @@
     "evokes": "a Smash Ultimate-style menu theme",
     "loopStart": 0,
     "loopEnd": 51.2
+  },
+  "papas-pizzeria": {
+    "file": "music/papas-pizzeria.mp3",
+    "title": "Papa's Pizzeria",
+    "evokes": "Papa's Pizzeria (Flipline Studios): an original café swing and tarantella",
+    "loopStart": 0,
+    "loopEnd": 43.636372
   }
 }
