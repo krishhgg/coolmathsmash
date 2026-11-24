@@ -359,6 +359,26 @@ describe('Runner: Gravity Switch (up special)', () => {
     expect(f.facing).toBe(1);
   });
 
+  it('activated while already pressed against the underside of the stage, she still clings to it', () => {
+    const probe = testMatch({ fighter: 'runner' });
+    const p = placeInAir(probe, 0, -60);
+    run(probe, 1, { y: 100, buttons: ['special'] });
+    for (let i = 0; i < 60 && p.actionFrame < GRAVITY_SWITCH.cling[0]; i++) run(probe, 1);
+    run(probe, 1);
+    const underside = p.pos.y + stats.height;
+
+    const m = testMatch({ fighter: 'runner' });
+    const f = placeInAir(m, 0, underside - stats.height * 0.75 - 0.5);
+    run(m, 1, { buttons: ['jump'] });
+    run(m, 6);
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    for (let i = 0; i < 20 && f.actionFrame < GRAVITY_SWITCH.cling[0]; i++) run(m, 1);
+    expect(f.actionFrame).toBeGreaterThanOrEqual(GRAVITY_SWITCH.cling[0]);
+    run(m, 2);
+    expect(f.pos.y + stats.height).toBeCloseTo(underside, 6);
+  });
+
   it('from under the stage she rises to its underside, runs out along it and catches the ledge', () => {
     const m = testMatch({ fighter: 'runner' });
     const f = placeInAir(m, -60, -90, -1);

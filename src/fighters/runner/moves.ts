@@ -4,6 +4,7 @@ import { addDamage } from '../../sim/combat/hits';
 import { buffered, consume, stickX } from '../../sim/control';
 import { emit } from '../../sim/events';
 import type { Ctx } from '../../sim/fighter';
+import { ecb } from '../../sim/movement';
 import { edgeMaxX, edgeMinX, floorY } from '../../sim/stage';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -72,6 +73,8 @@ function gravitySwitch(x: Ctx): void {
   const g = GRAVITY_SWITCH;
   const frame = f.actionFrame;
   const head = f.pos.y + s.height;
+  /** Where her collision box stops her against a solid ceiling, below her drawn head. */
+  const top = f.pos.y + ecb(f, x)[1]!.y;
   if (frame < g.rise[0]) {
     f.vel.x *= 0.8;
     f.vel.y = 0;
@@ -84,7 +87,7 @@ function gravitySwitch(x: Ctx): void {
   if (frame <= g.rise[1]) {
     f.vel.x = stickX(c) * s.airSpeed;
     f.vel.y = Math.min(g.riseSpeed, (frame - g.rise[0] + 1) * g.riseAccel);
-    const ceiling = ceilingAt(x, f.pos.x + f.vel.x, head - 0.01, head + f.vel.y);
+    const ceiling = ceilingAt(x, f.pos.x + f.vel.x, top - 0.01, head + f.vel.y);
     if (ceiling !== null) {
       f.vel.y = ceiling - head;
       f.actionFrame = g.cling[0];
