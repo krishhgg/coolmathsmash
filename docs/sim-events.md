@@ -40,6 +40,9 @@ feeds back into the simulation.
 | `throw`       | `attacker`, `victim`, `move`                                                         | a throw lets go; the `hit` that launches the victim follows                                    |
 | `grabRelease` | `holder`, `held`                                                                     | a grab ends without a throw (held too long, or a hit broke it); `holder` is -1 if already gone |
 | `grabClank`   | `ports`                                                                              | two fighters grab each other on the same frame and both bounce off                             |
+| `stagePiece`  | `piece` (`solid`, `platform`), `index`, `on`                                         | a scheduled stage piece appeared or vanished                                                   |
+| `squeeze`     | `port`, `solid`, `x`, `y`                                                            | a moving solid squeezed a fighter, who popped out on top                                       |
+| `shake`       | `port`, `amplitude`, `frames`                                                        | a move or action asks for a screen shake of `amplitude` pixels for `frames` frames             |
 
 `x` and `y` are world units with y up. `action` events come last in a frame, one per fighter whose action
 differs from the frame before, which also covers states without their own event: `shield`, `spotDodge`,

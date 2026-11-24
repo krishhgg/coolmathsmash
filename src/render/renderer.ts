@@ -8,8 +8,9 @@ import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
 import { InputDisplay } from './debug/inputDisplay';
-import { FighterView } from './fighterView';
+import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud } from './hud';
+import { drawMovingPieces, isMoving } from './stagePieces';
 
 export interface Overlays {
   inputs: boolean;
@@ -31,17 +32,20 @@ export class Renderer {
   private readonly inputDisplay = new InputDisplay();
   private readonly matchHud = new MatchHud();
   private readonly stageLayer = new Container();
+  private readonly stagePieces = new Graphics();
   private readonly fighterLayer = new Container();
   private readonly boxes = new Graphics();
   private fighters: FighterView[] = [];
   /** Fighter id each view was built for; a transform swaps the view. */
   private fighterIds: string[] = [];
+  /** Palette per port, picked when the match starts; a transformed fighter keeps its port's costume name. */
+  private costumes: string[] = [];
   private stageId = '';
   private stage: StageGeometry | null = null;
   private matchKey: unknown = null;
 
   private constructor(readonly app: Application) {
-    this.world.addChild(this.stageLayer, this.fighterLayer, this.boxes);
+    this.world.addChild(this.stageLayer, this.stagePieces, this.fighterLayer, this.boxes);
     app.stage.addChild(this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
     this.hud.addChild(this.matchHud.hud.container);
@@ -74,10 +78,11 @@ export class Renderer {
       this.fighterLayer.removeChildren();
       this.fighters = [];
       this.fighterIds = [];
+      this.costumes = pickCostumes(state.config, (id) => fighterArt(getFighter(id)));
     }
     state.fighters.forEach((f, i) => {
       if (this.fighterIds[i] === f.fighter) return;
-      const view = new FighterView(getFighter(f.fighter), f.port);
+      const view = new FighterView(getFighter(f.fighter), f.port, this.costumes[f.port]);
       const old = this.fighters[i];
       if (old) this.fighterLayer.replaceChild(old.container, view.container);
       else this.fighterLayer.addChild(view.container);
@@ -101,6 +106,7 @@ export class Renderer {
     const view = this.camera.viewFor(state, this.stage!);
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
+    drawMovingPieces(this.stagePieces, this.stage!, state.stage, state.frame, alpha);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
     this.drawBoxes(state);
     this.matchHud.update(
@@ -125,7 +131,8 @@ export class Renderer {
     for (const f of state.fighters) {
       if (f.action === 'ko' || f.action === 'out') continue;
       const h = hurtbox(f, getFighter(f.fighter).stats);
-      g.roundRect(h.x - h.r, -h.y2 - h.r, h.r * 2, h.y2 - h.y1 + h.r * 2, h.r).fill({
+      const hw = h.hw ?? 0;
+      g.roundRect(h.x - hw - h.r, -h.y2 - h.r, (hw + h.r) * 2, h.y2 - h.y1 + h.r * 2, h.r).fill({
         color: '#ffe14a',
         alpha: 0.35,
       });
@@ -139,6 +146,7 @@ export class Renderer {
 function placeholderStage(stage: StageGeometry): Graphics {
   const g = new Graphics();
   for (const solid of stage.solids) {
+    if (isMoving(solid)) continue;
     g.poly(solid.points.flatMap(([x, y]) => [x, -y])).fill('#7a5230');
     const top = solid.points.filter(([, y]) => y === Math.max(...solid.points.map((p) => p[1])));
     const xs = top.map(([x]) => x);
@@ -149,6 +157,7 @@ function placeholderStage(stage: StageGeometry): Graphics {
       3,
     ).fill('#3d8f3a');
   }
-  for (const p of stage.platforms) g.roundRect(p.x1, -p.y, p.x2 - p.x1, 2.2, 1.1).fill('#d9d2c0');
+  for (const p of stage.platforms)
+    if (!isMoving(p)) g.roundRect(p.x1, -p.y, p.x2 - p.x1, 2.2, 1.1).fill('#d9d2c0');
   return g;
 }

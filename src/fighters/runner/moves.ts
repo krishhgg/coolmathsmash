@@ -1,6 +1,11 @@
 import type { HitboxDef, MoveDef } from '../types';
+import { Btn } from '../../input/types';
 import { addDamage } from '../../sim/combat/hits';
+import { buffered, consume, stickX } from '../../sim/control';
 import { emit } from '../../sim/events';
+import type { Ctx } from '../../sim/fighter';
+import { ecb } from '../../sim/movement';
+import { edgeMaxX, edgeMinX, floorY } from '../../sim/stage';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -26,13 +31,100 @@ export const HOP = { frame: 3, speed: 0.8 };
  */
 export const RAPID_JAB = { kicks: [1, 3, 5, 7], loop: 9, shove: [13, 14] as [number, number], faf: 50 };
 
+/**
+ * Gravity Switch's timeline. She falls upward through RISE, speeding up to riseSpeed. Touching a ceiling or the
+ * underside of a platform jumps to CLING, where she runs along it upside down; running off its end jumps to POP,
+ * a short upward fall that carries her past the edge (onto a ledge, from under the stage). Running out of RISE or
+ * CLING, or pressing Special again, ends it in helpless fall.
+ */
+export const GRAVITY_SWITCH = {
+  rise: [4, 53] as [number, number],
+  riseAccel: 0.2,
+  riseSpeed: 2,
+  cling: [60, 119] as [number, number],
+  clingSpeed: 2.31,
+  pop: [120, 127] as [number, number],
+  faf: 128,
+  /** Special ends it from this frame. */
+  cancelFrom: 10,
+};
+
+/** Downward-facing surfaces she can cling to: platform undersides and solid edges that face mostly down. */
+const CLING_NORMAL_Y = -0.25;
+
+/**
+ * The lowest ceiling over `x` whose height lies between `from` and `to` (y up), or null. Platforms count from
+ * below, though they are one-way for everyone else.
+ */
+function ceilingAt(x: Ctx, px: number, from: number, to: number): number | null {
+  let best: number | null = null;
+  const consider = (y: number) => {
+    if (y >= from && y <= to && (best === null || y < best)) best = y;
+  };
+  for (const p of x.stage.geo.platforms) if (px >= p.x1 && px <= p.x2) consider(p.y);
+  for (const e of x.stage.edges) {
+    if (e.n.y > CLING_NORMAL_Y || px < edgeMinX(e) || px > edgeMaxX(e)) continue;
+    consider(floorY(e, px));
+  }
+  return best;
+}
+
+/** Ends Gravity Switch now: gravity flips back (the upward fall stops) and she drops into helpless fall. */
+function endSwitch(f: Ctx['f']): void {
+  f.actionFrame = GRAVITY_SWITCH.faf;
+  f.vel.y = 0;
+}
+
+/** Gravity Switch, frame by frame. See GRAVITY_SWITCH. */
+function gravitySwitch(x: Ctx): void {
+  const { f, s, c } = x;
+  const g = GRAVITY_SWITCH;
+  const frame = f.actionFrame;
+  const head = f.pos.y + s.height;
+  /** Where her collision box stops her against a solid ceiling, below her drawn head. */
+  const top = f.pos.y + ecb(f, x)[1]!.y;
+  if (frame < g.rise[0]) {
+    f.vel.x *= 0.8;
+    f.vel.y = 0;
+    return;
+  }
+  if (frame >= g.cancelFrom && buffered(c, Btn.Special)) {
+    consume(c, Btn.Special);
+    return endSwitch(f);
+  }
+  if (frame <= g.rise[1]) {
+    f.vel.x = stickX(c) * s.airSpeed;
+    f.vel.y = Math.min(g.riseSpeed, (frame - g.rise[0] + 1) * g.riseAccel);
+    const ceiling = ceilingAt(x, f.pos.x + f.vel.x, top - 0.01, head + f.vel.y);
+    if (ceiling !== null) {
+      f.vel.y = ceiling - head;
+      f.actionFrame = g.cling[0];
+    } else if (frame === g.rise[1]) endSwitch(f);
+    return;
+  }
+  if (frame <= g.cling[1]) {
+    const dir = Math.sign(stickX(c));
+    if (dir !== 0) f.facing = dir as 1 | -1;
+    f.vel.x = stickX(c) * g.clingSpeed;
+    const ceiling = ceilingAt(x, f.pos.x + f.vel.x, head - 3, head + 3);
+    if (ceiling === null) {
+      f.actionFrame = g.pop[0];
+      f.vel.x = 0;
+      f.vel.y = g.riseSpeed;
+    } else if (frame === g.cling[1]) endSwitch(f);
+    else f.vel.y = ceiling - head;
+    return;
+  }
+  f.vel.y = g.riseSpeed;
+}
+
 /** Down throw's treadmill steps: the frames on which each footfall lands and the % it deals. */
 export const TREADMILL = { frames: [8, 12, 16, 20], damage: 1 };
 
 /**
- * The Runner's normals: Kirby's kit shape (rapid jab, strong back air, drill down air, piledriver up throw) with
- * the damage and startup from handoffs/research/roster.md, and the rest of each move's frame data from Kirby's
- * (and for her dropkick and split kick, Sonic-speed versions of Kirby's) Ultimate numbers. Frame windows are
+ * The Runner's moves: Kirby's kit shape (rapid jab, strong back air, drill down air, piledriver up throw) with
+ * the damage and startup from handoffs/research/roster.md. Angles, base knockback and knockback growth are
+ * Kirby's Ultimate values (Kurogane Hammer) wherever Kirby has the move; the rest are her own. Frame windows are
  * inclusive, faf is the first actionable frame, and move names double as animation clip names.
  */
 export const moves: Record<string, MoveDef> = {
@@ -79,8 +171,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [5, 8],
         boxes: [
-          box(0, 9.5, 6, 3.8, { damage: 8, angle: 361, kbg: 75, bkb: 40 }),
-          box(1, 5, 6, 3, { damage: 7, angle: 361, kbg: 75, bkb: 40 }),
+          box(0, 9.5, 6, 3.8, { damage: 8, angle: 361, kbg: 100, bkb: 40 }),
+          box(1, 5, 6, 3, { damage: 7, angle: 361, kbg: 100, bkb: 40 }),
         ],
       },
     ],
@@ -105,8 +197,8 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 38,
     hits: [
-      { frames: [7, 12], boxes: [box(0, 6, 5, 4.5, { damage: 9, angle: 46, kbg: 52, bkb: 70 })] },
-      { frames: [13, 20], boxes: [box(0, 5, 4, 4, { damage: 6, angle: 76, kbg: 45, bkb: 60 })] },
+      { frames: [7, 12], boxes: [box(0, 6, 5, 4.5, { damage: 9, angle: 46, kbg: 66, bkb: 82 })] },
+      { frames: [13, 20], boxes: [box(0, 5, 4, 4, { damage: 6, angle: 76, kbg: 50, bkb: 80 })] },
     ],
   },
   /** Running Dropkick: a two-footed flying kick, her main horizontal finisher. Charges on frame 8. */
@@ -118,11 +210,11 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [12, 14],
         boxes: [
-          box(0, 11, 6, 4.5, { damage: 15, angle: 361, kbg: 72, bkb: 32 }),
-          box(1, 6, 6, 3.5, { damage: 15, angle: 361, kbg: 72, bkb: 32 }),
+          box(0, 11, 6, 4.5, { damage: 15, angle: 361, kbg: 109, bkb: 32 }),
+          box(1, 6, 6, 3.5, { damage: 15, angle: 361, kbg: 109, bkb: 32 }),
         ],
       },
-      { frames: [15, 18], boxes: [box(0, 10, 5, 4, { damage: 11, angle: 60, kbg: 55, bkb: 70 })] },
+      { frames: [15, 18], boxes: [box(0, 10, 5, 4, { damage: 11, angle: 60, kbg: 69, bkb: 90 })] },
     ],
   },
   /** Handstand Flip: kicks straight up out of a handstand; the legs sweep from the front to overhead. */
@@ -134,13 +226,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [10, 12],
         boxes: [
-          box(0, 0, 14, 5.5, { damage: 14, angle: 85, kbg: 95, bkb: 36, direction: 'away' }),
-          box(1, 5, 6, 4, { damage: 14, angle: 85, kbg: 95, bkb: 36 }),
+          box(0, 0, 14, 5.5, { damage: 14, angle: 85, kbg: 104, bkb: 36, direction: 'away' }),
+          box(1, 5, 6, 4, { damage: 14, angle: 85, kbg: 104, bkb: 36 }),
         ],
       },
       {
         frames: [13, 15],
-        boxes: [box(0, 0, 14, 5, { damage: 10, angle: 80, kbg: 90, bkb: 20, direction: 'away' })],
+        boxes: [box(0, 0, 14, 5, { damage: 10, angle: 88, kbg: 98, bkb: 20, direction: 'away' })],
       },
     ],
   },
@@ -153,15 +245,15 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [6, 8],
         boxes: [
-          box(0, 8.5, 2, 4.2, { damage: 13, angle: 29, kbg: 71, bkb: 25 }),
-          box(1, -8.5, 2, 4.2, { damage: 13, angle: 29, kbg: 71, bkb: 25, direction: 'back' }),
+          box(0, 8.5, 2, 4.2, { damage: 13, angle: 29, kbg: 89, bkb: 25 }),
+          box(1, -8.5, 2, 4.2, { damage: 13, angle: 29, kbg: 89, bkb: 25, direction: 'back' }),
         ],
       },
       {
         frames: [9, 12],
         boxes: [
-          box(0, 8, 2, 3.8, { damage: 9, angle: 29, kbg: 65, bkb: 20 }),
-          box(1, -8, 2, 3.8, { damage: 9, angle: 29, kbg: 65, bkb: 20, direction: 'back' }),
+          box(0, 8, 2, 3.8, { damage: 9, angle: 29, kbg: 89, bkb: 25 }),
+          box(1, -8, 2, 3.8, { damage: 9, angle: 29, kbg: 89, bkb: 25, direction: 'back' }),
         ],
       },
     ],
@@ -178,11 +270,11 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [6, 9],
-        boxes: [box(0, 0, 6.5, 6, { damage: 9, angle: 46, kbg: 80, bkb: 35, direction: 'away' })],
+        boxes: [box(0, 0, 6.5, 6, { damage: 9, angle: 46, kbg: 100, bkb: 35, direction: 'away' })],
       },
       {
         frames: [10, 24],
-        boxes: [box(0, 0, 6.5, 5.5, { damage: 6, angle: 46, kbg: 75, bkb: 30, direction: 'away' })],
+        boxes: [box(0, 0, 6.5, 5.5, { damage: 6, angle: 46, kbg: 90, bkb: 30, direction: 'away' })],
       },
     ],
   },
@@ -200,7 +292,7 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [13, 15],
         rehit: true,
-        boxes: [box(0, 8, 5, 4.5, { damage: 5, angle: 361, kbg: 125, bkb: 30 })],
+        boxes: [box(0, 8, 5, 4.5, { damage: 5, angle: 361, kbg: 148, bkb: 30 })],
       },
     ],
   },
@@ -216,11 +308,11 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [6, 8],
-        boxes: [box(0, -8, 6, 4.2, { damage: 13, angle: 361, kbg: 79, bkb: 15, direction: 'back' })],
+        boxes: [box(0, -8, 6, 4.2, { damage: 13, angle: 361, kbg: 100, bkb: 15, direction: 'back' })],
       },
       {
         frames: [9, 12],
-        boxes: [box(0, -7, 6, 3.5, { damage: 8, angle: 361, kbg: 90, bkb: 0, direction: 'back' })],
+        boxes: [box(0, -7, 6, 3.5, { damage: 8, angle: 361, kbg: 112, bkb: 0, direction: 'back' })],
       },
     ],
   },
@@ -274,8 +366,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [14, 17],
         boxes: [
-          box(0, 11, 3, 5.5, { damage: 8, angle: 90, kbg: 97, bkb: 50 }),
-          box(1, 5.5, 2, 3.5, { damage: 8, angle: 90, kbg: 97, bkb: 50 }),
+          box(0, 11, 3, 5.5, { damage: 8, angle: 90, kbg: 90, bkb: 50 }),
+          box(1, 5.5, 2, 3.5, { damage: 8, angle: 90, kbg: 90, bkb: 50 }),
         ],
       },
     ],
@@ -289,6 +381,26 @@ export const moves: Record<string, MoveDef> = {
     script(x) {
       if (x.f.actionFrame === HOP.frame) x.f.vel.y = HOP.speed;
     },
+  },
+  /**
+   * Gravity Switch (up special): she "jumps onto the wall" as in Run, so her gravity flips and she falls upward,
+   * steering left and right. A ceiling or a platform's underside becomes her floor and she runs along it upside
+   * down, even under the stage to reach the ledge. Special again flips gravity back early; helpless afterwards.
+   */
+  upB: {
+    kind: 'other',
+    faf: GRAVITY_SWITCH.faf,
+    leavesGround: true,
+    helpless: true,
+    ledgeFrom: 8,
+    landingLag: 20,
+    hits: [
+      {
+        frames: [4, 6],
+        boxes: [box(0, 0, 7, 6, { damage: 6, angle: 80, kbg: 50, bkb: 60, direction: 'away' })],
+      },
+    ],
+    script: gravitySwitch,
   },
   /** Grabs, on Kirby's frame data; her arms are short, so the standing grab reaches 10.5 units. */
   grab: { kind: 'other', faf: 34, hits: [{ frames: [6, 7], boxes: [grabBox(0, 6.5, 6, 4)] }] },
@@ -309,7 +421,7 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 44,
     hits: [],
-    throw: { frame: 30, hit: { damage: 10, angle: 45, kbg: 65, bkb: 55, direction: 'back' } },
+    throw: { frame: 30, hit: { damage: 10, angle: 50, kbg: 120, bkb: 30, direction: 'back' } },
   },
   /**
    * Gravity Piledriver: flips gravity, falls up with them, and slams them down (Kirby's up throw role): her
@@ -319,7 +431,7 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 58,
     hits: [],
-    throw: { frame: 36, hit: { damage: 10, angle: 88, kbg: 76, bkb: 70 } },
+    throw: { frame: 36, hit: { damage: 10, angle: 78, kbg: 74, bkb: 75 } },
   },
   /**
    * Treadmill: runs on top of them, one footfall of 1% per step (each reported as a pummel), then hops off with a
