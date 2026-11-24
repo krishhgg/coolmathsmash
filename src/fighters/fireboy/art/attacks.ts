@@ -74,7 +74,7 @@ const BACK_ARM = ['armB', 'foreB'];
 const JAB1 = hands(
   stance(10, 0.35, -0.75, 0.95, { body: { x: 0.7 }, ...stretch(FRONT_ARM, 1.5) }),
   [-1.3, -2.6],
-  [3.0, -3.3],
+  [3.4, -5.2],
   -1,
 );
 const JAB2 = hands(
@@ -95,8 +95,8 @@ const FTILT = hands(
   [-1.9, -4.7],
   [-0.9, -5.1],
 );
-const FTILT_LEG = mix(FTILT, { thighF: { rot: -102 }, shinF: { rot: -4 } });
-const FTILT_KICK = mix(FTILT_LEG, { fx1: streak(FTILT_LEG, 'shinF', [7.6, -3.5], 1.7) });
+const FTILT_LEG = mix(FTILT, { thighF: { rot: -128 }, shinF: { rot: -4 } });
+const FTILT_KICK = mix(FTILT_LEG, { fx1: streak(FTILT_LEG, 'shinF', [9, -7], 1.8) });
 
 const CHARGE = hands(stance(-14, 0.5, -1.2, 1.0, { body: { x: -0.4 } }), [0.9, -3.3], [-1.7, -4.6]);
 const DTILT = mix(
@@ -112,7 +112,7 @@ const DTILT = mix(
 const FSMASH = hands(
   stance(16, 0.45, -2.1, 1.9, { body: { x: 1.3 }, neck: { rot: 4 }, ...stretch(FRONT_ARM, 1.75) }),
   [-2.0, -3.0],
-  [3.8, -3.3],
+  [6.0, -8.2],
   -1,
 );
 
@@ -183,7 +183,7 @@ const DAIR = mix(AIR, {
   foreF: { rot: -20 },
   armB: { rot: 140 },
   foreB: { rot: 20 },
-  fx1: flame(0, 0.7, 2.5, 90, 1.3),
+  fx1: flame(0.5, -1.4, 2.8, 90, 1.3),
 });
 
 const GRAB = hands(
@@ -207,7 +207,8 @@ const LIE = feet(
 );
 
 export const attacks: Record<string, AnimClip> = {
-  jab1: {
+  jab: {
+    active: [[3, 4]],
     length: 16,
     swaps: ANGRY,
     keys: [
@@ -215,16 +216,17 @@ export const attacks: Record<string, AnimClip> = {
       ...strike(
         2,
         4,
-        mix(JAB1, { fx1: streak(JAB1, 'foreF', [5.6, -5.8], 1.5) }),
+        mix(JAB1, { fx1: streak(JAB1, 'foreF', [6.5, -9], 1.6) }),
         { ...FIST_F, fx1: 'fxJet' },
         FRONT_ARM_IN_FRONT,
       ),
-      key(7, mix(JAB1, { fx1: flame(5.6, -6.0, 0.5, -8) }), { ease: 'inOut' }),
+      key(7, mix(JAB1, { fx1: flame(6.6, -9.2, 0.5, -8) }), { ease: 'inOut' }),
       done(8),
       key(16, READY),
     ],
   },
   jab2: {
+    active: [[3, 4]],
     length: 18,
     swaps: ANGRY,
     keys: [
@@ -242,6 +244,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   jab3: {
+    active: [[5, 7]],
     length: 31,
     swaps: ANGRY,
     keys: [
@@ -265,19 +268,21 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   ftilt: {
+    active: [[6, 8]],
     length: 27,
     swaps: ANGRY,
     keys: [
       key(0, READY, { ease: 'out' }),
       key(3, mix(FTILT, { thighF: { rot: -75 }, shinF: { rot: 105 } }), { ease: 'in' }),
       ...strike(5, 8, FTILT_KICK, { fx1: 'fxJet', face: 'faceFrontShout' }, {}),
-      key(12, mix(FTILT_KICK, { fx1: flame(6.4, -3.4, 0.5, -4), thighF: { rot: -95 } }), { ease: 'inOut' }),
+      key(12, mix(FTILT_KICK, { fx1: flame(8.2, -6.8, 0.5, -20), thighF: { rot: -115 } }), { ease: 'inOut' }),
       done(13),
       key(18, mix(FTILT, { thighF: { rot: -40 }, shinF: { rot: 60 } }), { ease: 'inOut' }),
       key(27, STAND),
     ],
   },
   utilt: {
+    active: [[5, 10]],
     length: 29,
     swaps: ANGRY,
     keys: [
@@ -314,6 +319,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   dtilt: {
+    active: [[5, 7]],
     length: 21,
     swaps: ANGRY,
     keys: [
@@ -337,6 +343,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   dashAttack: {
+    active: [[6, 18]],
     length: 37,
     swaps: SIDE_ANGRY,
     keys: [
@@ -364,6 +371,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   fsmash: {
+    active: [[15, 17]],
     length: 49,
     swaps: ANGRY,
     keys: [
@@ -377,17 +385,18 @@ export const attacks: Record<string, AnimClip> = {
       ...strike(
         14,
         17,
-        mix(FSMASH, { fx1: streak(FSMASH, 'foreF', [9.3, -5.9], 2.4) }),
+        mix(FSMASH, { fx1: streak(FSMASH, 'foreF', [11.5, -8.5], 2.8) }),
         { ...FIST_F, face: 'faceFrontShout', fx1: 'fxJet' },
         FRONT_ARM_IN_FRONT,
       ),
-      key(22, mix(FSMASH, { body: { rot: 8 }, fx1: flame(10.2, -5.6, 0.7, -14) }), { ease: 'inOut' }),
+      key(22, mix(FSMASH, { body: { rot: 8 }, fx1: flame(12, -8.4, 0.7, -14) }), { ease: 'inOut' }),
       done(23),
       key(30, undefined, { swaps: ANGRY }),
       key(49, STAND),
     ],
   },
   usmash: {
+    active: [[10, 14]],
     length: 43,
     swaps: ANGRY,
     keys: [
@@ -414,6 +423,10 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   dsmash: {
+    active: [
+      [5, 7],
+      [11, 13],
+    ],
     length: 45,
     swaps: ANGRY,
     keys: [
@@ -447,6 +460,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   nair: {
+    active: [[3, 24]],
     length: 41,
     swaps: ANGRY,
     keys: [
@@ -457,6 +471,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   fair: {
+    active: [[14, 17]],
     length: 51,
     swaps: ANGRY,
     keys: [
@@ -467,13 +482,14 @@ export const attacks: Record<string, AnimClip> = {
         swaps: { fx1: 'fxBall', face: 'faceFrontShout' },
       }),
       key(15, FAIR(1.4, ball(7, -4.2, 4.4, 85)), { ease: 'linear' }),
-      key(17, FAIR(0.6, ball(6.6, -2.8, 3.8, 100)), { ease: 'out' }),
+      key(17, FAIR(0.8, ball(6.2, -6.0, 4.4, 95)), { ease: 'out' }),
       key(23, FAIR(0.4, ball(6.2, -1.6, 0.8, 110)), { ease: 'inOut' }),
       done(24),
       key(51, AIR),
     ],
   },
   bair: {
+    active: [[6, 9]],
     length: 32,
     swaps: SIDE_ANGRY,
     keys: [
@@ -487,6 +503,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   uair: {
+    active: [[4, 8]],
     length: 31,
     swaps: ANGRY,
     keys: [
@@ -513,6 +530,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   dair: {
+    active: [[14, 17]],
     length: 43,
     swaps: ANGRY,
     keys: [
@@ -525,6 +543,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   grab: {
+    active: [[6, 7]],
     length: 29,
     swaps: ANGRY,
     keys: [
@@ -537,6 +556,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   dashGrab: {
+    active: [[9, 10]],
     length: 37,
     swaps: ANGRY,
     keys: [
@@ -665,7 +685,8 @@ export const attacks: Record<string, AnimClip> = {
       key(37, STAND),
     ],
   },
-  neutralSpecial: {
+  neutralB: {
+    active: [[14, 14]],
     length: 43,
     swaps: ANGRY,
     keys: [
@@ -707,7 +728,8 @@ export const attacks: Record<string, AnimClip> = {
       key(43, STAND),
     ],
   },
-  sideSpecial: {
+  sideB: {
+    active: [[10, 24]],
     length: 49,
     swaps: ANGRY,
     keys: [
@@ -728,7 +750,11 @@ export const attacks: Record<string, AnimClip> = {
       key(49, STAND),
     ],
   },
-  upSpecial: {
+  upB: {
+    active: [
+      [5, 5],
+      [6, 34],
+    ],
     length: 39,
     swaps: ANGRY,
     keys: [
@@ -745,7 +771,8 @@ export const attacks: Record<string, AnimClip> = {
       }),
     ],
   },
-  downSpecial: {
+  downB: {
+    active: [[9, 12]],
     length: 39,
     swaps: ANGRY,
     keys: [
@@ -791,6 +818,7 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
   getupAttack: {
+    active: [[18, 20]],
     length: 49,
     swaps: ANGRY,
     keys: [

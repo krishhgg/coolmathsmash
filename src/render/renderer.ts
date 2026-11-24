@@ -8,7 +8,7 @@ import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
 import { InputDisplay } from './debug/inputDisplay';
-import { FighterView } from './fighterView';
+import { FighterView, fighterArt, pickCostumes } from './fighterView';
 
 export interface Overlays {
   inputs: boolean;
@@ -67,7 +67,10 @@ export class Renderer {
     if (this.matchKey !== state.config) {
       this.matchKey = state.config;
       this.fighterLayer.removeChildren();
-      this.fighters = state.fighters.map((f) => new FighterView(getFighter(f.fighter), f.port));
+      const costumes = pickCostumes(state.config, (id) => fighterArt(getFighter(id)));
+      this.fighters = state.fighters.map(
+        (f) => new FighterView(getFighter(f.fighter), f.port, costumes[f.port]),
+      );
       for (const v of this.fighters) this.fighterLayer.addChild(v.container);
     }
   }

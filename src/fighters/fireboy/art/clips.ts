@@ -598,13 +598,13 @@ export const clips: Record<string, AnimClip> = {
       key(16, mix(FALL_2, { armF: { rot: -55 }, armB: { rot: 55 }, neck: { rot: 3, y: 0.15 } })),
     ],
   },
-  knockdown: {
+  down: {
     length: 40,
     loop: true,
     swaps: HURT,
     keys: [key(0, DOWN), key(20, mix(DOWN, { head: { sx: 1.03, sy: 0.97 }, armF: { rot: -50 } }))],
   },
-  getUp: {
+  getupStand: {
     length: 30,
     swaps: HURT,
     keys: [
@@ -617,7 +617,7 @@ export const clips: Record<string, AnimClip> = {
       key(30, STAND),
     ],
   },
-  tech: {
+  techInPlace: {
     length: 26,
     swaps: BLINK,
     keys: [
