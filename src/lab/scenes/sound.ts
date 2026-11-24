@@ -1,8 +1,12 @@
 import { Graphics, Text, type Application } from 'pixi.js';
-import { audio, type Channel, type SoundId } from '../../audio';
+import { ANNOUNCED_FIGHTERS, ANNOUNCER_LINES, audio, type Channel, type SoundId } from '../../audio';
+import { bankFiles } from '../../audio/bank';
 import type { LabScene } from '../types';
 
-/** The sound test: every sound in the bank on a button, the volume sliders, and a stereo level meter. */
+/**
+ * The sound test: every sound effect and announcer line on a button, the volume sliders, and a stereo level
+ * meter.
+ */
 const GROUPS: [string, SoundId[]][] = [
   ['Hits', ['hit-light', 'hit-medium', 'hit-heavy', 'hit-ko', 'hit-fire', 'hit-electric']],
   ['Shield', ['shield-on', 'shield-hit', 'shield-break', 'dizzy']],
@@ -20,10 +24,12 @@ const CSS = `
 .sound-test { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .sound-test .stage { position: relative; width: min(100vw, calc(100vh * 16 / 9)); aspect-ratio: 16 / 9; container-type: inline-size; pointer-events: auto;
   font: 600 1.25cqw/1.2 system-ui, sans-serif; color: #e8ecf4; }
-.sound-test .groups { position: absolute; left: 3cqw; top: 10cqw; width: 64cqw; display: grid; gap: 1.2cqw; }
+.sound-test .groups { position: absolute; left: 3cqw; top: 10cqw; width: 64cqw; display: grid; gap: .8cqw; }
+.sound-test .groups section { display: grid; grid-template-columns: 9.5cqw 1fr; gap: 1cqw; align-items: baseline; }
 .sound-test h3 { margin: 0 0 .5cqw; font-size: 1.3cqw; letter-spacing: .1em; text-transform: uppercase; color: #ffcc33; }
-.sound-test .row { display: flex; flex-wrap: wrap; gap: .5cqw; }
-.sound-test button { font: inherit; color: #fff; background: #26304a; border: .15cqw solid #4a5a85; border-radius: .6cqw; padding: .45cqw .9cqw; cursor: pointer; }
+.sound-test .groups h3 { margin: 0; font-size: 1.05cqw; }
+.sound-test .row { display: flex; flex-wrap: wrap; gap: .45cqw; }
+.sound-test button { font: inherit; font-size: 1.1cqw; color: #fff; background: #26304a; border: .15cqw solid #4a5a85; border-radius: .6cqw; padding: .35cqw .75cqw; cursor: pointer; }
 .sound-test button:hover, .sound-test button.on { background: #3b4f86; border-color: #8fb0ff; }
 .sound-test .mixer { position: absolute; right: 3cqw; top: 10cqw; width: 26cqw; display: grid; gap: 1cqw; background: #141a2bcc; border: .15cqw solid #33405f; border-radius: 1cqw; padding: 1.4cqw; }
 .sound-test label { display: grid; grid-template-columns: 6cqw 1fr 3.5cqw; align-items: center; gap: .8cqw; }
@@ -86,19 +92,45 @@ export const scene: LabScene = {
       }
       now.text = `▶ ${id}  pan ${pan.toFixed(2)}${v ? '' : '  (loading or locked: click again)'}`;
     };
-    for (const [name, ids] of GROUPS) {
+    const section = (name: string) => {
       const box = document.createElement('section');
       box.innerHTML = `<h3>${name}</h3><div class="row"></div>`;
-      const row = box.querySelector('.row')!;
-      for (const id of ids) {
-        const b = document.createElement('button');
-        b.textContent = id;
-        b.dataset.sound = id;
-        b.addEventListener('click', () => play(id, b));
-        row.appendChild(b);
-      }
       groups.appendChild(box);
+      return box.querySelector('.row')!;
+    };
+    const button = (row: Element, label: string, onClick: (b: HTMLButtonElement) => void) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.addEventListener('click', () => onClick(b));
+      row.appendChild(b);
+      return b;
+    };
+    for (const [name, ids] of GROUPS) {
+      const row = section(name);
+      for (const id of ids) button(row, id, (b) => play(id, b)).dataset.sound = id;
     }
+
+    let winner = 'fireboy';
+    const lines = section('Announcer');
+    for (const line of ANNOUNCER_LINES)
+      button(lines, line, () => {
+        audio.announce(line);
+        now.text = `▶ announce ${line}`;
+      }).dataset.announce = line;
+    const winnerButton = button(lines, `winner: ${winner}`, () => {
+      audio.announceWinner(winner);
+      now.text = `▶ announceWinner ${winner}`;
+    });
+    winnerButton.dataset.announce = 'winner';
+    winnerButton.title = 'The winner is... the last fighter name you clicked';
+    const names = section('Fighter names');
+    for (const id of ANNOUNCED_FIGHTERS)
+      button(names, id, () => {
+        audio.announce(`fighter:${id}`);
+        winner = id;
+        winnerButton.textContent = `winner: ${id}`;
+        now.text = `▶ announce fighter:${id}`;
+      }).dataset.announce = `fighter:${id}`;
 
     const slider = (
       label: string,
@@ -180,5 +212,12 @@ export const scene: LabScene = {
   api: {
     play: (id: SoundId, pan = 0) => audio.play(id, { pan }) !== null,
     settings: () => audio.settings,
+    /** Bank files that failed to load (every file once loading finishes); all of them without Web Audio. */
+    missing: async () => {
+      const engine = audio.engine;
+      if (!engine) return bankFiles();
+      const loaded = await Promise.all(bankFiles().map((f) => engine.file(f)));
+      return bankFiles().filter((_, i) => !loaded[i]);
+    },
   },
 };
