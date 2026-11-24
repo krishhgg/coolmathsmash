@@ -70,6 +70,7 @@ export class Cpu {
     /** The held fighter's hold timer when last seen, and how fast it has been dropping lately (per frame). */
     seenAt: number;
     seenTimer: number;
+    seenFrozen: boolean;
     drain: number;
   } | null = null;
   private mashDir = 1;
@@ -289,14 +290,22 @@ export class Cpu {
       const pummels = Math.floor(this.rand() * (this.lv.pummels + 1));
       const at = state.frame + Math.round(this.lv.reaction / 2);
       const stick = this.pickThrow(state, me, held);
-      this.grabPlan = { at, pummels, stick, seenAt: state.frame, seenTimer: held.grabTimer, drain: 1 };
+      this.grabPlan = {
+        at,
+        pummels,
+        stick,
+        seenAt: state.frame,
+        seenTimer: held.grabTimer,
+        seenFrozen: true,
+        drain: 1,
+      };
     }
     const plan = this.grabPlan;
     if (state.frame > plan.seenAt) {
-      const recent = (plan.seenTimer - held.grabTimer) / (state.frame - plan.seenAt);
-      plan.drain = plan.drain * 0.7 + recent * 0.3;
-      plan.seenAt = state.frame;
-      plan.seenTimer = held.grabTimer;
+      if (state.frame === plan.seenAt + 1 && !plan.seenFrozen) {
+        plan.drain = plan.drain * 0.7 + (plan.seenTimer - held.grabTimer) * 0.3;
+      }
+      Object.assign(plan, { seenAt: state.frame, seenTimer: held.grabTimer, seenFrozen: held.hitlag > 0 });
     }
     if (state.frame < plan.at) return NEUTRAL;
     const pummel = (getFighter(me.fighter).moves?.pummel?.faf ?? 6) + PUMMEL_HITLAG;
