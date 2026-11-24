@@ -148,6 +148,13 @@ export const PUSH_STIFFNESS = 0.15;
 export const RUN_TURN_FRAMES = 12;
 export const DOUBLE_JUMP_FRAMES = 30;
 
+/**
+ * The top blast zone (SSBU-Calculator's KO check, knockback.js): crossing it KOs only with a vertical launch speed of
+ * at least 2.4, or once the fighter is 30 units past it. Slower fighters drift back down.
+ */
+export const TOP_KO_MIN_SPEED = 2.4;
+export const TOP_KO_MARGIN = 30;
+
 /** Respawn (Ultimate): wait on the platform up to 5 s, then 2 s of invincibility after leaving it. */
 export const RESPAWN_DELAY = 60;
 export const RESPAWN_PLATFORM_MAX = 300;
