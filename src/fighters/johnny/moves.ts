@@ -1,4 +1,6 @@
-import { stickX } from '../../sim/control';
+import { Btn } from '../../input/types';
+import { startMove } from '../../sim/actions/attack';
+import { isHeld, stickDir, stickX } from '../../sim/control';
 import type { HitboxDef, MoveDef } from '../types';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -28,11 +30,46 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
  * actionable frame.
  */
 export const moves: Record<string, MoveDef> = {
-  /** One-Two, first punch: a quick left jab. */
+  /** One-Two, first punch: a quick left jab. Attack again from frame 5 throws the second punch. */
   jab: {
     kind: 'other',
     faf: 18,
+    next: { window: [5, 17], move: 'jab2' },
     hits: [{ frames: [3, 4], boxes: [box(0, 7, 10, 3.5, { damage: 1.5, angle: 361, kbg: 25, bkb: 25 })] }],
+  },
+  /** One-Two, second punch: a straight right. Attack again from frame 7 starts the Rush. */
+  jab2: {
+    kind: 'other',
+    faf: 20,
+    next: { window: [7, 19], move: 'jab3' },
+    hits: [{ frames: [4, 5], boxes: [box(0, 8, 10, 3.5, { damage: 1, angle: 361, kbg: 25, bkb: 25 })] }],
+  },
+  /**
+   * Rush: a flurry of four 0.5% punches that hold the opponent in place, then a 2% finishing punch that sends
+   * them away. Pressing Attack during the last punches of the flurry restarts it, and so does still holding Attack
+   * as the fourth punch lands, so it runs as long as you mash or hold.
+   */
+  jab3: {
+    kind: 'other',
+    faf: 45,
+    next: { window: [11, 14], move: 'jab3' },
+    script(x) {
+      const { f, c } = x;
+      if (f.actionFrame === 14 && isHeld(c, Btn.Attack) && stickDir(c, f.facing) === 'neutral')
+        startMove(x, 'jab3');
+    },
+    hits: [
+      ...[3, 6, 9, 12].map((f) => ({
+        frames: [f, f] as [number, number],
+        rehit: true,
+        boxes: [box(0, 8.5, 10, 4.5, { damage: 0.5, angle: 361, kbg: 10, bkb: 8, hitlag: 0.5 })],
+      })),
+      {
+        frames: [19, 20],
+        rehit: true,
+        boxes: [box(0, 9, 10, 5, { damage: 2, angle: 361, kbg: 130, bkb: 55 })],
+      },
+    ],
   },
   /** Hero Kick: a straight kick at chest height. */
   ftilt: {

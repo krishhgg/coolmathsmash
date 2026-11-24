@@ -156,6 +156,12 @@ export interface FighterArt {
   clips: Record<string, AnimClip>;
   /** Costumes. `default` is required; the rest are alternates for other ports. */
   palettes: { default: Palette } & Record<string, Palette>;
+  /**
+   * Per-costume slot defaults: palette name -> slot -> symbol (or null to hide it). They replace the slot's own
+   * default for that costume only and sit below clip and key swaps, so one costume can wear a hat the others
+   * don't.
+   */
+  costumeSwaps?: Record<string, Record<string, string | null>>;
   /** Standalone SVG markup (with viewBox) of the head, for HUD stocks and portraits. */
   icon: string;
   projectiles?: Record<string, PropArt>;

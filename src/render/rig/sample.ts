@@ -156,9 +156,16 @@ export function toLocal(m: Affine, x: number, y: number): [number, number] {
 
 /**
  * The pose of `clipName` at `frame` (frames since the action began; unknown clips fall back to idle), with
- * movie-clip symbols advanced by `globalFrame`. Pure: the same inputs always give the same pose.
+ * movie-clip symbols advanced by `globalFrame`, dressed in `costume` (a palette name: its `costumeSwaps` replace
+ * slot defaults). Pure: the same inputs always give the same pose.
  */
-export function samplePose(art: FighterArt, clipName: string, frame: number, globalFrame: number): RigPose {
+export function samplePose(
+  art: FighterArt,
+  clipName: string,
+  frame: number,
+  globalFrame: number,
+  costume = 'default',
+): RigPose {
   const clip = getClip(art, clipName);
   const { from, to, u } = segment(clip, clipTime(clip, frame));
 
@@ -185,9 +192,12 @@ export function samplePose(art: FighterArt, clipName: string, frame: number, glo
   }
   const symbols: Record<string, string | null> = {};
   const z: Record<string, number> = {};
+  const dress = art.costumeSwaps?.[costume];
   art.rig.slots.forEach((slot, i) => {
     const swap = swaps?.[slot.name] !== undefined ? swaps[slot.name] : clip.swaps?.[slot.name];
-    symbols[slot.name] = resolveSymbol(art.rig.symbols, swap !== undefined ? swap : slot.symbol, globalFrame);
+    const own = dress?.[slot.name];
+    const fallback = own !== undefined ? own : slot.symbol;
+    symbols[slot.name] = resolveSymbol(art.rig.symbols, swap !== undefined ? swap : fallback, globalFrame);
     z[slot.name] = order?.[slot.name] ?? i;
   });
   return { local, world: worldTransforms(art.rig, local), symbols, z };
