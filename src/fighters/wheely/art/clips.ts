@@ -29,6 +29,7 @@ import {
   bob,
   flip,
   fxOn,
+  holdEffects,
   honk,
   key,
   mix,
@@ -205,7 +206,7 @@ const walk: AnimClip = {
 const RUN_A = smoke(mix(tilt(-1.5, REAR), bob(0.06), { fx3: at(-8.9, 0) }), 0.45);
 const RUN_B = smoke(mix(tilt(-1, REAR), bob(-0.04), { fx3: at(-9.1, 0.1) }), 0.6);
 
-export const clips: Record<string, AnimClip> = {
+const authored: Record<string, AnimClip> = {
   idle,
   walk,
   dash: {
@@ -639,3 +640,7 @@ export const clips: Record<string, AnimClip> = {
     keys: [key(0, bob(0)), key(30, bob(0.07))],
   },
 };
+
+export const clips: Record<string, AnimClip> = Object.fromEntries(
+  Object.entries(authored).map(([name, clip]) => [name, holdEffects(clip)]),
+);

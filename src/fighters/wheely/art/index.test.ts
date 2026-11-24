@@ -117,6 +117,25 @@ describe('wheely art', () => {
     expect(misses).toEqual([]);
   });
 
+  it('shows an effect only while its keys place it, so none snaps to the origin', () => {
+    const fx = art.rig.slots.filter((s) => s.bone.startsWith('fx') || s.bone === 'prop');
+    const stray: string[] = [];
+    for (const [name, clip] of Object.entries(art.clips)) {
+      const posed = clip.keys.filter((k) => k.pose);
+      for (let f = 0; f < clip.length; f++) {
+        const symbols = samplePose(art, name, f, f).symbols;
+        const from = [...posed].reverse().find((k) => k.frame <= f);
+        const to = posed.find((k) => k.frame > f) ?? (clip.loop ? posed[0] : undefined);
+        for (const slot of fx) {
+          if (!symbols[slot.name]) continue;
+          const placed = from?.pose?.[slot.bone] && (!to || f === from.frame || to.pose?.[slot.bone]);
+          if (!placed) stray.push(`${name}@${f} ${slot.name}`);
+        }
+      }
+    }
+    expect(stray).toEqual([]);
+  });
+
   it('is about 18 long and 11 tall, tyres on the ground', () => {
     expect(art.height).toBe(11);
     const [x0, y0, x1, y1] = poseBounds(art, samplePose(art, 'idle', 0, 0));

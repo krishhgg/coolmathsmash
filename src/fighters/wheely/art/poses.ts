@@ -1,5 +1,5 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
-import type { BonePose, Key } from '../../../render/rig/types';
+import type { AnimClip, BonePose, Key } from '../../../render/rig/types';
 import { BODY, EXHAUST, HORN, WHEEL_R, WHEEL_X, WHEEL_Y, type Pt } from './parts';
 import { rig } from './rig';
 
@@ -125,4 +125,21 @@ export const honk = (pose: Pose, s: number) => fxOn(pose, 'fx1', [HORN[0] + 0.5,
  */
 export function trail(cx: number, cy: number, r: number, head: number, clockwise = true): BonePose {
   return clockwise ? at(cx, cy, r, -(head + 20)) : at(cx, cy, r, -(head - 20), -r);
+}
+
+const EFFECT_BONES = ['fx1', 'fx2', 'fx3', 'fx4', 'prop'];
+
+/**
+ * Effect bones hold their last keyed placement until a later key moves them, the way a Flash layer holds its
+ * symbol, so an effect that is still showing never drifts back to the origin between keys.
+ */
+export function holdEffects(clip: AnimClip): AnimClip {
+  let held: Pose = {};
+  const keys = clip.keys.map((k) => {
+    if (!k.pose) return k;
+    const pose = { ...held, ...k.pose };
+    held = Object.fromEntries(Object.entries(pose).filter(([bone]) => EFFECT_BONES.includes(bone)));
+    return { ...k, pose };
+  });
+  return { ...clip, keys };
 }

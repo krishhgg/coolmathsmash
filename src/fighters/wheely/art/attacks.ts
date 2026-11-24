@@ -197,6 +197,7 @@ export const attacks: Record<string, AnimClip> = {
         mix(tilt(4, FRONT, 1.1), bob(0.25), spin(roll(5)), {
           body: { sx: 0.84 },
           fx1: at(3, 0, 1.2),
+          fx2: at(9.6, -1.1, 1),
           fx4: at(-8.5, -1.6, 1.1),
         }),
         {
@@ -209,6 +210,7 @@ export const attacks: Record<string, AnimClip> = {
         mix(tilt(3.5, FRONT, 1.3), bob(0.2), spin(roll(5)), {
           body: { sx: 0.82 },
           fx1: at(3, 0, 1.6),
+          fx2: at(10.2, -1.6, 1.25),
           fx4: at(-9, -1.8, 1.3),
         }),
         {
@@ -235,11 +237,12 @@ export const attacks: Record<string, AnimClip> = {
   /** Rev Ram: revs on the spot (the charge holds on frame 10), then rams forward bumper first. */
   fsmash: {
     length: 51,
-    swaps: { ...ANGRY, ...BLUR, fx1: 'fxGravel', fxBack: 'fxSmoke' },
+    swaps: { ...ANGRY, ...BLUR },
     keys: [
       key(0, PARK, { ease: 'out' }),
       key(3, smoke(mix(tilt(-4, REAR, -0.8), bob(0.3), squash(0.94), spin(300), spray(0.7)), 0.7), {
         ease: 'inOut',
+        swaps: { ...ANGRY, ...BLUR, fx1: 'fxGravel', fxBack: 'fxSmoke' },
       }),
       key(6, smoke(mix(tilt(-4.5, REAR, -0.9), bob(0.4), squash(0.93), spin(650), spray(1)), 0.9), {
         ease: 'inOut',
@@ -317,16 +320,20 @@ export const attacks: Record<string, AnimClip> = {
   /** Donut: revs (the charge holds on frame 4), then spins out on the spot: the nose sweeps out front, then the tail. */
   dsmash: {
     length: 49,
-    swaps: { ...ANGRY, ...BLUR, fxBack: 'fxSmoke' },
+    swaps: { ...ANGRY, ...BLUR },
     keys: [
       key(0, PARK, { ease: 'out' }),
-      key(2, smoke(mix(SQUAT, spin(200)), 0.7), { ease: 'inOut' }),
+      key(2, smoke(mix(SQUAT, spin(200)), 0.7), {
+        ease: 'inOut',
+        swaps: { ...ANGRY, ...BLUR, fxBack: 'fxSmoke' },
+      }),
       key(4, smoke(mix(SQUAT, bob(0.62), spin(400)), 0.9), { ease: 'in' }),
       key(7, smoke(mix(tilt(-2, REAR), spin(700)), 1), { ease: 'out' }),
       key(
         10,
         mix(tilt(2, FRONT, 1.2), bob(0.2), spin(1000), {
           body: { sx: 0.92 },
+          fx1: at(2, 0, 1),
           fx2: at(10, -2.6, 1.2),
           fx4: at(-9, -1.6, 1.2),
         }),
@@ -642,7 +649,7 @@ export const attacks: Record<string, AnimClip> = {
   /** Charge Through: spins the tyres on the spot, then floors it through whoever is in the way. */
   sideB: {
     length: 51,
-    swaps: { ...ANGRY, ...BLUR, fxBack: 'fxSmoke' },
+    swaps: { ...ANGRY, ...BLUR },
     keys: [
       key(0, PARK, { ease: 'out' }),
       key(4, smoke(mix(tilt(-3, REAR, -0.4), bob(0.35), squash(0.95), spin(500), spray(0.9)), 0.8), {
