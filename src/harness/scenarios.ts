@@ -154,13 +154,15 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'launch-high-percent',
-    description: 'P2 at 150% takes P1 forward smash; capture 10 frames into the tumble launch.',
+    description:
+      'P2 at 150% takes P1 forward smash; capture the first frame of the tumble launch, while P2 is still on ' +
+      "camera (Ultimate's balloon speed-up carries P2 past the blast zone by frame 8).",
     page: { kind: 'game' },
     patches: faceOff({ damage: 150 }),
     script: FSMASH,
     capture: {
-      label: "P2 action 'tumble', frame >= 10",
-      when: (s) => P2(s).action === 'tumble' && P2(s).actionFrame >= 10,
+      label: "P2 action 'tumble', frame >= 1",
+      when: (s) => P2(s).action === 'tumble' && P2(s).actionFrame >= 1,
     },
     motion: { before: 40, after: 30 },
     requires: ['move:fsmash', 'action:tumble'],

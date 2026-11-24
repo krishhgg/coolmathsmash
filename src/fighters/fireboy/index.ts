@@ -1,4 +1,5 @@
 import { defineFighter } from '../types';
+import { moves } from './moves';
 import { stats } from './stats';
 
 export const fighter = defineFighter({
@@ -6,4 +7,5 @@ export const fighter = defineFighter({
   name: 'Fireboy',
   series: 'Fireboy and Watergirl (2009)',
   stats,
+  moves,
 });

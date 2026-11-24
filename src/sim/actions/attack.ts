@@ -1,26 +1,167 @@
 import { getFighter } from '../../fighters/registry';
 import type { MoveDef } from '../../fighters/types';
+import { Btn } from '../../input/types';
+import {
+  buffered,
+  cStickDir,
+  cStickHeld,
+  consume,
+  consumeCStick,
+  isHeld,
+  smashDir,
+  stickDir,
+  type Dir,
+} from '../control';
 import type { Ctx, FighterState } from '../fighter';
-import { normalLandingLag } from '../movement';
+import { HELPLESS_LANDING_LAG } from '../constants';
+import { leaveGround, normalLandingLag } from '../movement';
 import { fastFallCheck } from './air';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
+
+/** Ultimate: a smash attack charges for at most 60 frames, reaching 1.4x damage. */
+export const SMASH_CHARGE_FRAMES = 60;
+export const SMASH_CHARGE_MAX = 1.4;
 
 export function moveOf(f: FighterState): MoveDef | undefined {
   return f.move ? getFighter(f.fighter).moves?.[f.move] : undefined;
 }
 
-/** Begin one of the fighter's moves now: grounded moves play as 'attack', airborne ones as 'aerial'. */
-export function startMove(x: Ctx, name: string): void {
-  if (!x.def.moves?.[name]) throw new Error(`${x.def.id} has no move ${name}`);
+/** Damage multiplier from smash charge. */
+export function chargeMultiplier(f: FighterState): number {
+  return 1 + ((SMASH_CHARGE_MAX - 1) * f.charge) / SMASH_CHARGE_FRAMES;
+}
+
+/** Begin one of the fighter's moves now. Grounded moves play as 'attack', airborne ones as 'aerial'. */
+export function startMove(x: Ctx, name: string): boolean {
+  const move = x.def.moves?.[name];
+  if (!move) return false;
+  if (x.f.ground && move.leavesGround) leaveGround(x);
+  if (move.helpless) x.f.fastFalling = false;
   setAction(x, x.f.ground ? 'attack' : 'aerial');
   x.f.move = name;
   x.f.hitVictims = [];
   x.f.moveStale = 0;
+  x.f.charge = 0;
+  return true;
 }
 
-/** A window marked `rehit` forgets earlier victims as it opens, so multi-hit moves connect again. */
-function openWindows(f: FighterState, move: MoveDef): void {
+const SMASH: Record<Dir, string> = {
+  neutral: 'jab',
+  forward: 'fsmash',
+  back: 'fsmash',
+  up: 'usmash',
+  down: 'dsmash',
+};
+const TILT: Record<Dir, string> = {
+  neutral: 'jab',
+  forward: 'ftilt',
+  back: 'ftilt',
+  up: 'utilt',
+  down: 'dtilt',
+};
+const AERIAL: Record<Dir, string> = {
+  neutral: 'nair',
+  forward: 'fair',
+  back: 'bair',
+  up: 'uair',
+  down: 'dair',
+};
+const SPECIAL: Record<Dir, string> = {
+  neutral: 'neutralB',
+  forward: 'sideB',
+  back: 'sideB',
+  up: 'upB',
+  down: 'downB',
+};
+
+function turnFor(x: Ctx, dir: Dir): void {
+  if (dir === 'back') x.f.facing = -x.f.facing as 1 | -1;
+}
+
+/**
+ * Grounded attack inputs, Smash style: the C-stick smashes; Attack with a freshly flicked stick smashes, with a
+ * held stick tilts, and alone jabs; Attack while dashing or running is a dash attack. Backward smashes and tilts
+ * turn around first. True when a move started.
+ */
+export function groundAttack(x: Ctx): boolean {
+  const { f, c } = x;
+  const cDir = cStickDir(c, f.facing);
+  if (cDir !== 'neutral') {
+    consumeCStick(c);
+    turnFor(x, cDir);
+    return startMove(x, SMASH[cDir]);
+  }
+  if (buffered(c, Btn.Special)) {
+    consume(c, Btn.Special);
+    const dir = stickDir(c, f.facing);
+    turnFor(x, dir);
+    return startMove(x, SPECIAL[dir]);
+  }
+  if (!buffered(c, Btn.Attack)) return false;
+  consume(c, Btn.Attack);
+  const smash = smashDir(c, f.facing);
+  if (smash !== 'neutral') {
+    turnFor(x, smash);
+    return startMove(x, SMASH[smash]);
+  }
+  if (f.action === 'dash' || f.action === 'run') return startMove(x, 'dashAttack');
+  const dir = stickDir(c, f.facing);
+  turnFor(x, dir);
+  return startMove(x, TILT[dir]);
+}
+
+/** Ultimate lets up smash and up special come out of jumpsquat, so up + Attack with tap jump still up-smashes. */
+export function jumpSquatAttack(x: Ctx): boolean {
+  const { f, c } = x;
+  if (cStickDir(c, f.facing) === 'up') {
+    consumeCStick(c);
+    return startMove(x, 'usmash');
+  }
+  if (buffered(c, Btn.Special) && stickDir(c, f.facing) === 'up') {
+    consume(c, Btn.Special);
+    return startMove(x, 'upB');
+  }
+  if (buffered(c, Btn.Attack) && smashDir(c, f.facing) === 'up') {
+    consume(c, Btn.Attack);
+    return startMove(x, 'usmash');
+  }
+  return false;
+}
+
+/** Airborne attack inputs: Attack or the C-stick picks an aerial by direction relative to facing; Special a special. */
+export function airAttack(x: Ctx): boolean {
+  const { f, c } = x;
+  const cDir = cStickDir(c, f.facing);
+  if (cDir !== 'neutral') {
+    consumeCStick(c);
+    return startMove(x, AERIAL[cDir]);
+  }
+  if (buffered(c, Btn.Special)) {
+    consume(c, Btn.Special);
+    const dir = stickDir(c, f.facing);
+    turnFor(x, dir);
+    return startMove(x, SPECIAL[dir]);
+  }
+  if (!buffered(c, Btn.Attack)) return false;
+  consume(c, Btn.Attack);
+  return startMove(x, AERIAL[stickDir(c, f.facing)]);
+}
+
+/**
+ * Per-frame move bookkeeping: hold the charge frame while Attack (or the C-stick) is held, reopen `rehit`
+ * windows, run the move's script. Returns the move.
+ */
+function playMove(x: Ctx): MoveDef {
+  const { f, c } = x;
+  const move = moveOf(f)!;
+  const holding = isHeld(c, Btn.Attack) || cStickHeld(c);
+  if (move.charge === f.actionFrame && f.charge < SMASH_CHARGE_FRAMES && holding) {
+    f.charge++;
+    f.actionFrame--;
+  }
   if (move.hits.some((w) => w.rehit && w.frames[0] === f.actionFrame)) f.hitVictims = [];
+  move.script?.(x);
+  return move;
 }
 
 export const ATTACK: Record<string, ActionDef> = {
@@ -28,22 +169,26 @@ export const ATTACK: Record<string, ActionDef> = {
   attack: {
     physics: 'ground',
     update(x) {
-      const { f } = x;
-      const move = moveOf(f)!;
-      openWindows(f, move);
-      if (f.actionFrame >= move.faf) setAction(x, 'idle');
+      const move = playMove(x);
+      if (x.f.actionFrame >= move.faf) setAction(x, 'idle');
     },
   },
 
   /** An airborne move. Landing during it costs the move's landing lag, unless it lands in an auto-cancel window. */
   aerial: {
     physics: 'air',
+    ledge: (x) => {
+      const from = moveOf(x.f)?.ledgeFrom;
+      return from === undefined ? false : from;
+    },
     update(x) {
       const { f } = x;
-      const move = moveOf(f)!;
-      openWindows(f, move);
-      fastFallCheck(x);
-      if (f.actionFrame >= move.faf) setAction(x, 'fall');
+      const move = playMove(x);
+      if (!move.helpless) fastFallCheck(x);
+      if (f.actionFrame < move.faf) return;
+      if (!move.helpless) return setAction(x, 'fall');
+      setAction(x, 'helpless');
+      f.landingLag = move.landingLag ?? HELPLESS_LANDING_LAG;
     },
     land(x) {
       const { f } = x;

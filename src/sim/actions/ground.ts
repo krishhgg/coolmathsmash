@@ -9,6 +9,7 @@ import {
 import { flickX, isHeld, stickX, stickY } from '../control';
 import type { Ctx } from '../fighter';
 import { approach, clamp } from '../vec';
+import { jumpSquatAttack } from './attack';
 import { groundActionable, startMovement } from './common';
 import { setAction, type ActionDef } from './registry';
 
@@ -129,6 +130,7 @@ export const GROUND: Record<string, ActionDef> = {
     friction: false,
     update(x) {
       const { f, s, d, c } = x;
+      if (jumpSquatAttack(x)) return;
       if (f.actionFrame <= s.jumpSquat) return;
       const full = f.jumpByStick ? stickY(c) >= 0.5 : isHeld(c, Btn.Jump);
       takeOff(x, full ? d.fullHopV : d.shortHopV);

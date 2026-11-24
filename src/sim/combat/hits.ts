@@ -1,6 +1,6 @@
 import { getFighter } from '../../fighters/registry';
 import type { FighterStats, HitboxDef, MoveKind } from '../../fighters/types';
-import { moveOf } from '../actions/attack';
+import { chargeMultiplier, moveOf } from '../actions/attack';
 import { inWindow, isIntangible } from '../actions/registry';
 import { LEDGE_HIT_LOCK } from '../constants';
 import { stickX, stickY } from '../control';
@@ -69,6 +69,8 @@ interface Connection {
   v: FighterState;
   box: HitboxDef;
   kind: MoveKind;
+  /** Hitbox damage after smash charge, before staleness. */
+  damage: number;
   stale: number;
   rage: number;
   dir: 1 | -1;
@@ -106,14 +108,18 @@ export function resolveHits(m: MatchState): void {
     const kind = moveOf(a)?.kind ?? 'other';
     for (const { v, box } of found) {
       a.hitVictims.push(v.port);
+      const damage = box.damage * chargeMultiplier(a);
       hits.push({
         a,
         v,
         box,
         kind,
+        damage,
         stale: a.moveStale,
         rage: rageMultiplier(a.damage),
-        dir: a.facing,
+        dir: { forward: a.facing, back: -a.facing, away: Math.sign(v.pos.x - a.pos.x) || a.facing }[
+          box.direction ?? 'forward'
+        ] as 1 | -1,
         percent: v.damage,
         crouch: v.action === 'crouch' && v.ground !== null,
         shielding: v.action === 'shield' || v.action === 'shieldStun',
@@ -135,12 +141,12 @@ export function resolveHits(m: MatchState): void {
  */
 function hit(
   m: MatchState,
-  { a, v, box, stale, rage, dir, percent, crouch }: Connection,
+  { a, v, box, damage: base, stale, rage, dir, percent, crouch }: Connection,
   again: boolean,
 ): void {
   const kb = knockback({
     percent,
-    damage: box.damage,
+    damage: base,
     kbg: box.kbg,
     bkb: box.bkb,
     wbkb: box.wbkb,
@@ -149,7 +155,7 @@ function hit(
     rage,
     crouch,
   });
-  const damage = box.damage * stale;
+  const damage = base * stale;
   v.damage = Math.min(DAMAGE_MAX, v.damage + damage * (m.players.length === 2 ? ONE_V_ONE_DAMAGE : 1));
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric', crouch });
   a.hitlag = lag;
@@ -161,8 +167,8 @@ function hit(
   v.move = null;
 }
 
-function shieldHit({ a, v, box, kind, stale, dir }: Connection, again: boolean): void {
-  const damage = box.damage * stale;
+function shieldHit({ a, v, box, kind, damage: base, stale, dir }: Connection, again: boolean): void {
+  const damage = base * stale;
   const stun = shieldstunFrames(damage, kind);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric' });
   a.hitlag = lag;

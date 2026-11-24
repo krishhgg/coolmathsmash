@@ -57,6 +57,8 @@ export interface FighterState {
   hitVictims: number[];
   /** Stale multiplier of the current move activation, fixed when it first connects (0 = not connected yet). */
   moveStale: number;
+  /** Frames the current smash attack was charged (0-60). */
+  charge: number;
   /** Names of the last moves that hit, most recent first (stale-move negation). */
   staleQueue: string[];
   /** Intangibility from outside the current action (ledge grab, respawn), counting down. */
@@ -105,6 +107,7 @@ export function createFighter(
     launch: null,
     hitVictims: [],
     moveStale: 0,
+    charge: 0,
     staleQueue: [],
     intangible: 0,
     ledge: -1,
