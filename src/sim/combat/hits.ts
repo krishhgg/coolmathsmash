@@ -84,6 +84,8 @@ interface Connection {
   at: { x: number; y: number };
   /** The attacker's move, kept here because an earlier hit this frame may clear it. */
   move: string | null;
+  /** Knockback below which the victim's move armours through the hit: 0 without armor, Infinity for heavy armor. */
+  armor: number;
 }
 
 /**
@@ -118,7 +120,15 @@ function connection(
     shielding: v.action === 'shield' || v.action === 'shieldStun',
     at,
     move,
+    armor: armorThreshold(v),
   };
+}
+
+/** The knockback below which `v`'s current move armours through hits this frame (MoveDef.armor). */
+function armorThreshold(v: FighterState): number {
+  const armor = moveOf(v)?.armor;
+  if (!armor || !inWindow(v.actionFrame, armor.frames)) return 0;
+  return armor.threshold ?? Infinity;
 }
 
 /**
@@ -182,7 +192,7 @@ export function addDamage(m: MatchState, v: FighterState, damage: number): void 
  */
 function hit(
   m: MatchState,
-  { a, v, box, damage: base, stale, rage, dir, percent, crouch, at, move }: Connection,
+  { a, v, box, damage: base, stale, rage, dir, percent, crouch, at, move, armor }: Connection,
   again: boolean,
 ): void {
   const kb = knockback({
@@ -215,6 +225,7 @@ function hit(
     x: at.x,
     y: at.y,
   });
+  if (kb < armor) return;
   const held = grabArmour(m, v, damage);
   if (again && v.launch && v.launch.kb >= kb) return;
   v.launch = { kb, angle: box.angle, dir, setKnockback: (box.wbkb ?? 0) > 0 };
