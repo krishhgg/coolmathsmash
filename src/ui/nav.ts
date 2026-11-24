@@ -20,7 +20,10 @@ export function neighbour(
   root: ParentNode = document,
 ): HTMLElement | null {
   const pinned = from.dataset[`nav${dir[0]!.toUpperCase()}${dir.slice(1)}`];
-  if (pinned !== undefined) return pinned ? root.querySelector<HTMLElement>(pinned) : null;
+  if (pinned !== undefined) {
+    const el = pinned ? root.querySelector<HTMLElement>(pinned) : null;
+    if (!el || candidates.includes(el)) return el;
+  }
   const a = from.getBoundingClientRect();
   const c0 = center(a);
   let best: HTMLElement | null = null;
