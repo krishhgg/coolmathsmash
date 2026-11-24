@@ -9,7 +9,7 @@ src/fighters/<id>/
   index.ts      defineFighter({ id, name, series, stats, moves, art })
   stats.ts      FighterStats: movement, jumps, weight, shield
   moves.ts      Record<string, MoveDef>: frame data for every move
-  art/          the rig art (docs/art-pipeline.md); plain data, no renderer imports
+  art/          the rig art (docs/art.md); plain data, no renderer imports
   <id>.test.ts  inputs and frame data you care about
 ```
 
@@ -124,7 +124,7 @@ The combat math (knockback, hitlag, hitstun, DI, shieldstun, staleness) is share
 
 `art` is plain data drawn by the vector rig (`src/render/rig/`): parts, poses per clip name and palettes. Clips
 are keyed by action names (`idle`, `run`, `jump`, …) and move names (`fsmash`, `nair`, …). See
-`docs/art-pipeline.md`.
+`docs/art.md`.
 
 ## Checklist
 
