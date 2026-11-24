@@ -55,7 +55,8 @@ describe('duck art', () => {
       else if (typeof len === 'number') expect(clip!.length, name).toBe(len);
       else expect(clip!.loop, name).toBeFalsy();
     }
-    for (const [name, move] of Object.entries(moves)) expect(art.clips[name]?.length, name).toBe(move.faf - 1);
+    for (const [name, move] of Object.entries(moves))
+      expect(art.clips[name]?.length, name).toBe(move.faf - 1);
   });
 
   it('only references bones, slots and symbols that exist, with keys in order inside the clip', () => {
@@ -67,14 +68,16 @@ describe('duck art', () => {
         expect(key.frame, name).toBeGreaterThanOrEqual(last);
         expect(key.frame, name).toBeLessThanOrEqual(clip.length);
         last = key.frame;
-        for (const bone of Object.keys(key.pose ?? {})) expect(bones.has(bone), `${name}: bone ${bone}`).toBe(true);
+        for (const bone of Object.keys(key.pose ?? {}))
+          expect(bones.has(bone), `${name}: bone ${bone}`).toBe(true);
         for (const [slot, sym] of Object.entries({ ...clip.swaps, ...key.swaps })) {
           expect(slots.has(slot), `${name}: slot ${slot}`).toBe(true);
           if (sym !== null) expect(art.rig.symbols[sym], `${name}: symbol ${sym}`).toBeDefined();
         }
         for (const slot of Object.keys(key.z ?? {})) expect(slots.has(slot), `${name}: z ${slot}`).toBe(true);
       }
-      for (let f = 0; f <= clip.length; f++) expect(() => samplePose(art, name, f, f), `${name}@${f}`).not.toThrow();
+      for (let f = 0; f <= clip.length; f++)
+        expect(() => samplePose(art, name, f, f), `${name}@${f}`).not.toThrow();
     }
   });
 

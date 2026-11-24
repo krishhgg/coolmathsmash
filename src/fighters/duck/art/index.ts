@@ -7,7 +7,10 @@ import { rig } from './rig';
 
 /** Square viewBox around the head (beak and outline included), for the HUD icon. */
 function iconBox(): [number, number, number, number] {
-  const [x0, y0, x1, y1] = shapesBounds([...(rig.symbols.headLine as PathShape[]), ...(rig.symbols.face as PathShape[])]);
+  const [x0, y0, x1, y1] = shapesBounds([
+    ...(rig.symbols.headLine as PathShape[]),
+    ...(rig.symbols.face as PathShape[]),
+  ]);
   const size = Math.max(x1 - x0, y1 - y0) + 0.6;
   return [(x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size, size];
 }

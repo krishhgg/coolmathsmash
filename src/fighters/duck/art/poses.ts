@@ -79,7 +79,10 @@ export function leg(pose: Pose, side: 'B' | 'F', to: Pt, toe = 0): Pose {
   const vy = to[1] - hip.ty;
   const along = Math.atan2(-vx, vy) * DEG;
   return mix(pose, {
-    [`leg${side}`]: { rot: round(along - angle(w.body!)), sy: round(Math.max(0.2, Math.hypot(vx, vy) / LEG)) },
+    [`leg${side}`]: {
+      rot: round(along - angle(w.body!)),
+      sy: round(Math.max(0.2, Math.hypot(vx, vy) / LEG)),
+    },
     [`foot${side}`]: { rot: round(toe - along) },
   });
 }
@@ -95,7 +98,9 @@ export function feet(pose: Pose, back: number, front: number, toeB = 0, toeF = 0
  */
 export function wing(pose: Pose, side: 'B' | 'F', to: number, reach = 1, thick = 1): Pose {
   const w = world(pose);
-  return mix(pose, { [`wing${side}`]: { rot: round(to + 180 - angle(w.body!)), sx: round(reach), sy: thick } });
+  return mix(pose, {
+    [`wing${side}`]: { rot: round(to + 180 - angle(w.body!)), sx: round(reach), sy: thick },
+  });
 }
 
 /**
@@ -165,7 +170,12 @@ export function tucked(extra: Pose = {}): Pose {
   const down = angle(world(pose).body!);
   const r = (down * Math.PI) / 180;
   return leg(
-    leg(pose, 'B', [bx - 0.3 * Math.cos(r) - 0.6 * Math.sin(r), by + 0.6 * Math.cos(r) - 0.3 * Math.sin(r)], down),
+    leg(
+      pose,
+      'B',
+      [bx - 0.3 * Math.cos(r) - 0.6 * Math.sin(r), by + 0.6 * Math.cos(r) - 0.3 * Math.sin(r)],
+      down,
+    ),
     'F',
     [hx + 0.2 * Math.cos(r) - 0.6 * Math.sin(r), hy + 0.6 * Math.cos(r) + 0.2 * Math.sin(r)],
     down,

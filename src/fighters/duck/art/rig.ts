@@ -83,7 +83,10 @@ export const rig: Rig = {
     wingOpen,
     ...wingLines,
     /** The flight wing flapping on the match clock, as Duck Life's flying training draws it. */
-    wingFlap: { loop: ['wingV', 'wingVs', 'wingFlat', 'wingAs', 'wingA', 'wingAs', 'wingFlat', 'wingVs'], fps: 30 },
+    wingFlap: {
+      loop: ['wingV', 'wingVs', 'wingFlat', 'wingAs', 'wingA', 'wingAs', 'wingFlat', 'wingVs'],
+      fps: 30,
+    },
     crown,
     fxPuff,
     fxFeather,

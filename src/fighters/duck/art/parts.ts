@@ -100,7 +100,9 @@ export function capsule(x0: number, y0: number, x1: number, y1: number, w: numbe
 
 /** A polyline of ink, one capsule per segment so the joins stay round. */
 function strokes(points: P[], w: number, color = 'line'): PathShape[] {
-  return points.slice(1).map((p, i) => ({ d: capsule(points[i]![0], points[i]![1], p[0], p[1], w), fill: color }));
+  return points
+    .slice(1)
+    .map((p, i) => ({ d: capsule(points[i]![0], points[i]![1], p[0], p[1], w), fill: color }));
 }
 
 export function poly(points: P[]): string {
@@ -187,7 +189,10 @@ const brow: PathShape[] = [{ d: capsule(-0.15, -2.3, 1.95, -1.62, 0.34), fill: '
 
 /** An open line of ink (no fill), for edges that should not close back on themselves. */
 function edge(points: P[], w: number): PathShape {
-  return { d: points.map(([x, y], i) => `${i ? 'L' : 'M'}${n(x)} ${n(y)}`).join(''), stroke: { color: 'line', width: w } };
+  return {
+    d: points.map(([x, y], i) => `${i ? 'L' : 'M'}${n(x)} ${n(y)}`).join(''),
+    stroke: { color: 'line', width: w },
+  };
 }
 
 /**
@@ -315,40 +320,30 @@ export const wingOpen: PathShape[] = [
  */
 const lineWing = (points: P[]) => strokes(place(points, 0, 0.9, 0.1), 0.36);
 export const wingLines: Record<string, PathShape[]> = {
-  wingV: lineWing(
-    [
-      [0, 0],
-      [-1.35, 1.45],
-      [-2.6, 0.2],
-    ],
-  ),
-  wingVs: lineWing(
-    [
-      [0, 0],
-      [-1.5, 0.78],
-      [-2.9, 0.36],
-    ],
-  ),
-  wingFlat: lineWing(
-    [
-      [0, 0],
-      [-3.0, 0.08],
-    ],
-  ),
-  wingAs: lineWing(
-    [
-      [0, 0],
-      [-1.45, -0.82],
-      [-2.9, -0.3],
-    ],
-  ),
-  wingA: lineWing(
-    [
-      [0, 0],
-      [-1.25, -1.75],
-      [-2.5, -0.38],
-    ],
-  ),
+  wingV: lineWing([
+    [0, 0],
+    [-1.35, 1.45],
+    [-2.6, 0.2],
+  ]),
+  wingVs: lineWing([
+    [0, 0],
+    [-1.5, 0.78],
+    [-2.9, 0.36],
+  ]),
+  wingFlat: lineWing([
+    [0, 0],
+    [-3.0, 0.08],
+  ]),
+  wingAs: lineWing([
+    [0, 0],
+    [-1.45, -0.82],
+    [-2.9, -0.3],
+  ]),
+  wingA: lineWing([
+    [0, 0],
+    [-1.25, -1.75],
+    [-2.5, -0.38],
+  ]),
 };
 
 /** Leg and foot: Duck Life's single ink stroke down from the belly and a flat foot pointing forwards. */
