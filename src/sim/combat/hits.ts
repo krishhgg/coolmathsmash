@@ -163,9 +163,10 @@ export function applyHit(
  * Find every hit this frame from the state before any of them lands, then apply them all, so two fighters
  * whose moves connect on the same frame trade. Each move hits a fighter once (per rehit window), lowest
  * hitbox id first. Grab boxes are found from the same state and resolved after the hits (grab.ts), so an
- * attack beats a grab on the same frame.
+ * attack beats a grab on the same frame. `stage` lands the stage hazards' hits (src/sim/hazards.ts) between the
+ * two, adding its victims to `struck`, so they break grabs like any other hit.
  */
-export function resolveHits(m: MatchState): void {
+export function resolveHits(m: MatchState, stage?: (struck: Set<FighterState>) => void): void {
   const hits: Connection[] = [];
   const grabs = findGrabs(m);
   for (const a of m.fighters) {
@@ -191,6 +192,7 @@ export function resolveHits(m: MatchState): void {
     if (h.shielding) shieldHit(m, h, again);
     else hit(m, h, again);
   }
+  stage?.(struck);
   resolveGrabs(m, grabs, struck);
 }
 

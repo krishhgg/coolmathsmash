@@ -140,6 +140,40 @@ describe('damage zones', () => {
   });
 });
 
+describe('hazards and grabs', () => {
+  /** Fireboy (port 0) holding Watergirl (port 1) in front of him, facing left, at x. */
+  function held(x: number): MatchState {
+    const m = hazardMatch(['fireboy', 'watergirl', mario.id], [-25, -20, 80]);
+    run(m, 5);
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    Object.assign(a, { action: 'grabHold', actionFrame: 1, move: null, facing: -1, grabPartner: 1 });
+    Object.assign(v, { action: 'grabbed', actionFrame: 1, facing: 1, grabPartner: 0, grabTimer: 999 });
+    a.pos.x = x;
+    a.prevPos.x = x;
+    v.pos.x = x - 12;
+    v.prevPos.x = x - 12;
+    return m;
+  }
+
+  it('a hazard hit counts toward breaking a grab: lava breaks it at once, goo only adds up', () => {
+    const lava = held(-28);
+    const [a, v] = lava.fighters as [FighterState, FighterState];
+    const hits = stageHitsOver(lava, 1);
+    expect(hits.map((h) => [h.victim, h.element])).toEqual([[1, 'lava']]);
+    expect(lava.events.filter((e) => e.type === 'grabRelease')).toEqual([
+      { type: 'grabRelease', holder: 0, held: 1 },
+    ]);
+    expect([a.grabPartner, v.grabPartner]).toEqual([-1, -1]);
+    expect(v.action).toBe('tumble');
+    expect(v.launch).not.toBeNull();
+
+    const goo = held(-66);
+    const w = goo.fighters[1]!;
+    expect(stageHitsOver(goo, 1).map((h) => [h.victim, h.element])).toEqual([[1, 'goo']]);
+    expect([w.action, w.grabPartner, w.grabDamage, w.launch]).toEqual(['grabbed', 0, 2, null]);
+  });
+});
+
 describe('conveyors', () => {
   it('carry a fighter standing on the belt along it and off its end', () => {
     const m = hazardMatch([mario.id], [[-60, 30.001]]);
@@ -152,6 +186,7 @@ describe('conveyors', () => {
     until(m, () => f.ground === null);
     expect(f.prevPos.x).toBeGreaterThan(-35 - 0.6);
     expect(f.pos.x).toBeGreaterThan(-35);
+    expect(f.action).toBe('fall');
   });
 
   it('stand still with hazards off', () => {

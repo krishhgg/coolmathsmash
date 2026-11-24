@@ -75,8 +75,7 @@ export function stepMatch(state: MatchState, inputs: readonly InputFrame[]): voi
   for (const f of state.fighters) stepFighter(state, f, state.players[f.port]!);
   pushApart(state, posedStage(state));
   advanceStage(state);
-  resolveHits(state);
-  stageHits(state);
+  resolveHits(state, (struck) => stageHits(state, struck));
   state.fighters.forEach((f, i) => {
     if (f.action !== before[i]) emit(state, { type: 'action', port: f.port, from: before[i]!, to: f.action });
   });
