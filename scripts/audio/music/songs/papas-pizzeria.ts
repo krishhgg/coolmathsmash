@@ -231,12 +231,16 @@ const hatFoot = [
   ...at(16, loop(grid('..x...x.', { step: 0.5, n: 40 }), 8, bar)),
 ];
 const kicks = [
-  ...loop(grid('o...-.o.', { step: 0.5 }), 7, bar),
+  ...loop(grid('x...-.o.', { step: 0.5 }), 7, bar),
   ...at(8, loop(grid('x.....o.....', { step: 1 / 3 }), 8, bar)),
   ...swingBars(16, 8, 'x....-o.'),
+  ...swing([{ t: 95.5, d: 0.3, n: 60, v: 0.8 }]),
 ];
 const rims = loop(grid('..x...x.', { step: 0.5 }), 7, bar);
 const snares = [
+  // A1: a light swung backbeat with ghosts under the cross-stick.
+  ...swingBars(0, 7, '-.o..-o-'),
+  ...swing(at(7, grid('-.o.', { step: 0.5 }))),
   // A1 -> B: a triplet fill over snare and toms.
   ...at(7, [
     { t: 2, d: 0.3, n: 60, v: 0.75 },
@@ -266,14 +270,14 @@ const toms = [
 ];
 const tambs = shape(at(8, loop(grid('x-ox-ox-ox-o', { step: 1 / 3 }), 8, bar)), (t) => (t < 48 ? 0.85 : 1));
 const crashes = [
-  { t: 0, d: 1, n: 60, v: 0.7 },
+  ...swing([{ t: 95.5, d: 1, n: 60, v: 0.85 }]),
   { t: 32, d: 1, n: 60, v: 0.95 },
   { t: 48, d: 1, n: 60, v: 0.65 },
   { t: 64, d: 1, n: 60, v: 0.9 },
 ];
 
 /** Section dynamics: A1 relaxed, the tarantella at full tilt, A2 swinging hard but a notch below. */
-const dyn = (t: number) => (isA1(t) ? 0.86 : isB(t) ? 1 : 0.94);
+const dyn = (t: number) => (isA1(t) ? 0.9 : isB(t) ? 1 : 0.94);
 
 export const song: Song = {
   id: 'papas-pizzeria',
@@ -284,7 +288,7 @@ export const song: Song = {
   seed: 7,
   reverb: { room: 0.52, damp: 0.55, wet: 0.32 },
   tracks: [
-    { inst: clarinet, gain: -8, pan: 0.15, verb: 0.32, loop: human(clarinetLine, 11, 0.1, 0.012) },
+    { inst: clarinet, gain: -7.5, pan: 0.15, verb: 0.32, loop: human(clarinetLine, 11, 0.1, 0.012) },
     { inst: accordion, gain: 0, pan: -0.22, verb: 0.26, loop: human(accordionLead, 12, 0.08, 0.008) },
     {
       inst: accordion,

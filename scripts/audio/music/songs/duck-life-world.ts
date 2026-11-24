@@ -223,7 +223,7 @@ const kicks = [
 const backbeat = (from: number, bars: number) =>
   at(from, loop(grid('....x.......x...', { step: 0.25 }), bars, bar));
 const snares = [
-  ...backbeat(0, 7),
+  ...at(0, loop(grid('....x..-....x.-.', { step: 0.25 }), 7, bar)),
   ...at(7, grid('....x...x.o.', { step: 0.25 })),
   ...at(8, loop(grid('........x.......', { step: 0.25 }), 5, bar)),
   ...at(13, grid('........x.....-.', { step: 0.25 })),
@@ -269,13 +269,18 @@ const hats = [
   ...at(16, loop(grid('x-o-x-o-x-o-x-o-', { step: 0.25, n: 40 }), 8, bar)),
 ];
 const rideB = at(8, loop(grid('x.o.x.o.x.o.x.o.', { step: 0.25, n: 64 }), 6, bar));
-const claps = at(16, loop(grid('....x.......x...', { step: 0.25 }), 7, bar));
+const claps = [
+  ...loop(grid('....x.......x...', { step: 0.25 }), 7, bar).map((n) => ({ ...n, v: n.v * 0.55 })),
+  ...at(16, loop(grid('....x.......x...', { step: 0.25 }), 7, bar)),
+];
 const shakers = [
   ...loop(grid('..o...x...o...x.', { step: 0.25 }), 8, bar).map((n) => ({ ...n, v: n.v * 0.6 })),
   ...at(16, loop(grid('-o-x-o-x-o-x-o-x', { step: 0.25 }), 8, bar)),
 ];
+/** A soft cymbal swell under the last fill that rings across the loop point. */
+const swellIn = roll(94, 96, 6, 0.12, 0.5, 19);
 const crashes = [
-  { t: 0, d: 1, n: 60, v: 0.75 },
+  { t: 0, d: 1, n: 60, v: 0.9 },
   { t: 32, d: 1, n: 60, v: 0.9 },
   { t: 48, d: 1, n: 60, v: 0.6 },
   { t: 64, d: 1, n: 60, v: 0.95 },
@@ -287,7 +292,7 @@ const quacks = [
 ];
 
 /** Section dynamics: A1 bright but light, the bridge at its peak, A2 just below. */
-const dyn = (t: number) => (isA1(t) ? 0.94 : isB(t) ? 1 : 0.96);
+const dyn = (t: number) => (isA1(t) ? 1 : isB(t) ? 1 : 0.96);
 
 export const song: Song = {
   id: 'duck-life-world',
@@ -327,6 +332,7 @@ export const song: Song = {
     { inst: shaker, gain: -9, pan: 0.62, verb: 0.15, loop: human(shakers, 41, 0.22, 0.01) },
     { inst: tom, gain: -5, pan: -0.1, verb: 0.28, loop: human(toms, 45, 0.08, 0.004) },
     { inst: crash, gain: -2, pan: -0.25, verb: 0.3, loop: crashes },
+    { inst: crash, gain: -9, pan: 0.3, verb: 0.4, loop: swellIn },
     { inst: quack, gain: -3, pan: 0.2, verb: 0.38, loop: quacks },
   ],
 };

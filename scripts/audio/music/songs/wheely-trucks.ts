@@ -26,7 +26,7 @@ import type { Song } from '../render.ts';
  * Wheely stage: an original feel-good funk-pop cruise in E major for the little red car. A is the groove
  * (slap bass, clavinet sixteenths, rhodes, claps) under a sweet soft-synth tune doubled on vibes; B is the
  * chorus with brass hits and a higher tune; C breaks down to bass, clav and cowbell with two car-horn honks
- * before a drum fill rolls back into the top. 20 bars at 112 BPM.
+ * and a riff they answer, building back up before a drum fill rolls into the top. 20 bars at 112 BPM.
  */
 const bar = 4;
 /** Hand voicings (MIDI) for rhodes, with the slap-bass root (MIDI) for each chord. */
@@ -96,7 +96,17 @@ const tune = seq(
   ].join(' '),
   { step: 0.25, v: 0.8 },
 );
-const tuneShaped = shape(tune, (t) => {
+/** Breakdown: a riff that the car horns answer, and a pickup run into the top. */
+const breakRiff = seq(
+  [
+    'E5:2 . G#5 B5:2 C#6 B5 . G#5:2 E5 F#5:2 G#5:2',
+    '. . . . . . . . . . . . . . . .',
+    'A5:2 . C#6 E6:2 D6 C#6 . A5:2 G5 F#5:2 E5:2',
+    '. . . . . . . . . . . . F#4 A4 B4 D#5',
+  ].join(' '),
+  { step: 0.25, v: 0.78, start: 64 },
+);
+const tuneShaped = shape([...tune, ...breakRiff], (t) => {
   const p = (t % 8) / 8;
   return (
     (0.84 + 0.2 * Math.sin(Math.PI * p)) * (section(t) === 'B' ? 1.05 : 0.95) * (t % 1 < 0.01 ? 1.05 : 0.95)
@@ -199,6 +209,8 @@ const crashes = [
 ];
 
 const dyn = (t: number) => ({ A: 0.9, B: 1, C: 0.88 })[section(t)];
+/** The last two bars of the breakdown build back up. */
+const build = (t: number) => (t >= 72 ? 0.8 + (0.4 * (t - 72)) / 8 : 1);
 /** A light sixteenth-note pocket: every off-sixteenth sits a hair late. */
 const pocket = (notes: Note[]) => swing(notes, 0.55, 0.5);
 
@@ -225,7 +237,7 @@ export const song: Song = {
       gain: -6,
       pan: 0.6,
       verb: 0.18,
-      loop: human(pocket(shape(clavLine, dyn)), 74, 0.16, 0.005),
+      loop: human(pocket(shape(shape(clavLine, dyn), build)), 74, 0.16, 0.005),
     },
     { inst: rhodes, gain: -8, pan: -0.58, verb: 0.32, loop: human(pocket(rhodesLine), 75, 0.12, 0.008) },
     { inst: brassHit, gain: 1, pan: 0.35, verb: 0.32, loop: human(pocket(trumpets), 76, 0.08, 0.006) },
@@ -241,9 +253,15 @@ export const song: Song = {
     },
     { inst: clap, gain: 2, pan: -0.3, verb: 0.3, loop: human(pocket(shape(claps, dyn)), 79, 0.14, 0.008) },
     { inst: clap, gain: 1, pan: 0.3, verb: 0.3, loop: human(pocket(shape(claps, dyn)), 84, 0.14, 0.012) },
-    { inst: hat, gain: -2, pan: 0.38, verb: 0.1, loop: human(pocket(shape(hats, dyn)), 80, 0.18, 0.005) },
+    {
+      inst: hat,
+      gain: -2,
+      pan: 0.38,
+      verb: 0.1,
+      loop: human(pocket(shape(shape(hats, dyn), build)), 80, 0.18, 0.005),
+    },
     { inst: tamb, gain: 1, pan: 0.62, verb: 0.2, loop: human(pocket(tambs), 81, 0.14, 0.008) },
-    { inst: cowbell, gain: -3.5, pan: -0.25, verb: 0.25, loop: human(pocket(bells), 82, 0.14, 0.006) },
+    { inst: cowbell, gain: -7, pan: -0.25, verb: 0.25, loop: human(pocket(bells), 82, 0.14, 0.006) },
     { inst: tom, gain: -6, pan: -0.1, verb: 0.2, loop: toms },
     { inst: crash, gain: -5, pan: -0.25, verb: 0.3, loop: crashes },
   ],

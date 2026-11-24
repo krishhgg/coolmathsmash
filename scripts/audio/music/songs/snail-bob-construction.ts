@@ -24,7 +24,8 @@ import type { Song } from '../render.ts';
 /**
  * Snail Bob stage: an original tiptoeing cartoon-caper in D minor. A creeping chromatic bassline (upright
  * doubled by bassoon) carries a sneaky clarinet tune over a tick-tock woodblock; B turns to F major for a
- * bouncy building-site romp (xylophone hammer taps, tuba oom-pah, pizzicato, girder clanks and a ratchet);
+ * bouncy building-site romp (a syncopated xylophone tune over a tuba on every beat, offbeat pizzicato,
+ * girder clanks and a ratchet);
  * A' brings the tune back on xylophone with the full kit, and a slide whistle hops back into the loop.
  * 24 bars at 128 BPM.
  */
@@ -79,18 +80,18 @@ const staccato = (notes: Note[]) =>
   notes.map((n) => ({ ...n, d: Math.min(n.d, 0.3), v: n.v * (n.t % 1 < 0.01 ? 1.05 : 0.85) }));
 const creep = staccato([...creepA1, ...creepA2]);
 
-/** B: tuba oom-pah on the roots and fifths. */
+/** B: a bouncing tuba on every beat, root and fifth. */
 const oom = spans
   .filter((s) => inB(s.t))
   .flatMap((s) => {
     const r = root(s.sym, 2);
     const low = r > 43 ? r - 12 : r;
-    return s.d === 2
-      ? [{ t: s.t, d: 0.6, n: low, v: 0.9 }]
-      : [
-          { t: s.t, d: 0.6, n: low, v: 0.92 },
-          { t: s.t + 2, d: 0.6, n: low + 7, v: 0.78 },
-        ];
+    return Array.from({ length: s.d }, (_, b) => ({
+      t: s.t + b,
+      d: 0.45,
+      n: b % 2 ? low + 7 : low,
+      v: b % 2 ? 0.74 : 0.92,
+    }));
   });
 
 // ---------------------------------------------------------------- melodies
@@ -107,14 +108,14 @@ const sneak = (last: string) =>
     last,
   ].join(' ');
 const romp = [
-  'C5 F5 F5 F5 A5 . F5 .',
-  'Bb4 E5 E5 E5 G5 . E5 .',
-  'A5 C6 C6 C6 A5 . F5 .',
-  'D6:2 Bb5 F5 Ab5:2 F5 D5',
-  'C6 A5 F5 A5 C6:2 . .',
-  'D6 C6 A5 F#5 D5:2 . .',
-  'Bb5 . G5 . E5 . C5 .',
-  'F5:2 A4 C5 C#5 E5 G5 Bb5',
+  'F5 . A5 C6:2 A5 C6 .',
+  'E5 . G5 Bb5:2 G5 E5 C5',
+  '. A5 C6 . F6:2 E6 C6',
+  'D6:2 Bb5 F5 . D6:2 F5',
+  'C6 . A5 F5:2 A5 C6 A5',
+  'F#5 . A5 C6:2 D6 C6 A5',
+  'Bb5 . G5 D6:2 E6 C6 Bb5',
+  'A5 C6 F6 . E6:2 C#6 A5',
 ].join(' ');
 /** Tiptoe phrasing: short notes, offbeats lighter, each two-bar phrase leaning toward its peak. */
 const tiptoe = (notes: Note[], base: number) =>
@@ -131,7 +132,10 @@ const clarinetLine = [
   ...tiptoe(shift(seq(sneak('D5 . F5 . A5 . . .'), { step: 0.5, v: 0.6, start: 64 }), 0, -12), 0.9),
 ];
 const marimbaLine = shift(
-  tiptoe(seq(sneak('D6 . F6 . A6 . . .'), { step: 0.5, v: 0.8, start: 64 }), 1),
+  [
+    ...tiptoe(seq(romp, { step: 0.5, v: 0.75, start: 32 }), 1),
+    ...tiptoe(seq(sneak('D6 . F6 . A6 . . .'), { step: 0.5, v: 0.8, start: 64 }), 1),
+  ],
   0,
   -12,
 );
@@ -140,20 +144,16 @@ const xyloLine = [
   ...tiptoe(seq(sneak('D6 . F6 . A6 . . .'), { step: 0.5, v: 0.85, start: 64 }), 1),
 ];
 const bassoonLine = staccato(shift(creepA1, 0, 12)).map((n) => ({ ...n, v: n.v * 0.75 }));
-/** B: the clarinet sustains each chord's third under the xylophone romp. */
-const clarinetPad = spans
-  .filter((s) => inB(s.t))
-  .map((s) => ({ t: s.t, d: s.d - 0.15, n: chord(s.sym, 4)[1]!, v: 0.42 }));
 
-/** Pizzicato: tiptoe offbeats in the A sections, chords on 2 and 4 in B. */
+/** Pizzicato: tiptoe offbeats in the A sections, an offbeat "pah" against the tuba in B. */
 const pizzChords = spans.flatMap((s) =>
-  (inB(s.t) ? [1, 3] : [0.5, 1.5, 2.5, 3.5])
+  [0.5, 1.5, 2.5, 3.5]
     .map((b) => s.t - (s.t % bar) + b)
     .filter((t) => t >= s.t && t < s.t + s.d)
     .flatMap((t) =>
       chord(s.sym, 4)
         .slice(0, 3)
-        .map((n) => ({ t, d: 0.3, n, v: inB(s.t) ? 0.6 : t % 2 < 1 ? 0.42 : 0.5 })),
+        .map((n) => ({ t, d: 0.3, n, v: inB(s.t) ? (t % 2 < 1 ? 0.5 : 0.6) : t % 2 < 1 ? 0.42 : 0.5 })),
     ),
 );
 
@@ -174,7 +174,7 @@ const tickTock = shape(
 );
 const kicks = [
   ...loop(grid('x.......o.......', { step: 0.25 }), 7, bar),
-  ...loop(grid('x.......x.......', { step: 0.25, start: 32 }), 8, bar),
+  ...loop(grid('x...o...x...o...', { step: 0.25, start: 32 }), 8, bar),
   ...loop(grid('x.....o.x.......', { step: 0.25, start: 64 }), 7, bar),
   ...grid('x.......x.x.x.x.', { step: 0.25, start: 92 }),
 ];
@@ -183,7 +183,7 @@ const snares = [
   ...loop(grid('..-...-...-.-.-.', { step: 0.25 }), 7, bar).map((n) => ({ ...n, v: n.v * 0.8 })),
   ...grid('........x.o.', { step: 0.25, start: 28 }),
   ...roll(31, 32, 4, 0.5, 0.9, 3),
-  ...loop(grid('....o.......o..-', { step: 0.25, start: 32 }), 7, bar),
+  ...loop(grid('..-.x.-...-.x.-.', { step: 0.25, start: 32 }), 7, bar),
   ...grid('....o...x.o.', { step: 0.25, start: 60 }),
   ...roll(63, 64, 4, 0.55, 0.95, 4),
   ...loop(grid('..-.x.-...-.x.-.', { step: 0.25, start: 64 }), 7, bar),
@@ -249,7 +249,7 @@ export const song: Song = {
       gain: -4,
       pan: -0.2,
       verb: 0.3,
-      loop: human([...clarinetLine, ...clarinetPad], 51, 0.1, 0.01),
+      loop: human(clarinetLine, 51, 0.1, 0.01),
     },
     { inst: xylo, gain: -7.5, pan: 0.25, verb: 0.3, loop: human(xyloLine, 52, 0.16, 0.006) },
     { inst: 'marimba', gain: -8, pan: -0.3, verb: 0.3, loop: human(marimbaLine, 63, 0.14, 0.006) },
