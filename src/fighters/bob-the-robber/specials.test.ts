@@ -99,6 +99,42 @@ describe('Bob the Robber: Grappling Hook (up special)', () => {
     expect(reach(-100)).toBeLessThan(reach(0) - 8);
   });
 
+  it.each([
+    ['forward', 100, 55],
+    ['neutral', 0, 70],
+    ['back', -100, 85],
+  ] as const)(
+    'held %s at the start, the zip keeps a straight line, whatever the stick does after',
+    (_, x, deg) => {
+      const m = testMatch({ fighter: ID });
+      const f = placeInAir(m, 0, 60, 1);
+      run(m, 1, { y: 100, buttons: ['special'] });
+      run(m, 13, { x });
+      const path: { x: number; y: number }[] = [];
+      for (let i = 0; i < 12; i++) {
+        run(m, 1, { x: i % 2 ? 100 : -100 });
+        path.push({ ...f.pos });
+      }
+      for (let i = 1; i < path.length; i++) {
+        const step = (Math.atan2(path[i]!.y - path[i - 1]!.y, path[i]!.x - path[i - 1]!.x) * 180) / Math.PI;
+        expect(Math.abs(step - deg)).toBeLessThan(2.5);
+      }
+    },
+  );
+
+  it('from the ground it hangs at floor level while the hook flies, then zips and ends helpless', () => {
+    const m = testMatch({ fighter: ID });
+    const f = m.fighters[0]!;
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    const y0 = f.pos.y;
+    until(m, (g) => g.actionFrame === 13);
+    expect(f.move).toBe('upB');
+    expect(f.pos.y).toBeGreaterThanOrEqual(y0);
+    until(m, (g) => g.action === 'helpless');
+    expect(f.pos.y - y0).toBeGreaterThan(48);
+  });
+
   it('recovers to the ledge from well below it', () => {
     const m = testMatch({ fighter: ID });
     const f = placeInAir(m, 96, -40, -1);

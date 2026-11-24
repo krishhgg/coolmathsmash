@@ -59,12 +59,14 @@ export const sideB: MoveDef = {
 const ZIP_SPEED = 2.8;
 const ZIP_FROM = 14;
 const ZIP_TO = 30;
+/** The rope's three lines, in degrees above Bob's facing: held forward, neutral, held back. */
+const LINES = [55, 70, 85];
 
 /**
  * Grappling Hook (up special): Bob fires a burglar's grapple up and forward (a 5% hit on the hook) and zips after
  * it in a straight line, rising about 55 units. The stick picks the line when the zip starts: 70 degrees by
- * default, flatter held forward, near vertical held back. He can catch a ledge from the moment the zip starts, and
- * ends helpless.
+ * default, flatter held forward, near vertical held back. He hangs in place while the hook flies, can catch a
+ * ledge from the moment the zip starts, and ends helpless.
  */
 export const upB: MoveDef = {
   kind: 'other',
@@ -80,21 +82,23 @@ export const upB: MoveDef = {
   script({ f, c, s }) {
     if (f.actionFrame < ZIP_FROM) {
       f.vel.x *= 0.85;
-      f.vel.y = Math.max(f.vel.y * 0.5, -0.4);
-      return;
-    }
-    if (f.actionFrame === ZIP_FROM) {
-      const lean = stickX(c) * f.facing;
-      const rad = ((lean > 0.3 ? 55 : lean < -0.3 ? 85 : 70) * Math.PI) / 180;
-      f.vel.x = f.facing * ZIP_SPEED * Math.cos(rad);
-      f.vel.y = ZIP_SPEED * Math.sin(rad);
+      f.vel.y = Math.max(f.vel.y * 0.5, 0);
       return;
     }
     if (f.actionFrame > ZIP_TO) return;
-    const vy = f.vel.y + s.gravity;
-    const len = Math.hypot(f.vel.x, vy) || 1;
+    let deg: number;
+    if (f.actionFrame === ZIP_FROM) {
+      const lean = stickX(c) * f.facing;
+      deg = LINES[lean > 0.3 ? 0 : lean < -0.3 ? 2 : 1]!;
+    } else {
+      // Air drift and gravity nudge the velocity a little after each frame's reset; snapping back to the nearest
+      // line (they are 15 degrees apart) keeps the zip on the line picked at its start.
+      const now = (Math.atan2(f.vel.y + s.gravity, f.vel.x * f.facing) * 180) / Math.PI;
+      deg = LINES.reduce((best, d) => (Math.abs(d - now) < Math.abs(best - now) ? d : best));
+    }
+    const rad = (deg * Math.PI) / 180;
     const speed = ZIP_SPEED * (f.actionFrame > ZIP_TO - 4 ? 0.6 : 1);
-    f.vel.x = (f.vel.x / len) * speed;
-    f.vel.y = (vy / len) * speed;
+    f.vel.x = f.facing * speed * Math.cos(rad);
+    f.vel.y = speed * Math.sin(rad);
   },
 };
