@@ -181,6 +181,71 @@ describe('Johnny Upgrade: kill percents', () => {
   });
 });
 
+describe('Johnny Upgrade: specials', () => {
+  it('side special winds up, bursts about 45 units forward and punches on frames 16-19', () => {
+    const m = johnny();
+    const f = m.fighters[0]!;
+    const x0 = f.pos.x;
+    run(m, 1, { x: 100 * f.facing, buttons: ['special'] });
+    expect(f.move).toBe('sideB');
+    const active: number[] = [];
+    until(m, (g) => {
+      if (activeHitboxes(g).length > 0) active.push(g.actionFrame);
+      return g.move !== 'sideB';
+    });
+    expect(active).toEqual([16, 17, 18, 19]);
+    expect((f.pos.x - x0) * f.facing).toBeGreaterThan(40);
+    expect(moves.sideB!.hits[0]!.boxes[0]!.damage).toBe(10);
+  });
+
+  it('side special in the air flies level through the dash and ends helpless', () => {
+    const m = johnny();
+    const f = placeInAir(m, 0, 80, 1);
+    run(m, 1, { x: 100, buttons: ['special'] });
+    expect(f.move).toBe('sideB');
+    run(m, 17);
+    expect(f.pos.y).toBeGreaterThan(78);
+    expect(f.pos.x).toBeGreaterThan(30);
+    until(m, (g) => g.move !== 'sideB');
+    expect(f.action).toBe('helpless');
+  });
+
+  it('up special kicks on frame 8, rises about 95 units, then leaves him helpless with 24 frames of landing lag', () => {
+    const m = johnny();
+    const f = m.fighters[0]!;
+    const y0 = f.pos.y;
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    let top = y0;
+    const active: number[] = [];
+    until(m, (g) => {
+      top = Math.max(top, g.pos.y);
+      if (activeHitboxes(g).length > 0) active.push(g.actionFrame);
+      return g.action === 'helpless';
+    });
+    expect(active[0]).toBe(8);
+    expect(moves.upB!.hits.map((w) => w.boxes[0]!.damage)).toEqual([4, 8]);
+    until(m, (g) => {
+      top = Math.max(top, g.pos.y);
+      return g.vel.y < 0;
+    });
+    expect(top - y0).toBeGreaterThan(88);
+    expect(top - y0).toBeLessThan(100);
+    until(m, (g) => g.ground !== null);
+    expect(f.action).toBe('land');
+    expect(f.landingLag).toBe(24);
+  });
+
+  it('up special from 60 units below the ledge recovers to it', () => {
+    const m = johnny();
+    const f = placeInAir(m, 92, -60, -1);
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    until(m, (g) => g.action === 'ledgeHang' || g.action === 'ledgeCatch' || g.pos.y < -100, { x: -40 });
+    expect(f.pos.y).toBeGreaterThan(-100);
+  });
+});
+
 describe('Johnny Upgrade: combo throws', () => {
   it.each([
     ['uthrow', { y: 100 }],

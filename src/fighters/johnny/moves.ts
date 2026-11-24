@@ -1,3 +1,4 @@
+import { stickX } from '../../sim/control';
 import type { HitboxDef, MoveDef } from '../types';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -271,5 +272,67 @@ export const moves: Record<string, MoveDef> = {
     faf: 40,
     hits: [],
     throw: { frame: 21, hit: { damage: 7, angle: 75, kbg: 50, bkb: 60 } },
+  },
+  /**
+   * Upgrade Dash (side special, Raptor Boost's role): a wind-up, a burst dash of about 40 units and a punch at the
+   * end of it that pops the opponent up. In the air he flies level through the dash and ends helpless.
+   */
+  sideB: {
+    kind: 'other',
+    faf: 50,
+    helpless: true,
+    ledgeFrom: 20,
+    landingLag: 20,
+    hits: [{ frames: [16, 19], boxes: [box(0, 8, 9, 5.5, { damage: 10, angle: 75, kbg: 60, bkb: 70 })] }],
+    script(x) {
+      const { f } = x;
+      if (f.actionFrame <= 5) {
+        f.vel.x *= 0.6;
+        if (!f.ground) f.vel.y = Math.max(f.vel.y * 0.5, -0.3);
+        return;
+      }
+      if (f.actionFrame <= 18) {
+        f.vel.x = 3 * f.facing;
+        if (!f.ground) f.vel.y = 0;
+        return;
+      }
+      f.vel.x *= 0.85;
+    },
+  },
+  /**
+   * Double-Jump Boots (up special): his game's double-jump upgrade as a rising boot uppercut. A kick on take-off,
+   * an uppercut near the top, about 95 units of rise steered with the stick, then helpless. Grabs ledges on the
+   * way up.
+   */
+  upB: {
+    kind: 'other',
+    faf: 46,
+    leavesGround: true,
+    helpless: true,
+    ledgeFrom: 12,
+    landingLag: 24,
+    hits: [
+      {
+        frames: [8, 10],
+        boxes: [box(0, 4, 8, 5.5, { damage: 4, angle: 85, kbg: 100, bkb: 0, wbkb: 70 })],
+      },
+      {
+        frames: [18, 21],
+        rehit: true,
+        boxes: [box(0, 2, 18, 6, { damage: 8, angle: 80, kbg: 90, bkb: 50, direction: 'away' })],
+      },
+    ],
+    script(x) {
+      const { f, c } = x;
+      if (f.actionFrame < 8) {
+        f.vel.x *= 0.8;
+        f.vel.y = Math.max(f.vel.y, 0);
+        return;
+      }
+      if (f.actionFrame <= 40) {
+        f.vel.y = 4.5 - (f.actionFrame - 8) * 0.11;
+        f.vel.x = stickX(c) * 1;
+      }
+    },
   },
 };
