@@ -140,7 +140,7 @@ function connection(
 }
 
 /** The knockback and damage thresholds of `v`'s armor this frame (MoveDef.armor); unset ones never break. */
-function armorOf(v: FighterState): Connection['armor'] {
+export function armorOf(v: FighterState): Connection['armor'] {
   const armor = moveOf(v)?.armor;
   if (!armor || !inWindow(v.actionFrame, armor.frames)) return null;
   return { kb: armor.threshold ?? Infinity, damage: armor.damageThreshold ?? Infinity };

@@ -1,5 +1,5 @@
 import { getFighter } from '../fighters/registry';
-import { hittable, hurtbox, strike, touches, type PlacedHitbox } from './combat/hits';
+import { armorOf, hittable, hurtbox, strike, touches, type PlacedHitbox } from './combat/hits';
 import { emit } from './events';
 import type { FighterState } from './fighter';
 import type { MatchState } from './match';
@@ -113,7 +113,8 @@ function hitboxContact(geo: StageGeometry, v: FighterState, frame: number): Cont
 /**
  * After the fighters' hits and before grabs are resolved (resolveHits): each fighter a hazard touches takes that
  * hazard's hit and joins `struck`, at most one stage hit per frame and none while `stageHitLock` (the hazard's
- * `rehit`) runs. Hazards skip intangible fighters and fighters already in hitlag, and go through shields.
+ * `rehit`) runs. Hazards skip intangible fighters and fighters already in hitlag, go through shields and respect
+ * armor.
  */
 export function stageHits(m: MatchState, struck: Set<FighterState>): void {
   for (const f of m.fighters) if (f.stageHitLock > 0) f.stageHitLock--;
@@ -136,7 +137,7 @@ export function stageHits(m: MatchState, struck: Set<FighterState>): void {
         dir: c.dir,
         percent: v.damage,
         crouch: v.action === 'crouch' && v.ground !== null,
-        armor: null,
+        armor: armorOf(v),
       },
       false,
     );
