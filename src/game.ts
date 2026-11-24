@@ -18,6 +18,8 @@ export class Game {
   inputLog: InputFrame[][] = [];
   readonly keyboard = new KeyboardState();
   readonly loop: FixedLoop;
+  /** Where real-time frames get their inputs (the match screen's players and CPUs); the device ports when null. */
+  inputSource: (() => InputFrame[]) | null = null;
   private readonly eventListeners = new Set<(events: readonly SimEvent[], state: MatchState) => void>();
 
   constructor(
@@ -27,7 +29,7 @@ export class Game {
     this.state = createMatch(DEFAULT_MATCH);
     this.loop = new FixedLoop({
       step: () => {
-        if (!this.manual) this.step();
+        if (!this.manual) this.step(this.inputSource?.());
       },
       render: (alpha) => this.renderer.render(this.state, this.manual ? 1 : alpha),
     });

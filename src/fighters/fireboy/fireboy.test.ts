@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import ref from '../../sim/reference/physics-constants.json';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
+import { moves } from './moves';
 
 const fireboy = () => testMatch({ fighter: 'fireboy' });
 
@@ -183,5 +185,137 @@ describe('Fireboy: launch direction', () => {
   it('nair sends a target behind Fireboy away from him', () => {
     expect(launch('nair', -3, true)).toBe(-1);
     expect(launch('nair', 3, true)).toBe(1);
+  });
+});
+
+describe('Fireboy: grabs', () => {
+  it('Grab or Shield + Attack is a standing grab, a dash grab out of a dash or run, and a shield grab from shield', () => {
+    expect(moveFrom({ buttons: ['grab'] })).toBe('grab');
+    expect(moveFrom({ buttons: ['shield', 'attack'] })).toBe('grab');
+    expect(moveFrom({ x: 100, buttons: ['grab'] }, { hold: { x: 100 }, frames: 3 })).toBe('dashGrab');
+    expect(moveFrom({ x: 100, buttons: ['grab'] }, { hold: { x: 100 }, frames: 20 })).toBe('dashGrab');
+    const shield = { hold: { buttons: ['shield'] } as Hold, frames: 5 };
+    expect(moveFrom({ buttons: ['shield', 'grab'] }, shield)).toBe('grab');
+    expect(moveFrom({ buttons: ['shield', 'attack'] }, shield)).toBe('grab');
+  });
+
+  it('Grab with the stick held back out of a dash is a pivot grab: he turns round and keeps sliding', () => {
+    const m = fireboy();
+    const f = m.fighters[0]!;
+    run(m, 3, { x: 100 });
+    expect(f.action).toBe('dash');
+    run(m, 1, { x: -100, buttons: ['grab'] });
+    expect(f.move).toBe('pivotGrab');
+    expect(f.facing).toBe(-1);
+    expect(f.vel.x).toBeGreaterThan(0);
+  });
+
+  it('a whiffed grab plays out to its first actionable frame', () => {
+    const m = fireboy();
+    const f = m.fighters[0]!;
+    run(m, 1, { buttons: ['grab'] });
+    let frames = 1;
+    while (f.move === 'grab') {
+      run(m, 1);
+      frames++;
+    }
+    expect(frames).toBe(moves.grab!.faf);
+    expect(f.action).toBe('idle');
+  });
+
+  it('the standing grab reaches about 12 units in front, like Mario', () => {
+    const box = moves.grab!.hits[0]!.boxes[0]!;
+    expect(box.grab).toBe(true);
+    expect(box.x + box.radius).toBeCloseTo(ref.grab.grab_range_mario, 6);
+  });
+});
+
+/** Fireboy (P1) holding a second Fireboy at `percent`, both on P1's ground 12 units apart; `x` places P1. */
+function holding(percent = 0, x?: number, facing?: 1 | -1) {
+  const m = testMatch({ fighter: 'fireboy', players: 2 });
+  const [a, v] = m.fighters as [FighterState, FighterState];
+  if (x !== undefined) {
+    Object.assign(a, { pos: { x, y: 0.5 }, prevPos: { x, y: 0.5 }, ground: null, action: 'fall' });
+    runPorts(m, 10, [{}, {}]);
+  }
+  a.facing = facing ?? a.facing;
+  const at = { x: a.pos.x + 12 * a.facing, y: a.pos.y };
+  Object.assign(v, {
+    pos: { ...at },
+    prevPos: { ...at },
+    ground: a.ground,
+    action: 'idle',
+    facing: -a.facing,
+  });
+  Object.assign(v, { intangible: 0, damage: percent });
+  runPorts(m, 1, [{ buttons: ['grab'] }, {}]);
+  runPorts(m, 6, [{}, {}]);
+  expect(v.action).toBe('grabbed');
+  return { m, a, v };
+}
+
+describe('Fireboy: pummel and throws', () => {
+  const inputs: [string, (facing: number) => Hold][] = [
+    ['fthrow', (s) => ({ x: 100 * s })],
+    ['bthrow', (s) => ({ x: -100 * s })],
+    ['uthrow', () => ({ y: 100 })],
+    ['dthrow', () => ({ y: -100 })],
+    ['fthrow', (s) => ({ cx: 100 * s })],
+    ['bthrow', (s) => ({ cx: -100 * s })],
+    ['uthrow', () => ({ cy: 100 })],
+    ['dthrow', () => ({ cy: -100 })],
+    ['pummel', () => ({ buttons: ['attack'] })],
+    ['pummel', () => ({ buttons: ['grab'] })],
+  ];
+  it.each(inputs)('%s from the hold', (move, hold) => {
+    const { m, a } = holding();
+    runPorts(m, 1, [hold(a.facing), {}]);
+    expect(a.move).toBe(move);
+  });
+
+  it.each([
+    ['fthrow', 8, inputs[0]![1]],
+    ['bthrow', 11, inputs[1]![1]],
+    ['uthrow', 7, inputs[2]![1]],
+    ['dthrow', 5, inputs[3]![1]],
+  ] as const)('%s deals %s%% (Mario-like) and lets go on its release frame', (move, damage, hold) => {
+    const t = moves[move]!.throw!;
+    expect(t.hit.damage).toBe(damage);
+    expect(t.frame).toBeLessThan(moves[move]!.faf);
+    const { m, a, v } = holding(50);
+    runPorts(m, 1, [hold(a.facing), {}]);
+    runPorts(m, t.frame - 2, [{}, {}]);
+    expect(v.action).toBe('grabbed');
+    runPorts(m, 1, [{}, {}]);
+    expect(v.launch).not.toBeNull();
+    expect(v.damage).toBeCloseTo(50 + damage * 1.05 * 1.2, 6);
+  });
+
+  it('back throw is the kill throw: from the ledge it KOs off the side at 130% where forward throw does not', () => {
+    /** Thrown toward the right ledge from near it; true when the opponent crosses the side blast zone. */
+    const ko = (move: 'fthrow' | 'bthrow') => {
+      const { m, a, v } = holding(130, 66, move === 'fthrow' ? 1 : -1);
+      runPorts(m, 1, [{ x: 100 }, {}]);
+      expect(a.move).toBe(move);
+      for (let i = 0; i < 300 && v.action !== 'ko'; i++) runPorts(m, 1, [{}, {}]);
+      return v.action === 'ko' && v.pos.x > 240;
+    };
+    expect(ko('bthrow')).toBe(true);
+    expect(ko('fthrow')).toBe(false);
+  });
+
+  it('down throw at 0% leaves Fireboy free to act before the opponent: a combo throw', () => {
+    const { m, a, v } = holding(0);
+    runPorts(m, 1, [{ y: -100 }, {}]);
+    expect(a.move).toBe('dthrow');
+    let fireboyFree = 0;
+    let victimFree = 0;
+    for (let i = 1; i < 120 && !victimFree; i++) {
+      runPorts(m, 1, [{}, {}]);
+      if (!fireboyFree && a.action === 'idle') fireboyFree = i;
+      if (v.launch === null && v.hitstun <= 0 && v.action !== 'grabbed') victimFree = i;
+    }
+    expect(fireboyFree).toBeGreaterThan(0);
+    expect(fireboyFree).toBeLessThan(victimFree);
   });
 });

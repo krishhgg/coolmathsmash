@@ -78,7 +78,18 @@ export interface HitboxDef {
    * behind him, or away from his centre for hits that surround him.
    */
   direction?: 'forward' | 'back' | 'away';
+  /**
+   * A grab box: no damage or knockback (leave those 0). Touching a fighter in front of the grabber puts both in
+   * a grab; it ignores shields and is halved in radius against airborne fighters (Ultimate).
+   */
+  grab?: boolean;
 }
+
+/** A throw's release hit: a hitbox without a position, since it lands on the held fighter wherever they are. */
+export type ThrowHitDef = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius' | 'grab' | 'direction'> & {
+  /** 'back' launches behind the thrower (back throws). */
+  direction?: 'forward' | 'back';
+};
 
 /** A window of frames (inclusive) during which a set of hitboxes is out. */
 export interface HitWindow {
@@ -104,6 +115,11 @@ export interface MoveDef {
   autoCancel?: [number, number][];
   /** Smash attacks: holding the input pauses the move on this frame for up to 60 frames, for up to 1.4x damage. */
   charge?: number;
+  /**
+   * Jab combos: Attack (pressed, buffered or held) with no stick direction during `window` (inclusive) cancels this
+   * grounded move into `move`, the next hit of the combo (jab -> jab2 -> jab3).
+   */
+  next?: { window: [number, number]; move: string };
   /** Specials that take off (recoveries): a grounded start leaves the ground and plays as an aerial. */
   leavesGround?: boolean;
   /** Frames (inclusive) on which the fighter is intangible, as on a getup attack. */
@@ -120,6 +136,14 @@ export interface MoveDef {
    * which plays the rest of the move.
    */
   transform?: { frame: number; into: string };
+
+  /** Pummels: on `frame` the held fighter takes `damage` and hitlag (x `hitlag`) but no knockback, and stays held. */
+  pummel?: { frame: number; damage: number; hitlag?: number };
+  /**
+   * Throws: on `frame` the held fighter is let go and takes `hit` through the normal knockback path (DI,
+   * staleness and rage included). Throws have no hitlag unless `hit.hitlag` sets a multiplier, as in Ultimate.
+   */
+  throw?: { frame: number; hit: ThrowHitDef };
   /**
    * Scripted behaviour (specials): runs every frame of the move before physics, after actionFrame advances.
    * It may set velocity or facing. Keep it deterministic: no Math.random, no clocks.
@@ -135,7 +159,8 @@ export interface FighterDef {
   stats: FighterStats;
   /**
    * Moves by name. Normals use Smash's names: jab, ftilt, utilt, dtilt, dashAttack, fsmash, usmash, dsmash,
-   * nair, fair, bair, uair, dair. The name is also the animation clip name.
+   * nair, fair, bair, uair, dair; grabs are grab, dashGrab, pivotGrab, pummel, fthrow, bthrow, uthrow, dthrow.
+   * The name is also the animation clip name.
    */
   moves?: Record<string, MoveDef>;
   /** Art data for the renderer (src/render/rig). Plain data, no renderer imports. */
