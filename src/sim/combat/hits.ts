@@ -63,7 +63,7 @@ function hittable(f: FighterState): boolean {
   return f.action !== 'ko' && f.action !== 'out' && !isIntangible(f);
 }
 
-/** One connection, with everything about the attacker captured before any of this frame's hits land. */
+/** One connection, with everything about both fighters captured before any of this frame's hits land. */
 interface Connection {
   a: FighterState;
   v: FighterState;
@@ -72,6 +72,10 @@ interface Connection {
   stale: number;
   rage: number;
   dir: 1 | -1;
+  /** The victim's % before this frame's hits. */
+  percent: number;
+  crouch: boolean;
+  shielding: boolean;
 }
 
 /**
@@ -102,19 +106,40 @@ export function resolveHits(m: MatchState): void {
     const kind = moveOf(a)?.kind ?? 'other';
     for (const { v, box } of found) {
       a.hitVictims.push(v.port);
-      hits.push({ a, v, box, kind, stale: a.moveStale, rage: rageMultiplier(a.damage), dir: a.facing });
+      hits.push({
+        a,
+        v,
+        box,
+        kind,
+        stale: a.moveStale,
+        rage: rageMultiplier(a.damage),
+        dir: a.facing,
+        percent: v.damage,
+        crouch: v.action === 'crouch' && v.ground !== null,
+        shielding: v.action === 'shield' || v.action === 'shieldStun',
+      });
     }
   }
+  const struck = new Set<FighterState>();
   for (const h of hits) {
-    if (h.v.action === 'shield' || h.v.action === 'shieldStun') shieldHit(h);
-    else hit(m, h);
+    const again = struck.has(h.v);
+    struck.add(h.v);
+    if (h.shielding) shieldHit(h, again);
+    else hit(m, h, again);
   }
 }
 
-function hit(m: MatchState, { a, v, box, stale, rage, dir }: Connection): void {
-  const crouch = v.action === 'crouch' && v.ground !== null;
+/**
+ * Damage always adds up. When several fighters hit the same victim on one frame (`again`), the strongest
+ * knockback is the launch and the longest hitlag is the victim's freeze.
+ */
+function hit(
+  m: MatchState,
+  { a, v, box, stale, rage, dir, percent, crouch }: Connection,
+  again: boolean,
+): void {
   const kb = knockback({
-    percent: v.damage,
+    percent,
     damage: box.damage,
     kbg: box.kbg,
     bkb: box.bkb,
@@ -128,25 +153,26 @@ function hit(m: MatchState, { a, v, box, stale, rage, dir }: Connection): void {
   v.damage = Math.min(DAMAGE_MAX, v.damage + damage * (m.players.length === 2 ? ONE_V_ONE_DAMAGE : 1));
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric', crouch });
   a.hitlag = lag;
-  v.hitlag = lag;
+  v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
+  if (again && v.launch && v.launch.kb >= kb) return;
   v.launch = { kb, angle: box.angle, dir, setKnockback: (box.wbkb ?? 0) > 0 };
   v.action = isTumble(kb) ? 'tumble' : 'hitstun';
   v.actionFrame = 0;
   v.move = null;
 }
 
-function shieldHit({ a, v, box, kind, stale, dir }: Connection): void {
+function shieldHit({ a, v, box, kind, stale, dir }: Connection, again: boolean): void {
   const damage = box.damage * stale;
   const stun = shieldstunFrames(damage, kind);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric' });
   a.hitlag = lag;
-  v.hitlag = lag;
+  v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
   v.shieldHp -= damage * SHIELD_DAMAGE_MULT + (box.shieldDamage ?? 0);
   const away = Math.sign(v.pos.x - a.pos.x) || dir;
   const push = shieldPushback(damage, stun);
   v.kb.x = away * push.defender;
   if (a.ground) a.kb.x = -away * push.attacker;
-  v.hitstun = stun;
+  v.hitstun = again ? Math.max(v.hitstun, stun) : stun;
   v.action = 'shieldStun';
   v.actionFrame = 0;
 }

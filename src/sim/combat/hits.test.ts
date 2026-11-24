@@ -4,7 +4,16 @@ import { SHIELD_DEPLETION } from '../constants';
 import type { FighterState } from '../fighter';
 import type { MatchState } from '../match';
 import { marioReference as mario } from '../testing/reference';
-import { attack, run, runPorts, testMatch } from '../testing/sim';
+import { attack, input, run, runPorts, testMatch, type Hold } from '../testing/sim';
+import { stepMatch } from '../match';
+
+function stepAll(m: MatchState, frames: number, hold: (port: number) => Hold): void {
+  for (let i = 0; i < frames; i++)
+    stepMatch(
+      m,
+      m.players.map((p) => input(hold(p.port))),
+    );
+}
 import { hitlagFrames, hitstunFrames, knockback, shieldstunFrames, speedUp } from './formulas';
 
 const kb10 = ref.knockback.test_vectors.find((v) => v.id === 'kb10_fresh_bonus')!;
@@ -146,6 +155,45 @@ describe('hits (research vector kb10 end to end)', () => {
     expect(b.damage).toBeCloseTo(12 * 1.05, 6);
     expect(c.damage).toBeCloseTo(12 * 1.05, 6);
     expect(a.staleQueue).toEqual(['probe']);
+  });
+
+  it('two hits on one victim in a frame both read its state from before either landed', () => {
+    const m = testMatch({ players: 3 });
+    const [a, b, v] = m.fighters as [FighterState, FighterState, FighterState];
+    for (const [f, x, facing] of [
+      [a, -10, 1],
+      [b, 6, -1],
+      [v, -2, 1],
+    ] as const) {
+      Object.assign(f, {
+        pos: { x, y: 1 },
+        prevPos: { x, y: 1 },
+        vel: { x: 0, y: 0 },
+        ground: null,
+        action: 'fall',
+      });
+      Object.assign(f, { actionFrame: 1, jumpsUsed: 1, facing });
+    }
+    run(m, 20);
+    const crouch = (n: number) => stepAll(m, n, (port) => (port === 2 ? { y: -100 } : {}));
+    crouch(5);
+    expect(v.action).toBe('crouch');
+    attack(m, 0, 'probe');
+    attack(m, 1, 'flat');
+    crouch(1);
+    const flat = knockback({
+      percent: 0,
+      damage: 12,
+      kbg: 100,
+      bkb: 60,
+      weight: 98,
+      stale: 1.05,
+      crouch: true,
+    });
+    expect(v.damage).toBeCloseTo(2 * 12 * 1.05, 6);
+    expect(v.launch!.kb).toBeCloseTo(flat, 6);
+    expect(v.launch!.dir).toBe(-1);
+    expect(v.hitlag).toBe(Math.floor(hitlagFrames(12 * 1.05) * 0.67));
   });
 
   it('a flat grounded hit strong enough to tumble slides along the ground for its whole hitstun', () => {
