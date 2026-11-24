@@ -26,5 +26,12 @@
     "evokes": "Snail Bob's construction site (Hunter Hamster): an original tiptoeing cartoon caper",
     "loopStart": 0,
     "loopEnd": 45.714286
+  },
+  "wheely-trucks": {
+    "file": "music/wheely-trucks.mp3",
+    "title": "Wheely",
+    "evokes": "Wheely (Pegas Games): an original feel-good funk-pop drive",
+    "loopStart": 0,
+    "loopEnd": 42.857143
   }
 }
