@@ -655,8 +655,8 @@ export const clips: Record<string, AnimClip> = {
     length: 30,
     loop: true,
     swaps: SIDE_HURT,
-    keys: [0, 6, 12, 18, 24, 30].map((f, i) =>
-      key(f, mix(i % 2 ? TUMBLE_FLAIL : TUMBLE, { body: { sx: -1, rot: 32 + 72 * i } }), { ease: 'linear' }),
+    keys: [0, 5, 10, 15, 20, 25, 30].map((f, i) =>
+      key(f, mix(i % 2 ? TUMBLE_FLAIL : TUMBLE, { body: { sx: -1, rot: 32 + 60 * i } }), { ease: 'linear' }),
     ),
   },
   helpless: {
