@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { activeHitboxes } from '../../sim/combat/hits';
-import { attack, runPorts, type Hold } from '../../sim/testing/sim';
+import { attack, placeInAir, runPorts, type Hold } from '../../sim/testing/sim';
 import { moves } from './moves';
 import { stats } from './stats';
-import { holding, killPercent, strike, throwKills, versus } from './testing';
+import { firstActive, holding, killPercent, strike, throwKills, versus } from './testing';
 
 describe('Papa Louie: stats', () => {
   it('match the roster: Mario-plus weight, Ness ground speeds, floaty Samus gravity and Zelda jumps', () => {
@@ -198,5 +198,75 @@ describe('Papa Louie: grab and throws', () => {
     }
     expect(papaFree).toBeGreaterThan(0);
     expect(papaFree).toBeLessThan(victimFree);
+  });
+});
+
+describe('Papa Louie: Paddle Propeller (up special)', () => {
+  it('rises about 60 units from frame 6, then leaves him helpless with 22 frames of landing lag', () => {
+    const m = versus();
+    const f = m.fighters[0]!;
+    const y0 = f.pos.y;
+    runPorts(m, 1, [{ y: 100, buttons: ['special'] }, {}]);
+    expect(f.move).toBe('upB');
+    let top = y0;
+    let firstRise = 0;
+    let helpless = false;
+    for (let i = 0; i < 600 && !(helpless && f.ground); i++) {
+      runPorts(m, 1, [{}, {}]);
+      if (!firstRise && f.pos.y > y0 + 0.5) firstRise = f.actionFrame;
+      top = Math.max(top, f.pos.y);
+      helpless ||= f.action === 'helpless';
+    }
+    expect(firstRise).toBeLessThanOrEqual(7);
+    expect(top - y0).toBeGreaterThan(50);
+    expect(top - y0).toBeLessThan(70);
+    expect(helpless).toBe(true);
+    expect(f.action).toBe('land');
+    expect(f.landingLag).toBe(22);
+  });
+
+  it('steers with the stick', () => {
+    const drift = (x: number) => {
+      const m = versus();
+      const f = m.fighters[0]!;
+      const x0 = f.pos.x;
+      runPorts(m, 1, [{ y: 100, buttons: ['special'] }, {}]);
+      runPorts(m, 34, [{ x }, {}]);
+      return f.pos.x - x0;
+    };
+    expect(drift(100)).toBeGreaterThan(15);
+    expect(drift(-100)).toBeLessThan(-15);
+  });
+
+  it('carries a Mario standing beside him up through all six hits: 9%, fresh (x1.05) and x1.2 in 1v1', () => {
+    const m = versus();
+    const [a, v] = m.fighters;
+    Object.assign(v!, { pos: { x: a!.pos.x + 3, y: a!.pos.y }, ground: a!.ground, action: 'idle' });
+    v!.intangible = 0;
+    runPorts(m, 1, [{ y: 100, buttons: ['special'] }, {}]);
+    runPorts(m, 60, [{}, {}]);
+    expect(v!.damage).toBeCloseTo(9 * 1.05 * 1.2, 6);
+  });
+});
+
+describe('Papa Louie: Paddle Deflect (down special)', () => {
+  it("the paddle's edge hits a Mario beside him for 7% on frame 5", () => {
+    expect(firstActive('downB')).toBe(5);
+    const { v } = strike('downB', { x: 7 }, 0);
+    expect(v.damage).toBeCloseTo(7 * 1.05 * 1.2, 6);
+  });
+
+  it('slows his fall in the air', () => {
+    const fallAfter = (move: boolean) => {
+      const m = versus();
+      const f = placeInAir(m, 0, 80);
+      runPorts(m, 20, [{}, {}]);
+      if (move) runPorts(m, 1, [{ y: -100, buttons: ['special'] }, {}]);
+      else runPorts(m, 1, [{}, {}]);
+      const y = f.pos.y;
+      runPorts(m, 15, [{}, {}]);
+      return y - f.pos.y;
+    };
+    expect(fallAfter(true)).toBeLessThan(fallAfter(false) * 0.6);
   });
 });
