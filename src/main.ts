@@ -10,9 +10,11 @@ async function boot(): Promise<void> {
   const harness = params.has('harness');
   const game = new Game(renderer, harness);
   renderer.overlays.inputs = params.has('inputs');
+  renderer.overlays.actions = params.has('actions');
   game.keyboard.attach(window);
   window.addEventListener('keydown', (e) => {
     if (e.code === 'F2') renderer.overlays.inputs = !renderer.overlays.inputs;
+    if (e.code === 'F3') renderer.overlays.actions = !renderer.overlays.actions;
   });
   if (harness || params.has('debug')) installHarness(game);
   game.loop.start();

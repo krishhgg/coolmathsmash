@@ -1,28 +1,36 @@
 import { Application, Container, Graphics } from 'pixi.js';
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../config';
+import { getFighter } from '../fighters/registry';
 import type { MatchState } from '../sim/match';
+import { getStage } from '../stages/registry';
+import type { StageGeometry } from '../sim/stage';
+import { Camera } from './camera';
 import { InputDisplay } from './debug/inputDisplay';
-
-/** World units (Smash units, y up) to screen pixels for the fixed framing used until the dynamic camera lands. */
-const PX_PER_UNIT = VIEW_WIDTH / 240;
-const ORIGIN_Y = VIEW_HEIGHT * 0.62;
+import { FighterView } from './fighterView';
 
 export interface Overlays {
   inputs: boolean;
+  /** Action names over fighters. */
+  actions: boolean;
 }
 
 export class Renderer {
   readonly world = new Container();
   readonly hud = new Container();
   readonly debug = new Container();
-  readonly overlays: Overlays = { inputs: false };
+  readonly overlays: Overlays = { inputs: false, actions: false };
+  readonly camera = new Camera();
   private readonly inputDisplay = new InputDisplay();
+  private readonly stageLayer = new Container();
+  private readonly fighterLayer = new Container();
+  private fighters: FighterView[] = [];
+  private stageId = '';
+  private stage: StageGeometry | null = null;
+  private matchKey: unknown = null;
 
   private constructor(readonly app: Application) {
-    this.world.position.set(VIEW_WIDTH / 2, ORIGIN_Y);
-    this.world.scale.set(PX_PER_UNIT);
+    this.world.addChild(this.stageLayer, this.fighterLayer);
     app.stage.addChild(this.world, this.hud, this.debug);
-    this.world.addChild(placeholderStage());
     this.debug.addChild(this.inputDisplay.container);
   }
 
@@ -41,35 +49,53 @@ export class Renderer {
     return new Renderer(app);
   }
 
+  private sync(state: MatchState): void {
+    if (this.stageId !== state.config.stage) {
+      this.stageId = state.config.stage;
+      this.stage = getStage(state.config.stage);
+      this.stageLayer.removeChildren();
+      this.stageLayer.addChild(placeholderStage(this.stage));
+    }
+    if (this.matchKey !== state.config) {
+      this.matchKey = state.config;
+      this.fighterLayer.removeChildren();
+      this.fighters = state.fighters.map((f) => new FighterView(getFighter(f.fighter), f.port));
+      for (const v of this.fighters) this.fighterLayer.addChild(v.container);
+    }
+  }
+
+  /** Advance the camera by the frame just simulated; Game.step calls this after every frame. */
+  stepCamera(state: MatchState): void {
+    this.camera.step(state, getStage(state.config.stage));
+  }
+
   /** Draw `state`; `alpha` interpolates between the previous and current simulated frame. */
-  render(state: MatchState, _alpha: number): void {
+  render(state: MatchState, alpha: number): void {
+    this.sync(state);
+    const view = this.camera.viewFor(state, this.stage!);
+    this.world.scale.set(view.zoom);
+    this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
+    state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
     this.inputDisplay.container.visible = this.overlays.inputs;
     if (this.overlays.inputs) this.inputDisplay.update(state.players);
     this.app.render();
   }
 }
 
-/** Battlefield's collision outline (Smash Ultimate units) until the real stage art arrives. */
-function placeholderStage(): Graphics {
+/** Collision geometry drawn flat, until the stage art lands. */
+function placeholderStage(stage: StageGeometry): Graphics {
   const g = new Graphics();
-  const hull: [number, number][] = [
-    [-80, 0],
-    [80, 0],
-    [80, -8.3],
-    [64.4, -25.1],
-    [41.4, -40.1],
-    [-41.4, -40.1],
-    [-64.4, -25.1],
-    [-80, -8.3],
-  ];
-  g.poly(hull.flatMap(([x, y]) => [x, -y])).fill('#7a5230');
-  g.rect(-80, 0, 160, 3).fill('#3d8f3a');
-  for (const [x1, x2, y] of [
-    [-59.4, -24.8, 24.1],
-    [-17.3, 17.3, 47.2],
-    [24.8, 59.4, 24.1],
-  ] as const) {
-    g.roundRect(x1, -y, x2 - x1, 2.2, 1.1).fill('#d9d2c0');
+  for (const solid of stage.solids) {
+    g.poly(solid.points.flatMap(([x, y]) => [x, -y])).fill('#7a5230');
+    const top = solid.points.filter(([, y]) => y === Math.max(...solid.points.map((p) => p[1])));
+    const xs = top.map(([x]) => x);
+    g.rect(
+      Math.min(...xs),
+      -Math.max(...solid.points.map((p) => p[1])),
+      Math.max(...xs) - Math.min(...xs),
+      3,
+    ).fill('#3d8f3a');
   }
+  for (const p of stage.platforms) g.roundRect(p.x1, -p.y, p.x2 - p.x1, 2.2, 1.1).fill('#d9d2c0');
   return g;
 }
