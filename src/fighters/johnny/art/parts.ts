@@ -27,7 +27,7 @@ export function inflate(points: readonly P[], by: number): P[] {
     const [x1, y1] = points[(i + 1) % count]!;
     area += x0 * y1 - x1 * y0;
   }
-  const out = area > 0 ? -1 : 1;
+  const out = area > 0 ? 1 : -1;
   return points.map((p, i) => {
     const prev = points[(i + count - 1) % count]!;
     const next = points[(i + 1) % count]!;
