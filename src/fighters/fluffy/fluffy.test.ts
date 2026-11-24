@@ -145,6 +145,8 @@ describe('Fluffy: stats (roster sheet 8)', () => {
 describe('Fluffy: frame data (roster sheet 8)', () => {
   it.each([
     ['jab', 3, 2],
+    ['jab2', 3, 2],
+    ['jab3', 5, 3],
     ['ftilt', 7, 8],
     ['utilt', 6, 6],
     ['dtilt', 6, 6],
@@ -249,6 +251,30 @@ describe('Fluffy: kill percents on Mario at the Battlefield ledge (roster target
     const p = killPercent(move, target);
     expect(p).toBeGreaterThanOrEqual(target - 8);
     expect(p).toBeLessThanOrEqual(target + 8);
+  });
+});
+
+describe('Fluffy: jab (Fuzz Bump, Fuzz Bump, Tail Slap)', () => {
+  /** The moves a Fluffy plays when Attack is pressed every pressEvery frames for frames frames. */
+  function jabs(pressEvery: number, frames = 90): string[] {
+    const m = testMatch({ fighter: 'fluffy' });
+    const f = m.fighters[0]!;
+    const seen: string[] = [];
+    for (let i = 0; i < frames; i++) {
+      run(m, 1, i % pressEvery === 0 ? { buttons: ['attack'] } : {});
+      if (f.move && f.move !== seen[seen.length - 1]) seen.push(f.move);
+    }
+    return seen;
+  }
+
+  it('Attack again inside each window chains jab -> jab2 -> jab3 for 2%, 2% and 3%', () => {
+    expect(jabs(8, 40)).toEqual(['jab', 'jab2', 'jab3']);
+    expect([damage('jab'), damage('jab2'), damage('jab3')]).toEqual([2, 2, 3]);
+  });
+
+  it('a single press is one Fuzz Bump that ends on frame 20', () => {
+    expect(jabs(1000)).toEqual(['jab']);
+    expect(moves.jab!.faf).toBe(20);
   });
 });
 

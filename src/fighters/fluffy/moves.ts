@@ -49,16 +49,46 @@ const tether = (near: number) => [
  * near 150% (fluffy.test.ts pins these). Frame windows are inclusive; faf is the first actionable frame.
  */
 export const moves: Record<string, MoveDef> = {
-  /** Fuzz Bump: a quick shove with the fur. */
+  /** Fuzz Bump: a quick shove with the fur. Attack again to bump twice and finish with the Tail Slap. */
   jab: {
     kind: 'other',
     faf: 20,
+    next: { window: [6, 19], move: 'jab2' },
     hits: [
       {
         frames: [3, 4],
         boxes: [
           box(0, 6, 5.5, 3.5, { damage: 2, angle: 361, kbg: 25, bkb: 20 }),
           box(1, 3, 5.5, 4, { damage: 2, angle: 361, kbg: 25, bkb: 20 }),
+        ],
+      },
+    ],
+  },
+  /** Second Fuzz Bump. */
+  jab2: {
+    kind: 'other',
+    faf: 21,
+    next: { window: [6, 20], move: 'jab3' },
+    hits: [
+      {
+        frames: [3, 4],
+        boxes: [
+          box(0, 6.5, 5, 3.5, { damage: 2, angle: 361, kbg: 25, bkb: 25 }),
+          box(1, 3, 5, 4, { damage: 2, angle: 361, kbg: 25, bkb: 25 }),
+        ],
+      },
+    ],
+  },
+  /** Tail Slap: the grabber's tail cracks forward to finish the jab. */
+  jab3: {
+    kind: 'other',
+    faf: 33,
+    hits: [
+      {
+        frames: [5, 6],
+        boxes: [
+          box(0, 10, 5, 4, { damage: 3, angle: 361, kbg: 130, bkb: 45 }),
+          box(1, 4, 5, 4, { damage: 3, angle: 361, kbg: 130, bkb: 45 }),
         ],
       },
     ],
