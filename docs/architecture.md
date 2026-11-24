@@ -21,7 +21,7 @@ flowchart LR
 - Units follow Smash Ultimate: distances in game units (Battlefield's main platform is 160 wide), speeds in
   units per frame, time in frames. Reference numbers can then be used unchanged in code and tests.
 - Inputs are `InputFrame`s: integer sticks in [-100, 100] (y up) and a button bitmask. The sim turns them into
-  press edges, a 5-frame input buffer with Ultimate's hold buffer, and flick timing (dash, smash attacks, tap
+  press edges, a 7-frame input buffer with Ultimate's hold buffer, and flick timing (dash, smash attacks, tap
   jump, fast fall, platform drop) in `src/sim/control.ts`.
 
 ## Loop (`src/engine/loop.ts`)
