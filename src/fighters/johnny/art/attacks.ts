@@ -82,6 +82,57 @@ const JAB_BASE = feet({ body: { rot: 9, x: 0.8 }, hip: { y: 0.4 } }, [3.4, 0], [
 const JAB = fist(fist(JAB_BASE, 'B', [7.4, -10.1], 1.1), 'F', [0.2, -9.6], 1, 1);
 const JAB_HIT = mix(JAB, { fx1: star([7.5, -10], 1.1), fx2: trail([4.6, -10.0], [7.0, -10.0], 0.9) });
 
+// --- Jab 2: One-Two's second punch, a straight right thrown across the body. ----------------------------
+const JAB2_WIND = fist(
+  fist(feet({ body: { rot: -6, x: 0.2 }, hip: { y: 0.4 } }, [3.4, 0], [-2.2, 0]), 'B', [5.6, -9.4]),
+  'F',
+  [-1.4, -10.6],
+  1,
+  1,
+);
+const JAB2 = fist(
+  fist(feet({ body: { rot: 14, x: 1.6 }, hip: { y: 0.5 } }, [4.2, 0], [-1.8, 0]), 'B', [3.2, -10.6]),
+  'F',
+  [7.8, -10.0],
+  1.5,
+  1,
+);
+const JAB2_HIT = mix(JAB2, { fx1: star([8.2, -10], 1.1), fx2: trail([3.0, -10.0], [7.6, -10.0], 1.0) });
+
+// --- Jab 3: the Rush, fists traded at chest height (frames 3, 6, 9, 12), then a finishing far-hand punch. ---
+const RUSH = feet({ body: { rot: 10, x: 1.2 }, hip: { y: 0.6 } }, [4.0, 0], [-2.0, 0]);
+/** Both fists pulled in: the flurry starts and restarts here, so frame 14 flows back into frame 1. */
+const RUSH_PULL = mix(fist(fist(RUSH, 'B', [4.4, -10.4]), 'F', [1.6, -8.6], 1, 1), {
+  fx1: star([7.0, -10], 0.3),
+  fx2: trail([2.0, -10.0], [5.0, -10.0], 0.6),
+});
+/** One flurry punch: the far fist (`far`) or the near one out to `y`, the other pulled back. */
+const rushPunch = (far: boolean, y: number) =>
+  mix(
+    far
+      ? fist(fist(RUSH, 'B', [8.6, y], 1.2), 'F', [1.4, -9.4], 1, 1)
+      : fist(fist(RUSH, 'B', [4.0, -10.8]), 'F', [8.2, y], 1.5, 1),
+    { fx1: star([8.8, y], 1.2), fx2: trail([3.0, y], [8.4, y], 1.4) },
+  );
+const RUSH_END_WIND = fist(
+  fist(feet({ body: { rot: -12, x: -0.6 }, hip: { y: 0.6 } }, [3.4, 0], [-2.6, 0]), 'B', [0.8, -10.8]),
+  'F',
+  [2.0, -9.4],
+  1,
+  1,
+);
+const RUSH_END = fist(
+  fist(feet({ body: { rot: 18, x: 2.6 }, hip: { y: 0.7 } }, [6.0, 0], [-2.0, 0]), 'B', [9.8, -10.0], 1.4),
+  'F',
+  [0.8, -8.8],
+  1,
+  1,
+);
+const RUSH_END_HIT = mix(RUSH_END, {
+  fx1: star([10, -10], 1.9),
+  fx2: trail([4.4, -10.0], [9.6, -10.0], 1.7),
+});
+
 // --- Ftilt: Hero Kick, a chambered side kick at chest height with the near leg. ---------------------------
 const KICK_BASE = fist(
   fist(feet({ body: { rot: -18, x: 1.4 }, hip: { y: 0.6 } }, [2.6, 0], [-0.6, 0]), 'B', [4.0, -12.4]),
@@ -487,6 +538,45 @@ const clips: Record<string, AnimClip> = {
       done(5),
       key(8, JAB, { ease: 'inOut' }),
       key(17, READY),
+    ],
+  },
+  jab2: {
+    length: 19,
+    active: [[4, 5]],
+    swaps: { ...GRIT, ...FISTS },
+    keys: [
+      key(0, READY, { ease: 'out' }),
+      key(2, JAB2_WIND, { ease: 'in' }),
+      ...strike(3, 5, JAB2_HIT, HIT),
+      done(6),
+      key(10, JAB2, { ease: 'inOut' }),
+      key(19, READY),
+    ],
+  },
+  jab3: {
+    length: 44,
+    active: [
+      [3, 3],
+      [6, 6],
+      [9, 9],
+      [12, 12],
+      [19, 20],
+    ],
+    swaps: { ...GRIT, ...FISTS },
+    keys: [
+      key(0, READY, { ease: 'out' }),
+      key(1, RUSH_PULL, { ease: 'linear', swaps: { ...HIT, ...SHOUT } }),
+      key(3, rushPunch(true, -10.0), { ease: 'linear' }),
+      key(6, rushPunch(false, -10.4), { ease: 'linear' }),
+      key(9, rushPunch(true, -9.6), { ease: 'linear' }),
+      key(12, rushPunch(false, -10.2), { ease: 'linear' }),
+      key(14, RUSH_PULL, { ease: 'out' }),
+      done(15),
+      key(17, RUSH_END_WIND, { ease: 'in' }),
+      ...strike(18, 20, RUSH_END_HIT, { ...HIT, ...SHOUT }),
+      done(21),
+      key(28, RUSH_END, { ease: 'inOut' }),
+      key(44, READY),
     ],
   },
   ftilt: {
