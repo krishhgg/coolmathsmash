@@ -8,8 +8,11 @@ type Dynamic<T> = T | ((x: Ctx) => T);
  */
 export interface ActionDef {
   physics: 'ground' | 'air' | 'none';
-  /** Ground: at the end of the surface, walk off ('fall') or stop ('stop', the default). */
-  edge?: 'fall' | 'stop';
+  /**
+   * Ground: at the end of the surface, walk off into fall ('fall'), slide off still in this action, which then
+   * runs air physics ('keep'), or stop ('stop', the default).
+   */
+  edge?: 'fall' | 'keep' | 'stop';
   /** Ground: apply traction (default true). Actions that set their own speed turn it off. */
   friction?: boolean;
   /** Air: stick drift (default true); 'helpless' drifts at reduced speed. */

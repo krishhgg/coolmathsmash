@@ -44,6 +44,7 @@
       "characters/fireboy-watergirl/sprite-fireboy-flash-*",
       "characters/fireboy-watergirl/official-art-fireboy-*",
       "characters/fireboy-watergirl/ingame-fireboy-*"
-    ]
+    ],
+    "hud-hit": ["smash/hud-closeup-*", "smash/attack-active-*", "smash/battle-4-player-*"]
   }
 }

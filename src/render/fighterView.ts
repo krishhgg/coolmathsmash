@@ -43,8 +43,7 @@ export function pickCostumes(
   const picks: string[] = [];
   config.ports.forEach((p, port) => {
     const names = Object.keys(artOf(p.fighter)?.palettes ?? { default: {} });
-    const asked = (p as { costume?: string }).costume;
-    const wanted = asked && names.includes(asked) ? asked : 'default';
+    const wanted = p.costume && names.includes(p.costume) ? p.costume : 'default';
     const used = picks.filter((_, i) => config.ports[i]!.fighter === p.fighter);
     picks[port] = used.includes(wanted) ? (names.find((n) => !used.includes(n)) ?? wanted) : wanted;
   });

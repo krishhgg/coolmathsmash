@@ -14,6 +14,7 @@ import { emit } from '../events';
 import type { Ctx } from '../fighter';
 import { leaveGround } from '../movement';
 import { consumeJump, wantsJump } from './common';
+import { shieldGrab } from './grab';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
 
 /** Share of a roll's distance covered on each frame of its movement window: a smooth ease-in/ease-out. */
@@ -54,11 +55,15 @@ function roll(name: 'rollForward' | 'rollBack'): ActionDef {
 }
 
 export const DEFENSE: Record<string, ActionDef> = {
-  /** Held shield: drains health; jump, roll (flick sideways) and spot dodge (flick down) come out instantly. */
+  /**
+   * Held shield: drains health; jump, roll (flick sideways) and spot dodge (flick down) come out instantly, and a
+   * shield grab once the post-shieldstun lock is over.
+   */
   shield: {
     physics: 'ground',
     update(x) {
       const { f, c } = x;
+      if (shieldGrab(x)) return;
       if (wantsJump(x)) {
         consumeJump(x);
         return setAction(x, 'jumpSquat');
