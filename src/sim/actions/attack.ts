@@ -1,6 +1,7 @@
 import { getFighter } from '../../fighters/registry';
 import type { MoveDef } from '../../fighters/types';
 import type { Ctx, FighterState } from '../fighter';
+import { normalLandingLag } from '../movement';
 import { fastFallCheck } from './air';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
 
@@ -14,6 +15,7 @@ export function startMove(x: Ctx, name: string): void {
   setAction(x, x.f.ground ? 'attack' : 'aerial');
   x.f.move = name;
   x.f.hitVictims = [];
+  x.f.moveStale = 0;
 }
 
 /** A window marked `rehit` forgets earlier victims as it opens, so multi-hit moves connect again. */
@@ -44,10 +46,10 @@ export const ATTACK: Record<string, ActionDef> = {
       if (f.actionFrame >= move.faf) setAction(x, 'fall');
     },
     land(x) {
-      const { f, s } = x;
+      const { f } = x;
       const move = moveOf(f)!;
       const cancelled = move.autoCancel?.some((w) => inWindow(f.actionFrame, w)) ?? false;
-      f.landingLag = !cancelled && move.landingLag !== undefined ? move.landingLag : s.softLandingLag;
+      f.landingLag = !cancelled && move.landingLag !== undefined ? move.landingLag : normalLandingLag(x);
       enterAction(x, 'land', 0);
     },
   },

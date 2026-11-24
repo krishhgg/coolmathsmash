@@ -114,9 +114,14 @@ export function land(x: Ctx, g: GroundRef): void {
   if (action.land) {
     action.land(x);
   } else {
-    f.landingLag = f.airFrames < HARD_LANDING_AIRTIME ? s.softLandingLag : s.hardLandingLag;
+    f.landingLag = normalLandingLag(x);
     enterAction(x, 'land', 0);
   }
+}
+
+/** Soft landing lag after a short airtime, hard landing lag after a longer one. */
+export function normalLandingLag(x: Ctx): number {
+  return x.f.airFrames < HARD_LANDING_AIRTIME ? x.s.softLandingLag : x.s.hardLandingLag;
 }
 
 function crossing(prev: number, next: number): boolean {
@@ -128,7 +133,7 @@ function crossing(prev: number, next: number): boolean {
  * covers on this real frame. 1 otherwise.
  */
 export function launchTimeScale(f: FighterState): number {
-  if (f.speedUpFaf === 0 || f.hitstun <= 0 || f.action !== 'tumble') return 1;
+  if (f.speedUpFaf === 0 || f.hitstun <= 0 || (f.action !== 'tumble' && f.action !== 'hitstun')) return 1;
   return speedUp(f.speedUpFaf).steps[f.actionFrame - 1] ?? 1;
 }
 

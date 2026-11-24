@@ -3,6 +3,7 @@ import ref from '../reference/physics-constants.json';
 import { SHIELD_DEPLETION } from '../constants';
 import type { FighterState } from '../fighter';
 import type { MatchState } from '../match';
+import { marioReference as mario } from '../testing/reference';
 import { attack, run, runPorts, testMatch } from '../testing/sim';
 import { hitlagFrames, hitstunFrames, knockback, shieldstunFrames, speedUp } from './formulas';
 
@@ -27,7 +28,14 @@ function duel(ax = -10, vx = -2): { m: MatchState; a: FighterState; v: FighterSt
 
 /** Float `v` in the air at (x, y), as if falling. */
 function airborne(v: FighterState, x: number, y: number): void {
-  Object.assign(v, { pos: { x, y }, prevPos: { x, y }, vel: { x: 0, y: 0 }, ground: null, action: 'fall' });
+  Object.assign(v, {
+    pos: { x, y },
+    prevPos: { x, y },
+    vel: { x: 0, y: 0 },
+    ground: null,
+    action: 'fall',
+    airFrames: 0,
+  });
 }
 
 describe('hits (research vector kb10 end to end)', () => {
@@ -100,11 +108,62 @@ describe('hits (research vector kb10 end to end)', () => {
     expect(ghost.v.damage).toBe(0);
 
     const trade = duel(-6, 6);
+    trade.v.staleQueue = ['probe'];
+    trade.a.damage = 100;
     attack(trade.m, 0, 'probe');
     attack(trade.m, 1, 'probe');
     run(trade.m, 1);
-    expect(trade.a.damage).toBeGreaterThan(0);
-    expect(trade.v.damage).toBeGreaterThan(0);
+    expect(trade.v.damage).toBeCloseTo(12 * 1.05 * 1.2, 6);
+    expect(trade.a.damage - 100).toBeCloseTo(12 * 0.91 * 1.2, 6);
+    expect(trade.a.staleQueue).toEqual(['probe']);
+    expect(trade.v.staleQueue).toEqual(['probe', 'probe']);
+    expect(trade.a.launch!.kb).toBeCloseTo(
+      knockback({ percent: 100, damage: 12, kbg: 100, bkb: 30, weight: 98, stale: 0.91 }),
+      6,
+    );
+  });
+
+  it('one move activation stales once, even when it hits two fighters', () => {
+    const m = testMatch({ players: 3 });
+    const [a, b, c] = m.fighters as [FighterState, FighterState, FighterState];
+    for (const [f, x] of [
+      [a, -10],
+      [b, -4],
+      [c, -2],
+    ] as const) {
+      Object.assign(f, {
+        pos: { x, y: 1 },
+        prevPos: { x, y: 1 },
+        vel: { x: 0, y: 0 },
+        ground: null,
+        action: 'fall',
+      });
+      Object.assign(f, { actionFrame: 1, jumpsUsed: 1, facing: 1 });
+    }
+    run(m, 20);
+    attack(m, 0, 'probe');
+    run(m, 1);
+    expect(b.damage).toBeCloseTo(12 * 1.05, 6);
+    expect(c.damage).toBeCloseTo(12 * 1.05, 6);
+    expect(a.staleQueue).toEqual(['probe']);
+  });
+
+  it('a flat grounded hit strong enough to tumble slides along the ground for its whole hitstun', () => {
+    const { m, v } = duel(-10, -3);
+    attack(m, 0, 'flat');
+    run(m, 1);
+    const kb = v.launch!.kb;
+    expect(kb).toBeGreaterThanOrEqual(80);
+    expect(kb).toBeLessThan(120);
+    run(m, v.hitlag + 1);
+    let frames = 1;
+    while (v.hitstun > 0) {
+      expect(v.ground).not.toBeNull();
+      expect(v.action).toBe('hitstun');
+      run(m, 1);
+      frames++;
+    }
+    expect(frames).toBe(speedUp(hitstunFrames(kb) + 1).actionable);
   });
 
   it('stales a move that keeps hitting: the second hit deals 0.91x where the first got the 1.05x fresh bonus', () => {
@@ -209,6 +268,17 @@ describe('aerials', () => {
       return f.action === 'land' ? f.landingLag : -1;
     };
     expect(lag(5)).toBe(6);
-    expect(lag(0.05)).toBe(1);
+    expect(lag(0.05)).toBe(mario.stats.softLandingLag);
+  });
+
+  it('an auto-cancelled landing after a long airtime still takes the normal hard landing lag', () => {
+    const m = testMatch();
+    const f = m.fighters[0]!;
+    airborne(f, 0, 0.05);
+    f.airFrames = 30;
+    attack(m, 0, 'nair');
+    while (f.action === 'aerial') run(m, 1);
+    expect(f.action).toBe('land');
+    expect(f.landingLag).toBe(mario.stats.hardLandingLag);
   });
 });

@@ -63,36 +63,55 @@ function hittable(f: FighterState): boolean {
   return f.action !== 'ko' && f.action !== 'out' && !isIntangible(f);
 }
 
+/** One connection, with everything about the attacker captured before any of this frame's hits land. */
+interface Connection {
+  a: FighterState;
+  v: FighterState;
+  box: HitboxDef;
+  kind: MoveKind;
+  stale: number;
+  rage: number;
+  dir: 1 | -1;
+}
+
 /**
  * Find every hit this frame from the state before any of them lands, then apply them all, so two fighters
  * whose moves connect on the same frame trade. Each move hits a fighter once (per rehit window), lowest
- * hitbox id first.
+ * hitbox id first. A move activation stales once: its multiplier is fixed and it enters the stale queue the
+ * first time it connects, however many fighters or rehit windows it hits afterwards.
  */
 export function resolveHits(m: MatchState): void {
-  const hits: { a: FighterState; v: FighterState; box: HitboxDef }[] = [];
+  const hits: Connection[] = [];
   for (const a of m.fighters) {
     if (a.hitlag > 0) continue;
     const boxes = activeHitboxes(a);
     if (boxes.length === 0) continue;
+    const found: { v: FighterState; box: HitboxDef }[] = [];
     for (const v of m.fighters) {
       if (v === a || a.hitVictims.includes(v.port) || !hittable(v)) continue;
       const body = hurtbox(v, getFighter(v.fighter).stats);
       const hit = boxes.filter((h) => touches(h, body)).sort((p, q) => p.box.id - q.box.id)[0];
-      if (hit) hits.push({ a, v, box: hit.box });
+      if (hit) found.push({ v, box: hit.box });
+    }
+    if (found.length === 0) continue;
+    const move = a.move!;
+    if (a.moveStale === 0) {
+      a.moveStale = staleMultiplier(a.staleQueue.flatMap((name, i) => (name === move ? [i + 1] : [])));
+      a.staleQueue = [move, ...a.staleQueue].slice(0, STALE_QUEUE_LENGTH);
+    }
+    const kind = moveOf(a)?.kind ?? 'other';
+    for (const { v, box } of found) {
+      a.hitVictims.push(v.port);
+      hits.push({ a, v, box, kind, stale: a.moveStale, rage: rageMultiplier(a.damage), dir: a.facing });
     }
   }
-  for (const { a, v, box } of hits) {
-    const kind = moveOf(a)?.kind ?? 'other';
-    a.hitVictims.push(v.port);
-    if (v.action === 'shield' || v.action === 'shieldStun') shieldHit(a, v, box, kind);
-    else hit(m, a, v, box);
+  for (const h of hits) {
+    if (h.v.action === 'shield' || h.v.action === 'shieldStun') shieldHit(h);
+    else hit(m, h);
   }
 }
 
-function hit(m: MatchState, a: FighterState, v: FighterState, box: HitboxDef): void {
-  const move = a.move!;
-  const slots = a.staleQueue.flatMap((name, i) => (name === move ? [i + 1] : []));
-  const stale = staleMultiplier(slots);
+function hit(m: MatchState, { a, v, box, stale, rage, dir }: Connection): void {
   const crouch = v.action === 'crouch' && v.ground !== null;
   const kb = knockback({
     percent: v.damage,
@@ -102,7 +121,7 @@ function hit(m: MatchState, a: FighterState, v: FighterState, box: HitboxDef): v
     wbkb: box.wbkb,
     weight: getFighter(v.fighter).stats.weight,
     stale,
-    rage: rageMultiplier(a.damage),
+    rage,
     crouch,
   });
   const damage = box.damage * stale;
@@ -110,22 +129,20 @@ function hit(m: MatchState, a: FighterState, v: FighterState, box: HitboxDef): v
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric', crouch });
   a.hitlag = lag;
   v.hitlag = lag;
-  a.staleQueue = [move, ...a.staleQueue].slice(0, STALE_QUEUE_LENGTH);
-  v.launch = { kb, angle: box.angle, dir: a.facing, setKnockback: (box.wbkb ?? 0) > 0 };
+  v.launch = { kb, angle: box.angle, dir, setKnockback: (box.wbkb ?? 0) > 0 };
   v.action = isTumble(kb) ? 'tumble' : 'hitstun';
   v.actionFrame = 0;
   v.move = null;
 }
 
-function shieldHit(a: FighterState, v: FighterState, box: HitboxDef, kind: MoveKind): void {
-  const damage =
-    box.damage * staleMultiplier(a.staleQueue.flatMap((name, i) => (name === a.move ? [i + 1] : [])));
+function shieldHit({ a, v, box, kind, stale, dir }: Connection): void {
+  const damage = box.damage * stale;
   const stun = shieldstunFrames(damage, kind);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric' });
   a.hitlag = lag;
   v.hitlag = lag;
   v.shieldHp -= damage * SHIELD_DAMAGE_MULT + (box.shieldDamage ?? 0);
-  const away = Math.sign(v.pos.x - a.pos.x) || a.facing;
+  const away = Math.sign(v.pos.x - a.pos.x) || dir;
   const push = shieldPushback(damage, stun);
   v.kb.x = away * push.defender;
   if (a.ground) a.kb.x = -away * push.attacker;
@@ -135,8 +152,8 @@ function shieldHit(a: FighterState, v: FighterState, box: HitboxDef, kind: MoveK
 }
 
 /**
- * Hitlag is over: launch. DI comes from the victim's stick now. Grounded fighters launched downward or flat
- * slide along the ground instead; tumble launches into the ground bounce off it.
+ * Hitlag is over: launch. DI comes from the victim's stick now. Grounded fighters hit flat (0 or 180 degrees)
+ * or downward without tumble slide along the ground in hitstun; tumble spikes into the ground bounce off it.
  */
 export function applyLaunch(x: Ctx): void {
   const { f, c, s } = x;
@@ -162,12 +179,12 @@ export function applyLaunch(x: Ctx): void {
   f.hitstun = stun + 1;
   f.speedUpFaf = l.tumble && !pending.setKnockback ? stun + 1 : 0;
   if (!f.ground) return;
-  if (l.tumble) {
-    if (f.kb.y < 0) f.kb.y *= -0.8;
-    leaveGround(x);
-  } else if (f.kb.y > 0) {
-    leaveGround(x);
-  } else {
-    f.kb.y = 0;
+  const flat = l.angle === 0 || l.angle === 180;
+  if (!flat && f.kb.y > 0) return leaveGround(x);
+  if (!flat && l.tumble) {
+    f.kb.y = Math.abs(f.kb.y) * 0.8;
+    return leaveGround(x);
   }
+  f.kb.y = 0;
+  if (f.action === 'tumble') f.action = 'hitstun';
 }

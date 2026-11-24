@@ -52,6 +52,16 @@ export const marioReference = defineFighter({
         },
       ],
     },
+    flat: {
+      kind: 'other',
+      faf: 30,
+      hits: [
+        {
+          frames: [1, 3],
+          boxes: [{ id: 0, x: 8, y: 8, radius: 8, damage: 12, angle: 0, kbg: 100, bkb: 60 }],
+        },
+      ],
+    },
     jab: {
       kind: 'other',
       faf: 18,

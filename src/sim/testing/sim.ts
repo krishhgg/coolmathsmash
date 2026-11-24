@@ -76,7 +76,13 @@ export function placeInAir(m: MatchState, x: number, y: number, facing: 1 | -1 =
 /** Put fighter `port` into `move`; its frame 1 is the next simulated frame. */
 export function attack(m: MatchState, port: number, move: string): FighterState {
   const f = m.fighters[port]!;
-  Object.assign(f, { action: f.ground ? 'attack' : 'aerial', actionFrame: 0, move, hitVictims: [] });
+  Object.assign(f, {
+    action: f.ground ? 'attack' : 'aerial',
+    actionFrame: 0,
+    move,
+    hitVictims: [],
+    moveStale: 0,
+  });
   return f;
 }
 
