@@ -4,6 +4,7 @@ import { neutralInput, type InputFrame } from '../input/types';
 import { registerStage, STAGES } from '../stages/registry';
 import { createMatch, stepMatch, type MatchState } from './match';
 import { motionOffset, posedStage, scheduledOn } from './movingStage';
+import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
 import type { StageGeometry } from './stage';
 import { compiledStage } from './step';
@@ -193,32 +194,38 @@ describe('riding moving pieces', () => {
     expect(m.stage.platforms[1]!.on).toBe(false);
   });
 
+  /** Port `holder` grabs the other fighter on the testbed's blinking platform, one frame before it vanishes. */
+  function grabOnBlinker(holder: number) {
+    const m = createMatch({
+      seed: 1,
+      stage: 'testbed',
+      stocks: 3,
+      ports: [{ fighter: 'fireboy' }, { fighter: 'fireboy' }],
+    });
+    const a = m.fighters[holder]!;
+    const v = m.fighters[1 - holder]!;
+    Object.assign(a, { pos: { x: -6, y: 58.001 }, prevPos: { x: -6, y: 58.001 }, facing: 1 });
+    Object.assign(v, { pos: { x: 6, y: 58.001 }, prevPos: { x: 6, y: 58.001 }, facing: -1 });
+    const step = (grab = false) => {
+      const inputs = [neutralInput(), neutralInput()];
+      if (grab) inputs[holder] = input({ buttons: ['grab'] });
+      stepMatch(m, inputs);
+    };
+    while (m.frame < 185) step();
+    step(true);
+    while (m.frame < 199) step();
+    expect([a.action, v.action, a.grabPartner, v.grabPartner]).toEqual([
+      'grabHold',
+      'grabbed',
+      v.port,
+      a.port,
+    ]);
+    return { m, a, v, step };
+  }
+
   it('ends a grab when its platform vanishes, whichever port holds: a grab release, then both fall', () => {
     for (const holder of [0, 1]) {
-      const m = createMatch({
-        seed: 1,
-        stage: 'testbed',
-        stocks: 3,
-        ports: [{ fighter: 'fireboy' }, { fighter: 'fireboy' }],
-      });
-      const a = m.fighters[holder]!;
-      const v = m.fighters[1 - holder]!;
-      Object.assign(a, { pos: { x: -6, y: 58.001 }, prevPos: { x: -6, y: 58.001 }, facing: 1 });
-      Object.assign(v, { pos: { x: 6, y: 58.001 }, prevPos: { x: 6, y: 58.001 }, facing: -1 });
-      const step = (grab = false) => {
-        const inputs = [neutralInput(), neutralInput()];
-        if (grab) inputs[holder] = input({ buttons: ['grab'] });
-        stepMatch(m, inputs);
-      };
-      while (m.frame < 185) step();
-      step(true);
-      while (m.frame < 199) step();
-      expect([a.action, v.action, a.grabPartner, v.grabPartner]).toEqual([
-        'grabHold',
-        'grabbed',
-        v.port,
-        a.port,
-      ]);
+      const { m, a, v, step } = grabOnBlinker(holder);
       step();
       expect(m.stage.platforms[1]!.on).toBe(false);
       expect(m.events.filter((e) => e.type === 'grabRelease')).toEqual([
@@ -228,6 +235,28 @@ describe('riding moving pieces', () => {
       expect([a.ground, v.ground]).toEqual([null, null]);
       expect([a.action, v.action]).toEqual(['fall', 'fall']);
       expect(v.grabbableFrom).toBeGreaterThan(m.frame);
+    }
+  });
+
+  it("lets go of a partner KO'd during the grab without bringing it back", () => {
+    for (const gone of ['held', 'holder'] as const) {
+      const { m, a, v, step } = grabOnBlinker(0);
+      const ko = gone === 'held' ? v : a;
+      const other = gone === 'held' ? a : v;
+      Object.assign(ko, { action: 'ko', ground: null, pos: { x: 300, y: 58 }, prevPos: { x: 300, y: 58 } });
+      ko.respawnTimer = 999;
+      const events: SimEvent[] = [];
+      for (let i = 0; i < 10; i++) {
+        step();
+        events.push(...m.events);
+      }
+      expect(events.filter((e) => e.type === 'grabRelease')).toEqual(
+        gone === 'held' ? [] : [{ type: 'grabRelease', holder: -1, held: v.port }],
+      );
+      expect(events.filter((e) => e.type === 'ko')).toEqual([]);
+      expect([ko.action, ko.stocks]).toEqual(['ko', 3]);
+      expect(other.grabPartner).toBe(-1);
+      expect(other.ground).toBeNull();
     }
   });
 });

@@ -259,12 +259,17 @@ function endGrab(m: MatchState, holder: FighterState | undefined, held: FighterS
 
 /**
  * End `f`'s grab from whichever side `f` is on, when the stage takes the ground from under it: both let go as
- * on a release (grabRelease event, regrab immunity for the held fighter).
+ * on a release (grabRelease event, regrab immunity for the held fighter). A partner already out of the grab
+ * (KO'd) is left as it is, as in holdRunsOut.
  */
 export function breakGrab(m: MatchState, f: FighterState): void {
   const partner = m.fighters[f.grabPartner]!;
   const [holder, held] = HOLDING.has(f.action) ? [f, partner] : [partner, f];
-  endGrab(m, holder.grabPartner === held.port ? holder : undefined, held);
+  if (held.action !== 'grabbed') {
+    f.grabPartner = -1;
+    return;
+  }
+  endGrab(m, HOLDING.has(holder.action) && holder.grabPartner === held.port ? holder : undefined, held);
 }
 
 /**
