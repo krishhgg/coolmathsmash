@@ -44,5 +44,13 @@ export const palettes = {
   },
   red: { ...yellow, body: '#ff1a00', feather: '#ff7a66' },
   blue: { ...yellow, body: '#0099ff', feather: '#7cc8ff' },
-  black: { ...yellow, body: '#34353f', feather: '#5a5c6a', beak: '#ff9900', beakLo: '#d67600' },
+  black: {
+    ...yellow,
+    line: '#6a6a78',
+    leg: '#6a6a78',
+    body: '#26262c',
+    feather: '#4a4a55',
+    beak: '#ff9900',
+    beakLo: '#d67600',
+  },
 } satisfies Record<string, Palette>;

@@ -21,7 +21,7 @@ export const art: FighterArt = {
   rig,
   clips,
   palettes,
-  costumeSwaps: { crown: { hat: 'crown' }, evil: { hat: 'crest', face: 'faceAngry' } },
+  costumeSwaps: { crown: { hat: 'crown' }, evil: { hat: 'crest', face: 'faceEvil' } },
   icon: symbolsToSvg(rig.symbols, ['headLine', 'head', 'face'], palettes.default, iconBox()),
   ledgeGrip: LEDGE_GRIP,
 };

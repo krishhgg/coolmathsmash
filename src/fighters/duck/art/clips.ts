@@ -145,7 +145,7 @@ const flap = (front: number, back: number, extra: Pose = {}) =>
 const DOWN: Pose = (() => {
   const pose: Pose = { base: { rot: -88, x: 3.2, y: -3.3 }, head: { rot: -8, y: 0.3 } };
   return wing(
-    wing(leg(leg(pose, 'B', [-0.2, -6.0], -100), 'F', [0.9, -6.3], -80), 'F', -60, 0.9),
+    wing(leg(leg(pose, 'B', [-0.2, -6.0], -150), 'F', [0.9, -6.3], -135), 'F', -60, 0.9),
     'B',
     -110,
     0.9,
@@ -154,7 +154,7 @@ const DOWN: Pose = (() => {
 
 /** Recoiling from a hit: thrown back, wings flung up, feet kicked forwards. */
 const RECOIL: Pose = wing(
-  wing(air({ body: { rot: -22, x: -0.4 }, head: { rot: -18, x: -0.3 } }, 10, -10), 'F', -140, 1.0),
+  wing(air({ body: { rot: -22, x: -0.4 }, head: { rot: 8, x: -0.3 } }, 10, -10), 'F', -140, 1.0),
   'B',
   -100,
   0.95,

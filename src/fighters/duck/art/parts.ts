@@ -183,24 +183,37 @@ const lidHappy: PathShape[] = [
   ...strokes(bezier(rim(158), [EX - 0.5, EY - 0.5], [EX + 0.5, EY - 0.5], rim(22)), INK * 1.5),
 ];
 
-/** A tapered brush stroke from a to b, bowed through c and `w` thick in the middle. */
-function brush(a: P, c: P, b: P, w: number): string {
-  const len = hypot(b[0] - a[0], b[1] - a[1]);
-  const nx = (-(b[1] - a[1]) / len) * w;
-  const ny = ((b[0] - a[0]) / len) * w;
-  return (
-    `M${n(a[0])} ${n(a[1])}Q${n(c[0] + nx)} ${n(c[1] + ny)} ${n(b[0])} ${n(b[1])}` +
-    `Q${n(c[0] - nx)} ${n(c[1] - ny)} ${n(a[0])} ${n(a[1])}Z`
-  );
-}
-
-/** Squeezed shut in pain: the lids pressed into a brushed ">" across the eye white, its point towards the beak. */
-const VERTEX: P = [EX + 0.55, EY + 0.02];
+/** Squeezed shut in pain: no eye at all, just a thick ">" crease in the head colour, its point towards the beak. */
+const VERTEX: P = [EX + 0.6, EY + 0.02];
 const squint: PathShape[] = [
-  { d: circle(EX, EY, ER), fill: 'eye', stroke: { color: 'line', width: INK } },
-  { d: brush(rim(-146), [EX - 0.08, EY - 0.3], VERTEX, 0.3), fill: 'line' },
-  { d: brush(rim(146), [EX - 0.08, EY + 0.34], VERTEX, 0.3), fill: 'line' },
-  { d: circle(VERTEX[0] - 0.04, VERTEX[1], 0.12), fill: 'line' },
+  ...strokes(bezier([EX - 0.62, EY - 0.78], [EX - 0.15, EY - 0.5], [EX + 0.25, EY - 0.2], VERTEX, 6), 0.34),
+  ...strokes(bezier(VERTEX, [EX + 0.25, EY + 0.22], [EX - 0.15, EY + 0.52], [EX - 0.62, EY + 0.8], 6), 0.34),
+];
+
+/**
+ * The evil costume's stare: the red eye hooded by a lid in body colour whose edge slants sharply down towards
+ * the beak, cutting off the top of the eye and half the pupil, inked with one heavy line.
+ */
+const LID_BACK = (-128 * PI) / 180;
+const LID_FRONT = (8 * PI) / 180;
+const lidAt = (a: number): P => [EX + ER * cos(a), EY + ER * sin(a)];
+const evilEye: PathShape[] = [
+  ...eye().slice(0, 3),
+  {
+    d: `M${n(lidAt(LID_BACK)[0])} ${n(lidAt(LID_BACK)[1])}${arc(EX, EY, ER, LID_BACK, LID_FRONT)}Z`,
+    fill: 'body',
+  },
+  { d: circle(EX, EY, ER), stroke: { color: 'line', width: INK } },
+  {
+    d: capsule(
+      lidAt(LID_BACK)[0] - 0.18,
+      lidAt(LID_BACK)[1] - 0.12,
+      lidAt(LID_FRONT)[0] + 0.08,
+      lidAt(LID_FRONT)[1] + 0.05,
+      0.3,
+    ),
+    fill: 'line',
+  },
 ];
 
 /** Seeing stars: a white eye with a loose hand-drawn spiral of two turns and no pupil. */
@@ -259,51 +272,16 @@ const beakShut: PathShape[] = [
 ];
 
 /**
- * Beak open: the orange upper bill tipped up a little, the lower bill a shade darker and dropped, and the mouth a
- * black wedge between them, so it still reads as a beak when the head is upside down.
+ * Beak open: two short, wide wedges with rounded outer edges, the upper bill orange and the lower one a shade
+ * darker, hinged at the head with a black mouth between them, so it reads as a beak at any angle. Neither reaches
+ * past the closed beak's tip.
  */
 const beakOpen: PathShape[] = [
-  {
-    d: poly([
-      [2.45, -0.1],
-      [3.88, -0.34],
-      [3.52, 0.46],
-      [2.45, 0.16],
-    ]),
-    fill: 'mouth',
-  },
-  {
-    d: poly([
-      [2.3, -0.78],
-      [3.98, -0.32],
-      [2.42, -0.04],
-    ]),
-    fill: 'beak',
-  },
-  edge(
-    [
-      [2.64, -0.72],
-      [3.98, -0.32],
-      [2.66, -0.08],
-    ],
-    0.28,
-  ),
-  {
-    d: poly([
-      [2.42, 0.1],
-      [3.64, 0.48],
-      [2.3, 0.72],
-    ]),
-    fill: 'beakLo',
-  },
-  edge(
-    [
-      [2.66, 0.14],
-      [3.64, 0.48],
-      [2.64, 0.7],
-    ],
-    0.28,
-  ),
+  { d: 'M2.45 -0.1L3.74 -0.36Q3.3 0.04 3.5 0.42L2.45 0.14Z', fill: 'mouth' },
+  { d: 'M2.3 -0.86L2.62 -0.9C3.2 -0.93 3.62 -0.7 3.8 -0.38L2.42 -0.06Z', fill: 'beak' },
+  { d: 'M2.62 -0.9C3.2 -0.93 3.62 -0.7 3.8 -0.38L2.66 -0.12', stroke: { color: 'line', width: 0.28 } },
+  { d: 'M2.42 0.1L3.56 0.44C3.43 0.72 3.06 0.88 2.62 0.88L2.3 0.84Z', fill: 'beakLo' },
+  { d: 'M2.66 0.14L3.56 0.44C3.43 0.72 3.06 0.88 2.62 0.88', stroke: { color: 'line', width: 0.28 } },
 ];
 
 export const faces: Record<string, PathShape[]> = {
@@ -317,6 +295,7 @@ export const faces: Record<string, PathShape[]> = {
   faceHurt: [...squint, ...beakOpen],
   faceDizzy: [...spiral, ...beakOpen],
   faceHappy: [...lidHappy, ...beakOpen],
+  faceEvil: [...evilEye, ...beakShut],
 };
 
 /** Shoulder to wing tip of the open wing. */
@@ -337,35 +316,29 @@ export const wingOpen: PathShape[] = [
 ];
 
 /**
- * Duck Life's flying wing is a single stroke of ink across the body that flaps from a V to a peak. Five
- * drawings of it, from fully down to fully up, rooted just in front of the shoulder so it stays on the belly.
+ * Duck Life's flying wing is a single stroke of ink across the body that flaps from down to up. Five drawings of
+ * it, each one barely bowed dash 3 long pointing back from just in front of the shoulder, turned for the beat:
+ * `deg` is how far the tail end tips up (negative tips it down).
  */
-const lineWing = (points: P[]) => strokes(place(points, 0, 0.9, 0.1), 0.36);
+const lineWing = (deg: number) => {
+  const [a, c, b] = place(
+    [
+      [0, 0],
+      [-1.5, -0.1],
+      [-3.0, 0],
+    ],
+    deg,
+    0.9,
+    0.1,
+  );
+  return strokes(bezier(a!, c!, c!, b!, 6), 0.36);
+};
 export const wingLines: Record<string, PathShape[]> = {
-  wingV: lineWing([
-    [0, 0],
-    [-1.35, 1.45],
-    [-2.6, 0.2],
-  ]),
-  wingVs: lineWing([
-    [0, 0],
-    [-1.5, 0.78],
-    [-2.9, 0.36],
-  ]),
-  wingFlat: lineWing([
-    [0, 0],
-    [-3.0, 0.08],
-  ]),
-  wingAs: lineWing([
-    [0, 0],
-    [-1.45, -0.82],
-    [-2.9, -0.3],
-  ]),
-  wingA: lineWing([
-    [0, 0],
-    [-1.25, -1.75],
-    [-2.5, -0.38],
-  ]),
+  wingV: lineWing(-35),
+  wingVs: lineWing(-18),
+  wingFlat: lineWing(0),
+  wingAs: lineWing(18),
+  wingA: lineWing(35),
 };
 
 /** Leg and foot: Duck Life's single ink stroke down from the belly and a flat foot pointing forwards. */
@@ -447,16 +420,17 @@ export const crown: PathShape[] = [
 ];
 
 /**
- * The evil costume's crest: five jagged dark spikes swept back over the top and back of the head, on the hat bone
- * (the head's centre), rooted in a band just inside the head's outline and kept clear of the brow.
+ * The evil costume's crest: six broad, jagged dark spikes swept back from the top of the head down its back, on
+ * the hat bone (the head's centre), rooted in a band just inside the head's outline that stays clear of the brow.
  */
 export const crest: PathShape[] = (() => {
-  const from = -102;
+  const from = -66;
   const to = -190;
   const spikes: [number, number][] = [
-    [1.0, 30],
-    [1.6, 36],
-    [1.95, 40],
+    [1.05, 20],
+    [1.5, 26],
+    [1.85, 32],
+    [1.9, 38],
     [1.55, 46],
     [1.05, 52],
   ];
@@ -468,7 +442,7 @@ export const crest: PathShape[] = (() => {
     const tip: P = [bx + len * cos(((mid - sweep) * PI) / 180), by + len * sin(((mid - sweep) * PI) / 180)];
     return [at(from + i * step, HEAD_R + 0.1), tip];
   });
-  const inner = Array.from({ length: spikes.length + 1 }, (_, i) => at(to - i * step, HEAD_R - 0.6));
+  const inner = Array.from({ length: spikes.length + 1 }, (_, i) => at(to - i * step, HEAD_R - 0.4));
   return [
     {
       d: poly([...outer, at(to, HEAD_R + 0.1), ...inner]),
