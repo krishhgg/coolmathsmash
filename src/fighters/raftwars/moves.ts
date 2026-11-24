@@ -49,7 +49,7 @@ export const moves: Record<string, MoveDef> = {
   },
   /**
    * Floaty Shove: the video's "good knockback attack". A hip check with the inflatable ring, their one big melee hit
-   * and their best kill move (about 90% on Mario at the ledge). The ring is the sweetspot, the body the sourspot.
+   * and their best kill move (the roster targets about 90% on Mario at the ledge). The ring is the sweetspot, the body the sourspot.
    */
   fsmash: {
     kind: 'smash',
@@ -59,8 +59,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [14, 16],
         boxes: [
-          box(0, 10, 6, 5.5, { damage: 16, angle: 361, kbg: 75, bkb: 35 }),
-          box(1, 4.5, 6, 4, { damage: 13, angle: 361, kbg: 75, bkb: 28 }),
+          box(0, 10, 6, 5.5, { damage: 16, angle: 361, kbg: 100, bkb: 40 }),
+          box(1, 4.5, 6, 4, { damage: 13, angle: 361, kbg: 100, bkb: 32 }),
         ],
       },
     ],
@@ -130,12 +130,12 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 15, hit: { damage: 9, angle: 40, kbg: 60, bkb: 55 } },
   },
-  /** Rocket Toss: swings them behind on a rocket burst. Their kill throw, about 160% from the ledge. */
+  /** Rocket Toss: swings them behind on a rocket burst. Their kill throw (the roster targets about 160% from the ledge). */
   bthrow: {
     kind: 'other',
     faf: 45,
     hits: [],
-    throw: { frame: 22, hit: { damage: 11, angle: 40, kbg: 60, bkb: 50, direction: 'back' } },
+    throw: { frame: 22, hit: { damage: 11, angle: 40, kbg: 72, bkb: 55, direction: 'back' } },
   },
   /** Ball Launch: pops them straight up with a point-blank shot. */
   uthrow: {
