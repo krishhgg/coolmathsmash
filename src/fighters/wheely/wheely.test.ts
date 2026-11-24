@@ -227,3 +227,67 @@ describe('Wheely: grabs', () => {
     expect(a.move).toBe(move);
   });
 });
+
+describe('Wheely: specials', () => {
+  it('Charge Through (side special) floors it about 50 units and hits for 10% on the way', () => {
+    const m = duel();
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    Object.assign(a, { pos: { x: -40, y: 0 }, prevPos: { x: -40, y: 0 } });
+    a.facing = 1;
+    Object.assign(v, {
+      pos: { x: -10, y: 0 },
+      prevPos: { x: -10, y: 0 },
+      ground: a.ground,
+      action: 'idle',
+      intangible: 0,
+    });
+    runPorts(m, 1, [{ x: 100, buttons: ['special'] }, {}]);
+    expect(a.move).toBe('sideB');
+    while (a.move === 'sideB') runPorts(m, 1, [{}, {}]);
+    expect(a.pos.x + 40).toBeGreaterThan(45);
+    expect(v.damage).toBeCloseTo(10 * 1.05 * 1.2, 6);
+  });
+
+  it('Charge Through in the air drives level, then leaves him helpless', () => {
+    const m = testMatch({ fighter: 'wheely' });
+    const f = placeInAir(m, -160, 60, 1);
+    run(m, 1, { x: 100, buttons: ['special'] });
+    expect(f.move).toBe('sideB');
+    run(m, 13);
+    const y = f.pos.y;
+    run(m, 15);
+    expect(f.pos.y).toBeCloseTo(y, 6);
+    while (f.move === 'sideB') run(m, 1);
+    expect(f.action).toBe('helpless');
+  });
+
+  it('Ramp Jump (up special) launches on a long diagonal, then leaves him helpless', () => {
+    const m = testMatch({ fighter: 'wheely' });
+    const f = m.fighters[0]!;
+    const start = { ...f.pos };
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    let top = start.y;
+    let reach = 0;
+    while (f.vel.y > 0 || f.actionFrame < 10) {
+      run(m, 1);
+      top = Math.max(top, f.pos.y);
+      reach = Math.hypot(f.pos.x - start.x, f.pos.y - start.y);
+    }
+    expect(top - start.y).toBeGreaterThan(55);
+    expect(reach).toBeGreaterThan(80);
+    expect(reach).toBeLessThan(110);
+    while (f.move === 'upB') run(m, 1);
+    expect(f.action).toBe('helpless');
+  });
+
+  it('Ramp Jump recovers to the ledge from below and beside the stage', () => {
+    const m = testMatch({ fighter: 'wheely' });
+    const f = placeInAir(m, 125, -50, -1);
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    for (let i = 0; i < 120 && f.action !== 'ledgeCatch' && f.action !== 'ledgeHang' && !f.ground; i++)
+      run(m, 1, { x: -100 });
+    expect(['ledgeCatch', 'ledgeHang', 'land', 'idle']).toContain(f.action);
+  });
+});

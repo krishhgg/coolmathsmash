@@ -1,4 +1,5 @@
 import type { HitboxDef, MoveDef } from '../types';
+import { stickX } from '../../sim/control';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -283,5 +284,64 @@ export const moves: Record<string, MoveDef> = {
     faf: 44,
     hits: [],
     throw: { frame: 24, hit: { damage: 7, angle: 75, kbg: 45, bkb: 60 } },
+  },
+  /**
+   * Charge Through (side special): spins the tyres for a moment, then floors it straight through whoever is in
+   * the way. In the air he drives level and ends helpless; landing mid-dash keeps the dash going on the ground.
+   */
+  sideB: {
+    kind: 'other',
+    faf: 52,
+    helpless: true,
+    continuesOnLanding: true,
+    landingLag: 20,
+    hits: [
+      {
+        frames: [14, 28],
+        boxes: [box(0, 3, 5, 7, { damage: 10, angle: 40, kbg: 70, bkb: 60 })],
+      },
+    ],
+    script(x) {
+      const { f } = x;
+      if (f.actionFrame < 14) {
+        f.vel.x *= 0.8;
+        if (!f.ground) f.vel.y = Math.max(f.vel.y * 0.8, -0.4);
+      } else if (f.actionFrame <= 29) {
+        f.vel.x = f.facing * 3.2;
+        if (!f.ground) f.vel.y = 0;
+      } else {
+        f.vel.x *= 0.85;
+      }
+    },
+  },
+  /**
+   * Ramp Jump (up special): a little wooden ramp from his puzzle levels drops in front of him; he drives up it
+   * and launches on a long diagonal, about 90 units, steerable a little with the stick. Ends helpless.
+   */
+  upB: {
+    kind: 'other',
+    faf: 40,
+    leavesGround: true,
+    helpless: true,
+    ledgeFrom: 16,
+    landingLag: 24,
+    hits: [
+      { frames: [10, 14], boxes: [box(0, 4, 5, 6.5, { damage: 6, angle: 70, kbg: 80, bkb: 50 })] },
+      { frames: [15, 24], boxes: [box(0, 3, 5, 5.5, { damage: 3, angle: 70, kbg: 60, bkb: 40 })] },
+    ],
+    script(x) {
+      const { f, c } = x;
+      if (f.actionFrame < 4) {
+        f.vel.x *= 0.7;
+        f.vel.y = Math.max(f.vel.y, 0);
+      } else if (f.actionFrame < 10) {
+        f.vel.x = f.facing * 0.9;
+        f.vel.y = 0.6;
+      } else if (f.actionFrame === 10) {
+        const lean = stickX(c) * f.facing;
+        f.vel.x = f.facing * (2 + 0.5 * lean);
+        f.vel.y = 3.9 - 0.4 * Math.max(0, lean);
+      }
+    },
   },
 };
