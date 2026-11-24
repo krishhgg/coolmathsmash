@@ -218,6 +218,13 @@ describe("koPercent lands a move's launching hit where it connects", () => {
     expect(koPercent({ hit: weak })).toBeGreaterThan(koPercent({ hit: strong })! + 50);
   });
 
+  it('the attacker stays out of the way after the hit, even standing right on a grounded target', () => {
+    const nair = { damage: 8, angle: 361, kbg: 100, bkb: 10 };
+    expect(koPercent({ hit: { fighter: 'reference-mario', move: 'nair' }, from: 'centre' })).toBe(
+      koPercent({ hit: nair, from: 'centre' }),
+    );
+  });
+
   it('a box that launches away from the attacker sends the target toward the near edge from either side of him', () => {
     const ahead = koPercent({ hit: { fighter: 'ko-shapes', move: 'ahead' } });
     expect(koPercent({ hit: { fighter: 'ko-shapes', move: 'behind' } })).toBe(ahead);

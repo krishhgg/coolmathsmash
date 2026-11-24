@@ -42,6 +42,8 @@ export interface KoSetup {
 }
 
 const MAX_PERCENT = 999;
+/** Hitlag that holds the attacker still after the hit, so it can neither hit nor jostle the target again. */
+const FROZEN = 10_000;
 
 interface Launcher {
   name: string;
@@ -122,7 +124,7 @@ function kosWith(setup: KoSetup, launcher: Launcher, hit: KoHit | HitboxDef, per
   });
   if (setup.air || lifted) Object.assign(v, { ground: null, action: 'fall', actionFrame: 1 });
   applyHit(m, a, v, { id: 0, x: 0, y: 0, radius: 0, hitlag: 1, ...hit });
-  a.move = null;
+  Object.assign(a, { move: null, hitlag: FROZEN });
   const stick: InputFrame = { ...neutralInput(), ...setup.di };
   for (let i = 0; i < 600; i++) {
     if (v.hitlag <= 0 && v.launch === null && v.hitstun <= 0) return false;
