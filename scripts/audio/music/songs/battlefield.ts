@@ -108,10 +108,13 @@ const ring = (k: number, from: number, to: number, beats: number, v: number) =>
         v,
       })),
     );
+/** A' ends on a stop-time hit on beat 3 of its last bar, leaving the toms alone before the bridge. */
+const stop = 23 * bar + 2;
 const guitars = [
   ...chug(0),
   ...ring(1, 0, 8, 2, 0.6),
-  ...chug(2, 0.95),
+  ...chug(2, 0.95).filter((n) => n.t < stop),
+  { t: stop, d: 0.5, n: low('B'), v: 1 },
   ...ring(3, 0, 4, 4, 0.6),
   ...cresc(chug(3).slice(4 * 8), 0.6, 1),
 ];
@@ -149,16 +152,19 @@ const lowBrass = humanize(
 );
 const ostinato = humanize(
   accent([
-    ...arp(B, [0, 1, 2, 1, 3, 1, 2, 1], { octave: 4, step: 0.25, v: 0.75, gate: 0.6, start: sec(1) }),
+    ...arp(B, [0, 1, 2, 1, 3, 1, 2, 1], { octave: 4, step: 0.25, v: 0.55, gate: 0.6, start: sec(1) }),
     ...arp(A, [0, 2, 1, 2], { octave: 4, step: 0.5, v: 0.7, gate: 0.5, start: sec(2) }),
   ]),
   { seed: 10, time: 0.006, vel: 0.06 },
 );
-const stabs = section(1).flatMap((s, i) =>
-  [0, 1.5].flatMap((b, j) =>
-    voice(s, 57).map((n) => ({ t: sec(1) + i * bar + b, d: 0.45, n, v: j ? 0.7 : 0.85 })),
+const stabs = [
+  ...section(1).flatMap((s, i) =>
+    [0, 1.5].flatMap((b, j) =>
+      voice(s, 57).map((n) => ({ t: sec(1) + i * bar + b, d: 0.45, n, v: j ? 0.7 : 0.85 })),
+    ),
   ),
-);
+  ...voice('B', 57).map((n) => ({ t: stop, d: 0.5, n, v: 1 })),
+];
 const choir = [
   ...pads(A, { low: 57, v: 0.55, start: sec(2) }),
   ...pads(C, { low: 55, v: 0.65, start: sec(3) }),
@@ -183,7 +189,7 @@ const snare = [
   ...bars(15, 16, '....x...'),
   ...roll(15 * bar + 2, 2, { step: 0.125, from: 0.35, to: 1 }),
   ...bars(16, 23, '..-.x..-..-.x.--'),
-  ...bars(23, 24, '....x...xxxx....'),
+  ...bars(23, 24, '....x...x.......'),
   ...bars(24, 28, '........x.......'),
   ...roll(28 * bar, 8, { step: 0.5, from: 0.3, to: 0.6 }),
   ...roll(30 * bar, 8, { step: 0.25, from: 0.45, to: 1 }),
@@ -203,6 +209,7 @@ const crash = [
   ...hit(12 * bar, 0.6),
   ...hit(sec(2), 1),
   ...hit(20 * bar, 0.75),
+  ...hit(stop, 0.9),
   ...hit(sec(3), 0.8),
   ...hit(28 * bar, 0.7),
 ];
@@ -211,6 +218,7 @@ const swells = [...land(1, 2, 0.7), ...land(2, 4, 0.85), ...land(3, 4, 0.85), ..
 const risers = [...land(2, 8, 0.75), ...land(4, 8, 0.85)];
 const lowMid = { f: 350, gain: -3, q: 0.9 };
 const air = { type: 'highshelf' as const, f: 9000, gain: 2.5 };
+const tame = { type: 'highshelf' as const, f: 8000, gain: -2 };
 const stabTrack = (pan: number, seed: number) => ({
   inst: 'brassStab',
   gain: -9,
@@ -241,50 +249,52 @@ export const song: Song = {
   room: { room: 0.1, damp: 0.5, wet: 0.45 },
   echo: { beats: 0.75, feedback: 0.3, wet: 0.4, lp: 3500 },
   master: {
-    eq: [
-      { f: 300, gain: -1.5, q: 0.8 },
-      { type: 'highshelf', f: 9000, gain: 2 },
-    ],
+    eq: [{ f: 300, gain: -1.5, q: 0.8 }],
     threshold: 3,
     ratio: 2,
     ceiling: -1.2,
   },
   tracks: [
-    { inst: 'brass', gain: -3, pan: 0.05, verb: 0.3, hp: 150, eq: [{ f: 3000, gain: -2 }], loop: brassLead },
+    {
+      inst: 'brass',
+      gain: -3,
+      pan: 0.05,
+      verb: 0.3,
+      hp: 150,
+      eq: [{ f: 3000, gain: -3, q: 1.5 }],
+      loop: brassLead,
+    },
     { inst: 'horns', gain: -6, pan: 0.3, verb: 0.4, hp: 100, loop: hornsLow },
     { inst: 'guitar', gain: -4, pan: 0.1, verb: 0.22, echo: 0.25, hp: 120, loop: guitarLead },
     { inst: 'brass', gain: -9, pan: -0.3, verb: 0.35, hp: 180, loop: thirds },
-    { inst: 'strings', gain: -7, pan: -0.35, width: 0.6, verb: 0.45, hp: 300, eq: [air], loop: violins },
+    {
+      inst: 'strings',
+      gain: -7,
+      pan: -0.35,
+      width: 0.6,
+      verb: 0.45,
+      hp: 300,
+      eq: [{ f: 3000, gain: -2.5, q: 1.2 }],
+      loop: violins,
+    },
     { inst: 'horns', gain: -2, pan: 0.15, verb: 0.45, hp: 100, loop: hornBridge },
-    { inst: 'brass', gain: -6, pan: 0.2, width: 0.3, verb: 0.4, hp: 50, loop: lowBrass },
-    {
+    { inst: 'brass', gain: -4, pan: 0.2, width: 0.3, verb: 0.4, hp: 50, loop: lowBrass },
+    ...[-0.85, 0.85].map((pan, k) => ({
       inst: 'power',
       gain: -4,
-      pan: -0.85,
+      pan,
+      transpose: k ? 0.06 : -0.06,
       verb: 0.08,
       room: 0.1,
       hp: 110,
       eq: [
-        { f: 220, gain: -2.5 },
-        { f: 2000, gain: -2.5 },
+        { f: 550, gain: -3 },
+        { f: k ? 1600 : 1100, gain: 1.5 },
+        { f: 2200, gain: -2.5 },
       ],
       duck: 1.5,
-      loop: humanize(guitars, { seed: 1, time: 0.01, vel: 0.06 }),
-    },
-    {
-      inst: 'power',
-      gain: -4,
-      pan: 0.85,
-      verb: 0.08,
-      room: 0.1,
-      hp: 110,
-      eq: [
-        { f: 220, gain: -2.5 },
-        { f: 2000, gain: -2.5 },
-      ],
-      duck: 1.5,
-      loop: humanize(guitars, { seed: 2, time: 0.01, vel: 0.06 }),
-    },
+      loop: humanize(guitars, { seed: 1 + k, time: 0.03, vel: 0.08 }),
+    })),
     { inst: 'bassGuitar', gain: -4.5, verb: 0, hp: 35, duck: 3, loop: bassLine },
     {
       inst: 'strings',
@@ -331,9 +341,9 @@ export const song: Song = {
       room: 0.15,
       loop: humanize(ride, { seed: 26, time: 0.015, vel: 0.12 }),
     },
-    { inst: 'openHat', gain: -11, pan: 0.35, verb: 0.05, room: 0.15, loop: drum(openHat, 27) },
-    { inst: 'crash', gain: -8, pan: -0.25, width: 0.7, verb: 0.2, room: 0.1, loop: crash },
-    { inst: 'revCrash', gain: -11, pan: 0.25, width: 0.7, verb: 0.25, loop: swells },
+    { inst: 'openHat', gain: -11, pan: 0.35, verb: 0.05, room: 0.15, eq: [tame], loop: drum(openHat, 27) },
+    { inst: 'crash', gain: -8, pan: -0.25, width: 0.7, verb: 0.2, room: 0.1, eq: [tame], loop: crash },
+    { inst: 'revCrash', gain: -11, pan: 0.25, width: 0.7, verb: 0.25, eq: [tame], loop: swells },
     { inst: 'riser', gain: -14, width: 0.8, verb: 0.3, loop: risers },
     { inst: 'boom', gain: -9, verb: 0.25, hp: 25, loop: boom },
     { inst: 'timpani', gain: -12, verb: 0.45, hp: 40, loop: drum(timps, 28) },
