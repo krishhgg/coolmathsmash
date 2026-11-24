@@ -3,7 +3,8 @@ import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
 import { attack, placeInAir, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
 import { kosAt, lowestKo, throwKosAt } from './killpercent';
-import { moves, TIP_DISTANCE } from './moves';
+import { moves } from './moves';
+import { TIP_DISTANCE } from './tip';
 import { stats } from './stats';
 
 const block = () => testMatch({ fighter: 'bloxorz' });
