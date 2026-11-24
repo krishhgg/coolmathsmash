@@ -21,6 +21,11 @@ describe('readGamepad', () => {
     const r = readGamepad(pad([0, 0, 0, 0], [0, 3, 5], { 7: 0.6 }));
     expect(r.buttons).toBe(Btn.Attack | Btn.Jump | Btn.Grab | Btn.Shield);
   });
+
+  it('follows a custom button mapping', () => {
+    const mapping = { attack: [1], special: [0], jump: [4], shield: [], grab: [], taunt: [], start: [9] };
+    expect(readGamepad(pad([0, 0, 0, 0], [0, 4]), mapping).buttons).toBe(Btn.Special | Btn.Jump);
+  });
 });
 
 describe('padSlots', () => {

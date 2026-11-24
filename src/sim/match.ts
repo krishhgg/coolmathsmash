@@ -11,6 +11,8 @@ export interface PortConfig {
   fighter: string;
   /** Flicking up jumps. On by default, like Smash. */
   tapJump?: boolean;
+  /** Costume: a key of the fighter's `art.palettes` (`default` when absent). Presentation only. */
+  costume?: string;
 }
 
 export interface MatchConfig {
