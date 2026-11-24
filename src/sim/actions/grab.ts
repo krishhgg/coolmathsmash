@@ -3,6 +3,7 @@ import { Btn, type InputFrame } from '../../input/types';
 import { grabHoldFrames, hitlagFrames } from '../combat/formulas';
 import { activeHitboxes, addDamage, applyHit, hittable, hurtbox, touches } from '../combat/hits';
 import { DIRECTION_THRESHOLD, GRAB } from '../constants';
+import { emit } from '../events';
 import {
   buffered,
   consume,
@@ -210,12 +211,15 @@ function heldHit(m: MatchState, a: FighterState, again: boolean): void {
   if (!v || !move || v.grabPartner !== a.port || v.action !== 'grabbed') return;
   if (a.action === 'grabPummel' && move.pummel?.frame === a.actionFrame && !a.hitVictims.includes(v.port)) {
     a.hitVictims.push(v.port);
+    const before = v.damage;
     addDamage(m, v, move.pummel.damage);
     a.hitlag = v.hitlag = hitlagFrames(move.pummel.damage, { mult: move.pummel.hitlag });
+    emit(m, { type: 'pummel', attacker: a.port, victim: v.port, damage: v.damage - before });
   }
   if (a.action === 'grabThrow' && move.throw?.frame === a.actionFrame) {
     a.grabPartner = v.grabPartner = -1;
     if (move.throw.hit.direction === 'back') v.pos.x = 2 * a.pos.x - v.pos.x;
+    emit(m, { type: 'throw', attacker: a.port, victim: v.port, move: a.move! });
     applyHit(m, a, v, { id: 0, x: 0, y: 0, radius: 0, hitlag: 0, ...move.throw.hit }, again);
   }
 }
@@ -253,6 +257,7 @@ function endGrab(
     if (f !== launched) toRelease(f, d);
   }
   held.grabbableFrom = m.frame + 1 + GRAB.regrabImmunity;
+  emit(m, { type: 'grabRelease', holder: holder?.port ?? -1, held: held.port });
 }
 
 /**
@@ -275,6 +280,7 @@ export function grabHitLaunches(m: MatchState, v: FighterState, damage: number):
 }
 
 function grab(m: MatchState, a: FighterState, v: FighterState): void {
+  emit(m, { type: 'grab', attacker: a.port, victim: v.port, move: a.move! });
   Object.assign(a, { action: 'grabHold', actionFrame: 0, move: null, grabPartner: v.port });
   Object.assign(v, {
     action: 'grabbed',
@@ -302,6 +308,7 @@ function clank(m: MatchState, a: FighterState, v: FighterState): void {
   toRelease(v, dir);
   addDamage(m, a, GRAB.clankDamage);
   addDamage(m, v, GRAB.clankDamage);
+  emit(m, { type: 'grabClank', ports: [a.port, v.port] });
 }
 
 /** Keep a held fighter just in front of its holder, facing him, on his ground. */
