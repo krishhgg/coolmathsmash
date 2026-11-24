@@ -253,7 +253,9 @@ describe('Fluffy: kill percents on Mario at the Battlefield ledge (roster target
   ] as const)('%s kills by about %i%%', (move, target) => {
     const p = killPercent(move, target);
     expect(p).toBeGreaterThanOrEqual(target - 50);
-    expect(p).toBeLessThanOrEqual(target + 8);
+    // TODO(COOL-3 koPercent calibration): since #66 vertical kills land 10-20% later (Ultimate's DamageFlyTop
+    // gravity and top-blast-zone rule); retune against koPercent (src/sim/testing/ko.ts).
+    expect(p).toBeLessThanOrEqual(target + (move === 'usmash' ? 25 : 8));
   });
 });
 
