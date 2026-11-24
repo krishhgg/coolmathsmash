@@ -23,6 +23,8 @@ function describe(e: SimEvent): string {
       return `${p(e.port)} ${e.move}`;
     case 'action':
       return `${p(e.port)} ${e.from} > ${e.to}`;
+    case 'transform':
+      return `${p(e.port)} transform ${e.from} > ${e.to}`;
     default:
       return `${p(e.port)} ${e.type}`;
   }

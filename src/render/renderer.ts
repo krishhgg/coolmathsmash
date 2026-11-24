@@ -32,6 +32,10 @@ export class Renderer {
   private readonly fighterLayer = new Container();
   private readonly boxes = new Graphics();
   private fighters: FighterView[] = [];
+  /** Fighter id each view was built for; a transform swaps the view. */
+  private fighterIds: string[] = [];
+  /** Palette per port, picked when the match starts; a transformed fighter keeps its port's costume name. */
+  private costumes: string[] = [];
   private stageId = '';
   private stage: StageGeometry | null = null;
   private matchKey: unknown = null;
@@ -67,12 +71,19 @@ export class Renderer {
     if (this.matchKey !== state.config) {
       this.matchKey = state.config;
       this.fighterLayer.removeChildren();
-      const costumes = pickCostumes(state.config, (id) => fighterArt(getFighter(id)));
-      this.fighters = state.fighters.map(
-        (f) => new FighterView(getFighter(f.fighter), f.port, costumes[f.port]),
-      );
-      for (const v of this.fighters) this.fighterLayer.addChild(v.container);
+      this.fighters = [];
+      this.fighterIds = [];
+      this.costumes = pickCostumes(state.config, (id) => fighterArt(getFighter(id)));
     }
+    state.fighters.forEach((f, i) => {
+      if (this.fighterIds[i] === f.fighter) return;
+      const view = new FighterView(getFighter(f.fighter), f.port, this.costumes[f.port]);
+      const old = this.fighters[i];
+      if (old) this.fighterLayer.replaceChild(old.container, view.container);
+      else this.fighterLayer.addChild(view.container);
+      this.fighters[i] = view;
+      this.fighterIds[i] = f.fighter;
+    });
   }
 
   /** Advance the camera by the frame just simulated; Game.step calls this after every frame. */
