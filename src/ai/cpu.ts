@@ -1,0 +1,800 @@
+import { getFighter } from '../fighters/registry';
+import { nextRandom } from '../engine/rng';
+import { Btn, neutralInput, type InputFrame } from '../input/types';
+import { hurtbox } from '../sim/combat/hits';
+import { knockback, shieldstunFrames } from '../sim/combat/formulas';
+import { SHIELD_DROP_FRAMES } from '../sim/constants';
+import type { FighterState } from '../sim/fighter';
+import type { MatchState } from '../sim/match';
+import { STICK, TURNING_MOVES, press } from './inputs';
+import { actionable, knowledge, type FighterKnowledge } from './knowledge';
+import { cpuLevel, type CpuLevel } from './levels';
+import { overlaps, run, soloMatch, type Driver, type Sample } from './look';
+import { findAttacks, type Attack, type Self, type Target } from './options';
+import {
+  airAerial,
+  airDodge,
+  crouch,
+  drift,
+  dropJump,
+  dropThrough,
+  fullHop,
+  goTo,
+  groundMove,
+  jumpAerial,
+  ledgeJump,
+  roll,
+  shield,
+  shortHop,
+  spotDodge,
+  wait,
+  type Program,
+} from './programs';
+import { chooseDI, planRecovery, recoveryDriver, targetLedge, type RecoveryPlan } from './recovery';
+import { clampToStage, floorBelow, stageInfo, type StageInfo } from './stage';
+
+/**
+ * One CPU player. Every frame it reads the match (its own fighter as it is, opponents as they were `reaction`
+ * frames ago), decides, and returns the controller input a person would press. It never writes to the match.
+ *
+ * Decisions come in layers: being launched (DI), on the ledge (getup mix), off stage (planned recovery), then
+ * neutral, which every `thinkEvery` frames looks for an attack that connects with the predicted opponent, a threat
+ * to block or dodge, a punish out of shield, an edgeguard, or somewhere to move. Multi-frame inputs (a short-hop
+ * aerial, a shield held through an attack) run as programs.
+ */
+
+const HISTORY = 64;
+const HORIZON = 45;
+const NEUTRAL = Object.freeze(neutralInput());
+
+type Situation = 'combo' | 'punish' | 'neutral';
+
+export class Cpu {
+  readonly lv: CpuLevel;
+  private readonly rng: { rng: number };
+  private history: FighterState[][] = [];
+  private prog: (Program & { t: number }) | null = null;
+  private last: InputFrame = neutralInput();
+  private nextThink = 0;
+  private recovery: RecoveryPlan | null = null;
+  private recoveryDrive: Driver | null = null;
+  private ledgePlan: { option: LedgeOption; at: number } | null = null;
+  private techPlan: { tech: boolean; dir: number; pressed: boolean } | null = null;
+  private getupPlan: { option: GetupOption; at: number; dir: number } | null = null;
+  private respawnAt = -1;
+  private diStick: InputFrame | null = null;
+  private rolls = new Map<string, boolean>();
+  private fastFallAir = -1;
+  private wantFastFall = false;
+
+  constructor(
+    readonly port: number,
+    level: number,
+    seed: number,
+  ) {
+    this.lv = cpuLevel(level);
+    this.rng = { rng: (seed ^ Math.imul(port + 1, 0x9e3779b1)) | 0 };
+  }
+
+  input(state: Readonly<MatchState>): InputFrame {
+    this.remember(state);
+    const me = state.fighters[this.port];
+    const out = me ? this.act(state, me) : neutralInput();
+    const q = (v: number) => Math.max(-100, Math.min(100, Math.round(v))) || 0;
+    this.last = { x: q(out.x), y: q(out.y), cx: q(out.cx), cy: q(out.cy), buttons: out.buttons };
+    return { ...this.last };
+  }
+
+  private rand(): number {
+    return nextRandom(this.rng);
+  }
+
+  /** Roll once per key: the same question gets the same answer until the key changes. */
+  private roll(key: string, chance: number): boolean {
+    let r = this.rolls.get(key);
+    if (r === undefined) {
+      r = this.rand() < chance;
+      if (this.rolls.size > 64) this.rolls.clear();
+      this.rolls.set(key, r);
+    }
+    return r;
+  }
+
+  private remember(state: Readonly<MatchState>): void {
+    this.history.push(state.fighters.map(snapshot));
+    if (this.history.length > HISTORY) this.history.shift();
+  }
+
+  /** An opponent as the CPU perceives it: `lag` frames old. */
+  private seen(port: number, lag: number): FighterState {
+    const h = this.history[Math.max(0, this.history.length - 1 - lag)]!;
+    return h[port]!;
+  }
+
+  private act(state: Readonly<MatchState>, me: Readonly<FighterState>): InputFrame {
+    const a = me.action;
+    if (a !== 'respawn') this.respawnAt = -1;
+    if (!me.launch) this.diStick = null;
+    if (!a.startsWith('ledge')) this.ledgePlan = null;
+    if (a !== 'tumble' || me.launch) this.techPlan = null;
+    if (a !== 'down') this.getupPlan = null;
+    if (a === 'ko' || a === 'out') {
+      this.prog = null;
+      this.recovery = null;
+      return NEUTRAL;
+    }
+    if (a === 'respawn') return this.onRespawn(state, me);
+    if (me.launch) return this.onLaunch(state, me);
+    if (a === 'tumble') {
+      const i = this.onTumble(state, me);
+      if (i) return i;
+    }
+    if (a === 'down') return this.onDown(state, me);
+    if (a === 'hitstun' || (a === 'tumble' && me.hitstun > 0) || KNOCKDOWN.has(a)) {
+      this.prog = null;
+      this.recovery = null;
+      return NEUTRAL;
+    }
+    if (a === 'ledgeCatch' || a === 'ledgeHang') {
+      this.prog = null;
+      this.recovery = null;
+      return this.onLedge(state, me);
+    }
+    const info = stageInfo(state.config.stage);
+    const offstage =
+      me.ground === null && floorBelow(info, me.pos.x, me.pos.y) === null && !a.startsWith('ledge');
+    if (this.prog && !this.prog.interruptible && (!offstage || this.prog.offstage)) {
+      const i = this.runProgram(me);
+      if (i) return i;
+    }
+    if (offstage) {
+      this.prog = null;
+      return this.recover(state, me, info);
+    }
+    this.recovery = null;
+    if (state.frame >= this.nextThink || !this.prog) {
+      if (this.free(me)) {
+        this.think(state, me, info);
+        this.nextThink = state.frame + this.lv.thinkEvery;
+      }
+    }
+    const i = this.runProgram(me);
+    if (i) return i;
+    return me.ground === null ? this.airIdle(me, info) : NEUTRAL;
+  }
+
+  /** Able to start something: actionable, or holding a shield. */
+  private free(me: Readonly<FighterState>): boolean {
+    return actionable(me) || me.action === 'shield' || me.action === 'shieldStun';
+  }
+
+  private runProgram(me: Readonly<FighterState>): InputFrame | null {
+    const p = this.prog;
+    if (!p) return null;
+    const i = p.step(p.t, me);
+    if (!i) {
+      this.prog = null;
+      return null;
+    }
+    if (p.t === 0 && !p.holds) {
+      const reused = (i.buttons & this.last.buttons) !== 0;
+      const cAgain = (i.cx !== 0 || i.cy !== 0) && (this.last.cx !== 0 || this.last.cy !== 0);
+      if (reused || cAgain) return { ...i, buttons: i.buttons & ~this.last.buttons, cx: 0, cy: 0 };
+    }
+    p.t++;
+    return i;
+  }
+
+  private start(p: Program): void {
+    this.prog = { ...p, t: 0 };
+  }
+
+  // ---------------------------------------------------------------- getting hit, respawning, the ledge
+
+  private onLaunch(state: Readonly<MatchState>, me: Readonly<FighterState>): InputFrame {
+    this.prog = null;
+    this.recovery = null;
+    if (this.diStick) return this.diStick;
+    const control = state.players[this.port]!.control;
+    const attacker = nearestOpponent(state, me);
+    const r = this.rand();
+    if (r < this.lv.di) {
+      this.diStick = chooseDI(state, me, control, stageInfo(state.config.stage), attacker && attacker.pos);
+    } else if (r < this.lv.di + (1 - this.lv.di) * 0.5) {
+      const a = this.rand() * Math.PI * 2;
+      this.diStick = press({ x: Math.round(Math.cos(a) * 100), y: Math.round(Math.sin(a) * 100) });
+    } else {
+      this.diStick = neutralInput();
+    }
+    return this.diStick;
+  }
+
+  /**
+   * Tumbling into the floor: decide once whether to tech, then press Shield a few frames before touching down (a
+   * look-ahead says when) and hold the stick for a tech roll or let go for a tech in place.
+   */
+  private onTumble(state: Readonly<MatchState>, me: Readonly<FighterState>): InputFrame | null {
+    this.techPlan ??= { tech: this.rand() < this.lv.tech, dir: 0, pressed: false };
+    const plan = this.techPlan;
+    if (!plan.tech) return null;
+    if (plan.pressed) return press({ x: plan.dir * 100 });
+    const m = soloMatch(state, me, state.players[this.port]!.control);
+    const path = run(m, TECH_LEAD + 1, undefined, (g) => g.action !== 'tumble');
+    if (path.at(-1)?.action !== 'downBound') return null;
+    plan.pressed = true;
+    plan.dir = this.getupDirection(state, me, [0, 1, -1]);
+    return press({ buttons: Btn.Shield });
+  }
+
+  /** Lying on the floor after a missed tech: wait a level-dependent moment, then stand, roll or attack. */
+  private onDown(state: Readonly<MatchState>, me: Readonly<FighterState>): InputFrame {
+    this.prog = null;
+    if (!this.getupPlan) {
+      const [lo, hi] = this.lv.ledgeWait;
+      const at = lo + Math.floor(this.rand() * (hi - lo + 1));
+      const opp = nearestOpponent(state, me);
+      const near = opp !== null && Math.abs(opp.pos.x - me.pos.x) < 30;
+      let option: GetupOption = 'stand';
+      if (this.rand() < this.lv.ledgeMix) {
+        const r = this.rand();
+        option = r < (near ? 0.2 : 0.5) ? 'stand' : r < (near ? 0.7 : 0.8) ? 'roll' : 'attack';
+      }
+      const dir = option === 'roll' ? this.getupDirection(state, me, [1, -1]) : 0;
+      this.getupPlan = { option: dir === 0 && option === 'roll' ? 'stand' : option, at, dir };
+    }
+    const { option, at, dir } = this.getupPlan;
+    if (me.actionFrame < at) return NEUTRAL;
+    if (option === 'roll') return press({ x: 100 * dir });
+    if (option === 'attack') return press({ buttons: Btn.Attack });
+    return press({ y: STICK.full });
+  }
+
+  /** A random roll direction (0 for in place) among the options that keeps a roll's length on the stage. */
+  private getupDirection(state: Readonly<MatchState>, me: Readonly<FighterState>, options: number[]): number {
+    const info = stageInfo(state.config.stage);
+    const reach = getFighter(me.fighter).stats.rollDistance;
+    const safe = options.filter(
+      (d) => d === 0 || clampToStage(info, me.pos.x + d * reach, 4) === me.pos.x + d * reach,
+    );
+    return safe.length ? safe[Math.floor(this.rand() * safe.length)]! : 0;
+  }
+
+  private onRespawn(state: Readonly<MatchState>, me: Readonly<FighterState>): InputFrame {
+    if (this.respawnAt < 0) {
+      const [lo, hi] = [22, 30 + Math.round((1 - this.lv.aggression) * 90)];
+      this.respawnAt = lo + Math.floor(this.rand() * (hi - lo));
+    }
+    if (me.actionFrame < this.respawnAt) return NEUTRAL;
+    const info = stageInfo(state.config.stage);
+    return press({ x: Math.sign(info.centerX - me.pos.x) * 40 || 40 });
+  }
+
+  private onLedge(state: Readonly<MatchState>, me: Readonly<FighterState>): InputFrame {
+    if (!this.ledgePlan) this.ledgePlan = this.pickLedgeOption(state, me);
+    const { option, at } = this.ledgePlan;
+    if (me.action !== 'ledgeHang' || me.actionFrame < at) return NEUTRAL;
+    const toward = me.facing;
+    switch (option) {
+      case 'climb':
+        return press({ x: STICK.tilt * toward });
+      case 'jump':
+        this.start(ledgeJump(toward));
+        return press({ buttons: Btn.Jump });
+      case 'roll':
+        return press({ buttons: Btn.Shield });
+      case 'attack':
+        return press({ buttons: Btn.Attack });
+      case 'drop':
+        this.start(dropJump(toward));
+        return press({ x: -STICK.tilt * toward });
+    }
+  }
+
+  private pickLedgeOption(
+    state: Readonly<MatchState>,
+    me: Readonly<FighterState>,
+  ): { option: LedgeOption; at: number } {
+    const [lo, hi] = this.lv.ledgeWait;
+    const at = lo + Math.floor(this.rand() * (hi - lo + 1));
+    if (this.rand() >= this.lv.ledgeMix) return { option: 'climb', at };
+    const opp = nearestOpponent(state, me);
+    const near = opp !== null && Math.abs(opp.pos.x - me.pos.x) < 30 && opp.ground !== null;
+    const weights: [LedgeOption, number][] = near
+      ? [
+          ['climb', 0.12],
+          ['jump', 0.25],
+          ['roll', 0.3],
+          ['attack', 0.18],
+          ['drop', 0.15],
+        ]
+      : [
+          ['climb', 0.45],
+          ['jump', 0.2],
+          ['roll', 0.12],
+          ['attack', 0.13],
+          ['drop', 0.1],
+        ];
+    let r = this.rand();
+    for (const [option, w] of weights) {
+      if ((r -= w) < 0) return { option, at };
+    }
+    return { option: 'climb', at };
+  }
+
+  // ---------------------------------------------------------------- recovery
+
+  private recover(state: Readonly<MatchState>, me: Readonly<FighterState>, info: StageInfo): InputFrame {
+    const k = this.knowledge(state, me);
+    const plan = this.recovery;
+    const t = plan ? state.frame - plan.start : 0;
+    const expected = plan?.path[t - 1];
+    const drifted = expected !== undefined && Math.hypot(expected.x - me.pos.x, expected.y - me.pos.y) > 2;
+    if (!plan || !this.recoveryDrive || drifted || t >= plan.path.length) {
+      if (me.action !== 'helpless' && !actionable(me) && plan) return this.recoveryDrive!(t, me);
+      const control = state.players[this.port]!.control;
+      this.recovery = planRecovery(state, me, control, info, k, this.lv, this.rng);
+      this.recoveryDrive = recoveryDriver(info, k, this.recovery.params);
+      return this.recoveryDrive(0, me);
+    }
+    return this.recoveryDrive(t, me);
+  }
+
+  // ---------------------------------------------------------------- neutral
+
+  private knowledge(state: Readonly<MatchState>, f: Readonly<FighterState>): FighterKnowledge {
+    return knowledge(f.fighter, state.config.stage);
+  }
+
+  /** The opponent's next frames as the CPU expects them, t = 0 being the frame about to be simulated. */
+  private foresee(
+    state: Readonly<MatchState>,
+    opp: Readonly<FighterState>,
+  ): { path: Sample[]; snap: FighterState } {
+    const lag = Math.min(this.lv.reaction, this.history.length - 1);
+    const snap = this.seen(opp.port, lag);
+    const m = soloMatch(state, snap);
+    const info = stageInfo(state.config.stage);
+    const samples = run(m, lag + HORIZON + 1, assumedInput(snap, info, state));
+    const path = samples.slice(lag);
+    while (path.length < HORIZON) path.push(path.at(-1) ?? samplesFallback(snap));
+    return { path, snap };
+  }
+
+  private think(state: Readonly<MatchState>, me: Readonly<FighterState>, info: StageInfo): void {
+    const opp = nearestOpponent(state, me, this.lv.reaction, (p, lag) => this.seen(p, lag));
+    if (!opp) {
+      if (actionable(me) && me.ground) this.start(goTo(info.centerX, false, 30, info));
+      return;
+    }
+    const k = this.knowledge(state, me);
+    const { path, snap } = this.foresee(state, opp);
+    const target: Target = { path, errX: (this.rand() * 2 - 1) * this.lv.spacingError };
+    const now = path[0]!;
+    const dir = (Math.sign(now.x - me.pos.x) || me.facing) as 1 | -1;
+    const shielding = me.action === 'shield' || me.action === 'shieldStun';
+
+    const threat = this.threat(me, path);
+    if (threat) {
+      const key = `threat:${opp.port}:${threat.move}:${state.frame + threat.t - threat.frame}`;
+      if (this.roll(key, this.lv.defense) && this.defend(me, k, info, target, threat, dir)) return;
+    }
+
+    const situation = classify(path);
+    if (shielding) {
+      this.shieldPunish(state, me, k, info, target, snap, situation);
+      return;
+    }
+
+    const self: Self = { f: me, k, info, groundDelay: me.ground ? 0 : Infinity, jumpDelay: 0 };
+    const edgeguarding = this.isEdgeguarding(state, me, snap, info);
+    const attacks = this.rank(state, findAttacks(self, target), target, snap, k, info, edgeguarding);
+    const chance =
+      situation === 'combo' ? this.lv.followUp : situation === 'punish' ? this.lv.punish : this.lv.aggression;
+    if (attacks.length && this.rand() < chance) {
+      this.startAttack(attacks, me, info);
+      return;
+    }
+    if (Math.abs(now.x - me.pos.x) < 45 && this.rand() < this.lv.whiff * 0.3) {
+      const any = Object.keys(k.ground);
+      if (any.length && me.ground && actionable(me)) {
+        const move = any[Math.floor(this.rand() * any.length)]!;
+        this.start(groundMove(move, TURNING_MOVES.has(move) ? dir : me.facing));
+        return;
+      }
+    }
+    if (this.rand() < this.lv.aimless) {
+      this.start(this.aimless(me, info));
+      return;
+    }
+    this.move(me, info, path, snap, dir, situation, edgeguarding);
+  }
+
+  /** The first frame an opponent's predicted hitbox would touch the CPU where it is. */
+  private threat(
+    me: Readonly<FighterState>,
+    path: Sample[],
+  ): { t: number; until: number; move: string | null; frame: number } | null {
+    const h0 = hurtbox(me, getFighter(me.fighter).stats);
+    const vx = me.ground ? 0 : me.vel.x + me.kb.x;
+    const vy = me.ground ? 0 : me.vel.y + me.kb.y;
+    for (let t = 0; t < Math.min(path.length, 36); t++) {
+      const s = path[t]!;
+      if (!s.boxes.length) continue;
+      const k = Math.min(t, 6);
+      const h = { x: h0.x + vx * k, y1: h0.y1 + vy * k, y2: h0.y2 + vy * k, r: h0.r };
+      if (s.boxes.some((b) => overlaps(b.x, b.y, b.box.radius, h, 1.5))) {
+        let until = t;
+        while (until + 1 < path.length && path[until + 1]!.boxes.length) until++;
+        return { t, until, move: s.move, frame: s.actionFrame };
+      }
+    }
+    return null;
+  }
+
+  private defend(
+    me: Readonly<FighterState>,
+    k: FighterKnowledge,
+    info: StageInfo,
+    target: Target,
+    threat: { t: number; until: number },
+    dir: 1 | -1,
+  ): boolean {
+    const skill = (this.lv.level - 1) / 8;
+    const hold = Math.max(3, threat.until + 2);
+    if (me.action === 'shield' || me.action === 'shieldStun') {
+      this.start(shield(hold));
+      return true;
+    }
+    if (me.ground === null) {
+      if (!actionable(me)) return false;
+      if (!me.airDodgeUsed && threat.t <= 6) {
+        this.start(airDodge());
+        return true;
+      }
+      return false;
+    }
+    if (!actionable(me)) return false;
+    const self: Self = { f: me, k, info, groundDelay: 0, jumpDelay: 0 };
+    const counters = findAttacks(self, target).filter((a) => a.kind === 'ground' && a.tHit < threat.t - 1);
+    if (counters.length && this.rand() < 0.35 * skill) {
+      counters.sort((a, b) => a.tHit - b.tHit);
+      this.startAttack([counters[0]!], me, info);
+      return true;
+    }
+    const r = this.rand();
+    const roomBehind =
+      clampToStage(info, me.pos.x - dir * k.stats.rollDistance, 4) === me.pos.x - dir * k.stats.rollDistance;
+    if (threat.t >= 3 && r < 0.2 * skill) {
+      this.start(spotDodge());
+      return true;
+    }
+    if (threat.t >= 1 && roomBehind && r < 0.38 * skill) {
+      this.start(roll(-dir));
+      return true;
+    }
+    if (threat.t >= 4 && r < 0.48 * skill) {
+      this.start(fullHop('jumpAway', -100 * dir, 6, 30));
+      return true;
+    }
+    this.start(shield(hold));
+    return true;
+  }
+
+  private shieldPunish(
+    state: Readonly<MatchState>,
+    me: Readonly<FighterState>,
+    k: FighterKnowledge,
+    info: StageInfo,
+    target: Target,
+    snap: FighterState,
+    situation: Situation,
+  ): void {
+    const stun = me.action === 'shieldStun' ? Math.max(0, me.hitstun - me.actionFrame + 1) : 0;
+    const self: Self = { f: me, k, info, groundDelay: stun + SHIELD_DROP_FRAMES + 1, jumpDelay: stun };
+    const freeAt = target.path.findIndex((s) => actionable(s) || (s.grounded && s.action === 'shield'));
+    const window = freeAt < 0 ? target.path.length : freeAt;
+    const attacks = this.rank(state, findAttacks(self, target), target, snap, k, info, false).filter(
+      (a) => a.tHit < window,
+    );
+    if (attacks.length && situation !== 'neutral' && this.rand() < this.lv.punish) {
+      this.startAttack(attacks, me, info);
+      return;
+    }
+    if (this.prog?.name === 'shield') return;
+    if (me.action === 'shieldStun') this.start(shield(stun + 1));
+    else this.prog = null;
+  }
+
+  private rank(
+    state: Readonly<MatchState>,
+    attacks: Attack[],
+    target: Target,
+    snap: FighterState,
+    k: FighterKnowledge,
+    info: StageInfo,
+    edgeguarding: boolean,
+  ): Attack[] {
+    const opp = getFighter(snap.fighter).stats;
+    const offstageOk = edgeguarding && this.lv.level >= 6;
+    const out: Attack[] = [];
+    for (const a of attacks) {
+      const s = target.path[a.tHit]!;
+      const onStage = floorBelow(info, a.endX, a.endY + 1) !== null;
+      if (!onStage && !(offstageOk && this.safeOffstage(a, info, k))) continue;
+      const box = a.box;
+      const kb = knockback({
+        percent: snap.damage,
+        damage: box.damage,
+        kbg: box.kbg,
+        bkb: box.bkb,
+        wbkb: box.wbkb,
+        weight: opp.weight,
+      });
+      let v = box.damage * (k.hints.prefer?.[a.move] ?? 1) * (1 + Math.min(1.5, kb / 110));
+      if (s.action === 'shield') {
+        const kind = k.def.moves?.[a.move]?.kind ?? 'other';
+        const unsafe = a.busy - a.tHit - shieldstunFrames(box.damage, kind) - 5;
+        v = box.damage * 0.2 - Math.max(0, unsafe) * 0.6;
+      } else if (s.action !== 'hitstun' && s.action !== 'tumble') {
+        v -= Math.max(0, a.busy - a.tHit) * 0.06;
+      }
+      v /= 1 + a.tHit / 30;
+      out.push({ ...a, score: v });
+    }
+    out.sort((a, b) => b.score - a.score);
+    for (const a of out.slice(0, 3)) {
+      if (this.wouldKill(state, a, target, snap)) a.score += 40;
+    }
+    out.sort((a, b) => b.score - a.score);
+    return out.filter((a) => a.score > 0);
+  }
+
+  /** An offstage attack the CPU can come back from: ends near the ledge, not far below it, with a jump left. */
+  private safeOffstage(a: Attack, info: StageInfo, k: FighterKnowledge): boolean {
+    const L = targetLedge(info, a.endX);
+    if (!L || a.kind === 'ground' || a.kind === 'doubleJump' || k.stats.jumps < 2) return false;
+    return Math.abs(a.endX - L.x) < 25 && a.endY > L.y - 15;
+  }
+
+  /** Run the launch this attack would cause on a private copy of the opponent and see if it reaches a blast zone. */
+  private wouldKill(state: Readonly<MatchState>, a: Attack, target: Target, snap: FighterState): boolean {
+    const s = target.path[a.tHit]!;
+    const opp = getFighter(snap.fighter).stats;
+    const kb = knockback({
+      percent: snap.damage,
+      damage: a.box.damage,
+      kbg: a.box.kbg,
+      bkb: a.box.bkb,
+      wbkb: a.box.wbkb,
+      weight: opp.weight,
+    });
+    if (kb < 80) return false;
+    const dir =
+      a.box.direction === 'back'
+        ? -a.facing
+        : a.box.direction === 'away'
+          ? Math.sign(s.x - a.endX) || a.facing
+          : a.facing;
+    const v: FighterState = {
+      ...snapshot(snap),
+      pos: { x: s.x, y: s.y },
+      prevPos: { x: s.x, y: s.y },
+      vel: { x: 0, y: 0 },
+      kb: { x: 0, y: 0 },
+      ground: s.grounded ? snap.ground : null,
+      action: 'tumble',
+      actionFrame: 0,
+      hitlag: 0,
+      hitstun: 0,
+      ledge: -1,
+      launch: { kb, angle: a.box.angle, dir: dir as 1 | -1, setKnockback: (a.box.wbkb ?? 0) > 0 },
+    };
+    if (v.ground && s.grounded === false) v.ground = null;
+    const m = soloMatch(state, v);
+    const path = run(m, 160, undefined, (g, t) => t > 2 && !g.launch && g.hitstun <= 0);
+    const end = path.at(-1);
+    return end !== undefined && (end.action === 'ko' || end.action === 'out');
+  }
+
+  private startAttack(ranked: Attack[], me: Readonly<FighterState>, info: StageInfo): void {
+    const pick =
+      this.rand() < this.lv.precision
+        ? ranked[0]!
+        : ranked[Math.floor(this.rand() * Math.min(ranked.length, 6))]!;
+    const ff = this.rand() < this.lv.fastFall;
+    switch (pick.kind) {
+      case 'ground':
+        this.start(groundMove(pick.move, TURNING_MOVES.has(pick.move) ? pick.facing : me.facing));
+        return;
+      case 'jump':
+        this.start(jumpAerial(pick, ff, info));
+        return;
+      case 'air':
+        this.start(airAerial(pick, ff, info));
+        return;
+      case 'doubleJump':
+        this.start(airAerial(pick, ff, info));
+        return;
+    }
+  }
+
+  private isEdgeguarding(
+    state: Readonly<MatchState>,
+    me: Readonly<FighterState>,
+    snap: FighterState,
+    info: StageInfo,
+  ): boolean {
+    if (me.ground === null || floorBelow(info, snap.pos.x, snap.pos.y) !== null) return false;
+    if (snap.ground !== null || snap.action.startsWith('ledge')) return false;
+    return this.roll(`edge:${snap.port}:${Math.floor(state.frame / 90)}`, this.lv.edgeguard);
+  }
+
+  private move(
+    me: Readonly<FighterState>,
+    info: StageInfo,
+    path: Sample[],
+    snap: FighterState,
+    dir: 1 | -1,
+    situation: Situation,
+    edgeguarding: boolean,
+  ): void {
+    if (!actionable(me)) return;
+    const s = path[Math.min(path.length - 1, 8)]!;
+    const margin = 6;
+    if (me.ground === null) {
+      this.start(drift(clampToStage(info, s.x - dir * 10, margin), this.rand() < this.lv.fastFall, 12));
+      return;
+    }
+    const oppOff = floorBelow(info, snap.pos.x, snap.pos.y) === null && !snap.action.startsWith('ledge');
+    if (oppOff) {
+      const L = targetLedge(info, snap.pos.x);
+      if (edgeguarding && L) {
+        this.start(goTo(L.x - L.side * (6 + this.rand() * 8), true, 30, info, L.side));
+      } else {
+        this.start(goTo(clampToStage(info, (snap.pos.x + info.centerX) / 2, 30), false, 30, info));
+      }
+      return;
+    }
+    if (situation === 'combo' && this.rand() < this.lv.followUp) {
+      const tAct = path.findIndex((p) => actionable(p) || p.grounded);
+      const p = path[tAct < 0 ? path.length - 1 : Math.min(tAct, 30)]!;
+      this.start(goTo(clampToStage(info, p.x, margin), true, 20, info));
+      return;
+    }
+    const above = s.y - me.pos.y;
+    if (above > 14 && Math.abs(s.x - me.pos.x) < 35 && this.rand() < 0.3 + 0.4 * this.lv.aggression) {
+      this.start(fullHop('jumpToward', Math.sign(s.x - me.pos.x) * 70, 8, 24));
+      return;
+    }
+    if (above < -14 && me.ground?.kind === 'platform' && this.rand() < 0.6) {
+      this.start(dropThrough());
+      return;
+    }
+    if (this.rand() < this.lv.aggression) {
+      const gap = 6 + this.rand() * 10;
+      const tx = clampToStage(info, s.x - dir * gap, margin);
+      if (
+        Math.abs(s.x - me.pos.x) < 40 &&
+        Math.abs(s.x - me.pos.x) > 18 &&
+        this.rand() < 0.15 + 0.2 * this.lv.aggression
+      ) {
+        this.start(shortHop(dir));
+        return;
+      }
+      this.start(goTo(tx, true, 24, info, dir));
+      return;
+    }
+    const space = 28 + this.rand() * 26;
+    this.start(goTo(clampToStage(info, s.x - dir * space, margin), this.rand() < 0.4, 24, info, dir));
+  }
+
+  private aimless(me: Readonly<FighterState>, info: StageInfo): Program {
+    const r = this.rand();
+    if (me.ground === null) return drift(info.centerX, false, 10);
+    if (r < 0.4) return wait(20 + Math.floor(this.rand() * 40));
+    if (r < 0.75) {
+      const x = info.left + 15 + this.rand() * (info.right - info.left - 30);
+      return goTo(x, false, 60, info);
+    }
+    if (r < 0.9) return shortHop(0);
+    return crouch(20 + Math.floor(this.rand() * 30));
+  }
+
+  /** Airborne and nothing to do: drift back over the stage and maybe fast fall. */
+  private airIdle(me: Readonly<FighterState>, info: StageInfo): InputFrame {
+    if (this.fastFallAir !== me.airFrames || me.airFrames <= 1) {
+      if (me.airFrames <= 1) this.wantFastFall = this.rand() < this.lv.fastFall * 0.5;
+    }
+    this.fastFallAir = me.airFrames;
+    const x =
+      me.pos.x < info.left + 10 || me.pos.x > info.right - 10 ? Math.sign(info.centerX - me.pos.x) * 100 : 0;
+    const ff = this.wantFastFall && actionable(me) && me.vel.y <= 0 && !me.fastFalling && this.last.y > -30;
+    return press({ x, y: ff ? -100 : 0 });
+  }
+}
+
+type LedgeOption = 'climb' | 'jump' | 'roll' | 'attack' | 'drop';
+type GetupOption = 'stand' | 'roll' | 'attack';
+
+/** Frames before touching down that the CPU presses Shield to tech (the window is TECH_WINDOW, 11). */
+const TECH_LEAD = 4;
+/** Knocked down or getting up: nothing to input until it ends. */
+const KNOCKDOWN = new Set(['downBound', 'techInPlace', 'techRoll', 'getupStand', 'getupRoll']);
+
+function snapshot(f: Readonly<FighterState>): FighterState {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(f)) {
+    out[k] = Array.isArray(v) ? v.slice() : v !== null && typeof v === 'object' ? { ...v } : v;
+  }
+  return out as unknown as FighterState;
+}
+
+function samplesFallback(snap: FighterState): Sample {
+  const stats = getFighter(snap.fighter).stats;
+  return {
+    x: snap.pos.x,
+    y: snap.pos.y,
+    vx: 0,
+    vy: 0,
+    action: snap.action,
+    actionFrame: snap.actionFrame,
+    move: null,
+    grounded: snap.ground !== null,
+    facing: snap.facing,
+    hurt: hurtbox(snap, stats),
+    intangible: true,
+    boxes: [],
+    ledge: snap.ledge,
+    hitstun: 0,
+    landingLag: 0,
+    jumpsUsed: snap.jumpsUsed,
+  };
+}
+
+const GONE = new Set(['ko', 'out']);
+
+function nearestOpponent(
+  state: Readonly<MatchState>,
+  me: Readonly<FighterState>,
+  lag = 0,
+  seen?: (port: number, lag: number) => FighterState,
+): FighterState | null {
+  let best: FighterState | null = null;
+  let bestD = Infinity;
+  for (const f of state.fighters) {
+    if (f.port === me.port || GONE.has(f.action)) continue;
+    const g = seen ? seen(f.port, lag) : f;
+    const d = Math.hypot(g.pos.x - me.pos.x, g.pos.y - me.pos.y);
+    if (d < bestD) {
+      bestD = d;
+      best = f;
+    }
+  }
+  return best;
+}
+
+function classify(path: Sample[]): Situation {
+  const s = path[0]!;
+  if (s.action === 'hitstun' || (s.action === 'tumble' && s.hitstun > 0)) return 'combo';
+  const free = path.findIndex((p) => actionable(p));
+  if (free > 8 || free < 0) return 'punish';
+  return 'neutral';
+}
+
+/** What the CPU assumes the opponent keeps doing: running keeps running, drifting keeps drifting, recovering recovers. */
+function assumedInput(snap: FighterState, info: StageInfo, state: Readonly<MatchState>): Driver {
+  if (!actionable(snap) && snap.action !== 'helpless') return () => neutralInput();
+  if (snap.ground === null && floorBelow(info, snap.pos.x, snap.pos.y) === null) {
+    const k = knowledge(snap.fighter, state.config.stage);
+    const special = (k.hints.recovery ?? ['upB', 'sideB']).find((s) => k.air[s]) ?? null;
+    return recoveryDriver(info, k, { jumpAt: 1, special, specialAt: Infinity, below: 10, dodgeAt: Infinity });
+  }
+  const vx = snap.vel.x;
+  if (Math.abs(vx) < 0.4) return () => neutralInput();
+  const walk = getFighter(snap.fighter).stats.walkSpeed;
+  const x =
+    snap.ground !== null && Math.abs(vx) <= walk + 0.05
+      ? Math.sign(vx) * STICK.tilt
+      : Math.sign(vx) * STICK.full;
+  return () => press({ x });
+}
