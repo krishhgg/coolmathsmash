@@ -4,9 +4,12 @@ import {
   HELPLESS_AIR_SPEED,
   LEDGE_INTANGIBILITY,
   LEDGE_MAX_GRABS,
+  PUSH_STIFFNESS,
 } from './constants';
 import { stickY } from './control';
+import { getFighter } from '../fighters/registry';
 import type { Ctx, FighterState, GroundRef } from './fighter';
+import type { MatchState } from './match';
 import { edgeMaxX, edgeMinX, floorY, type CompiledStage, type Edge } from './stage';
 import { approach } from './vec';
 import { LAUNCH_DECAY, speedUp } from './combat/formulas';
@@ -107,8 +110,6 @@ export function land(x: Ctx, g: GroundRef): void {
   const { f, stage } = x;
   f.ground = g;
   f.pos.y = surfaceY(stage, g, f.pos.x);
-  f.vel.y = 0;
-  f.kb.y = 0;
   restoreAirOptions(f);
   const action = ACTIONS[f.action]!;
   if (action.land) {
@@ -117,6 +118,37 @@ export function land(x: Ctx, g: GroundRef): void {
     f.landingLag = normalLandingLag(x);
     enterAction(x, 'land', 0);
   }
+  f.vel.y = 0;
+  f.kb.y = 0;
+}
+
+/**
+ * Grounded fighters standing in each other push apart (Ultimate's jostle), each by PUSH_STIFFNESS of the
+ * overlap per frame, and never off the surface they stand on. Fighters frozen in hitlag aren't pushed.
+ */
+export function pushApart(m: MatchState, stage: CompiledStage): void {
+  const fs = m.fighters;
+  for (let i = 0; i < fs.length; i++) {
+    for (let j = i + 1; j < fs.length; j++) {
+      const a = fs[i]!;
+      const b = fs[j]!;
+      if (!a.ground || !b.ground || a.hitlag > 0 || b.hitlag > 0 || Math.abs(a.pos.y - b.pos.y) > 1) continue;
+      const reach = (getFighter(a.fighter).stats.width + getFighter(b.fighter).stats.width) / 2;
+      const dx = b.pos.x - a.pos.x;
+      const overlap = reach - Math.abs(dx);
+      if (overlap <= 0) continue;
+      const side = Math.sign(dx) || 1;
+      shove(stage, a, -side * overlap * PUSH_STIFFNESS);
+      shove(stage, b, side * overlap * PUSH_STIFFNESS);
+    }
+  }
+}
+
+function shove(stage: CompiledStage, f: FighterState, dx: number): void {
+  const g = f.ground!;
+  const [lo, hi] = surfaceRange(stage, g);
+  f.pos.x = Math.min(hi, Math.max(lo, f.pos.x + dx));
+  f.pos.y = surfaceY(stage, g, f.pos.x);
 }
 
 /** Soft landing lag after a short airtime, hard landing lag after a longer one. */

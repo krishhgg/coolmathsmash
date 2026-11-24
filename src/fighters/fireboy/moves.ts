@@ -111,6 +111,24 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
+  /** Getting up from the floor swinging a flame to both sides; intangible until the second swing ends. */
+  getupAttack: {
+    kind: 'other',
+    faf: 46,
+    intangible: [1, 26],
+    hits: [
+      {
+        frames: [17, 18],
+        boxes: [box(0, 8, 3, 5, { damage: 7, angle: 361, kbg: 48, bkb: 80, effect: fire })],
+      },
+      {
+        frames: [25, 26],
+        boxes: [
+          box(0, -8, 3, 5, { damage: 7, angle: 361, kbg: 48, bkb: 80, effect: fire, direction: 'back' }),
+        ],
+      },
+    ],
+  },
   /** Spinning ember: strong early, weaker lingering hit. */
   nair: {
     kind: 'aerial',

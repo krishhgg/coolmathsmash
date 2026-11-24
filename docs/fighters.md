@@ -97,6 +97,9 @@ fsmash: {
 - **Landing lag.** Aerials give `landingLag` and `autoCancel` windows; a `helpless` move's `landingLag` also
   applies when it lands out of the helpless fall.
 - **Auto-cancel.** Landing in an aerial's `autoCancel` window costs only normal landing lag.
+- **Intangibility.** `intangible: [from, to]` makes the fighter intangible on those frames of the move.
+- **Getup attack.** A move named `getupAttack` plays when a fighter lying down after a missed tech presses
+  Attack. Give it `intangible: [1, 26]` (Ultimate's) and hits on both sides; without one, Attack just stands up.
 - **Specials.** `script(x)` runs every frame of the move before physics and sets velocity or facing. It must be
   deterministic: no `Math.random`, no clocks; use `x.m.rng` if you need randomness.
   - `leavesGround` makes a grounded start take off.
