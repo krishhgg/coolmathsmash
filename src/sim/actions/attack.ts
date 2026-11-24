@@ -163,6 +163,10 @@ function playMove(x: Ctx): MoveDef {
   }
   if (move.hits.some((w) => w.rehit && w.frames[0] === f.actionFrame)) f.hitVictims = [];
   move.script?.(x);
+  if (move.transform?.frame === f.actionFrame) {
+    emit(x.m, { type: 'transform', port: f.port, from: f.fighter, to: move.transform.into });
+    f.fighter = move.transform.into;
+  }
   return move;
 }
 

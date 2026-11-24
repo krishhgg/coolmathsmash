@@ -113,6 +113,12 @@ export interface MoveDef {
   /** Airborne moves that may grab a ledge from this frame. */
   ledgeFrom?: number;
   /**
+   * Transform (Zelda/Sheik style): on `frame` the fighter becomes fighter `into`, keeping its %, stocks, position
+   * and everything else in FighterState; stats, moves and art switch. `into` must have a move of the same name,
+   * which plays the rest of the move.
+   */
+  transform?: { frame: number; into: string };
+  /**
    * Scripted behaviour (specials): runs every frame of the move before physics, after actionFrame advances.
    * It may set velocity or facing. Keep it deterministic: no Math.random, no clocks.
    */
@@ -132,6 +138,8 @@ export interface FighterDef {
   moves?: Record<string, MoveDef>;
   /** Art data for the renderer (src/render/rig). Plain data, no renderer imports. */
   art?: unknown;
+  /** False for forms reached only by transforming (Watergirl), so menus list only the fighter that starts. */
+  selectable?: boolean;
 }
 
 export function defineFighter<T extends FighterDef>(def: T): T {

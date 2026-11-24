@@ -32,6 +32,8 @@ export class Renderer {
   private readonly fighterLayer = new Container();
   private readonly boxes = new Graphics();
   private fighters: FighterView[] = [];
+  /** Fighter id each view was built for; a transform swaps the view. */
+  private fighterIds: string[] = [];
   private stageId = '';
   private stage: StageGeometry | null = null;
   private matchKey: unknown = null;
@@ -67,9 +69,18 @@ export class Renderer {
     if (this.matchKey !== state.config) {
       this.matchKey = state.config;
       this.fighterLayer.removeChildren();
-      this.fighters = state.fighters.map((f) => new FighterView(getFighter(f.fighter), f.port));
-      for (const v of this.fighters) this.fighterLayer.addChild(v.container);
+      this.fighters = [];
+      this.fighterIds = [];
     }
+    state.fighters.forEach((f, i) => {
+      if (this.fighterIds[i] === f.fighter) return;
+      const view = new FighterView(getFighter(f.fighter), f.port);
+      const old = this.fighters[i];
+      if (old) this.fighterLayer.replaceChild(old.container, view.container);
+      else this.fighterLayer.addChild(view.container);
+      this.fighters[i] = view;
+      this.fighterIds[i] = f.fighter;
+    });
   }
 
   /** Advance the camera by the frame just simulated; Game.step calls this after every frame. */

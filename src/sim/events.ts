@@ -43,6 +43,8 @@ export type SimEvent =
   | { type: 'land'; port: number; lag: number }
   /** A move started. */
   | { type: 'move'; port: number; move: string }
+  /** A fighter transformed into another fighter (Fireboy and Watergirl's swap). */
+  | { type: 'transform'; port: number; from: string; to: string }
   | { type: 'action'; port: number; from: string; to: string };
 
 export type SimEventType = SimEvent['type'];
