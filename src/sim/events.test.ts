@@ -219,6 +219,21 @@ describe('air mobility events', () => {
     expect(m.fighters[0]!.mobility.floatFrames).toBe(testFloater.float.frames);
   });
 
+  it('a fast fall out of a float reports one end', () => {
+    const m = testMatch({ fighter: testFloater.id });
+    const ends = () => of(m, 'float').filter((e) => e.phase === 'end').length;
+    next(m, 'float', { buttons: ['jump'] });
+    let count = 0;
+    run(m, 1, { y: -100, buttons: ['jump'] });
+    count += ends();
+    for (let i = 0; i < 5; i++) {
+      run(m, 1, { y: -100, buttons: ['jump'] });
+      count += ends();
+    }
+    expect(m.fighters[0]!.action).toBe('fall');
+    expect(count).toBe(1);
+  });
+
   it('a float pushed onto the ground reports its end', () => {
     const m = testMatch({ fighter: testFloater.id });
     const f = placeInAir(m, 0, 1);

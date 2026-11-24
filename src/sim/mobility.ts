@@ -96,10 +96,10 @@ export function createMobility(def: FighterDef): MobilityState {
 
 /**
  * Touching the ground gives back the glide and the float (hover fuel refills gradually instead). A float cut
- * short by landing is ended, and reported, by the next tickMobility.
+ * short by landing is ended, and reported, by the next tickMobility. `glideHelpless` is left for the glide's
+ * landing to read (every glide sets it when it starts).
  */
 export function resetMobility(m: MobilityState): void {
   m.glideUsed = false;
-  m.glideHelpless = false;
   m.floatFrames = 0;
 }
