@@ -258,6 +258,21 @@ function endGrab(m: MatchState, holder: FighterState | undefined, held: FighterS
 }
 
 /**
+ * End `f`'s grab from whichever side `f` is on, when the stage takes the ground from under it: both let go as
+ * on a release (grabRelease event, regrab immunity for the held fighter). A partner already out of this grab
+ * (KO'd, or grabbed by someone else since) is left as it is, as in holdRunsOut; `f` only drops its own link.
+ */
+export function breakGrab(m: MatchState, f: FighterState): void {
+  const partner = m.fighters[f.grabPartner]!;
+  const [holder, held] = HOLDING.has(f.action) ? [f, partner] : [partner, f];
+  if (held.action !== 'grabbed' || held.grabPartner !== holder.port) {
+    f.grabPartner = -1;
+    return;
+  }
+  endGrab(m, HOLDING.has(holder.action) && holder.grabPartner === held.port ? holder : undefined, held);
+}
+
+/**
  * A hit landing on a held fighter (hits.ts): its damage counts towards GRAB.breakDamage, and the fighter stays
  * grabbed, its launch only pending, until grabStruck decides after all of the frame's hits. True when `v` is held.
  */
