@@ -55,7 +55,11 @@ export type SimEvent =
   /** A grab ended without a throw and both slid apart; `holder` is -1 when the holder was already gone. */
   | { type: 'grabRelease'; holder: number; held: number }
   /** Two fighters grabbed each other on the same frame and both bounced off (Ultimate's grab clank). */
-  | { type: 'grabClank'; ports: [number, number] };
+  | { type: 'grabClank'; ports: [number, number] }
+  /** A scheduled stage piece appeared (`on`) or vanished (docs/stage-geometry.md). */
+  | { type: 'stagePiece'; piece: 'solid' | 'platform'; index: number; on: boolean }
+  /** A moving solid squeezed a fighter against other geometry and the fighter popped out on top of it. */
+  | { type: 'squeeze'; port: number; solid: number; x: number; y: number };
 
 export type SimEventType = SimEvent['type'];
 

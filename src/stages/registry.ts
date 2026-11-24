@@ -12,6 +12,11 @@ export const STAGES: Record<string, StageGeometry> = Object.fromEntries(
     }),
 );
 
+/** Test-only stages (the engine testbed, src/stages/testbed.ts) are registered at runtime. */
+export function registerStage(geo: StageGeometry): void {
+  STAGES[geo.id] = geo;
+}
+
 export function getStage(id: string): StageGeometry {
   const stage = STAGES[id];
   if (!stage) throw new Error(`unknown stage "${id}" (have: ${Object.keys(STAGES).join(', ')})`);

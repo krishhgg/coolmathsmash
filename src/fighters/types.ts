@@ -131,6 +131,11 @@ export interface MoveDef {
   /** Landing doesn't end the move: it carries on from the same frame on the ground, with no landing lag. */
   continuesOnLanding?: boolean;
   /**
+   * Ground/air variants (Ultimate's SpecialN and SpecialAirN): started in the air, this move plays the move named
+   * `air` instead, which is also the clip and the name in the `move` event.
+   */
+  air?: string;
+  /**
    * Transform (Zelda/Sheik style): on `frame` the fighter becomes fighter `into`, keeping its %, stocks, position
    * and everything else in FighterState; stats, moves and art switch. `into` must have a move of the same name,
    * which plays the rest of the move.

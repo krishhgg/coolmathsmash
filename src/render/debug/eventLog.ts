@@ -34,6 +34,8 @@ function describe(e: SimEvent): string {
       return `${p(e.held)} grab release`;
     case 'grabClank':
       return `${p(e.ports[0])} ${p(e.ports[1])} grab clank`;
+    case 'stagePiece':
+      return `${e.piece} ${e.index} ${e.on ? 'appears' : 'vanishes'}`;
     default:
       return `${p(e.port)} ${e.type}`;
   }
