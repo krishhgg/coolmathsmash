@@ -34,3 +34,21 @@ test('character select: pick, join a second keyboard, add and remove a CPU', asy
   await expect(page.locator('.main-menu')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('special/B backs out: first undoes a pick, then leaves for the main menu', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.main-menu')).toBeVisible();
+  await page.keyboard.press('KeyD');
+  await expect(page.locator('.menu-tile.is-focus')).toContainText('Smash');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.css-screen')).toBeVisible();
+  await page.keyboard.press('KeyF');
+  await expect(page.locator('.css-ready')).toBeVisible();
+  await page.keyboard.press('KeyG');
+  await expect(page.locator('.css-ready')).toBeHidden();
+  await expect(page.locator('.css-screen')).toBeVisible();
+  await page.keyboard.press('KeyG');
+  await expect(page.locator('.main-menu')).toBeVisible();
+});
