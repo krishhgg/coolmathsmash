@@ -3,6 +3,7 @@ import ref from '../../sim/reference/physics-constants.json';
 import { activeHitboxes } from '../../sim/combat/hits';
 import { createMatch, type MatchState } from '../../sim/match';
 import type { FighterState } from '../../sim/fighter';
+import { koPercent } from '../../sim/testing/ko';
 import { runPorts, until, type Hold } from '../../sim/testing/sim';
 import { moves } from './moves';
 import { stats } from './stats';
@@ -40,41 +41,6 @@ function place(a: FighterState, v: FighterState, ax: number, vx: number, facing:
     v.damage = percent;
   }
   a.facing = facing;
-}
-
-/** Step until P2 is KO'd (or 400 frames pass) and return the blast zone it crossed, '' when it survived. */
-function koSide(m: MatchState): string {
-  for (let i = 0; i < 400; i++) {
-    runPorts(m, 1, [{}, {}]);
-    for (const e of m.events) if (e.type === 'ko' && e.port === 1) return e.side;
-  }
-  return '';
-}
-
-/**
- * The roster's kill-% convention: does `move` KO Mario standing at Battlefield's right ledge at `percent`, fresh, no
- * rage, no DI? A KO only counts off the side or top, the launch itself, not Mario drifting into the bottom.
- */
-function ledgeKO(move: 'fsmash' | 'usmash' | 'dsmash' | 'dashAttack', percent: number, gap: number): boolean {
-  const { m, a, v } = versus();
-  place(a, v, 76 - gap, 76, 1, percent);
-  Object.assign(a, { action: 'attack', actionFrame: 0, move, hitVictims: [], moveStale: 0 });
-  const side = koSide(m);
-  return side === 'right' || side === 'top';
-}
-
-/** Raft Wars kids grab Mario near the right ledge and throw him toward it; true when the throw KOs. */
-function throwKO(move: 'fthrow' | 'bthrow', percent: number): boolean {
-  const { m, a, v } = versus();
-  const facing = move === 'bthrow' ? -1 : 1;
-  place(a, v, 66, 66 + 9 * facing, facing, percent);
-  runPorts(m, 1, [{ buttons: ['grab'] }, {}]);
-  runPorts(m, 8, [{}, {}]);
-  expect(v.action).toBe('grabbed');
-  runPorts(m, 1, [{ x: 100 }, {}]);
-  expect(a.move).toBe(move);
-  const side = koSide(m);
-  return side === 'right' || side === 'top';
 }
 
 /** Frames on which a move started from standing has a hitbox out. */
@@ -159,19 +125,19 @@ describe('Raft Wars kids: frame data', () => {
 
   it.each([
     ['dashAttack', 9],
-    ['fsmash', 16],
-    ['usmash', 13],
-    ['dsmash', 11],
-  ] as const)('%s deals the roster damage (%s%%)', (move, damage) => {
+    ['fsmash', 17],
+    ['usmash', 14],
+    ['dsmash', 12],
+  ] as const)('%s deals %s%% (the roster, or the kill analogue below)', (move, damage) => {
     expect(Math.max(...moves[move]!.hits.flatMap((w) => w.boxes.map((b) => b.damage)))).toBe(damage);
   });
 
   it.each([
     ['fthrow', 9],
-    ['bthrow', 11],
+    ['bthrow', 9],
     ['uthrow', 8],
     ['dthrow', 6],
-  ] as const)('%s deals the roster damage (%s%%)', (move, damage) => {
+  ] as const)('%s deals %s%% (the roster, or the kill analogue below)', (move, damage) => {
     expect(moves[move]!.throw!.hit.damage).toBe(damage);
   });
 
@@ -191,26 +157,32 @@ describe('Raft Wars kids: frame data', () => {
 });
 
 /**
- * The roster's kill-% targets are fsmash ~90%, usmash ~120% and back throw ~160%. The knockback values are entered at
- * Ultimate-standard KBG/BKB rather than tuned down to those targets, and today's engine KOs earlier than Ultimate
- * (fsmash ~56%, usmash ~117%, back throw ~122% here), so these bounds are wide on purpose.
- * TODO(COOL-3 KO calibration): switch to the `koPercent` helper and tighten to the roster targets once it lands.
+ * Kill percents with koPercent: the Mario reference at Battlefield's ledge, fresh, no rage, no DI. Each move takes its
+ * knockback from an Ultimate analogue (13.0.1 hitbox data) and KOs within 5 points of it; `ko` is the analogue's own
+ * hitbox through koPercent, which reproduces Ultimate's KO calculator within about 2% (src/sim/testing/ko.test.ts).
  */
-describe('Raft Wars kids: kill percents on Mario at the ledge (wide until the engine calibration)', () => {
-  it('Floaty Shove (fsmash) is their strongest kill move: survives 40%, KOs by 100%', () => {
-    expect(ledgeKO('fsmash', 40, 10)).toBe(false);
-    expect(ledgeKO('fsmash', 100, 10)).toBe(true);
+const analogues = [
+  { move: 'fsmash', analogue: "Isabelle's forward smash (17%, 361, KBG 99, BKB 25)", ko: 68.6 },
+  { move: 'upB', analogue: "Snake's Remote Missile (14%, 50, KBG 70, BKB 75)", ko: 96.2 },
+  { move: 'dsmash', analogue: "Snake's down smash (12%, 25, KBG 87, BKB 30)", ko: 104.8 },
+  { move: 'usmash', analogue: "Snake's up smash mortar (14%, 65, KBG 60, BKB 87)", ko: 142.2 },
+  { move: 'bthrow', analogue: "Snake's back throw (9%, 140, KBG 65, BKB 65)", ko: 156.8 },
+  { move: 'fthrow', analogue: "Snake's forward throw (9%, 40, KBG 65, BKB 60)", ko: 166.6 },
+];
+
+describe('Raft Wars kids: kill percents on Mario at the ledge', () => {
+  it.each(analogues)('$move KOs within 5 points of $analogue: $ko%', ({ move, ko }) => {
+    expect(Math.abs(koPercent({ hit: { fighter: 'raftwars', move } })! - ko)).toBeLessThanOrEqual(5);
   });
 
-  it('Bottle Rocket (usmash) survives 80%, KOs by 140%', () => {
-    expect(ledgeKO('usmash', 80, 3)).toBe(false);
-    expect(ledgeKO('usmash', 140, 3)).toBe(true);
+  it('Floaty Shove kills first, then the Rocket Ride explosion, down smash, up smash, back throw, forward throw', () => {
+    const order = analogues.map(({ move }) => koPercent({ hit: { fighter: 'raftwars', move } })!);
+    expect(order).toEqual([...order].sort((x, y) => x - y));
   });
 
-  it('Rocket Toss (bthrow) survives 90% and KOs by 160% from the ledge, where forward throw does not', () => {
-    expect(throwKO('bthrow', 90)).toBe(false);
-    expect(throwKO('bthrow', 160)).toBe(true);
-    expect(throwKO('fthrow', 160)).toBe(false);
+  it('dash attack, up throw and down throw are not kill moves: none KOs before 180%', () => {
+    for (const move of ['dashAttack', 'uthrow', 'dthrow'])
+      expect(koPercent({ hit: { fighter: 'raftwars', move } })!).toBeGreaterThan(180);
   });
 });
 
