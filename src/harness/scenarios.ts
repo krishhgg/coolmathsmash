@@ -234,6 +234,11 @@ export const SCENARIOS: Scenario[] = [
     page: { kind: 'lab', scene: 'menu', params: { screen: 'main' } },
   },
   {
+    name: 'credits',
+    description: 'Credits: the fan-game disclaimer, each character with its rights holder, and the crew.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'credits' } },
+  },
+  {
     name: 'css-2p',
     description:
       'Character select, 1v1: P1 (keyboard) has picked Fireboy, a level 9 CPU on Random; Ready to fight shows.',

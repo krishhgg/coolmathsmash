@@ -16,7 +16,8 @@ export interface Screen {
   leave?(): void;
 }
 
-export type Route = 'title' | 'main' | 'css' | 'stages' | 'match' | 'results' | 'controls' | 'options';
+export type Route =
+  'title' | 'main' | 'css' | 'stages' | 'match' | 'results' | 'controls' | 'options' | 'credits';
 
 /** How deep each screen sits, so going to a shallower one sounds like "back". */
 const DEPTH: Record<Route, number> = {
@@ -24,6 +25,7 @@ const DEPTH: Record<Route, number> = {
   main: 1,
   controls: 2,
   options: 2,
+  credits: 2,
   css: 2,
   stages: 3,
   match: 4,

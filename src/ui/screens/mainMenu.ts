@@ -60,12 +60,23 @@ export function mainMenuScreen(flow: Flow): Screen {
       flow.has(t.route) ? null : h('span', { class: 'menu-tile-soon' }, 'Coming soon'),
     ),
   );
+  const credits = h(
+    'button',
+    {
+      class: 'menu-credits',
+      data: { nav: '', route: 'credits', blurb: 'Who made this fan game, and who owns each character.' },
+      disabled: !flow.has('credits'),
+      on: { click: () => flow.go('credits') },
+    },
+    'Credits',
+  );
   const el = h(
     'div',
     { class: 'main-menu bg-menu' },
     h('div', { class: 'bg-rays' }),
     backTab(() => flow.go('title')),
     headerPlate('Main Menu'),
+    credits,
     h('div', { class: 'menu-tiles' }, tiles),
     blurb,
     footerHints([
