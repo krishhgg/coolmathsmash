@@ -33,8 +33,12 @@ const { values: args } = parseArgs({
     url: { type: 'string' },
     build: { type: 'boolean', default: false },
     'keep-frames': { type: 'boolean', default: false },
+    quality: { type: 'string' },
   },
 });
+
+/** Game pages draw `lite` (no painted backdrop) unless `--quality full` asks for the stage's full look. */
+const gameQuery = args.quality ? `?harness&quality=${args.quality}` : '?harness';
 
 const root = resolve(import.meta.dirname, '..');
 const git = gitInfo();
@@ -93,7 +97,7 @@ function save(name: string, bytes: Buffer): string {
 }
 
 async function captureGame(page: Page, base: string, s: GameScenarioInfo): Promise<CaptureRecord> {
-  const url = `${base}?harness`;
+  const url = `${base}${gameQuery}`;
   const rec: CaptureRecord = {
     name: s.name,
     description: s.description,
@@ -221,7 +225,7 @@ async function main(): Promise<number> {
     const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
-    await open(page, `${base}?harness`);
+    await open(page, `${base}${gameQuery}`);
     const all = await page.evaluate(() => window.__smash!.scenarios());
     const only = args.only
       ?.split(',')

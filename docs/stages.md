@@ -76,6 +76,14 @@ real surfaces at the cameras the game uses, and make anything near the playfield
 Battlefield keeps its island placement as data in `art/scenery.ts`, and `parallax.test.ts` checks it against the
 start-of-match camera (`src/render/camera.ts`) and views around the playfield.
 
+## Render quality
+
+The renderer draws `StageView.background` into a half-resolution texture each frame, and only at `full` quality.
+`?quality=lite` (the default under `?harness`, so for Playwright and the capture runner) leaves the backdrop flat;
+`?quality=full` forces it, and `VITE_RENDER_QUALITY` at build time changes the default for every page that does not
+pass `quality`. The game itself draws `full`. Keep anything gameplay needs out of the background, since it may not be
+drawn.
+
 ## Deterministic animation
 
 Everything that moves is a pure function of `frame` and `camera`: no `Math.random`, no clocks, no state that

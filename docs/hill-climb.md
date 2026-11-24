@@ -30,6 +30,10 @@ in a fresh page and prints one line per scenario. Options: `--only idle,run` run
 running server instead (`npm run dev`, or the GitHub Pages build), `--keep-frames` keeps every frame of the motion
 windows under `frames/<name>/`.
 
+Game scenarios render at `lite` quality: everything but the stage's painted backdrop, which stays a flat sky, so a
+round stays fast on a software GPU. `--quality full` captures the full look, for judging stage art. The `stage`
+scenario (a lab page) always draws the full stage.
+
 Outputs, per scenario:
 
 - `<name>.png`: the capture frame, 1280x720.
