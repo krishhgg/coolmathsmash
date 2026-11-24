@@ -67,8 +67,10 @@ export class Cpu {
     at: number;
     pummels: number;
     stick: InputFrame;
-    start: number;
-    timer: number;
+    /** The held fighter's hold timer when last seen, and how fast it has been dropping lately (per frame). */
+    seenAt: number;
+    seenTimer: number;
+    drain: number;
   } | null = null;
   private mashDir = 1;
   private respawnAt = -1;
@@ -275,7 +277,7 @@ export class Cpu {
 
   /**
    * Holding someone: after a reaction-length pause, pummel up to the level's count, but only while the hold would
-   * outlast another pummel at the rate the opponent has been mashing (plus one more direction and button), then throw:
+   * outlast another pummel at the rate the opponent has been mashing lately (plus one more direction and button), then throw:
    * one that KOs if any does (checked by simulating each throw's launch), else toward the nearer blast zone. A started
    * throw can't be escaped.
    */
@@ -287,13 +289,18 @@ export class Cpu {
       const pummels = Math.floor(this.rand() * (this.lv.pummels + 1));
       const at = state.frame + Math.round(this.lv.reaction / 2);
       const stick = this.pickThrow(state, me, held);
-      this.grabPlan = { at, pummels, stick, start: state.frame, timer: held.grabTimer };
+      this.grabPlan = { at, pummels, stick, seenAt: state.frame, seenTimer: held.grabTimer, drain: 1 };
     }
     const plan = this.grabPlan;
+    if (state.frame > plan.seenAt) {
+      const recent = (plan.seenTimer - held.grabTimer) / (state.frame - plan.seenAt);
+      plan.drain = plan.drain * 0.7 + recent * 0.3;
+      plan.seenAt = state.frame;
+      plan.seenTimer = held.grabTimer;
+    }
     if (state.frame < plan.at) return NEUTRAL;
-    const drain = Math.max(1, (plan.timer - held.grabTimer) / Math.max(1, state.frame - plan.start));
     const pummel = (getFighter(me.fighter).moves?.pummel?.faf ?? 6) + PUMMEL_HITLAG;
-    const margin = pummel * drain * 1.5 + GRAB.mashStick + GRAB.mashButton;
+    const margin = pummel * Math.max(1, plan.drain) * 1.5 + GRAB.mashStick + GRAB.mashButton;
     if (plan.pummels > 0 && held.grabTimer > margin) {
       if (this.last.buttons & Btn.Attack) return NEUTRAL;
       plan.pummels--;
