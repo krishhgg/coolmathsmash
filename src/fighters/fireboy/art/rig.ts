@@ -1,23 +1,5 @@
-import type { ArtSymbol, PathShape, Rig, Slot } from '../../../render/rig/types';
-import {
-  FORE_ARM,
-  SHIN,
-  THIGH,
-  UPPER_ARM,
-  balls,
-  faces,
-  fist,
-  foreArm,
-  headFront,
-  headSide,
-  headUp,
-  jets,
-  mitten,
-  shin,
-  thigh,
-  torso,
-  upperArm,
-} from './parts';
+import type { Rig, Slot } from '../../../render/rig/types';
+import { FORE_ARM, SHIN, THIGH, UPPER_ARM, symbols } from './parts';
 
 /** Outline slots for both segments of a limb, then their fills, so joints have no seam. */
 function limbSlots(upper: string, lower: string, upperSym: string, lowerSym: string): Slot[] {
@@ -28,24 +10,6 @@ function limbSlots(upper: string, lower: string, upperSym: string, lowerSym: str
     { name: lower, bone: lower, symbol: lowerSym },
   ];
 }
-
-function limbSymbols(
-  parts: Record<string, { line: PathShape[]; fill: PathShape[] }>,
-): Record<string, PathShape[]> {
-  return Object.fromEntries(
-    Object.entries(parts).flatMap(([name, part]) => [
-      [name, part.fill],
-      [`${name}Line`, part.line],
-    ]),
-  );
-}
-
-const frames = (name: string, drawings: ArtSymbol[]) =>
-  Object.fromEntries(drawings.map((d, i) => [`${name}${i}`, d]));
-const loop = (name: string, count: number, fps: number, order = [0, 1, 2]) => ({
-  loop: order.slice(0, count).map((i) => `${name}${i}`),
-  fps,
-});
 
 export const HIP_Y = -(THIGH + SHIN);
 /** Head centre above the chin: the head symbols are drawn around the head centre. */
@@ -80,7 +44,7 @@ export const rig: Rig = {
     { name: 'fx4', parent: 'root', x: 0, y: 0 },
   ],
   slots: [
-    { name: 'aura', bone: 'body', symbol: null, decor: true },
+    { name: 'aura', bone: 'body', symbol: 'aura', decor: true },
     { name: 'fxBack', bone: 'fx4', symbol: null },
     ...limbSlots('armB', 'foreB', 'upperArm', 'foreArm'),
     { name: 'torsoLine', bone: 'torso', symbol: 'torsoLine' },
@@ -94,21 +58,7 @@ export const rig: Rig = {
     { name: 'fx2', bone: 'fx2', symbol: null },
     { name: 'fx3', bone: 'fx3', symbol: null },
   ],
-  symbols: {
-    headFront,
-    headSide,
-    headUp,
-    ...faces,
-    ...limbSymbols({ upperArm, foreArm, mitten, fist, thigh, shin, torso }),
-    ...frames('fxBall', balls),
-    /** A fireball of radius 3.6 trailing towards -x, flickering through three drawings. */
-    fxBall: loop('fxBall', 3, 30, [0, 2, 1]),
-    ...frames('fxJet', jets),
-    /** A flame tongue pointing up from its base: the strike flame at a faster flicker. */
-    fxFlame: loop('fxJet', 3, 30, [1, 2, 0]),
-    /** A strike flame: a yellow-cored teardrop with swept tongues, flickering through three drawings. */
-    fxJet: loop('fxJet', 3, 20, [0, 1, 2]),
-  },
+  symbols,
 };
 
 /** Lengths the IK helpers need: hand and foot points are this far down their lower bone. */
