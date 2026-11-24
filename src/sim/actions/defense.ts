@@ -10,6 +10,7 @@ import {
   SPOT_DODGE,
 } from '../constants';
 import { flickDown, flickX, isHeld } from '../control';
+import { emit } from '../events';
 import type { Ctx } from '../fighter';
 import { leaveGround } from '../movement';
 import { consumeJump, wantsJump } from './common';
@@ -32,6 +33,7 @@ export function breakShield(x: Ctx): void {
   f.vel.x = 0;
   f.vel.y = d.shieldBreakV;
   setAction(x, 'shieldBreak');
+  emit(x.m, { type: 'shieldBreak', port: f.port });
 }
 
 function roll(name: 'rollForward' | 'rollBack'): ActionDef {

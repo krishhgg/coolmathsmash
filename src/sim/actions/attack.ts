@@ -12,6 +12,7 @@ import {
   stickDir,
   type Dir,
 } from '../control';
+import { emit } from '../events';
 import type { Ctx, FighterState } from '../fighter';
 import { HELPLESS_LANDING_LAG } from '../constants';
 import { leaveGround, normalLandingLag } from '../movement';
@@ -39,6 +40,7 @@ export function startMove(x: Ctx, name: string): boolean {
   if (move.helpless) x.f.fastFalling = false;
   setAction(x, x.f.ground ? 'attack' : 'aerial');
   x.f.move = name;
+  emit(x.m, { type: 'move', port: x.f.port, move: name });
   x.f.hitVictims = [];
   x.f.moveStale = 0;
   x.f.charge = 0;

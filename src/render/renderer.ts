@@ -6,6 +6,7 @@ import { getStage } from '../stages/registry';
 import type { StageGeometry } from '../sim/stage';
 import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
+import { EventLog } from './debug/eventLog';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView } from './fighterView';
 import { MatchHud } from './hud';
@@ -16,13 +17,16 @@ export interface Overlays {
   actions: boolean;
   /** Hurtboxes (yellow) and active hitboxes (red). */
   hitboxes: boolean;
+  /** The latest sim events. */
+  events: boolean;
 }
 
 export class Renderer {
   readonly world = new Container();
   readonly hud = new Container();
   readonly debug = new Container();
-  readonly overlays: Overlays = { inputs: false, actions: false, hitboxes: false };
+  readonly overlays: Overlays = { inputs: false, actions: false, hitboxes: false, events: false };
+  readonly eventLog = new EventLog();
   readonly camera = new Camera();
   private readonly inputDisplay = new InputDisplay();
   private readonly matchHud = new MatchHud();
@@ -37,7 +41,7 @@ export class Renderer {
   private constructor(readonly app: Application) {
     this.world.addChild(this.stageLayer, this.fighterLayer, this.boxes);
     app.stage.addChild(this.world, this.hud, this.debug);
-    this.debug.addChild(this.inputDisplay.container);
+    this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
     this.hud.addChild(this.matchHud.hud.container);
   }
 
@@ -98,6 +102,8 @@ export class Renderer {
     );
     this.inputDisplay.container.visible = this.overlays.inputs;
     if (this.overlays.inputs) this.inputDisplay.update(state.players);
+    this.eventLog.container.visible = this.overlays.events;
+    if (this.overlays.events) this.eventLog.update();
     this.app.render();
   }
 
