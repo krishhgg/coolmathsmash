@@ -1,4 +1,4 @@
-import { reach, type Pose } from '../../../render/rig/author';
+import { pointOf, reach, type Pose } from '../../../render/rig/author';
 import { worldTransforms, type BoneTransform } from '../../../render/rig/sample';
 import type { Key } from '../../../render/rig/types';
 import { ANKLE } from './parts';
@@ -30,14 +30,43 @@ function worldRot(pose: Pose): Record<string, number> {
   );
 }
 
-/** Turns the boots so their soles meet the world at `back` and `front` degrees (0: flat, toes forward). */
+/** Turns one boot so its sole meets the world at `deg` degrees (0: flat, toes forward; 90: toes down). */
+export function sole(pose: Pose, side: 'B' | 'F', deg: number): Pose {
+  const shin = worldRot(pose)[`shin${side}`] ?? 0;
+  return { ...pose, [`foot${side}`]: { ...pose[`foot${side}`], rot: deg - shin } };
+}
+
+/** Turns both boots: the far one to `back` degrees, the near one to `front`. */
 export function soles(pose: Pose, back = 0, front = 0): Pose {
-  const w = worldRot(pose);
-  return {
-    ...pose,
-    footB: { ...pose.footB, rot: back - (w.shinB ?? 0) },
-    footF: { ...pose.footF, rot: front - (w.shinF ?? 0) },
-  };
+  return sole(sole(pose, 'B', back), 'F', front);
+}
+
+/**
+ * Puts one leg's ankle on a rig point with its sole at `deg`: `stretch` lengthens thigh and shin (Flash-style
+ * rubber hose, for kicks), `bend` 1 puts the knee forward.
+ */
+export function leg(
+  pose: Pose,
+  side: 'B' | 'F',
+  ankle: Pt,
+  deg: number,
+  stretch = 1,
+  bend: 1 | -1 = 1,
+): Pose {
+  const s = mix(pose, { [`thigh${side}`]: { sy: stretch }, [`shin${side}`]: { sy: stretch } });
+  return sole(reach(rig, s, `thigh${side}`, `shin${side}`, FOOT, ankle, bend), side, deg);
+}
+
+/** `leg` with the knee bent whichever way keeps it higher: knees up when sitting, lying or chambering a kick. */
+export function tuck(pose: Pose, side: 'B' | 'F', ankle: Pt, deg: number, stretch = 1): Pose {
+  const [up, down] = [leg(pose, side, ankle, deg, stretch, 1), leg(pose, side, ankle, deg, stretch, -1)];
+  return pointOf(rig, up, `shin${side}`)[1] <= pointOf(rig, down, `shin${side}`)[1] ? up : down;
+}
+
+/** Puts one fist on a rig point; `stretch` lengthens the arm for big punches. */
+export function fist(pose: Pose, side: 'B' | 'F', at: Pt, stretch = 1, bend: 1 | -1 = -1): Pose {
+  const s = mix(pose, { [`arm${side}`]: { sy: stretch }, [`fore${side}`]: { sy: stretch } });
+  return reach(rig, s, `arm${side}`, `fore${side}`, HAND, at, bend);
 }
 
 /**
@@ -67,6 +96,28 @@ export function key(frame: number, pose?: Pose, extra: Omit<Key, 'frame' | 'pose
   return pose ? { frame, pose, ...extra } : { frame, ...extra };
 }
 
+const LIMBS = ['armB', 'foreB', 'armF', 'foreF', 'thighB', 'shinB', 'footB', 'thighF', 'shinF', 'footF'];
+
+/**
+ * Turns every limb the short way from one posed key to the next (a bone a key leaves out tweens from rest), so a
+ * leg swung across the body goes over the top instead of sweeping through the floor. `body` keeps its authored
+ * angles, so whole-body spins still turn as far as they are keyed.
+ */
+export function shortTurns(keys: Key[]): Key[] {
+  const last: Record<string, number> = {};
+  return keys.map((k) => {
+    if (!k.pose) return k;
+    const pose = { ...k.pose };
+    for (const bone of LIMBS) {
+      const rot = pose[bone]?.rot ?? 0;
+      const turned = rot - 360 * Math.round((rot - (last[bone] ?? rot)) / 360);
+      if (pose[bone]) pose[bone] = { ...pose[bone], rot: turned };
+      last[bone] = pose[bone] ? turned : 0;
+    }
+    return { ...k, pose };
+  });
+}
+
 /** Merges poses bone by bone (later wins per field). */
 export function mix(...poses: Pose[]): Pose {
   const out: Pose = {};
@@ -87,13 +138,19 @@ export const PALM_B = { foreB: 'palmFar', foreBLine: 'palmFarLine' };
 export const GUARD = { ...PALM_F, ...FIST_B };
 export const FISTS = { ...FIST_F, ...FIST_B };
 
-/**
- * Draw orders. Slots: fxBack 0, back arm 1-4, back leg 5-8, front leg 9-12, torso 13, head 14, face 15,
- * front arm 16-19, fx 20-21.
- */
-export const BACK_ARM_IN_FRONT = { armBLine: 19.1, foreBLine: 19.2, armB: 19.3, foreB: 19.4 };
-export const FRONT_ARM_BEHIND = { armFLine: 0.1, foreFLine: 0.2, armF: 0.3, foreF: 0.4 };
-export const HEAD_IN_FRONT = { head: 19.5, face: 19.6 };
+/** Draw orders that move `slots` (in order) just above slot `over`; slot i draws at z = i. */
+function above(over: string, slots: string[]): Record<string, number> {
+  const z = rig.slots.findIndex((s) => s.name === over);
+  return Object.fromEntries(slots.map((name, i) => [name, z + (i + 1) / 10]));
+}
+
+export const BACK_ARM_IN_FRONT = above('foreF', ['armBLine', 'foreBLine', 'armB', 'foreB']);
+export const FRONT_ARM_BEHIND = above('fxBack', ['armFLine', 'foreFLine', 'armF', 'foreF']);
+export const HEAD_IN_FRONT = above('foreF', ['', '', '', '', 'head', 'face']);
+/** The far leg drawn over the torso but under the head and near arm (the knee). */
+export const BACK_LEG_IN_FRONT = above('torso', ['thighBLine', 'shinBLine', 'thighB', 'shinB', 'footB']);
+/** The near leg drawn over the torso, for kicks and knees raised across it. */
+export const FRONT_LEG_IN_FRONT = above('torso', ['thighFLine', 'shinFLine', 'thighF', 'shinF', 'footF']);
 
 /** His fighting stance from the game's idle: wide bow-legged feet, fist up by the chin, open hand guarding. */
 export const STANCE = hands(
