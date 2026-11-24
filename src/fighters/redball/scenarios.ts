@@ -67,5 +67,120 @@ export const scenarios: FighterScenarios = {
       requires: ['move:dair'],
       refs: ['smash/attack-active-*', `${RB}/ingame-roll-vs-box-*`, `${RB}/assist-gray-square-01*`],
     },
+    {
+      name: 'redball-sheet-ground',
+      description:
+        "Red Ball's ground attacks on their active frames: jab chain, tilts, dash attack, smashes, getup attack.",
+      page: { kind: 'lab', scene: 'fighter', params: { fighter: 'redball' } },
+      calls: [
+        {
+          fn: 'sheet',
+          args: [
+            [
+              'jab@3',
+              'jab3@5',
+              'ftilt@7',
+              'utilt@7',
+              'dtilt@6',
+              'dashAttack@8',
+              'fsmash@16',
+              'usmash@12',
+              'dsmash@10',
+              'getupAttack@17',
+            ],
+          ],
+        },
+      ],
+      refs: [
+        'smash/attack-active-*',
+        `${RB}/video-roster-art-*`,
+        `${RB}/official-art-01*`,
+        `${RB}/ingame-roll-vs-box-*`,
+      ],
+    },
+    {
+      name: 'redball-sheet-air',
+      description: "Red Ball's aerials, tongue grabs, pummel and throws on their key frames.",
+      page: { kind: 'lab', scene: 'fighter', params: { fighter: 'redball' } },
+      calls: [
+        {
+          fn: 'sheet',
+          args: [
+            [
+              'nair@6',
+              'fair@9',
+              'bair@8',
+              'uair@6',
+              'dair@14',
+              'grab@10',
+              'pummel@2',
+              'fthrow@12',
+              'uthrow@18',
+              'dthrow@20',
+            ],
+          ],
+        },
+      ],
+      refs: [
+        'smash/attack-active-*',
+        `${RB}/video-roster-art-*`,
+        `${RB}/official-art-02-*`,
+        `${RB}/cutscene-expressions-*`,
+      ],
+    },
+    {
+      name: 'redball-sheet-specials',
+      description:
+        "Red Ball's Charge Roll rev and rolls, Mega Bounce, air jump, taunt, helpless and ledge catch.",
+      page: { kind: 'lab', scene: 'fighter', params: { fighter: 'redball' } },
+      calls: [
+        {
+          fn: 'sheet',
+          args: [
+            [
+              'neutralB@40',
+              'chargeRoll1@10',
+              'chargeRoll3@10',
+              'upB@7',
+              'upB@10',
+              'doubleJump@3',
+              'taunt@13',
+              'taunt@50',
+              'helpless@10',
+              'ledgeCatch@3',
+            ],
+          ],
+        },
+      ],
+      refs: [
+        `${RB}/official-art-02-*`,
+        `${RB}/cutscene-expressions-*`,
+        `${RB}/ingame-gameplay-*`,
+        `${RB}/official-art-03-*`,
+      ],
+    },
+    {
+      name: 'redball-sheet-evil',
+      description: 'Red Ball in his Evil Box costume (charcoal, orange eyes) on the key states.',
+      page: { kind: 'lab', scene: 'fighter', params: { fighter: 'redball', palette: 'evil' } },
+      calls: [{ fn: 'sheet', args: [['idle@0', 'run@6', 'fsmash@16', 'taunt@50', 'shield@10']] }],
+      refs: [`${RB}/assist-gray-square-01*`, `${RB}/assist-squarified-01*`, `${RB}/cutscene-expressions-*`],
+    },
+    {
+      name: 'redball-charge-roll',
+      description:
+        'Red Ball revs Charge Roll for 55 frames, lets go and rolls at top speed; capture 12 frames into the roll.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'redball' }, { fighter: 'fireboy' }] },
+      patches: [{ port: 1, state: { pos: { x: 70, y: 0 } } }],
+      script: [{ port: 0, from: 10, to: 65, buttons: ['special'] }],
+      capture: {
+        label: "P1 move 'chargeRoll3', frame 12",
+        when: (s) => s.fighters[0]!.move === 'chargeRoll3' && s.fighters[0]!.actionFrame === 12,
+      },
+      motion: { before: 50, after: 20 },
+      requires: ['move:chargeRoll3'],
+      refs: ['smash/run-*', `${RB}/ingame-roll-vs-box-*`],
+    },
   ],
 };
