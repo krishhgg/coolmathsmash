@@ -38,6 +38,8 @@ export interface ControlState {
   cConsumed: boolean;
   /** A flick already registered since the C-stick last left neutral. */
   cRegistered: boolean;
+  /** neutralUp of the up-flick last used for a tap jump, so one flick jumps once. */
+  upFlickUsed: number;
 }
 
 export function createControl(): ControlState {
@@ -56,6 +58,7 @@ export function createControl(): ControlState {
     cDirY: 0,
     cConsumed: true,
     cRegistered: false,
+    upFlickUsed: NEVER,
   };
 }
 
@@ -143,6 +146,15 @@ export function flickX(c: ControlState, threshold: number, window = FLICK_WINDOW
 
 export function flickUp(c: ControlState, threshold = TAP_JUMP_THRESHOLD, window = FLICK_WINDOW): boolean {
   return stickY(c) >= threshold && c.frame - c.neutralUp <= window;
+}
+
+/** An up-flick that has not been used for a tap jump yet. */
+export function tapJumpReady(c: ControlState): boolean {
+  return flickUp(c) && c.upFlickUsed !== c.neutralUp;
+}
+
+export function consumeTapJump(c: ControlState): void {
+  c.upFlickUsed = c.neutralUp;
 }
 
 export function flickDown(c: ControlState, threshold = DOWN_FLICK_THRESHOLD, window = FLICK_WINDOW): boolean {

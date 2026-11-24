@@ -22,7 +22,7 @@ export interface HarnessApi {
   frame(): number;
   getState(): MatchState;
   hash(): string;
-  setOverlay(name: 'inputs', on: boolean): void;
+  setOverlay(name: 'inputs' | 'actions', on: boolean): void;
   /** Render the current frame and wait until it is on screen. */
   render(): Promise<void>;
 }

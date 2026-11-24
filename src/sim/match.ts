@@ -1,5 +1,8 @@
 import { neutralInput, type InputFrame } from '../input/types';
+import { getStage } from '../stages/registry';
 import { createControl, feedControl, type ControlState } from './control';
+import { createFighter, type FighterState } from './fighter';
+import { stepFighter } from './step';
 
 export interface PortConfig {
   fighter: string;
@@ -26,6 +29,7 @@ export interface MatchState {
   rng: number;
   config: MatchConfig;
   players: PlayerState[];
+  fighters: FighterState[];
 }
 
 export const DEFAULT_MATCH: MatchConfig = {
@@ -36,16 +40,21 @@ export const DEFAULT_MATCH: MatchConfig = {
 };
 
 export function createMatch(config: MatchConfig = DEFAULT_MATCH): MatchState {
+  const stage = getStage(config.stage);
   return {
     frame: 0,
     rng: config.seed | 0,
     config: structuredClone(config),
     players: config.ports.map((p, port) => ({ port, tapJump: p.tapJump ?? true, control: createControl() })),
+    fighters: config.ports.map((p, port) =>
+      createFighter(port, p.fighter, stage.spawns[port % stage.spawns.length]!, config.stocks),
+    ),
   };
 }
 
 /** Advance the match by exactly one 1/60 s frame. `inputs[port]` is that port's controller this frame. */
 export function stepMatch(state: MatchState, inputs: readonly InputFrame[]): void {
   for (const player of state.players) feedControl(player.control, inputs[player.port] ?? neutralInput());
+  for (const f of state.fighters) stepFighter(state, f, state.players[f.port]!);
   state.frame++;
 }
