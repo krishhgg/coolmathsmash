@@ -1,5 +1,7 @@
 import type { HitboxDef, MoveDef } from '../types';
-import { startMove } from '../../sim/actions/attack';
+import { Btn } from '../../input/types';
+import { SMASH_CHARGE_FRAMES, startMove } from '../../sim/actions/attack';
+import { isHeld } from '../../sim/control';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -17,6 +19,12 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 /** Shell Pound: the frame the shell starts to plunge, and its speed. */
 export const DAIR_PLUNGE_FROM = 13;
 export const DAIR_PLUNGE_SPEED = 2.8;
+
+/** Shell Spin: he revs on this frame while Special is held, then rolls on SPIN_ROLL's frames. */
+export const SPIN_REV_FRAME = 11;
+export const SPIN_ROLL: [number, number] = [12, 44];
+/** Roll speed uncharged and fully revved (units/frame). */
+export const SPIN_SPEED: [number, number] = [1.8, 3.2];
 
 /**
  * Snail Bob's moves (handoffs/research/roster.md, "5. Snail Bob"): damage and first active frames are the
@@ -270,6 +278,40 @@ export const moves: Record<string, MoveDef> = {
         ],
       },
     ],
+  },
+  /**
+   * Shell Spin (side special, the video's Sonic spin): he ducks into the shell and revs while Special is held, up
+   * to a second, then rolls forward. Revving speeds the roll up and raises its damage from 10% to 14% (the smash
+   * charge multiplier). The roll stops at ledges on the ground, keeps rolling when it lands from the air, and
+   * bounces him back off the first fighter it hits.
+   */
+  sideB: {
+    kind: 'other',
+    faf: 60,
+    continuesOnLanding: true,
+    hits: [{ frames: SPIN_ROLL, boxes: [box(0, 0, 6, 6.5, { damage: 10, angle: 40, kbg: 70, bkb: 50 })] }],
+    script({ f, c }) {
+      const frame = f.actionFrame;
+      if (frame <= SPIN_REV_FRAME) {
+        f.vel.x *= 0.85;
+        if (!f.ground) f.vel.y = Math.max(f.vel.y * 0.8, -0.4);
+        if (frame === SPIN_REV_FRAME && isHeld(c, Btn.Special) && f.charge < SMASH_CHARGE_FRAMES) {
+          f.charge++;
+          f.actionFrame--;
+        }
+        return;
+      }
+      if (frame > SPIN_ROLL[1]) return;
+      if (f.hitVictims.length > 0) {
+        f.vel.x = -f.facing;
+        if (!f.ground) f.vel.y = 1.5;
+        f.actionFrame = SPIN_ROLL[1] + 1;
+        return;
+      }
+      if (frame === SPIN_ROLL[0] && !f.ground) f.vel.y = 1.2;
+      const [slow, fast] = SPIN_SPEED;
+      f.vel.x = f.facing * (slow + ((fast - slow) * f.charge) / SMASH_CHARGE_FRAMES);
+    },
   },
   /** Grabs: slow, short-armed (frame 9, about 11.5 units against Mario's 12 from a wider body). */
   grab: { kind: 'other', faf: 40, hits: [{ frames: [9, 10], boxes: [grabBox(0, 7.5, 6, 4)] }] },
