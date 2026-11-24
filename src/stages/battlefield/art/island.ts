@@ -1,4 +1,5 @@
 import { Container, FillGradient, Graphics } from 'pixi.js';
+import { MAX_ZOOM } from '../../../render/camera';
 import { CAP_BOTTOM, HULL_BOTTOM, MAIN_HULL, TOP_Y, UNDERSIDE, hullSpan } from './outline';
 import {
   BRASS,
@@ -55,6 +56,7 @@ export function createIsland(): IslandArt {
     [67, 5.5, 5],
   ] as const)
     mossTuft(body, x, -CAP_BOTTOM, size, seed);
+  body.cacheAsTexture({ resolution: MAX_ZOOM, antialias: true });
 
   const medallion = createMedallion(0, -24.4);
   const gems = [
