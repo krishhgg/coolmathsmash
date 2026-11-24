@@ -1,7 +1,10 @@
+import { announce, announceWinner, type AnnouncerLine } from './announcer';
 import { bankFiles, type SoundId } from './bank';
 import { AudioEngine, type PlayOptions, type Voice } from './engine';
 import { DEFAULT_SETTINGS, type AudioSettings, type Channel } from './settings';
 
+export type { AnnouncerLine } from './announcer';
+export { ANNOUNCED_FIGHTERS, ANNOUNCER_LINES } from './bank';
 export type { SoundId } from './bank';
 export type { Voice, PlayOptions } from './engine';
 export type { AudioSettings, Bus, Channel } from './settings';
@@ -38,10 +41,13 @@ export interface GameAudio {
    */
   music(track: string | null): void;
   /**
-   * An announcer line ('three', 'two', 'one', 'go', 'game', 'winner-is', ...) or a fighter's name as
-   * `fighter:<id>`. Ducks the music while it speaks. (Lines arrive with the announcer PR.)
+   * Say an announcer line, ducking the music while it speaks: a match call ('ready', 'three', 'two', 'one',
+   * 'go', 'game', 'time', 'winner-is', 'title', ...: ANNOUNCER_LINES) or a fighter's name as `fighter:<id>`
+   * (ANNOUNCED_FIGHTERS). A line the announcer does not have stays silent.
    */
-  announce(line: string): void;
+  announce(line: AnnouncerLine): void;
+  /** "The winner is..." then the fighter's name right as that line ends. Silent for an unknown fighter. */
+  announceWinner(fighterId: string): void;
   /** Current volume sliders (0..1) and mute; read them to draw an options screen. */
   readonly settings: Readonly<AudioSettings>;
   /** Set a slider (0..1): 'master', 'music', 'sfx' or 'voice'. Saved in localStorage. */
@@ -72,7 +78,12 @@ function createGameAudio(): GameAudio {
       return engine?.play(id, opts) ?? null;
     },
     music() {},
-    announce() {},
+    announce(line) {
+      if (engine) announce(engine, line);
+    },
+    announceWinner(fighterId) {
+      if (engine) announceWinner(engine, fighterId);
+    },
     get settings() {
       return engine?.settings ?? fallback;
     },

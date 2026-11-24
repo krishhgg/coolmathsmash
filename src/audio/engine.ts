@@ -25,6 +25,8 @@ export interface PlayOptions {
 /** A playing sound. */
 export interface Voice {
   readonly id: SoundId;
+  /** Context time the sound finishes playing (Infinity while it loops). */
+  readonly end: number;
   /** Stop, fading out over `fade` seconds. */
   stop(fade?: number): void;
 }
@@ -205,7 +207,8 @@ export class AudioEngine {
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.loop = def.loop ?? false;
-    src.playbackRate.value = semitoneRate((opts.pitch ?? 0) + this.vary.spread(def.vary ?? 0));
+    const rate = semitoneRate((opts.pitch ?? 0) + this.vary.spread(def.vary ?? 0));
+    src.playbackRate.value = rate;
     const gain = ctx.createGain();
     gain.gain.value = dbGain(def.gain) * (opts.gain ?? 1);
     src.connect(gain);
@@ -224,6 +227,7 @@ export class AudioEngine {
       ended: false,
       voice: {
         id,
+        end: src.loop ? Infinity : when + buf.duration / rate,
         stop: (fade = 0.03) => {
           if (entry.ended) return;
           const t = Math.max(ctx.currentTime, when);
