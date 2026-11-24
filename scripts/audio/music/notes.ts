@@ -327,20 +327,28 @@ export function harmony(
   });
 }
 
-/** A drum roll from `start` for `beats`, one hit every `step`, velocity rising from `from` to `to`. */
+/**
+ * A drum roll from `start` for `beats`, one hit every `step`, velocity rising from `from` to `to` along a curve
+ * (slow, then fast, like a player building; `curve` 1 is a straight line), with hits on the beat leaning in.
+ */
 export function roll(
   start: number,
   beats: number,
-  opts: { step?: number; from?: number; to?: number; n?: number } = {},
+  opts: { step?: number; from?: number; to?: number; n?: number; curve?: number } = {},
 ): Note[] {
   const step = opts.step ?? 0.25;
+  const from = opts.from ?? 0.35;
+  const to = opts.to ?? 1;
   const count = Math.round(beats / step);
-  return Array.from({ length: count }, (_, k) => ({
-    t: start + k * step,
-    d: step,
-    n: opts.n ?? 0,
-    v: (opts.from ?? 0.35) + (((opts.to ?? 1) - (opts.from ?? 0.35)) * k) / Math.max(1, count - 1),
-  }));
+  return Array.from({ length: count }, (_, k) => {
+    const v = from + (to - from) * (k / Math.max(1, count - 1)) ** (opts.curve ?? 1.6);
+    return {
+      t: start + k * step,
+      d: step,
+      n: opts.n ?? 0,
+      v: Math.min(1, near((k * step) % 1, 0) ? v * 1.1 : v),
+    };
+  });
 }
 
 /** One note `beats` long that ends exactly at `end`: for risers and reverse cymbals that land on a downbeat. */
