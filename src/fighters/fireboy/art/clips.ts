@@ -95,8 +95,8 @@ function pull(frame: number, moveEnd: number, progress: number): Pose {
 
 const BREATHE = hands(
   feet({ hip: { y: 0.1 }, neck: { rot: 1.5 }, head: { sx: 1.015, sy: 0.99 } }, [-0.45, 0], [0.45, 0], true),
-  [-1.6, -1.68],
-  [1.62, -1.66],
+  [-1.66, -1.7],
+  [1.67, -1.69],
 );
 
 /** A walk or run cycle: two contacts and two passing poses, mirrored. */

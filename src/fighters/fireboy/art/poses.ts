@@ -93,8 +93,8 @@ export const LEGS_IN_FRONT = {
 /** Standing, relaxed, like the 2009 idle drawing. */
 export const STAND = hands(
   feet({ hip: { y: 0.02 } }, [-0.45, 0], [0.45, 0], true),
-  [-1.55, -1.75],
-  [1.55, -1.75],
+  [-1.62, -1.76],
+  [1.62, -1.76],
 );
 
 /** Knees bent, head squashed into the shoulders. */
