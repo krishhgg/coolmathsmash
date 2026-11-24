@@ -15,6 +15,7 @@ import {
   fm,
   layer,
   midiHz,
+  modDelay,
   mul,
   noise,
   normalize,
@@ -53,6 +54,23 @@ const slap = (
   color: 'white' | 'pink' = 'white',
 ) => mul(filter(noise(len, rng, color), 'bandpass', center, q), decay(len, tau, 0.0008));
 
+/** Driven band-passed noise: crunch and grit. */
+const crunch = (rng: Rng, center: number, q: number, tau: number, amount = 3, len = tau * 5) =>
+  mul(drive(filter(noise(len, rng), 'bandpass', center, q), amount), decay(len, tau, 0.0008));
+
+/** A train of very short bright bursts a few ms apart: the crack of a whip or lightning. */
+function crackle(rng: Rng, times: readonly number[], hp: number, tau: number): Float32Array {
+  const out = buffer(Math.max(...times) + tau * 8);
+  for (const t of times)
+    add(
+      out,
+      mul(filter(noise(tau * 8, rng), 'highpass', hp), decay(tau * 8, tau, 0.0002)),
+      t,
+      rng.range(0.6, 1),
+    );
+  return out;
+}
+
 /** Air moving: noise through a swept band-pass with a swell envelope. */
 function whoosh(
   rng: Rng,
@@ -83,6 +101,10 @@ function whoosh(
   );
 }
 
+/** Mix a sound with a copy through a slowly swept short delay: the comb "phase" shimmer of a dodge. */
+const flange = (x: Float32Array, base: number, depth: number, rate: number) =>
+  layer(x.length / SR, [x, 0.7], [modDelay(x, (t) => base + depth * Math.sin(2 * Math.PI * rate * t)), 0.7]);
+
 /** Short glassy pings scattered in time: shatter, sparkle, crackle. */
 function scatter(
   rng: Rng,
@@ -92,10 +114,11 @@ function scatter(
   lo: number,
   hi: number,
   tau: [number, number],
+  bunch = 1.6,
 ): Float32Array {
   const out = buffer(len);
   for (let i = 0; i < count; i++) {
-    const t = spread * rng.next() ** 1.6;
+    const t = spread * rng.next() ** bunch;
     const f = rng.range(lo, hi);
     const d = rng.range(tau[0], tau[1]);
     add(
@@ -115,287 +138,299 @@ const finish = (x: Float32Array, target = 0.9) => normalize(trim(x, -54), target
 
 // ---------------------------------------------------------------- hits
 
-/** Light hit (jabs, weak aerials): a snappy high "pap". */
+/** Light hit (jabs, weak aerials): a crisp high "pap" with a small body. */
 function hitLight(rng: Rng, v: number): Float32Array {
   const p = [1, 1.12, 0.9][v] ?? 1;
   return finish(
     layer(
-      0.22,
-      [click(rng, 0.007, 3200), 0.9],
-      [slap(rng, 2300 * p, 1.3, 0.028, 0.16), 1.2],
-      [slap(rng, 5200 * p, 2, 0.012, 0.06), 0.35],
-      [drive(thump(300 * p, 110, 0.025, 0.045, 0.2), 1.6), 0.75],
+      0.18,
+      [click(rng, 0.005, 4000), 0.7],
+      [slap(rng, 3300 * p, 1.6, 0.012, 0.08), 1.2],
+      [slap(rng, 1800 * p, 1.2, 0.022, 0.13), 0.8],
+      [crunch(rng, 2600 * p, 0.8, 0.009, 3, 0.06), 0.35],
+      [drive(thump(270 * p, 125, 0.012, 0.028, 0.14), 1.4), 0.6],
     ),
   );
 }
 
-/** Medium hit (tilts, strong aerials): a "whap" with a pitched body. */
+/** Medium hit (tilts, strong aerials): a "whap" with a short, punchy body. */
 function hitMedium(rng: Rng, v: number): Float32Array {
   const p = [1, 1.1, 0.92][v] ?? 1;
-  const crunch = mul(drive(filter(noise(0.3, rng), 'lowpass', 1800), 3), decay(0.3, 0.045, 0.001));
   return finish(
     layer(
-      0.42,
-      [click(rng, 0.01, 2200), 1],
-      [slap(rng, 1500 * p, 1, 0.05, 0.3), 1.1],
-      [slap(rng, 3900 * p, 2.2, 0.02, 0.1), 0.4],
-      [drive(thump(220 * p, 62, 0.035, 0.085, 0.42), 2), 1],
-      [crunch, 0.35],
+      0.34,
+      [click(rng, 0.007, 3200), 0.9],
+      [slap(rng, 2800 * p, 1.4, 0.02, 0.12), 1.1],
+      [slap(rng, 1400 * p, 0.9, 0.04, 0.25), 0.9],
+      [crunch(rng, 1600 * p, 0.7, 0.035, 3, 0.25), 0.45],
+      [drive(thump(200 * p, 78, 0.02, 0.06, 0.32), 2), 1],
     ),
   );
 }
 
-/** Heavy hit (smash attacks): a "WHAM" with a metallic ring and a short room. */
+/** Heavy hit (smash attacks): a "WHAM" with a focused crack, a sub that clears out fast and a short room. */
 function hitHeavy(rng: Rng, v: number): Float32Array {
   const p = [1, 1.08, 0.93][v] ?? 1;
-  const crunch = mul(drive(filter(noise(0.4, rng), 'lowpass', 3200), 4), decay(0.4, 0.07, 0.001));
-  const ring = partials(0.7, 760 * p, [
-    [1, 0.5, 0.13],
-    [1.47, 0.42, 0.1],
-    [2.09, 0.3, 0.08],
-    [2.76, 0.25, 0.06],
-    [3.91, 0.16, 0.05],
+  const ring = partials(0.4, 760 * p, [
+    [1, 0.5, 0.08],
+    [1.47, 0.4, 0.06],
+    [2.09, 0.3, 0.05],
   ]);
   const dry = layer(
-    0.8,
-    [click(rng, 0.012, 1800), 1.2],
-    [slap(rng, 1200 * p, 0.8, 0.07, 0.4), 1],
-    [drive(thump(170 * p, 44, 0.05, 0.17, 0.8), 2.4), 1.2],
-    [crunch, 0.55],
-    [ring, 0.32],
+    0.55,
+    [click(rng, 0.008, 2500), 0.8],
+    [crunch(rng, 2600 * p, 0.6, 0.03, 4, 0.2), 0.9],
+    [slap(rng, 1200 * p, 0.8, 0.05, 0.3), 1],
+    [drive(thump(160 * p, 48, 0.04, 0.11, 0.55), 2.4), 1.2],
+    [crunch(rng, 900 * p, 0.7, 0.06, 4, 0.35), 0.5],
+    [ring, 0.18],
   );
-  return finish(reverbMono(dry, { room: 0.45, damp: 0.6, wet: 0.22, tail: 0.5 }));
+  return finish(filter(reverbMono(dry, { room: 0.4, damp: 0.6, wet: 0.16, tail: 0.3 }), 'lowpass', 9000));
 }
 
-/** The hit that will KO: an enormous crack, a sub boom and a zooming swish, with a big room. */
+/** The hit that will KO: a lightning crack over a clean sub boom with a bright glint, like Ultimate's finish. */
 function hitKo(rng: Rng): Float32Array {
-  const crack = mul(drive(filter(noise(0.25, rng), 'highpass', 900), 5), decay(0.25, 0.035, 0.0005));
-  const crunch = mul(drive(filter(noise(0.6, rng), 'lowpass', 2600), 5), decay(0.6, 0.12, 0.001));
-  const shriek = partials(1.2, 1180, [
-    [1, 0.5, 0.35],
-    [1.34, 0.4, 0.3],
-    [1.98, 0.35, 0.25],
-    [2.61, 0.25, 0.2],
-    [3.47, 0.18, 0.15],
-  ]);
-  const zoom = whoosh(
-    rng,
-    1.1,
-    [
-      [0, 3800],
-      [1.1, 380],
-    ],
-    1.6,
-    0.12,
-    'white',
+  const glint = mul(
+    layer(0.5, [osc(0.5, 3520), 0.7], [osc(0.5, 3520 * 1.5), 0.25], [osc(0.5, 7040 * 1.003), 0.15]),
+    decay(0.5, 0.11, 0.002),
   );
   const dry = layer(
-    1.6,
-    [click(rng, 0.015, 1500), 1.4],
-    [crack, 0.9],
-    [drive(thump(140, 26, 0.12, 0.5, 1.6), 2.5), 1.4],
-    [crunch, 0.7],
-    [shriek, 0.3],
-    [zoom, 0.45, 0.04],
+    1.1,
+    [crackle(rng, [0, 0.004, 0.009, 0.016, 0.026], 3000, 0.003), 1.3],
+    [slap(rng, 5200, 1.2, 0.03, 0.2), 0.7],
+    [click(rng, 0.01, 1800), 0.9],
+    [slap(rng, 2000, 1, 0.03, 0.2), 0.8],
+    [crunch(rng, 1200, 0.8, 0.05, 4, 0.3), 0.6],
+    [drive(thump(130, 34, 0.05, 0.22, 1.1), 2.2), 1.4],
+    [glint, 0.16, 0.01],
   );
-  return finish(reverbMono(dry, { room: 0.85, damp: 0.5, wet: 0.42, tail: 1.2, predelay: 0.02 }));
+  return finish(reverbMono(dry, { room: 0.6, damp: 0.5, wet: 0.25, tail: 0.45, predelay: 0.015 }));
 }
 
-/** Layer for fire hitboxes: a fwoosh with crackle. */
+/** Layer for fire hitboxes: a warm flame whoosh with ember pops. */
 function hitFire(rng: Rng): Float32Array {
-  const body = whoosh(
-    rng,
-    0.5,
-    [
-      [0, 700],
-      [0.15, 2600],
-      [0.5, 1200],
-    ],
-    0.8,
-    0.03,
-    'white',
+  const len = 0.5;
+  const flutter = filter(noise(len, rng), 'lowpass', 25).map(
+    (s) => 0.6 + Math.max(-0.4, Math.min(0.4, s * 8)),
   );
-  const crackle = scatter(rng, 0.5, 26, 0.42, 1500, 6000, [0.002, 0.006]);
-  return finish(layer(0.5, [body, 1], [crackle, 0.6]));
+  const flame = mul(
+    mul(
+      filter(noise(len, rng, 'pink'), 'bandpass', (t) => 260 + 500 * Math.exp(-t / 0.1), 0.7),
+      flutter,
+    ),
+    env(
+      len,
+      [
+        [0, 0],
+        [0.02, 1],
+        [len, 0],
+      ],
+      2,
+    ),
+  );
+  const roar = mul(filter(noise(len, rng), 'bandpass', 1300, 0.7), decay(len, 0.08, 0.005));
+  const embers = buffer(len);
+  for (let i = 0; i < 22; i++)
+    add(embers, click(rng, 0.0025, rng.range(1500, 4000)), 0.45 * rng.next() ** 1.4, rng.range(0.3, 1));
+  return finish(layer(len, [flame, 1.3], [roar, 0.45], [embers, 0.6]));
 }
 
-/** Layer for electric hitboxes: a gated buzz. */
+/** Layer for electric hitboxes: a snap and crackling micro-arcs over a sizzle. */
 function hitElectric(rng: Rng): Float32Array {
-  const len = 0.4;
-  const buzz = layer(
-    len,
-    [osc(len, 92, 'saw'), 0.5],
-    [osc(len, 184.5, 'square'), 0.3],
-    [noise(len, rng), 0.25],
-  );
-  const gate = buffer(len);
-  for (let i = 0, g = 1; i < gate.length; i++) {
-    if (i % 900 === 0) g = rng.next() < 0.7 ? 1 : 0.2;
-    gate[i] = g;
+  const len = 0.42;
+  const arcs = buffer(len);
+  for (let t = 0.005; t < len - 0.03;) {
+    const on = rng.range(0.004, 0.014);
+    const burst = mul(filter(noise(on, rng), 'bandpass', rng.range(2500, 6000), 1.2), 1);
+    add(
+      arcs,
+      mul(
+        burst,
+        osc(on, rng.range(500, 900), 'square').map((s) => 0.7 + 0.3 * s),
+      ),
+      t,
+      Math.exp(-t / 0.15),
+    );
+    t += on + rng.range(0.004, 0.02) * (1 + t * 6);
   }
-  return finish(
-    mul(mul(filter(buzz, 'bandpass', 1800, 0.6), filter(gate, 'lowpass', 400)), decay(len, 0.12, 0.002)),
-  );
+  const sizzle = mul(filter(noise(len, rng), 'highpass', 6000), decay(len, 0.1, 0.002));
+  const hum = mul(filter(osc(len, 120, 'saw'), 'lowpass', 700), decay(len, 0.12, 0.002));
+  return finish(layer(len, [click(rng, 0.006, 3000), 0.8], [arcs, 1], [sizzle, 0.35], [hum, 0.25]));
 }
 
 // ---------------------------------------------------------------- shield
 
+/** A hit on the shield: a damped, muffled thud with a short glassy sheen. */
 function shieldHit(rng: Rng, v: number): Float32Array {
   const p = [1, 1.06][v] ?? 1;
-  const glass = partials(0.35, 940 * p, [
-    [1, 1, 0.06],
-    [1.52, 0.6, 0.05],
-    [2.31, 0.4, 0.035],
-    [3.13, 0.25, 0.02],
+  const sheen = partials(0.25, 2350 * p, [
+    [1, 1, 0.035],
+    [1.41, 0.6, 0.03],
+    [2.17, 0.4, 0.02],
   ]);
   return finish(
     layer(
-      0.35,
-      [glass, 0.6],
-      [thump(320 * p, 150, 0.02, 0.05, 0.3), 0.8],
-      [slap(rng, 2600, 2, 0.015, 0.08), 0.35],
+      0.3,
+      [click(rng, 0.004, 2000), 0.4],
+      [drive(thump(210 * p, 92, 0.02, 0.05, 0.3), 1.5), 1],
+      [slap(rng, 600 * p, 0.7, 0.03, 0.2, 'pink'), 0.7],
+      [sheen, 0.22],
     ),
   );
 }
 
 function shieldBreak(rng: Rng): Float32Array {
-  const shatter = scatter(rng, 0.9, 60, 0.35, 2200, 8000, [0.015, 0.06]);
-  const burst = mul(filter(noise(0.4, rng), 'highpass', 2500), decay(0.4, 0.07, 0.001));
-  const whistle = mul(
-    osc(1.3, (t) => 620 * 2 ** (t * 1.35) * (1 + 0.015 * Math.sin(2 * Math.PI * 7 * t)), 'triangle'),
-    env(1.3, [
+  const shards = scatter(rng, 0.5, 45, 0.16, 4000, 10000, [0.002, 0.008], 1.2);
+  const shatter = scatter(rng, 0.9, 40, 0.35, 2200, 7000, [0.015, 0.05]);
+  const burst = mul(filter(noise(0.4, rng), 'highpass', 2500), decay(0.4, 0.06, 0.001));
+  const glide = (t: number) => 300 * 2 ** (t * 2);
+  const gliss = mul(
+    filter(
+      layer(1.2, [osc(1.2, glide, 'saw'), 0.5], [osc(1.2, (t) => glide(t) * 1.008, 'saw'), 0.5]),
+      'lowpass',
+      3200,
+    ),
+    env(1.2, [
       [0, 0],
-      [0.12, 1],
-      [0.9, 0.6],
-      [1.3, 0],
+      [0.1, 1],
+      [0.8, 0.6],
+      [1.2, 0],
     ]),
   );
   const dry = layer(
-    1.6,
+    1.5,
     [click(rng, 0.01, 2000), 1],
-    [shatter, 0.7],
-    [burst, 0.8],
-    [drive(thump(130, 40, 0.06, 0.22, 1), 2), 1.1],
-    [whistle, 0.22, 0.08],
+    [shards, 0.9],
+    [shatter, 0.6],
+    [burst, 0.7],
+    [drive(thump(130, 40, 0.05, 0.2, 1), 2), 1.1],
+    [gliss, 0.18, 0.08],
   );
-  return finish(reverbMono(dry, { room: 0.7, wet: 0.3, tail: 0.8 }));
+  return finish(reverbMono(dry, { room: 0.65, wet: 0.28, tail: 0.6 }));
 }
 
 function shieldOn(rng: Rng): Float32Array {
   const hum = mul(
-    osc(0.18, (t) => 180 + 90 * t),
-    env(0.18, [
+    osc(0.2, (t) => 190 + 110 * t),
+    env(0.2, [
       [0, 0],
       [0.02, 1],
-      [0.18, 0],
+      [0.2, 0],
     ]),
   );
-  return finish(layer(0.18, [hum, 0.7], [slap(rng, 1300, 1.5, 0.03, 0.15, 'pink'), 0.6]));
+  const sparkle = partials(0.2, 3100, [
+    [1, 0.7, 0.04],
+    [1.5, 0.5, 0.03],
+    [2.2, 0.3, 0.02],
+  ]);
+  return finish(
+    layer(0.2, [hum, 0.7], [slap(rng, 1300, 1.5, 0.03, 0.15, 'pink'), 0.5], [sparkle, 0.25, 0.01]),
+  );
 }
 
-/** Seamless 1.2 s loop of cartoon birds and stars for the dizzy state. */
+/** Seamless 1.2 s loop of soft cartoon birds and stars for the dizzy state. */
 function dizzy(rng: Rng): Float32Array {
   const len = 1.2;
   const out = buffer(len);
   const chirp = (f: number) =>
     mul(
-      osc(0.07, (t) => f * (1.3 - 3.5 * t)),
-      env(0.07, [
-        [0, 0],
-        [0.006, 1],
-        [0.07, 0],
-      ]),
+      layer(
+        0.09,
+        [osc(0.09, (t) => f * (1.25 - 3 * t)), 0.6],
+        [osc(0.09, (t) => f * 1.006 * (1.25 - 3 * t)), 0.6],
+      ),
+      env(
+        0.09,
+        [
+          [0, 0],
+          [0.015, 1],
+          [0.09, 0],
+        ],
+        2,
+      ),
     );
   for (const [t, f] of [
-    [0.02, 3600],
-    [0.13, 3900],
-    [0.62, 3400],
-    [0.73, 3700],
+    [0.02, 3300],
+    [0.14, 3600],
+    [0.62, 3100],
+    [0.74, 3400],
   ] as const)
     add(out, chirp(f), t, 0.8);
-  add(out, scatter(rng, 0.4, 6, 0.25, 2500, 5200, [0.03, 0.05]), 0.32, 0.25);
-  add(out, scatter(rng, 0.4, 6, 0.25, 2500, 5200, [0.03, 0.05]), 0.92, 0.25);
-  return normalize(out, 0.8);
+  add(out, scatter(rng, 0.4, 6, 0.25, 2500, 5000, [0.03, 0.05]), 0.32, 0.2);
+  add(out, scatter(rng, 0.4, 6, 0.25, 2500, 5000, [0.03, 0.05]), 0.9, 0.2);
+  const wet = reverbMono(out, { room: 0.3, wet: 0.15, tail: 0 }).slice(0, out.length);
+  return normalize(filter(wet, 'lowpass', 7000), 0.7);
 }
 
 // ---------------------------------------------------------------- launches and KOs
 
 function launch(rng: Rng, v: number): Float32Array {
   const strong = v === 1;
-  const len = strong ? 1.1 : 0.7;
+  const len = strong ? 1 : 0.65;
+  const whip = slap(rng, 2600, 1, 0.012, 0.08);
   const air = whoosh(
     rng,
     len,
     [
-      [0, 450],
-      [len * 0.25, strong ? 2600 : 2100],
-      [len, 650],
+      [0, 1200],
+      [len * 0.2, strong ? 1300 : 1100],
+      [len, 320],
     ],
-    1.3,
-    len * 0.18,
+    strong ? 0.8 : 0.9,
+    0.015,
   );
   const rumble = mul(
-    filter(noise(len, rng, 'brown'), 'lowpass', 300),
+    filter(noise(len, rng, 'brown'), 'lowpass', 320),
     env(
       len,
       [
         [0, 0],
-        [0.08, 1],
+        [0.03, 1],
         [len, 0],
       ],
       2,
     ),
   );
-  const streak = strong
-    ? mul(
-        osc(len, (t) => 2400 - 1400 * (t / len)),
+  return finish(layer(len, [whip, 0.8], [air, 1.2], [rumble, strong ? 0.6 : 0.3]));
+}
+
+/** The blast-zone explosion: a cannon punch, a short blast and a bright sparkle trail. */
+function koBlast(rng: Rng): Float32Array {
+  const len = 1.6;
+  const blast = mul(
+    drive(
+      filter(noise(len, rng), 'lowpass', (t) => 400 + 5000 * Math.exp(-t / 0.12)),
+      2.5,
+    ),
+    decay(len, 0.2, 0.002),
+  );
+  const sparkle = layer(
+    len,
+    [scatter(rng, len, 50, 0.9, 4000, 9000, [0.02, 0.06], 1), 0.5, 0.05],
+    [
+      mul(
+        filter(noise(len, rng), 'highpass', 6000),
         env(
           len,
           [
             [0, 0],
-            [0.1, 1],
-            [len, 0],
+            [0.05, 1],
+            [0.9, 0],
           ],
           2,
         ),
-      )
-    : buffer(len);
-  return finish(layer(len, [air, 1], [rumble, strong ? 0.6 : 0.3], [streak, 0.06]));
-}
-
-/** The blast-zone explosion. */
-function koBlast(rng: Rng): Float32Array {
-  const len = 2.4;
-  const blast = mul(
-    drive(
-      filter(noise(len, rng, 'white'), 'lowpass', (t) => 300 + 4200 * Math.exp(-t / 0.25)),
-      3,
-    ),
-    decay(len, 0.45, 0.003),
-  );
-  const sizzle = mul(
-    mul(
-      filter(noise(len, rng), 'highpass', 4500),
-      osc(len, 23, 'triangle').map((s) => 0.6 + 0.4 * s),
-    ),
-    env(
-      len,
-      [
-        [0, 0],
-        [0.05, 1],
-        [1.4, 0],
-      ],
-      2,
-    ),
+      ),
+      0.25,
+    ],
   );
   const dry = layer(
     len,
-    [click(rng, 0.015, 1200), 1.2],
-    [blast, 1],
-    [drive(thump(90, 24, 0.15, 0.7, len), 2.2), 1.3],
-    [sizzle, 0.35],
+    [click(rng, 0.012, 1500), 1],
+    [drive(thump(115, 46, 0.03, 0.17, 1), 3), 1.4],
+    [blast, 0.8],
+    [sparkle, 0.9],
   );
-  return finish(reverbMono(dry, { room: 0.9, damp: 0.4, wet: 0.45, tail: 1.4, predelay: 0.03 }));
+  return finish(reverbMono(dry, { room: 0.7, damp: 0.4, wet: 0.3, tail: 0.7, predelay: 0.02 }));
 }
 
 // ---------------------------------------------------------------- movement
@@ -413,11 +448,8 @@ function jump(rng: Rng, v: number): Float32Array {
     2,
     0.03,
   );
-  const blip = mul(
-    osc(0.08, (t) => 330 * p + 2600 * t, 'triangle'),
-    decay(0.08, 0.02, 0.002),
-  );
-  return finish(layer(0.16, [air, 1], [blip, 0.12]));
+  const push = thump(200 * p, 110, 0.01, 0.015, 0.08);
+  return finish(layer(0.16, [air, 1], [push, 0.25]));
 }
 
 function doubleJump(rng: Rng): Float32Array {
@@ -426,25 +458,25 @@ function doubleJump(rng: Rng): Float32Array {
     0.26,
     [
       [0, 900],
-      [0.14, 3400],
+      [0.14, 3200],
       [0.26, 2200],
     ],
-    2.4,
+    1.5,
     0.05,
   );
   const tone = mul(
-    osc(0.2, (t) => 480 + 2400 * t, 'triangle'),
+    osc(0.2, (t) => 600 + 1800 * t, 'triangle'),
     env(
       0.2,
       [
         [0, 0],
-        [0.02, 1],
+        [0.03, 1],
         [0.2, 0],
       ],
       2,
     ),
   );
-  return finish(layer(0.26, [air, 1], [tone, 0.16]));
+  return finish(layer(0.26, [flange(air, 0.0018, 0.0012, 9), 1], [tone, 0.05]));
 }
 
 function land(rng: Rng, v: number): Float32Array {
@@ -471,34 +503,47 @@ function dash(rng: Rng, v: number): Float32Array {
       [0.3, 650],
     ],
     1.1,
-    0.02,
+    0.03,
     'white',
   );
   const grit = mul(
     slap(rng, 3200, 2.5, 0.06, 0.3),
     osc(0.3, 37, 'square').map((s) => 0.65 + 0.35 * s),
   );
-  return finish(layer(0.3, [sweep, 1], [grit, 0.35], [thump(160, 80, 0.02, 0.03, 0.15), 0.4]));
+  return finish(
+    layer(
+      0.3,
+      [click(rng, 0.005, 1500), 0.5],
+      [thump(190, 85, 0.012, 0.028, 0.15), 0.8],
+      [sweep, 0.9, 0.01],
+      [grit, 0.3],
+    ),
+  );
 }
 
 function skid(rng: Rng): Float32Array {
   const len = 0.38;
-  const scrape = mul(
-    filter(noise(len, rng), 'bandpass', (t) => 2900 - 1500 * t, 3),
-    env(
-      len,
-      [
-        [0, 0],
-        [0.02, 1],
-        [len, 0],
-      ],
-      1.5,
-    ),
-  );
   const rough = mul(filter(noise(len, rng), 'lowpass', 60), 4).map(
     (s) => 0.5 + Math.max(-0.5, Math.min(0.5, s)),
   );
-  return finish(mul(scrape, rough));
+  const shape = env(
+    len,
+    [
+      [0, 0],
+      [0.02, 1],
+      [len, 0],
+    ],
+    1.5,
+  );
+  const friction = mul(mul(filter(noise(len, rng), 'bandpass', 550, 1), rough), shape);
+  const scrape = mul(
+    mul(
+      filter(noise(len, rng), 'bandpass', (t) => 2600 - 1200 * t, 1.5),
+      rough,
+    ),
+    shape,
+  );
+  return finish(layer(len, [friction, 1.2], [scrape, 0.6]));
 }
 
 function step(rng: Rng, v: number): Float32Array {
@@ -506,6 +551,7 @@ function step(rng: Rng, v: number): Float32Array {
   return finish(
     layer(
       0.09,
+      [click(rng, 0.003, 3000), 0.4],
       [slap(rng, 1100 * p, 1, 0.012, 0.09, 'pink'), 1],
       [thump(130 * p, 70, 0.01, 0.015, 0.09), 0.6],
     ),
@@ -524,16 +570,17 @@ function ledgeGrab(rng: Rng): Float32Array {
   );
 }
 
+/** Dodge: a quick airy swish with a phasing shimmer (the intangibility). */
 function dodge(rng: Rng): Float32Array {
   const air = whoosh(
     rng,
-    0.3,
+    0.32,
     [
       [0, 1500],
-      [0.09, 4200],
-      [0.3, 2000],
+      [0.09, 3600],
+      [0.32, 1800],
     ],
-    1.8,
+    1.2,
     0.05,
     'white',
   );
@@ -542,48 +589,80 @@ function dodge(rng: Rng): Float32Array {
     [1.5, 0.4, 0.06],
     [2.01, 0.25, 0.05],
   ]);
-  return finish(layer(0.3, [air, 1], [sparkle, 0.14, 0.03]));
+  return finish(layer(0.32, [flange(air, 0.0025, 0.002, 14), 1], [sparkle, 0.12, 0.03]));
 }
 
+/** Roll: two cloth-and-floor scuffs under a low swoosh. */
 function roll(rng: Rng): Float32Array {
   const air = whoosh(
     rng,
     0.36,
     [
-      [0, 800],
-      [0.14, 1900],
-      [0.36, 900],
+      [0, 600],
+      [0.14, 1300],
+      [0.36, 700],
     ],
-    1.4,
-    0.08,
+    1,
+    0.1,
   );
-  return finish(layer(0.36, [air, 1], [land(rng, 1), 0.35, 0.24]));
+  return finish(
+    layer(
+      0.38,
+      [air, 0.6],
+      [slap(rng, 900, 0.9, 0.035, 0.2, 'pink'), 1],
+      [slap(rng, 750, 0.9, 0.045, 0.2, 'pink'), 0.9, 0.17],
+      [thump(150, 70, 0.015, 0.03, 0.12), 0.5, 0.17],
+    ),
+  );
 }
 
-/** The rising shimmer while a smash attack charges (60 frames = 1 s at most). */
+/** The smash charge: a tense pulsing hum with crystalline glints that thicken, rising a little (60 frames max). */
 function smashCharge(rng: Rng): Float32Array {
   const len = 1.05;
-  const rise = (t: number) => 820 * 2 ** (t * 1.25);
-  const tone = layer(
-    len,
-    [osc(len, (t) => rise(t)), 0.5],
-    [osc(len, (t) => rise(t) * 1.007), 0.4],
-    [osc(len, (t) => rise(t) * 2.003, 'triangle'), 0.18],
+  const f = (t: number) => 110 * 2 ** (t * 0.35);
+  const hum = filter(
+    layer(
+      len,
+      [osc(len, f, 'saw'), 0.5],
+      [osc(len, (t) => f(t) * 1.505, 'saw'), 0.3],
+      [osc(len, (t) => f(t) * 2.01, 'saw'), 0.2],
+    ),
+    'lowpass',
+    (t) => 700 + 1100 * t,
+    2,
   );
-  const trem = osc(len, (t) => 14 + 10 * t).map((s) => 0.62 + 0.38 * s);
-  const sparkle = mul(
-    filter(noise(len, rng), 'highpass', 6000),
+  let ph = 0;
+  const pulse = new Float32Array(hum.length);
+  for (let i = 0; i < pulse.length; i++) {
+    ph += (9 + 13 * (i / pulse.length)) / SR;
+    pulse[i] = 0.55 + 0.45 * Math.sin(2 * Math.PI * ph);
+  }
+  const glints = buffer(len);
+  for (let i = 0; i < 26; i++) {
+    const t = len * Math.sqrt(rng.next());
+    add(
+      glints,
+      partials(0.12, rng.range(3000, 8000), [
+        [1, 1, 0.025],
+        [2.4, 0.3, 0.012],
+      ]),
+      t,
+      rng.range(0.3, 1),
+    );
+  }
+  const air = mul(
+    filter(noise(len, rng), 'highpass', 5000),
     env(len, [
-      [0, 0.2],
-      [len, 1],
+      [0, 0.1],
+      [len, 0.6],
     ]),
   );
   return normalize(
     mul(
-      layer(len, [mul(tone, trem), 1], [sparkle, 0.12]),
+      layer(len, [mul(hum, pulse), 1], [glints, 0.35], [air, 0.12]),
       env(len, [
         [0, 0],
-        [0.06, 0.6],
+        [0.04, 0.55],
         [len, 1],
       ]),
     ),
@@ -611,20 +690,20 @@ function swing(rng: Rng, v: number): Float32Array {
 
 function respawn(rng: Rng): Float32Array {
   const bell = (f: number) =>
-    partials(1.4, f, [
-      [1, 0.7, 0.5],
-      [2, 0.25, 0.3],
-      [3.01, 0.12, 0.2],
+    partials(1.1, f, [
+      [1, 0.7, 0.32],
+      [2, 0.25, 0.2],
+      [3.01, 0.12, 0.14],
     ]);
   const dry = layer(
-    1.4,
+    1.1,
     [bell(midiHz(84)), 0.5],
     [bell(midiHz(88)), 0.4, 0.06],
     [bell(midiHz(91)), 0.4, 0.12],
     [bell(midiHz(96)), 0.25, 0.18],
-    [scatter(rng, 1, 14, 0.6, 3500, 7000, [0.04, 0.09]), 0.15, 0.05],
+    [scatter(rng, 0.8, 14, 0.5, 3500, 7000, [0.04, 0.09]), 0.15, 0.05],
   );
-  return finish(reverbMono(dry, { room: 0.8, wet: 0.4, tail: 0.6 }), 0.8);
+  return finish(reverbMono(dry, { room: 0.7, wet: 0.3, tail: 0.3 }), 0.8);
 }
 
 // ---------------------------------------------------------------- menus
@@ -662,25 +741,30 @@ function menuBack(): Float32Array {
   );
 }
 
+/** Refused: two short muted low blips, in the same soft palette as the other menu sounds. */
 function menuError(): Float32Array {
-  const len = 0.22;
-  const buzz = layer(len, [osc(len, 146, 'square'), 0.5], [osc(len, 155, 'saw'), 0.5]);
-  return finish(
+  const blip = (f: number) =>
     mul(
-      filter(buzz, 'lowpass', 1600),
-      env(len, [
-        [0, 0],
-        [0.005, 1],
-        [0.17, 0.8],
-        [len, 0],
-      ]),
-    ),
-    0.7,
+      layer(0.08, [osc(0.08, f, 'triangle'), 0.8], [osc(0.08, f * 2, 'square'), 0.12]),
+      decay(0.08, 0.025, 0.003),
+    );
+  return finish(
+    filter(layer(0.2, [blip(midiHz(55)), 1], [blip(midiHz(54)), 1, 0.095]), 'lowpass', 1800),
+    0.75,
   );
 }
 
+/** A two-stage switch: a light tick then a firmer snap. */
 function menuToggle(rng: Rng): Float32Array {
-  return finish(layer(0.05, [click(rng, 0.004, 1800), 1], [thump(1400, 900, 0.005, 0.008, 0.05), 0.5]), 0.7);
+  return finish(
+    layer(
+      0.06,
+      [click(rng, 0.003, 4000), 0.5],
+      [click(rng, 0.005, 1800), 1, 0.018],
+      [thump(1000, 650, 0.005, 0.008, 0.04), 0.5, 0.018],
+    ),
+    0.7,
+  );
 }
 
 /** "Ready to fight": a big riser into an impact and a bright stab. */
@@ -707,7 +791,7 @@ function menuStart(rng: Rng): Float32Array {
     [riser, 0.7],
     [click(rng, 0.012, 1500), 1, 0.55],
     [drive(thump(150, 40, 0.06, 0.22, 1), 2), 1, 0.55],
-    [filter(stab, 'lowpass', 4200), 1, 0.55],
+    [filter(stab, 'lowpass', 3000), 1, 0.55],
   );
   return finish(reverbMono(dry, { room: 0.75, wet: 0.35, tail: 0.8 }));
 }

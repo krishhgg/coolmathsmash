@@ -34,6 +34,11 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
 
   it.each(Object.entries(def.moves ?? {}))('move %s has consistent frame data', (name, move) => {
     expect(move.faf, name).toBeGreaterThan(1);
+    if (move.air) {
+      const variant = def.moves?.[move.air];
+      expect(variant, `${name}.air names a move`).toBeDefined();
+      expect(variant?.air, `${move.air} is not itself redirected`).toBeUndefined();
+    }
     if (move.transform) {
       expect(move.transform.frame).toBeLessThan(move.faf);
       expect(
@@ -57,6 +62,11 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
       expect(move.charge).toBeLessThan(Math.min(...move.hits.map((w) => w.frames[0])));
     }
     if (move.kind === 'aerial') expect(move.landingLag).toBeGreaterThan(0);
+    if (move.next) {
+      expect(def.moves?.[move.next.move], `${name} continues into ${move.next.move}`).toBeDefined();
+      expect(move.next.window[1]).toBeGreaterThanOrEqual(move.next.window[0]);
+      expect(move.next.window[1]).toBeLessThanOrEqual(move.faf);
+    }
     for (const [a, b] of move.autoCancel ?? []) expect(b).toBeGreaterThanOrEqual(a);
   });
 });
