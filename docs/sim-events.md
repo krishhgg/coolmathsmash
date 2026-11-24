@@ -48,6 +48,7 @@ feeds back into the simulation.
 | `reflect`       | `id`, `kind`, `port`, `x`, `y`                                                                    | a reflector sends a projectile back; `port` now owns it                                                                                            |
 | `absorb`        | `id`, `kind`, `port`, `heal`, `x`, `y`                                                            | an absorber eats a projectile and heals `heal` %                                                                                                   |
 | `entityHit`     | `id`, `kind`, `attacker`, `damage`, `hp`, `x`, `y`                                                | a hittable entity takes a hit; `hp` is what it has left                                                                                            |
+| `stageHit`      | `victim`, `source` (`zone`, `hitbox`), `index`, `element` (or null), `damage`, `kb`, `x`, `y`     | a stage hazard hits a fighter; `damage` is what it added                                                                                           |
 
 `x` and `y` are world units with y up. `action` events come last in a frame, one per fighter whose action
 differs from the frame before, which also covers states without their own event: `shield`, `spotDodge`,

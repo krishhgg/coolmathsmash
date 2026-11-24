@@ -7,6 +7,7 @@
 import type { ActionDef } from '../sim/actions/registry';
 import type { AbsorberDef, EntityDef, ReflectorDef, SpawnDef } from '../sim/entities/types';
 import type { Ctx } from '../sim/fighter';
+import type { TerrainElement } from '../sim/stage';
 
 export interface FighterStats {
   /** Ultimate weight (Mario 98). Heavier fighters take less knockback. */
@@ -201,6 +202,8 @@ export interface FighterDef {
   art?: unknown;
   /** False for forms reached only by transforming (Watergirl), so menus list only the fighter that starts. */
   selectable?: boolean;
+  /** Damaging terrain this fighter is unharmed by, e.g. Fireboy's ['lava'] (docs/stage-geometry.md). */
+  immune?: TerrainElement[];
 }
 
 export function defineFighter<T extends FighterDef>(def: T): T {

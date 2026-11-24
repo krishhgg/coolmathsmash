@@ -86,6 +86,8 @@ export interface FighterState {
   grabbableFrom: number;
   /** First match frame a shield grab can come out (GRAB.shieldGrabLock frames after shieldstun). */
   shieldGrabFrom: number;
+  /** Frames before stage hazards (damage zones, stage hitboxes) can hit this fighter again. */
+  stageHitLock: number;
 }
 
 export function createFighter(
@@ -139,6 +141,7 @@ export function createFighter(
     grabDamage: 0,
     grabbableFrom: 0,
     shieldGrabFrom: 0,
+    stageHitLock: 0,
   };
 }
 

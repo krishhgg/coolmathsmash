@@ -14,7 +14,7 @@ import {
   type CompiledStage,
   type Edge,
   type Motion,
-  type Moving,
+  type PieceOptions,
   type Schedule,
   type StageGeometry,
 } from './stage';
@@ -73,22 +73,39 @@ export function scheduledOn(schedule: Schedule | undefined, frame: number): bool
   return !schedule.off.some(([a, b]) => t >= a && t <= b);
 }
 
-function pieceAt(piece: Moving, frame: number, prev: PieceState | undefined): PieceState {
-  const [x, y] = motionOffset(piece.motion, frame);
+/** Stage hazards are on unless the match turns them off (MatchConfig.hazards) for legal play. */
+export const hazardsOn = (m: MatchState) => m.config.hazards !== false;
+
+function pieceAt(
+  piece: PieceOptions,
+  frame: number,
+  prev: PieceState | undefined,
+  hazards: boolean,
+): PieceState {
+  const still = piece.hazard && !hazards;
+  const [x, y] = still ? [0, 0] : motionOffset(piece.motion, frame);
   return {
     x,
     y,
     dx: prev ? x - prev.x : 0,
     dy: prev ? y - prev.y : 0,
-    on: scheduledOn(piece.schedule, frame),
+    on: still || scheduledOn(piece.schedule, frame),
   };
 }
 
-/** The stage on match frame `frame`; `prev`, the previous frame's state, gives each piece's movement. */
-export function stageStateAt(geo: StageGeometry, frame: number, prev?: StageState): StageState {
+/**
+ * The stage on match frame `frame`; `prev`, the previous frame's state, gives each piece's movement. With
+ * hazards off, pieces flagged `hazard` stay at their authored place, present.
+ */
+export function stageStateAt(
+  geo: StageGeometry,
+  frame: number,
+  prev?: StageState,
+  hazards = true,
+): StageState {
   return {
-    solids: geo.solids.map((s, i) => pieceAt(s, frame, prev?.solids[i])),
-    platforms: geo.platforms.map((p, i) => pieceAt(p, frame, prev?.platforms[i])),
+    solids: geo.solids.map((s, i) => pieceAt(s, frame, prev?.solids[i], hazards)),
+    platforms: geo.platforms.map((p, i) => pieceAt(p, frame, prev?.platforms[i], hazards)),
   };
 }
 
@@ -145,7 +162,7 @@ function pose(base: CompiledStage, st: StageState): CompiledStage {
  */
 export function advanceStage(m: MatchState): void {
   const before = m.stage;
-  m.stage = stageStateAt(compiledStage(m.config.stage).geo, m.frame + 1, before);
+  m.stage = stageStateAt(compiledStage(m.config.stage).geo, m.frame + 1, before, hazardsOn(m));
   const changed = (p: PieceState, i: number, was: PieceState[]) =>
     p.dx !== 0 || p.dy !== 0 || p.on !== was[i]!.on;
   const moved =
