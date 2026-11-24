@@ -20,8 +20,9 @@ const loop = (windows: [number, number][], boxes: HitboxDef[]): MoveDef['hits'] 
 /**
  * Bob the Robber's normals (research roster, fighter 4): a disjointed night-stick with Marth-style tippers on
  * forward tilt, forward smash and forward air, his loot sack on dash attack and down air, and twirls on up tilt,
- * up smash and neutral air. Damage and first active frames are the roster's; knockback is tuned to its kill
- * percents (KOs Mario at the Battlefield ledge, fresh, no rage), which bob-the-robber.test.ts pins.
+ * up smash and neutral air. Damage and first active frames are the roster's. Knockback (BKB, KBG, angles) follows
+ * Ultimate's conventions for the matching Marth / Joker moves rather than being tuned to the roster's kill
+ * percents, until COOL-3 calibrates the engine's KO percentages against Ultimate (CREW.md, "Knockback values").
  *
  * Tippers: the baton's near boxes take the lower ids, so the tip lands only when it alone reaches the target, at
  * the end of the baton (Marth's spacing game), rather than whenever it overlaps.
@@ -79,9 +80,9 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [6, 8],
         boxes: [
-          box(0, 4.5, 8, 3, { damage: 9, angle: 361, kbg: 69, bkb: 40 }),
-          box(1, 8.5, 7.5, 2.5, { damage: 9, angle: 361, kbg: 69, bkb: 40 }),
-          box(2, 12.5, 7.5, 2.5, { damage: 11, angle: 361, kbg: 69, bkb: 45 }),
+          box(0, 4.5, 8, 3, { damage: 9, angle: 361, kbg: 70, bkb: 40 }),
+          box(1, 8.5, 7.5, 2.5, { damage: 9, angle: 361, kbg: 70, bkb: 40 }),
+          box(2, 12.5, 7.5, 2.5, { damage: 11, angle: 361, kbg: 75, bkb: 50 }),
         ],
       },
     ],
@@ -131,8 +132,8 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 40,
     hits: [
-      { frames: [9, 12], boxes: [box(0, 7.5, 6, 5, { damage: 10, angle: 50, kbg: 68, bkb: 75 })] },
-      { frames: [13, 20], boxes: [box(0, 7, 6, 4.5, { damage: 7, angle: 50, kbg: 68, bkb: 60 })] },
+      { frames: [9, 12], boxes: [box(0, 7.5, 6, 5, { damage: 10, angle: 50, kbg: 70, bkb: 75 })] },
+      { frames: [13, 20], boxes: [box(0, 7, 6, 4.5, { damage: 7, angle: 50, kbg: 70, bkb: 60 })] },
     ],
   },
   /** Home-Run Bonk: a big two-handed swing with a tip sweetspot. Charges on frame 9. */
@@ -144,9 +145,9 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [13, 15],
         boxes: [
-          box(0, 4.5, 9, 3.5, { damage: 15, angle: 361, kbg: 70, bkb: 40 }),
-          box(1, 9, 8.5, 3, { damage: 15, angle: 361, kbg: 70, bkb: 40 }),
-          box(2, 13.5, 8, 3, { damage: 18, angle: 361, kbg: 67, bkb: 50 }),
+          box(0, 4.5, 9, 3.5, { damage: 15, angle: 361, kbg: 75, bkb: 60 }),
+          box(1, 9, 8.5, 3, { damage: 15, angle: 361, kbg: 75, bkb: 60 }),
+          box(2, 13.5, 8, 3, { damage: 18, angle: 361, kbg: 80, bkb: 70 }),
         ],
       },
     ],
@@ -173,7 +174,7 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [23, 25],
         rehit: true,
-        boxes: [box(0, 0, 17, 7.5, { damage: 7, angle: 90, kbg: 138, bkb: 40, direction: 'away' })],
+        boxes: [box(0, 0, 17, 7.5, { damage: 7, angle: 90, kbg: 160, bkb: 40, direction: 'away' })],
       },
     ],
   },
@@ -186,15 +187,15 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [7, 8],
         boxes: [
-          box(0, 5, 2.5, 3.5, { damage: 12, angle: 30, kbg: 75, bkb: 40 }),
-          box(1, 11, 2, 3.5, { damage: 12, angle: 30, kbg: 75, bkb: 40 }),
+          box(0, 5, 2.5, 3.5, { damage: 12, angle: 30, kbg: 85, bkb: 40 }),
+          box(1, 11, 2, 3.5, { damage: 12, angle: 30, kbg: 85, bkb: 40 }),
         ],
       },
       {
         frames: [15, 16],
         boxes: [
-          box(0, -5, 2.5, 3.5, { damage: 13, angle: 30, kbg: 73, bkb: 40, direction: 'back' }),
-          box(1, -11, 2, 3.5, { damage: 13, angle: 30, kbg: 73, bkb: 40, direction: 'back' }),
+          box(0, -5, 2.5, 3.5, { damage: 13, angle: 30, kbg: 85, bkb: 40, direction: 'back' }),
+          box(1, -11, 2, 3.5, { damage: 13, angle: 30, kbg: 85, bkb: 40, direction: 'back' }),
         ],
       },
     ],
@@ -245,9 +246,9 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [7, 9],
         boxes: [
-          box(0, 5, 10, 3.5, { damage: 10, angle: 361, kbg: 77, bkb: 35 }),
-          box(1, 9, 8, 3, { damage: 10, angle: 361, kbg: 77, bkb: 35 }),
-          box(2, 12.5, 5, 3, { damage: 12, angle: 361, kbg: 74, bkb: 40 }),
+          box(0, 5, 10, 3.5, { damage: 10, angle: 361, kbg: 75, bkb: 40 }),
+          box(1, 9, 8, 3, { damage: 10, angle: 361, kbg: 75, bkb: 40 }),
+          box(2, 12.5, 5, 3, { damage: 12, angle: 361, kbg: 75, bkb: 50 }),
         ],
       },
     ],
@@ -265,8 +266,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [9, 11],
         boxes: [
-          box(0, -5, 7.5, 3.5, { damage: 12, angle: 361, kbg: 77, bkb: 30, direction: 'back' }),
-          box(1, -10.5, 7.5, 3.5, { damage: 12, angle: 361, kbg: 77, bkb: 30, direction: 'back' }),
+          box(0, -5, 7.5, 3.5, { damage: 12, angle: 361, kbg: 80, bkb: 50, direction: 'back' }),
+          box(1, -10.5, 7.5, 3.5, { damage: 12, angle: 361, kbg: 80, bkb: 50, direction: 'back' }),
         ],
       },
     ],
@@ -284,8 +285,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [6, 9],
         boxes: [
-          box(0, 0, 15, 4, { damage: 9, angle: 80, kbg: 106, bkb: 35, direction: 'away' }),
-          box(1, 0, 19.5, 4, { damage: 9, angle: 80, kbg: 106, bkb: 35, direction: 'away' }),
+          box(0, 0, 15, 4, { damage: 9, angle: 80, kbg: 110, bkb: 35, direction: 'away' }),
+          box(1, 0, 19.5, 4, { damage: 9, angle: 80, kbg: 110, bkb: 35, direction: 'away' }),
         ],
       },
     ],
@@ -323,7 +324,7 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 44,
     hits: [],
-    throw: { frame: 22, hit: { damage: 10, angle: 40, kbg: 58, bkb: 60, direction: 'back' } },
+    throw: { frame: 22, hit: { damage: 10, angle: 45, kbg: 67, bkb: 60, direction: 'back' } },
   },
   /** Loot Toss: heaves them overhead like a sack of loot. */
   uthrow: {
