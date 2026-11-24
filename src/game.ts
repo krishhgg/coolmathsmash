@@ -50,6 +50,7 @@ export class Game {
     const frame = inputs.map((i) => ({ x: i.x, y: i.y, cx: i.cx, cy: i.cy, buttons: i.buttons }));
     stepMatch(this.state, frame);
     this.renderer.stepCamera(this.state);
+    this.renderer.stepHud(this.state);
     this.inputLog.push(frame);
   }
 

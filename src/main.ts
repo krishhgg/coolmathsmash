@@ -1,12 +1,13 @@
 import { Game } from './game';
 import { installHarness } from './harness/api';
+import { loadHudFont } from './render/hud';
 import { Renderer } from './render/renderer';
 
 async function boot(): Promise<void> {
   const root = document.getElementById('app');
   if (!root) throw new Error('#app missing');
   const params = new URLSearchParams(location.search);
-  const renderer = await Renderer.create(root);
+  const [renderer] = await Promise.all([Renderer.create(root), loadHudFont()]);
   const harness = params.has('harness');
   const game = new Game(renderer, harness);
   renderer.overlays.inputs = params.has('inputs');
