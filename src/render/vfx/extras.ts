@@ -21,13 +21,14 @@ export function chargeAuraShapes(cx: number, cy: number, frame: number, charge: 
   return [
     {
       type: 'poly',
-      points: star(cx, cy, 14, (i) => 10.5 * k * (i % 2 ? 0.72 : 1), 6 * k, rot),
-      fill: { color: 0xffe45c, alpha: 0.4 },
+      points: star(cx, cy, 14, (i) => 12.5 * k * (i % 2 ? 0.7 : 1), 7 * k, rot),
+      fill: { color: 0xffc928, alpha: 0.6 },
+      line: { color: 0x9a5a00, width: 0.25, alpha: 0.7 },
     },
     {
       type: 'poly',
-      points: star(cx, cy, 14, (i) => 7.5 * k * (i % 2 ? 0.72 : 1), 4.5 * k, -rot),
-      fill: { color: 0xffffff, alpha: 0.45 },
+      points: star(cx, cy, 14, (i) => 9 * k * (i % 2 ? 0.7 : 1), 5.5 * k, -rot),
+      fill: { color: 0xfff6c0, alpha: 0.75 },
     },
   ];
 }

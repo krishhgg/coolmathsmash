@@ -25,7 +25,7 @@ export type PuffTone = 'smoke' | 'dust';
 /** Flash-style two-tone clouds: dark rim, mid body, light top-left lobe. */
 const TONES: Record<PuffTone, { rim: number; body: number; light: number }> = {
   smoke: { rim: 0x6c7387, body: 0xc0c6d3, light: 0xf8f9fc },
-  dust: { rim: 0x7f7562, body: 0xd2c8b3, light: 0xf6f1e4 },
+  dust: { rim: 0x9a8f78, body: 0xdcd3c0, light: 0xfaf6ec },
 };
 
 /** Launch speed (units per frame of knockback) where the smoke trail starts and where it is at its densest. */
