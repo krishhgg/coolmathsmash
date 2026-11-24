@@ -4,6 +4,7 @@
  * (game units, units/frame, frames at 60 Hz) so reference data can be used as-is. See docs/fighters.md.
  */
 
+import type { ActionDef } from '../sim/actions/registry';
 import type { Ctx } from '../sim/fighter';
 import type { FloatDef, GlideDef, HoverDef } from '../sim/mobility';
 
@@ -122,16 +123,32 @@ export interface MoveDef {
   autoCancel?: [number, number][];
   /** Smash attacks: holding the input pauses the move on this frame for up to 60 frames, for up to 1.4x damage. */
   charge?: number;
+  /**
+   * Jab combos: Attack (pressed, buffered or held) with no stick direction during `window` (inclusive) cancels this
+   * grounded move into `move`, the next hit of the combo (jab -> jab2 -> jab3).
+   */
+  next?: { window: [number, number]; move: string };
   /** Specials that take off (recoveries): a grounded start leaves the ground and plays as an aerial. */
   leavesGround?: boolean;
   /** Frames (inclusive) on which the fighter is intangible, as on a getup attack. */
   intangible?: [number, number];
+  /**
+   * Armor (Ultimate): on `frames` (inclusive) hits still add damage and hitlag, but they don't launch, cause
+   * hitstun or interrupt the move. A hit breaks through when its knockback reaches `threshold` or its damage
+   * reaches `damageThreshold`; with neither set it is heavy armor and nothing breaks through.
+   */
+  armor?: { frames: [number, number]; threshold?: number; damageThreshold?: number };
   /** Recoveries: the move ends in helpless fall instead of a normal fall. */
   helpless?: boolean;
   /** Airborne moves that may grab a ledge from this frame. */
   ledgeFrom?: number;
   /** Landing doesn't end the move: it carries on from the same frame on the ground, with no landing lag. */
   continuesOnLanding?: boolean;
+  /**
+   * Ground/air variants (Ultimate's SpecialN and SpecialAirN): started in the air, this move plays the move named
+   * `air` instead, which is also the clip and the name in the `move` event.
+   */
+  air?: string;
   /**
    * Transform (Zelda/Sheik style): on `frame` the fighter becomes fighter `into`, keeping its %, stocks, position
    * and everything else in FighterState; stats, moves and art switch. `into` must have a move of the same name,
@@ -176,6 +193,12 @@ export interface FighterDef {
   glide?: GlideDef;
   float?: FloatDef;
   hover?: HoverDef;
+  /**
+   * This fighter's own versions of shared actions, by action name (`walk`, `dash`, `run`, `crouch`, ...), used
+   * instead of the shared ones in `src/sim/actions/`, or new actions only this fighter enters. Bloxorz block tips
+   * end over end instead of walking. Keep them deterministic, like move scripts.
+   */
+  actions?: Record<string, ActionDef>;
   /** Art data for the renderer (src/render/rig). Plain data, no renderer imports. */
   art?: unknown;
   /** False for forms reached only by transforming (Watergirl), so menus list only the fighter that starts. */

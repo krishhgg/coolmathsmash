@@ -88,6 +88,9 @@ fsmash: {
 },
 ```
 
+- **Jab combos.** `next: { window: [from, to], move }` on a grounded move: Attack with no stick direction during
+  `window` cancels into `move`, so `jab` -> `jab2` -> `jab3` each name the next hit (The Duck's
+  `src/fighters/duck/moves.ts`). Each hit is its own move and animation clip.
 - **Windows.** `hits` lists frame windows; each puts its `boxes` out on those frames. A move hits each fighter
   once. A window with `rehit: true` forgets earlier victims when it opens, for multi-hit moves (Fireboy's `dair`).
 - **Hitboxes.** These are circles at `x` (forward, in the facing direction) and `y` (up) from the feet. When
@@ -102,6 +105,10 @@ fsmash: {
   applies when it lands out of the helpless fall.
 - **Auto-cancel.** Landing in an aerial's `autoCancel` window costs only normal landing lag.
 - **Intangibility.** `intangible: [from, to]` makes the fighter intangible on those frames of the move.
+- **Armor.** `armor: { frames: [from, to], threshold?, damageThreshold? }` armours the fighter on those frames of the
+  move, as in Ultimate: hits still add damage and hitlag, but they don't launch, cause hitstun or interrupt the move.
+  A hit breaks through when its knockback reaches `threshold` (threshold armor) or its damage reaches
+  `damageThreshold` (Kirby's Stone); with neither it is heavy armor. Grabs and throws ignore armor.
 - **Getup attack.** A move named `getupAttack` plays when a fighter lying down after a missed tech presses
   Attack. Give it `intangible: [1, 26]` (Ultimate's) and hits on both sides; without one, Attack just stands up.
 - **Specials.** `script(x)` runs every frame of the move before physics and sets velocity or facing. It must be
@@ -114,13 +121,48 @@ fsmash: {
     ending in landing lag.
   - `glide` glides at the end of the move if Jump is held (see Air mobility).
   - `action` plays the move in another action with its own physics instead of `attack`/`aerial`: `'hover'`.
+  - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
+    `neutralB: { ..., air: 'neutralBAir' }`. The variant is its own move, so it has its own frame data and clip,
+    and the `move` event carries its name.
 - **Transform.** `transform: { frame, into }` turns the fighter into fighter `into` on that frame of the move
   (Zelda/Sheik style). FighterState carries over (%, stocks, position, momentum), and stats, moves and art switch;
   `into` needs a move of the same name, which plays the rest of the move. Fireboy and Watergirl's down special
   (`src/fighters/fireboy/swap.ts`) is the example. A form that is only reached by transforming sets
   `selectable: false` on its FighterDef, so menus list only the fighter that starts the match.
 
-The combat math (knockback, hitlag, hitstun, DI, shieldstun, staleness) is shared and lives in
+### Action overrides
+
+`actions` on a FighterDef replaces shared actions (`src/sim/actions/`) for that fighter only, by action name, or adds
+actions only that fighter enters. The engine looks every action up through `actionDef(f)`
+(`src/sim/actions/registry.ts`), so an override's `physics`, `friction`, `edge`, `drift`, `ledge`,
+`intangible` and `land` all apply. Bloxorz block's `walk`, `dash`, `run` and `crouch` tip the block end over end
+instead of sliding:
+
+```ts
+actions: {
+  walk: {
+    physics: 'ground',
+    edge: 'fall',
+    friction: false,
+    update(x) {
+      if (groundActionable(x)) return; // jump, attacks, shield, crouch: the shared options
+      // set x.f.vel.x yourself, setAction(x, 'idle') when the stick lets go
+    },
+  },
+},
+```
+
+Reuse the shared helpers (`groundActionable`, `startMovement`, `setAction`) so inputs keep Smash's priorities, keep
+the names canonical (audio, art and CPUs key off action names), and keep overrides deterministic, like move scripts.
+
+### Hurtbox shape
+
+The hurtbox is a capsule from `width` and `height`: upright (half the width thick, from the feet to the head) for
+most fighters, and lying (half the height thick, along the width) for a fighter wider than it is tall. Crouching
+lowers an upright body only. A form that
+changes shape mid-match (Bloxorz block standing up or lying down) is a separate FighterDef with its own size,
+reached by `transform`. `?hitboxes` draws either shape.
+
 `src/sim/combat/`; a fighter only supplies numbers.
 
 Every move start, hit and landing is reported as a sim event (`docs/sim-events.md`). Audio and effects key off
@@ -230,6 +272,14 @@ the fuel left. Fuel refills only on the ground, from empty to full in `refillFra
 **State the HUD can read**: `FighterState.mobility` holds `hoverFuel` (frames of thrust left), `floatFrames` (frames
 floated this airtime; equal to the float's `frames` once spent), `floating`, `glideUsed`, `glideAngle` and
 `glideSpeed`. Midair jumps left are `stats.jumps - jumpsUsed`.
+
+## Stages
+
+Stages can move (docs/stage-geometry.md): a fighter standing on a moving platform or solid rides it, one hanging from a
+moving ledge moves with it, and a solid that runs into a fighter pushes them out or squeezes them out on top of
+it. Nothing in a fighter needs to change for that. A move's `script` that reads the stage (`x.stage`) sees it
+as it stands on the current frame, moved pieces and all, and should skip absent pieces
+(`x.stage.present`).
 
 ## Art
 

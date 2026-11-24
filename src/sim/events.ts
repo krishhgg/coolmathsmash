@@ -59,7 +59,16 @@ export type SimEvent =
   /** A float started or ended (also when it ends during an aerial started from it, or by landing). */
   | { type: 'float'; port: number; phase: 'start' | 'end' }
   /** A fuel hover burned its last fuel while thrusting. */
-  | { type: 'fuelEmpty'; port: number };
+  | { type: 'fuelEmpty'; port: number }
+  /** A scheduled stage piece appeared (`on`) or vanished (docs/stage-geometry.md). */
+  | { type: 'stagePiece'; piece: 'solid' | 'platform'; index: number; on: boolean }
+  /** A moving solid squeezed a fighter against other geometry and the fighter popped out on top of it. */
+  | { type: 'squeeze'; port: number; solid: number; x: number; y: number }
+  /**
+   * A fighter's move or action asks for a screen shake (a heavy landing, Bloxorz block's every tip): `amplitude`
+   * in screen pixels at 1280x720, fading out over `frames` frames. Emitted by fighter scripts; the camera reacts.
+   */
+  | { type: 'shake'; port: number; amplitude: number; frames: number };
 
 export type SimEventType = SimEvent['type'];
 

@@ -19,8 +19,8 @@ simulation, tests and tools can read it without Pixi; only `src/render/rig/view.
 
 Rig space is in game units, y down, origin at the point between the feet, facing right. The renderer places
 the container at the fighter's position (y down already matches Pixi) and sets `scale.x = -1` when the fighter
-faces left. Fireboy is 15 units tall including his flames and about 8 wide, so the tip of his flames sits at
-y = -15.
+faces left. A fighter's drawing fills its hurtbox: Fireboy's rig is 15 units tall and about 8 wide, so the top
+of the head sits at y = -15.
 
 Move data in `src/fighters/*/moves*` uses feet-relative offsets with **y up**, so a hitbox at `(6, 6)` is the
 rig point `(6, -6)`.
@@ -32,22 +32,23 @@ rig point `(6, -6)`.
   are palette keys too. Sub-paths use the even-odd rule, as Flash shapes do: `view.ts` splits them into
   outlines and holes and cuts the holes, because Pixi would fill every sub-path otherwise.
 - A symbol can be a **loop** `{ loop: [...names], fps }`, a Flash movie clip that plays on the match clock
-  (`globalFrame`, 60 per second) whatever the action. Fireboy's head flickers through the original's 5 head
-  drawings at the SWF's 25 fps.
+  (`globalFrame`, 60 per second) whatever the action, such as a flame flickering through 3 drawings at 30 fps.
 - **Bones** `{ name, parent?, x, y, rot?, sx?, sy? }` form the skeleton; parents come first. A bone's scale (its
   rest `sx`/`sy` times the pose's) stretches its own drawings and carries down to its children, except on bones
   marked `localScale` (limb segments), whose children are only pushed out along the stretched bone so a
   stretched forearm never skews the fist.
 - **Slots** `{ name, bone, symbol, decor? }` are the layers, back to front. Limbs use two slots per segment
-  (outline symbols first, then fills) so the joint has no visible seam, the way the original inked its tubes.
-  `decor` slots (Fireboy's heat glow) are drawn but left out of bounds and hitbox-coverage checks.
+  (outline symbols first, then fills) so the joint has no visible seam, the way Flash artists inked tubes.
+  `decor` slots (a glow or shadow) are drawn but left out of bounds and hitbox-coverage checks.
 - **Clips** are Flash-style timelines with two layers per key. The pose layer: a key with `pose` is a full
   pose (bones it does not mention return to rest) and tweens to the next posed key with its `ease`. The symbol
   layer: `swaps` (slot -> symbol, or `null` to hide) and `z` (slot -> draw order; slot _i_ draws at _i_, so
   2.5 sits between slots 2 and 3) hold until a later key changes them, and `swaps: {}` returns to the clip's
   own swaps. A key without `pose` only changes symbols, like a keyframe on the symbol layer.
-- **Palettes** map keys to colours. `default` is the original; alternates (`blaze`, `ember` and `violet` for
-  Fireboy) dress other ports.
+- **Palettes** map keys to colours. `default` is the fighter's main look; alternates (the mannequin's `ash`,
+  `walnut` and `cherry`) dress other ports.
+- **Costume swaps** (`costumeSwaps`: palette name -> slot -> symbol, or `null`) replace slot defaults for one
+  costume, below clip and key swaps, so a costume can wear a hat the others don't (The Duck's `crown`).
 - `icon` is a standalone SVG string for stock icons and portraits, `projectiles` holds props such as the
   fireball (`PropArt { symbols, symbol, scale }`), and `ledgeGrip` is the rig point the ledge's top corner
   should touch while hanging.
@@ -98,20 +99,16 @@ Every symbol becomes one shared `GraphicsContext` per (symbol set, symbol, palet
 and frames reuse the same tessellated geometry; posing only swaps contexts and sets matrices. The engine draws
 the shield bubble, hit flash, shake, intangibility blink and port tags itself.
 
-## Importing original Flash art
+## Asset policy
 
-The original SWF is both the best reference and the best source. Fireboy's heads, faces and eyes in
-`src/fighters/fireboy/art/flash.ts` are converted from the Forest Temple SWF's shapes, not traced:
+Every drawing is made by hand in the rig's own path data. Nothing is traced, extracted or converted from
+original game files (no SWF shapes, bitmaps, sprites or audio), and no file derived from one may be committed.
+Reference images are for looking at while drawing; they stay in the crew's handoffs, never in the repo.
 
-1. Export shapes and sprites with JPEXS (`java -jar ffdec-cli.jar -export shape,sprite <out> game.swf`). The
-   sprites give the frame-by-frame reference poses (idle, run, jump) to compare against.
-2. Convert each shape SVG to rig paths: apply the shape's transform, scale to rig units (0.036 for Fireboy),
-   simplify curves within a small tolerance, and replace colours with palette keys so costumes recolour them.
-3. Write the result as plain data (`flash.ts`). Generated files are committed; the SWF and the import scripts
-   are not (they live with the crew's handoffs).
-
-Parts the original never drew separately (Fireboy's arms and legs are one body drawing) are built in
-`parts.ts` as inked tubes with the same line weight and colours.
+Until a fighter's own drawing lands, `src/fighters/fireboy/art/parts.ts` dresses Fireboy's rig as a plain
+wooden mannequin (an egg head with dot eyes, inked tube limbs, orange fire effects). A fighter's drawing replaces
+the symbols under the same names (`headFront`, `headSide`, `headUp`, the `face*` set, the limbs, `fist`,
+`mitten`, `fxBall`, `fxJet`, `fxFlame`), so the clips keep working unchanged.
 
 ## Authoring helpers
 
@@ -121,8 +118,7 @@ size, rot)` to place a flame on an `fx` bone, and swap sets (`FRONT`, `SIDE`, `A
 `FIST_F`, `MITTENS`, ...) to change the head view, expression and hands. `author.ts` holds the IK and
 `pointOf`, which finds where a bone point lands.
 
-Attack fire uses the `fxJet` symbol (a yellow-cored teardrop with a dark-red outline, so it never reads as a
-second head). `streak(pose, limb, to, r)` in `attacks.ts` places one with its round hot head on the hitbox at
+Attack fire uses the `fxJet` symbol (a pale-cored teardrop with a dark outline). `streak(pose, limb, to, r)` in `attacks.ts` places one with its round hot head on the hitbox at
 `to` and its tail reaching back to the fist or foot in `pose`, so every hit reads as fire thrown by the limb.
 
 ## Lab and the hill-climb loop
@@ -132,7 +128,7 @@ second head). `streak(pose, limb, to, r)` in `attacks.ts` places one with its ro
 circles, feet-relative, y up) and `play=1`. Scripts drive it through `__lab.call('show', clip, frame)`,
 `__lab.call('sheet', states)`, `__lab.call('palette', name)` and `__lab.call('clips')`.
 
-The key states judges compare with the original are `idle@0`, `run@6`, `jump@40`, `fall@8`, `ftilt@7`,
+The key states the judges score are `idle@0`, `run@6`, `jump@40`, `fall@8`, `ftilt@7`,
 `fsmash@16`, `tumble@8`, `shield@10`, `ledgeHang@0` and `neutralSpecial@16`. Each round: capture the sheets,
 put them beside the reference sprites, have the judge panel score them and list concrete gaps, fix the top
 gaps, and repeat.
@@ -140,7 +136,7 @@ gaps, and repeat.
 ## Adding a fighter
 
 1. Create `src/fighters/<name>/art/index.ts` exporting `art: FighterArt` (plain data, no Pixi).
-2. Import the original shapes where the game has them; build missing parts in the same line style.
+2. Draw every part by hand in the same line style (see "Asset policy").
 3. Author every canonical clip, keeping move clips on the move's frame data.
 4. Copy Fireboy's `index.test.ts` checks (canonical clips, valid references, hitbox coverage, size, palettes).
 5. Open the lab scene, capture the key states and run judge rounds.

@@ -45,6 +45,18 @@
       "characters/fireboy-watergirl/official-art-fireboy-*",
       "characters/fireboy-watergirl/ingame-fireboy-*"
     ],
-    "hud-hit": ["smash/hud-closeup-*", "smash/attack-active-*", "smash/battle-4-player-*"]
+    "hud-hit": ["smash/hud-closeup-*", "smash/attack-active-*", "smash/battle-4-player-*"],
+    "title": [
+      "video/thumbnail-roster-art-*",
+      "stages/coolmath-planet/logo-2009-*",
+      "stages/coolmath-planet/planet-icon-c-*"
+    ],
+    "main-menu": [
+      "smash/character-select-01*",
+      "stages/coolmath-planet/logo-2009-*",
+      "video/thumbnail-roster-art-*"
+    ],
+    "css-2p": ["smash/character-select-*", "video/roster-select-grid-*"],
+    "css-4p": ["smash/character-select-*", "video/roster-select-grid-*"]
   }
 }

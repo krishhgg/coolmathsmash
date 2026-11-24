@@ -5,7 +5,8 @@ import { createFighter, type FighterState } from './fighter';
 import { resolveHits } from './combat/hits';
 import { emit, type SimEvent } from './events';
 import { pushApart } from './movement';
-import { compiledStage, stepFighter } from './step';
+import { advanceStage, posedStage, stageStateAt, type StageState } from './movingStage';
+import { stepFighter } from './step';
 
 export interface PortConfig {
   fighter: string;
@@ -37,6 +38,8 @@ export interface MatchState {
   fighters: FighterState[];
   /** What happened during the last frame (see SimEvent). */
   events: SimEvent[];
+  /** Where each solid and platform is on this frame (moving and vanishing pieces, src/sim/movingStage.ts). */
+  stage: StageState;
 }
 
 export const DEFAULT_MATCH: MatchConfig = {
@@ -57,6 +60,7 @@ export function createMatch(config: MatchConfig = DEFAULT_MATCH): MatchState {
       createFighter(port, p.fighter, stage.spawns[port % stage.spawns.length]!, config.stocks),
     ),
     events: [],
+    stage: stageStateAt(stage, 0),
   };
 }
 
@@ -66,7 +70,8 @@ export function stepMatch(state: MatchState, inputs: readonly InputFrame[]): voi
   const before = state.fighters.map((f) => f.action);
   for (const player of state.players) feedControl(player.control, inputs[player.port] ?? neutralInput());
   for (const f of state.fighters) stepFighter(state, f, state.players[f.port]!);
-  pushApart(state, compiledStage(state.config.stage));
+  pushApart(state, posedStage(state));
+  advanceStage(state);
   resolveHits(state);
   state.fighters.forEach((f, i) => {
     if (f.action !== before[i]) emit(state, { type: 'action', port: f.port, from: before[i]!, to: f.action });

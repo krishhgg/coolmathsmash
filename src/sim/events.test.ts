@@ -187,6 +187,26 @@ describe('sim events', () => {
     expect(of(clank, 'grabClank')).toEqual([{ type: 'grabClank', ports: [0, 1] }]);
   });
 
+  it('a scheduled stage piece reports vanishing and coming back (testbed)', () => {
+    const m = testMatch({ stage: 'testbed' });
+    const pieces: SimEvent[] = [];
+    while (m.frame < 320) {
+      run(m, 1);
+      pieces.push(...of(m, 'stagePiece').map((e) => ({ ...e, frame: m.frame })));
+    }
+    expect(pieces).toEqual([
+      { type: 'stagePiece', piece: 'platform', index: 1, on: false, frame: 200 },
+      { type: 'stagePiece', piece: 'platform', index: 1, on: true, frame: 300 },
+    ]);
+  });
+
+  it('a fighter squeezed by a moving solid reports where it popped out (testbed crusher)', () => {
+    const m = testMatch({ stage: 'testbed', x: -50 });
+    const e = next(m, 'squeeze');
+    expect(e).toMatchObject({ port: 0, solid: 2, x: -50 });
+    expect(e.y).toBeCloseTo(m.fighters[0]!.pos.y, 9);
+  });
+
   it('the event stream is deterministic', () => {
     const stream = () => {
       const { m } = duel();
