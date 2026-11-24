@@ -17,7 +17,7 @@ import argparse
 import json
 import subprocess
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -37,6 +37,13 @@ class Style:
     """How a kind of line is delivered."""
 
     speed: float = 1.0
+    #: Delivery, applied inside Kokoro before it renders audio: `pitch` scales the predicted pitch (a shout sits
+    #: higher), `range` widens its swings around the mean, `hold` stretches the stressed vowel of the last word
+    #: ("Gaaame!"), and `rise` bends the pitch up over the last 40% (a suspended "The winner is...").
+    pitch: float = 1.0
+    range: float = 1.0
+    hold: float = 1.0
+    rise: float = 1.0
     #: Seconds of reverb kept after the voice stops (the file ends there).
     tail: float = 1.2
     #: Hall level against the dry voice.
@@ -48,13 +55,14 @@ class Style:
 
 
 STYLES = {
-    # Countdown and "Go!": fast, hot and dense, short tails so the next number lands clean.
-    'count': Style(speed=1.05, tail=0.85, wet=0.26, drive=1.8),
-    'call': Style(speed=0.98, tail=1.3, wet=0.3, drive=1.4),
-    'name': Style(speed=0.95, tail=1.2, wet=0.3, drive=1.4),
-    'title': Style(speed=0.9, tail=1.9, wet=0.34, drive=1.4),
-    # "The winner is...": slow, then the hall rings into the pause before the name.
-    'build': Style(speed=0.84, tail=0.75, wet=0.32, drive=1.2),
+    # Countdown and "Go!": quick, high and hot, a drier hall so the next number lands clean.
+    'count': Style(speed=1.08, pitch=1.3, range=1.3, hold=1.7, tail=1.1, wet=0.22, drive=2.0),
+    # "Gaaame!": held and shouted.
+    'call': Style(speed=1.0, pitch=1.28, range=1.35, hold=1.8, tail=1.6, wet=0.28, drive=1.6),
+    'name': Style(speed=0.98, pitch=1.2, range=1.35, hold=1.6, tail=1.5, wet=0.28, drive=1.8),
+    'title': Style(speed=0.92, pitch=1.22, range=1.4, hold=1.7, tail=2.4, wet=0.32, drive=1.6),
+    # "The winner is...": slow, rising and suspended, then the hall rings into the pause before the name.
+    'build': Style(speed=0.8, pitch=1.05, range=1.45, hold=2.6, rise=1.4, tail=1.0, wet=0.3, drive=1.3),
 }
 
 
@@ -62,19 +70,28 @@ STYLES = {
 class Chain:
     """The processing shared by every line."""
 
-    #: Rubber Band pitch ratio; formant 'shifted' lowers the vocal tract too (bigger, darker).
-    pitch: float = 0.94
+    #: Rubber Band pitch ratio (1 skips it); formant 'shifted' lowers the vocal tract too (bigger, darker).
+    pitch: float = 1.0
     formant: str = 'preserved'
     highpass: float = 75
-    warmth_db: float = 3.5
+    warmth_db: float = 4.5
     mud_db: float = -3.0
-    presence_db: float = 4.0
-    air_db: float = 2.0
+    #: Broad upper-mid lift: the spectral tilt of a raised, shouting voice.
+    effort_db: float = 3.0
+    presence_db: float = 3.0
+    air_db: float = 0.5
     #: Compressor threshold (linear) and ratio.
     threshold: float = 0.1
-    ratio: float = 4.0
+    ratio: float = 5.0
+    #: Parallel exciter: saturated upper mids (2-5 kHz) mixed in at this level, for shouted grit.
+    excite: float = 0.12
+    #: De-esser: sibilance (5-10 kHz) louder than this fraction of the voice is turned down.
+    deess: float = 0.3
     rt60: float = 2.6
-    predelay: float = 0.035
+    predelay: float = 0.05
+    #: How far the hall is pulled down under the words (0..1), so it blooms in the gaps and the tail
+    #: instead of smearing consonants and glides.
+    duck_wet: float = 0.6
     #: Sample-peak ceiling before encoding (LAME overshoots a little; the decoded file stays under -1 dBFS).
     ceiling_db: float = -1.8
 
@@ -88,15 +105,64 @@ CHAIN = Chain()
 _pipelines: dict[str, object] = {}
 
 
-def tts(text: str, voice: str, speed: float) -> np.ndarray:
-    """Kokoro at 24 kHz. American voices (a*) and British voices (b*) need their own pipeline."""
+VOWELS = set('aeiouæɑɐɒɔəɚɛɜɝɪʊʌAIOQWYᵊ')
+
+
+def held_vowel(ps: str) -> int:
+    """Index in `ps` of the vowel to hold: the last word's last stressed vowel, else its first vowel."""
+    start = ps.rstrip(' !?.,…').rfind(' ') + 1
+    stress = max(ps.rfind('ˈ', start), ps.rfind('ˌ', start))
+    for i in range(stress if stress >= 0 else start, len(ps)):
+        if ps[i] in VOWELS:
+            return i
+    return -1
+
+
+def tts(text: str, voice: str, style: Style, lang: str | None = None) -> np.ndarray:
+    """
+    Kokoro at 24 kHz. `voice` is one Kokoro voice or a comma-separated blend; `lang` picks the
+    pronunciation ('a' American, 'b' British), by default the first voice's. This is Kokoro's own
+    KModel.forward_with_tokens with the style's delivery applied to the predicted durations and pitch.
+    """
+    import torch
     from kokoro import KPipeline
 
-    lang = voice[0]
+    torch.manual_seed(0)
+    lang = lang or voice[0]
     if lang not in _pipelines:
         _pipelines[lang] = KPipeline(lang_code=lang, repo_id='hexgrad/Kokoro-82M')
-    parts = [a.numpy() for _, _, a in _pipelines[lang](text, voice=voice, speed=speed)]
-    return np.concatenate(parts).astype(np.float64)
+    pipe = _pipelines[lang]
+    model = pipe.model
+    ps = pipe.g2p(text)[0]
+    kept = [i for i, p in enumerate(ps) if model.vocab.get(p) is not None]
+    ids = torch.LongTensor([[0, *(model.vocab[ps[i]] for i in kept), 0]])
+    ref = pipe.load_voice(voice)[len(ps) - 1]
+    s = ref[:, 128:]
+    hold = held_vowel(ps)
+    with torch.no_grad():
+        n = ids.shape[-1]
+        lengths = torch.LongTensor([n])
+        mask = torch.zeros(1, n, dtype=torch.bool)
+        d_en = model.bert_encoder(model.bert(ids, attention_mask=(~mask).int())).transpose(-1, -2)
+        d = model.predictor.text_encoder(d_en, s, lengths, mask)
+        x, _ = model.predictor.lstm(d)
+        dur = torch.sigmoid(model.predictor.duration_proj(x)).sum(axis=-1) / style.speed
+        if hold in kept:
+            dur[0, kept.index(hold) + 1] *= style.hold
+        dur = torch.round(dur).clamp(min=1).long().squeeze()
+        idx = torch.repeat_interleave(torch.arange(n), dur)
+        aln = torch.zeros(n, idx.shape[0])
+        aln[idx, torch.arange(idx.shape[0])] = 1
+        aln = aln.unsqueeze(0)
+        f0, energy = model.predictor.F0Ntrain(d.transpose(-1, -2) @ aln, s)
+        voiced = f0 > 40
+        mean = f0[voiced].mean() if voiced.any() else torch.tensor(0.0)
+        t = torch.linspace(0, 1, f0.shape[-1])
+        bend = 1 + (style.rise - 1) * torch.clamp((t - 0.6) / 0.4, 0, 1)
+        f0 = torch.where(voiced, (mean + (f0 - mean) * style.range) * style.pitch * bend, f0)
+        asr = model.text_encoder(ids, lengths, mask) @ aln
+        audio = model.decoder(asr, f0, energy, ref[:, :128]).squeeze()
+    return audio.numpy().astype(np.float64)
 
 
 def trim(x: np.ndarray, sr: int, floor_db: float = -42) -> np.ndarray:
@@ -118,16 +184,18 @@ def trim(x: np.ndarray, sr: int, floor_db: float = -42) -> np.ndarray:
 
 def ffmpeg_filter(x: np.ndarray, sr_in: int, chain: Chain) -> np.ndarray:
     """Resample to 44.1 kHz, pitch down, EQ and compress in one ffmpeg pass."""
+    pitch = [f'rubberband=pitch={chain.pitch}:formant={chain.formant}:pitchq=quality:transients=mixed']
     graph = ','.join(
         [
             f'aresample={SR}:resampler=soxr',
-            f'rubberband=pitch={chain.pitch}:formant={chain.formant}:pitchq=quality:transients=mixed',
+            *(pitch if chain.pitch != 1 else []),
             f'highpass=f={chain.highpass}:p=2',
             f'equalizer=f=160:t=q:w=0.9:g={chain.warmth_db}',
-            f'equalizer=f=420:t=q:w=1.4:g={chain.mud_db}',
-            f'equalizer=f=3200:t=q:w=1.1:g={chain.presence_db}',
+            f'equalizer=f=320:t=q:w=1.2:g={chain.mud_db}',
+            f'equalizer=f=1800:t=q:w=0.7:g={chain.effort_db}',
+            f'equalizer=f=3500:t=q:w=1.2:g={chain.presence_db}',
             f'highshelf=f=7500:g={chain.air_db}',
-            f'acompressor=threshold={chain.threshold}:ratio={chain.ratio}:attack=3:release=90:knee=3:makeup=2',
+            f'acompressor=threshold={chain.threshold}:ratio={chain.ratio}:attack=2:release=90:knee=3:makeup=2',
         ]
     )
     with tempfile.TemporaryDirectory() as tmp:
@@ -141,11 +209,23 @@ def ffmpeg_filter(x: np.ndarray, sr_in: int, chain: Chain) -> np.ndarray:
     return y
 
 
-def saturate(x: np.ndarray, drive: float) -> np.ndarray:
-    if drive <= 1:
-        return x
+def saturate(x: np.ndarray, drive: float, excite: float) -> np.ndarray:
+    """tanh drive on the whole voice plus a parallel exciter (hard-driven upper mids) for a shouted edge."""
     x = x / max(1e-9, np.abs(x).max())
-    return np.tanh(x * drive) / np.tanh(drive)
+    y = np.tanh(x * drive) / np.tanh(drive) if drive > 1 else x
+    return y + excite * band(np.tanh(band(x, 2000, 5000) * 8), 1500, 5000)
+
+
+def envelope(x: np.ndarray, seconds: float) -> np.ndarray:
+    return ndimage.uniform_filter1d(np.abs(x), max(1, int(seconds * SR)))
+
+
+def deess(x: np.ndarray, threshold: float) -> np.ndarray:
+    """Turn the 5-10 kHz band down wherever it is louder than `threshold` times the whole voice."""
+    s = band(x, 5000, 10000)
+    ratio = envelope(s, 0.005) / np.maximum(envelope(x, 0.005), 1e-9)
+    gain = np.clip(threshold / np.maximum(ratio, 1e-9), 0.25, 1)
+    return x - s * (1 - ndimage.uniform_filter1d(gain, int(0.003 * SR)))
 
 
 def band(x: np.ndarray, lo: float | None, hi: float | None) -> np.ndarray:
@@ -160,29 +240,19 @@ def band(x: np.ndarray, lo: float | None, hi: float | None) -> np.ndarray:
 
 def hall(chain: Chain, seed: int = 0x5A5A) -> np.ndarray:
     """
-    A big-hall impulse response: sparse early reflections, then dense noise that builds over ~40 ms and
-    decays per band (lows ring longest, highs die fast, like air absorption in an arena). Unit energy.
+    A big-hall impulse response: white noise (no discrete echoes, so nothing rings metallic) shaped in the STFT
+    domain to swell over ~50 ms and decay at a rate that falls smoothly with frequency, lows ringing longest and
+    highs dying fast like air absorption in an arena. Unit energy.
     """
     rng = np.random.default_rng(seed)
-    n = int(SR * chain.rt60 * 1.2)
-    t = np.arange(n) / SR
-    noise = rng.standard_normal(n)
-
-    def decay(rt: float) -> np.ndarray:
-        return np.exp(-6.91 * t / rt)
-
-    tail = (
-        band(noise, None, 500) * decay(chain.rt60 * 1.15)
-        + band(noise, 500, 3500) * decay(chain.rt60)
-        + band(noise, 3500, None) * decay(chain.rt60 * 0.45) * 0.7
-    )
-    tail *= 1 - np.exp(-t / 0.04)
-    early = np.zeros(n)
-    for _ in range(18):
-        at = int(SR * rng.uniform(0.004, 0.11))
-        early[at] += rng.choice([-1, 1]) * rng.uniform(0.3, 1) * np.exp(-at / SR / 0.06)
-    early = band(early, None, 6000)
-    ir = tail / np.sqrt((tail**2).sum()) + early / np.sqrt((early**2).sum()) * 0.35
+    nfft, hop = 2048, 128
+    noise = rng.standard_normal(int(SR * chain.rt60 * 1.3))
+    f, t, spec = signal.stft(noise, fs=SR, nperseg=nfft, noverlap=nfft - hop, boundary=None)
+    f, t = f[:, None], t[None, :]
+    rt = chain.rt60 * np.interp(np.log10(np.maximum(f, 20)), np.log10([60, 250, 1000, 4000, 12000]), [1.1, 1.05, 1, 0.7, 0.35])
+    spec *= np.exp(-6.91 * t / rt) * (1 - np.exp(-t / 0.05)) / (1 + (f / 9000) ** 2)
+    _, ir = signal.istft(spec, fs=SR, nperseg=nfft, noverlap=nfft - hop, boundary=None)
+    ir = band(ir, 120, None)
     ir = np.concatenate([np.zeros(int(SR * chain.predelay)), ir])
     return ir / np.sqrt((ir**2).sum())
 
@@ -191,15 +261,22 @@ _halls: dict[Chain, np.ndarray] = {}
 
 
 def reverb(x: np.ndarray, style: Style, chain: Chain) -> np.ndarray:
-    """Dry voice plus the hall, cut style.tail seconds after the voice ends with a smooth fade."""
+    """
+    Dry voice plus the hall. Once the voice stops the hall is pulled down exponentially, reaching -45 dB at
+    style.tail seconds, where the file ends: the tail dies away instead of being cut.
+    """
     if chain not in _halls:
         _halls[chain] = hall(chain)
-    wet = signal.fftconvolve(band(x, 180, 9000), _halls[chain])
+    wet = signal.fftconvolve(band(x, 250, 5000), _halls[chain])[: len(x) + int(style.tail * SR)]
+    env = ndimage.uniform_filter1d(ndimage.maximum_filter1d(np.abs(x), int(0.01 * SR)), int(0.08 * SR))
+    env = np.concatenate([env / env.max(), np.zeros(len(wet) - len(x))])
+    wet *= 1 - chain.duck_wet * np.clip(env * 2, 0, 1)
+    after = np.maximum(0, np.arange(len(wet)) - len(x)) / SR
+    wet *= np.exp(-after * np.log(10 ** (45 / 20)) / style.tail)
     y = wet * style.wet
     y[: len(x)] += x
-    y = y[: len(x) + int(style.tail * SR)]
-    fade = min(len(y) - len(x), int(SR * max(0.25, style.tail * 0.6)))
-    y[-fade:] *= np.cos(np.linspace(0, np.pi / 2, fade)) ** 2
+    fade = int(0.03 * SR)
+    y[-fade:] *= np.linspace(1, 0, fade)
     return y
 
 
@@ -222,10 +299,10 @@ def loudness(x: np.ndarray, lufs: float, ceiling_db: float) -> np.ndarray:
     return y
 
 
-def render(text: str, style: Style, voice: str, chain: Chain = CHAIN) -> np.ndarray:
-    x = trim(tts(text, voice, style.speed), TTS_SR)
+def render(text: str, style: Style, voice: str, lang: str | None = None, chain: Chain = CHAIN) -> np.ndarray:
+    x = trim(tts(text, voice, style, lang), TTS_SR)
     x = ffmpeg_filter(x, TTS_SR, chain)
-    x = saturate(x, style.drive) * 0.5
+    x = deess(saturate(x, style.drive, chain.excite), chain.deess) * 0.5
     x = reverb(x, style, chain)
     return loudness(x, style.lufs, chain.ceiling_db)
 
@@ -254,7 +331,7 @@ def main() -> None:
     for name, line in spec['lines'].items():
         if only and name not in only:
             continue
-        x = render(line['text'], STYLES[line['style']], voice)
+        x = render(line['text'], replace(STYLES[line['style']], **line.get('delivery', {})), voice, spec.get('lang'))
         encode(x, OUT / f'{name}.mp3')
         if args.wav:
             Path(args.wav).mkdir(parents=True, exist_ok=True)
