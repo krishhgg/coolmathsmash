@@ -248,7 +248,7 @@ export const SCENARIOS: Scenario[] = [
   {
     name: 'stage-select',
     description:
-      'Stage select: rules pill (3 Stock · 7:00), Coolmath Battlefield focused in the big preview, Random and every stage in the grid, rule rows under the preview.',
+      'Stage select: rules pill (3 Stock · 7:00), Coolmath Battlefield focused in the big preview, Random and every stage in the grid on the right, rule rows under the grid.',
     page: { kind: 'lab', scene: 'menu', params: { screen: 'stages', preset: 'default' } },
   },
   {
