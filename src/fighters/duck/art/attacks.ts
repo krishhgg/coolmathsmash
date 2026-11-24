@@ -95,10 +95,24 @@ const swoosh = (x: number, y: number, s: number, rot: number, sy = s) => ({ fx3:
 
 const SMEAR = { fxBack: 'fxSwoosh' };
 
-/** Jab 1: a quick forward peck. */
-const PECK1 = strike({ lean: 14, shift: 0.6, head: [4.2, -6.3], aim: 4 });
-/** Jab 2: a second, higher peck from the other side. */
-const PECK2 = strike({ lean: 12, shift: 0.7, head: [4.5, -6.65], aim: -2 });
+/** An impact star on a strike's first active frames, centred on (x, y) with y up, like the hitboxes. */
+const star = (x: number, y: number, s: number) => ({ fx2: fx(x, -y, s, 0) });
+const STAR = { fx2: 'fxStar' };
+
+/** Lifts one foot off the floor to (dx, dy) from its hip, toes at world angle `toe`. */
+function lift(pose: Pose, side: 'B' | 'F', dx: number, dy: number, toe: number): Pose {
+  const [hx, hy] = at(pose, `leg${side}`);
+  return leg(pose, side, [hx + dx, hy + dy], toe);
+}
+
+/** Jab 1: a short, high neck snap; the belly stays upright over feet kept close together. */
+const PECK1 = strike({ lean: 4, shift: 0.5, drop: -0.2, head: [4.4, -6.6], aim: -4, feet: [-0.9, 0.1] });
+/** Jab 2: the recoil loads a longer peck, the belly lunging after the head over a wide stance. */
+const PECK2 = wings(
+  lift(strike({ lean: 20, shift: 1.1, head: [4.8, -6.6], aim: -8, feet: [-2.2, 0.6] }), 'B', -1.5, 0.7, 165),
+  [-165, 0.95],
+  null,
+);
 
 /** Jab 3: a lunge that slaps the front wing forwards. */
 const SLAP = strike({ lean: 16, shift: 1.2, head: [3.0, -7.2], aim: 0 });
@@ -130,19 +144,64 @@ const sweep = (reach: number, lift: number) =>
     1.35,
   );
 
-/** Ftilt: the battering-ram headbutt, a lunge with the whole body behind the head. */
-const BUTT = strike({ lean: 18, shift: 1.6, head: [6.6, -6.6], aim: -2, feet: [-1.6, 1.0] });
+/** Ftilt: the battering-ram headbutt, forehead first, feet planted wide and both wings swept back. */
+const BUTT = strike({ lean: 34, shift: 2.0, head: [6.7, -6.5], aim: -14, feet: [-2.6, 1.3] });
 
-/** Fsmash: the big headbutt, neck wound back, then the duck launches the head forwards. */
-const WIND = strike({ lean: -18, shift: -0.9, head: [-1.6, -7.7], aim: -20, feet: [-1.0, 1.1] });
-const SLAM = strike({
-  lean: 24,
-  shift: 2.8,
-  head: [8.1, -6.7],
-  aim: -3,
-  feet: [-2.0, 1.2],
-  squash: [1.06, 0.96],
+/**
+ * Fsmash: the big headbutt. The duck rears back over his back foot with the front foot raised and the wings up,
+ * stretches through a smear frame, then slams the head out past his front foot with the back leg flung out.
+ */
+const WIND = wings(
+  lift(
+    strike({
+      lean: -24,
+      shift: -1.0,
+      drop: 0.3,
+      squash: [1.04, 0.92],
+      head: [-2.0, -7.8],
+      aim: -32,
+      feet: [-1.0, 1.1],
+    }),
+    'F',
+    0.9,
+    1.0,
+    10,
+  ),
+  [-150, 1.0],
+  [-128, 1.0],
+);
+const COIL = wings(
+  lift(
+    strike({
+      lean: -28,
+      shift: -1.2,
+      drop: 0.35,
+      squash: [1.05, 0.9],
+      head: [-2.4, -7.85],
+      aim: -38,
+      feet: [-1.0, 1.1],
+    }),
+    'F',
+    1.0,
+    0.9,
+    10,
+  ),
+  [-155, 1.0],
+  [-132, 1.0],
+);
+const LUNGE = strike({
+  lean: 20,
+  shift: 1.8,
+  head: [5.6, -6.9],
+  aim: -6,
+  squash: [1.16, 0.9],
+  feet: [-2.2, 1.2],
 });
+const SLAM = wings(
+  strike({ lean: 36, shift: 3.4, head: [9.0, -6.4], aim: -4, feet: [-4.2, 1.5], squash: [1.18, 0.88] }),
+  [-176, 1.15],
+  [-166, 1.1],
+);
 
 /** Dtilt: a low peck at the opponent's feet. */
 const LOW = strike({ lean: 40, shift: 0.8, drop: 1.0, head: [5.0, -2.9], aim: 25, feet: [-2.0, 0.6] });
@@ -168,15 +227,19 @@ function stomp(ankleY: number, toe: number): Pose {
 
 /** A beak grab: lunge on frames from-to with the head on `head`, then hold the bite and recover. */
 function grabClip(length: number, from: number, to: number, head: Pt): AnimClip {
-  const bite = strike({ lean: 16, shift: 0.9, head, aim: 6, feet: [-1.6, 0.7] });
+  const bite = wings(
+    strike({ lean: 16, shift: 0.9, head, aim: 6, feet: [-1.6, 0.7] }),
+    [-25, 1.1],
+    [5, 1.05],
+  );
   return {
     length,
     swaps: ANGRY,
     keys: [
       key(0, STAND, { ease: 'out' }),
       key(from - 3, COCK, { ease: 'in' }),
-      key(from, bite, { ease: 'linear', swaps: PECK }),
-      key(to, bite, { ease: 'out', swaps: ANGRY }),
+      key(from, bite, { ease: 'linear', swaps: { ...PECK, ...WINGS } }),
+      key(to, bite, { ease: 'out', swaps: { ...ANGRY, ...WINGS } }),
       key(to + 4, undefined, { swaps: BLINK }),
       key(to + 8, strike({ lean: 8, shift: 0.4, head: [2.2, -7.4], aim: 6 }), { swaps: ANGRY }),
       key(length, STAND),
@@ -204,13 +267,13 @@ const climb = (down: boolean, lines: number, feathers?: [number, number, number]
     air(
       down
         ? {
-            body: { rot: -6, sx: 0.95, sy: 1.08, y: -0.25 },
+            body: { rot: -6, sx: 0.92, sy: 1.12, y: -0.4 },
             head: { rot: -8, y: -0.1 },
             wingF: { sx: 1.45, sy: 1.3 },
             wingB: { sx: 1.45, sy: 1.3 },
           }
         : {
-            body: { rot: -6, sx: 1.04, sy: 0.95 },
+            body: { rot: -6, sx: 1.06, sy: 0.92 },
             head: { rot: -12 },
             wingF: { sx: 1.45, sy: 1.3 },
             wingB: { sx: 1.45, sy: 1.3 },
@@ -259,11 +322,24 @@ const DIVE_COIL = wings(
 const dive = (flutter: number, lines: number): Pose =>
   mix(
     wings(
-      trail(strike({ lean: 62, shift: 1.0, head: [4.7, -3.3], aim: 52, feet: null }), -0.6, -1.5, 235),
-      [-160 + flutter, 1.15],
-      [-148 - flutter, 1.1],
+      trail(
+        strike({
+          lean: 70,
+          shift: 1.9,
+          drop: -1.5,
+          squash: [1.12, 0.92],
+          head: [3.95, -2.85],
+          aim: 62,
+          feet: null,
+        }),
+        -0.5,
+        -1.6,
+        240,
+      ),
+      [-135 + flutter, 1.1],
+      [-122 - flutter, 1.05],
     ),
-    { fx3: fx(-1.5, -6.8, lines, 60) },
+    { fx3: fx(0.2 - flutter * 0.04, -8.4, lines, 58) },
   );
 const slide = (lines: number, puff: number): Pose =>
   mix(
@@ -294,9 +370,9 @@ export const attacks: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, COCK, { ease: 'out' }),
-      key(2, PECK1, { ease: 'linear', swaps: { ...PECK } }),
-      key(4, PECK1, { ease: 'out' }),
-      key(6, undefined, { swaps: ANGRY }),
+      key(2, mix(PECK1, star(7.6, 6.2, 0.7)), { ease: 'linear', swaps: { ...PECK, ...STAR } }),
+      key(4, mix(PECK1, star(7.7, 6.2, 0.9)), { ease: 'out' }),
+      key(5, undefined, { swaps: ANGRY }),
       key(10, strike({ lean: 6, shift: 0.3, head: [2.0, -7.4], aim: 0 })),
       key(17, STAND),
     ],
@@ -305,10 +381,12 @@ export const attacks: Record<string, AnimClip> = {
     length: 19,
     swaps: ANGRY,
     keys: [
-      key(0, strike({ lean: -6, shift: 0.1, head: [0.0, -8.4], aim: -16 }), { ease: 'out' }),
-      key(2, PECK2, { ease: 'linear', swaps: { ...PECK } }),
-      key(4, PECK2, { ease: 'out' }),
-      key(6, undefined, { swaps: ANGRY }),
+      key(0, strike({ lean: 10, shift: 0.2, drop: 0.3, head: [1.2, -6.6], aim: 24, feet: [-1.4, 0.4] }), {
+        ease: 'out',
+      }),
+      key(2, mix(PECK2, star(8.2, 6.7, 0.8)), { ease: 'linear', swaps: { ...PECK, ...WING_F, ...STAR } }),
+      key(4, mix(PECK2, star(8.3, 6.7, 1.0)), { ease: 'out' }),
+      key(5, undefined, { swaps: ANGRY }),
       key(11, strike({ lean: 6, shift: 0.3, head: [2.0, -7.4], aim: 0 })),
       key(19, STAND),
     ],
@@ -318,13 +396,21 @@ export const attacks: Record<string, AnimClip> = {
     swaps: { ...ANGRY, ...WING_F },
     keys: [
       key(0, wings(strike({ lean: -10, head: [-0.2, -8.0], aim: -10 }), [-150, 1.0], null), { ease: 'in' }),
-      key(3, mix(wingTo(SLAP, 'F', [6.4, -6.0], 0.62, 1.25), swoosh(4.5, 7, 2.6, 0, 2.2)), {
-        ease: 'linear',
-        swaps: { ...SHOUT, ...WING_F, ...SMEAR },
-      }),
-      key(5, mix(wingTo(SLAP, 'F', [6.6, -5.1], 0.62, 1.25), swoosh(5.0, 6, 2.6, 30, 2.2)), {
-        ease: 'out',
-      }),
+      key(
+        3,
+        mix(wingTo(SLAP, 'F', [6.4, -6.0], 0.62, 1.25), swoosh(4.5, 7, 2.6, 0, 2.2), star(8.6, 6.0, 0.8)),
+        {
+          ease: 'linear',
+          swaps: { ...SHOUT, ...WING_F, ...SMEAR, ...STAR },
+        },
+      ),
+      key(
+        5,
+        mix(wingTo(SLAP, 'F', [6.6, -5.1], 0.62, 1.25), swoosh(5.0, 6, 2.6, 30, 2.2), star(8.8, 5.6, 1.1)),
+        {
+          ease: 'out',
+        },
+      ),
       key(8, undefined, { swaps: { ...ANGRY, ...WING_F } }),
       key(16, wings(strike({ lean: 6, shift: 0.5, head: [1.2, -7.6], aim: 0 }), [60, 1.0], null)),
       key(22, undefined, { swaps: ANGRY }),
@@ -338,9 +424,11 @@ export const attacks: Record<string, AnimClip> = {
       key(0, STAND, { ease: 'out' }),
       key(4, COCK, { ease: 'in' }),
       key(6, BUTT, { ease: 'linear', swaps: { ...SHOUT, ...SMEAR } }),
-      key(7, mix(BUTT, swoosh(5.5, 6.6, 3.0, 0, 1.6)), { swaps: { ...SHOUT, ...SMEAR } }),
-      key(9, mix(BUTT), { ease: 'out' }),
-      key(11, undefined, { swaps: ANGRY }),
+      key(7, mix(BUTT, swoosh(5.5, 6.6, 3.0, 0, 1.6), star(10.0, 6.6, 0.9)), {
+        swaps: { ...SHOUT, ...SMEAR, ...STAR },
+      }),
+      key(9, mix(BUTT, star(10.1, 6.6, 1.2)), { ease: 'out' }),
+      key(10, undefined, { swaps: ANGRY }),
       key(18, strike({ lean: 8, shift: 0.6, head: [2.4, -7.4], aim: 0 })),
       key(29, STAND),
     ],
@@ -352,12 +440,12 @@ export const attacks: Record<string, AnimClip> = {
       key(0, wings(strike({ lean: 4, drop: 0.4, squash: [1.08, 0.9] }), [100, 1.0], [80, 1.0]), {
         ease: 'in',
       }),
-      key(4, mix(flapUp(-0.5, 0.5), swoosh(0, 11, 3.2, -90, 2.4)), {
+      key(4, mix(flapUp(0.3, -2.6), swoosh(0, 11, 3.2, -90, 2.4)), {
         ease: 'linear',
         swaps: { ...SHOUT, ...WINGS, ...SMEAR },
       }),
-      key(7, mix(flapUp(0.4, -0.4), swoosh(0, 11, 3.2, -90, 2.4))),
-      key(10, flapUp(-0.2, 0.2), { ease: 'out' }),
+      key(7, mix(flapUp(0.6, -3.0), swoosh(0, 11, 3.2, -90, 2.4))),
+      key(10, flapUp(0.2, -2.4), { ease: 'out' }),
       key(12, undefined, { swaps: { ...LOOK_UP, ...WINGS } }),
       key(18, wings(STAND, [150, 1.0], [130, 1.0])),
       key(21, undefined, { swaps: {} }),
@@ -369,8 +457,8 @@ export const attacks: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, strike({ lean: 14, drop: 0.6, head: [1.6, -6.6], aim: 10, feet: [-1.4, 0.6] }), { ease: 'in' }),
-      key(3, LOW, { ease: 'linear', swaps: { ...PECK } }),
-      key(6, LOW, { ease: 'out' }),
+      key(3, mix(LOW, star(8.6, 1.5, 0.7)), { ease: 'linear', swaps: { ...PECK, ...STAR } }),
+      key(6, mix(LOW, star(8.7, 1.5, 0.9)), { ease: 'out' }),
       key(8, undefined, { swaps: ANGRY }),
       key(14, strike({ lean: 20, drop: 0.6, head: [3.0, -5.2], aim: 10, feet: [-1.4, 0.8] })),
       key(21, STAND),
@@ -389,11 +477,11 @@ export const attacks: Record<string, AnimClip> = {
           ease: 'in',
         },
       ),
-      key(6, mix(RAM, { fx3: fx(-1.8, -5.2, 1.0) }), {
+      key(6, mix(RAM, { fx3: fx(-1.8, -5.2, 1.0) }, star(8.8, 5.6, 0.9)), {
         ease: 'linear',
-        swaps: { ...SHOUT, fxBack: 'fxSpeed' },
+        swaps: { ...SHOUT, fxBack: 'fxSpeed', ...STAR },
       }),
-      key(10, mix(RAM, { fx3: fx(-2.4, -5.2, 1.1) }), { ease: 'linear' }),
+      key(10, mix(RAM, { fx3: fx(-2.4, -5.2, 1.1) }, star(8.9, 5.6, 1.1)), { ease: 'linear' }),
       key(11, undefined, { swaps: { ...ANGRY, fxBack: 'fxSpeed' } }),
       key(20, mix(RAM, { body: { rot: 66 }, fx3: fx(-3.0, -5.2, 0.6) }), { ease: 'inOut' }),
       key(21, undefined, { swaps: ANGRY }),
@@ -406,15 +494,33 @@ export const attacks: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, STAND, { ease: 'out' }),
-      key(8, WIND, { ease: 'inOut', swaps: { face: 'faceAngry' } }),
-      key(10, mix(WIND, { body: { rot: -20, sy: 0.96 } }), { ease: 'in' }),
-      key(13, SLAM, { ease: 'linear', swaps: { ...SHOUT, ...SMEAR } }),
-      key(14, mix(SLAM, swoosh(6.0, 6.8, 4.0, 0, 2.0)), { ease: 'linear' }),
-      key(16, mix(SLAM, swoosh(6.5, 6.8, 4.0, 0, 2.0)), { ease: 'out' }),
-      key(18, undefined, { swaps: ANGRY }),
-      key(30, strike({ lean: 14, shift: 1.6, head: [5.2, -6.8], aim: 4, feet: [-1.4, 1.0] }), {
+      key(4, strike({ lean: -10, shift: -0.4, drop: 0.15, head: [-0.8, -7.9], aim: -14 }), { ease: 'inOut' }),
+      key(9, WIND, { ease: 'inOut', swaps: { ...ANGRY, ...WINGS } }),
+      key(11, COIL, { ease: 'in' }),
+      key(12, mix(LUNGE, swoosh(4.0, 7.0, 4.2, 0, 2.4)), { ease: 'linear', swaps: { ...SHOUT, ...SMEAR } }),
+      key(13, mix(SLAM, swoosh(6.0, 6.8, 4.0, 0, 2.0), star(12.0, 6.6, 1.0)), {
+        ease: 'linear',
+        swaps: { ...SHOUT, ...WINGS, ...SMEAR, ...STAR },
+      }),
+      key(15, mix(SLAM, swoosh(6.5, 6.8, 4.0, 0, 2.0), star(12.1, 6.6, 1.5)), { ease: 'linear' }),
+      key(16, mix(SLAM, star(12.1, 6.6, 1.2)), { ease: 'out' }),
+      key(17, undefined, { swaps: { ...ANGRY, ...WINGS } }),
+      key(
+        19,
+        wings(
+          strike({ lean: 22, shift: 2.4, head: [6.6, -7.0], aim: 0, feet: [-3.0, 1.2] }),
+          [-160, 1.0],
+          [-150, 1.0],
+        ),
+        {
+          ease: 'inOut',
+        },
+      ),
+      key(24, undefined, { swaps: ANGRY }),
+      key(29, strike({ lean: 10, shift: 1.0, head: [3.0, -7.6], aim: 4, feet: [-1.6, 0.8] }), {
         ease: 'inOut',
       }),
+      key(38, strike({ lean: -5, shift: -0.2, head: [-0.2, -8.1], aim: -6 }), { ease: 'inOut' }),
       key(47, STAND),
     ],
   },
@@ -510,7 +616,9 @@ export const attacks: Record<string, AnimClip> = {
       }),
       key(
         3,
-        mix(wings(tucked({ body: { rot: 60 } }), [100, 1.25], [-80, 1.25]), { fx1: fx(-0.3, -4.7, 5.2, 0) }),
+        mix(wings(tucked({ body: { rot: 60 }, head: { y: 1.4, x: -0.5 } }), [100, 1.25], [-80, 1.25]), {
+          fx1: fx(-0.3, -4.7, 5.2, 0),
+        }),
         {
           ease: 'linear',
           swaps: { ...SHOUT, ...WINGS, fx1: 'fxFeathers' },
@@ -518,19 +626,21 @@ export const attacks: Record<string, AnimClip> = {
       ),
       key(
         9,
-        mix(wings(tucked({ body: { rot: 240 } }), [280, 1.25], [100, 1.25]), {
+        mix(wings(tucked({ body: { rot: 240 }, head: { y: 1.4, x: -0.5 } }), [280, 1.25], [100, 1.25]), {
           fx1: fx(-0.3, -4.7, 5.6, 120),
         }),
         { ease: 'linear' },
       ),
       key(
         15,
-        mix(wings(tucked({ body: { rot: 420 } }), [460, 1.2], [280, 1.2]), { fx1: fx(-0.3, -4.7, 5.6, 240) }),
+        mix(wings(tucked({ body: { rot: 420 }, head: { y: 1.4, x: -0.5 } }), [460, 1.2], [280, 1.2]), {
+          fx1: fx(-0.3, -4.7, 5.6, 240),
+        }),
         { ease: 'linear' },
       ),
       key(
         22,
-        mix(wings(tucked({ body: { rot: 620 } }), [660, 1.15], [480, 1.15]), {
+        mix(wings(tucked({ body: { rot: 620 }, head: { y: 1.4, x: -0.5 } }), [660, 1.15], [480, 1.15]), {
           fx1: fx(-0.3, -4.7, 4.6, 360),
         }),
         { ease: 'out' },
@@ -550,15 +660,31 @@ export const attacks: Record<string, AnimClip> = {
       key(
         8,
         mix(
-          strike({ lean: 52, shift: 0.8, feet: null, head: [6.0, -5.0], aim: 10 }),
+          wings(
+            strike({ lean: 60, shift: 0.8, feet: null, head: [5.9, -4.4], aim: 30 }),
+            [-120, 1.0],
+            [-100, 1.0],
+          ),
           swoosh(4.5, 5.2, 3.0, 20, 1.6),
+          star(8.8, 4.4, 0.9),
         ),
         {
           ease: 'linear',
-          swaps: { ...SHOUT, ...SMEAR },
+          swaps: { ...SHOUT, ...SMEAR, ...WINGS, ...STAR },
         },
       ),
-      key(12, mix(strike({ lean: 56, shift: 0.9, feet: null, head: [6.1, -4.8], aim: 12 })), { ease: 'out' }),
+      key(10, undefined, { swaps: { ...SHOUT, ...SMEAR, ...WINGS } }),
+      key(
+        12,
+        wings(
+          strike({ lean: 62, shift: 0.9, feet: null, head: [6.0, -4.3], aim: 32 }),
+          [-125, 1.0],
+          [-105, 1.0],
+        ),
+        {
+          ease: 'out',
+        },
+      ),
       key(14, undefined, { swaps: ANGRY }),
       key(24, strike({ lean: 20, feet: null, head: [2.2, -7.4], aim: 0 })),
       key(37, air()),
@@ -569,12 +695,15 @@ export const attacks: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, air({ body: { rot: 10 } }), { ease: 'out' }),
-      key(5, tucked({ body: { rot: 50 } }), { ease: 'in', swaps: { ...ANGRY, ...WEB } }),
-      key(7, mix(kick(75, -7.3, -4.0, -7.4, -3.2), swoosh(-6.5, 4, 2.6, 180, 1.6)), {
+      key(5, tucked({ body: { rot: 50 }, head: { y: 1.4, x: -0.5 } }), {
+        ease: 'in',
+        swaps: { ...ANGRY, ...WEB },
+      }),
+      key(7, mix(kick(75, -7.3, -4.2, -7.0, -2.9), swoosh(-6.5, 4, 2.6, 180, 1.6)), {
         ease: 'linear',
         swaps: { ...SHOUT, ...WEB, ...SMEAR },
       }),
-      key(10, mix(kick(78, -7.4, -4.0, -7.6, -3.3)), { ease: 'linear' }),
+      key(10, mix(kick(78, -7.4, -4.2, -7.1, -3.0)), { ease: 'linear' }),
       key(15, kick(70, -6.4, -4.0, -6.6, -3.4), { ease: 'out', swaps: { ...ANGRY, ...WEB } }),
       key(18, undefined, { swaps: ANGRY }),
       key(26, air({ body: { rot: 16 } })),
@@ -891,7 +1020,7 @@ export const attacks: Record<string, AnimClip> = {
         wing(wing(air({ body: { rot: -4 }, head: { rot: -6 } }, 70, 60), 'F', -110, 0.95), 'B', -65, 0.95),
         { swaps: { ...LOOK_UP, ...WINGS } },
       ),
-      key(49, undefined, { swaps: { ...DIZZY, ...WINGS } }),
+      key(51, undefined, { swaps: { ...DIZZY, ...WINGS } }),
       key(51, SPENT),
     ],
   },
@@ -900,18 +1029,29 @@ export const attacks: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, air(), { ease: 'out', swaps: { ...ANGRY, ...WINGS } }),
-      key(5, DIVE_WIND, { ease: 'out' }),
-      key(8, DIVE_COIL, { ease: 'linear' }),
+      key(4, DIVE_WIND, { ease: 'out' }),
+      key(7, DIVE_COIL, { ease: 'in' }),
+      key(
+        8,
+        wings(
+          strike({ lean: 30, shift: 0.8, drop: -0.8, head: [2.6, -6.0], aim: 20, feet: null }),
+          [-130, 1.1],
+          [-110, 1.05],
+        ),
+        {
+          ease: 'linear',
+        },
+      ),
       key(9, dive(0, 1.0), { ease: 'linear', swaps: { ...ANGRY, ...WINGS, ...WEB, fxBack: 'fxSpeed' } }),
-      key(17, dive(6, 1.25), { ease: 'inOut' }),
-      key(25, dive(-4, 1.05), { ease: 'inOut' }),
-      key(33, dive(6, 1.3), { ease: 'inOut' }),
-      key(41, dive(-4, 1.1), { ease: 'inOut' }),
+      ...[12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42].map((f, i) =>
+        key(f, dive(i % 2 ? -6 : 6, i % 2 ? 1.05 : 1.35)),
+      ),
       key(44, dive(0, 1.2), { ease: 'linear' }),
-      key(45, slide(1.3, 0.55), {
+      key(45, mix(slide(1.3, 0.55), { body: { sy: 0.6, sx: 1.4, y: 2.9 } }), {
         ease: 'out',
         swaps: { ...SHOUT, ...WINGS, ...WEB, fxBack: 'fxSpeed', fx1: 'fxPuff', fx2: 'fxPuff' },
       }),
+      key(47, mix(slide(1.2, 0.75), { body: { sy: 0.8, sx: 1.18, y: 2.1 } }), { ease: 'inOut' }),
       key(52, slide(1.0, 0.9), { ease: 'inOut' }),
       key(58, slide(0.6, 1.1), { ease: 'out' }),
       key(59, undefined, { swaps: { ...ANGRY, ...WINGS } }),

@@ -10,11 +10,11 @@ import {
   FLYING,
   HURT,
   LOOK_UP,
-  PECK,
   SHOUT,
   STAND,
   WINGS,
   air,
+  at,
   feet,
   fx,
   headAt,
@@ -56,6 +56,19 @@ function hang(hx: number, hy: number, extra: Pose = {}): Pose {
 }
 const HANG = hang(GX, GY);
 
+/** The hang swaying by `rot` with the feet paddling at the wall, the front foot `kick` forwards of hanging. */
+function paddle(rot: number, kick: number): Pose {
+  const pose = hang(GX, GY, { body: { rot: -6 + rot, sy: 1 + Math.abs(rot) * 0.008 } });
+  const [bx, by] = at(pose, 'legB');
+  const [hx, hy] = at(pose, 'legF');
+  return leg(
+    leg(pose, 'B', [bx - 0.35 - kick * 0.5, by + 1.4], 75),
+    'F',
+    [hx + 0.15 + kick, hy + 1.45 - Math.abs(kick) * 0.4],
+    40 + kick * 40,
+  );
+}
+
 /** Mid pull-up `frame` frames into a getup: the wing stays on the corner, which sinks as the engine lifts him. */
 function pull(frame: number, moveEnd: number, progress: number): Pose {
   return hang(GX - 1.6 * progress, -belowFloor(frame, moveEnd), { body: { rot: -6 + 16 * progress } });
@@ -94,14 +107,14 @@ const RUN: [Pose, Pose, Pose, Pose] = [
   step(mix(LEAN, { body: { y: 0.35, sy: 0.94, sx: 1.05 } }), [-2.4, 0.5, -30], [1.5, 0, 0]),
   step(
     mix(LEAN, { body: { y: -0.9, sy: 1.05, sx: 0.98 }, head: { y: -0.1 } }),
-    [-0.3, 1.5, 40],
-    [-1.6, 1.0, -40],
+    [0.2, 2.3, 60],
+    [-1.8, 0.8, -50],
   ),
   step(mix(LEAN, { body: { y: 0.35, sy: 0.94, sx: 1.05 } }), [1.5, 0, 0], [-2.4, 0.5, -30]),
   step(
     mix(LEAN, { body: { y: -0.9, sy: 1.05, sx: 0.98 }, head: { y: -0.1 } }),
-    [-1.6, 1.0, -40],
-    [-0.3, 1.5, 40],
+    [-1.8, 0.8, -50],
+    [0.2, 2.3, 60],
   ),
 ];
 
@@ -195,11 +208,17 @@ export const clips: Record<string, AnimClip> = {
     loop: true,
     keys: [
       key(0, STAND),
-      key(30, BREATHE),
-      key(60, STAND),
-      key(90, BREATHE),
-      key(100, undefined, { swaps: BLINK }),
-      key(106, undefined, { swaps: {} }),
+      key(24, feet({ body: { sx: 1.035, sy: 0.96 }, head: { y: 0.1, rot: 1 } }, -0.55, -0.55)),
+      key(30, feet({ body: { sx: 1.04, sy: 0.955 }, head: { y: 0.32, rot: 3 } }, -0.55, -0.55)),
+      key(54, BREATHE),
+      key(62, STAND),
+      key(76, feet({ body: { sx: 1.03, sy: 0.965 }, head: { rot: -7, y: 0.05 } }, -0.55, -0.55), {
+        swaps: LOOK_UP,
+      }),
+      key(84, feet({ body: { sx: 1.02, sy: 0.975 }, head: { rot: -8, y: 0.15 } }, -0.55, -0.55)),
+      key(94, STAND, { swaps: {} }),
+      key(102, undefined, { swaps: BLINK }),
+      key(107, undefined, { swaps: {} }),
     ],
   },
   walk: cycle(32, WALK),
@@ -448,7 +467,16 @@ export const clips: Record<string, AnimClip> = {
     length: 60,
     loop: true,
     swaps: { ...ANGRY, ...WINGS },
-    keys: [key(0, HANG), key(30, hang(GX, GY, { body: { rot: -3, sy: 1.03 } }))],
+    keys: [
+      key(0, HANG),
+      key(10, paddle(-2, 0.6)),
+      key(20, paddle(-3.5, -0.4)),
+      key(30, paddle(-1, 0.5)),
+      key(34, undefined, { swaps: { ...BLINK, ...WINGS } }),
+      key(38, undefined, { swaps: {} }),
+      key(40, paddle(2, -0.4)),
+      key(50, paddle(1, 0.4)),
+    ],
   },
   ledgeClimb: {
     length: 34,
@@ -574,30 +602,34 @@ export const clips: Record<string, AnimClip> = {
     length: 60,
     keys: [
       key(0, STAND, { ease: 'out' }),
-      key(6, mix(CROUCH, { body: { rot: 10 } }), { ease: 'out', swaps: BLINK }),
+      key(6, mix(CROUCH, { body: { rot: 10 } }), { ease: 'out', swaps: { face: 'faceHappy' } }),
       key(
         12,
         wing(
-          wing(air({ base: { y: -2.2 }, body: { sy: 1.08, sx: 0.94 }, head: { rot: -16 } }), 'F', -70, 1.05),
+          wing(air({ base: { y: -2.2 }, body: { sy: 1.08, sx: 0.94 }, head: { rot: -16 } }), 'F', -125, 1.05),
           'B',
-          -110,
+          -152,
         ),
         {
           ease: 'inOut',
-          swaps: { ...SHOUT, ...WINGS },
+          swaps: { face: 'faceHappy', ...WINGS },
+          z: { wingF: 8.5 },
         },
       ),
       key(18, wing(wing(air({ base: { y: -3.0 } }), 'F', 120, 1.0), 'B', 70), { ease: 'inOut' }),
-      key(24, wing(wing(air({ base: { y: -2.6 }, head: { rot: -12 } }), 'F', -80, 1.05), 'B', -115), {
+      key(24, wing(wing(air({ base: { y: -2.6 }, head: { rot: -12 } }), 'F', -128, 1.05), 'B', -154), {
         ease: 'inOut',
       }),
       key(30, wing(wing(air({ base: { y: -1.4 } }), 'F', 110, 1.0), 'B', 70), { ease: 'in' }),
-      key(36, mix(CROUCH, { body: { sy: 0.76, y: 1.1 } }), { ease: 'out', swaps: { ...PECK, ...WINGS } }),
-      key(42, wing(wing(feet({ head: { rot: -20 } }, -0.55, -0.55), 'F', -40, 1.05), 'B', -140), {
-        ease: 'inOut',
-        swaps: { ...SHOUT, ...WINGS },
+      key(36, mix(CROUCH, { body: { sy: 0.76, y: 1.1 } }), {
+        ease: 'out',
+        swaps: { face: 'faceHappy', ...WINGS },
       }),
-      key(52, undefined, { swaps: {} }),
+      key(42, wing(wing(feet({ head: { rot: -20 } }, -0.55, -0.55), 'F', -118, 1.05), 'B', -150), {
+        ease: 'inOut',
+        swaps: { face: 'faceHappy', ...WINGS },
+      }),
+      key(52, undefined, { swaps: {}, z: {} }),
       key(60, STAND),
     ],
   },

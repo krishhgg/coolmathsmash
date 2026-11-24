@@ -105,6 +105,19 @@ function strokes(points: P[], w: number, color = 'line'): PathShape[] {
     .map((p, i) => ({ d: capsule(points[i]![0], points[i]![1], p[0], p[1], w), fill: color }));
 }
 
+/** Points along a cubic Bézier, so a curved stroke of ink can be built from capsules with round ends. */
+function bezier(p0: P, p1: P, p2: P, p3: P, steps = 8): P[] {
+  return Array.from({ length: steps + 1 }, (_, i): P => {
+    const t = i / steps;
+    const u = 1 - t;
+    const w = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t] as const;
+    return [
+      w[0] * p0[0] + w[1] * p1[0] + w[2] * p2[0] + w[3] * p3[0],
+      w[0] * p0[1] + w[1] * p1[1] + w[2] * p2[1] + w[3] * p3[1],
+    ];
+  });
+}
+
 export function poly(points: P[]): string {
   return points.map(([x, y], i) => `${i ? 'L' : 'M'}${n(x)} ${n(y)}`).join('') + 'Z';
 }
@@ -139,6 +152,11 @@ export const head: PathShape[] = [{ d: circle(0, 0, HEAD_R - LINE / 2), fill: 'b
 const EX = 1.0;
 const EY = -0.95;
 const ER = 1.02;
+/** A point just inside the eye's rim, `deg` clockwise from the front. */
+const rim = (deg: number): P => [
+  EX + (ER - 0.1) * cos((deg * PI) / 180),
+  EY + (ER - 0.1) * sin((deg * PI) / 180),
+];
 
 function eye(look: P = [0, 0]): PathShape[] {
   const [lx, ly] = look;
@@ -159,29 +177,44 @@ const lidShut: PathShape[] = [
   },
 ];
 
-/** Squeezed shut in pain: a chevron in an empty lid. */
-const squint: PathShape[] = [
+/** Eyes shut in a grin: the lid in body colour with an arched lash line from rim to rim. */
+const lidHappy: PathShape[] = [
   { d: circle(EX, EY, ER), fill: 'body', stroke: { color: 'line', width: INK } },
-  ...strokes(
-    [
-      [EX - 0.5, EY - 0.55],
-      [EX + 0.45, EY],
-      [EX - 0.5, EY + 0.55],
-    ],
-    INK * 1.4,
-  ),
+  ...strokes(bezier(rim(158), [EX - 0.5, EY - 0.5], [EX + 0.5, EY - 0.5], rim(22)), INK * 1.5),
 ];
 
-/** Seeing stars: a white eye with a spiral and no pupil. */
+/** A tapered brush stroke from a to b, bowed through c and `w` thick in the middle. */
+function brush(a: P, c: P, b: P, w: number): string {
+  const len = hypot(b[0] - a[0], b[1] - a[1]);
+  const nx = (-(b[1] - a[1]) / len) * w;
+  const ny = ((b[0] - a[0]) / len) * w;
+  return (
+    `M${n(a[0])} ${n(a[1])}Q${n(c[0] + nx)} ${n(c[1] + ny)} ${n(b[0])} ${n(b[1])}` +
+    `Q${n(c[0] - nx)} ${n(c[1] - ny)} ${n(a[0])} ${n(a[1])}Z`
+  );
+}
+
+/** Squeezed shut in pain: the lids pressed into a brushed ">" across the eye white, its point towards the beak. */
+const VERTEX: P = [EX + 0.55, EY + 0.02];
+const squint: PathShape[] = [
+  { d: circle(EX, EY, ER), fill: 'eye', stroke: { color: 'line', width: INK } },
+  { d: brush(rim(-146), [EX - 0.08, EY - 0.3], VERTEX, 0.3), fill: 'line' },
+  { d: brush(rim(146), [EX - 0.08, EY + 0.34], VERTEX, 0.3), fill: 'line' },
+  { d: circle(VERTEX[0] - 0.04, VERTEX[1], 0.12), fill: 'line' },
+];
+
+/** Seeing stars: a white eye with a loose hand-drawn spiral of two turns and no pupil. */
 const spiral: PathShape[] = [
   { d: circle(EX, EY, ER), fill: 'eye', stroke: { color: 'line', width: INK } },
-  {
-    d:
-      `M${n(EX)} ${n(EY)}C${n(EX + 0.3)} ${n(EY - 0.05)} ${n(EX + 0.3)} ${n(EY + 0.35)} ${n(EX)} ${n(EY + 0.35)}` +
-      `C${n(EX - 0.45)} ${n(EY + 0.35)} ${n(EX - 0.5)} ${n(EY - 0.4)} ${n(EX)} ${n(EY - 0.45)}` +
-      `C${n(EX + 0.6)} ${n(EY - 0.5)} ${n(EX + 0.75)} ${n(EY + 0.15)} ${n(EX + 0.55)} ${n(EY + 0.5)}`,
-    stroke: { color: 'line', width: INK },
-  },
+  ...strokes(
+    Array.from({ length: 49 }, (_, i): P => {
+      const t = i / 48;
+      const a = t * 4 * PI - PI / 2;
+      const r = (0.06 + 0.72 * t) * (1 + 0.07 * sin(3 * a + 1));
+      return [EX + 0.03 + r * cos(a), EY + r * sin(a)];
+    }),
+    INK * 0.85,
+  ),
 ];
 
 /** A heavy brow slanting down to the beak: the fighting face. */
@@ -225,46 +258,49 @@ const beakShut: PathShape[] = [
   ),
 ];
 
-/** Beak open: upper bill raised, lower bill dropped, the mouth dark between them. */
+/**
+ * Beak open: the orange upper bill tipped up a little, the lower bill a shade darker and dropped, and the mouth a
+ * black wedge between them, so it still reads as a beak when the head is upside down.
+ */
 const beakOpen: PathShape[] = [
   {
     d: poly([
       [2.45, -0.1],
-      [3.95, -0.55],
-      [3.6, 0.95],
-      [2.45, 0.3],
+      [3.88, -0.34],
+      [3.52, 0.46],
+      [2.45, 0.16],
     ]),
     fill: 'mouth',
   },
   {
     d: poly([
-      [2.3, -0.8],
-      [4.08, -0.6],
-      [2.4, 0.02],
+      [2.3, -0.78],
+      [3.98, -0.32],
+      [2.42, -0.04],
     ]),
     fill: 'beak',
   },
   edge(
     [
-      [2.6, -0.8],
-      [4.08, -0.6],
-      [2.6, -0.02],
+      [2.64, -0.72],
+      [3.98, -0.32],
+      [2.66, -0.08],
     ],
     0.28,
   ),
   {
     d: poly([
-      [2.4, 0.22],
-      [3.72, 1.02],
-      [2.3, 0.82],
+      [2.42, 0.1],
+      [3.64, 0.48],
+      [2.3, 0.72],
     ]),
-    fill: 'beak',
+    fill: 'beakLo',
   },
   edge(
     [
-      [2.6, 0.24],
-      [3.72, 1.02],
-      [2.6, 0.84],
+      [2.66, 0.14],
+      [3.64, 0.48],
+      [2.64, 0.7],
     ],
     0.28,
   ),
@@ -280,38 +316,24 @@ export const faces: Record<string, PathShape[]> = {
   faceShout: [...eye([0.02, -0.1]), ...brow, ...beakOpen],
   faceHurt: [...squint, ...beakOpen],
   faceDizzy: [...spiral, ...beakOpen],
+  faceHappy: [...lidHappy, ...beakOpen],
 };
 
 /** Shoulder to wing tip of the open wing. */
 export const WING = 3.78;
 
 /**
- * The open wing for wing attacks: a stubby duckling wing in body colour with three round feather tips, from the
- * shoulder (origin) back along -x.
+ * The open wing for wing attacks: a plain teardrop in body colour under a heavy ink contour, round at the shoulder
+ * (origin) and pointed at the tip back along -x, with a shallow notch under the tip.
  */
 export const wingOpen: PathShape[] = [
   {
-    d: blob([
-      [0.5, -0.3],
-      [-0.55, -0.85],
-      [-1.85, -0.98],
-      [-3.05, -0.62],
-      [-3.78, -0.02],
-      [-3.25, 0.34],
-      [-2.92, 0.24],
-      [-2.55, 0.66],
-      [-2.18, 0.5],
-      [-1.72, 0.88],
-      [-1.32, 0.7],
-      [-0.82, 0.96],
-      [-0.15, 0.78],
-      [0.48, 0.38],
-    ]),
+    d:
+      `M${n(-WING)} -0.02C-2.9 -0.66 -1.7 -1.06 -0.6 -0.98C0.28 -0.9 0.68 -0.24 0.44 0.32` +
+      `C0.16 0.9 -1.0 0.98 -1.9 0.8C-2.6 0.66 -3.1 0.5 -3.5 0.3L-3.16 0.14L${n(-WING)} -0.02Z`,
     fill: 'body',
-    stroke: { color: 'line', width: LINE * 0.85 },
+    stroke: { color: 'line', width: LINE },
   },
-  { d: capsule(-2.75, 0.18, -2.0, -0.12, INK * 0.8), fill: 'line' },
-  { d: capsule(-1.95, 0.42, -1.3, 0.05, INK * 0.8), fill: 'line' },
 ];
 
 /**
@@ -350,22 +372,30 @@ export const wingLines: Record<string, PathShape[]> = {
 export const leg: PathShape[] = [{ d: capsule(0, 0, 0, LEG, LINE), fill: 'leg' }];
 export const foot: PathShape[] = [{ d: capsule(0, 0, FOOT, 0, LINE), fill: 'leg' }];
 
-/** The webbed foot shown in kicks and stomps: three toes and the web between them. */
+/**
+ * The webbed foot shown in kicks, stomps and the dive: the leg's own ink spread open into a fan of three toes, the
+ * web scalloped between them.
+ */
+const TOES: P[] = [
+  [1.92, -0.8],
+  [2.3, 0],
+  [1.92, 0.8],
+];
 export const footWeb: PathShape[] = [
+  ...TOES.map(([x, y]) => ({ d: capsule(0, 0, x, y, LINE), fill: 'leg' })),
   {
-    d: poly([
-      [-0.1, -0.3],
-      [0.95, -0.48],
-      [2.0, -0.78],
-      [1.78, -0.26],
-      [2.34, 0.02],
-      [1.8, 0.3],
-      [2.02, 0.82],
-      [0.95, 0.5],
-      [-0.1, 0.3],
-    ]),
-    fill: 'web',
-    stroke: { color: 'line', width: 0.26 },
+    d:
+      `M0 0L${n(TOES[0]![0])} ${n(TOES[0]![1])}` +
+      TOES.slice(1)
+        .map(([bx, by], i) => {
+          const [ax, ay] = TOES[i]!;
+          const qx = (ax + bx) * 0.3;
+          const qy = (ay + by) * 0.3;
+          return `C${n(ax + (2 / 3) * (qx - ax))} ${n(ay + (2 / 3) * (qy - ay))} ${n(bx + (2 / 3) * (qx - bx))} ${n(by + (2 / 3) * (qy - by))} ${n(bx)} ${n(by)}`;
+        })
+        .join('') +
+      'Z',
+    fill: 'leg',
   },
 ];
 
@@ -415,6 +445,38 @@ export const crown: PathShape[] = [
     stroke: { color: 'line', width: LINE * 0.8 },
   },
 ];
+
+/**
+ * The evil costume's crest: five jagged dark spikes swept back over the top and back of the head, on the hat bone
+ * (the head's centre), rooted in a band just inside the head's outline and kept clear of the brow.
+ */
+export const crest: PathShape[] = (() => {
+  const from = -102;
+  const to = -190;
+  const spikes: [number, number][] = [
+    [1.0, 30],
+    [1.6, 36],
+    [1.95, 40],
+    [1.55, 46],
+    [1.05, 52],
+  ];
+  const step = (to - from) / spikes.length;
+  const at = (deg: number, r: number): P => [r * cos((deg * PI) / 180), r * sin((deg * PI) / 180)];
+  const outer: P[] = spikes.flatMap(([len, sweep], i): P[] => {
+    const mid = from + (i + 0.5) * step;
+    const [bx, by] = at(mid, HEAD_R + 0.1);
+    const tip: P = [bx + len * cos(((mid - sweep) * PI) / 180), by + len * sin(((mid - sweep) * PI) / 180)];
+    return [at(from + i * step, HEAD_R + 0.1), tip];
+  });
+  const inner = Array.from({ length: spikes.length + 1 }, (_, i) => at(to - i * step, HEAD_R - 0.6));
+  return [
+    {
+      d: poly([...outer, at(to, HEAD_R + 0.1), ...inner]),
+      fill: 'crest',
+      stroke: { color: 'line', width: LINE * 0.7 },
+    },
+  ];
+})();
 
 /** A cloud of dust, for dashes, landings and stomps (radius about 1). */
 export const fxPuff: PathShape[] = (() => {
