@@ -111,8 +111,9 @@ npm run judge:aggregate -- ~/.capy/work/round-1/pack \
 ```
 
 It validates every `judges/*.json` against `schema.json` (exit 1 with every problem listed; `--check <file>` validates
-one answer and writes nothing), then writes `scoreboard.md` and `scoreboard.json` into the pack and appends one row to the history table (default `captures/history.md`; the Drive path above keeps rounds from every
-thread in one table). The scoreboard shows the axis means per judge, a state × axis table with each judge's score and
+one answer and writes nothing), then writes `scoreboard.md` and `scoreboard.json` into the pack and appends one row
+to the history table (default `captures/history.md`; the Drive path above keeps rounds from every thread in one
+table). The scoreboard shows the axis means per judge, a state × axis table with each judge's score and
 the mean (⚠ where the judges differ by more than 2), the change from the previous round when the pack was built with
 `--previous`, the top gaps merged across judges (the same axis and state with overlapping wording count as one gap;
 gaps both judges list and gaps ranked high come first), regressions, and every judge's notes.
