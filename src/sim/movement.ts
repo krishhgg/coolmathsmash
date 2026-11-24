@@ -15,6 +15,7 @@ import type { MatchState } from './match';
 import { edgeMaxX, edgeMinX, floorY, ledgePresent, type CompiledStage, type Edge } from './stage';
 import { approach, type Vec } from './vec';
 import { DAMAGE_FLY_TOP_GRAVITY, LAUNCH_DECAY, speedUp, VERTICAL_LAUNCH_FALL_SPEED } from './combat/formulas';
+import { breakGrab } from './actions/grab';
 import { actionDef, enterAction } from './actions/registry';
 
 const EPS = 0.001;
@@ -104,6 +105,7 @@ export function groundMove(x: Ctx): void {
     return;
   }
   f.pos.x = nx;
+  if (f.grabPartner >= 0) breakGrab(x.m, f);
   leaveGround(x);
   if (action.edge !== 'keep') enterAction(x, 'fall', 0);
 }
