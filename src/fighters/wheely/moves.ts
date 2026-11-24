@@ -21,8 +21,9 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 
 /**
  * Wheely's normals: a car with no fists, so every hit is the bumper, the wheels, the hood, the horn or the exhaust.
- * Damage and first active frames are the roster sheet's (handoffs/research/roster.md, "13. Wheely"); knockback is
- * tuned so the kill moves KO Mario at the Battlefield ledge near the sheet's percents (pinned in wheely.test.ts).
+ * Damage and first active frames are the roster sheet's (handoffs/research/roster.md, "13. Wheely"); knockback uses
+ * Ultimate-style growth for each move's role. TODO: retune against the sheet's kill percents once the engine's KO
+ * calibration and its koPercent helper land (CREW.md, "Knockback values").
  * His body runs from x = -9 (rear bumper) to x = 9 (front bumper) and up to y = 11 (roof).
  */
 export const moves: Record<string, MoveDef> = {
@@ -40,8 +41,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [7, 9],
         boxes: [
-          box(0, 11, 4, 4, { damage: 9, angle: 361, kbg: 94, bkb: 8 }),
-          box(1, 5, 5, 4, { damage: 8, angle: 361, kbg: 94, bkb: 6 }),
+          box(0, 11, 4, 4, { damage: 9, angle: 361, kbg: 100, bkb: 8 }),
+          box(1, 5, 5, 4, { damage: 8, angle: 361, kbg: 100, bkb: 6 }),
         ],
       },
     ],
@@ -85,11 +86,11 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [8, 12],
-        boxes: [box(0, 5, 5, 7, { damage: 11, angle: 45, kbg: 56, bkb: 65 })],
+        boxes: [box(0, 5, 5, 7, { damage: 11, angle: 45, kbg: 80, bkb: 65 })],
       },
       {
         frames: [13, 22],
-        boxes: [box(0, 5, 5, 6, { damage: 7, angle: 50, kbg: 49, bkb: 50 })],
+        boxes: [box(0, 5, 5, 6, { damage: 7, angle: 50, kbg: 70, bkb: 50 })],
       },
     ],
   },
@@ -102,8 +103,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [16, 18],
         boxes: [
-          box(0, 12, 5, 5.5, { damage: 17, angle: 361, kbg: 69, bkb: 32 }),
-          box(1, 5, 5, 5, { damage: 15, angle: 361, kbg: 69, bkb: 28 }),
+          box(0, 12, 5, 5.5, { damage: 17, angle: 361, kbg: 98, bkb: 32 }),
+          box(1, 5, 5, 5, { damage: 15, angle: 361, kbg: 98, bkb: 28 }),
         ],
       },
     ],
@@ -121,8 +122,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [12, 15],
         boxes: [
-          box(0, 3, 14, 6, { damage: 14, angle: 88, kbg: 94, bkb: 34 }),
-          box(1, 7, 9, 4.5, { damage: 12, angle: 85, kbg: 94, bkb: 30 }),
+          box(0, 3, 14, 6, { damage: 14, angle: 88, kbg: 96, bkb: 34 }),
+          box(1, 7, 9, 4.5, { damage: 12, angle: 85, kbg: 96, bkb: 30 }),
         ],
       },
     ],
@@ -135,11 +136,11 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [11, 12],
-        boxes: [box(0, 10, 3, 5, { damage: 13, angle: 30, kbg: 70, bkb: 30 })],
+        boxes: [box(0, 10, 3, 5, { damage: 13, angle: 30, kbg: 95, bkb: 30 })],
       },
       {
         frames: [15, 16],
-        boxes: [box(0, -10, 3, 5, { damage: 13, angle: 30, kbg: 70, bkb: 30, direction: 'back' })],
+        boxes: [box(0, -10, 3, 5, { damage: 13, angle: 30, kbg: 95, bkb: 30, direction: 'back' })],
       },
     ],
   },
@@ -168,11 +169,11 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [6, 9],
-        boxes: [box(0, 0, 5.5, 7.5, { damage: 9, angle: 361, kbg: 90, bkb: 15, direction: 'away' })],
+        boxes: [box(0, 0, 5.5, 7.5, { damage: 9, angle: 361, kbg: 100, bkb: 15, direction: 'away' })],
       },
       {
         frames: [10, 20],
-        boxes: [box(0, 0, 5.5, 7, { damage: 6, angle: 361, kbg: 90, bkb: 8, direction: 'away' })],
+        boxes: [box(0, 0, 5.5, 7, { damage: 6, angle: 361, kbg: 100, bkb: 8, direction: 'away' })],
       },
     ],
   },
@@ -189,8 +190,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [10, 13],
         boxes: [
-          box(0, 10, 3, 5, { damage: 12, angle: 361, kbg: 72, bkb: 30 }),
-          box(1, 6, 9, 4.5, { damage: 10, angle: 361, kbg: 72, bkb: 25 }),
+          box(0, 10, 3, 5, { damage: 12, angle: 361, kbg: 95, bkb: 30 }),
+          box(1, 6, 9, 4.5, { damage: 10, angle: 361, kbg: 95, bkb: 25 }),
         ],
       },
     ],
@@ -208,13 +209,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [9, 11],
         boxes: [
-          box(0, -12, 4, 5, { damage: 13, angle: 361, kbg: 72, bkb: 24, effect: 'fire', direction: 'back' }),
+          box(0, -12, 4, 5, { damage: 13, angle: 361, kbg: 100, bkb: 24, effect: 'fire', direction: 'back' }),
         ],
       },
       {
         frames: [12, 15],
         boxes: [
-          box(0, -11, 4, 4, { damage: 8, angle: 361, kbg: 72, bkb: 10, effect: 'fire', direction: 'back' }),
+          box(0, -11, 4, 4, { damage: 8, angle: 361, kbg: 100, bkb: 10, effect: 'fire', direction: 'back' }),
         ],
       },
     ],
@@ -261,14 +262,14 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 32,
     hits: [],
-    throw: { frame: 14, hit: { damage: 9, angle: 40, kbg: 57, bkb: 60 } },
+    throw: { frame: 14, hit: { damage: 9, angle: 40, kbg: 70, bkb: 60 } },
   },
   /** Reverse Bump: throws it in reverse and rams them out of the back. His kill throw at the ledge. */
   bthrow: {
     kind: 'other',
     faf: 44,
     hits: [],
-    throw: { frame: 22, hit: { damage: 11, angle: 40, kbg: 56, bkb: 60, direction: 'back' } },
+    throw: { frame: 22, hit: { damage: 11, angle: 40, kbg: 80, bkb: 60, direction: 'back' } },
   },
   /** Wheelie Flip: pops a wheelie and flips them off the hood, straight up. */
   uthrow: {
