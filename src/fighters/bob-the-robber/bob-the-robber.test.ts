@@ -308,7 +308,7 @@ describe('Bob the Robber: pummel and throws', () => {
       return v.action === 'ko' && v.pos.x > 240;
     };
     let percent = 0;
-    while (!ko('bthrow', percent)) percent += 2;
+    while (percent <= 300 && !ko('bthrow', percent)) percent += 2;
     expect(percent).toBeGreaterThanOrEqual(155 * 0.5);
     expect(percent).toBeLessThanOrEqual(155 * 1.1);
     expect(ko('fthrow', percent)).toBe(false);
