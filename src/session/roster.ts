@@ -41,10 +41,12 @@ const nameKey = (s: string) =>
  * The select grid: each planned character in order, as the registered fighters that play it (a fighter plays an
  * entry, or one of its "&" names, when its name or id starts that name: Fireboy and Watergirl both sit under theirs,
  * "Bloxorz" plays "Bloxorz block"), a locked tile where none does yet, then registered fighters outside the plan.
+ * Forms reached only in a match (`selectable: false`, like Watergirl from Fireboy's down special) get no tile.
  */
 export function rosterTiles(
-  fighters: readonly { id: string; name: string }[] = Object.values(FIGHTERS),
+  registered: readonly { id: string; name: string; selectable?: boolean }[] = Object.values(FIGHTERS),
 ): RosterTile[] {
+  const fighters = registered.filter((f) => f.selectable !== false);
   const placed = new Set<string>();
   const tiles: RosterTile[] = [];
   for (const entry of PLANNED_ROSTER) {

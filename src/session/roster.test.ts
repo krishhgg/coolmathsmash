@@ -33,8 +33,22 @@ describe('roster grid', () => {
     expect(tiles).toHaveLength(PLANNED_ROSTER.length + 1);
   });
 
-  it('places every registered fighter exactly once', () => {
+  it('skips forms reached only in a match', () => {
+    const tiles = rosterTiles([
+      f('fireboy', 'Fireboy'),
+      { id: 'watergirl', name: 'Watergirl', selectable: false },
+      { id: 'bloxorz', name: 'Bloxorz Block' },
+      { id: 'bloxorz-lying', name: 'Bloxorz Block (lying)', selectable: false },
+    ]);
+    const ids = tiles.flatMap((t) => (t.id ? [t.id] : []));
+    expect(ids).toEqual(['fireboy', 'bloxorz']);
+    expect(tiles).toHaveLength(PLANNED_ROSTER.length);
+  });
+
+  it('places every selectable registered fighter exactly once', () => {
     const ids = rosterTiles().flatMap((t) => (t.id ? [t.id] : []));
-    expect([...ids].sort()).toEqual(Object.keys(FIGHTERS).sort());
+    const selectable = Object.values(FIGHTERS).filter((d) => d.selectable !== false);
+    expect([...ids].sort()).toEqual(selectable.map((d) => d.id).sort());
+    expect(ids).not.toContain('watergirl');
   });
 });
