@@ -8,8 +8,9 @@ import type { FighterStats } from '../types';
 export const stats: FighterStats = {
   /** Charizard / Incineroar. */
   weight: 116,
+  /** A car body 18 long and 11 tall: wider than tall, so his hurtbox is a lying capsule from bumper to bumper. */
   height: 11,
-  width: 12,
+  width: 18,
 
   /** Sephiroth's walk; a slow roll that takes a while to get going. */
   walkSpeed: 0.9,

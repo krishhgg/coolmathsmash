@@ -47,6 +47,14 @@ function streak(pose: Pose, limb: 'foreF' | 'foreB' | 'shinF', to: Pt, r: number
   return { x: to[0], y: to[1], rot: back + 90, sx: s, sy: Math.hypot(x - to[0], y - to[1]) / JET_TIP };
 }
 
+/**
+ * A strike's fire burning out after the hit: the jet `b` carried `push` further along and scaled by `k`, keeping
+ * its angle so the tween from the strike never swings it round.
+ */
+function fade(b: BonePose, k: number, push: Pt = [0.6, 0]): BonePose {
+  return { ...b, x: (b.x ?? 0) + push[0], y: (b.y ?? 0) + push[1], sx: (b.sx ?? 1) * k, sy: (b.sy ?? 1) * k };
+}
+
 /** Holds `pose` from `from` to `to` (the active window), with the strike's swaps and draw order. */
 function strike(from: number, to: number, pose: Pose, swaps: Swaps, z?: Record<string, number>): Key[] {
   return [key(from, pose, { ease: 'linear', swaps, ...(z ? { z } : {}) }), key(to, pose, { ease: 'out' })];
@@ -90,15 +98,18 @@ const JAB3 = hands(
   -1,
 );
 
+const JAB1_FX = streak(JAB1, 'foreF', [6.5, -9], 1.6);
+const JAB2_FX = streak(JAB2, 'foreB', [5.9, -5.8], 1.5);
+
 const FTILT = hands(
   feet(mix({ body: { rot: -14 }, hip: { y: 0.15 } }), [-0.7, 0], [0.9, 0], true),
   [-1.9, -4.7],
   [-0.9, -5.1],
 );
 const FTILT_LEG = mix(FTILT, { thighF: { rot: -128 }, shinF: { rot: -4 } });
-const FTILT_KICK = mix(FTILT_LEG, { fx1: streak(FTILT_LEG, 'shinF', [9, -7], 1.8) });
+const FTILT_FX = streak(FTILT_LEG, 'shinF', [9, -7], 1.8);
+const FTILT_KICK = mix(FTILT_LEG, { fx1: FTILT_FX });
 
-const CHARGE = hands(stance(-14, 0.5, -1.2, 1.0, { body: { x: -0.4 } }), [0.9, -3.3], [-1.7, -4.6]);
 const DTILT = mix(
   hands(
     feet({ hip: { y: 1.25 }, body: { rot: 10 }, neck: { y: 0.3 } }, [-0.9, 0], [0.4, 0], true),
@@ -108,13 +119,26 @@ const DTILT = mix(
   { thighF: { rot: -92 }, shinF: { rot: -2 } },
 );
 
-/** The smash: back leg straight, head tipped into the punch, the arm driving up towards the hitbox. */
+/** Smash wind-up: coiled back over the loaded back leg, both fists drawn back by the hip. */
+const WIND = hands(
+  stance(-28, 0.85, -1.5, 1.0, { body: { x: -0.8 }, neck: { rot: 8 } }),
+  [-2.4, -3.0],
+  [-1.9, -3.6],
+);
+
+/** The smash: lunging onto the front foot, back leg straight, both palms driven out together into the burst. */
 const FSMASH = hands(
-  stance(16, 0.45, -2.1, 1.9, { body: { x: 1.3 }, neck: { rot: 4 }, ...stretch(FRONT_ARM, 1.75) }),
-  [-2.0, -3.0],
-  [6.0, -8.2],
+  stance(22, 0.55, -2.3, 2.0, {
+    body: { x: 1.6 },
+    neck: { rot: 2 },
+    ...stretch([...FRONT_ARM, ...BACK_ARM], 1.8),
+  }),
+  [4.2, -4.6],
+  [4.6, -5.2],
   -1,
 );
+const FSMASH_FX = streak(FSMASH, 'foreF', [11.5, -8.5], 3.2);
+const FSMASH_FX2 = streak(FSMASH, 'foreB', [6.4, -8.2], 1.8);
 
 /** Fireball release: weight on the front foot, back leg pushing off, open hand thrust out at shoulder height. */
 const THROW = hands(
@@ -213,14 +237,8 @@ export const attacks: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, READY, { ease: 'out' }),
-      ...strike(
-        2,
-        4,
-        mix(JAB1, { fx1: streak(JAB1, 'foreF', [6.5, -9], 1.6) }),
-        { ...FIST_F, fx1: 'fxJet' },
-        FRONT_ARM_IN_FRONT,
-      ),
-      key(7, mix(JAB1, { fx1: flame(6.6, -9.2, 0.5, -8) }), { ease: 'inOut' }),
+      ...strike(2, 4, mix(JAB1, { fx1: JAB1_FX }), { ...FIST_F, fx1: 'fxJet' }, FRONT_ARM_IN_FRONT),
+      key(7, mix(JAB1, { fx1: fade(JAB1_FX, 0.3) }), { ease: 'inOut' }),
       done(8),
       key(16, READY),
     ],
@@ -231,14 +249,8 @@ export const attacks: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, mix(JAB1, { body: { rot: 6 } }), { ease: 'out' }),
-      ...strike(
-        2,
-        4,
-        mix(JAB2, { fx1: streak(JAB2, 'foreB', [5.9, -5.8], 1.5) }),
-        { ...FIST_B, fx1: 'fxJet' },
-        ARMS_IN_FRONT,
-      ),
-      key(7, mix(JAB2, { fx1: flame(5.8, -6.0, 0.5, -8) }), { ease: 'inOut' }),
+      ...strike(2, 4, mix(JAB2, { fx1: JAB2_FX }), { ...FIST_B, fx1: 'fxJet' }, ARMS_IN_FRONT),
+      key(7, mix(JAB2, { fx1: fade(JAB2_FX, 0.3) }), { ease: 'inOut' }),
       done(8),
       key(18, READY),
     ],
@@ -275,7 +287,7 @@ export const attacks: Record<string, AnimClip> = {
       key(0, READY, { ease: 'out' }),
       key(3, mix(FTILT, { thighF: { rot: -75 }, shinF: { rot: 105 } }), { ease: 'in' }),
       ...strike(5, 8, FTILT_KICK, { fx1: 'fxJet', face: 'faceFrontShout' }, {}),
-      key(12, mix(FTILT_KICK, { fx1: flame(8.2, -6.8, 0.5, -20), thighF: { rot: -115 } }), { ease: 'inOut' }),
+      key(12, mix(FTILT_KICK, { fx1: fade(FTILT_FX, 0.25), thighF: { rot: -115 } }), { ease: 'inOut' }),
       done(13),
       key(18, mix(FTILT, { thighF: { rot: -40 }, shinF: { rot: 60 } }), { ease: 'inOut' }),
       key(27, STAND),
@@ -376,22 +388,44 @@ export const attacks: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, READY, { ease: 'out' }),
-      key(1, mix(CHARGE, { fx2: flame(-1.7, -5.1, 0.6) }), {
-        swaps: { ...FIST_F, fx2: 'fxJet' },
-        z: { fx2: 0.5 },
+      key(3, mix(WIND, { body: { rot: -16 }, fx3: flame(-2.6, -3.4, 0.5) }), {
+        ease: 'inOut',
+        swaps: { ...FISTS, fx3: 'fxJet' },
+        z: { fx3: 0.5 },
       }),
-      key(10, mix(CHARGE, { body: { rot: -16 }, fx2: flame(-1.75, -5.2, 0.9) }), { ease: 'in' }),
-      key(12, mix(CHARGE, { body: { rot: -4, x: 0 } }), { ease: 'linear', swaps: FIST_F }),
+      key(11, mix(WIND, { fx3: flame(-2.9, -3.6, 1.1) }), { ease: 'linear' }),
+      key(12, mix(WIND, { fx3: flame(-2.9, -3.6, 1.15) }), { ease: 'in' }),
       ...strike(
         14,
         17,
-        mix(FSMASH, { fx1: streak(FSMASH, 'foreF', [11.5, -8.5], 2.8) }),
-        { ...FIST_F, face: 'faceFrontShout', fx1: 'fxJet' },
-        FRONT_ARM_IN_FRONT,
+        mix(FSMASH, { fx1: FSMASH_FX, fx2: FSMASH_FX2 }),
+        { face: 'faceFrontShout', fx1: 'fxJet', fx2: 'fxJet', fx3: null },
+        ARMS_IN_FRONT,
       ),
-      key(22, mix(FSMASH, { body: { rot: 8 }, fx1: flame(12, -8.4, 0.7, -14) }), { ease: 'inOut' }),
-      done(23),
-      key(30, undefined, { swaps: ANGRY }),
+      key(
+        20,
+        mix(FSMASH, {
+          body: { rot: 26 },
+          fx1: fade(FSMASH_FX, 1.12, [1.4, -0.2]),
+          fx2: fade(FSMASH_FX2, 0.6, [1, 0]),
+        }),
+        {
+          ease: 'inOut',
+        },
+      ),
+      key(
+        24,
+        mix(FSMASH, {
+          body: { rot: 18 },
+          fx1: fade(FSMASH_FX, 0.2, [2.8, -0.3]),
+          fx2: fade(FSMASH_FX2, 0.1, [1.6, 0]),
+        }),
+        {
+          ease: 'inOut',
+        },
+      ),
+      done(25),
+      key(32, mix(READY, { body: { rot: 8 } }), { ease: 'inOut', swaps: ANGRY }),
       key(49, STAND),
     ],
   },

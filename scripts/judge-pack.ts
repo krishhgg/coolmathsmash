@@ -101,7 +101,8 @@ async function main(): Promise<void> {
     for (const rec of manifest.scenarios.filter((r) => r.status === 'captured' && r.files.png)) {
       const dir = join('states', rec.name);
       mkdirSync(join(packDir, dir, 'refs'), { recursive: true });
-      const sources = matchRefs(library, map.states[rec.name] ?? [], map.maxPerState);
+      const patterns = rec.refs ?? map.states[rec.name] ?? [];
+      const sources = matchRefs(library, patterns, map.maxPerState);
       const refs = sources.map((source) => {
         const file = join(dir, 'refs', source.replace(/\//g, '__'));
         copyFileSync(join(refsRoot, source), join(packDir, file));
@@ -138,7 +139,7 @@ async function main(): Promise<void> {
         refs,
       });
       console.log(
-        `${rec.name.padEnd(22)} ${refs.length} reference(s)${refs.length ? '' : `: none matched ${JSON.stringify(map.states[rec.name] ?? [])}`}`,
+        `${rec.name.padEnd(22)} ${refs.length} reference(s)${refs.length ? '' : `: none matched ${JSON.stringify(patterns)}`}`,
       );
     }
   } finally {

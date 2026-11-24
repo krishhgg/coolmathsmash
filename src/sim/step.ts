@@ -1,9 +1,16 @@
 import { getFighter } from '../fighters/registry';
 import { getStage } from '../stages/registry';
-import { ACTIONS } from './actions';
-import { runAction } from './actions/registry';
+import './actions';
+import { actionDef, runAction } from './actions/registry';
 import { applyLaunch } from './combat/hits';
-import { RESPAWN_DELAY, SHIELD_MAX, SHIELD_REGEN, SHIELD_BREAK_HEIGHT } from './constants';
+import {
+  RESPAWN_DELAY,
+  SHIELD_MAX,
+  SHIELD_REGEN,
+  SHIELD_BREAK_HEIGHT,
+  TOP_KO_MARGIN,
+  TOP_KO_MIN_SPEED,
+} from './constants';
 import { emit } from './events';
 import { derived, type Ctx, type FighterState } from './fighter';
 import type { MatchState, PlayerState } from './match';
@@ -47,7 +54,7 @@ export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): voi
   if (f.launch) applyLaunch(x);
   f.actionFrame++;
   runAction(x);
-  const physics = ACTIONS[f.action]!.physics;
+  const physics = actionDef(f).physics;
   if (physics === 'ground' && f.ground) groundMove(x);
   else if (physics === 'air' || (physics === 'ground' && !f.ground)) airMove(x);
 
@@ -68,7 +75,8 @@ function checkBlastZones(x: Ctx): void {
   const { f, stage } = x;
   if (f.action === 'ko' || f.action === 'out' || f.action === 'respawn') return;
   const b = stage.geo.blastZones;
-  if (f.pos.x > b.left && f.pos.x < b.right && f.pos.y > b.bottom && f.pos.y < b.top) return;
+  const pastTop = f.pos.y >= b.top + TOP_KO_MARGIN || (f.pos.y >= b.top && f.kb.y >= TOP_KO_MIN_SPEED);
+  if (f.pos.x > b.left && f.pos.x < b.right && f.pos.y > b.bottom && !pastTop) return;
   f.stocks--;
   const side =
     f.pos.x <= b.left ? 'left' : f.pos.x >= b.right ? 'right' : f.pos.y >= b.top ? 'top' : 'bottom';
@@ -84,4 +92,5 @@ function checkBlastZones(x: Ctx): void {
   f.launch = null;
   f.hitstun = 0;
   f.speedUpFaf = 0;
+  f.flyTop = false;
 }

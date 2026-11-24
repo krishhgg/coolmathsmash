@@ -523,3 +523,29 @@ describe('pushing', () => {
     expect(a.pos.x - b.pos.x).toBeGreaterThan(S.width - 0.1);
   });
 });
+
+describe('walls and ceilings', () => {
+  it('a jump into the underside of the stage stops rising instead of keeping its speed', () => {
+    const m = testMatch();
+    const f = placeInAir(m, 0, -60);
+    f.vel.y = 3;
+    const ys: number[] = [];
+    for (let i = 0; i < 8; i++) {
+      run(m, 1);
+      ys.push(f.pos.y);
+    }
+    expect(f.vel.y).toBeLessThan(0);
+    expect(Math.max(...ys)).toBeLessThan(-40 - S.height / 2);
+    expect(ys.at(-1)).toBeLessThan(Math.max(...ys));
+  });
+
+  it('knockback into a wall is cancelled and stays cancelled', () => {
+    const m = testMatch();
+    const f = placeInAir(m, 86, -12);
+    f.ledgeLock = 60;
+    f.kb = { x: -3, y: 0 };
+    run(m, 3);
+    expect(f.kb.x).toBe(0);
+    expect(f.pos.x).toBeGreaterThan(80);
+  });
+});

@@ -50,6 +50,11 @@ export function pickCostumes(
   return picks;
 }
 
+/** Shield bubble radius: shrinks with shield HP to 15% of full size, and never below zero when HP overshoots. */
+export function shieldRadius(def: FighterDef, shieldHp: number): number {
+  return Math.max(0, def.stats.shieldSize * ((shieldHp / SHIELD_MAX) * 0.85 + 0.15));
+}
+
 /** One fighter: its rig posed from the action and frame, plus shield and debug label. World units, y down. */
 export class FighterView {
   readonly container = new Container();
@@ -102,8 +107,9 @@ export class FighterView {
     this.body.alpha = isIntangible(f) && frame % 8 < 4 ? 0.55 : 1;
     this.shield.clear();
     if (f.action === 'shield' || f.action === 'shieldStun') {
-      const r = this.def.stats.shieldSize * ((f.shieldHp / SHIELD_MAX) * 0.85 + 0.15);
-      this.shield.circle(0, -this.def.stats.height / 2, r).fill({ color: this.shieldColor, alpha: 0.45 });
+      const r = shieldRadius(this.def, f.shieldHp);
+      if (r > 0)
+        this.shield.circle(0, -this.def.stats.height / 2, r).fill({ color: this.shieldColor, alpha: 0.45 });
     }
     this.label.visible = debug;
     if (debug) this.label.text = `${f.move ?? f.action} ${f.actionFrame}`;

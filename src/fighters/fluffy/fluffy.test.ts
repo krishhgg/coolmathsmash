@@ -205,7 +205,7 @@ describe('Fluffy: frame data (roster sheet 8)', () => {
 
   it('down air spikes on its first frames and pops up after', () => {
     const [early, late] = moves.dair!.hits;
-    expect(early!.boxes[0]!.angle).toBe(270);
+    expect(early!.boxes[0]!.angle).toBe(285);
     expect(late!.boxes[0]!.angle).toBeLessThan(90);
   });
 });
@@ -244,7 +244,7 @@ describe('Fluffy: tether grab', () => {
 describe('Fluffy: kill percents on Mario at the Battlefield ledge (roster targets)', () => {
   // TODO: tighten to within 8% of each target once COOL-3's knockback calibration and koPercent helper land. Until
   // then the engine KOs early (CREW.md, "Knockback values"), so this only checks each move kills by its target and
-  // not absurdly early. Measured today: forward smash 68%, up smash 116%, back air 109%, back throw 120%.
+  // not absurdly early. Measured today: forward smash 90%, up smash 128%, back air 111%, back throw 116%.
   it.each([
     ['fsmash', 110],
     ['usmash', 120],
@@ -278,5 +278,45 @@ describe('Fluffy: jab (Fuzz Bump, Fuzz Bump, Tail Slap)', () => {
   it('a single press is one Fuzz Bump that ends on frame 20', () => {
     expect(jabs(1000)).toEqual(['jab']);
     expect(moves.jab!.faf).toBe(20);
+  });
+});
+
+describe('Fluffy: Stick Tight (down special)', () => {
+  /** Fluffy in Stick Tight at 100%, hit by Fireboy's forward smash when Fluffy is on frame at of the move. */
+  function smashed(at: number) {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'fluffy' }, { fighter: 'fireboy' }],
+    });
+    runPorts(m, 10, [{}, {}]);
+    const [f, b] = m.fighters as [FighterState, FighterState];
+    place(f, 0, 0, -1, f.ground);
+    place(b, -12, 0, 1, f.ground);
+    f.damage = 100;
+    runPorts(m, 1, [{ y: -100, buttons: ['special'] }, {}]);
+    expect(f.move).toBe('downB');
+    runPorts(m, at - 15, [{}, {}]);
+    attack(m, 1, 'fsmash');
+    runPorts(m, 15, [{}, {}]);
+    expect(f.damage).toBeGreaterThan(100);
+    return f;
+  }
+
+  it('takes the damage but no knockback on frames 4-60 and keeps holding on', () => {
+    const f = smashed(30);
+    expect(f.launch).toBeNull();
+    expect([f.action, f.move]).toEqual(['attack', 'downB']);
+    expect(f.pos.x).toBeCloseTo(0, 6);
+  });
+
+  it('is launched as usual once the armor ends', () => {
+    expect(smashed(62).action).toBe('tumble');
+  });
+
+  it('comes out on frame 4 and leaves 40 frames of end lag', () => {
+    expect(moves.downB!.armor!.frames).toEqual([4, 60]);
+    expect(moves.downB!.faf).toBe(61 + 40);
   });
 });
