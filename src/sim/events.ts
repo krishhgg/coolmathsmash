@@ -1,4 +1,5 @@
 import type { HitboxDef } from '../fighters/types';
+import type { DestroyReason } from './entities/types';
 import type { MatchState } from './match';
 
 type Side = 'left' | 'right' | 'top' | 'bottom';
@@ -9,10 +10,14 @@ type Side = 'left' | 'right' | 'top' | 'bottom';
  * they happened, then one `action` event for each fighter whose action changed that frame.
  */
 export type SimEvent =
-  /** A hit landed. `damage` is what it added to the victim's %; `x`, `y` is the hitbox centre. */
+  /**
+   * A hit landed. `damage` is what it added to the victim's %; `x`, `y` is the hitbox centre. An entity's hit
+   * carries its `entity` id and credits its owner as `attacker` (-1 for nobody).
+   */
   | {
       type: 'hit';
       attacker: number;
+      entity?: number;
       victim: number;
       move: string | null;
       damage: number;
@@ -27,6 +32,7 @@ export type SimEvent =
   | {
       type: 'shieldHit';
       attacker: number;
+      entity?: number;
       victim: number;
       move: string | null;
       damage: number;
@@ -59,7 +65,26 @@ export type SimEvent =
   /** A scheduled stage piece appeared (`on`) or vanished (docs/stage-geometry.md). */
   | { type: 'stagePiece'; piece: 'solid' | 'platform'; index: number; on: boolean }
   /** A moving solid squeezed a fighter against other geometry and the fighter popped out on top of it. */
-  | { type: 'squeeze'; port: number; solid: number; x: number; y: number };
+  | { type: 'squeeze'; port: number; solid: number; x: number; y: number }
+  /** An entity (projectile, minion, object, item) appeared. */
+  | { type: 'entitySpawn'; id: number; kind: string; owner: number; x: number; y: number }
+  /** An entity left the match, and why (`hit`: used up by its hit; `clank`: cancelled by an attack or projectile). */
+  | { type: 'entityDestroy'; id: number; kind: string; reason: DestroyReason; x: number; y: number }
+  /** A fighter's reflector sent a projectile back; `port` now owns it. */
+  | { type: 'reflect'; id: number; kind: string; port: number; x: number; y: number }
+  /** A fighter's absorber ate a projectile and healed `heal` %. */
+  | { type: 'absorb'; id: number; kind: string; port: number; heal: number; x: number; y: number }
+  /** A hittable entity took a hit (`attacker` is the port credited, -1 for nobody); `hp` is what it has left. */
+  | {
+      type: 'entityHit';
+      id: number;
+      kind: string;
+      attacker: number;
+      damage: number;
+      hp: number;
+      x: number;
+      y: number;
+    };
 
 export type SimEventType = SimEvent['type'];
 

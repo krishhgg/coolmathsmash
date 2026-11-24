@@ -36,6 +36,16 @@ function describe(e: SimEvent): string {
       return `${p(e.ports[0])} ${p(e.ports[1])} grab clank`;
     case 'stagePiece':
       return `${e.piece} ${e.index} ${e.on ? 'appears' : 'vanishes'}`;
+    case 'entitySpawn':
+      return `${e.kind}#${e.id} spawn`;
+    case 'entityDestroy':
+      return `${e.kind}#${e.id} gone (${e.reason})`;
+    case 'reflect':
+      return `${p(e.port)} reflect ${e.kind}#${e.id}`;
+    case 'absorb':
+      return `${p(e.port)} absorb ${e.kind}#${e.id} -${n(e.heal)}%`;
+    case 'entityHit':
+      return `${e.kind}#${e.id} hit ${n(e.damage)} (${n(e.hp)} hp left)`;
     default:
       return `${p(e.port)} ${e.type}`;
   }
