@@ -424,6 +424,9 @@ function climbOffset(frame: number, moveEnd: number, distance: number): Pt {
   return [(cx - GX + 2.05) * (1 - k), (cy - GY - 1.7) * (1 - k)];
 }
 
+/** The body's turn while climbing: from flat on the wall (-90) to upright on the floor. */
+const climbRot = (frame: number, moveEnd: number) => -90 * (1 - Math.min(1, (frame / moveEnd) * 1.4));
+
 /** Crawls up over the lip as the engine lifts him: the body swings from the wall onto the floor. */
 function climb(
   moveEnd: number,
@@ -434,7 +437,7 @@ function climb(
   return frames.map((f, i) => {
     const [cx, cy] = corner(f, moveEnd, distance);
     const k = Math.min(1, f / moveEnd);
-    const rot = -90 * (1 - Math.min(1, k * 1.4));
+    const rot = climbRot(f, moveEnd);
     const [bx, by] = climbOffset(f, moveEnd, distance);
     const lifted = mix(
       {
@@ -464,9 +467,9 @@ const ledgeClimb: AnimClip = {
 /**
  * Rolling up in the shell: the engine is still lifting him out of the hang for the first half of the roll, so the
  * ball hops from where the climb left him (frame 10) up onto the corner's height, then rides it until he's on the
- * floor, drifting in over the lip a little later than it rises, spinning from 90 to 720 degrees.
+ * floor, drifting in over the lip a little later than it rises, spinning on from the climb's tilt to 720 degrees.
  */
-const LEDGE_ROLL_SPIN = [11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 36].map((f, i) => {
+const LEDGE_ROLL_SPIN = [11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 28, 32, 36].map((f, i) => {
   const smooth = (v: number) => {
     const t = Math.min(1, Math.max(0, v));
     return t * t * (3 - 2 * t);
@@ -474,10 +477,11 @@ const LEDGE_ROLL_SPIN = [11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 36].map((f, i) 
   const [x0, y0] = climbOffset(f, 40, 25);
   const up = smooth((f - 10) / 6);
   const over = smooth((f - 12) / 6);
-  const u = (f - 11) / 25;
+  const u = (f - 10) / 26;
+  const r0 = climbRot(10, 40);
   const pose = mix(BALL, {
     body: {
-      rot: 90 + 630 * (1 - (1 - u) ** 2),
+      rot: r0 + (720 - r0) * (1 - (1 - u) ** 2),
       x: x0 * (1 - over),
       y: y0 + (corner(f, 40, 25)[1] - y0) * up,
     },
