@@ -6,6 +6,13 @@
     "loopStart": 0,
     "loopEnd": 40
   },
+  "johnny-upgrade-boss": {
+    "file": "music/johnny-upgrade-boss.mp3",
+    "title": "Johnny's Level: Boss",
+    "evokes": "Johnny Upgrade (Gameshot): an original driving action-rock boss theme in the spirit of the game",
+    "loopStart": 0,
+    "loopEnd": 38.181814
+  },
   "menu": {
     "file": "music/menu.mp3",
     "title": "Main Menu",
