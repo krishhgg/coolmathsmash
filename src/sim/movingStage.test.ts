@@ -226,6 +226,27 @@ describe('collision with moving solids', () => {
     ]),
   );
   registerStage(
+    arena('test-diagonal', [
+      {
+        points: rect(-30, -30, -20, 10),
+        motion: {
+          period: 600,
+          keys: [
+            [0, 0, 0],
+            [1, 50, 50],
+            [599, 50, 50],
+          ],
+        },
+      },
+    ]),
+  );
+  registerStage({
+    ...arena('test-vanishing-ledge', [
+      { points: rect(-20, -10, 20, 0), schedule: { period: 600, off: [[20, 599]] } },
+    ]),
+    ledges: [{ x: -20, y: 0, side: -1 }],
+  });
+  registerStage(
     arena('test-sweeper', [
       { points: rect(-60, -10, 60, 0) },
       {
@@ -261,6 +282,60 @@ describe('collision with moving solids', () => {
       expect(embedded(m, f)).toBe(false);
     }
     expect(f.pos.x).toBeCloseTo(155 + S.width / 2, 2);
+  });
+
+  it('shoves a fighter that a solid passes diagonally, 50 units in one frame', () => {
+    const m = stageMatch('test-diagonal');
+    const f = placeInAir(m, 0, 0.5);
+    run(m, 1);
+    expect(embedded(m, f)).toBe(false);
+    expect(f.pos.x).toBeGreaterThan(15);
+  });
+
+  it('keeps a pending launch when a rising floor catches a fighter frozen in hitlag', () => {
+    const m = stageMatch('test-fast-lift');
+    const f = m.fighters[0]!;
+    Object.assign(f, {
+      hitlag: 14,
+      launch: { kb: 100, angle: 90, dir: 1, setKnockback: false },
+      action: 'tumble',
+      actionFrame: 0,
+    });
+    const actions = new Set<string>();
+    while (f.hitlag > 0) {
+      run(m, 1);
+      actions.add(f.action);
+    }
+    expect(groundSolid(m, f)).toBe(0);
+    expect([...actions]).toEqual(['tumble']);
+    run(m, 1);
+    expect(f.action).toBe('tumble');
+    expect(f.ground).toBeNull();
+    expect(f.kb.y).toBeGreaterThan(2);
+  });
+
+  it('lets a fighter hanging from a vanishing ledge go, unless a launch is waiting on hitlag', () => {
+    const hang = (launch: boolean) => {
+      const m = stageMatch('test-vanishing-ledge');
+      const f = m.fighters[0]!;
+      Object.assign(f, {
+        ledge: 0,
+        action: launch ? 'tumble' : 'ledgeHang',
+        actionFrame: 1,
+        ground: null,
+        facing: 1,
+        pos: { x: -20 - (S.width / 2 + 0.5), y: -S.height * 0.85 },
+        ...(launch ? { hitlag: 30, launch: { kb: 100, angle: 45, dir: 1, setKnockback: false } } : {}),
+      });
+      while (m.frame < 20) run(m, 1);
+      return f;
+    };
+    const free = hang(false);
+    expect(free.ledge).toBe(-1);
+    expect(free.action).toBe('fall');
+    const hit = hang(true);
+    expect(hit.action).toBe('tumble');
+    expect(hit.launch).not.toBeNull();
   });
 
   it('pushes a grounded fighter along the floor, then off its end', () => {

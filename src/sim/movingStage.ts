@@ -44,6 +44,8 @@ export interface StageState {
 }
 
 const EPS = 0.001;
+/** Stage sweeps are split into substeps no longer than this, as in airMove. */
+const MAX_SUBSTEP = 1.5;
 const ZERO: Vec = { x: 0, y: 0 };
 const mod = (frame: number, period: number) => ((frame % period) + period) % period;
 
@@ -173,35 +175,68 @@ function followStage(x: Ctx, before: StageState): void {
     if (!p.on || !before.solids[s]!.on) continue;
     const rel = { x: carry.x - p.dx, y: carry.y - p.dy };
     if (rel.x === 0 && rel.y === 0) continue;
-    const prev = { x: f.pos.x - rel.x, y: f.pos.y - rel.y };
-    for (let i = 0; i < stage.edges.length; i++) {
-      const e = stage.edges[i]!;
-      if (e.solid !== s) continue;
-      if (e.kind === 'floor') {
-        if (!caught && risesThroughFeet(x, prev, e, p.dy)) {
-          caught = true;
-          standOn(x, { kind: 'solid', index: i });
-        }
-        continue;
+    const hit = sweepSolid(x, s, rel, p.dy, box, !caught);
+    caught ||= hit.caught;
+    if (!hit.pushed) continue;
+    pusher = s;
+    if (!f.ground) continue;
+    if (hit.pressed) {
+      if (f.ground.kind === 'solid') squeezed = true;
+      else {
+        f.dropPlatform = f.ground.index;
+        loseGround(x);
       }
-      if (!pushOut(f, prev, e, box)) continue;
-      pusher = s;
-      if (!f.ground) continue;
-      if (e.kind === 'ceiling') {
-        if (f.ground.kind === 'solid') squeezed = true;
-        else {
-          f.dropPlatform = f.ground.index;
-          loseGround(x);
-        }
-        continue;
-      }
-      const [lo, hi] = surfaceRange(stage, f.ground);
-      if (f.pos.x >= lo && f.pos.x <= hi) f.pos.y = surfaceY(stage, f.ground, f.pos.x);
-      else loseGround(x);
+      continue;
     }
+    const [lo, hi] = surfaceRange(stage, f.ground);
+    if (f.pos.x >= lo && f.pos.x <= hi) f.pos.y = surfaceY(stage, f.ground, f.pos.x);
+    else loseGround(x);
   }
   if (!caught) catchOnPlatform(x, before, carry);
   if (pusher >= 0 && (squeezed || insideSolid(stage, f.pos.x, f.pos.y + box[1]!.y / 2))) popOut(x, pusher);
+}
+
+/**
+ * Run the fighter along its path relative to solid `s` this frame (it moved by `rel` against the solid), in
+ * substeps like airMove's, so a solid moving any distance in any direction can't skip over it: a floor rising
+ * through its feet catches it, a wall or ceiling pushes it out. Without either, the fighter stays put.
+ */
+function sweepSolid(
+  x: Ctx,
+  s: number,
+  rel: Vec,
+  rise: number,
+  box: Vec[],
+  canCatch: boolean,
+): { caught: boolean; pushed: boolean; pressed: boolean } {
+  const { f, stage } = x;
+  const end = { x: f.pos.x, y: f.pos.y };
+  const steps = Math.max(1, Math.ceil(Math.max(Math.abs(rel.x), Math.abs(rel.y)) / MAX_SUBSTEP));
+  const out = { caught: false, pushed: false, pressed: false };
+  f.pos.x -= rel.x;
+  f.pos.y -= rel.y;
+  for (let k = 0; k < steps && !out.caught; k++) {
+    const prev = { x: f.pos.x, y: f.pos.y };
+    f.pos.x += rel.x / steps;
+    f.pos.y += rel.y / steps;
+    for (let i = 0; i < stage.edges.length; i++) {
+      const e = stage.edges[i]!;
+      if (e.solid !== s) continue;
+      if (e.kind !== 'floor') {
+        if (!pushOut(f, prev, e, box)) continue;
+        out.pushed = true;
+        out.pressed ||= e.kind === 'ceiling';
+      } else if (canCatch && !out.caught && risesThroughFeet(x, prev, e, rise)) {
+        out.caught = true;
+        standOn(x, { kind: 'solid', index: i });
+      }
+    }
+  }
+  if (!out.caught && !out.pushed) {
+    f.pos.x = end.x;
+    f.pos.y = end.y;
+  }
+  return out;
 }
 
 /** Carry a fighter standing on or hanging from a moving piece; one whose piece vanished falls. Returns the ride. */
@@ -222,7 +257,7 @@ function ride(x: Ctx): Vec {
   if (s < 0) return ZERO;
   const p = m.stage.solids[s]!;
   if (!p.on) {
-    dropLedge(x);
+    if (!f.launch) dropLedge(x);
     return ZERO;
   }
   f.pos.x += p.dx;
@@ -239,7 +274,10 @@ function risesThroughFeet(x: Ctx, prev: Vec, e: Edge, rise: number): boolean {
   return crossing(was, f.pos.y - floorY(e, f.pos.x));
 }
 
-/** A soft platform rising through the feet of a fighter (not dropping through it) catches them. */
+/**
+ * A soft platform rising through the feet of a fighter (not dropping through it) catches them, at the point of
+ * the fighter's path relative to the platform where its feet cross it.
+ */
 function catchOnPlatform(x: Ctx, before: StageState, carry: Vec): void {
   const { f, m, stage } = x;
   if (stickY(x.c) <= -DOWN_FLICK_THRESHOLD) return;
@@ -248,19 +286,25 @@ function catchOnPlatform(x: Ctx, before: StageState, carry: Vec): void {
     const plat = stage.geo.platforms[i]!;
     if (!p.on || !before.platforms[i]!.on || i === f.dropPlatform) continue;
     if (f.ground?.kind === 'platform' && f.ground.index === i) continue;
-    const ry = carry.y - p.dy;
-    if (ry >= 0 || f.pos.x < plat.x1 || f.pos.x > plat.x2) continue;
-    if (!f.ground && f.vel.y + f.kb.y > p.dy) continue;
-    if (!crossing(f.pos.y - ry - plat.y, f.pos.y - plat.y)) continue;
+    const rel = { x: carry.x - p.dx, y: carry.y - p.dy };
+    if (rel.y >= 0 || (!f.ground && f.vel.y + f.kb.y > p.dy)) continue;
+    const from = f.pos.y - rel.y - plat.y;
+    if (!crossing(from, f.pos.y - plat.y)) continue;
+    const cx = f.pos.x - rel.x + (rel.x * from) / -rel.y;
+    if (cx < plat.x1 || cx > plat.x2) continue;
+    f.pos.x = cx;
     standOn(x, { kind: 'platform', index: i });
     return;
   }
 }
 
-/** Put the fighter on surface `g`: a grounded fighter changes surface, an airborne one lands. */
+/**
+ * Put the fighter on surface `g`: an airborne one lands, a grounded one changes surface. A fighter frozen in
+ * hitlag with a launch waiting keeps its action; the launch takes it off the surface when hitlag ends.
+ */
 function standOn(x: Ctx, g: GroundRef): void {
   const { f } = x;
-  if (!f.ground) return land(x, g);
+  if (!f.ground && !f.launch) return land(x, g);
   f.ground = g;
   f.pos.y = surfaceY(x.stage, g, f.pos.x);
 }
