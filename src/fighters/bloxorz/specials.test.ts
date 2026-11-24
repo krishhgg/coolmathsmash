@@ -3,7 +3,7 @@ import type { FighterState } from '../../sim/fighter';
 import { attack, placeInAir, run, runPorts, testMatch, until } from '../../sim/testing/sim';
 import { moves } from './moves';
 import { QUAKE_FRAME, QUAKE_REACH, ROLL_TIPS } from './specials';
-import { TIP_DISTANCE } from './tip';
+import { TIP_DISTANCE, TIP_SHAKE } from './tip';
 
 /** The block (P1) facing right at x = -40 and a second fighter `offset` units to its right, both standing. */
 function versus(offset: number, opts: { fighter?: string; air?: number } = {}) {
@@ -127,7 +127,7 @@ describe('Bloxorz block: Heavy Switch (down special)', () => {
       shake = m.events.reduce((s, e) => (e.type === 'shake' ? Math.max(s, e.amplitude) : s), 0);
     }
     expect(f.ground).not.toBeNull();
-    expect(shake).toBeGreaterThan(4);
+    expect(shake).toBeGreaterThan(TIP_SHAKE.amplitude);
     expect(frames).toBeLessThan(30);
   });
 });

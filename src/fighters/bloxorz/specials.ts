@@ -104,7 +104,7 @@ export const specials: Record<string, MoveDef> = {
         return;
       }
       f.vel.x = 0;
-      if (f.actionFrame === QUAKE_FRAME) emit(x.m, { type: 'shake', port: f.port, amplitude: 6, frames: 16 });
+      if (f.actionFrame === QUAKE_FRAME) emit(x.m, { type: 'shake', port: f.port, amplitude: 4, frames: 12 });
     },
   },
 };
