@@ -234,6 +234,18 @@ export const SCENARIOS: Scenario[] = [
     page: { kind: 'lab', scene: 'menu', params: { screen: 'main' } },
   },
   {
+    name: 'css-2p',
+    description:
+      'Character select, 1v1: P1 (keyboard) has picked Fireboy, a level 9 CPU on Random; Ready to fight shows.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'css', preset: '2p' } },
+  },
+  {
+    name: 'css-4p',
+    description:
+      'Character select, four panels: P1 picked, P2 on a gamepad still choosing, two CPUs (Lv 5, Lv 9).',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'css', preset: '4p' } },
+  },
+  {
     name: 'stage',
     description: 'Coolmath Battlefield on its own at the reference camera (centre 0,20, zoom 4.5).',
     page: { kind: 'lab', scene: 'stage' },

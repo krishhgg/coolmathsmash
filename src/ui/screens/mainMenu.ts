@@ -1,9 +1,10 @@
-import type { Flow, Route, Screen } from '../app';
+import type { Flow, Route, Screen, ScreenDef } from '../app';
 import { planetSvg } from '../art/logo';
 import { h, svg } from '../dom';
 import { isDirection } from '../input';
 import { Focus } from '../nav';
 import { backTab, footerHints, headerPlate } from '../widgets';
+import './mainMenu.css';
 
 interface Tile {
   route: Route;
@@ -40,6 +41,8 @@ const TILES: Tile[] = [
   },
 ];
 
+export const screen: ScreenDef = { route: 'main', create: mainMenuScreen };
+
 /** Ultimate-style main menu: one big red Smash tile and two smaller ones, with a description bar. */
 export function mainMenuScreen(flow: Flow): Screen {
   const blurb = h('div', { class: 'menu-blurb' });
@@ -48,7 +51,12 @@ export function mainMenuScreen(flow: Flow): Screen {
       'button',
       {
         class: `menu-tile ${t.className}`,
-        data: { nav: '', route: t.route, blurb: t.blurb },
+        data: {
+          nav: '',
+          route: t.route,
+          blurb: t.blurb,
+          ...(t.route === 'css' ? { navRight: '.tile-controls' } : {}),
+        },
         disabled: !flow.has(t.route),
         on: { click: () => flow.go(t.route) },
       },

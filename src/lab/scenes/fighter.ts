@@ -17,7 +17,7 @@ export const KEY_STATES = [
   'tumble@8',
   'shield@10',
   'ledgeHang@0',
-  'neutralSpecial@16',
+  'neutralB@16',
 ];
 
 const LABEL = { fontFamily: 'monospace', fontSize: 14, fill: '#ffffff' } as const;
@@ -72,7 +72,7 @@ export const scene: LabScene = {
 
     /** The neutral special's projectile, which the engine spawns and moves in game. */
     const fireball = (parent: Container, clip: string, frame: number, globalFrame: number, zoom: number) => {
-      if (clip !== 'neutralSpecial' || frame < 14 || !art.projectiles?.fireball) return;
+      if (clip !== 'neutralB' || frame < 14 || !art.projectiles?.fireball) return;
       const ball = createPropView(art, 'fireball', palette);
       ball.update(globalFrame);
       ball.container.position.set((8.5 + (frame - 14) * 1.4) * zoom, -4.6 * zoom);

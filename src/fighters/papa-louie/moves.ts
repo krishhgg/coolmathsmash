@@ -1,3 +1,4 @@
+import { stickX } from '../../sim/control';
 import type { HitboxDef, MoveDef } from '../types';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -19,6 +20,12 @@ const box = (
 const grabBox = (id: number, x: number, y: number, radius: number) =>
   box(id, x, y, radius, { damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true });
 
+/**
+ * Paddle Propeller: a steady climb while the rotor hits carry the opponent (from `from`), then a burst from `burst`
+ * to `to` that tapers each frame; about 60 units in all. `steer` is the stick's sideways speed.
+ */
+const PROPELLER = { from: 6, lift: 1.7, burst: 28, to: 36, rise: 3, taper: 0.25, steer: 0.9 };
+
 const fire = 'fire' as const;
 const away = 'away' as const;
 
@@ -33,6 +40,7 @@ export const moves: Record<string, MoveDef> = {
   jab: {
     kind: 'other',
     faf: 20,
+    next: { window: [6, 19], move: 'jab2' },
     hits: [
       {
         frames: [4, 5],
@@ -47,6 +55,7 @@ export const moves: Record<string, MoveDef> = {
   jab2: {
     kind: 'other',
     faf: 21,
+    next: { window: [6, 20], move: 'jab3' },
     hits: [
       {
         frames: [4, 5],
@@ -363,5 +372,66 @@ export const moves: Record<string, MoveDef> = {
     faf: 40,
     hits: [],
     throw: { frame: 22, hit: { damage: 6, angle: 80, kbg: 50, bkb: 60 } },
+  },
+  /**
+   * Paddle Propeller (up special): spins the paddle overhead like a rotor and rises about 60 units, five 1% hits
+   * carrying the opponent up and a 4% finisher at the top. Steers with the stick and can grab the ledge on the way.
+   * TODO(COOL-3): end in his glide (hold jump) instead of helpless once the glide system lands.
+   */
+  upB: {
+    kind: 'other',
+    faf: 46,
+    leavesGround: true,
+    helpless: true,
+    ledgeFrom: 12,
+    landingLag: 22,
+    hits: [
+      ...[6, 10, 14, 18, 22].map((f) => ({
+        frames: [f, f + 1] as [number, number],
+        rehit: true,
+        boxes: [
+          box(0, 0, 17, 5.5, { damage: 1, angle: 90, kbg: 100, bkb: 0, wbkb: 60, direction: away }),
+          box(1, 0, 9, 4.5, { damage: 1, angle: 90, kbg: 100, bkb: 0, wbkb: 60, direction: away }),
+        ],
+      })),
+      {
+        frames: [28, 29],
+        rehit: true,
+        boxes: [
+          box(0, 0, 17, 6, { damage: 4, angle: 80, kbg: 120, bkb: 50, direction: away }),
+          box(1, 0, 9, 5, { damage: 4, angle: 80, kbg: 120, bkb: 50, direction: away }),
+        ],
+      },
+    ],
+    script(x) {
+      const { f, c } = x;
+      if (f.actionFrame < PROPELLER.from) {
+        f.vel.x *= 0.7;
+        f.vel.y = Math.max(f.vel.y * 0.5, 0);
+        return;
+      }
+      if (f.actionFrame > PROPELLER.to) return;
+      f.vel.x = stickX(c) * PROPELLER.steer;
+      f.vel.y =
+        f.actionFrame < PROPELLER.burst
+          ? PROPELLER.lift
+          : PROPELLER.rise - (f.actionFrame - PROPELLER.burst) * PROPELLER.taper;
+    },
+  },
+  /**
+   * Paddle Deflect (down special): holds the paddle up flat, the move PL1 was built around. The paddle's edge hits
+   * on frames 5-6; in the air the stance slows his fall.
+   * TODO(COOL-3): reflect projectiles on frames 5-20 (x1.5 damage, x1.25 speed) once projectiles land.
+   */
+  downB: {
+    kind: 'other',
+    faf: 36,
+    hits: [{ frames: [5, 6], boxes: [box(0, 6.5, 8, 4.5, { damage: 7, angle: 45, kbg: 60, bkb: 45 })] }],
+    script(x) {
+      const { f } = x;
+      if (f.ground || f.actionFrame > 20) return;
+      f.vel.x *= 0.9;
+      f.vel.y = Math.max(f.vel.y, -0.6);
+    },
   },
 };
