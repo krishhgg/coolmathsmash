@@ -38,14 +38,16 @@ function versusMario(move: string, percent: number, spot: Spot) {
   const mx = 75;
   const bx = mx - spot.dx;
   const y = spot.air ? 30 : 0;
-  const common = {
+  const ground = spot.air ? null : a.ground;
+  /** Fresh objects per fighter: the sim mutates velocities in place, so the two must not share one. */
+  const common = () => ({
     vel: { x: 0, y: 0 },
-    ground: spot.air ? null : a.ground,
+    ground: ground && { ...ground },
     action: spot.air ? 'fall' : 'idle',
-  };
-  Object.assign(a, common, { pos: { x: bx, y: y + (spot.dy ?? 0) }, facing, jumpsUsed: 1, intangible: 0 });
+  });
+  Object.assign(a, common(), { pos: { x: bx, y: y + (spot.dy ?? 0) }, facing, jumpsUsed: 1, intangible: 0 });
   a.prevPos = { ...a.pos };
-  Object.assign(v, common, { pos: { x: mx, y }, facing: -1, damage: percent, intangible: 0 });
+  Object.assign(v, common(), { pos: { x: mx, y }, facing: -1, damage: percent, intangible: 0 });
   v.prevPos = { ...v.pos };
   attack(m, 0, move);
   return { m, a, v };
