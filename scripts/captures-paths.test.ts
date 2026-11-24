@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { SCENARIOS, isLabScenario, scenarioConfig } from '../src/harness/scenarios';
 
 /**
- * `.github/workflows/captures.yml` skips PRs that only touch fighter and stage folders no capture scenario draws, so
+ * `.github/workflows/captures.yml` skips PRs that only touch fighter and stage files no capture scenario draws, so
  * every fighter and stage a scenario puts on screen has to be in its path filter.
  */
 const workflow = readFileSync(new URL('../.github/workflows/captures.yml', import.meta.url), 'utf8');
+const listed = (pattern: string) => workflow.includes(`- '${pattern}'`);
 
 function drawn(): string[] {
   const folders = new Set<string>();
@@ -29,7 +30,14 @@ describe('captures.yml path filter', () => {
     expect(folders.length).toBeGreaterThan(1);
     for (const folder of folders) {
       expect(existsSync(new URL(`../${folder}`, import.meta.url)), `${folder} exists`).toBe(true);
-      expect(workflow, `add '${folder}/**' to captures.yml's paths`).toContain(`- '${folder}/**'`);
+      expect(listed(`${folder}/**`), `add '${folder}/**' to captures.yml's paths`).toBe(true);
     }
+  });
+
+  it("includes every fighter's name and art while a scenario shows the character select", () => {
+    const roster = SCENARIOS.some((s) => isLabScenario(s) && s.page.params?.screen === 'css');
+    expect(roster).toBe(true);
+    for (const pattern of ['src/fighters/*/index.ts', 'src/fighters/*/art/**'])
+      expect(listed(pattern), `add '${pattern}' to captures.yml's paths`).toBe(true);
   });
 });

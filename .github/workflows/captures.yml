@@ -5,6 +5,8 @@ on:
     paths:
       - 'src/**'
       - '!src/fighters/*/**'
+      - 'src/fighters/*/index.ts'
+      - 'src/fighters/*/art/**'
       - 'src/fighters/fireboy/**'
       - 'src/fighters/watergirl/**'
       - '!src/stages/*/**'

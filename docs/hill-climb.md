@@ -14,8 +14,10 @@ first, looks second. The intent and the rubric's origin are in the Captain drive
 | Aggregator     | `npm run judge:aggregate` (`scripts/judge-aggregate.ts`) | Validates the judges' JSON, writes `scoreboard.md`/`.json`, appends a history row                                                                |
 | CI             | `.github/workflows/captures.yml`                         | Captures each PR that can change a capture and uploads `captures/ci` as the `captures-<sha>` artifact                                            |
 
-The Captures workflow skips PRs that only touch tests, docs, audio, or fighter and stage folders that no scenario draws.
-`scripts/captures-paths.test.ts` fails when a scenario draws a fighter or stage that is missing from its path filter.
+The Captures workflow skips PRs that only touch tests, docs, audio, or fighter and stage files that no scenario draws:
+another fighter's moves and stats skip it, while every fighter's `index.ts` (name) and `art/` (character-select icon
+and costumes) trigger it. `scripts/captures-paths.test.ts` fails when a scenario draws a fighter or stage that is
+missing from its path filter.
 
 ## Run one round
 
