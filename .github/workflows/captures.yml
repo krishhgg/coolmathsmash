@@ -2,10 +2,32 @@ name: Captures
 
 on:
   pull_request:
+    paths:
+      - 'src/**'
+      - '!src/fighters/*/**'
+      - 'src/fighters/fireboy/**'
+      - 'src/fighters/watergirl/**'
+      - '!src/stages/*/**'
+      - 'src/stages/battlefield/**'
+      - '!src/**/*.test.ts'
+      - 'index.html'
+      - 'lab.html'
+      - 'public/**'
+      - '!public/audio/**'
+      - 'scripts/capture.ts'
+      - 'scripts/lib/**'
+      - 'e2e/capture.spec.ts'
+      - 'playwright.config.ts'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.nvmrc'
+      - '.github/workflows/captures.yml'
   workflow_dispatch:
 
 concurrency:
-  group: captures-${{ github.ref }}
+  group: captures-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -19,12 +41,28 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-shell
+      - run: npx playwright install --with-deps --only-shell chromium
+      - run: sudo apt-get install -y --no-install-recommends ffmpeg
       - run: npm run capture -- --build --out captures/ci
+      - name: Captures are byte-identical across runs (e2e/capture.spec.ts)
+        run: npx playwright test e2e/capture.spec.ts --grep "byte-identical PNGs"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: captures-${{ github.event.pull_request.head.sha || github.sha }}
           path: captures/ci
           retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-captures
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
