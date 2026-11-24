@@ -72,6 +72,16 @@ export interface FighterState {
   ledgeFresh: boolean;
   /** Frames until a KO'd fighter reappears on the respawn platform. */
   respawnTimer: number;
+  /** Port of the other fighter in this fighter's grab, holding or held (-1 = none). */
+  grabPartner: number;
+  /** Held fighter: hold frames left after mashing; it breaks free at 0 (after GRAB.minHold frames). */
+  grabTimer: number;
+  /** Held fighter: damage taken from fighters outside the grab; GRAB.breakDamage frees it. */
+  grabDamage: number;
+  /** First match frame this fighter can be grabbed again (regrab immunity after a grab release). */
+  grabbableFrom: number;
+  /** First match frame a shield grab can come out (GRAB.shieldGrabLock frames after shieldstun). */
+  shieldGrabFrom: number;
 }
 
 export function createFighter(
@@ -118,6 +128,11 @@ export function createFighter(
     ledgeLock: 0,
     ledgeFresh: true,
     respawnTimer: 0,
+    grabPartner: -1,
+    grabTimer: 0,
+    grabDamage: 0,
+    grabbableFrom: 0,
+    shieldGrabFrom: 0,
   };
 }
 

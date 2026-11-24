@@ -15,7 +15,7 @@ export interface Overlays {
   inputs: boolean;
   /** Action names over fighters. */
   actions: boolean;
-  /** Hurtboxes (yellow) and active hitboxes (red). */
+  /** Hurtboxes (yellow), active hitboxes (red) and grab boxes (purple). */
   hitboxes: boolean;
   /** The latest sim events. */
   events: boolean;
@@ -130,7 +130,7 @@ export class Renderer {
         alpha: 0.35,
       });
       for (const b of activeHitboxes(f))
-        g.circle(b.x, -b.y, b.box.radius).fill({ color: '#ff2a2a', alpha: 0.55 });
+        g.circle(b.x, -b.y, b.box.radius).fill({ color: b.box.grab ? '#a33cff' : '#ff2a2a', alpha: 0.55 });
     }
   }
 }
