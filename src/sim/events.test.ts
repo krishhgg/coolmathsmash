@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DAMAGE_MAX } from './combat/hits';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
 import type { MatchState } from './match';
@@ -47,6 +48,28 @@ describe('sim events', () => {
     expect(hit!.y).toBeCloseTo(a.pos.y + 8, 9);
     run(m, 1);
     expect(of(m, 'hit')).toEqual([]);
+  });
+
+  it('trading hits report both moves', () => {
+    const { m, a, v } = duel();
+    Object.assign(a, { pos: { x: -6, y: 0 }, prevPos: { x: -6, y: 0 } });
+    Object.assign(v, { pos: { x: 6, y: 0 }, prevPos: { x: 6, y: 0 } });
+    attack(m, 0, 'probe');
+    attack(m, 1, 'probe');
+    run(m, 1);
+    expect(of(m, 'hit').map((e) => [e.attacker, e.victim, e.move])).toEqual([
+      [0, 1, 'probe'],
+      [1, 0, 'probe'],
+    ]);
+  });
+
+  it('at the damage cap a hit reports only the % it added', () => {
+    const { m, v } = duel();
+    v.damage = 998.5;
+    attack(m, 0, 'probe');
+    run(m, 1);
+    expect(v.damage).toBe(DAMAGE_MAX);
+    expect(of(m, 'hit')[0]!.damage).toBeCloseTo(0.5, 9);
   });
 
   it('a shielded hit reports the shield health left', () => {

@@ -81,6 +81,8 @@ interface Connection {
   shielding: boolean;
   /** World position of the hitbox that connected. */
   at: { x: number; y: number };
+  /** The attacker's move, kept here because an earlier hit this frame may clear it. */
+  move: string | null;
 }
 
 /**
@@ -127,6 +129,7 @@ export function resolveHits(m: MatchState): void {
         crouch: v.action === 'crouch' && v.ground !== null,
         shielding: v.action === 'shield' || v.action === 'shieldStun',
         at,
+        move,
       });
     }
   }
@@ -145,7 +148,7 @@ export function resolveHits(m: MatchState): void {
  */
 function hit(
   m: MatchState,
-  { a, v, box, damage: base, stale, rage, dir, percent, crouch, at }: Connection,
+  { a, v, box, damage: base, stale, rage, dir, percent, crouch, at, move }: Connection,
   again: boolean,
 ): void {
   const kb = knockback({
@@ -160,8 +163,8 @@ function hit(
     crouch,
   });
   const damage = base * stale;
-  const dealt = damage * (m.players.length === 2 ? ONE_V_ONE_DAMAGE : 1);
-  v.damage = Math.min(DAMAGE_MAX, v.damage + dealt);
+  const before = v.damage;
+  v.damage = Math.min(DAMAGE_MAX, v.damage + damage * (m.players.length === 2 ? ONE_V_ONE_DAMAGE : 1));
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric', crouch });
   a.hitlag = lag;
   v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
@@ -169,8 +172,8 @@ function hit(
     type: 'hit',
     attacker: a.port,
     victim: v.port,
-    move: a.move,
-    damage: dealt,
+    move,
+    damage: v.damage - before,
     kb,
     tumble: isTumble(kb),
     hitlag: lag,
@@ -187,7 +190,7 @@ function hit(
 
 function shieldHit(
   m: MatchState,
-  { a, v, box, kind, damage: base, stale, dir, at }: Connection,
+  { a, v, box, kind, damage: base, stale, dir, at, move }: Connection,
   again: boolean,
 ): void {
   const damage = base * stale;
@@ -207,7 +210,7 @@ function shieldHit(
     type: 'shieldHit',
     attacker: a.port,
     victim: v.port,
-    move: a.move,
+    move,
     damage,
     shieldHp: v.shieldHp,
     x: at.x,
