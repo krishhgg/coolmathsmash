@@ -1,7 +1,7 @@
 import { getFighter } from '../../fighters/registry';
 import type { FighterStats, HitboxDef, MoveKind } from '../../fighters/types';
 import { chargeMultiplier, moveOf } from '../actions/attack';
-import { findGrabs, grabHitLaunches, resolveGrabs } from '../actions/grab';
+import { findGrabs, grabArmour, resolveGrabs } from '../actions/grab';
 import { inWindow, isIntangible } from '../actions/registry';
 import { LEDGE_HIT_LOCK } from '../constants';
 import { stickX, stickY } from '../control';
@@ -215,9 +215,10 @@ function hit(
     x: at.x,
     y: at.y,
   });
-  if (!grabHitLaunches(m, v, damage)) return;
+  const held = grabArmour(m, v, damage);
   if (again && v.launch && v.launch.kb >= kb) return;
   v.launch = { kb, angle: box.angle, dir, setKnockback: (box.wbkb ?? 0) > 0 };
+  if (held) return;
   v.action = isTumble(kb) ? 'tumble' : 'hitstun';
   v.actionFrame = 0;
   v.move = null;

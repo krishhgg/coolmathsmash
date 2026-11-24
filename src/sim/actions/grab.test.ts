@@ -3,6 +3,7 @@ import { moves } from '../../fighters/fireboy/moves';
 import { stats } from '../../fighters/fireboy/stats';
 import ref from '../reference/physics-constants.json';
 import { knockback, launch, rageMultiplier, speedUp } from '../combat/formulas';
+import { GRAB } from '../constants';
 import type { FighterState } from '../fighter';
 import type { MatchState } from '../match';
 import { attack, runPorts, testMatch, type Hold } from '../testing/sim';
@@ -315,5 +316,64 @@ describe('grabs with more players', () => {
     step(t.m, 6);
     expect(t.a.damage).toBe(0);
     expect(t.v.action).toBe('grabbed');
+  });
+
+  it('one hit on both grab partners launches the holder and frees the held fighter, whatever their ports', () => {
+    for (const holder of [0, 1]) {
+      const d = duel(12, 30);
+      const [a, v] = holder === 0 ? [d.a, d.v] : [d.v, d.a];
+      step(d.m, 1, holder === 0 ? [{ buttons: ['grab'] }] : [{}, { buttons: ['grab'] }]);
+      for (let i = 0; i < 10 && v.action !== 'grabbed'; i++) step(d.m, 1);
+      expect(v.action).toBe('grabbed');
+      const x = (a.pos.x + v.pos.x) / 2;
+      Object.assign(d.c, { pos: { x, y: 6 }, prevPos: { x, y: 6 }, vel: { x: 0, y: 0 }, ground: null });
+      attack(d.m, 2, 'nair');
+      for (let i = 0; i < 6 && v.damage === 0; i++) step(d.m, 1);
+      expect(a.damage).toBeCloseTo(8 * 1.05, 6);
+      expect(v.damage).toBeCloseTo(8 * 1.05, 6);
+      expect(a.launch).not.toBeNull();
+      expect(['hitstun', 'tumble']).toContain(a.action);
+      expect(v.launch).toBeNull();
+      expect(v.action).toBe('grabRelease');
+    }
+  });
+});
+
+describe('grab release', () => {
+  /** P1 holds P2 with his feet at (x, y) on `ground`, facing `facing`, until the hold runs out at 0%; returns on the frame both are released. */
+  function releasedAt(x: number, y: number, facing: 1 | -1 = 1, ground?: FighterState['ground']) {
+    const d = grabbed();
+    Object.assign(d.a, { pos: { x, y }, prevPos: { x, y }, facing, ground: ground ?? d.a.ground });
+    holdFrames(d);
+    return d;
+  }
+
+  it('pushed off the stage, the held fighter stays in grab release as long as the holder', () => {
+    const { m, a, v } = releasedAt(70, 0);
+    let airborne = false;
+    for (let i = 0; i < GRAB.releaseLag; i++) {
+      step(m, 1);
+      airborne ||= v.ground === null;
+      expect(v.action).toBe('grabRelease');
+      expect(a.action).toBe('grabRelease');
+    }
+    expect(airborne).toBe(true);
+    step(m, 1);
+    expect(v.action).toBe('fall');
+    expect(a.action).toBe('idle');
+  });
+
+  it('pushed off a platform, the held fighter keeps its grab release through the landing', () => {
+    const { m, a, v } = releasedAt(34, 24.12, -1, { kind: 'platform', index: 2 });
+    let landed = false;
+    for (let i = 0; i < GRAB.releaseLag; i++) {
+      step(m, 1);
+      landed ||= v.ground?.kind === 'solid';
+      expect(v.action).toBe('grabRelease');
+    }
+    expect(landed).toBe(true);
+    step(m, 1);
+    expect(v.action).toBe('idle');
+    expect(a.action).toBe('idle');
   });
 });

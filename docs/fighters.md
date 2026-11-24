@@ -162,9 +162,12 @@ bthrow: {
 - **Hold time** is floor(90 + 1.7 × %) frames at the moment of the grab. Each new stick direction the victim
   mashes cuts 8 frames and each button press 14.4, but a hold lasts at least 19 frames. Then both slide apart into
   `grabRelease` (29 frames of lag each, so neither has the advantage), and the freed fighter can't be grabbed for
-  60 frames.
+  60 frames. A fighter pushed off a floor edge keeps the rest of its grab release in the air and through the
+  landing.
 - **More players.** Hitting the holder frees the held fighter. A held fighter takes hits from others without being
-  launched until they add up to 10%; then it breaks free and is launched as usual.
+  launched until they add up to 10%; then it breaks free and is launched by the strongest of that frame's hits.
+  Hits on both partners in one frame are judged from the grab as it stood before them, so ports never change the
+  outcome: one hit on both launches the holder and frees the held fighter unless it also reaches 10%.
 - **Same frame.** Grabs resolve after the frame's hits (`src/sim/actions/grab.ts`). An attack beats a grab: a
   fighter struck this frame neither grabs nor is grabbed. Two fighters grabbing each other clank, as in
   Ultimate: both go into grab release and take 1% (1.2% in 1v1). Otherwise grabs resolve in port order, so when

@@ -1,6 +1,6 @@
 import { getFighter } from '../../fighters/registry';
 import { Btn, type InputFrame } from '../../input/types';
-import { grabHoldFrames, hitlagFrames } from '../combat/formulas';
+import { grabHoldFrames, hitlagFrames, isTumble } from '../combat/formulas';
 import { activeHitboxes, addDamage, applyHit, hittable, hurtbox, touches } from '../combat/hits';
 import { DIRECTION_THRESHOLD, GRAB } from '../constants';
 import { emit } from '../events';
@@ -129,13 +129,14 @@ export const GRAB_ACTIONS: Record<string, ActionDef> = {
     },
   },
 
-  /** Pushed apart after a grab that ended without a throw. */
+  /** Pushed apart after a grab that ended without a throw; pushed off a floor, the recovery goes on in the air. */
   grabRelease: {
     physics: 'ground',
-    edge: 'fall',
+    edge: 'keep',
     update(x) {
-      if (x.f.actionFrame > GRAB.releaseLag) setAction(x, 'idle');
+      if (x.f.actionFrame > GRAB.releaseLag) setAction(x, x.f.ground ? 'idle' : 'fall');
     },
+    land() {},
   },
 };
 
@@ -181,13 +182,14 @@ export function findGrabs(m: MatchState): GrabContact[] {
 }
 
 /**
- * Grab interactions, after the frame's hits (resolveHits calls this). In order: pummels and throws land on their
- * frame; held fighters whose hold ran out break free (not once a throw has started); new grabs connect; held
- * fighters move to their holder's hands. New grabs go in port order: two fighters grabbing each other clank (both
+ * Grab interactions, after the frame's hits (resolveHits calls this). In order: the frame's hits on fighters in a
+ * grab break it or not; pummels and throws land on their frame; held fighters whose hold ran out break free (not
+ * once a throw has started); new grabs connect; held fighters move to their holder's hands. New grabs go in port order: two fighters grabbing each other clank (both
  * go into grab release and take GRAB.clankDamage), a fighter caught by two grabs goes to the lower port, and a
  * fighter struck by a hit this frame neither grabs nor is grabbed, so attacks beat grabs.
  */
 export function resolveGrabs(m: MatchState, contacts: GrabContact[], struck: Set<FighterState>): void {
+  for (const v of m.fighters) if (v.action === 'grabbed') grabStruck(m, v, struck);
   for (const a of m.fighters) heldHit(m, a, struck.has(m.fighters[a.grabPartner]!));
   for (const v of m.fighters) if (v.action === 'grabbed') holdRunsOut(m, v);
   const taken = new Set<FighterState>();
@@ -238,15 +240,10 @@ function toRelease(f: FighterState, dir: number): void {
 }
 
 /**
- * End a grab without a throw: both slide apart into grab release, except `launched`, whom a hit is launching
- * instead. The held fighter can't be grabbed again for GRAB.regrabImmunity frames.
+ * End a grab without a throw: both slide apart into grab release, except a fighter that a hit is launching this
+ * frame. The held fighter can't be grabbed again for GRAB.regrabImmunity frames.
  */
-function endGrab(
-  m: MatchState,
-  holder: FighterState | undefined,
-  held: FighterState,
-  launched?: FighterState,
-) {
+function endGrab(m: MatchState, holder: FighterState | undefined, held: FighterState) {
   const dir = holder ? Math.sign(held.pos.x - holder.pos.x) || holder.facing : -held.facing;
   for (const [f, d] of [
     [holder, -dir],
@@ -254,29 +251,36 @@ function endGrab(
   ] as const) {
     if (!f) continue;
     f.grabPartner = -1;
-    if (f !== launched) toRelease(f, d);
+    if (!f.launch) toRelease(f, d);
   }
   held.grabbableFrom = m.frame + 1 + GRAB.regrabImmunity;
   emit(m, { type: 'grabRelease', holder: holder?.port ?? -1, held: held.port });
 }
 
 /**
- * A hit landing on a fighter in a grab, before it launches (hits.ts). Hitting the holder frees the held fighter
- * into grab release. A held fighter armours through hits from others, taking damage and hitlag only, until they
- * add up to GRAB.breakDamage; then it breaks free and is launched while the holder goes into grab release.
- * False when the hit must not launch.
+ * A hit landing on a held fighter (hits.ts): its damage counts towards GRAB.breakDamage, and the fighter stays
+ * grabbed, its launch only pending, until grabStruck decides after all of the frame's hits. True when `v` is held.
  */
-export function grabHitLaunches(m: MatchState, v: FighterState, damage: number): boolean {
-  const partner = m.fighters[v.grabPartner];
-  if (!partner || partner.grabPartner !== v.port) return true;
-  if (v.action === 'grabbed') {
-    v.grabDamage += damage;
-    if (v.grabDamage < GRAB.breakDamage) return false;
-    endGrab(m, partner, v, v);
-  } else if (HOLDING.has(v.action)) {
-    endGrab(m, v, partner, v);
-  }
+export function grabArmour(m: MatchState, v: FighterState, damage: number): boolean {
+  if (v.action !== 'grabbed' || m.fighters[v.grabPartner]?.grabPartner !== v.port) return false;
+  v.grabDamage += damage;
   return true;
+}
+
+/**
+ * This frame's hits on a grab, judged from the grab as it stood before any of them landed, so port order never
+ * changes the outcome. A held fighter armours through hits from others, taking damage and hitlag only, until they
+ * add up to GRAB.breakDamage; then it breaks free and takes the strongest of the frame's launches. Hitting the
+ * holder launches him and frees the held fighter into grab release.
+ */
+function grabStruck(m: MatchState, v: FighterState, struck: Set<FighterState>): void {
+  const a = m.fighters[v.grabPartner];
+  if (!a || a.grabPartner !== v.port || (!struck.has(v) && !struck.has(a))) return;
+  const breaks = v.launch !== null && v.grabDamage >= GRAB.breakDamage;
+  if (breaks)
+    Object.assign(v, { action: isTumble(v.launch!.kb) ? 'tumble' : 'hitstun', actionFrame: 0, move: null });
+  else v.launch = null;
+  if (breaks || struck.has(a)) endGrab(m, a, v);
 }
 
 function grab(m: MatchState, a: FighterState, v: FighterState): void {
