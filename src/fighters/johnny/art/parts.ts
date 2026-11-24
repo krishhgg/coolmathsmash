@@ -878,3 +878,81 @@ export const parts: Record<string, Part> = {
 };
 
 export const boots = { boot: boot(NEAR), bootFar: boot(FAR) };
+
+// ---------------------------------------------------------------------------------------------------------
+// Strike effects, drawn in the effect bones' space.
+
+/** Impact burst: an eight-point white star with a yellow core, radius 1 at scale 1. */
+export const impact: PathShape[] = [
+  inked(star(0, 0, 1, 0.46, 8, -90), 'hit', 'hitLine', 0.06),
+  fill(star(0, 0, 0.6, 0.3, 8, -68), 'hitHi'),
+];
+
+/**
+ * A motion smear: its blunt front edge on the origin, tapering to a point at x = 1 and fading out, half-width 1.
+ * Scale x by the trail's length and y by its half-width.
+ */
+export const smear: PathShape[] = [
+  {
+    d: smooth([
+      [0, -1, 0],
+      [0.35, -0.72],
+      [1, 0, 0],
+      [0.35, 0.72],
+      [0, 1, 0],
+      [-0.05, 0],
+    ]),
+    fill: {
+      type: 'linear',
+      x0: 0,
+      y0: 0,
+      x1: 1,
+      y1: 0,
+      stops: [
+        { offset: 0, color: 'smear', alpha: 0.9 },
+        { offset: 0.55, color: 'smear', alpha: 0.45 },
+        { offset: 1, color: 'smear', alpha: 0 },
+      ],
+    },
+  },
+  {
+    d: smooth([
+      [0, -0.4, 0],
+      [0.5, -0.2],
+      [0.8, 0, 0],
+      [0.5, 0.2],
+      [0, 0.4, 0],
+    ]),
+    fill: {
+      type: 'linear',
+      x0: 0,
+      y0: 0,
+      x1: 0.8,
+      y1: 0,
+      stops: [
+        { offset: 0, color: 'smearHi', alpha: 0.9 },
+        { offset: 1, color: 'smearHi', alpha: 0 },
+      ],
+    },
+  },
+];
+
+const ARC: P[] = [];
+for (let i = 0; i <= 10; i++) {
+  const a = ((-150 + i * 15) * Math.PI) / 180;
+  ARC.push([Math.cos(a), Math.sin(a)]);
+}
+for (let i = 10; i >= 0; i--) {
+  const a = ((-150 + i * 15) * Math.PI) / 180;
+  const r = 1 - 0.42 * (i / 10) ** 1.5;
+  ARC.push([Math.cos(a) * r, Math.sin(a) * r]);
+}
+
+/** A swing swoosh: a crescent around the unit circle from -150 deg (thin tail) to 0 deg (thick head), clockwise. */
+export const swoosh: PathShape[] = [
+  { d: poly(ARC), fill: 'smear', stroke: { color: 'smearLine', width: 0.03 } },
+  {
+    d: poly(ARC.map(([x, y], i) => (i <= 10 ? [x * 0.93, y * 0.93] : [x * 1.02, y * 1.02]))),
+    fill: 'smearHi',
+  },
+];

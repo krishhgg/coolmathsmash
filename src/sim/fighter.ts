@@ -55,6 +55,8 @@ export interface FighterState {
   hitstun: number;
   /** Un-sped first actionable frame of the current tumble launch, for balloon speed-up (0 = none). */
   speedUpFaf: number;
+  /** The current launch is near-vertical (70-110 degree tumble): DamageFlyTop gravity and fall speed during hitstun. */
+  flyTop: boolean;
   launch: PendingLaunch | null;
   /** Ports the current move has already hit. */
   hitVictims: number[];
@@ -120,6 +122,7 @@ export function createFighter(
     hitlag: 0,
     hitstun: 0,
     speedUpFaf: 0,
+    flyTop: false,
     launch: null,
     hitVictims: [],
     moveStale: 0,
