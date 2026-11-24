@@ -9,7 +9,7 @@ import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
-import { MatchHud } from './hud';
+import { MatchHud, OverheadTags } from './hud';
 import { drawMovingPieces, isMoving } from './stagePieces';
 
 export interface Overlays {
@@ -31,6 +31,9 @@ export class Renderer {
   readonly camera = new Camera();
   private readonly inputDisplay = new InputDisplay();
   private readonly matchHud = new MatchHud();
+  private readonly tags = new OverheadTags();
+  /** Ports a CPU plays; their overhead tags are grey and read "CPU". */
+  readonly cpus = new Set<number>();
   private readonly stageLayer = new Container();
   private readonly stagePieces = new Graphics();
   private readonly fighterLayer = new Container();
@@ -48,7 +51,7 @@ export class Renderer {
     this.world.addChild(this.stageLayer, this.stagePieces, this.fighterLayer, this.boxes);
     app.stage.addChild(this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
-    this.hud.addChild(this.matchHud.hud.container);
+    this.hud.addChild(this.tags.container, this.matchHud.hud.container);
   }
 
   static async create(parent: HTMLElement): Promise<Renderer> {
@@ -109,6 +112,19 @@ export class Renderer {
     drawMovingPieces(this.stagePieces, this.stage!, state.stage, state.frame, alpha);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
     this.drawBoxes(state);
+    this.tags.update(
+      state.fighters.map((f, i) => {
+        const v = this.fighters[i];
+        const at = v?.container.position;
+        return {
+          port: f.port,
+          cpu: this.cpus.has(f.port),
+          visible: !!v?.container.visible,
+          x: this.world.position.x + (at?.x ?? 0) * view.zoom,
+          y: this.world.position.y + ((at?.y ?? 0) - (v?.top ?? 0) - 1) * view.zoom,
+        };
+      }),
+    );
     this.matchHud.update(
       state,
       state.fighters.map((f) => ({
