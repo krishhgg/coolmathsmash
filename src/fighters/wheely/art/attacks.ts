@@ -418,7 +418,12 @@ export const attacks: Record<string, AnimClip> = {
       ),
       key(
         13,
-        mix(bob(0.25), spin(1300), { body: { sx: 0.12 }, fx1: at(0, 0, 1.5), fx4: at(-1, -1.8, 1.4) }),
+        mix(bob(0.25), spin(1300), {
+          body: { sx: 0.12 },
+          fx1: at(0, 0, 1.5),
+          fx2: at(10.4, -3, 1.55),
+          fx4: at(-1, -1.8, 1.4),
+        }),
         { ease: 'step' },
       ),
       key(
