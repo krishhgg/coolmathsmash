@@ -5,5 +5,12 @@
     "evokes": "a Smash Ultimate-style menu theme",
     "loopStart": 0,
     "loopEnd": 51.2
+  },
+  "worlds-hardest-game": {
+    "file": "music/worlds-hardest-game.mp3",
+    "title": "World's Hardest Stage",
+    "evokes": "The World's Hardest Game (Snubby Land): an original tense electro-house loop in the spirit of its Flash soundtrack",
+    "loopStart": 0,
+    "loopEnd": 40.563379
   }
 }
