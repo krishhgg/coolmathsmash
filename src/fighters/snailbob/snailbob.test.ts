@@ -157,6 +157,20 @@ describe('Snail Bob: frame data', () => {
     ['grab', 0, 9],
   ];
 
+  it('Snail Punches: three Attack presses chain jab, jab2 and jab3 for 2% + 2% + 3.5%', () => {
+    const { m, a, v } = vsMario();
+    place(a, 0).facing = 1;
+    place(v, 13);
+    Object.assign(v, { ground: a.ground, action: 'idle', intangible: 0 });
+    const seen: string[] = [];
+    for (let i = 0; i < 70; i++) {
+      runPorts(m, 1, [i % 12 === 0 && i < 36 ? { buttons: ['attack'] } : {}, {}]);
+      if (a.move && seen.at(-1) !== a.move) seen.push(a.move);
+    }
+    expect(seen).toEqual(['jab', 'jab2', 'jab3']);
+    expect(v.damage).toBeCloseTo((2 + 2 + 3.5) * 1.05 * 1.2, 6);
+  });
+
   it.each(ROSTER)('%s: %s%% from frame %s', (name, damage, startup) => {
     const move = moves[name]!;
     expect(move.hits[0]!.frames[0]).toBe(startup);
