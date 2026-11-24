@@ -22,9 +22,9 @@ export const HOP = { frame: 3, speed: 0.8 };
 export const TREADMILL = { frames: [8, 12, 16, 20], damage: 1 };
 
 /**
- * The Runner's normals: Kirby's kit shape (rapid jab, strong back air, drill down air, piledriver up throw) with
- * the damage and startup from handoffs/research/roster.md, and the rest of each move's frame data from Kirby's
- * (and for her dropkick and split kick, Sonic-speed versions of Kirby's) Ultimate numbers. Frame windows are
+ * The Runner's moves: Kirby's kit shape (rapid jab, strong back air, drill down air, piledriver up throw) with
+ * the damage and startup from handoffs/research/roster.md. Angles, base knockback and knockback growth are
+ * Kirby's Ultimate values (Kurogane Hammer) wherever Kirby has the move; the rest are her own. Frame windows are
  * inclusive, faf is the first actionable frame, and move names double as animation clip names.
  */
 export const moves: Record<string, MoveDef> = {
@@ -42,8 +42,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [5, 8],
         boxes: [
-          box(0, 9.5, 6, 3.8, { damage: 8, angle: 361, kbg: 75, bkb: 40 }),
-          box(1, 5, 6, 3, { damage: 7, angle: 361, kbg: 75, bkb: 40 }),
+          box(0, 9.5, 6, 3.8, { damage: 8, angle: 361, kbg: 100, bkb: 40 }),
+          box(1, 5, 6, 3, { damage: 7, angle: 361, kbg: 100, bkb: 40 }),
         ],
       },
     ],
@@ -68,8 +68,8 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 38,
     hits: [
-      { frames: [7, 12], boxes: [box(0, 6, 5, 4.5, { damage: 9, angle: 46, kbg: 52, bkb: 70 })] },
-      { frames: [13, 20], boxes: [box(0, 5, 4, 4, { damage: 6, angle: 76, kbg: 45, bkb: 60 })] },
+      { frames: [7, 12], boxes: [box(0, 6, 5, 4.5, { damage: 9, angle: 46, kbg: 66, bkb: 82 })] },
+      { frames: [13, 20], boxes: [box(0, 5, 4, 4, { damage: 6, angle: 76, kbg: 50, bkb: 80 })] },
     ],
   },
   /** Running Dropkick: a two-footed flying kick, her main horizontal finisher. Charges on frame 8. */
@@ -81,11 +81,11 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [12, 14],
         boxes: [
-          box(0, 11, 6, 4.5, { damage: 15, angle: 361, kbg: 72, bkb: 32 }),
-          box(1, 6, 6, 3.5, { damage: 15, angle: 361, kbg: 72, bkb: 32 }),
+          box(0, 11, 6, 4.5, { damage: 15, angle: 361, kbg: 109, bkb: 32 }),
+          box(1, 6, 6, 3.5, { damage: 15, angle: 361, kbg: 109, bkb: 32 }),
         ],
       },
-      { frames: [15, 18], boxes: [box(0, 10, 5, 4, { damage: 11, angle: 60, kbg: 55, bkb: 70 })] },
+      { frames: [15, 18], boxes: [box(0, 10, 5, 4, { damage: 11, angle: 60, kbg: 69, bkb: 90 })] },
     ],
   },
   /** Handstand Flip: kicks straight up out of a handstand; the legs sweep from the front to overhead. */
@@ -97,13 +97,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [10, 12],
         boxes: [
-          box(0, 0, 14, 5.5, { damage: 14, angle: 85, kbg: 95, bkb: 36, direction: 'away' }),
-          box(1, 5, 6, 4, { damage: 14, angle: 85, kbg: 95, bkb: 36 }),
+          box(0, 0, 14, 5.5, { damage: 14, angle: 85, kbg: 104, bkb: 36, direction: 'away' }),
+          box(1, 5, 6, 4, { damage: 14, angle: 85, kbg: 104, bkb: 36 }),
         ],
       },
       {
         frames: [13, 15],
-        boxes: [box(0, 0, 14, 5, { damage: 10, angle: 80, kbg: 90, bkb: 20, direction: 'away' })],
+        boxes: [box(0, 0, 14, 5, { damage: 10, angle: 88, kbg: 98, bkb: 20, direction: 'away' })],
       },
     ],
   },
@@ -116,15 +116,15 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [6, 8],
         boxes: [
-          box(0, 8.5, 2, 4.2, { damage: 13, angle: 29, kbg: 71, bkb: 25 }),
-          box(1, -8.5, 2, 4.2, { damage: 13, angle: 29, kbg: 71, bkb: 25, direction: 'back' }),
+          box(0, 8.5, 2, 4.2, { damage: 13, angle: 29, kbg: 89, bkb: 25 }),
+          box(1, -8.5, 2, 4.2, { damage: 13, angle: 29, kbg: 89, bkb: 25, direction: 'back' }),
         ],
       },
       {
         frames: [9, 12],
         boxes: [
-          box(0, 8, 2, 3.8, { damage: 9, angle: 29, kbg: 65, bkb: 20 }),
-          box(1, -8, 2, 3.8, { damage: 9, angle: 29, kbg: 65, bkb: 20, direction: 'back' }),
+          box(0, 8, 2, 3.8, { damage: 9, angle: 29, kbg: 89, bkb: 25 }),
+          box(1, -8, 2, 3.8, { damage: 9, angle: 29, kbg: 89, bkb: 25, direction: 'back' }),
         ],
       },
     ],
@@ -141,11 +141,11 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [6, 9],
-        boxes: [box(0, 0, 6.5, 6, { damage: 9, angle: 46, kbg: 80, bkb: 35, direction: 'away' })],
+        boxes: [box(0, 0, 6.5, 6, { damage: 9, angle: 46, kbg: 100, bkb: 35, direction: 'away' })],
       },
       {
         frames: [10, 24],
-        boxes: [box(0, 0, 6.5, 5.5, { damage: 6, angle: 46, kbg: 75, bkb: 30, direction: 'away' })],
+        boxes: [box(0, 0, 6.5, 5.5, { damage: 6, angle: 46, kbg: 90, bkb: 30, direction: 'away' })],
       },
     ],
   },
@@ -163,7 +163,7 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [13, 15],
         rehit: true,
-        boxes: [box(0, 8, 5, 4.5, { damage: 5, angle: 361, kbg: 125, bkb: 30 })],
+        boxes: [box(0, 8, 5, 4.5, { damage: 5, angle: 361, kbg: 148, bkb: 30 })],
       },
     ],
   },
@@ -179,11 +179,11 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [6, 8],
-        boxes: [box(0, -8, 6, 4.2, { damage: 13, angle: 361, kbg: 79, bkb: 15, direction: 'back' })],
+        boxes: [box(0, -8, 6, 4.2, { damage: 13, angle: 361, kbg: 100, bkb: 15, direction: 'back' })],
       },
       {
         frames: [9, 12],
-        boxes: [box(0, -7, 6, 3.5, { damage: 8, angle: 361, kbg: 90, bkb: 0, direction: 'back' })],
+        boxes: [box(0, -7, 6, 3.5, { damage: 8, angle: 361, kbg: 112, bkb: 0, direction: 'back' })],
       },
     ],
   },
@@ -237,8 +237,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [14, 17],
         boxes: [
-          box(0, 11, 3, 5.5, { damage: 8, angle: 90, kbg: 97, bkb: 50 }),
-          box(1, 5.5, 2, 3.5, { damage: 8, angle: 90, kbg: 97, bkb: 50 }),
+          box(0, 11, 3, 5.5, { damage: 8, angle: 90, kbg: 90, bkb: 50 }),
+          box(1, 5.5, 2, 3.5, { damage: 8, angle: 90, kbg: 90, bkb: 50 }),
         ],
       },
     ],
@@ -272,7 +272,7 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 44,
     hits: [],
-    throw: { frame: 30, hit: { damage: 10, angle: 45, kbg: 65, bkb: 55, direction: 'back' } },
+    throw: { frame: 30, hit: { damage: 10, angle: 50, kbg: 120, bkb: 30, direction: 'back' } },
   },
   /**
    * Gravity Piledriver: flips gravity, falls up with them, and slams them down (Kirby's up throw role): her
@@ -282,7 +282,7 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 58,
     hits: [],
-    throw: { frame: 36, hit: { damage: 10, angle: 88, kbg: 76, bkb: 70 } },
+    throw: { frame: 36, hit: { damage: 10, angle: 78, kbg: 74, bkb: 75 } },
   },
   /**
    * Treadmill: runs on top of them, one footfall of 1% per step (each reported as a pummel), then hops off with a

@@ -1,6 +1,9 @@
-import type { Flow, Screen } from '../app';
+import type { Flow, Screen, ScreenDef } from '../app';
 import { logoSvg, planetSvg } from '../art/logo';
 import { h, svg } from '../dom';
+import './title.css';
+
+export const screen: ScreenDef = { route: 'title', create: titleScreen };
 
 /** Logo over a starry Coolmath sky; any button continues. */
 export function titleScreen(flow: Flow): Screen {
