@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createMatch } from '../sim/match';
 import {
+  FIGHTER_STATES,
   SCENARIOS,
   applyPatch,
+  fighterScenarios,
   findScenario,
   isLabScenario,
   planScenario,
@@ -10,6 +12,7 @@ import {
   scenarioInfo,
   scenarioInputs,
   startScenario,
+  type FighterScenarios,
   type GameScenario,
 } from './scenarios';
 import { stepMatch } from '../sim/match';
@@ -111,6 +114,40 @@ describe('capture scenarios', () => {
     expect(never.status).toBe('missed');
     expect(never.reason).toBe('"never" not reached by frame 30 (ended with P1 idle, P2 idle)');
   });
+});
+
+describe('fighter scenarios (src/fighters/<id>/scenarios.ts)', () => {
+  const spec: FighterScenarios = { fighter: 'redball', refs: { run: ['smash/run-*'] } };
+
+  it('give a fighter its own copy of every standard state against Fireboy, with its references', () => {
+    const list = fighterScenarios(spec);
+    expect(list.map((s) => s.name)).toEqual(
+      FIGHTER_STATES.filter((n) => n !== 'sheet').map((n) => `redball-${n}`),
+    );
+    const run = list.find((s) => s.name === 'redball-run')!;
+    expect(run.refs).toEqual(['smash/run-*']);
+    if (isLabScenario(run)) throw new Error('run is a game scenario');
+    expect(scenarioConfig(run).ports.map((p) => p.fighter)).toEqual(['redball', 'fireboy']);
+  });
+
+  it('add the rig sheet once the fighter has art', () => {
+    const sheet = fighterScenarios({ fighter: 'fireboy', refs: {} }).find((s) => s.name === 'fireboy-sheet');
+    expect(sheet?.page).toEqual({ kind: 'lab', scene: 'fighter', params: { fighter: 'fireboy' } });
+  });
+
+  it('are discovered and appended after the shared states', () => {
+    const names = SCENARIOS.map((s) => s.name);
+    expect(names.indexOf('redball-idle')).toBeGreaterThan(names.indexOf('fighter-sheet'));
+    expect(names).toContain('redball-dair-bounce');
+  });
+
+  it.each(SCENARIOS.filter((s) => !isLabScenario(s)).map((s) => [s.name, s] as const))(
+    '%s reaches its capture frame or names what it is waiting for',
+    (_, s) => {
+      const plan = planScenario(s as GameScenario, () => true);
+      expect(plan.status, plan.reason).not.toBe('missed');
+    },
+  );
 });
 
 describe('applyPatch', () => {
