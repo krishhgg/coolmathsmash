@@ -1,4 +1,5 @@
 import type { HitboxDef, MoveDef } from '../types';
+import { stickX } from '../../sim/control';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -8,6 +9,12 @@ const box = (
   radius: number,
   hit: Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius'>,
 ): HitboxDef => ({ id, x, y, radius, ...hit });
+
+/** Flight Training: climb speed on frames from..to, tapering each frame, and the stick's steering speed. */
+const FLIGHT = { from: 4, to: 44, rise: 2.65, taper: 0.02, steer: 1.3 };
+
+/** Dive Ram: dive frames, the slide that follows a landing, and the speeds of each. */
+const DIVE = { from: 10, to: 44, slide: 45, faf: 72, vx: 1.5, vy: 2.6, slideSpeed: 2.4 };
 
 /** A grab box: catches instead of hitting, so it carries no damage or knockback. */
 const grabBox = (id: number, x: number, y: number, radius: number) =>
@@ -298,6 +305,78 @@ export const moves: Record<string, MoveDef> = {
     faf: 46,
     hits: [],
     throw: { frame: 24, hit: { damage: 8, angle: 90, kbg: 70, bkb: 65 } },
+  },
+  /**
+   * Flight Training (up special): the flying-training mini-game as a recovery. A rapid flapping climb of about 100
+   * units from frame 4, steered left and right with the stick (Pit's Power of Flight). No hitbox; it leaves him
+   * helpless and can grab the ledge on the way up.
+   */
+  upB: {
+    kind: 'other',
+    faf: 52,
+    leavesGround: true,
+    helpless: true,
+    ledgeFrom: 8,
+    landingLag: 18,
+    hits: [],
+    script(x) {
+      const { f, c } = x;
+      if (f.actionFrame < FLIGHT.from) {
+        f.vel.x *= 0.7;
+        f.vel.y = Math.max(f.vel.y * 0.5, 0);
+        return;
+      }
+      if (f.actionFrame <= FLIGHT.to) {
+        f.vel.y = FLIGHT.rise - (f.actionFrame - FLIGHT.from) * FLIGHT.taper;
+        f.vel.x = stickX(c) * FLIGHT.steer;
+      }
+    },
+  },
+  /**
+   * Dive Ram (down special): the video's "diving into them when flying". In the air he winds up, then dives beak
+   * first steeply down and forward on frames 10-44, a semi-spike. Landing during the dive (or starting it on the
+   * ground) turns it into a belly-flop slide along the floor. A dive that runs out in the air leaves him helpless.
+   */
+  downB: {
+    kind: 'other',
+    faf: DIVE.faf,
+    helpless: true,
+    continuesOnLanding: true,
+    landingLag: 24,
+    hits: [
+      {
+        frames: [DIVE.from, DIVE.to],
+        boxes: [
+          box(0, 5.5, 3.5, 4.5, { damage: 13, angle: 300, kbg: 70, bkb: 40 }),
+          box(1, 1, 5.5, 4, { damage: 11, angle: 300, kbg: 70, bkb: 35 }),
+        ],
+      },
+      {
+        frames: [DIVE.slide, DIVE.slide + 13],
+        boxes: [box(0, 5, 2.5, 4.5, { damage: 8, angle: 45, kbg: 70, bkb: 45 })],
+      },
+    ],
+    script(x) {
+      const { f } = x;
+      const af = f.actionFrame;
+      if (af < DIVE.from) {
+        f.vel.x *= 0.85;
+        if (!f.ground) f.vel.y = Math.max(f.vel.y * 0.6, -0.4);
+        return;
+      }
+      if (af > DIVE.slide) return;
+      if (af <= DIVE.to && !f.ground) {
+        f.vel.x = f.facing * DIVE.vx;
+        f.vel.y = -DIVE.vy;
+        return;
+      }
+      if (!f.ground) {
+        f.actionFrame = DIVE.faf;
+        return;
+      }
+      f.actionFrame = DIVE.slide;
+      f.vel.x = f.facing * DIVE.slideSpeed;
+    },
   },
   /** Double Stomp: two stomps on the floored opponent, popping them up at a combo angle. */
   dthrow: {

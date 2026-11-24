@@ -15,6 +15,9 @@ const box = (
 const grabBox = (id: number, x: number, y: number, radius: number) =>
   box(id, x, y, radius, { damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true });
 
+/** Tile Flip's air hop: the upward speed it sets and on which frame. Less than a cycle of gravity, so no stall. */
+export const HOP = { frame: 3, speed: 0.8 };
+
 /** Down throw's treadmill steps: the frames on which each footfall lands and the % it deals. */
 export const TREADMILL = { frames: [8, 12, 16, 20], damage: 1 };
 
@@ -221,6 +224,34 @@ export const moves: Record<string, MoveDef> = {
         boxes: [box(0, 0, 0, 5, { damage: 3, angle: 270, kbg: 110, bkb: 20 })],
       },
     ],
+  },
+  /**
+   * Tile Flip (neutral special): slaps the floor and the tile in front flips over like the tunnel rotating,
+   * launching anyone standing on it straight up. In the air it is a gravity hop kick instead.
+   */
+  neutralB: {
+    kind: 'other',
+    faf: 40,
+    air: 'neutralBAir',
+    hits: [
+      {
+        frames: [14, 17],
+        boxes: [
+          box(0, 11, 3, 5.5, { damage: 8, angle: 90, kbg: 90, bkb: 50 }),
+          box(1, 5.5, 2, 3.5, { damage: 8, angle: 90, kbg: 90, bkb: 50 }),
+        ],
+      },
+    ],
+  },
+  /** Tile Flip in the air: a small hop, as if her gravity flipped for a moment, into a 4% kick. */
+  neutralBAir: {
+    kind: 'other',
+    faf: 30,
+    landingLag: 10,
+    hits: [{ frames: [6, 9], boxes: [box(0, 6.5, 5, 4.5, { damage: 4, angle: 50, kbg: 50, bkb: 40 })] }],
+    script(x) {
+      if (x.f.actionFrame === HOP.frame) x.f.vel.y = HOP.speed;
+    },
   },
   /** Grabs, on Kirby's frame data; her arms are short, so the standing grab reaches 10.5 units. */
   grab: { kind: 'other', faf: 34, hits: [{ frames: [6, 7], boxes: [grabBox(0, 6.5, 6, 4)] }] },

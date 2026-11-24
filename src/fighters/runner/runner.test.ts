@@ -5,7 +5,7 @@ import { createMatch, type MatchState } from '../../sim/match';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
 import { FIGHTERS } from '../registry';
-import { moves, TREADMILL } from './moves';
+import { HOP, moves, TREADMILL } from './moves';
 import { stats } from './stats';
 
 /** Where Mario stands at Battlefield's right ledge (x = 80) in the kill-% tests. */
@@ -156,6 +156,7 @@ describe('Runner: frame data (roster.md)', () => {
     ['uair', 7, 9],
     ['dair', 10, 1.2],
     ['grab', 6, 0],
+    ['neutralB', 14, 8],
   ] as const)('%s comes out on frame %i with a %s damage sweetspot', (move, startup, damage) => {
     expect(activeFrames(move)[0]).toBe(startup);
     expect(moves[move]!.hits[0]!.boxes[0]!.damage).toBe(damage);
@@ -208,6 +209,7 @@ const KILL_TARGETS = [
   ['bair', 130],
   ['bthrow', 160],
   ['uthrow', 150],
+  ['neutralB', 170],
 ] as const;
 
 describe('Runner: kill % against Mario at the Battlefield ledge (fresh, no rage, no DI)', () => {
@@ -289,5 +291,34 @@ describe('Runner: combo tools', () => {
     };
     expect(side(8.5)).toEqual({ frame: 6, dir: 1 });
     expect(side(-8.5)).toEqual({ frame: 6, dir: -1 });
+  });
+});
+
+describe('Runner: Tile Flip (neutral special)', () => {
+  it('on the ground the tile in front launches Mario straight up', () => {
+    const { m, a, v } = vsMario();
+    put(a, 0, 1, v.ground);
+    put(v, 11, -1, v.ground);
+    v.damage = 50;
+    runPorts(m, 1, [{ buttons: ['special'] }, {}]);
+    expect(a.move).toBe('neutralB');
+    for (let i = 0; i < 20 && !v.launch; i++) runPorts(m, 1, [{}, {}]);
+    expect(a.actionFrame).toBe(14);
+    expect(v.launch?.angle).toBe(90);
+  });
+
+  it('in the air it is the hop kick, and chaining it still loses height', () => {
+    const m = testMatch({ fighter: 'runner' });
+    const f = placeInAir(m, 0, 150);
+    run(m, 1, { buttons: ['special'] });
+    expect(f.move).toBe('neutralBAir');
+    run(m, HOP.frame - 1);
+    expect(f.vel.y).toBeGreaterThan(0);
+    for (let i = 0; i < 4; i++) {
+      run(m, moves.neutralBAir!.faf - f.actionFrame);
+      run(m, 1, { buttons: ['special'] });
+      expect(f.move).toBe('neutralBAir');
+    }
+    expect(f.pos.y).toBeLessThan(150);
   });
 });
