@@ -51,6 +51,10 @@ test('stage select: preview follows focus, rules change and stick, back and choo
   await row('stocks').locator('.ss-arrow.is-right').click();
   await expect(row('stocks').locator('.ss-rule-value')).toHaveText('5');
   await expect(page.locator('.ss-pill-text')).toHaveText('5 Stock · 6:00');
+  await page.keyboard.press('KeyA');
+  await expect(row('stocks').locator('.ss-rule-value')).toHaveText('4');
+  await page.keyboard.press('Enter');
+  await expect(row('stocks').locator('.ss-rule-value')).toHaveText('5');
 
   await page.keyboard.press('KeyG');
   await expect(page.locator('.css-screen .header-plate')).toHaveText('5 Stock · 6:00');
