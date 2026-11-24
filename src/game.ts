@@ -1,7 +1,7 @@
 import { FixedLoop } from './engine/loop';
 import { hashState } from './engine/hash';
 import { KEYBOARD_BINDINGS } from './input/bindings';
-import { connectedPads, readGamepad } from './input/gamepad';
+import { padSlots, readGamepad } from './input/gamepad';
 import { KeyboardState } from './input/keyboard';
 import { mergeInputs, neutralInput, type InputFrame } from './input/types';
 import type { Renderer } from './render/renderer';
@@ -37,7 +37,7 @@ export class Game {
   }
 
   readDeviceInputs(): InputFrame[] {
-    const pads = connectedPads();
+    const pads = padSlots();
     return this.state.players.map((p) => {
       const binding = KEYBOARD_BINDINGS[p.port];
       const keys = binding ? this.keyboard.read(binding) : neutralInput();
@@ -47,8 +47,9 @@ export class Game {
   }
 
   step(inputs: InputFrame[] = this.readDeviceInputs()): void {
-    stepMatch(this.state, inputs);
-    this.inputLog.push(inputs);
+    const frame = inputs.map((i) => ({ x: i.x, y: i.y, cx: i.cx, cy: i.cy, buttons: i.buttons }));
+    stepMatch(this.state, frame);
+    this.inputLog.push(frame);
   }
 
   hash(): string {

@@ -22,7 +22,8 @@ export function readGamepad(pad: PadLike): InputFrame {
   return out;
 }
 
-export function connectedPads(): PadLike[] {
+/** Pads by browser slot, so unplugging pad 1 never moves pad 2 onto another port. Empty or non-standard slots are null. */
+export function padSlots(): (PadLike | null)[] {
   if (typeof navigator === 'undefined' || !navigator.getGamepads) return [];
-  return navigator.getGamepads().filter((p): p is Gamepad => !!p && p.connected && p.mapping === 'standard');
+  return navigator.getGamepads().map((p) => (p && p.connected && p.mapping === 'standard' ? p : null));
 }

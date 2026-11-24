@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readGamepad, type PadLike } from './gamepad';
+import { padSlots, readGamepad, type PadLike } from './gamepad';
 import { Btn } from './types';
 
 function pad(axes: number[], pressed: number[] = [], analog: Record<number, number> = {}): PadLike {
@@ -20,5 +20,20 @@ describe('readGamepad', () => {
   it('maps face buttons, bumpers and analog triggers', () => {
     const r = readGamepad(pad([0, 0, 0, 0], [0, 3, 5], { 7: 0.6 }));
     expect(r.buttons).toBe(Btn.Attack | Btn.Jump | Btn.Grab | Btn.Shield);
+  });
+});
+
+describe('padSlots', () => {
+  it('keeps browser slot indices when an earlier pad disconnects', () => {
+    const second = { ...pad([1, 0, 0, 0]), connected: true, mapping: 'standard' };
+    const nonStandard = { ...pad([0, 0, 0, 0]), connected: true, mapping: '' };
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { getGamepads: () => [null, second, nonStandard] },
+      configurable: true,
+    });
+    const slots = padSlots();
+    expect(slots[0]).toBeNull();
+    expect(slots[1]).toBe(second);
+    expect(slots[2]).toBeNull();
   });
 });

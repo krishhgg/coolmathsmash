@@ -5,6 +5,7 @@ import {
   buffered,
   cStickDir,
   consume,
+  consumeCStick,
   createControl,
   feedControl,
   flickDown,
@@ -90,6 +91,23 @@ describe('control state', () => {
     feedControl(c, f({ cy: 100 }));
     expect(cStickDir(c, 1)).toBe('up');
     for (let i = 0; i < INPUT_BUFFER_FRAMES; i++) feedControl(c, f({ cy: 100 }));
+    expect(cStickDir(c, 1)).toBe('neutral');
+  });
+
+  it('registers an analog C-stick flick that passes through mid values, once per flick', () => {
+    const c = createControl();
+    for (const v of [0, 50, 100]) feedControl(c, f({ cx: v }));
+    expect(cStickDir(c, 1)).toBe('forward');
+    consumeCStick(c);
+    feedControl(c, f({ cx: 100 }));
+    expect(cStickDir(c, 1)).toBe('neutral');
+    for (const v of [0, -100]) feedControl(c, f({ cx: v }));
+    expect(cStickDir(c, 1)).toBe('back');
+  });
+
+  it('ignores a slow C-stick tilt', () => {
+    const c = createControl();
+    for (const v of [0, 35, 45, 55, 65, 75, 100]) feedControl(c, f({ cy: v }));
     expect(cStickDir(c, 1)).toBe('neutral');
   });
 });

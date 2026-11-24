@@ -37,3 +37,23 @@ test('a recorded replay reproduces the same state', async ({ page }) => {
   });
   expect(same).toBe(true);
 });
+
+test('recorded inputs are snapshots, not caller references', async ({ page }) => {
+  await page.goto('/?harness');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  const same = await page.evaluate(() => {
+    const s = window.__smash!;
+    s.newMatch();
+    const inputs = [
+      { x: 0, y: 0, cx: 0, cy: 0, buttons: 1 },
+      { x: 0, y: 0, cx: 0, cy: 0, buttons: 0 },
+    ];
+    s.step(3, inputs);
+    inputs[0]!.buttons = 0;
+    s.step(3, inputs);
+    const hash = s.hash();
+    s.loadReplay(s.replay());
+    return s.hash() === hash;
+  });
+  expect(same).toBe(true);
+});

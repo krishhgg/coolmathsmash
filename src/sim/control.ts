@@ -31,11 +31,13 @@ export interface ControlState {
   neutralUp: number;
   neutralDown: number;
   neutralC: number;
-  /** Frame the C-stick left neutral, and its direction then. */
+  /** Frame a C-stick flick registered, and its direction then. */
   cPressedAt: number;
   cDirX: number;
   cDirY: number;
   cConsumed: boolean;
+  /** A flick already registered since the C-stick last left neutral. */
+  cRegistered: boolean;
 }
 
 export function createControl(): ControlState {
@@ -53,6 +55,7 @@ export function createControl(): ControlState {
     cDirX: 0,
     cDirY: 0,
     cConsumed: true,
+    cRegistered: false,
   };
 }
 
@@ -81,7 +84,9 @@ export function feedControl(c: ControlState, input: InputFrame): void {
   const cMag = Math.max(Math.abs(c.cur.cx), Math.abs(c.cur.cy)) / 100;
   if (cMag < FLICK_NEUTRAL) {
     c.neutralC = c.frame;
-  } else if (c.neutralC === c.frame - 1 && cMag >= SMASH_THRESHOLD) {
+    c.cRegistered = false;
+  } else if (!c.cRegistered && cMag >= SMASH_THRESHOLD && c.frame - c.neutralC <= FLICK_WINDOW) {
+    c.cRegistered = true;
     c.cPressedAt = c.frame;
     c.cConsumed = false;
     const horizontal = Math.abs(c.cur.cx) >= Math.abs(c.cur.cy);
