@@ -12,6 +12,7 @@ import {
   stickDir,
   type Dir,
 } from '../control';
+import { emit } from '../events';
 import type { Ctx, FighterState } from '../fighter';
 import { HELPLESS_LANDING_LAG } from '../constants';
 import { leaveGround, normalLandingLag } from '../movement';
@@ -39,6 +40,7 @@ export function startMove(x: Ctx, name: string): boolean {
   if (move.helpless) x.f.fastFalling = false;
   setAction(x, x.f.ground ? 'attack' : 'aerial');
   x.f.move = name;
+  emit(x.m, { type: 'move', port: x.f.port, move: name });
   x.f.hitVictims = [];
   x.f.moveStale = 0;
   x.f.charge = 0;
@@ -161,22 +163,36 @@ function playMove(x: Ctx): MoveDef {
   }
   if (move.hits.some((w) => w.rehit && w.frames[0] === f.actionFrame)) f.hitVictims = [];
   move.script?.(x);
+  if (move.transform?.frame === f.actionFrame) {
+    emit(x.m, { type: 'transform', port: f.port, from: f.fighter, to: move.transform.into });
+    f.fighter = move.transform.into;
+  }
   return move;
+}
+
+function moveIntangible(f: FighterState): boolean {
+  const w = moveOf(f)?.intangible;
+  return w !== undefined && inWindow(f.actionFrame, w);
 }
 
 export const ATTACK: Record<string, ActionDef> = {
   /** A grounded move, played from its frame data until its first actionable frame. */
   attack: {
     physics: 'ground',
+    intangible: moveIntangible,
     update(x) {
       const move = playMove(x);
       if (x.f.actionFrame >= move.faf) setAction(x, 'idle');
     },
   },
 
-  /** An airborne move. Landing during it costs the move's landing lag, unless it lands in an auto-cancel window. */
+  /**
+   * An airborne move. Landing during it costs the move's landing lag, unless it lands in an auto-cancel window or
+   * the move continues on landing.
+   */
   aerial: {
     physics: 'air',
+    intangible: moveIntangible,
     ledge: (x) => {
       const from = moveOf(x.f)?.ledgeFrom;
       return from === undefined ? false : from;
@@ -193,6 +209,12 @@ export const ATTACK: Record<string, ActionDef> = {
     land(x) {
       const { f } = x;
       const move = moveOf(f)!;
+      if (move.continuesOnLanding) {
+        const { move: name, actionFrame } = f;
+        enterAction(x, 'attack', actionFrame);
+        f.move = name;
+        return;
+      }
       const cancelled = move.autoCancel?.some((w) => inWindow(f.actionFrame, w)) ?? false;
       f.landingLag = !cancelled && move.landingLag !== undefined ? move.landingLag : normalLandingLag(x);
       enterAction(x, 'land', 0);

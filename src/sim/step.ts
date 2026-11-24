@@ -4,6 +4,7 @@ import { ACTIONS } from './actions';
 import { runAction } from './actions/registry';
 import { applyLaunch } from './combat/hits';
 import { RESPAWN_DELAY, SHIELD_MAX, SHIELD_REGEN, SHIELD_BREAK_HEIGHT } from './constants';
+import { emit } from './events';
 import { derived, type Ctx, type FighterState } from './fighter';
 import type { MatchState, PlayerState } from './match';
 import { airMove, groundMove } from './movement';
@@ -68,6 +69,9 @@ function checkBlastZones(x: Ctx): void {
   const b = stage.geo.blastZones;
   if (f.pos.x > b.left && f.pos.x < b.right && f.pos.y > b.bottom && f.pos.y < b.top) return;
   f.stocks--;
+  const side =
+    f.pos.x <= b.left ? 'left' : f.pos.x >= b.right ? 'right' : f.pos.y >= b.top ? 'top' : 'bottom';
+  emit(x.m, { type: 'ko', port: f.port, stocks: f.stocks, side, x: f.pos.x, y: f.pos.y });
   f.respawnTimer = RESPAWN_DELAY;
   f.action = 'ko';
   f.actionFrame = 0;

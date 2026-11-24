@@ -1,5 +1,6 @@
 import type { HitboxDef, MoveDef } from '../types';
 import { stickX } from '../../sim/control';
+import { swap } from './swap';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -107,6 +108,24 @@ export const moves: Record<string, MoveDef> = {
         frames: [14, 15],
         boxes: [
           box(0, -8, 2, 4.5, { damage: 12, angle: 25, kbg: 100, bkb: 20, effect: fire, direction: 'back' }),
+        ],
+      },
+    ],
+  },
+  /** Getting up from the floor swinging a flame to both sides; intangible until the second swing ends. */
+  getupAttack: {
+    kind: 'other',
+    faf: 46,
+    intangible: [1, 26],
+    hits: [
+      {
+        frames: [17, 18],
+        boxes: [box(0, 8, 3, 5, { damage: 7, angle: 361, kbg: 48, bkb: 80, effect: fire })],
+      },
+      {
+        frames: [25, 26],
+        boxes: [
+          box(0, -8, 3, 5, { damage: 7, angle: 361, kbg: 48, bkb: 80, effect: fire, direction: 'back' }),
         ],
       },
     ],
@@ -252,4 +271,6 @@ export const moves: Record<string, MoveDef> = {
       }
     },
   },
+  /** Swap (down special): Watergirl takes over. */
+  downB: swap('watergirl'),
 };

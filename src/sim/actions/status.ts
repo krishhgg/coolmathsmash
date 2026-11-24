@@ -1,5 +1,6 @@
 import { RESPAWN_INVINCIBILITY, RESPAWN_PLATFORM_MAX } from '../constants';
 import { stickX, stickY } from '../control';
+import { emit } from '../events';
 import type { Ctx } from '../fighter';
 import { restoreAirOptions } from '../movement';
 import { setAction, type ActionDef } from './registry';
@@ -29,6 +30,7 @@ export const STATUS: Record<string, ActionDef> = {
     update(x) {
       const { f, c } = x;
       if (f.actionFrame === 1) {
+        emit(x.m, { type: 'respawn', port: f.port });
         const [px, py] = respawnPoint(x);
         f.pos = { x: px, y: py };
         f.prevPos = { x: px, y: py };

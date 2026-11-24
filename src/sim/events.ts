@@ -1,0 +1,54 @@
+import type { HitboxDef } from '../fighters/types';
+import type { MatchState } from './match';
+
+type Side = 'left' | 'right' | 'top' | 'bottom';
+
+/**
+ * What happened during the last simulated frame, for presentation layers (audio, HUD, effects) that should not
+ * read the simulation's internals. `MatchState.events` is refilled every frame: the events below in the order
+ * they happened, then one `action` event for each fighter whose action changed that frame.
+ */
+export type SimEvent =
+  /** A hit landed. `damage` is what it added to the victim's %; `x`, `y` is the hitbox centre. */
+  | {
+      type: 'hit';
+      attacker: number;
+      victim: number;
+      move: string | null;
+      damage: number;
+      kb: number;
+      tumble: boolean;
+      hitlag: number;
+      effect: NonNullable<HitboxDef['effect']>;
+      x: number;
+      y: number;
+    }
+  /** A hit landed on a shield. `damage` is after staleness; `shieldHp` is what the shield has left. */
+  | {
+      type: 'shieldHit';
+      attacker: number;
+      victim: number;
+      move: string | null;
+      damage: number;
+      shieldHp: number;
+      x: number;
+      y: number;
+    }
+  | { type: 'shieldBreak'; port: number }
+  /** A fighter crossed a blast zone; `stocks` is what it has left. */
+  | { type: 'ko'; port: number; stocks: number; side: Side; x: number; y: number }
+  | { type: 'respawn'; port: number }
+  | { type: 'jump'; port: number; kind: 'full' | 'short' | 'air' }
+  /** Touched down; `lag` is the landing lag (0 when the landing went straight into another action). */
+  | { type: 'land'; port: number; lag: number }
+  /** A move started. */
+  | { type: 'move'; port: number; move: string }
+  /** A fighter transformed into another fighter (Fireboy and Watergirl's swap). */
+  | { type: 'transform'; port: number; from: string; to: string }
+  | { type: 'action'; port: number; from: string; to: string };
+
+export type SimEventType = SimEvent['type'];
+
+export function emit(m: MatchState, event: SimEvent): void {
+  m.events.push(event);
+}

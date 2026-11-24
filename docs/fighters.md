@@ -9,7 +9,7 @@ src/fighters/<id>/
   index.ts      defineFighter({ id, name, series, stats, moves, art })
   stats.ts      FighterStats: movement, jumps, weight, shield
   moves.ts      Record<string, MoveDef>: frame data for every move
-  art/          the rig art (docs/art-pipeline.md); plain data, no renderer imports
+  art/          the rig art (docs/art.md); plain data, no renderer imports
   <id>.test.ts  inputs and frame data you care about
 ```
 
@@ -97,15 +97,28 @@ fsmash: {
 - **Landing lag.** Aerials give `landingLag` and `autoCancel` windows; a `helpless` move's `landingLag` also
   applies when it lands out of the helpless fall.
 - **Auto-cancel.** Landing in an aerial's `autoCancel` window costs only normal landing lag.
+- **Intangibility.** `intangible: [from, to]` makes the fighter intangible on those frames of the move.
+- **Getup attack.** A move named `getupAttack` plays when a fighter lying down after a missed tech presses
+  Attack. Give it `intangible: [1, 26]` (Ultimate's) and hits on both sides; without one, Attack just stands up.
 - **Specials.** `script(x)` runs every frame of the move before physics and sets velocity or facing. It must be
   deterministic: no `Math.random`, no clocks; use `x.m.rng` if you need randomness.
   - `leavesGround` makes a grounded start take off.
   - `helpless` ends the move in helpless fall.
   - `ledgeFrom` lets the move grab a ledge from that frame.
   - Fireboy's `upB` uses all three.
+  - `continuesOnLanding` lets an airborne special carry on from the same frame when it lands, instead of
+    ending in landing lag.
+- **Transform.** `transform: { frame, into }` turns the fighter into fighter `into` on that frame of the move
+  (Zelda/Sheik style). FighterState carries over (%, stocks, position, momentum), and stats, moves and art switch;
+  `into` needs a move of the same name, which plays the rest of the move. Fireboy and Watergirl's down special
+  (`src/fighters/fireboy/swap.ts`) is the example. A form that is only reached by transforming sets
+  `selectable: false` on its FighterDef, so menus list only the fighter that starts the match.
 
 The combat math (knockback, hitlag, hitstun, DI, shieldstun, staleness) is shared and lives in
 `src/sim/combat/`; a fighter only supplies numbers.
+
+Every move start, hit and landing is reported as a sim event (`docs/sim-events.md`). Audio and effects key off
+move names, so keep them to the canonical names above.
 
 ### Tuning tools
 
@@ -121,7 +134,7 @@ The combat math (knockback, hitlag, hitstun, DI, shieldstun, staleness) is share
 
 `art` is plain data drawn by the vector rig (`src/render/rig/`): parts, poses per clip name and palettes. Clips
 are keyed by action names (`idle`, `run`, `jump`, …) and move names (`fsmash`, `nair`, …). See
-`docs/art-pipeline.md`.
+`docs/art.md`.
 
 ## Checklist
 

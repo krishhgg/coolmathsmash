@@ -106,10 +106,20 @@ export interface MoveDef {
   charge?: number;
   /** Specials that take off (recoveries): a grounded start leaves the ground and plays as an aerial. */
   leavesGround?: boolean;
+  /** Frames (inclusive) on which the fighter is intangible, as on a getup attack. */
+  intangible?: [number, number];
   /** Recoveries: the move ends in helpless fall instead of a normal fall. */
   helpless?: boolean;
   /** Airborne moves that may grab a ledge from this frame. */
   ledgeFrom?: number;
+  /** Landing doesn't end the move: it carries on from the same frame on the ground, with no landing lag. */
+  continuesOnLanding?: boolean;
+  /**
+   * Transform (Zelda/Sheik style): on `frame` the fighter becomes fighter `into`, keeping its %, stocks, position
+   * and everything else in FighterState; stats, moves and art switch. `into` must have a move of the same name,
+   * which plays the rest of the move.
+   */
+  transform?: { frame: number; into: string };
   /**
    * Scripted behaviour (specials): runs every frame of the move before physics, after actionFrame advances.
    * It may set velocity or facing. Keep it deterministic: no Math.random, no clocks.
@@ -130,6 +140,8 @@ export interface FighterDef {
   moves?: Record<string, MoveDef>;
   /** Art data for the renderer (src/render/rig). Plain data, no renderer imports. */
   art?: unknown;
+  /** False for forms reached only by transforming (Watergirl), so menus list only the fighter that starts. */
+  selectable?: boolean;
 }
 
 export function defineFighter<T extends FighterDef>(def: T): T {
