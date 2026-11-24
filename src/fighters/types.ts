@@ -106,6 +106,8 @@ export interface MoveDef {
   charge?: number;
   /** Specials that take off (recoveries): a grounded start leaves the ground and plays as an aerial. */
   leavesGround?: boolean;
+  /** Frames (inclusive) on which the fighter is intangible, as on a getup attack. */
+  intangible?: [number, number];
   /** Recoveries: the move ends in helpless fall instead of a normal fall. */
   helpless?: boolean;
   /** Airborne moves that may grab a ledge from this frame. */

@@ -1,6 +1,6 @@
 import { getFighter } from '../fighters/registry';
 import type { FighterDef, FighterStats } from '../fighters/types';
-import { SHIELD_MAX } from './constants';
+import { SHIELD_MAX, TECH_LOCKOUT } from './constants';
 import type { ControlState } from './control';
 import type { MatchState, PlayerState } from './match';
 import { jumpVelocity } from './physics';
@@ -39,6 +39,8 @@ export interface FighterState {
   jumpByStick: boolean;
   fastFalling: boolean;
   airDodgeUsed: boolean;
+  /** Match frame of the last Shield press that counted as a tech input. */
+  techPressAt: number;
   /** Direction of the current dodge or roll (unit vector, 0,0 for a neutral air dodge). */
   dodgeDir: Vec;
   airFrames: number;
@@ -95,6 +97,7 @@ export function createFighter(
     jumpByStick: false,
     fastFalling: false,
     airDodgeUsed: false,
+    techPressAt: -TECH_LOCKOUT,
     dodgeDir: vec(),
     airFrames: 0,
     landingLag: 0,
