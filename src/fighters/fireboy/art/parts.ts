@@ -45,8 +45,7 @@ function limb(len: number, r0: number, r1: number): { line: PathShape[]; fill: P
     line: [{ d: tube(0, 0, len, r0 + LINE, r1 + LINE), fill: 'line' }],
     fill: [
       { d: tube(0, 0, len, r0, r1), fill: 'skin' },
-      { d: tube(-r0 * 0.45, len * 0.05, len * 0.85, r0 * 0.4, r1 * 0.35), fill: 'skinHi' },
-      { d: tube(r0 * 0.55, len * 0.15, len * 0.9, r0 * 0.32, r1 * 0.3), fill: 'skinLo' },
+      { d: tube(-r0 * 0.5, len * 0.05, len * 0.85, r0 * 0.28, r1 * 0.24), fill: 'skinHi' },
     ],
   };
 }
@@ -62,8 +61,10 @@ export const thigh = limb(THIGH, LEG_R, LEG_R * 0.95);
 /** Ends with a rounded, slightly flared foot whose bottom sits SHIN below the knee. */
 export const shin = limb(SHIN - LEG_R - LINE, LEG_R * 0.95, LEG_R + 0.02);
 export const upperArm = limb(UPPER_ARM, ARM_R, ARM_R * 0.95);
-/** Ends in a rounded mitten hand. */
-export const foreArm = limb(FORE_ARM - ARM_R * 1.3 - LINE, ARM_R * 0.95, ARM_R * 1.3);
+/** Ends in a plain rounded tip, like the 2009 drawing's stick arms. */
+export const foreArm = limb(FORE_ARM - ARM_R - LINE, ARM_R * 0.95, ARM_R * 1.05);
+/** A forearm ending in a rounded mitten, for gripping. */
+export const mitten = limb(FORE_ARM - ARM_R * 1.35 - LINE, ARM_R * 0.95, ARM_R * 1.35);
 const wrist = limb(FORE_ARM - ARM_R - LINE - 0.1, ARM_R * 0.95, ARM_R);
 const FIST_Y = FORE_ARM - 0.3;
 /** A balled-up hand for punches. */
@@ -114,6 +115,11 @@ export const shoutFront: PathShape[] = [
   { d: 'M0.45 1.95Q-0.25 1.75 -0.95 1.85Q-0.7 2.25 -0.2 2.25Q0.25 2.22 0.45 1.95Z', fill: 'mouth' },
 ];
 export const ouchFront: PathShape[] = [{ d: ellipse(-0.2, 1.75, 0.42, 0.34), fill: 'line' }];
+/** A short gritted mouth, for effort. */
+export const gritFront: PathShape[] = [
+  { d: 'M-1.0 1.38Q-0.2 1.62 0.75 1.36L0.7 1.82Q-0.2 2.02 -0.95 1.8Z', fill: 'line' },
+  { d: 'M-0.72 1.58L0.5 1.55L0.48 1.7L-0.7 1.72Z', fill: 'eye0' },
+];
 
 export const lidsSide: PathShape[] = [
   { d: 'M0.45 -1.5L2.45 -0.88L2.45 -1.85L0.45 -1.85Z', fill: 'fire' },
@@ -133,6 +139,9 @@ export const ouchSide: PathShape[] = [{ d: ellipse(1.55, 1.25, 0.32, 0.28), fill
  * tongues and a thin dark-red outline, so an attack's fire never reads as a second head. `tips` nudges the
  * left, middle and right tongues for the flicker drawings.
  */
+/** How far the jet's middle tongue reaches from its base centre, in ball units. */
+export const JET_TIP = 10.6;
+
 function jet(s: number, dy: number, [l, m, r]: [number, number, number]): string {
   const p = (x: number, y: number) => `${n(x * s)} ${n(y * s + dy)}`;
   return [
@@ -159,3 +168,21 @@ export const jets: PathShape[][] = (
   { d: jet(0.64, 1.0, tips), fill: 'eye1' },
   { d: jet(0.34, 1.75, tips), fill: 'eye0' },
 ]);
+
+/** A soft glow around the whole fighter, in body space (the body bone sits at his middle). */
+export const aura: PathShape[] = [
+  {
+    d: ellipse(0, -0.6, 6.2, 8.4),
+    fill: {
+      type: 'radial',
+      cx: 0,
+      cy: -0.9,
+      r: 7.6,
+      stops: [
+        { offset: 0, color: 'aura', alpha: 0.34 },
+        { offset: 0.55, color: 'aura', alpha: 0.2 },
+        { offset: 1, color: 'aura', alpha: 0 },
+      ],
+    },
+  },
+];

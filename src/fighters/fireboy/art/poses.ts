@@ -54,6 +54,8 @@ export const SIDE_HURT = face('headSide', 'faceSideHurt');
 export const UP = face('headUp', 'faceUp');
 
 export const FIST_F = { foreF: 'fist', foreFLine: 'fistLine' };
+/** Mitten hands, for holding on. */
+export const MITTENS = { foreF: 'mitten', foreFLine: 'mittenLine', foreB: 'mitten', foreBLine: 'mittenLine' };
 export const FIST_B = { foreB: 'fist', foreBLine: 'fistLine' };
 export const FISTS = { ...FIST_F, ...FIST_B };
 
@@ -66,40 +68,39 @@ export const NO_BODY: Record<string, null> = Object.fromEntries(
   ]),
 );
 
-/** Draw orders. Slots: fxBack 0, back arm 1-4, torso line 5, back leg 6-9, front leg 10-13, torso 14, front arm 15-18, head 19, face 20, fx 21-23. */
+/**
+ * Draw orders. Slots: aura 0, fxBack 1, back arm 2-5, torso line 6, back leg 7-10, front leg 11-14, torso 15,
+ * front arm 16-19, head 20, face 21, fx 22-24.
+ */
 export const HEAD_BEHIND = { head: 0.5, face: 0.6 };
 export const ARMS_IN_FRONT = {
-  armBLine: 20.1,
-  foreBLine: 20.2,
-  armB: 20.3,
-  foreB: 20.4,
-  armFLine: 20.5,
-  foreFLine: 20.6,
-  armF: 20.7,
-  foreF: 20.8,
+  armBLine: 21.1,
+  foreBLine: 21.2,
+  armB: 21.3,
+  foreB: 21.4,
+  armFLine: 21.5,
+  foreFLine: 21.6,
+  armF: 21.7,
+  foreF: 21.8,
 };
-export const FRONT_ARM_IN_FRONT = { armFLine: 20.5, foreFLine: 20.6, armF: 20.7, foreF: 20.8 };
+export const FRONT_ARM_IN_FRONT = { armFLine: 21.5, foreFLine: 21.6, armF: 21.7, foreF: 21.8 };
 export const LEGS_IN_FRONT = {
-  thighFLine: 20.1,
-  shinFLine: 20.2,
-  thighF: 20.3,
-  shinF: 20.4,
-  thighBLine: 20.05,
-  shinBLine: 20.06,
-  thighB: 20.07,
-  shinB: 20.08,
+  thighFLine: 21.1,
+  shinFLine: 21.2,
+  thighF: 21.3,
+  shinF: 21.4,
+  thighBLine: 21.05,
+  shinBLine: 21.06,
+  thighB: 21.07,
+  shinB: 21.08,
 };
 
 /** Standing, relaxed, like the 2009 idle drawing. */
-export const STAND = hands(
-  feet({ hip: { y: 0.02 } }, [-0.45, 0], [0.45, 0], true),
-  [-1.62, -1.76],
-  [1.62, -1.76],
-);
+export const STAND = feet({ hip: { y: 0.02 } }, [-0.45, 0], [0.45, 0], true);
 
 /** Knees bent, head squashed into the shoulders. */
 export const CROUCH = hands(
-  feet({ hip: { y: 1.0 }, neck: { y: 0.3 }, head: { sx: 1.06, sy: 0.92 } }, [-0.8, 0], [0.9, 0], true),
+  feet({ hip: { y: 1.0 }, neck: { y: 0.3 }, head: { sx: 1.1, sy: 0.86 } }, [-0.8, 0], [0.9, 0], true),
   [-1.35, -1.0],
   [1.5, -1.1],
 );

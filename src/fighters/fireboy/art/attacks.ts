@@ -1,5 +1,6 @@
-import type { Pose } from '../../../render/rig/author';
-import type { AnimClip, Key } from '../../../render/rig/types';
+import { pointOf, type Pose } from '../../../render/rig/author';
+import type { AnimClip, BonePose, Key } from '../../../render/rig/types';
+import { JET_TIP } from './parts';
 import {
   AIR,
   ANGRY,
@@ -22,7 +23,10 @@ import {
   hands,
   key,
   mix,
+  BALL,
+  type Pt,
 } from './poses';
+import { FOOT, HAND, rig } from './rig';
 
 /**
  * Fireboy's moves. Frames use Smash numbering (frame 1 = first frame of the move, length = FAF - 1). Each
@@ -31,6 +35,17 @@ import {
  */
 
 type Swaps = Record<string, string | null>;
+
+/**
+ * Fire streaking from a limb's end in `pose` (the hand, or the foot of a leg) to `to`: the jet's round hot
+ * head sits on `to`, at the hitbox, and its tongues trail back until they touch the limb.
+ */
+function streak(pose: Pose, limb: 'foreF' | 'foreB' | 'shinF', to: Pt, r: number): BonePose {
+  const [x, y] = pointOf(rig, pose, limb, 0, limb === 'shinF' ? FOOT : HAND);
+  const s = r / BALL;
+  const back = (Math.atan2(y - to[1], x - to[0]) * 180) / Math.PI;
+  return { x: to[0], y: to[1], rot: back + 90, sx: s, sy: Math.hypot(x - to[0], y - to[1]) / JET_TIP };
+}
 
 /** Holds `pose` from `from` to `to` (the active window), with the strike's swaps and draw order. */
 function strike(from: number, to: number, pose: Pose, swaps: Swaps, z?: Record<string, number>): Key[] {
@@ -55,22 +70,23 @@ const stretch = (bones: string[], s: number): Pose => Object.fromEntries(bones.m
 const FRONT_ARM = ['armF', 'foreF'];
 const BACK_ARM = ['armB', 'foreB'];
 
+/** Jabs punch at chest height, under the head, so the fire climbing to the hitbox never crosses the face. */
 const JAB1 = hands(
-  stance(10, 0.35, -0.75, 0.95, { body: { x: 0.3 }, ...stretch(FRONT_ARM, 1.3) }),
-  [-1.3, -2.9],
-  [2.55, -4.9],
+  stance(10, 0.35, -0.75, 0.95, { body: { x: 0.7 }, ...stretch(FRONT_ARM, 1.5) }),
+  [-1.3, -2.6],
+  [3.0, -3.3],
   -1,
 );
 const JAB2 = hands(
-  stance(12, 0.35, -0.7, 1.0, { body: { x: 0.4 }, ...stretch(BACK_ARM, 1.35) }),
-  [2.45, -4.85],
-  [-0.4, -3.2],
+  stance(12, 0.35, -0.7, 1.0, { body: { x: 0.8 }, ...stretch(BACK_ARM, 1.6) }),
+  [2.9, -3.2],
+  [-0.2, -2.9],
   -1,
 );
 const JAB3 = hands(
-  stance(14, 0.45, -1.0, 1.3, { body: { x: 0.6 }, ...stretch([...FRONT_ARM, ...BACK_ARM], 1.3) }),
-  [2.4, -4.4],
-  [2.7, -5.2],
+  stance(14, 0.45, -1.0, 1.3, { body: { x: 0.9 }, ...stretch([...FRONT_ARM, ...BACK_ARM], 1.5) }),
+  [2.6, -2.9],
+  [3.2, -3.5],
   -1,
 );
 
@@ -79,17 +95,24 @@ const FTILT = hands(
   [-1.9, -4.7],
   [-0.9, -5.1],
 );
-const FTILT_KICK = mix(FTILT, {
-  thighF: { rot: -102 },
-  shinF: { rot: -4 },
-  fx1: flame(5.0, -3.3, 1.9, -4, 1.5),
-});
+const FTILT_LEG = mix(FTILT, { thighF: { rot: -102 }, shinF: { rot: -4 } });
+const FTILT_KICK = mix(FTILT_LEG, { fx1: streak(FTILT_LEG, 'shinF', [7.6, -3.5], 1.7) });
 
 const CHARGE = hands(stance(-14, 0.5, -1.2, 1.0, { body: { x: -0.4 } }), [0.9, -3.3], [-1.7, -4.6]);
+const DTILT = mix(
+  hands(
+    feet({ hip: { y: 1.25 }, body: { rot: 10 }, neck: { y: 0.3 } }, [-0.9, 0], [0.4, 0], true),
+    [-1.5, -0.3],
+    [0.7, -1.1],
+  ),
+  { thighF: { rot: -92 }, shinF: { rot: -2 } },
+);
+
+/** The smash: back leg straight, head tipped into the punch, the arm driving up towards the hitbox. */
 const FSMASH = hands(
-  stance(10, 0.5, -1.6, 1.9, { body: { x: 1.2 }, ...stretch(FRONT_ARM, 1.75) }),
+  stance(16, 0.45, -2.1, 1.9, { body: { x: 1.3 }, neck: { rot: 4 }, ...stretch(FRONT_ARM, 1.75) }),
   [-2.0, -3.0],
-  [3.9, -3.7],
+  [3.8, -3.3],
   -1,
 );
 
@@ -192,7 +215,7 @@ export const attacks: Record<string, AnimClip> = {
       ...strike(
         2,
         4,
-        mix(JAB1, { fx1: flame(4.3, -5.6, 1.9, -8, 1.2) }),
+        mix(JAB1, { fx1: streak(JAB1, 'foreF', [5.6, -5.8], 1.5) }),
         { ...FIST_F, fx1: 'fxJet' },
         FRONT_ARM_IN_FRONT,
       ),
@@ -209,7 +232,7 @@ export const attacks: Record<string, AnimClip> = {
       ...strike(
         2,
         4,
-        mix(JAB2, { fx1: flame(4.4, -5.6, 1.9, -8, 1.2) }),
+        mix(JAB2, { fx1: streak(JAB2, 'foreB', [5.9, -5.8], 1.5) }),
         { ...FIST_B, fx1: 'fxJet' },
         ARMS_IN_FRONT,
       ),
@@ -227,7 +250,10 @@ export const attacks: Record<string, AnimClip> = {
       ...strike(
         4,
         7,
-        mix(JAB3, { fx1: flame(5.0, -5.6, 2.9, -4, 1.1), fx2: flame(4.4, -4.3, 1.5, 12, 1.2) }),
+        mix(JAB3, {
+          fx1: streak(JAB3, 'foreF', [6.4, -5.7], 2.3),
+          fx2: streak(JAB3, 'foreB', [5.3, -4.5], 1.3),
+        }),
         { ...FISTS, fx1: 'fxJet', fx2: 'fxJet', face: 'faceFrontShout' },
         ARMS_IN_FRONT,
       ),
@@ -301,23 +327,10 @@ export const attacks: Record<string, AnimClip> = {
         ),
         { ease: 'in' },
       ),
-      ...strike(
-        4,
-        7,
-        mix(
-          hands(
-            feet({ hip: { y: 1.25 }, body: { rot: 10 }, neck: { y: 0.3 } }, [-0.9, 0], [0.4, 0], true),
-            [-1.5, -0.3],
-            [0.7, -1.1],
-          ),
-          {
-            thighF: { rot: -92 },
-            shinF: { rot: -2 },
-            fx1: flame(5.0, -1.2, 2.0, 0, 1.3),
-          },
-        ),
-        { fx1: 'fxJet', face: 'faceFrontShout' },
-      ),
+      ...strike(4, 7, mix(DTILT, { fx1: streak(DTILT, 'shinF', [7.2, -1.1], 1.6) }), {
+        fx1: 'fxJet',
+        face: 'faceFrontShout',
+      }),
       key(10, mix(CROUCH, { thighF: { rot: -70 }, fx1: flame(6.2, -1.2, 0.5, 0) }), { ease: 'inOut' }),
       done(11),
       key(21, CROUCH),
@@ -364,8 +377,8 @@ export const attacks: Record<string, AnimClip> = {
       ...strike(
         14,
         17,
-        mix(FSMASH, { fx1: flame(8.2, -5.1, 2.4, -14, 1.1), fx2: flame(4.9, -4.1, 0.75, -14, 2.4) }),
-        { ...FIST_F, face: 'faceFrontShout', fx1: 'fxJet', fx2: 'fxJet' },
+        mix(FSMASH, { fx1: streak(FSMASH, 'foreF', [9.3, -5.9], 2.4) }),
+        { ...FIST_F, face: 'faceFrontShout', fx1: 'fxJet' },
         FRONT_ARM_IN_FRONT,
       ),
       key(22, mix(FSMASH, { body: { rot: 8 }, fx1: flame(10.2, -5.6, 0.7, -14) }), { ease: 'inOut' }),

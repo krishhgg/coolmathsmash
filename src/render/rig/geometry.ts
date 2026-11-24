@@ -124,10 +124,11 @@ export function shapesBounds(shapes: PathShape[]): [number, number, number, numb
   return b;
 }
 
-/** Names of the visible slots whose drawn symbol covers rig-space point (x, y) (y down). */
+/** Names of the visible slots (decorations aside) whose drawn symbol covers rig-space point (x, y) (y down). */
 export function slotsCovering(art: FighterArt, pose: RigPose, x: number, y: number): string[] {
   return art.rig.slots
     .filter((slot) => {
+      if (slot.decor) return false;
       const name = pose.symbols[slot.name];
       const sym = name ? art.rig.symbols[name] : undefined;
       if (!Array.isArray(sym)) return false;
@@ -137,13 +138,13 @@ export function slotsCovering(art: FighterArt, pose: RigPose, x: number, y: numb
     .map((slot) => slot.name);
 }
 
-/** Rig-space [minX, minY, maxX, maxY] of everything drawn in `pose`. */
+/** Rig-space [minX, minY, maxX, maxY] of everything drawn in `pose`, decorations aside. */
 export function poseBounds(art: FighterArt, pose: RigPose): [number, number, number, number] {
   const b: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity];
   for (const slot of art.rig.slots) {
     const name = pose.symbols[slot.name];
     const sym = name ? art.rig.symbols[name] : undefined;
-    if (!Array.isArray(sym)) continue;
+    if (slot.decor || !Array.isArray(sym)) continue;
     const m = pose.world[slot.bone]!;
     for (const shape of sym)
       for (const p of flattenPath(shape.d, 4))

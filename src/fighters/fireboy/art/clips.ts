@@ -10,9 +10,11 @@ import {
   FRONT,
   HEAD_BEHIND,
   HURT,
+  MITTENS,
   NO_BODY,
   SIDE,
   SIDE_ANGRY,
+  SIDE_HURT,
   STAND,
   TUCK,
   UP,
@@ -56,7 +58,7 @@ const DROP = -1.0;
 function hang(hx: number, hy: number, drop: number, extra: Pose = {}): Pose {
   const base = mix(
     {
-      body: { rot: 5, x: 0.3, y: drop },
+      body: { rot: 5, x: 0.9, y: drop },
       neck: { rot: -3 },
       armF: { x: 2.4, y: -6.6 },
       armB: { x: 2.6, y: -7.2 },
@@ -67,8 +69,8 @@ function hang(hx: number, hy: number, drop: number, extra: Pose = {}): Pose {
     },
     extra,
   );
-  const front: Pt = [hx + 0.15, hy - 0.22];
-  const back: Pt = [hx - 0.55, hy + 0.2];
+  const front: Pt = [hx + 0.6, hy - 0.28];
+  const back: Pt = [hx + 0.05, hy - 0.26];
   const stretch = (arm: string, [x, y]: Pt) => {
     const [sx, sy] = pointOf(rig, base, arm);
     return Math.max(1, (Math.hypot(x - sx, y - sy) * 1.02 - FORE_ARM) / UPPER_ARM);
@@ -93,10 +95,11 @@ function pull(frame: number, moveEnd: number, progress: number): Pose {
   });
 }
 
-const BREATHE = hands(
-  feet({ hip: { y: 0.1 }, neck: { rot: 1.5 }, head: { sx: 1.015, sy: 0.99 } }, [-0.45, 0], [0.45, 0], true),
-  [-1.66, -1.7],
-  [1.67, -1.69],
+const BREATHE = feet(
+  { hip: { y: 0.1 }, neck: { rot: 1.5 }, head: { sx: 1.015, sy: 0.99 }, armF: { rot: -3 }, armB: { rot: 3 } },
+  [-0.45, 0],
+  [0.45, 0],
+  true,
 );
 
 /** A gait loop of four poses: contact, passing, then contact and passing on the other leg. */
@@ -147,6 +150,7 @@ const RUN: [Pose, Pose, Pose, Pose] = [
 /** Falling: legs reaching down for the floor, arms spread wide under the head. */
 const FALL = mix(AIR, {
   body: { sx: 0.97, sy: 1.04 },
+  head: { sx: 0.92, sy: 1.1 },
   armF: { rot: -75 },
   foreF: { rot: -50 },
   armB: { rot: 75 },
@@ -204,8 +208,8 @@ const SHIELD = hands(
 );
 
 const HANG = hang(GX, GY, DROP);
-/** Looking up at the lip. */
-const HANG_FACE = { head: 'headFront', face: 'faceUp' };
+/** Holding on: mitten hands, straining. */
+const HANG_FACE = { head: 'headFront', face: 'faceFrontStrain', ...MITTENS };
 
 /** Lying on his back, head on the floor behind him, legs drawn up. */
 const DOWN = feet(
@@ -234,15 +238,19 @@ const HIT = mix(AIR, {
   shinB: { rot: 20 },
 });
 
-/** Launched: one knee tucked, the other leg flung out, arms flailing. */
+/**
+ * Launched, in the original's motion language: the profile head flies backwards and up like a comet, its
+ * flames streaming down and forward, limbs splayed in four directions.
+ */
 const TUMBLE = mix(AIR, {
-  armF: { rot: -30 },
-  foreF: { rot: -100 },
-  armB: { rot: 140 },
+  body: { sx: -1, rot: 32 },
+  armF: { rot: -150 },
+  foreF: { rot: -20 },
+  armB: { rot: 120 },
   foreB: { rot: 30 },
-  thighF: { rot: -100 },
-  shinF: { rot: 120 },
-  thighB: { rot: 45 },
+  thighF: { rot: -70 },
+  shinF: { rot: 90 },
+  thighB: { rot: 50 },
   shinB: { rot: 5 },
 });
 
@@ -350,7 +358,7 @@ export const clips: Record<string, AnimClip> = {
   land: {
     length: 4,
     swaps: FRONT,
-    keys: [key(0, mix(CROUCH, { head: { sx: 1.12, sy: 0.85 } }), { ease: 'out' }), key(4, STAND)],
+    keys: [key(0, mix(CROUCH, { head: { sx: 1.14, sy: 0.84 } }), { ease: 'out' }), key(4, STAND)],
   },
   shield: {
     length: 6,
@@ -433,7 +441,7 @@ export const clips: Record<string, AnimClip> = {
   },
   ledgeCatch: {
     length: 8,
-    swaps: ANGRY,
+    swaps: { ...ANGRY, ...MITTENS },
     keys: [
       key(0, hang(GX, GY, DROP + 0.8, { body: { rot: -4 }, thighF: { rot: -40 }, thighB: { rot: 30 } }), {
         ease: 'outBack',
@@ -567,19 +575,24 @@ export const clips: Record<string, AnimClip> = {
   tumble: {
     length: 30,
     loop: true,
-    swaps: HURT,
+    swaps: SIDE_HURT,
     keys: [
-      key(0, mix(TUMBLE, { body: { rot: 60 } }), { ease: 'linear' }),
-      key(15, mix(TUMBLE, { body: { rot: -120 }, thighF: { rot: -70 }, thighB: { rot: 70 } }), {
-        ease: 'linear',
-      }),
-      key(30, mix(TUMBLE, { body: { rot: -300 } }), { ease: 'linear' }),
+      key(0, TUMBLE),
+      key(
+        15,
+        mix(TUMBLE, {
+          body: { sx: -1, rot: 40 },
+          armF: { rot: -120 },
+          thighF: { rot: -95 },
+          thighB: { rot: 70 },
+        }),
+      ),
     ],
   },
   helpless: {
     length: 32,
     loop: true,
-    swaps: HURT,
+    swaps: { head: 'headFront', face: 'faceFrontDazed' },
     keys: [
       key(0, mix(FALL, { armF: { rot: -70 }, armB: { rot: 70 }, neck: { rot: 6, y: 0.15 } })),
       key(16, mix(FALL_2, { armF: { rot: -55 }, armB: { rot: 55 }, neck: { rot: 3, y: 0.15 } })),

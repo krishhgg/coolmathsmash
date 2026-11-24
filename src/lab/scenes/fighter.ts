@@ -111,7 +111,7 @@ export const scene: LabScene = {
       states.forEach((state, i) => {
         const [clip, frame] = parseState(state);
         const cell = new Container();
-        cell.position.set(w * (i % cols) + w / 2, h * Math.floor(i / cols) + h * 0.8);
+        cell.position.set(w * (i % cols) + w * 0.4, h * Math.floor(i / cols) + h * 0.8);
         root.addChild(cell);
         if (!clip.startsWith('ledge')) cell.addChild(ground(new Graphics(), 0, 0, w * 0.8));
         const view = createRigView(art, palette);
@@ -120,7 +120,7 @@ export const scene: LabScene = {
         cell.addChild(view.container);
         ledge(cell, clip, zoom);
         fireball(cell, clip, frame, flicker ? frame : 0, zoom);
-        cell.mask = cell.addChild(new Graphics().rect(-w / 2, -h * 0.8, w, h).fill('#ffffff'));
+        cell.mask = cell.addChild(new Graphics().rect(-w * 0.4, -h * 0.8, w, h).fill('#ffffff'));
         const label = new Text({ text: state, style: LABEL });
         label.position.set(w * (i % cols) + 8, h * Math.floor(i / cols) + 6);
         root.addChild(label);

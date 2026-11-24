@@ -17,6 +17,7 @@ const original: Palette = {
   skinHi: '#ff0200',
   skinLo: '#990000',
   mouth: '#7a0000',
+  aura: '#ffb040',
 };
 
 /** Costumes: `default` is the original; the others keep the design and shift the flame's heat. */
@@ -38,6 +39,7 @@ export const palettes = {
     skinHi: '#ff9a1a',
     skinLo: '#a84400',
     mouth: '#8a3a00',
+    aura: '#ffe08a',
   },
   ember: {
     ...original,
@@ -53,6 +55,7 @@ export const palettes = {
     skinHi: '#86181a',
     skinLo: '#33070a',
     mouth: '#2a0000',
+    aura: '#ff5a20',
   },
   violet: {
     ...original,
@@ -70,5 +73,6 @@ export const palettes = {
     skinHi: '#8c2ae0',
     skinLo: '#420a78',
     mouth: '#2a0050',
+    aura: '#c890ff',
   },
 } satisfies Record<string, Palette>;
