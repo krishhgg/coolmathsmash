@@ -81,6 +81,7 @@ export const scene: LabScene = {
     };
 
     const show = (clip: string, frame: number, globalFrame = frame) => {
+      redraw = () => show(clip, frame, globalFrame);
       root.removeChildren().forEach((c) => c.destroy({ children: true }));
       const zoom = Number(params.get('zoom') ?? 12);
       const stage = new Container();
@@ -100,8 +101,10 @@ export const scene: LabScene = {
       return { clip, frame };
     };
 
+    let redraw = () => {};
     const flicker = params.has('flicker');
     const sheet = (states: string[] = KEY_STATES) => {
+      redraw = () => sheet(states);
       root.removeChildren().forEach((c) => c.destroy({ children: true }));
       const cols = Math.min(5, states.length);
       const rows = Math.ceil(states.length / cols);
@@ -134,6 +137,7 @@ export const scene: LabScene = {
       sheet: (states?: string[]) => sheet(states),
       palette: (p: string) => {
         palette = p;
+        redraw();
         return Object.keys(art.palettes);
       },
       clips: () => Object.fromEntries(Object.entries(art.clips).map(([k, c]) => [k, c.length])),
@@ -144,9 +148,10 @@ export const scene: LabScene = {
     if (params.get('sheet')) sheet(params.get('states')?.split(','));
     else show(clip, frame);
     if (params.get('play')) {
-      let f = frame;
-      app.ticker.add(() => {
-        f++;
+      let elapsed = 0;
+      app.ticker.add((ticker) => {
+        elapsed += ticker.deltaMS;
+        const f = frame + Math.floor((elapsed * 60) / 1000);
         show(clip, f);
       });
     }
