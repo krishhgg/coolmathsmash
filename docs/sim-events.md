@@ -33,6 +33,7 @@ feeds back into the simulation.
 | `jump`        | `port`, `kind` (`full`, `short`, `air`)                                              | a jump leaves the ground, or an air jump starts          |
 | `land`        | `port`, `lag`                                                                        | a fighter touches down; `lag` is its landing lag         |
 | `move`        | `port`, `move`                                                                       | a move starts (the fighter's move name)                  |
+| `transform`   | `port`, `from`, `to`                                                                 | a fighter transforms into another (fighter ids)          |
 | `action`      | `port`, `from`, `to`                                                                 | a fighter's action changed this frame                    |
 
 `x` and `y` are world units with y up. `action` events come last in a frame, one per fighter whose action
