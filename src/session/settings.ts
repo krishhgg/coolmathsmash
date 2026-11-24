@@ -23,14 +23,23 @@ export function defaultSettings(): Settings {
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 
-const browserStorage = (): StorageLike | null => (typeof localStorage === 'undefined' ? null : localStorage);
+/** localStorage, or null where there is none or the browser blocks it (reading the global itself can throw). */
+function browserStorage(): StorageLike | null {
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /** Saved settings over the defaults; anything missing or malformed falls back to its default. */
 export function loadSettings(storage: StorageLike | null = browserStorage()): Settings {
   const defaults = defaultSettings();
-  let saved: Partial<Settings> = {};
+  let saved: Partial<Settings>;
   try {
-    saved = JSON.parse(storage?.getItem(SETTINGS_KEY) ?? '{}') as Partial<Settings>;
+    const parsed: unknown = JSON.parse(storage?.getItem(SETTINGS_KEY) ?? '{}');
+    if (!parsed || typeof parsed !== 'object') return defaults;
+    saved = parsed;
   } catch {
     return defaults;
   }
@@ -67,5 +76,9 @@ export function loadSettings(storage: StorageLike | null = browserStorage()): Se
 }
 
 export function saveSettings(settings: Settings, storage: StorageLike | null = browserStorage()): void {
-  storage?.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  try {
+    storage?.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // Storage full or blocked: the settings still apply for this session.
+  }
 }
