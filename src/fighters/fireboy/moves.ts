@@ -30,11 +30,32 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
  * inclusive, faf is the first actionable frame. Move names double as animation clip names.
  */
 export const moves: Record<string, MoveDef> = {
-  /** Quick flame jab. */
+  /**
+   * 1-2-Kick (roster): punch, punch, fiery kick, chained with Attack. Mario's jab is the analogue for every hit:
+   * frames, cancel windows, angles, BKB and KBG from Ultimate (UFD, Dragdown); the damage is the roster's, with
+   * the burning kick 0.5% over Mario's.
+   */
   jab: {
     kind: 'other',
-    faf: 19,
-    hits: [{ frames: [3, 4], boxes: [box(0, 6.5, 9, 3.5, { damage: 3, angle: 361, kbg: 50, bkb: 25 })] }],
+    faf: 20,
+    next: { window: [5, 19], move: 'jab2' },
+    hits: [{ frames: [2, 3], boxes: [box(0, 6.5, 9, 3.5, { damage: 2.2, angle: 361, kbg: 30, bkb: 20 })] }],
+  },
+  jab2: {
+    kind: 'other',
+    faf: 22,
+    next: { window: [6, 21], move: 'jab3' },
+    hits: [{ frames: [2, 3], boxes: [box(0, 6, 6, 3.5, { damage: 1.7, angle: 361, kbg: 30, bkb: 20 })] }],
+  },
+  jab3: {
+    kind: 'other',
+    faf: 34,
+    hits: [
+      {
+        frames: [3, 4],
+        boxes: [box(0, 6.5, 6, 4, { damage: 4.5, angle: 361, kbg: 80, bkb: 60, effect: fire })],
+      },
+    ],
   },
   /** Fiery kick at mid height: Mario's forward tilt. */
   ftilt: {

@@ -360,6 +360,56 @@ describe('Fireboy: pummel and throws', () => {
   });
 });
 
+describe('Fireboy: 1-2-Kick jab chain', () => {
+  const mash = (i: number, every = 8, until = 24): Hold =>
+    i % every === 0 && i < until ? { buttons: ['attack'] } : {};
+
+  it('Attack again inside each window chains jab -> jab2 -> jab3', () => {
+    const m = fireboy();
+    const f = m.fighters[0]!;
+    const seen: string[] = [];
+    for (let i = 0; i < 80; i++) {
+      run(m, 1, mash(i));
+      if (f.move && seen.at(-1) !== f.move) seen.push(f.move);
+    }
+    expect(seen).toEqual(['jab', 'jab2', 'jab3']);
+  });
+
+  it("a single press plays only the first punch and ends on Mario's first actionable frame", () => {
+    const m = fireboy();
+    const f = m.fighters[0]!;
+    run(m, 1, { buttons: ['attack'] });
+    let frames = 1;
+    while (f.move === 'jab') {
+      run(m, 1, {});
+      frames++;
+    }
+    expect(frames).toBe(20);
+    expect(f.action).toBe('idle');
+  });
+
+  it('mashing lands all three hits on a standing opponent: 2.2 + 1.7 + 4.5, fresh (x1.05) and x1.2 in 1v1', () => {
+    const m = testMatch({ fighter: 'fireboy', players: 2 });
+    const [a, v] = m.fighters;
+    Object.assign(v!, {
+      pos: { x: a!.pos.x + 9 * a!.facing, y: a!.pos.y },
+      ground: a!.ground,
+      action: 'idle',
+    });
+    v!.intangible = 0;
+    for (let i = 0; i < 100; i++) runPorts(m, 1, [mash(i, 4, 44), {}]);
+    expect(v!.damage).toBeCloseTo((2.2 + 1.7 + 4.5) * 1.05 * 1.2, 6);
+  });
+
+  it("uses Mario's jab frame data", () => {
+    expect([moves.jab!, moves.jab2!, moves.jab3!].map((j) => [j.hits[0]!.frames, j.faf])).toEqual([
+      [[2, 3], 20],
+      [[2, 3], 22],
+      [[3, 4], 34],
+    ]);
+  });
+});
+
 describe('Fireboy: kill percents (koPercent: Mario at the Battlefield ledge, fresh, no DI)', () => {
   function atLedge(hit: KoSetup['hit'], air = false): number {
     const percent = koPercent({ hit, from: 'ledge', air });
