@@ -1,0 +1,121 @@
+{
+  "voice": "am_michael",
+  "lines": {
+    "ready": {
+      "text": "Ready?",
+      "style": "call"
+    },
+    "three": {
+      "text": "Three!",
+      "style": "count"
+    },
+    "two": {
+      "text": "Two!",
+      "style": "count"
+    },
+    "one": {
+      "text": "One!",
+      "style": "count"
+    },
+    "go": {
+      "text": "Go!",
+      "style": "count"
+    },
+    "fight": {
+      "text": "Fight!",
+      "style": "count"
+    },
+    "game": {
+      "text": "Game!",
+      "style": "call"
+    },
+    "time": {
+      "text": "Time!",
+      "style": "call"
+    },
+    "sudden-death": {
+      "text": "Sudden death!",
+      "style": "call"
+    },
+    "no-contest": {
+      "text": "No contest!",
+      "style": "call"
+    },
+    "winner-is": {
+      "text": "The winner is...",
+      "style": "build"
+    },
+    "choose-your-character": {
+      "text": "Choose your character!",
+      "style": "call"
+    },
+    "title": {
+      "text": "Cool Math Smash!",
+      "style": "title"
+    },
+    "fighter-papa-louie": {
+      "text": "Papa Louie!",
+      "style": "name"
+    },
+    "fighter-fireboy": {
+      "text": "Fire boy!",
+      "style": "name"
+    },
+    "fighter-watergirl": {
+      "text": "Water girl!",
+      "style": "name"
+    },
+    "fighter-runner": {
+      "text": "Runner!",
+      "style": "name"
+    },
+    "fighter-bob-the-robber": {
+      "text": "Bob the Robber!",
+      "style": "name"
+    },
+    "fighter-snail-bob": {
+      "text": "Snail Bob!",
+      "style": "name"
+    },
+    "fighter-red-ball": {
+      "text": "Red Ball!",
+      "style": "name"
+    },
+    "fighter-duck": {
+      "text": "Duck!",
+      "style": "name"
+    },
+    "fighter-fluffy": {
+      "text": "Fluffy!",
+      "style": "name"
+    },
+    "fighter-raft-wars": {
+      "text": "Raft Wars!",
+      "style": "name"
+    },
+    "fighter-balloon-boy": {
+      "text": "Balloon Boy and the Beast!",
+      "style": "name"
+    },
+    "fighter-bloxorz": {
+      "text": "[Bloxorz](/blˈɑksˌɔɹz/)!",
+      "style": "name"
+    },
+    "fighter-johnny-upgrade": {
+      "text": "Johnny Upgrade!",
+      "style": "name"
+    },
+    "fighter-wheely": {
+      "text": "Wheely!",
+      "style": "name"
+    },
+    "fighter-fisherman": {
+      "text": "Fisherman!",
+      "style": "name"
+    },
+    "fighter-moby": {
+      "text": "Moby!",
+      "style": "name"
+    }
+  }
+}
