@@ -25,11 +25,12 @@ export function stepEntities(m: MatchState): void {
   for (const e of m.entities) {
     if (e.dead) continue;
     e.prevPos = { x: e.pos.x, y: e.pos.y };
+    const x = entityCtx(m, e, stage);
     if (e.hitlag > 0) {
       e.hitlag--;
+      if (e.grounded) keepFooting(x);
       continue;
     }
-    const x = entityCtx(m, e, stage);
     e.age++;
     if (e.lifetime > 0 && e.age > e.lifetime) {
       destroyEntity(m, e, 'expired');
@@ -69,6 +70,16 @@ function moveEntity(x: EntityCtx): void {
   e.kb.x *= k;
   e.kb.y *= k;
   if (def.gravity) e.vel.y = Math.max(e.vel.y - def.gravity, -(def.maxFall ?? Infinity));
+}
+
+/** Frozen in hitlag, a resting entity still rides the floor under it; one whose floor went from under it falls after. */
+function keepFooting(x: EntityCtx): void {
+  const { e } = x;
+  const under = floorUnder(x, { x: e.pos.x, y: e.pos.y }, { from: 1, to: 0 });
+  e.grounded = under !== null;
+  if (!under) return;
+  e.pos.x += under.carry;
+  e.pos.y = under.y + x.def.radius;
 }
 
 /**

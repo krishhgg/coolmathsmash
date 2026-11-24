@@ -536,7 +536,7 @@ describe('entity lifecycle', () => {
     expect(box.pos.y).toBeLessThan(40);
   });
 
-  it('rides moving floors and platforms up, down and sideways, and is crushed under a descending solid (testbed)', () => {
+  it('rides moving floors and platforms up, down and sideways, even in hitlag, and is crushed under a descending solid (testbed)', () => {
     const m = createMatch({ seed: 1, stage: 'testbed', stocks: 3, ports: [{ fighter: 'test-gadgets' }] });
     const crate = (x: number, y: number) =>
       spawnEntity(m, { kind: 'test-gadgets/crate', owner: -1, pos: { x, y } });
@@ -547,6 +547,7 @@ describe('entity lifecycle', () => {
     const reasons: string[] = [];
     const offsets = new Set<string>();
     while (m.frame < 420) {
+      if (m.frame === 100 || m.frame === 300) lifted.hitlag = 13;
       step(m, 1);
       for (const ev of m.events) if (ev.type === 'entityDestroy') reasons.push(`${ev.id}:${ev.reason}`);
       if (m.frame < 30) continue;
