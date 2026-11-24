@@ -99,7 +99,8 @@ export const GRAB_ACTIONS: Record<string, ActionDef> = {
   grabPummel: {
     physics: 'ground',
     update(x) {
-      if (x.f.actionFrame >= playMove(x).faf) setAction(x, 'grabHold');
+      const move = playMove(x);
+      if (move && x.f.actionFrame >= move.faf) setAction(x, 'grabHold');
     },
   },
 
@@ -108,7 +109,8 @@ export const GRAB_ACTIONS: Record<string, ActionDef> = {
     physics: 'ground',
     intangible: (f) => f.grabPartner >= 0,
     update(x) {
-      if (x.f.actionFrame >= playMove(x).faf) setAction(x, 'idle');
+      const move = playMove(x);
+      if (move && x.f.actionFrame >= move.faf) setAction(x, 'idle');
     },
   },
 

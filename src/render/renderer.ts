@@ -6,6 +6,7 @@ import { getStage } from '../stages/registry';
 import type { StageGeometry } from '../sim/stage';
 import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
+import { drawChargeGlows } from './chargeGlow';
 import { EventLog } from './debug/eventLog';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView } from './fighterView';
@@ -33,6 +34,7 @@ export class Renderer {
   private readonly stageLayer = new Container();
   private readonly fighterLayer = new Container();
   private readonly boxes = new Graphics();
+  private readonly glows = new Graphics();
   private fighters: FighterView[] = [];
   /** Fighter id each view was built for; a transform swaps the view. */
   private fighterIds: string[] = [];
@@ -41,7 +43,7 @@ export class Renderer {
   private matchKey: unknown = null;
 
   private constructor(readonly app: Application) {
-    this.world.addChild(this.stageLayer, this.fighterLayer, this.boxes);
+    this.world.addChild(this.stageLayer, this.glows, this.fighterLayer, this.boxes);
     app.stage.addChild(this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
     this.hud.addChild(this.matchHud.hud.container);
@@ -101,6 +103,7 @@ export class Renderer {
     const view = this.camera.viewFor(state, this.stage!);
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
+    drawChargeGlows(this.glows, state, alpha);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
     this.drawBoxes(state);
     this.matchHud.update(

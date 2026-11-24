@@ -1,36 +1,18 @@
 import { getFighter } from '../../fighters/registry';
 import type { MoveDef } from '../../fighters/types';
 import { Btn } from '../../input/types';
-import {
-  buffered,
-  cStickDir,
-  cStickHeld,
-  consume,
-  consumeCStick,
-  isHeld,
-  smashDir,
-  stickDir,
-  type Dir,
-} from '../control';
+import { buffered, cStickDir, consume, consumeCStick, smashDir, stickDir, type Dir } from '../control';
 import { emit } from '../events';
 import type { Ctx, FighterState } from '../fighter';
 import { HELPLESS_LANDING_LAG } from '../constants';
 import { leaveGround, normalLandingLag } from '../movement';
 import { fastFallCheck } from './air';
+import { chargeHold } from './charge';
 import { groundGrab } from './grab';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
 
-/** Ultimate: a smash attack charges for at most 60 frames, reaching 1.4x damage. */
-export const SMASH_CHARGE_FRAMES = 60;
-export const SMASH_CHARGE_MAX = 1.4;
-
 export function moveOf(f: FighterState): MoveDef | undefined {
   return f.move ? getFighter(f.fighter).moves?.[f.move] : undefined;
-}
-
-/** Damage multiplier from smash charge. */
-export function chargeMultiplier(f: FighterState): number {
-  return 1 + ((SMASH_CHARGE_MAX - 1) * f.charge) / SMASH_CHARGE_FRAMES;
 }
 
 /**
@@ -155,16 +137,16 @@ export function airAttack(x: Ctx): boolean {
 }
 
 /**
- * Per-frame move bookkeeping: hold the charge frame while Attack (or the C-stick) is held, reopen `rehit`
- * windows, run the move's script. Returns the move.
+ * Per-frame move bookkeeping: hold the charge frame while the move charges, reopen `rehit` windows, run the move's
+ * script. Returns the move, or null when a stored charge cancelled it into another action.
  */
-export function playMove(x: Ctx): MoveDef {
-  const { f, c } = x;
+export function playMove(x: Ctx): MoveDef | null {
+  const { f } = x;
   const move = moveOf(f)!;
-  const holding = isHeld(c, Btn.Attack) || cStickHeld(c);
-  if (move.charge === f.actionFrame && f.charge < SMASH_CHARGE_FRAMES && holding) {
-    f.charge++;
-    f.actionFrame--;
+  if (move.charge === f.actionFrame) {
+    const hold = chargeHold(x, move);
+    if (hold === 'cancel') return null;
+    if (hold === 'hold') f.actionFrame--;
   }
   if (move.hits.some((w) => w.rehit && w.frames[0] === f.actionFrame)) f.hitVictims = [];
   move.script?.(x);
@@ -196,7 +178,7 @@ export const ATTACK: Record<string, ActionDef> = {
     intangible: moveIntangible,
     update(x) {
       const move = playMove(x);
-      if (comboNext(x, move)) return;
+      if (!move || comboNext(x, move)) return;
       if (x.f.actionFrame >= move.faf) setAction(x, 'idle');
     },
   },
@@ -215,6 +197,7 @@ export const ATTACK: Record<string, ActionDef> = {
     update(x) {
       const { f } = x;
       const move = playMove(x);
+      if (!move) return;
       if (!move.helpless) fastFallCheck(x);
       if (f.actionFrame < move.faf) return;
       if (!move.helpless) return setAction(x, 'fall');

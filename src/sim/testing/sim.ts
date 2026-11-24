@@ -3,9 +3,11 @@ import { buttonBit, neutralInput, type ButtonName, type InputFrame } from '../..
 import { createMatch, stepMatch, type MatchState } from '../match';
 import { compiledStage } from '../step';
 import type { FighterState } from '../fighter';
+import { testCharger } from './charge';
 import { marioReference } from './reference';
 
 registerFighter(marioReference);
+registerFighter(testCharger);
 
 export type Hold = Partial<Omit<InputFrame, 'buttons'>> & { buttons?: ButtonName[] };
 
