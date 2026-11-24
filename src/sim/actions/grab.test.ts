@@ -76,6 +76,7 @@ describe('grab hold time (reference grab section)', () => {
     const stick = (i: number): Hold => (i < presses ? { x: i % 2 ? -100 : 100 } : {});
     const base = G.test_vectors[0]!.expected_frames;
     expect(holdFrames(grabbed(0), stick)).toBe(Math.ceil(base - presses * G.mash_per_stick_input));
+    expect(holdFrames(grabbed(0), () => ({ x: -100 }))).toBe(Math.ceil(base - G.mash_per_stick_input));
   });
 
   it('each button press cuts the hold by the reference 14.4 frames', () => {
@@ -157,10 +158,15 @@ describe('who gets grabbed', () => {
   });
 
   it('nobody behind the grabber, and grab boxes are half size against airborne fighters', () => {
-    const behind = duel(-6);
-    step(behind.m, 1, [{ buttons: ['grab'] }]);
-    step(behind.m, 10);
-    expect(behind.v.action).not.toBe('grabbed');
+    /** P2 overlapping P1 just in front of or just behind his centre, where the grab box reaches his body. */
+    const near = (gap: number) => {
+      const d = duel(gap);
+      step(d.m, 1, [{ buttons: ['grab'] }]);
+      step(d.m, 10);
+      return d.v.action === 'grabbed';
+    };
+    expect(near(0.5)).toBe(true);
+    expect(near(-0.5)).toBe(false);
 
     /** P1's grab against P2 `gap` away, lifted into the air just before the grab box comes out. */
     const caught = (gap: number, airborne: boolean) => {
@@ -246,13 +252,28 @@ describe('pummel and throws', () => {
     expect(v.ground).toBeNull();
   });
 
-  it('back throw launches behind the thrower', () => {
-    const { m, a, v } = grabbed(100);
+  it('a started throw cannot be mashed out of', () => {
+    const { m, a, v } = grabbed(0);
     step(m, 1, [{ x: -100 }]);
     expect(a.move).toBe('bthrow');
-    step(m, moves.bthrow!.throw!.frame + 1);
+    step(m, moves.bthrow!.throw!.frame, (i) => [
+      {},
+      { x: i % 2 ? -100 : 100, buttons: i % 2 ? [] : ['jump'] },
+    ]);
+    expect(v.action).toBe('hitstun');
+    expect(v.damage).toBeCloseTo(moves.bthrow!.throw!.hit.damage * 1.05 * 1.2, 6);
+  });
+
+  it('back throw carries the opponent behind the thrower and launches them that way', () => {
+    const { m, a, v } = grabbed(100);
+    const t = moves.bthrow!.throw!;
+    step(m, 1, [{ x: -100 }]);
+    expect(a.move).toBe('bthrow');
+    step(m, t.frame - 1);
+    expect(a.actionFrame).toBe(t.frame);
+    expect(v.pos.x - a.pos.x).toBeCloseTo(-(stats.width + 1) * a.facing, 6);
+    step(m, 1);
     expect(Math.sign(v.kb.x)).toBe(-a.facing);
-    expect(Math.sign(v.pos.x - a.pos.x)).toBe(-a.facing);
     expect(a.facing).toBe(1);
   });
 });
