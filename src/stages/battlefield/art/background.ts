@@ -95,8 +95,8 @@ function sky(): Layer {
 /** The Coolmath Games planet (green world, blue ring) hanging in the sky, with slow Flash-style sun rays. */
 function planet(): Layer {
   const node = new Container({ label: 'planet' });
-  const cx = 1150;
-  const cy = 92;
+  const cx = 1166;
+  const cy = 74;
   const r = 56;
   const rays = new Graphics();
   const count = 18;
@@ -463,18 +463,19 @@ const rgba = (color: number, alpha: number) =>
   `rgba(${(color >> 16) & 255},${(color >> 8) & 255},${color & 255},${alpha})`;
 
 /**
- * Animated Flash waterfall: a pale column that fades out as it falls (so it never ends in mid-air when the camera
- * pulls back), with streaks scrolling down, redrawn from the frame number.
+ * Animated Flash waterfall: a pale column that dissolves into spray well above the playfield (so it never pours
+ * onto the stage or ends in mid-air), with streaks scrolling down, redrawn from the frame number.
  */
 function waterfall(x: number, top: number, w: number, h: number) {
-  const length = 1100;
+  const length = 320;
   const base = new Graphics();
   const water = haze(0xe4f5ff, h);
   const edge = haze(0x86bde2, h);
   base.rect(x - w / 2, top, w, length).fill(
     vGradient([
       [0, rgba(water, 1)],
-      [0.25, rgba(water, 0.85)],
+      [0.2, rgba(water, 0.8)],
+      [0.7, rgba(water, 0.15)],
       [1, rgba(water, 0)],
     ]),
   );
@@ -487,7 +488,7 @@ function waterfall(x: number, top: number, w: number, h: number) {
     );
   const streaks = new Graphics();
   const spacing = 26;
-  const reach = length * 0.45;
+  const reach = length * 0.6;
   return {
     nodes: [base, streaks],
     tick: (frame: number) => {
