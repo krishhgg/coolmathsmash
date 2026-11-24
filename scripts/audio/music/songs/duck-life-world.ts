@@ -7,14 +7,17 @@ import {
   hat,
   human,
   kick,
+  harmonica,
   quack,
   ride,
+  roll,
   shaker,
   shape,
   snare,
   strum,
   tom,
   upright,
+  warmStrings,
   whistle,
 } from '../kits/cheerful.ts';
 import { arp, chord, grid, loop, root, seq, type Note } from '../notes.ts';
@@ -24,7 +27,7 @@ import type { Song } from '../render.ts';
  * Duck Life stage: an original sunny countryside two-step in A major. A1 is the whistled training tune over
  * strummed acoustic guitar, banjo rolls and a bouncing upright bass; A2 picks up handclaps, a shaker and a
  * busier banjo; B lifts into a half-time "take flight" bridge with soaring strings and celesta, then a
- * snare roll runs back into the top. 24 bars at 128 BPM.
+ * snare roll runs back into the top. 24 bars at 132 BPM.
  */
 const bar = 4;
 const changes: [number, number, string][] = [
@@ -93,12 +96,16 @@ const tune = seq(
   { step: 0.5, v: 0.8 },
 );
 /** Phrases swell to their middle; the bridge sings out a little more. */
-const tuneShaped = shape(tune, (t) => {
+const tuneShapedAll = shape(tune, (t) => {
   const p = (t % 8) / 8;
   return (
     (0.84 + 0.2 * Math.sin(Math.PI * p)) * (t < 32 ? 0.9 : inB(t) ? 1.05 : 1) * (t % 1 < 0.01 ? 1.05 : 0.97)
   );
 });
+
+/** The whistle sings A1 and the bridge; a harmonica takes the tune in A2. */
+const whistleTune = tuneShapedAll.filter((n) => n.t < 32 || n.t >= 64);
+const harpTune = tuneShapedAll.filter((n) => n.t >= 32 && n.t < 64);
 
 // ---------------------------------------------------------------- accompaniment
 
@@ -110,17 +117,24 @@ const gtr = (sym: string) =>
     .filter((n, i, a) => a.indexOf(n) === i)
     .sort((a, b) => a - b);
 
-/** Boom-chick strums: down on 2 and 4, a light upstroke on the "and" of 4 (and of 2 in A2). */
+/** Strums: boom-chick (down on 2 and 4, up on the and of 4) in A1, with muted ghost strokes in A2, and a
+ * driving down-up eighth pattern under the bridge. */
 const strums = spans.flatMap((s) => {
-  const hitsAt = inB(s.t) ? [0, 2, 2.5, 3.5] : s.t >= 32 ? [1, 1.5, 3, 3.5] : [1, 3, 3.5];
+  const hitsAt = inB(s.t)
+    ? [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5]
+    : s.t >= 32
+      ? [1, 1.5, 1.75, 3, 3.5, 3.75]
+      : [1, 3, 3.5];
   return hitsAt
     .map((b) => s.t - (s.t % bar) + b)
     .filter((t) => t >= s.t && t < s.t + s.d)
     .flatMap((t) => {
       const up = t % 1 > 0;
+      const ghost = t % 0.5 > 0;
+      const v = ghost ? 0.22 : up ? 0.42 : inB(s.t) && t % 2 ? 0.55 : 0.7;
       return strum(
-        gtr(s.sym).map((n) => ({ t, d: inB(s.t) && !up ? 1.8 : 0.42, n, v: up ? 0.42 : 0.7 })),
-        0.018,
+        gtr(s.sym).map((n) => ({ t, d: ghost ? 0.05 : up ? 0.3 : 0.42, n, v })),
+        ghost ? 0.012 : 0.032,
         up,
       );
     });
@@ -182,7 +196,7 @@ const bassLine: Note[] = spans.flatMap((s, i) => {
   ];
 });
 
-/** Bridge: strings in two wide voicings and a celesta counter-melody, "taking flight". */
+/** Bridge: strings in two wide voicings, a celesta counter-melody and floor-tom pulses, "taking flight". */
 const pads = (oct: number, v: number) =>
   spans.filter((s) => inB(s.t)).flatMap((s) => chord(s.sym, oct).map((n) => ({ t: s.t, d: s.d, n, v })));
 const sparkle = seq(
@@ -197,8 +211,14 @@ const kickA = loop(grid('x.......o.......', { step: 0.25 }), 16, bar);
 const snareA = loop(grid('....x.......x...', { step: 0.25 }), 16, bar).filter(
   (n) => !(n.t >= 7 * bar + 2 && n.t < 8 * bar) && !(n.t >= 15 * bar + 2 && n.t < 16 * bar),
 );
-const fillA1 = grid('..........x-x-xx', { step: 0.25, start: 7 * bar });
-const fillA2 = grid('........x.x.xxxx', { step: 0.25, start: 15 * bar });
+const fillA1 = [
+  ...grid('..........x-', { step: 0.25, start: 7 * bar }),
+  ...roll(7 * bar + 3, 8 * bar, 4, 0.5, 0.85, 6),
+];
+const fillA2 = [
+  ...grid('........x.o.', { step: 0.25, start: 15 * bar }),
+  ...roll(15 * bar + 3, 16 * bar, 4, 0.55, 0.95, 7),
+];
 const tomsA2 = [
   { t: 15 * bar + 3, d: 0.3, n: 52, v: 0.75 },
   { t: 15 * bar + 3.25, d: 0.3, n: 48, v: 0.8 },
@@ -218,11 +238,17 @@ const kickB = [
 const snareB = [
   ...loop(grid('........x.......', { step: 0.25, start: 64 }), 5, bar),
   ...grid('........x.....-.', { step: 0.25, start: 84 }),
-  ...grid('x.x.x.x.x.x.x.x.|xxxxxxxxxxxxxxxx', { step: 0.25, start: 88 }).map((n) => ({
-    ...n,
-    v: 0.35 + 0.65 * ((n.t - 88) / 8) ** 1.5,
-  })),
+  ...roll(88, 92, 2, 0.3, 0.55, 8),
+  ...roll(92, 96, 4, 0.5, 1, 9),
 ];
+const floorToms = loop(
+  [
+    { t: 0, d: 0.5, n: 43, v: 0.4 },
+    { t: 2, d: 0.5, n: 43, v: 0.32 },
+  ],
+  6,
+  bar,
+).map((n) => ({ ...n, t: n.t + 64 }));
 const rideB = loop(grid('x.o.x.o.x.o.x.o.', { step: 0.25, n: 64 }), 6, bar).map((n) => ({
   ...n,
   t: n.t + 64,
@@ -234,24 +260,26 @@ const quacks = [
   { t: 15 * bar + 1, d: 0.2, n: 64, v: 0.75 },
 ];
 
-const dyn = (t: number) => (t < 32 ? 0.8 : t < 64 ? 0.92 : 1);
+const dyn = (t: number) => (t < 32 ? 0.88 : t < 64 ? 0.94 : 1);
 
 export const song: Song = {
   id: 'duck-life-world',
   title: 'Duck Life',
   evokes: 'Duck Life (Wix Games): an original sunny countryside training two-step',
-  bpm: 128,
+  bpm: 132,
   loopBeats: 24 * bar,
   seed: 23,
-  reverb: { room: 0.5, damp: 0.5, wet: 0.26 },
+  reverb: { room: 0.52, damp: 0.5, wet: 0.3 },
   tracks: [
-    { inst: whistle, gain: -4, pan: 0.05, verb: 0.3, loop: human(tuneShaped, 31, 0.06, 0.008) },
-    { inst: acGuitar, gain: 0, pan: -0.42, verb: 0.2, loop: human(shape(strums, dyn), 32, 0.08, 0.004) },
-    { inst: banjo, gain: -1, pan: 0.45, verb: 0.2, loop: human(shape(banjoLine, dyn), 33, 0.1, 0.006) },
-    { inst: upright, gain: -1, pan: 0, verb: 0.06, loop: human(shape(bassLine, dyn), 34, 0.06, 0.005) },
-    { inst: 'strings', gain: -6, pan: -0.55, verb: 0.45, loop: pads(3, 0.5) },
-    { inst: 'strings', gain: -7, pan: 0.55, verb: 0.45, loop: pads(4, 0.45) },
-    { inst: celesta, gain: -9, pan: 0.3, verb: 0.4, loop: human(sparkle, 35, 0.12, 0.004) },
+    { inst: whistle, gain: -4.5, pan: 0.05, verb: 0.34, loop: human(whistleTune, 31, 0.1, 0.01) },
+    { inst: harmonica, gain: -3, pan: -0.08, verb: 0.3, loop: human(harpTune, 43, 0.1, 0.01) },
+    { inst: acGuitar, gain: -4, pan: -0.7, verb: 0.22, loop: human(shape(strums, dyn), 32, 0.12, 0.006) },
+    { inst: acGuitar, gain: -4.5, pan: 0.7, verb: 0.22, loop: human(shape(strums, dyn), 42, 0.12, 0.008) },
+    { inst: banjo, gain: -1, pan: 0.38, verb: 0.24, loop: human(shape(banjoLine, dyn), 33, 0.15, 0.008) },
+    { inst: upright, gain: 0.5, pan: 0, verb: 0.06, loop: human(shape(bassLine, dyn), 34, 0.06, 0.005) },
+    { inst: warmStrings, gain: -4, pan: -0.55, verb: 0.45, loop: pads(3, 0.55) },
+    { inst: warmStrings, gain: -5, pan: 0.55, verb: 0.45, loop: pads(4, 0.5) },
+    { inst: celesta, gain: -9, pan: -0.4, verb: 0.5, loop: human(sparkle, 35, 0.12, 0.004) },
     {
       inst: kick,
       gain: -6,
@@ -263,15 +291,15 @@ export const song: Song = {
       inst: snare,
       gain: -5,
       pan: 0.05,
-      verb: 0.2,
-      loop: human(shape([...snareA, ...fillA1, ...fillA2, ...snareB], dyn), 37, 0.07, 0.004),
+      verb: 0.26,
+      loop: human(shape([...snareA, ...fillA1, ...fillA2, ...snareB], dyn), 37, 0.12, 0.006),
     },
-    { inst: hat, gain: 1, pan: 0.32, verb: 0.08, loop: human(shape(hatsA, dyn), 38, 0.12, 0.004) },
-    { inst: ride, gain: -5, pan: -0.3, verb: 0.15, loop: human(rideB, 39, 0.1, 0.004) },
-    { inst: clap, gain: 2, pan: -0.15, verb: 0.25, loop: human(clapsA2, 40, 0.1, 0.006) },
-    { inst: shaker, gain: -6, pan: 0.5, verb: 0.1, loop: human(shakerA2, 41, 0.15, 0.006) },
-    { inst: tom, gain: -5, pan: -0.1, verb: 0.2, loop: tomsA2 },
+    { inst: hat, gain: 1, pan: 0.38, verb: 0.1, loop: human(shape(hatsA, dyn), 38, 0.18, 0.005) },
+    { inst: ride, gain: -5, pan: -0.38, verb: 0.15, loop: human(rideB, 39, 0.1, 0.004) },
+    { inst: clap, gain: 3, pan: -0.25, verb: 0.3, loop: human(clapsA2, 40, 0.14, 0.008) },
+    { inst: shaker, gain: -9, pan: 0.62, verb: 0.15, loop: human(shakerA2, 41, 0.2, 0.008) },
+    { inst: tom, gain: -5, pan: -0.1, verb: 0.25, loop: [...tomsA2, ...floorToms] },
     { inst: crash, gain: -2, pan: -0.25, verb: 0.3, loop: crashes },
-    { inst: quack, gain: 0, pan: 0.2, verb: 0.2, loop: quacks },
+    { inst: quack, gain: -3, pan: 0.2, verb: 0.35, loop: quacks },
   ],
 };

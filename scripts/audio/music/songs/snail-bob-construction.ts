@@ -8,7 +8,9 @@ import {
   kick,
   ratchet,
   rim,
+  roll,
   shape,
+  slideDown,
   slideUp,
   snare,
   tom,
@@ -128,21 +130,28 @@ const clarinetLine = [
   ...tiptoe(seq(sneak('D5:2 . . . . . .'), { step: 0.5, v: 0.8 }), 0.95),
   ...tiptoe(shift(seq(sneak('D5 . F5 . A5 . . .'), { step: 0.5, v: 0.6, start: 64 }), 0, -12), 0.9),
 ];
+const marimbaLine = shift(
+  tiptoe(seq(sneak('D6 . F6 . A6 . . .'), { step: 0.5, v: 0.8, start: 64 }), 1),
+  0,
+  -12,
+);
 const xyloLine = [
   ...tiptoe(seq(romp, { step: 0.5, v: 0.85, start: 32 }), 1),
   ...tiptoe(seq(sneak('D6 . F6 . A6 . . .'), { step: 0.5, v: 0.85, start: 64 }), 1),
 ];
 const bassoonLine = staccato(shift(creepA1, 0, 12)).map((n) => ({ ...n, v: n.v * 0.75 }));
 
-/** B: pizzicato chords on 2 and 4. */
-const pizzChords = spans
-  .filter((s) => inB(s.t))
-  .flatMap((s) =>
-    [1, 3]
-      .map((b) => s.t - (s.t % bar) + b)
-      .filter((t) => t >= s.t && t < s.t + s.d)
-      .flatMap((t) => chord(s.sym, 4).map((n) => ({ t, d: 0.3, n, v: 0.6 }))),
-  );
+/** Pizzicato: tiptoe offbeats in the A sections, chords on 2 and 4 in B. */
+const pizzChords = spans.flatMap((s) =>
+  (inB(s.t) ? [1, 3] : [0.5, 1.5, 2.5, 3.5])
+    .map((b) => s.t - (s.t % bar) + b)
+    .filter((t) => t >= s.t && t < s.t + s.d)
+    .flatMap((t) =>
+      chord(s.sym, 4)
+        .slice(0, 3)
+        .map((n) => ({ t, d: 0.3, n, v: inB(s.t) ? 0.6 : t % 2 < 1 ? 0.42 : 0.5 })),
+    ),
+);
 
 // ---------------------------------------------------------------- percussion
 
@@ -160,42 +169,52 @@ const tickTock = shape(
   (t) => (t < 32 ? 0.9 : 1),
 );
 const kicks = [
-  ...loop(grid('o.......-.......', { step: 0.25 }), 7, bar),
+  ...loop(grid('x.......o.......', { step: 0.25 }), 7, bar),
   ...loop(grid('x.......x.......', { step: 0.25, start: 32 }), 8, bar),
   ...loop(grid('x.....o.x.......', { step: 0.25, start: 64 }), 7, bar),
   ...grid('x.......x.x.x.x.', { step: 0.25, start: 92 }),
 ];
 const rims = loop(grid('....x.......x...', { step: 0.25 }), 7, bar);
 const snares = [
-  ...grid('........x.x.xxxx', { step: 0.25, start: 28 }),
+  ...loop(grid('..-...-...-.-.-.', { step: 0.25 }), 7, bar).map((n) => ({ ...n, v: n.v * 0.8 })),
+  ...grid('........x.o.', { step: 0.25, start: 28 }),
+  ...roll(31, 32, 4, 0.5, 0.9, 3),
   ...loop(grid('....o.......o..-', { step: 0.25, start: 32 }), 7, bar),
-  ...grid('....o...x.x.xxxx', { step: 0.25, start: 60 }),
-  ...loop(grid('....x.....-.x...', { step: 0.25, start: 64 }), 7, bar),
-  ...grid('....x...xxxxxxxx', { step: 0.25, start: 92 }).map((n, k) => ({
-    ...n,
-    v: n.v * (0.55 + 0.04 * k),
-  })),
+  ...grid('....o...x.o.', { step: 0.25, start: 60 }),
+  ...roll(63, 64, 4, 0.55, 0.95, 4),
+  ...loop(grid('..-.x.-...-.x.-.', { step: 0.25, start: 64 }), 7, bar),
+  ...grid('....x...', { step: 0.25, start: 92 }),
+  ...roll(94, 96, 4, 0.4, 1, 5),
 ];
 const hats = [
   ...loop(grid('x.o.x.o.x.o.x.o.', { step: 0.25, n: 40 }), 8, bar).map((n) => ({ ...n, t: n.t + 32 })),
   ...loop(grid('x-o-x-o-x-o-x-o-', { step: 0.25, n: 40 }), 8, bar).map((n) => ({ ...n, t: n.t + 64 })),
 ];
-/** Girder clanks: on the 4 of each B bar (pitch walks around), plus hits that punctuate the tune. */
-const clanks = [
+/** Girder clanks, call (left) and response (right): on 3 of each B bar, answered on the and of 3; every
+ * other bar of A'; and hits that punctuate the tune. */
+const clanksLeft = [
   ...[0, 1, 2, 3, 4, 5, 6, 7].map((k) => ({
     t: 32 + k * bar + 3,
     d: 0.3,
-    n: [69, 72, 67, 74, 69, 72, 71, 76][k]!,
-    v: 0.7,
+    n: [57, 60, 55, 62, 57, 60, 59, 64][k]!,
+    v: k % 2 ? 0.75 : 0.9,
   })),
-  { t: 28 + 2, d: 0.3, n: 64, v: 0.8 },
-  { t: 28 + 2.5, d: 0.3, n: 69, v: 0.75 },
-  { t: 92 + 2, d: 0.3, n: 72, v: 0.85 },
+  ...[0, 2, 4].map((k) => ({ t: 64 + k * bar + 3, d: 0.3, n: 57, v: 0.8 })),
+  { t: 28 + 2, d: 0.3, n: 52, v: 0.9 },
+  { t: 92 + 2, d: 0.3, n: 60, v: 0.95 },
 ];
-const ratchets = [
-  { t: 15 * bar + 3, d: 0.5, n: 60, v: 0.7 },
-  { t: 11 * bar + 3, d: 0.5, n: 60, v: 0.55 },
+const clanksRight = [
+  ...[1, 3, 5, 7].map((k) => ({ t: 32 + k * bar + 3.5, d: 0.3, n: [69, 67, 72, 71][(k - 1) / 2]!, v: 0.7 })),
+  ...[1, 3, 5].map((k) => ({ t: 64 + k * bar + 3.5, d: 0.3, n: 69, v: 0.7 })),
+  { t: 28 + 2.5, d: 0.3, n: 64, v: 0.85 },
 ];
+/** Ratchet scrapes (a socket wrench) closing every other B bar and the B section. */
+const ratchets = [9, 11, 13, 15].map((b) => ({
+  t: b * bar + 2.5,
+  d: b === 15 ? 1 : 0.5,
+  n: 60,
+  v: b === 15 ? 0.9 : 0.7,
+}));
 const toms = [
   { t: 23 * bar + 2, d: 0.3, n: 50, v: 0.8 },
   { t: 23 * bar + 2.5, d: 0.3, n: 45, v: 0.85 },
@@ -203,14 +222,13 @@ const toms = [
 const crashes = [
   { t: 32, d: 1, n: 60, v: 0.85 },
   { t: 64, d: 1, n: 60, v: 0.9 },
-  { t: 0, d: 1, n: 60, v: 0.55 },
+  { t: 0, d: 1, n: 60, v: 0.85 },
 ];
-const gags = [
-  { t: 7 * bar + 1, d: 0.8, n: 72, v: 0.8 },
-  { t: 23 * bar + 3, d: 0.75, n: 74, v: 0.75 },
-];
+/** Slide-whistle gags: an "oops" falling at the end of A, a hop up into the loop at the end of A'. */
+const oops = [{ t: 7 * bar + 1, d: 0.9, n: 86, v: 0.8 }];
+const hop = [{ t: 23 * bar + 3, d: 0.75, n: 74, v: 0.75 }];
 
-const dyn = (t: number) => (t < 32 ? 0.78 : t < 64 ? 0.9 : 1);
+const dyn = (t: number) => (t < 32 ? 0.86 : t < 64 ? 0.94 : 1);
 
 export const song: Song = {
   id: 'snail-bob-construction',
@@ -219,23 +237,26 @@ export const song: Song = {
   bpm: 126,
   loopBeats: 24 * bar,
   seed: 31,
-  reverb: { room: 0.4, damp: 0.6, wet: 0.24 },
+  reverb: { room: 0.48, damp: 0.55, wet: 0.3 },
   tracks: [
-    { inst: clarinet, gain: -3, pan: -0.15, verb: 0.25, loop: human(clarinetLine, 51, 0.07, 0.008) },
-    { inst: xylo, gain: -5, pan: 0.2, verb: 0.25, loop: human(xyloLine, 52, 0.08, 0.004) },
-    { inst: bassoon, gain: -4, pan: 0.35, verb: 0.2, loop: human(shape(bassoonLine, dyn), 53, 0.08, 0.006) },
+    { inst: clarinet, gain: -4, pan: -0.2, verb: 0.3, loop: human(clarinetLine, 51, 0.1, 0.01) },
+    { inst: xylo, gain: -7.5, pan: 0.25, verb: 0.3, loop: human(xyloLine, 52, 0.16, 0.006) },
+    { inst: 'marimba', gain: -8, pan: -0.3, verb: 0.3, loop: human(marimbaLine, 63, 0.14, 0.006) },
+    { inst: bassoon, gain: -4, pan: 0.48, verb: 0.2, loop: human(shape(bassoonLine, dyn), 53, 0.08, 0.006) },
     { inst: upright, gain: -1, pan: 0, verb: 0.08, loop: human(shape(creep, dyn), 54, 0.06, 0.005) },
     { inst: 'tuba', gain: -6, pan: 0, verb: 0.1, loop: human(oom, 55, 0.06, 0.006) },
-    { inst: 'pizz', gain: 3, pan: 0.45, verb: 0.25, loop: human(pizzChords, 56, 0.1, 0.008) },
-    { inst: woodblock, gain: -4, pan: -0.45, verb: 0.15, loop: human(tickTock, 57, 0.08, 0.004) },
-    { inst: kick, gain: -7, pan: 0, verb: 0.05, loop: human(shape(kicks, dyn), 58, 0.06, 0.004) },
-    { inst: rim, gain: -4, pan: 0.1, verb: 0.2, loop: human(rims, 59, 0.1, 0.004) },
-    { inst: snare, gain: -8, pan: 0.05, verb: 0.2, loop: human(shape(snares, dyn), 60, 0.08, 0.004) },
-    { inst: hat, gain: -4, pan: 0.3, verb: 0.08, loop: human(shape(hats, dyn), 61, 0.12, 0.004) },
-    { inst: clank, gain: -2, pan: -0.3, verb: 0.3, loop: human(clanks, 62, 0.08, 0.004) },
-    { inst: ratchet, gain: 12, pan: 0.4, verb: 0.2, loop: ratchets },
+    { inst: 'pizz', gain: 3, pan: 0.6, verb: 0.28, loop: human(shape(pizzChords, dyn), 56, 0.15, 0.01) },
+    { inst: woodblock, gain: -4, pan: -0.6, verb: 0.2, loop: human(tickTock, 57, 0.14, 0.006) },
+    { inst: kick, gain: -6, pan: 0, verb: 0.06, loop: human(shape(kicks, dyn), 58, 0.08, 0.004) },
+    { inst: rim, gain: -2, pan: 0.1, verb: 0.22, loop: human(rims, 59, 0.14, 0.005) },
+    { inst: snare, gain: -6, pan: 0.05, verb: 0.26, loop: human(shape(snares, dyn), 60, 0.14, 0.006) },
+    { inst: hat, gain: -3, pan: 0.38, verb: 0.1, loop: human(shape(hats, dyn), 61, 0.18, 0.005) },
+    { inst: clank, gain: -3, pan: -0.5, verb: 0.32, loop: human(clanksLeft, 62, 0.1, 0.004) },
+    { inst: clank, gain: -3, pan: 0.5, verb: 0.32, loop: human(clanksRight, 64, 0.1, 0.004) },
+    { inst: ratchet, gain: 14, pan: 0.45, verb: 0.25, loop: ratchets },
     { inst: tom, gain: -6, pan: -0.1, verb: 0.2, loop: toms },
-    { inst: crash, gain: -6, pan: -0.25, verb: 0.3, loop: crashes },
-    { inst: slideUp, gain: -2, pan: 0.25, verb: 0.3, loop: gags },
+    { inst: crash, gain: -4, pan: -0.25, verb: 0.3, loop: crashes },
+    { inst: slideDown, gain: -3, pan: 0.3, verb: 0.38, loop: oops },
+    { inst: slideUp, gain: -3, pan: -0.25, verb: 0.38, loop: hop },
   ],
 };

@@ -8,6 +8,7 @@ import {
   mandolin,
   ride,
   rim,
+  roll,
   shape,
   snare,
   swing,
@@ -49,7 +50,7 @@ const changes: [number, number, string][] = [
   [14, 0, 'F6'],
   [14, 2, 'D7'],
   [15, 0, 'Gm7'],
-  [15, 2, 'C7'],
+  [15, 2, 'A7'],
   [16, 0, 'Dm'],
   [17, 0, 'Dm'],
   [18, 0, 'A7'],
@@ -95,7 +96,7 @@ const tuneA2 = seq(
     'C6:2 A5 E5 F#5:2 A5 C6',
     'Bb5:2 G5 D5 E5:2 G5 Bb5',
     'A5:3 F5 F#5:2 A5 D6',
-    'D6 C6 Bb5 G5 E5 C5 D5 E5',
+    'D6 C6 Bb5 G5 E5 C#5 D5 E5',
   ].join(' '),
   { step: 0.5, v: 0.85, start: 32 },
 );
@@ -121,7 +122,7 @@ const clarinetLine = [
   ...shape(swing(tuneA1), arc(0.85)),
   ...seq('F5:12 E5:12 E5:6 G5:6 F5:12 D5:6 G5:6 F5:6 A5:6 F5:6 D5:6 E5:6 G5:6', {
     step: 1 / 3,
-    v: 0.5,
+    v: 0.4,
     start: 64,
   }),
 ];
@@ -177,35 +178,32 @@ const tarantellaComp = spans
   );
 const pianoComp = swing(
   spans
-    .filter((s) => s.t >= 32 && s.t < 64)
+    .filter((s) => s.t < 64)
     .flatMap((s) =>
       [0, 2]
         .filter((b) => b < s.d)
-        .flatMap((b) => [
-          { t: s.t + b, d: 0.45, n: root(s.sym.split('/')[0]!, 3), v: 0.6 },
-          ...voice(s.sym).map((n) => ({ t: s.t + b + 1, d: 0.35, n, v: 0.5 })),
-        ]),
+        .flatMap((b) => {
+          const v = s.t < 32 ? 0.42 : 0.55;
+          return [
+            { t: s.t + b, d: 0.45, n: root(s.sym, 3), v: v + 0.08 },
+            ...voice(s.sym).map((n) => ({ t: s.t + b + 1, d: 0.35, n, v })),
+          ];
+        }),
     ),
 );
+/** A held A7 swell on the accordion that tips A2 into the D-minor tarantella. */
+const swell = voice('A7').map((n) => ({ t: 62, d: 2, n: n - 12, v: 0.55 }));
 
-/** Bass: two-feel in A1, walking quarters in A2, root-fifth gallop in the tarantella. */
-const rootOf = (sym: string) => root(sym.includes('/') ? sym : sym, 2);
-const bassLine: Note[] = spans.flatMap((s, i) => {
+/** Bass: walking quarters through the swing sections, a root-fifth gallop in the tarantella. */
+const rootOf = (sym: string) => root(sym, 2);
+const bassNotes: Note[] = spans.flatMap((s, i) => {
   const r = rootOf(s.sym);
   const next = rootOf(spans[(i + 1) % spans.length]!.sym);
   const third = /m/.test(s.sym.replace('maj', '')) ? 3 : 4;
-  if (s.t < 32) {
-    if (s.d === 2) return [{ t: s.t, d: 1.6, n: r, v: 0.85 }];
-    return [
-      { t: s.t, d: 1.7, n: r, v: 0.9 },
-      { t: s.t + 2, d: 1.2, n: r + 7, v: 0.75 },
-      { t: s.t + 3.5, d: 0.4, n: next - 1, v: 0.55 },
-    ];
-  }
   if (s.t < 64) {
     const approach = next > r ? next - 1 : next + 1;
     const walk = s.d === 2 ? [r, approach] : [r, r + third, r + 7, approach];
-    return walk.map((n, k) => ({ t: s.t + k, d: 0.85, n, v: k === 0 ? 0.9 : 0.72 }));
+    return walk.map((n, k) => ({ t: s.t + k, d: 0.85, n, v: k === 0 ? 0.92 : k % 2 ? 0.68 : 0.76 }));
   }
   return Array.from({ length: s.d }, (_, b) => ({
     t: s.t + b,
@@ -214,6 +212,8 @@ const bassLine: Note[] = spans.flatMap((s, i) => {
     v: b % 2 ? 0.75 : 0.92,
   }));
 });
+
+const bassLine = [...swing(bassNotes.filter((n) => n.t < 64)), ...bassNotes.filter((n) => n.t >= 64)];
 
 // ---------------------------------------------------------------- drums
 
@@ -235,10 +235,8 @@ const tomsA2 = [
 const kickB = loop(grid('x.....o.....', { step: 1 / 3, start: 64 }), 8, bar);
 const snareB = [
   ...loop(grid('...x.-...x.-', { step: 1 / 3, start: 64 }), 7, bar),
-  ...grid('...x.-xoxxxx', { step: 1 / 3, start: 23 * bar }).map((x, k, a) => ({
-    ...x,
-    v: x.v * (0.6 + (0.4 * k) / a.length),
-  })),
+  ...grid('...x.-', { step: 1 / 3, start: 23 * bar }),
+  ...roll(23 * bar + 2, 24 * bar, 6, 0.35, 1, 5),
 ];
 const tambB = shape(loop(grid('x-ox-ox-ox-o', { step: 1 / 3, start: 64 }), 7, bar), (t) =>
   t < 80 ? 0.85 : 1,
@@ -256,7 +254,7 @@ const crashes = [
 ];
 
 /** Section dynamics: A1 relaxed, A2 fuller, the tarantella at full tilt. */
-const dyn = (t: number) => (t < 32 ? 0.72 : t < 64 ? 0.88 : 1);
+const dyn = (t: number) => (t < 32 ? 0.8 : t < 64 ? 0.92 : 1);
 
 export const song: Song = {
   id: 'papas-pizzeria',
@@ -265,39 +263,39 @@ export const song: Song = {
   bpm: 132,
   loopBeats: 24 * bar,
   seed: 7,
-  reverb: { room: 0.45, damp: 0.55, wet: 0.28 },
+  reverb: { room: 0.5, damp: 0.55, wet: 0.32 },
   tracks: [
-    { inst: clarinet, gain: -4, pan: -0.12, verb: 0.3, loop: human(clarinetLine, 11, 0.07, 0.01) },
-    { inst: accordion, gain: -6, pan: 0.12, verb: 0.25, loop: human(accordionLead, 12, 0.06, 0.008) },
+    { inst: clarinet, gain: -7.5, pan: -0.12, verb: 0.32, loop: human(clarinetLine, 11, 0.1, 0.012) },
+    { inst: accordion, gain: -1.5, pan: 0.12, verb: 0.25, loop: human(accordionLead, 12, 0.06, 0.008) },
     {
       inst: accordion,
-      gain: -7,
-      pan: -0.5,
+      gain: -4,
+      pan: -0.62,
       verb: 0.25,
-      loop: human(shape([...accordionComp, ...tarantellaComp], dyn), 13, 0.1, 0.01),
+      loop: human(shape([...accordionComp, ...swell, ...tarantellaComp], dyn), 13, 0.12, 0.01),
     },
-    { inst: mandolin, gain: 1, pan: 0.5, verb: 0.3, loop: human(shape(mandolinLine, dyn), 14, 0.08, 0.008) },
-    { inst: upPiano, gain: -8, pan: -0.3, verb: 0.3, loop: human(pianoComp, 15, 0.1, 0.01) },
-    { inst: upright, gain: -3, pan: 0, verb: 0.08, loop: human(shape(bassLine, dyn), 16, 0.06, 0.006) },
+    { inst: mandolin, gain: 2, pan: 0.62, verb: 0.32, loop: human(shape(mandolinLine, dyn), 14, 0.14, 0.01) },
+    { inst: upPiano, gain: -8, pan: -0.4, verb: 0.3, loop: human(pianoComp, 15, 0.14, 0.012) },
+    { inst: upright, gain: -1.5, pan: 0, verb: 0.08, loop: human(shape(bassLine, dyn), 16, 0.06, 0.006) },
     {
       inst: kick,
-      gain: -7,
+      gain: -6,
       pan: 0,
       verb: 0.05,
       loop: human(shape([...kickA, ...kickB], dyn), 17, 0.06, 0.004),
     },
     {
       inst: snare,
-      gain: -7,
+      gain: -5,
       pan: 0.05,
-      verb: 0.22,
-      loop: human(shape([...snareA2, ...fillA1, ...fillA2, ...snareB], dyn), 18, 0.08, 0.005),
+      verb: 0.26,
+      loop: human(shape([...snareA2, ...fillA1, ...fillA2, ...snareB], dyn), 18, 0.12, 0.006),
     },
-    { inst: rim, gain: -6, pan: 0.1, verb: 0.15, loop: human(rimA1, 19, 0.1, 0.004) },
-    { inst: ride, gain: -6, pan: -0.32, verb: 0.2, loop: human(shape(rideA, dyn), 20, 0.1, 0.004) },
-    { inst: hat, gain: -3, pan: 0.3, verb: 0.1, loop: human(hatFoot, 21, 0.1, 0.004) },
-    { inst: tamb, gain: -2, pan: 0.45, verb: 0.2, loop: human(tambB, 22, 0.12, 0.006) },
+    { inst: rim, gain: -3, pan: 0.1, verb: 0.2, loop: human(rimA1, 19, 0.14, 0.005) },
+    { inst: ride, gain: -6, pan: -0.4, verb: 0.22, loop: human(shape(rideA, dyn), 20, 0.16, 0.005) },
+    { inst: hat, gain: 0, pan: 0.4, verb: 0.1, loop: human(hatFoot, 21, 0.1, 0.004) },
+    { inst: tamb, gain: -3, pan: 0.6, verb: 0.25, loop: human(tambB, 22, 0.18, 0.008) },
     { inst: tom, gain: -9, pan: -0.1, verb: 0.25, loop: [...tomsA2, ...tomsB] },
-    { inst: crash, gain: -5, pan: -0.2, verb: 0.3, loop: crashes },
+    { inst: crash, gain: -3, pan: -0.2, verb: 0.3, loop: crashes },
   ],
 };

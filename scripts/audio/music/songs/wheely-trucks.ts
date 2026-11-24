@@ -5,13 +5,16 @@ import {
   cowbell,
   crash,
   hat,
+  horn,
   human,
   kick,
   rhodes,
+  roll,
   shape,
   slapBass,
   snare,
   softLead,
+  swing,
   tamb,
   tom,
   vibes,
@@ -139,15 +142,19 @@ const rhodesLine = spans.flatMap((s) => {
       .flatMap((b) => s.v.keys.map((n) => ({ t: s.t + b, d: b === 2.75 ? 1 : 0.6, n, v: 0.62 })));
   return [];
 });
-/** Brass: chorus hits on the pushes, plus two "honk honk" car horns in the breakdown. */
-const brassLine = [
-  ...spans
+/** Brass: chorus hits on the pushes, trumpets on the top two chord tones and trombones an octave below. */
+const brassHits = (pick: (keys: number[]) => number[]) =>
+  spans
     .filter((s) => section(s.t) === 'B')
     .flatMap((s) =>
       [1.5, 2.75]
         .filter((b) => b < s.d)
-        .flatMap((b) => s.v.keys.slice(1).map((n) => ({ t: s.t + b, d: 0.3, n: n + 12, v: 0.7 }))),
-    ),
+        .flatMap((b) => pick(s.v.keys).map((n) => ({ t: s.t + b, d: 0.3, n, v: b === 2.75 ? 0.78 : 0.68 }))),
+    );
+const trumpets = brassHits((k) => k.slice(2).map((n) => n + 12));
+const trombones = brassHits((k) => k.slice(0, 2));
+/** Two "honk honk" car horns in the breakdown. */
+const honks = [
   ...seq('[E5,G#5]:1 . [E5,G#5]:2', { step: 0.25, start: 17 * bar + 2, v: 0.75 }),
   ...seq('[D#5,A5]:1 . [D#5,A5]:1 . [F#5,B5]:4', { step: 0.25, start: 19 * bar + 1, v: 0.8 }),
 ];
@@ -162,19 +169,22 @@ const kicks = [
 const snareBar = '....x..-.-..x..-';
 const snares = [
   ...loop(grid(snareBar, { step: 0.25 }), 7, bar),
-  ...grid('....x..-..x.xxxx', { step: 0.25, start: 28 }),
+  ...grid('....x..-..x.', { step: 0.25, start: 28 }),
+  ...roll(31, 32, 4, 0.55, 0.9, 4),
   ...loop(grid(snareBar, { step: 0.25, start: 32 }), 7, bar),
   ...grid('....x..-.-..x.x.', { step: 0.25, start: 60 }),
   ...loop(grid('....x.......x...', { step: 0.25, start: 64 }), 3, bar),
-  ...grid('....x...xoxoxxxx', { step: 0.25, start: 76 }).map((n, k) => ({ ...n, v: n.v * (0.6 + 0.04 * k) })),
+  ...grid('....x...', { step: 0.25, start: 76 }),
+  ...roll(78, 80, 4, 0.45, 1, 3),
 ];
 const claps = loop(grid('....x.......x...', { step: 0.25 }), 19, bar);
-const hats = [
-  ...loop(grid('x-o-x-o-x-o-x-o-', { step: 0.25, n: 40 }), 19, bar),
-  ...loop([{ t: 3.5, d: 0.25, n: 64, v: 0.6 }], 8, 2 * bar).map((n) => ({ ...n, t: n.t + 32 })),
-].filter((n) => !(n.n < 60 && n.t >= 32 && n.t < 64 && n.t % 8 === 7.5));
+/** Hats: sixteenths with a lilting accent, an open hat on the and of 4 every other bar (every bar in B). */
+const openAt = (t: number) => t % 1 === 0.5 && t % 4 === 3.5 && (section(t) === 'B' || t % 8 === 7.5);
+const hats = loop(grid('x-o-x-oox-o-x-o-', { step: 0.25, n: 40 }), 19, bar).map((n) =>
+  openAt(n.t) ? { ...n, n: 64, v: 0.6 } : n,
+);
 const tambs = loop(grid('....x.......x...', { step: 0.25, start: 32 }), 8, bar);
-const bells = loop(grid('x..x..x...x.x...', { step: 0.25, start: 64 }), 4, bar);
+const bells = loop(grid('x..o..x...o.x..-', { step: 0.25, start: 64 }), 4, bar);
 const toms = [
   { t: 79, d: 0.3, n: 52, v: 0.8 },
   { t: 79.25, d: 0.3, n: 48, v: 0.85 },
@@ -188,7 +198,9 @@ const crashes = [
   { t: 64, d: 1, n: 60, v: 0.7 },
 ];
 
-const dyn = (t: number) => ({ A: 0.88, B: 1, C: 0.8 })[section(t)];
+const dyn = (t: number) => ({ A: 0.9, B: 1, C: 0.84 })[section(t)];
+/** A light sixteenth-note pocket: every off-sixteenth sits a hair late. */
+const pocket = (notes: Note[]) => swing(notes, 0.55, 0.5);
 
 export const song: Song = {
   id: 'wheely-trucks',
@@ -197,20 +209,41 @@ export const song: Song = {
   bpm: 112,
   loopBeats: 20 * bar,
   seed: 41,
-  reverb: { room: 0.42, damp: 0.5, wet: 0.24 },
+  reverb: { room: 0.48, damp: 0.5, wet: 0.3 },
   tracks: [
-    { inst: softLead, gain: -4, pan: -0.05, verb: 0.3, loop: human(tuneShaped, 71, 0.06, 0.006) },
-    { inst: vibes, gain: -12, pan: 0.3, verb: 0.35, loop: human(tuneShaped, 72, 0.08, 0.008) },
-    { inst: slapBass, gain: -5, pan: 0, verb: 0.04, loop: human(shape(bassLine, dyn), 73, 0.06, 0.004) },
-    { inst: clav, gain: -6, pan: 0.45, verb: 0.15, loop: human(shape(clavLine, dyn), 74, 0.1, 0.004) },
-    { inst: rhodes, gain: -8, pan: -0.42, verb: 0.3, loop: human(rhodesLine, 75, 0.08, 0.006) },
-    { inst: brassHit, gain: -3, pan: -0.25, verb: 0.3, loop: human(brassLine, 76, 0.06, 0.004) },
-    { inst: kick, gain: -7, pan: 0, verb: 0.04, loop: human(shape(kicks, dyn), 77, 0.06, 0.003) },
-    { inst: snare, gain: -6, pan: 0.05, verb: 0.2, loop: human(shape(snares, dyn), 78, 0.08, 0.004) },
-    { inst: clap, gain: 1, pan: -0.12, verb: 0.25, loop: human(shape(claps, dyn), 79, 0.1, 0.006) },
-    { inst: hat, gain: -2, pan: 0.32, verb: 0.08, loop: human(shape(hats, dyn), 80, 0.12, 0.004) },
-    { inst: tamb, gain: 2, pan: 0.5, verb: 0.15, loop: human(tambs, 81, 0.1, 0.006) },
-    { inst: cowbell, gain: 0, pan: -0.4, verb: 0.2, loop: human(bells, 82, 0.1, 0.004) },
+    { inst: softLead, gain: -2.5, pan: -0.05, verb: 0.32, loop: human(pocket(tuneShaped), 71, 0.1, 0.008) },
+    { inst: vibes, gain: -11, pan: 0.42, verb: 0.38, loop: human(pocket(tuneShaped), 72, 0.12, 0.01) },
+    {
+      inst: slapBass,
+      gain: -5,
+      pan: 0,
+      verb: 0.04,
+      loop: human(pocket(shape(bassLine, dyn)), 73, 0.1, 0.005),
+    },
+    {
+      inst: clav,
+      gain: -6,
+      pan: 0.6,
+      verb: 0.18,
+      loop: human(pocket(shape(clavLine, dyn)), 74, 0.16, 0.005),
+    },
+    { inst: rhodes, gain: -8, pan: -0.58, verb: 0.32, loop: human(pocket(rhodesLine), 75, 0.12, 0.008) },
+    { inst: brassHit, gain: 1, pan: 0.35, verb: 0.32, loop: human(pocket(trumpets), 76, 0.08, 0.006) },
+    { inst: brassHit, gain: 0, pan: -0.35, verb: 0.32, loop: human(pocket(trombones), 83, 0.08, 0.008) },
+    { inst: horn, gain: -9, pan: 0.2, verb: 0.38, loop: honks },
+    { inst: kick, gain: -7.5, pan: 0, verb: 0.05, loop: human(pocket(shape(kicks, dyn)), 77, 0.08, 0.004) },
+    {
+      inst: snare,
+      gain: -4,
+      pan: 0.05,
+      verb: 0.24,
+      loop: human(pocket(shape(snares, dyn)), 78, 0.14, 0.005),
+    },
+    { inst: clap, gain: 2, pan: -0.3, verb: 0.3, loop: human(pocket(shape(claps, dyn)), 79, 0.14, 0.008) },
+    { inst: clap, gain: 1, pan: 0.3, verb: 0.3, loop: human(pocket(shape(claps, dyn)), 84, 0.14, 0.012) },
+    { inst: hat, gain: -2, pan: 0.38, verb: 0.1, loop: human(pocket(shape(hats, dyn)), 80, 0.18, 0.005) },
+    { inst: tamb, gain: 1, pan: 0.62, verb: 0.2, loop: human(pocket(tambs), 81, 0.14, 0.008) },
+    { inst: cowbell, gain: -3.5, pan: -0.25, verb: 0.25, loop: human(pocket(bells), 82, 0.14, 0.006) },
     { inst: tom, gain: -6, pan: -0.1, verb: 0.2, loop: toms },
     { inst: crash, gain: -5, pan: -0.25, verb: 0.3, loop: crashes },
   ],
