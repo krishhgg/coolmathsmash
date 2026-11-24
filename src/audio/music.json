@@ -1,4 +1,11 @@
 {
+  "bloxorz-platform": {
+    "file": "music/bloxorz-platform.mp3",
+    "title": "Bloxorz Board",
+    "evokes": "an original theme in the spirit of Bloxorz's calm, cerebral puzzle music",
+    "loopStart": 0,
+    "loopEnd": 38.095238
+  },
   "forest-temple": {
     "file": "music/forest-temple.mp3",
     "title": "Forest Temple",
