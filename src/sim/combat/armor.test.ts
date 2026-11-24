@@ -20,7 +20,7 @@ registerFighter(
       brace: { kind: 'other', faf: 50, hits: [], armor: { frames: [1, 30] } },
       tough: { kind: 'other', faf: 50, hits: [], armor: { frames: [1, 30], threshold: 100 } },
       stone: { kind: 'other', faf: 50, hits: [], armor: { frames: [1, 30], damageThreshold: 12 } },
-      jab: marioReference.moves!.jab!,
+      jab: marioReference.moves.jab,
       grab: {
         kind: 'other',
         faf: 35,
@@ -36,7 +36,7 @@ registerFighter(
 );
 
 /** The probe hit: the Mario reference's 12% move (angle 45, kbg 100, bkb 30). */
-const probe = marioReference.moves!.probe!.hits[0]!.boxes[0]!;
+const probe = marioReference.moves.probe.hits[0]!.boxes[0]!;
 
 /** The attacker (P1, Mario by default) facing the armored fighter (P2) 8 units in front, both standing; P2 at percent. */
 function duel(
