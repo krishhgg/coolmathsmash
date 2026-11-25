@@ -277,39 +277,41 @@ describe('shield', () => {
 });
 
 describe('dodges', () => {
-  it('forward roll travels the fighter roll distance, intangible on frames 4-15, actionable in 28', () => {
+  it('forward roll travels the fighter roll distance, intangible on frames 4-15, actionable on 31', () => {
     const m = grounded();
     const f = P(m);
     const x0 = f.pos.x;
     const intangible: number[] = [];
-    let frames = 0;
-    run(m, 3, { x: 100, buttons: ['shield'] });
-    while (f.action !== 'idle' && frames < 60) {
-      stepMatch(m, [input({})]);
-      frames++;
+    const frames: number[] = [];
+    stepMatch(m, [input({ x: 100, buttons: ['shield'] })]);
+    while (f.action !== 'idle' && frames.length < 60) {
+      frames.push(f.actionFrame);
       if (isIntangible(f)) intangible.push(f.actionFrame);
+      stepMatch(m, [input({})]);
     }
+    // The last action frame is 30, so the fighter is actionable on frame 31 (ROLL.faf).
     expect(f.action).toBe('idle');
-    expect(frames).toBe(28);
+    expect(Math.max(...frames) + 1).toBe(31);
     expect(Math.abs(f.pos.x - x0)).toBeCloseTo(28, 0);
     expect(intangible[0]).toBe(4);
     expect(intangible.at(-1)).toBe(15);
   });
 
-  it('spot dodge is intangible 4-17 and ends sooner than a roll', () => {
+  it('spot dodge is intangible on frames 3-17 and ends 4 frames sooner than a roll', () => {
     const m = grounded();
     const f = P(m);
     const intangible: number[] = [];
-    let frames = 0;
-    run(m, 3, { y: -100, buttons: ['shield'] });
-    while (f.action !== 'idle' && frames < 60) {
-      stepMatch(m, [input({})]);
-      frames++;
+    const frames: number[] = [];
+    stepMatch(m, [input({ y: -100, buttons: ['shield'] })]);
+    while (f.action !== 'idle' && frames.length < 60) {
+      frames.push(f.actionFrame);
       if (isIntangible(f)) intangible.push(f.actionFrame);
+      stepMatch(m, [input({})]);
     }
-    expect(intangible[0]).toBe(4);
+    expect(intangible[0]).toBe(3);
     expect(intangible.at(-1)).toBe(17);
-    expect(frames).toBe(24);
+    // The last action frame is 26, so the fighter is actionable on frame 27 (SPOT_DODGE.faf).
+    expect(Math.max(...frames) + 1).toBe(27);
   });
 });
 
