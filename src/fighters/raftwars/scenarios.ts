@@ -60,5 +60,38 @@ export const scenarios: FighterScenarios = {
       requires: ['move:usmash'],
       refs: ['smash/attack-active-*', `${RW}/ingame-aim-*`],
     },
+    {
+      name: 'raftwars-straight-shot',
+      description:
+        'Straight Shot (forward tilt) hits Fireboy across Battlefield without closing the distance.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'raftwars' }, { fighter: 'fireboy' }] },
+      script: [
+        { port: 0, from: 10, to: 19, x: 50 },
+        { port: 0, from: 19, x: 50, buttons: ['attack'] },
+      ],
+      capture: {
+        label: "P2's damage rises",
+        when: (s, prev) => s.fighters[1]!.damage > prev.fighters[1]!.damage,
+      },
+      motion: { before: 30, after: 12 },
+      requires: ['move:ftilt'],
+      refs: ['smash/attack-active-*', `${RW}/ingame-aim-*`],
+    },
+    {
+      name: 'raftwars-grenade',
+      description: 'Grenade (side special) bounces across Battlefield before its fuse expires near Fireboy.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'raftwars' }, { fighter: 'fireboy' }] },
+      patches: [{ port: 1, state: { pos: { x: 51, y: 0 }, damage: 60 } }],
+      script: [{ port: 0, from: 10, x: 100, buttons: ['special'] }],
+      capture: {
+        label: "P2's damage rises when the grenade bursts",
+        when: (s, prev) => s.fighters[1]!.damage > prev.fighters[1]!.damage,
+      },
+      motion: { before: 107, after: 12 },
+      requires: ['move:sideB'],
+      refs: ['smash/attack-active-*', `${RW}/ingame-aim-*`],
+    },
   ],
 };
