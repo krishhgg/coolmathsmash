@@ -388,7 +388,11 @@ export function pushOut(
     const dNow = (px - e.a.x) * e.n.x + (py - e.a.y) * e.n.y;
     const dPrev = (prev.x + v.x - e.a.x) * e.n.x + (prev.y + v.y - e.a.y) * e.n.y;
     if (!crossing(dPrev, dNow) || -dNow <= depth) continue;
-    const t = ((px - e.a.x) * ex + (py - e.a.y) * ey) / (ex * ex + ey * ey);
+    // Where along the edge the point crossed its line, not where it ended up.
+    const k = dPrev > 0 ? dPrev / (dPrev - dNow) : 0;
+    const cx = px + (prev.x - f.pos.x) * (1 - k);
+    const cy = py + (prev.y - f.pos.y) * (1 - k);
+    const t = ((cx - e.a.x) * ex + (cy - e.a.y) * ey) / (ex * ex + ey * ey);
     if (t >= -0.05 && t <= 1.05) depth = -dNow;
   }
   if (depth === 0) return false;

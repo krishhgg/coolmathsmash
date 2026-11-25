@@ -6,7 +6,7 @@ import { stickY } from './control';
 import { emit } from './events';
 import type { Ctx, GroundRef } from './fighter';
 import type { MatchState } from './match';
-import { crossing, ecb, land, leaveGround, pushOut, surfaceRange, surfaceY } from './movement';
+import { crossing, ecb, land, leaveGround, pushOffCorner, pushOut, surfaceRange, surfaceY } from './movement';
 import {
   edgeMaxX,
   edgeMinX,
@@ -248,6 +248,9 @@ function sweepSolid(
         out.caught = true;
         standOn(x, { kind: 'solid', index: i });
       }
+    }
+    for (const e of stage.edges) {
+      if (!out.caught && e.solid === s && e.corner && pushOffCorner(f, prev, e, box)) out.pushed = true;
     }
   }
   if (!out.caught && !out.pushed) {
