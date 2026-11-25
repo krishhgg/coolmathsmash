@@ -143,7 +143,7 @@ export function drawFinalGlow(g: Graphics, w: number, h: number, frame: number):
   const pulse = 0.5 + 0.5 * Math.sin((frame / 24) * 2 * Math.PI);
   g.ellipse(0, cy, w * 0.5 + 6, h * 0.5 + 6).fill({ color: hueColor(hue), alpha: 0.16 + 0.08 * pulse });
   g.ellipse(0, cy, w * 0.5 + 4, h * 0.5 + 4).fill({ color: hueColor(hue + 60), alpha: 0.22 + 0.08 * pulse });
-  g.ellipse(0, cy, w * 0.5 + 2, h * 0.5 + 2).fill({ color: hueColor(hue + 120, 0.35), alpha: 0.3 });
+  g.ellipse(0, cy, w * 0.5 + 2, h * 0.5 + 2).fill({ color: 0xfff8dc, alpha: 0.32 });
   for (let k = 0; k < 3; k++) {
     const t = frame * 0.05 + (k * 2 * Math.PI) / 3;
     const sx = Math.cos(t) * (w * 0.5 + 5);
