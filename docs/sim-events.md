@@ -55,6 +55,8 @@ feeds back into the simulation.
 | `stageHit`      | `victim`, `source` (`zone`, `hitbox`), `index`, `element` (or null), `damage`, `kb`, `x`, `y`     | a stage hazard hits a fighter; `damage` is what it added                                                                                           |
 | `float`         | `port`, `phase` (`start`, `end`)                                                                  | a float starts or ends (including mid-aerial, landing)                                                                                             |
 | `fuelEmpty`     | `port`                                                                                            | a fuel hover burns its last fuel while thrusting                                                                                                   |
+| `statusStart`   | `port`, `status` (kind), `frames`, `source`                                                       | a status goes on a fighter, after the `hit` that applied it, but not when applied again while on; `source` is the port credited, -1 for none       |
+| `statusEnd`     | `port`, `status` (kind), `reason` (`expired`, `ko`, `cleared`)                                    | a status comes off: it ran out (mashing included), the fighter was KO'd, or a script cleared it                                                    |
 
 `x` and `y` are world units with y up. `action` events come last in a frame, one per fighter whose action
 differs from the frame before, which also covers states without their own event: `shield`, `spotDodge`,

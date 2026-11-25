@@ -453,6 +453,61 @@ the fuel left. Fuel refills only on the ground, from empty to full in `refillFra
 floated this airtime; equal to the float's `frames` once spent), `floating`, `glideUsed`, `glideAngle` and
 `glideSpeed`. Midair jumps left are `stats.jumps - jumpsUsed`.
 
+## Statuses and meters
+
+A **status** is a condition that sits on a fighter for a number of frames, like Ultimate's flower. A **meter** is a
+named number a fighter's moves fill and spend: charge, ammo, coins, a once-per-airtime count. Both are plain data on
+the FighterDef; the engine code is `src/sim/statuses.ts` and `src/sim/meters.ts`. The test fighter in
+`src/sim/testing/statuses.ts` uses every field, and its tests are `src/sim/statuses.test.ts`. Red Ball's Squared
+(`src/fighters/redball/statuses.ts`) is the roster example:
+
+```ts
+// statuses.ts: Ultimate's flower (SmashWiki, "Flower (effect)")
+squared: {
+  frames: 20, perDamage: 40, max: 3000,  // floor(20 + 40 x the % the hit added) frames, at most 3000
+  stack: 'add',                          // squaring a squared fighter adds the new length
+  tick: { every: 21, damage: 1 },        // 1% on every 21st frame
+  mash: { stick: 16, button: 28.8 },     // frames cut per new stick direction and per button press
+  color: '#3b3b46',                      // badge beside the head
+},
+// moves.ts: the down throw applies it
+dthrow: { ..., throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55, status: 'redball/squared' } } },
+```
+
+- **Kinds.** `FighterDef.statuses` names a fighter's statuses; in state and on hitboxes the kind is
+  `"<fighter id>/<name>"`, like entities, so any fighter can inflict any status.
+- **Applying.** A hitbox, throw or projectile with `status` applies it when it hits, after the `hit` event. A shield
+  stops it. Its length is floor(`frames` + `perDamage` x the % the hit added), so the 1v1 multiplier counts, as it
+  does for Ultimate's flower; `max` caps it. A script calls `applyStatus(x.m, fighter, kind, opts)` instead, where
+  `opts` may give `damage`, `frames` and `source`. Applying a status that is already on adds the new length
+  (`stack: 'add'`) or keeps the longer of the two (`refresh`, the default).
+- **Ticking.** Every status ticks once on each frame the fighter acts, from the frame after it went on. Hitlag pauses
+  it. Each tick, in order: `mash` cuts frames for a new stick direction or a button press (pressing doesn't use up the
+  input), `script(x, status)` runs (after the action, before physics), and `tick` adds `damage` % on every `every`th
+  frame with no hitlag or knockback. Then it counts down one frame and ends at 0. Ending emits `statusEnd`.
+- **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status.
+- **State.** `FighterState.statuses` lists `{ kind, frames, age, since, source }`, oldest first. `frames` is what is
+  left, `age` counts ticks from 1 and `source` is the port credited (-1 for none). Use `hasStatus` and `statusOf`
+  to read it.
+
+Meters are declared in `FighterDef.meters`:
+
+```ts
+meters: {
+  ammo: { max: 3, start: 3 },                         // spent by a move: spendMeter(x.f, 'ammo', 1)
+  hop: { max: 1, start: 1, regen: 1, grounded: true }, // one per airtime, refilled on the ground
+  coins: { max: 99, onKo: 'keep' },                   // kept into the next stock
+},
+```
+
+- `FighterState.meters` holds the values by name, starting at `start` (default 0). `meter`, `setMeter`, `addMeter`
+  and `spendMeter` read and change them, clamped to 0..`max`. `spendMeter` takes `cost` only when the meter holds
+  that much, and returns whether it did. An unknown meter name throws.
+- `regen` changes the value every frame the fighter acts, negative to drain. With `grounded` it only regenerates on
+  the ground.
+- A KO puts a meter back to `start` unless it has `onKo: 'keep'`.
+- Meters have no events. The HUD reads the values from state.
+
 ## Stages
 
 Stages can move (docs/stage-geometry.md): a fighter standing on a moving platform or solid rides it, one hanging from a
