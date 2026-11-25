@@ -47,6 +47,8 @@ rig point `(6, -6)`.
   own swaps. A key without `pose` only changes symbols, like a keyframe on the symbol layer.
 - **Palettes** map keys to colours. `default` is the fighter's main look; alternates (the mannequin's `ash`,
   `walnut` and `cherry`) dress other ports.
+- **Costume swaps** (`costumeSwaps`: palette name -> slot -> symbol, or `null`) replace slot defaults for one
+  costume, below clip and key swaps, so a costume can wear a hat the others don't (The Duck's `crown`).
 - `icon` is a standalone SVG string for stock icons and portraits, `projectiles` holds props such as the
   fireball (`PropArt { symbols, symbol, scale }`), and `ledgeGrip` is the rig point the ledge's top corner
   should touch while hanging.
@@ -130,6 +132,47 @@ The key states the judges score are `idle@0`, `run@6`, `jump@40`, `fall@8`, `fti
 `fsmash@16`, `tumble@8`, `shield@10`, `ledgeHang@0` and `neutralSpecial@16`. Each round: capture the sheets,
 put them beside the reference sprites, have the judge panel score them and list concrete gaps, fix the top
 gaps, and repeat.
+
+## Drawing a fighter from scratch
+
+A fighter's look is a set of symbols written by hand as SVG path data in `art/parts.ts`. Nothing is imported
+from an image or a game file (see "Asset policy"), so the work is closer to inking a model sheet than to
+converting one. This order keeps each step checkable in the lab.
+
+1. **Sketch the model sheet first.** On paper or in your head, block the fighter out of simple construction
+   shapes (circles, capsules, teardrops) at the rig's scale: 15 units tall, about 8 wide, feet at the origin.
+   Decide what reads at 40 pixels tall in a 4-player match. That's usually the head silhouette, one or two
+   signature shapes and the main colours. Everything else is detail that disappears in play.
+2. **Build parts from primitives.** Write each part as a few closed paths made from helpers like `tube` and
+   `ellipse` in `src/fighters/fireboy/art/parts.ts`, or your own Bézier curves. Keep every coordinate a plain
+   number in rig units, rounded to 0.001, so the data diffs cleanly. Draw limbs hanging from their bone's origin
+   down +y, and heads around the head bone's centre.
+3. **Ink like Flash.** Each part is an outline shape drawn under its fill, not a stroke. Let the outline swell on
+   the lower and back edges and taper towards the tips, which gives the hand-inked weight of the era. Use one
+   flat base colour per part, one darker shade shape on the side away from the light (top left), and at most one
+   highlight. Gradients are for effects, not bodies.
+4. **Split limbs into line and fill symbols.** Give each segment a `Line` symbol and a fill symbol, and list
+   the slots so both segments' lines draw before either fill (`limbSlots` in `rig.ts`). Joints then show no
+   seam at any angle.
+5. **Draw the head in views.** Draw a front, a side and an up-facing head, plus faces as separate symbols
+   (neutral, blink, angry, shout, hurt) so clips can swap expressions without redrawing the head. The swap sets
+   in `poses.ts` (`FRONT`, `SIDE`, `ANGRY`, ...) name the combinations.
+6. **Add life with loops, not randomness.** Anything that should flicker or sway (fire, water, cloth, hair) is
+   a symbol loop of two to five drawings at 8–30 fps on the match clock. Vary each drawing by fixed offsets
+   written in the data. Sampling stays a pure function of the frame, so replays and captures match.
+7. **Palette everything.** Fill colours are palette keys, never literal colours, so a costume is just another
+   palette. A twin or alternate form that a port can switch into mid-match keeps the same costume names.
+8. **Keep the names.** Draw under the symbol names the clips already use (`headFront`, `faceFront*`, the
+   limbs, `fist`, `mitten`, the `fx*` effects). The clips, hitbox coverage test and HUD icon then work unchanged,
+   and you can replace a placeholder one part at a time.
+9. **Check it in the lab, then judge it.** Open `lab.html?scene=fighter&sheet=1` (add `&palette=<name>` for each
+   costume and `&flicker=1` for the loops) after every part. When a full set reads well, run a judge round
+   (docs/hill-climb.md) and fix the top gaps. Judges catch silhouette and proportion problems faster than
+   close-ups do.
+
+`npm test` keeps the drawing honest. Fireboy's `art/index.test.ts` checks that the fighter stands 15 units
+tall, that every clip only names bones, slots and symbols that exist, that each costume defines the same colour
+keys, and that a drawn part reaches into every hitbox on its active frames.
 
 ## Adding a fighter
 

@@ -4,6 +4,7 @@
  * (game units, units/frame, frames at 60 Hz) so reference data can be used as-is. See docs/fighters.md.
  */
 
+import type { ActionDef } from '../sim/actions/registry';
 import type { Ctx } from '../sim/fighter';
 
 export interface FighterStats {
@@ -32,6 +33,11 @@ export interface FighterStats {
   gravity: number;
   fallSpeed: number;
   fastFallSpeed: number;
+  /**
+   * Ultimate's DamageFlyTopGravity: gravity during hitstun after a near-vertical (70-110 degree) tumble launch. Mario
+   * 0.074928; it ranges 0.0628-0.0874 across the cast. Defaults to the cast median, DAMAGE_FLY_TOP_GRAVITY.
+   */
+  damageFlyTopGravity?: number;
 
   jumpSquat: number;
   /** Apex heights in units above the take-off point. */
@@ -124,12 +130,20 @@ export interface MoveDef {
   leavesGround?: boolean;
   /** Frames (inclusive) on which the fighter is intangible, as on a getup attack. */
   intangible?: [number, number];
+  /**
+   * Armor (Ultimate): on `frames` (inclusive) hits still add damage and hitlag, but they don't launch, cause
+   * hitstun or interrupt the move. A hit breaks through when its knockback reaches `threshold` or its damage
+   * reaches `damageThreshold`; with neither set it is heavy armor and nothing breaks through.
+   */
+  armor?: { frames: [number, number]; threshold?: number; damageThreshold?: number };
   /** Recoveries: the move ends in helpless fall instead of a normal fall. */
   helpless?: boolean;
   /** Airborne moves that may grab a ledge from this frame. */
   ledgeFrom?: number;
   /** Landing doesn't end the move: it carries on from the same frame on the ground, with no landing lag. */
   continuesOnLanding?: boolean;
+  /** Airborne moves: false turns off the stick's air drift (and air friction) while the move plays, for scripted paths. */
+  drift?: boolean;
   /**
    * Ground/air variants (Ultimate's SpecialN and SpecialAirN): started in the air, this move plays the move named
    * `air` instead, which is also the clip and the name in the `move` event.
@@ -168,6 +182,12 @@ export interface FighterDef {
    * The name is also the animation clip name.
    */
   moves?: Record<string, MoveDef>;
+  /**
+   * This fighter's own versions of shared actions, by action name (`walk`, `dash`, `run`, `crouch`, ...), used
+   * instead of the shared ones in `src/sim/actions/`, or new actions only this fighter enters. Bloxorz block tips
+   * end over end instead of walking. Keep them deterministic, like move scripts.
+   */
+  actions?: Record<string, ActionDef>;
   /** Art data for the renderer (src/render/rig). Plain data, no renderer imports. */
   art?: unknown;
   /** False for forms reached only by transforming (Watergirl), so menus list only the fighter that starts. */

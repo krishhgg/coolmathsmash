@@ -8,6 +8,8 @@ import {
   INPUT_BUFFER_FRAMES,
   SMASH_THRESHOLD,
   SMASH_WINDOW,
+  SPECIAL_STICK_X,
+  SPECIAL_STICK_Y,
   STICK_DEADZONE,
   TAP_JUMP_THRESHOLD,
 } from './constants';
@@ -170,6 +172,19 @@ export function stickDir(c: ControlState, facing: number, threshold = DIRECTION_
   if (Math.max(Math.abs(x), Math.abs(y)) < threshold) return 'neutral';
   if (Math.abs(y) > Math.abs(x)) return y > 0 ? 'up' : 'down';
   return Math.sign(x) === facing ? 'forward' : 'back';
+}
+
+/**
+ * Special-move direction, Ultimate style: up or down wins whenever the stick is at least SPECIAL_STICK_Y up or down,
+ * so up + forward on a keyboard is an up special; otherwise SPECIAL_STICK_X sideways is a side special.
+ */
+export function specialDir(c: ControlState, facing: number): Dir {
+  const x = stickX(c);
+  const y = stickY(c);
+  if (y >= SPECIAL_STICK_Y) return 'up';
+  if (y <= -SPECIAL_STICK_Y) return 'down';
+  if (Math.abs(x) >= SPECIAL_STICK_X) return Math.sign(x) === facing ? 'forward' : 'back';
+  return 'neutral';
 }
 
 /**

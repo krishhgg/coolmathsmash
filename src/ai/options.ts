@@ -1,0 +1,244 @@
+import type { HitboxDef } from '../fighters/types';
+import { SHIELD_BREAK_HEIGHT } from '../sim/constants';
+import { derived, type FighterState } from '../sim/fighter';
+import type { FighterKnowledge, MoveProbe, ProbeFrame } from './knowledge';
+import { AERIALS, TURNING_MOVES } from './inputs';
+import { arc, overlaps, type Arc, type Sample } from './look';
+import { floorBelow, type StageInfo } from './stage';
+
+/**
+ * Attack options: every way the CPU could start a move from where it stands (a grounded move, a short or full
+ * hop aerial, an aerial or double-jump aerial in the air), tested frame by frame against where the target is
+ * predicted to be. The probes say where each move's hitboxes are; the CPU's own path comes from its momentum
+ * (ground moves) or from the air-motion model (jumps).
+ */
+
+export type AttackKind = 'ground' | 'jump' | 'air' | 'doubleJump';
+
+export interface Attack {
+  kind: AttackKind;
+  move: string;
+  /** Facing while the move plays (turning moves can face either way). */
+  facing: 1 | -1;
+  /** Main-stick x held for drift (world direction, -1..1). */
+  drift: number;
+  /** Jumps: full hop instead of short hop, and frames after take-off before the aerial. */
+  full: boolean;
+  late: number;
+  /** Frames from now until it connects, and the hitbox that connects. */
+  tHit: number;
+  box: HitboxDef;
+  /** Frames from now until the CPU can act again. */
+  busy: number;
+  /** Where it ends up (offstage checks). */
+  endX: number;
+  endY: number;
+  score: number;
+}
+
+export interface Target {
+  /** Predicted target, t = 0 being the frame about to be simulated. */
+  path: Sample[];
+  /** Spacing misjudgement added to the target's x. */
+  errX: number;
+}
+
+export interface Self {
+  f: Readonly<FighterState>;
+  k: FighterKnowledge;
+  info: StageInfo;
+  /** Frames before a grounded move can start (shield drop), and before a jump can start. */
+  groundDelay: number;
+  jumpDelay: number;
+}
+
+const MARGIN = -0.5;
+/** Moves the Attack button starts; out of a dash or run it gives a dash attack instead. */
+const ATTACK_BUTTON_MOVES = new Set(['jab', 'ftilt', 'utilt', 'dtilt']);
+
+/** First frame and hitbox of `frames` that touches the target, with the fighter at `at(frame)` facing `facing`. */
+function firstHit(
+  frames: ProbeFrame[],
+  offset: number,
+  at: (pf: ProbeFrame, t: number) => { x: number; y: number } | null,
+  facing: 1 | -1,
+  target: Target,
+): { t: number; box: HitboxDef } | null {
+  for (const pf of frames) {
+    const t = offset + pf.t;
+    if (t >= target.path.length) return null;
+    const s = target.path[t]!;
+    if (s.intangible || s.action === 'ko' || s.action === 'out' || s.action === 'respawn') continue;
+    const p = at(pf, t);
+    if (!p) return null;
+    const hurt = { ...s.hurt, x: s.hurt.x + target.errX };
+    let best: HitboxDef | null = null;
+    for (const b of pf.boxes) {
+      if (!overlaps(p.x + b.x * facing, p.y + b.y, b.r, hurt, MARGIN)) continue;
+      if (!best || b.box.id < best.id) best = b.box;
+    }
+    if (best) return { t, box: best };
+  }
+  return null;
+}
+
+/** Ground momentum carried into a move: traction slows it each frame. */
+function carry(v: number, friction: number, frames: number): number {
+  let d = 0;
+  let s = Math.abs(v);
+  for (let i = 0; i <= frames && s > 0; i++) {
+    s = Math.max(0, s - friction);
+    d += s;
+  }
+  return d * Math.sign(v);
+}
+
+function landing(a: Arc, info: StageInfo, from: number): number {
+  for (let t = Math.max(1, from); t < a.y.length; t++) {
+    if (a.y[t]! >= a.y[t - 1]!) continue;
+    const fy = floorBelow(info, a.x[t]!, a.y[t - 1]!);
+    if (fy !== null && a.y[t]! <= fy) return t;
+  }
+  return Infinity;
+}
+
+function groundAttacks(me: Self, target: Target, out: Attack[]): void {
+  const { f, k } = me;
+  if (me.groundDelay === Infinity) return;
+  const dashing = f.action === 'dash' || f.action === 'run';
+  for (const p of Object.values(k.ground)) {
+    if (p.first < 0) continue;
+    if (p.start === 'dash' && (!dashing || me.groundDelay > 0)) continue;
+    if (dashing && ATTACK_BUTTON_MOVES.has(p.move)) continue;
+    const facings: (1 | -1)[] = TURNING_MOVES.has(p.move) ? [f.facing, -f.facing as 1 | -1] : [f.facing];
+    for (const facing of facings) {
+      const v = p.start === 'dash' ? 0 : f.vel.x + f.kb.x;
+      const hit = firstHit(
+        p.active,
+        me.groundDelay,
+        (pf, t) => ({
+          x: f.pos.x + pf.dx * facing + carry(v, k.stats.groundFriction, t),
+          y: f.pos.y + pf.dy,
+        }),
+        facing,
+        target,
+      );
+      if (!hit) continue;
+      out.push({
+        kind: 'ground',
+        move: p.move,
+        facing,
+        drift: 0,
+        full: false,
+        late: 0,
+        tHit: hit.t,
+        box: hit.box,
+        busy: me.groundDelay + p.busy,
+        endX: f.pos.x + p.endDx * facing,
+        endY: f.pos.y + p.endDy,
+        score: 0,
+      });
+    }
+  }
+}
+
+const DRIFTS = [-1, 0, 1];
+
+function aerialHits(
+  me: Self,
+  target: Target,
+  a: Arc,
+  land: number,
+  inputAt: number,
+  kind: AttackKind,
+  drift: number,
+  full: boolean,
+  late: number,
+  out: Attack[],
+): void {
+  const { f, k } = me;
+  for (const name of AERIALS) {
+    const p: MoveProbe | undefined = k.air[name];
+    if (!p || p.first < 0) continue;
+    const hit = firstHit(
+      p.active,
+      inputAt,
+      (_pf, t) => (t < land && t < a.x.length ? { x: a.x[t]!, y: a.y[t]! } : null),
+      f.facing,
+      target,
+    );
+    if (!hit) continue;
+    const end = Math.min(land, a.x.length - 1, inputAt + p.def.faf);
+    const lag = land <= inputAt + p.def.faf ? (p.def.landingLag ?? k.stats.softLandingLag) : 0;
+    out.push({
+      kind,
+      move: name,
+      facing: f.facing,
+      drift,
+      full,
+      late,
+      tHit: hit.t,
+      box: hit.box,
+      busy: Math.min(land, inputAt + p.def.faf) + lag,
+      endX: a.x[end]!,
+      endY: a.y[end]!,
+      score: 0,
+    });
+  }
+}
+
+function jumpAttacks(me: Self, target: Target, out: Attack[]): void {
+  const { f, k, info } = me;
+  if (me.jumpDelay === Infinity || f.ground === null) return;
+  const d = derived(k.stats, SHIELD_BREAK_HEIGHT);
+  const squat = k.stats.jumpSquat + me.jumpDelay;
+  const horizon = 100;
+  for (const full of [false, true]) {
+    for (const drift of DRIFTS) {
+      const a = arc(
+        k.stats,
+        { x: f.pos.x, y: f.pos.y, vx: f.vel.x, vy: 0, squat, takeoff: full ? d.fullHopV : d.shortHopV },
+        drift,
+        horizon,
+      );
+      const land = landing(a, info, squat + 1);
+      for (const late of full ? [0, 10] : [0]) {
+        aerialHits(me, target, a, land, squat + 1 + late, 'jump', drift, full, late, out);
+      }
+    }
+  }
+}
+
+function airAttacks(me: Self, target: Target, out: Attack[]): void {
+  const { f, k, info } = me;
+  if (f.ground !== null) return;
+  const horizon = 90;
+  for (const drift of DRIFTS) {
+    const a = arc(
+      k.stats,
+      { x: f.pos.x, y: f.pos.y, vx: f.vel.x, vy: f.vel.y, kbx: f.kb.x, kby: f.kb.y },
+      drift,
+      horizon,
+    );
+    aerialHits(me, target, a, landing(a, info, 0), 0, 'air', drift, false, 0, out);
+    if (f.jumpsUsed < k.stats.jumps) {
+      const dj = derived(k.stats, SHIELD_BREAK_HEIGHT).doubleJumpV;
+      const b = arc(
+        k.stats,
+        { x: f.pos.x, y: f.pos.y, vx: drift * k.stats.airSpeed, vy: dj },
+        drift,
+        horizon,
+      );
+      aerialHits(me, target, b, landing(b, info, 1), 1, 'doubleJump', drift, false, 0, out);
+    }
+  }
+}
+
+/** Every option that connects with the target, unscored. */
+export function findAttacks(me: Self, target: Target): Attack[] {
+  const out: Attack[] = [];
+  groundAttacks(me, target, out);
+  jumpAttacks(me, target, out);
+  airAttacks(me, target, out);
+  return out;
+}

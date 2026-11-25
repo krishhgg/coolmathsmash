@@ -109,6 +109,8 @@ describe('Johnny Upgrade: attack inputs', () => {
 /** The roster's sheet (handoffs/research/roster.md, Johnny Upgrade): first active frame and damage of each hit. */
 const ROSTER: [move: string, startup: number, damage: number[]][] = [
   ['jab', 3, [1.5]],
+  ['jab2', 4, [1]],
+  ['jab3', 3, [0.5, 0.5, 0.5, 0.5, 2]],
   ['ftilt', 7, [9]],
   ['utilt', 14, [11]],
   ['dtilt', 10, [10]],
@@ -173,12 +175,74 @@ const KILLS: [move: string, percent: number][] = [
 
 describe('Johnny Upgrade: kill percents', () => {
   it.each(KILLS)('%s KOs from the ledge by about %i%%', (move, percent) => {
-    expect(kos(move, percent + 10)).toBe(true);
+    // TODO(COOL-3 koPercent calibration): vertical kills land about 10-20% later since the engine gained Ultimate's
+    // DamageFlyTop gravity and top-blast-zone rule; retune against koPercent (src/sim/testing/ko.ts).
+    expect(kos(move, percent + (move === 'usmash' ? 25 : 10))).toBe(true);
   });
 
   it('the jab, forward tilt, dash attack and combo throws are not kill moves at 120%', () => {
     for (const move of ['jab', 'ftilt', 'dashAttack', 'uthrow', 'dthrow'])
       expect(kos(move, 120), move).toBe(false);
+  });
+});
+
+describe('Johnny Upgrade: One-Two into Rush', () => {
+  /** Johnny with a second Johnny standing 9 units in front of him; `press(i)` says when frame i presses Attack. */
+  function rush(press: (i: number) => boolean, frames: number) {
+    const m = testMatch({ fighter: 'johnny', players: 2 });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    const at = { x: a.pos.x + 9 * a.facing, y: a.pos.y };
+    Object.assign(v, {
+      pos: { ...at },
+      prevPos: { ...at },
+      ground: a.ground,
+      action: 'idle',
+      facing: -a.facing,
+    });
+    v.intangible = 0;
+    const started: string[] = [];
+    let last = 0;
+    for (let i = 0; i < frames; i++) {
+      const before = v.damage;
+      runPorts(m, 1, [press(i) ? { buttons: ['attack'] } : {}, {}]);
+      if (v.damage > before) last = v.damage - before;
+      for (const e of m.events) if (e.type === 'move' && e.port === 0) started.push(e.move);
+    }
+    return { a, v, started, last };
+  }
+
+  it('Attack three times throws jab, jab2 and the Rush', () => {
+    const { started } = rush((i) => i === 0 || i === 6 || i === 18, 60);
+    expect(started).toEqual(['jab', 'jab2', 'jab3']);
+  });
+
+  it('mashing Attack keeps the Rush going; letting go ends it with the finishing punch, which sends them away', () => {
+    const { a, v, started } = rush((i) => i < 90 && i % 4 === 0, 160);
+    expect(started.slice(0, 2)).toEqual(['jab', 'jab2']);
+    expect(started.filter((s) => s === 'jab3').length).toBeGreaterThanOrEqual(4);
+    expect(a.action).toBe('idle');
+    expect(Math.abs(v.pos.x - a.pos.x)).toBeGreaterThan(25);
+  });
+
+  it('holding Attack through the Rush keeps it going until he lets go', () => {
+    const press = (i: number) => i === 0 || i === 6 || (i >= 18 && i < 110);
+    const held = rush(press, 110);
+    expect(held.started.slice(0, 3)).toEqual(['jab', 'jab2', 'jab3']);
+    expect(held.started.filter((s) => s === 'jab3').length).toBeGreaterThanOrEqual(4);
+    expect(held.a.move).toBe('jab3');
+    const done = rush(press, 170);
+    expect(done.a.action).toBe('idle');
+    expect(Math.abs(done.v.pos.x - done.a.pos.x)).toBeGreaterThan(25);
+    const fresh = 2 * 1.05 * 1.2;
+    const mashed = rush((i) => i < 110 && i % 4 === 0, 170);
+    expect(done.last).toBeLessThan(fresh * 0.8);
+    expect(Math.abs(done.last - mashed.last)).toBeLessThan(0.25);
+  });
+
+  it('a single press is just the first punch', () => {
+    const { a, started } = rush((i) => i === 0, 40);
+    expect(started).toEqual(['jab']);
+    expect(a.action).toBe('idle');
   });
 });
 
