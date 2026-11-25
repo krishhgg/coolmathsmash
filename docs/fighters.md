@@ -47,7 +47,7 @@ Donkey Kong, Bowser, Fox, Jigglypuff) and adjust.
 | `ledgeJumpHeight`                                        | apex of a ledge jump                                                        | 36               | 38.165              |                  |
 | `softLandingLag`, `hardLandingLag`                       | landing lag after short / long airtime                                      | 1, 3             | 1, 3                |                  |
 | `shieldSize`                                             | shield bubble radius at full health                                         | 9                | 9.7                 | 8–18.5           |
-| `rollDistance`, `airDodgeSpeed`                          | roll distance, directional air dodge speed                                  | 28, 2.8          | 28, 2.8             | 26.5–39.7 (roll) |
+| `rollDistance`, `airDodgeSpeed`                          | roll distance, directional air dodge speed                                  | 28, 2.8          | 32.17, 2.8          | 26.5–39.7 (roll) |
 
 Jump velocities are derived from the heights (`src/sim/physics.ts`), so you give heights, not speeds.
 
@@ -322,7 +322,8 @@ upB: {
   position, which is tether recovery. Another anchor ends with his hand on it: holding `hang` keeps him there
   (`tetherHang`) until he lets go of it, else he falls. A jump press lets go at any point, keeping the reel's
   velocity as momentum. A reel blocked by a wall gives up after range / pullSpeed + `TETHER.pullSlack` frames.
-  Letting go ends in a fall, or helpless for a `helpless` move.
+  Letting go ends in a fall, or helpless for a `helpless` move. The reel keeps the move, and `tether.moveFrame`
+  keeps the move frame it anchored or arrived on, so the move's clip plays on through it (docs/art.md).
 - **Losing the line.** Getting hit or grabbed, landing, or anything else that ends the move or the reel drops the
   line. `FighterState.tether` holds the line (`out` with its tip while it travels, then its anchor) and
   `FighterState.aim` the reticle or target; the hitbox overlay draws both in teal.
