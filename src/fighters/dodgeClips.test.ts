@@ -45,7 +45,9 @@ function drift(id: string): string[] {
     const clip = name === 'idle' ? undefined : art.clips[name];
     if (!clip) return [];
     const last = clip.keys[clip.keys.length - 1]?.frame;
-    return clip.length === want && last === want ? [] : [`${action}: ${name} ${clip.length}/${last} (want ${want})`];
+    return clip.length === want && last === want
+      ? []
+      : [`${action}: ${name} ${clip.length}/${last} (want ${want})`];
   });
 }
 

@@ -55,7 +55,9 @@ export function retimeClip(clip: AnimClip, length: number, knots: [number, numbe
   const keys = clip.keys.map((k) => ({ ...k, frame: at(k.frame) }));
   keys.forEach((k, i) => {
     if (i && k.frame === keys[i - 1]!.frame && clip.keys[i]!.frame !== clip.keys[i - 1]!.frame)
-      throw new Error(`retimeClip: keys ${clip.keys[i - 1]!.frame} and ${clip.keys[i]!.frame} both land on ${k.frame}`);
+      throw new Error(
+        `retimeClip: keys ${clip.keys[i - 1]!.frame} and ${clip.keys[i]!.frame} both land on ${k.frame}`,
+      );
   });
   const active = clip.active?.map(([s, e]): [number, number] => [at(s), at(e)]);
   return { ...clip, length, keys, ...(active && { active }) };
