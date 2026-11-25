@@ -157,7 +157,8 @@ export class Renderer {
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
     this.stageView?.update(state.frame, view);
-    drawStagePieces(this.stagePieces, this.stage!, state, alpha);
+    this.stageView?.pieces?.(state.stage, alpha);
+    drawStagePieces(this.stagePieces, this.stage!, state, alpha, !this.stageView?.pieces);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
     drawEntities(this.entities, state, alpha);
     this.drawBoxes(state);
