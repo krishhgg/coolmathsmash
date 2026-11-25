@@ -18,7 +18,7 @@ const PLUNGE_SPEED = 6;
  * Kirby's: the grounded shockwave (14%, 25°, BKB 86, KBG 30, radius 6 at ±6 forward and 4 up), the falling box's
  * BKB 69, KBG 76, radius 6.5 at 2 up and 0.7x hitlag, the 25% damage threshold and the 18/150/31 frame timings.
  * Her own: the startup (impact on frame 12, Kirby's 11), the aerial's 11-frame stall and faster drop (Kirby's falls
- * from frame 29), and the falling box, which spikes (270°) for 15% on frames 12–16 where Kirby's launches at 70°
+ * from frame 29), and the falling box, which spikes (270°) for 15% on frames 12 to 16 where Kirby's launches at 70°
  * for 18% all the way down.
  */
 export const boxDropMoves: Record<string, MoveDef> = {

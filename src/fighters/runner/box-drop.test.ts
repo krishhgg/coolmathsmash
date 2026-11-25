@@ -25,7 +25,7 @@ function duel(x = 32) {
 }
 
 describe('Runner: Box Drop', () => {
-  it('stalls through F11, then drops vertically with a meteor only on F12–16', () => {
+  it('stalls through F11, then drops vertically with a meteor only on F12 to F16', () => {
     const m = testMatch({ fighter: 'runner' });
     const runner = placeInAir(m, 20, 45);
     runner.vel = { x: 1, y: 1 };
