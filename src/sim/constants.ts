@@ -202,3 +202,9 @@ export const TOP_KO_MARGIN = 30;
 export const RESPAWN_DELAY = 60;
 export const RESPAWN_PLATFORM_MAX = 300;
 export const RESPAWN_INVINCIBILITY = 120;
+
+/**
+ * `MatchConfig.stocks` for the Infinite rule, which plays like Ultimate's Time battle: a KO costs no stock, so nobody
+ * is ever eliminated and only the clock (or quitting) ends the match.
+ */
+export const INFINITE_STOCKS = 99;
