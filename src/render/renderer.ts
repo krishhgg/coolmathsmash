@@ -2,6 +2,7 @@ import { Application, Container, Graphics, RenderTexture, Sprite } from 'pixi.js
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../config';
 import { getFighter } from '../fighters/registry';
 import type { MatchState } from '../sim/match';
+import { hazardsOn } from '../sim/movingStage';
 import { getStage } from '../stages/registry';
 import type { StageView } from '../stages/battlefield/view';
 import type { StageGeometry } from '../sim/stage';
@@ -100,6 +101,7 @@ export class Renderer {
         layer.removeChildren().forEach((c) => c.destroy({ children: true }));
       const create = STAGE_VIEWS[`../stages/${state.config.stage}/view.ts`]?.createStageView;
       this.stageView = create ? create() : null;
+      this.stagePieces.visible = !this.stageView?.drawsStagePieces;
       if (this.stageView) {
         this.background.addChild(this.stageView.background);
         this.stageLayer.addChild(this.stageView.world);
@@ -139,8 +141,8 @@ export class Renderer {
     const view = this.camera.viewFor(state, this.stage!);
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
-    this.stageView?.update(state.frame, view);
-    drawStagePieces(this.stagePieces, this.stage!, state, alpha);
+    this.stageView?.update(state.frame, view, { pieces: state.stage, hazards: hazardsOn(state), alpha });
+    if (this.stagePieces.visible) drawStagePieces(this.stagePieces, this.stage!, state, alpha);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
     this.drawBoxes(state);
     this.matchHud.update(

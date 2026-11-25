@@ -25,13 +25,20 @@ export interface StageView {
   background: Container; // screen space, 1280x720, drawn first; parallaxes from the camera
   world: Container; // game units at (x, -y); the renderer puts it inside its world container, under fighters
   foreground?: Container; // game units, drawn over fighters (keep it sparse: it hides fighters)
-  update(frame: number, camera: StageCamera): void; // called every rendered frame
+  drawsStagePieces?: boolean; // skip generic dynamic piece and hazard shapes
+  update(frame: number, camera: StageCamera, pose: StageViewFrame): void;
 }
 export function createStageView(): StageView;
 ```
 
 `StageView` and `StageCamera` are exported from `src/stages/battlefield/view.ts`; a new stage exports its own
 `createStageView` with the same shape.
+
+`pose.pieces` is the current simulation pose in geometry order. To interpolate a movable piece, draw its
+authored art at `(p.x - p.dx * (1 - pose.alpha), -(p.y - p.dy * (1 - pose.alpha)))`; use `p.on` for
+its presence and `pose.hazards` for effects that should stop with stage hazards off. Opt into
+`drawsStagePieces` only if the view supplies its own art for all the stage’s moving pieces and hazards.
+The stage lab snaps to the sampled frame (alpha 1) and accepts `hazards=0` to preview the legal pose.
 
 ## Layers and parallax
 

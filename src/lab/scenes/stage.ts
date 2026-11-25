@@ -3,6 +3,7 @@ import { REF_CAMERA, type StageCamera } from '../../stages/battlefield/art/paral
 import { stage } from '../../stages/battlefield/geometry';
 import { createStageView } from '../../stages/battlefield/view';
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../../config';
+import { stageStateAt } from '../../sim/movingStage';
 import type { LabScene } from '../types';
 
 /** Lab-only stand-ins (port-coloured, Flash-outlined) to judge readability before real fighters exist. */
@@ -56,6 +57,7 @@ export const scene: LabScene = {
     };
     let frame = num('frame', 0);
     let collision = params.get('collision') === '1';
+    const hazards = params.get('hazards') !== '0';
 
     const drawOverlay = () => {
       overlay.clear();
@@ -85,7 +87,11 @@ export const scene: LabScene = {
         root.position.set(VIEW_WIDTH / 2 - camera.x * camera.zoom, VIEW_HEIGHT / 2 + camera.y * camera.zoom);
         root.scale.set(camera.zoom);
       }
-      view.update(frame, camera);
+      view.update(frame, camera, {
+        pieces: stageStateAt(stage, frame, undefined, hazards),
+        hazards,
+        alpha: 1,
+      });
       drawOverlay();
     };
     setCamera = (x, y, zoom) => {
