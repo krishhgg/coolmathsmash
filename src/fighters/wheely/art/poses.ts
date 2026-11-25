@@ -93,6 +93,7 @@ export function frontView(face: string): Record<string, string | null> {
     wheelF: null,
     shineB: null,
     shineF: null,
+    eyes: null,
     front: 'front',
     eyesFront: face,
   };

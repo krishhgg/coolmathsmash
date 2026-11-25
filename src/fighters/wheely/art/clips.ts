@@ -507,13 +507,15 @@ export const authored: Record<string, AnimClip> = {
       ...[2, 8, 14, 20].flatMap((f, i) => {
         const side = i % 2 ? -1 : 1;
         const twirl = (sx: number) => mix(AIR, squash(1.04, 0.96), { body: { sx } });
+        const headOn = (sx: number) => mix(AIR, squash(1.02, 0.98), { body: { sx } });
         return [
           key(f, twirl(side), { ease: 'in' }),
-          key(f + 3, mix(AIR, squash(1.02, 0.98)), { ease: 'step', swaps: frontView('frontEyesClosed') }),
-          key(f + 5, twirl(-side), { ease: 'out', swaps: CLOSED }),
+          key(f + 2, headOn(side), { ease: 'step', swaps: frontView('frontEyesClosed') }),
+          key(f + 3, headOn(-side), { ease: 'out', swaps: frontView('frontEyesClosed') }),
+          key(f + 5, twirl(-side), { ease: 'inOut', swaps: CLOSED }),
         ];
       }),
-      key(26, mix(AIR, squash(1.02, 0.98)), { ease: 'inOut', swaps: CLOSED }),
+      key(26, mix(AIR, squash(1.02, 0.98), { body: { sx: 1 } }), { ease: 'inOut', swaps: CLOSED }),
       key(29, undefined, { swaps: {} }),
       key(49, AIR),
     ],

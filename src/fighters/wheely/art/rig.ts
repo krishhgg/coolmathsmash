@@ -107,7 +107,7 @@ export const rig: Rig = {
     { name: 'door', bone: 'door', symbol: null },
     { name: 'hood', bone: 'hood', symbol: null },
     { name: 'eyes', bone: 'eyes', symbol: 'eyesIdle' },
-    { name: 'eyesFront', bone: 'eyesFront', symbol: 'frontEyesIdle' },
+    { name: 'eyesFront', bone: 'eyesFront', symbol: null },
     { name: 'fx1', bone: 'fx1', symbol: null },
     { name: 'fx2', bone: 'fx2', symbol: null },
     { name: 'fx3', bone: 'fx3', symbol: null },

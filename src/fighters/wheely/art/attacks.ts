@@ -435,7 +435,6 @@ export const attacks: Record<string, AnimClip> = {
       key(
         10,
         mix(tilt(2, FRONT, 1.2), bob(0.2), spin(1000), {
-          body: { sx: 0.92 },
           fx1: at(2, 0, 1),
           fx2: at(10, -2.6, 1.2),
           fx4: at(-9, -1.6, 1.2),
@@ -460,7 +459,6 @@ export const attacks: Record<string, AnimClip> = {
       key(
         13,
         mix(bob(0.25), spin(1300), {
-          body: { sx: 0.12 },
           fx1: at(0, 0, 1.5),
           fx2: at(10.4, -3, 1.55),
           fx4: at(-1, -1.8, 1.4),
@@ -483,7 +481,6 @@ export const attacks: Record<string, AnimClip> = {
       key(
         16,
         mix(bob(0.2), spin(1600), {
-          body: { sx: -0.95, x: -1.3 },
           fx1: at(-2, 0, -1.6, 0, 1),
           fx3: at(-10.3, -2.8, 1.5),
           fx4: at(8, -1.8, 1.3),
@@ -493,10 +490,10 @@ export const attacks: Record<string, AnimClip> = {
         },
       ),
       key(18, undefined, { swaps: { ...ANGRY, ...BLUR, fx1: 'fxSkid' } }),
-      key(22, mix(bob(0.15), spin(1800), { body: { sx: -0.15, x: -0.4 }, fx1: at(0, 0, 1.5) }), {
+      key(22, mix(bob(0.15), spin(1800), { fx1: at(0, 0, 1.5) }), {
         ease: 'step',
       }),
-      key(23, mix(bob(0.15), spin(1850), { body: { sx: 0.15, x: -0.2 }, fx1: at(0, 0, 1.5) }), {
+      key(23, mix(bob(0.15), spin(1850), { fx1: at(0, 0, 1.5) }), {
         ease: 'out',
       }),
       key(28, mix(bob(0.1), spin(1950)), { ease: 'inOut', swaps: { ...FOCUS } }),
