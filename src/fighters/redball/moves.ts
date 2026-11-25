@@ -26,10 +26,11 @@ const DAIR_HANG_LIFT = 0.01;
 
 /**
  * Red Ball's normals. He has no arms, so everything is his body: bumps, rolls, bounces and squashes, plus the
- * tongue the roster video gave him for the jab finisher and the grab. Damage and first active frames follow the
- * roster sheet; knockback growth and base knockback are Ultimate-style values for moves of that size and speed,
- * not yet tuned to this engine's kill percentages (see redball.test.ts). Frame windows are inclusive, faf is
- * the first actionable frame.
+ * tongue the roster video gave him for the jab finisher and the grab. First active frames and damage follow the
+ * roster sheet. Each kill move copies its Ultimate analogue's hit (named on the move; redball.test.ts checks it KOs
+ * where the analogue does), which puts dash attack, down smash, back air and back throw a point off the sheet's
+ * damage; the rest use Ultimate-style knockback for moves of their size and speed. Frame windows are inclusive,
+ * faf is the first actionable frame.
  */
 export const moves: Record<string, MoveDef> = {
   /** Bump: a quick body bump. */
@@ -86,32 +87,32 @@ export const moves: Record<string, MoveDef> = {
       if (f.actionFrame === 3) f.vel.x = f.facing * 1.4;
     },
   },
-  /** Rolling Charge: barrels into them at full roll; weaker late. */
+  /** Rolling Charge: barrels into them at full roll; weaker late. Jigglypuff's dash attack. */
   dashAttack: {
     kind: 'other',
     faf: 38,
     hits: [
-      { frames: [6, 9], boxes: [box(0, 5, 5.5, 5.5, { damage: 11, angle: 50, kbg: 85, bkb: 70 })] },
-      { frames: [10, 20], boxes: [box(0, 5, 5.5, 5, { damage: 7, angle: 60, kbg: 80, bkb: 50 })] },
+      { frames: [6, 9], boxes: [box(0, 5, 5.5, 5.5, { damage: 12, angle: 43, kbg: 83, bkb: 57 })] },
+      { frames: [10, 20], boxes: [box(0, 5, 5.5, 5, { damage: 7, angle: 43, kbg: 83, bkb: 8 })] },
     ],
     script({ f }) {
       if (f.actionFrame >= 4 && f.actionFrame <= 16) f.vel.x = f.facing * 2;
     },
   },
-  /** Wind-up Ram: spins in place, then lunges. His forward kill move. Charges on frame 10. */
+  /** Wind-up Ram: spins in place, then lunges. His forward kill move, Jigglypuff's fsmash. Charges on frame 10. */
   fsmash: {
     kind: 'smash',
     faf: 52,
     charge: 10,
     hits: [
-      { frames: [15, 18], boxes: [box(0, 7.5, 5.5, 6, { damage: 16, angle: 361, kbg: 97, bkb: 30 })] },
-      { frames: [19, 22], boxes: [box(0, 7, 5.5, 5, { damage: 11, angle: 361, kbg: 90, bkb: 25 })] },
+      { frames: [15, 18], boxes: [box(0, 7.5, 5.5, 6, { damage: 16, angle: 361, kbg: 110, bkb: 10 })] },
+      { frames: [19, 22], boxes: [box(0, 7, 5.5, 5, { damage: 11, angle: 361, kbg: 85, bkb: 6 })] },
     ],
     script({ f }) {
       if (f.actionFrame >= 13 && f.actionFrame <= 18) f.vel.x = f.facing * 2.4;
     },
   },
-  /** Super Bounce: squashes, then springs straight up. Charges on frame 6. */
+  /** Super Bounce: squashes, then springs straight up. Jigglypuff's up smash. Charges on frame 6. */
   usmash: {
     kind: 'smash',
     faf: 46,
@@ -120,13 +121,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [11, 14],
         boxes: [
-          box(0, 0, 13, 6.5, { damage: 15, angle: 88, kbg: 99, bkb: 34, direction: 'away' }),
-          box(1, 0, 6, 5.5, { damage: 13, angle: 88, kbg: 95, bkb: 30, direction: 'away' }),
+          box(0, 0, 13, 6.5, { damage: 15, angle: 87, kbg: 100, bkb: 20, direction: 'away' }),
+          box(1, 0, 6, 5.5, { damage: 13, angle: 87, kbg: 100, bkb: 20, direction: 'away' }),
         ],
       },
     ],
   },
-  /** Splat: flattens hard and sends a shockwave out both sides; low angle. Charges on frame 4. */
+  /** Splat: flattens hard, a shockwave out both sides at a low angle like Sonic's dsmash. Charges on frame 4. */
   dsmash: {
     kind: 'smash',
     faf: 46,
@@ -135,8 +136,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [9, 11],
         boxes: [
-          box(0, 8, 2, 5, { damage: 13, angle: 30, kbg: 95, bkb: 30 }),
-          box(1, -8, 2, 5, { damage: 13, angle: 30, kbg: 95, bkb: 30, direction: 'back' }),
+          box(0, 8, 2, 5, { damage: 12, angle: 30, kbg: 80, bkb: 50 }),
+          box(1, -8, 2, 5, { damage: 12, angle: 30, kbg: 80, bkb: 50, direction: 'back' }),
         ],
       },
     ],
@@ -188,7 +189,7 @@ export const moves: Record<string, MoveDef> = {
       { frames: [12, 16], boxes: [box(0, 6.5, 3.5, 5, { damage: 7, angle: 45, kbg: 95, bkb: 15 })] },
     ],
   },
-  /** Back Bump: bumps backward with his whole body; his air kill move. */
+  /** Back Bump: bumps backward with his whole body; his air kill move, Jigglypuff's back air. */
   bair: {
     kind: 'aerial',
     faf: 36,
@@ -200,11 +201,11 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [7, 9],
-        boxes: [box(0, -7.5, 5.5, 5, { damage: 12, angle: 361, kbg: 98, bkb: 20, direction: 'back' })],
+        boxes: [box(0, -7.5, 5.5, 5, { damage: 13, angle: 42, kbg: 120, bkb: 30, direction: 'back' })],
       },
       {
         frames: [10, 14],
-        boxes: [box(0, -7, 5.5, 4.5, { damage: 8, angle: 361, kbg: 90, bkb: 10, direction: 'back' })],
+        boxes: [box(0, -7, 5.5, 4.5, { damage: 8, angle: 42, kbg: 120, bkb: 0, direction: 'back' })],
       },
     ],
   },
@@ -270,12 +271,12 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 12, hit: { damage: 8, angle: 40, kbg: 62, bkb: 55 } },
   },
-  /** Roll-Over: rolls backward over them and flings them behind. His kill throw. */
+  /** Roll-Over: rolls backward over them and flings them behind. His kill throw, Mario's back throw. */
   bthrow: {
     kind: 'other',
     faf: 42,
     hits: [],
-    throw: { frame: 24, hit: { damage: 10, angle: 45, kbg: 70, bkb: 60, direction: 'back' } },
+    throw: { frame: 24, hit: { damage: 11, angle: 45, kbg: 66, bkb: 70, direction: 'back' } },
   },
   /** Bounce Launch: bounces them straight up off his head. */
   uthrow: {
