@@ -60,7 +60,7 @@ const grow = (pts: readonly (readonly [number, number])[], s: number, cx = 0, cy
 export const LINE = 0.46;
 
 /** Her round body, which is also her head (body space, centre at the origin). */
-export const BODY_RX = 4.1;
+export const BODY_RX = 4.22;
 export const BODY_RY = 3.75;
 
 export const THIGH = 1.75;
@@ -149,11 +149,6 @@ const BODY_PTS: [number, number][] = [
 export const body: PathShape[] = [
   { d: blob(grow(BODY_PTS, 1 + LINE / 3.8)), fill: 'line' },
   { d: blob(BODY_PTS), fill: 'skin' },
-  {
-    d: `M-3.5 0.9Q-3.1 3.1 0 3.47Q-2.5 2.5 -2.9 -0.4Q-3.35 -1.45 -3.78 -0.5Q-3.78 0.3 -3.5 0.9Z`,
-    fill: 'skinLo',
-  },
-  { d: ellipse(-1.45, -2.3, 0.72, 0.3), fill: 'skinHi' },
 ];
 
 const IDLE_BODY_PTS: [number, number][] = [
@@ -180,7 +175,6 @@ const IDLE_BODY_PTS: [number, number][] = [
 export const idleBody: PathShape[] = [
   { d: blob(grow(IDLE_BODY_PTS, 1 + LINE / 4.3)), fill: 'line' },
   { d: blob(IDLE_BODY_PTS), fill: 'skin' },
-  { d: ellipse(-1.45, -2.32, 0.62, 0.24), fill: 'skinHi' },
 ];
 
 /** Where the antennae meet the body (body space) and how they splay. */
@@ -190,11 +184,21 @@ const STALK = 2.55;
 const BALL = 0.8;
 /** One antenna: a dark stalk up the -y axis, a grey ball on top and a dark rivet where it meets the body. */
 export const antenna: PathShape[] = [
-  { d: tube(0, -STALK, 0.1, 0.27, 0.3), fill: 'antLine' },
+  { d: tube(0, -STALK, 0.1, 0.36, 0.4), fill: 'antLine' },
   { d: ellipse(0, -STALK - BALL * 0.55, BALL + LINE, BALL + LINE), fill: 'antLine' },
   { d: ellipse(0, -STALK - BALL * 0.55, BALL, BALL), fill: 'ant' },
-  { d: ellipse(-0.24, -STALK - BALL * 0.85, 0.28, 0.19), fill: 'antHi' },
   { d: ellipse(0, 0.05, 0.42, 0.36), fill: 'antLine' },
+];
+
+export const iconAntennae: PathShape[] = [
+  {
+    d: 'M-2.39 -2.83L-3.81 -5.21L-3.17 -5.6L-1.75 -3.22ZM1.58 -3.17L3.06 -5.59L3.71 -5.2L2.24 -2.78Z',
+    fill: 'antLine',
+  },
+  { d: ellipse(-3.7, -5.57, 1.15, 1.12), fill: 'antLine' },
+  { d: ellipse(3.62, -5.57, 1.15, 1.12), fill: 'antLine' },
+  { d: ellipse(-3.7, -5.57, 0.71, 0.68), fill: 'ant' },
+  { d: ellipse(3.62, -5.57, 0.71, 0.68), fill: 'ant' },
 ];
 
 /** The cat's eye: a flat green oval and a dark vertical slit. */
@@ -282,8 +286,8 @@ function brow(x: number, y: number, rx: number, ry: number): PathShape[] {
 /** Face anchors in body space. Side view: the eye sits on the front half of her round body. */
 const EYE: [number, number] = [1.95, -1.0];
 const MOUTH: [number, number] = [2.2, 0.85];
-const EYE_RX = 0.64;
-const EYE_RY = 0.8;
+const EYE_RX = 0.77;
+const EYE_RY = 0.92;
 const FRONT_EYE: [number, number] = [0, -0.95];
 const FRONT_MOUTH: [number, number] = [0, 1.05];
 
@@ -302,7 +306,11 @@ export const faces: Record<string, PathShape[]> = {
     ...brow(...EYE, EYE_RX, EYE_RY),
     ...shout(MOUTH[0] - 0.1, MOUTH[1] + 0.25, 0.62, 0.55),
   ],
-  faceHurt: [...squeezed(EYE[0], EYE[1], 0.8), ...shout(MOUTH[0] - 0.05, MOUTH[1] + 0.2, 0.45, 0.5)],
+  faceHurt: [
+    ...squeezed(EYE[0] - 0.46, EYE[1], 0.6),
+    ...squeezed(EYE[0] + 0.56, EYE[1], -0.6),
+    { d: ellipse(MOUTH[0] - 0.08, MOUTH[1] + 0.16, 0.45, 0.46), fill: 'mouth' },
+  ],
   faceHappy: [...eye(...EYE, EYE_RX, EYE_RY), ...grin(MOUTH[0] - 0.15, MOUTH[1] - 0.1, 0.75)],
   faceFront: [...eye(...FRONT_EYE, EYE_RX * 1.1, EYE_RY), ...dash(...FRONT_MOUTH, 0.75)],
   faceFrontHappy: [
@@ -455,6 +463,26 @@ export const crate: PathShape[] = [
   {
     d: 'M-1.95 -5.85L-0.82 -5.85L-0.82 -4.72L-1.95 -4.72ZM-3.08 -4.72L-1.95 -4.72L-1.95 -3.59L-3.08 -3.59Z',
     fill: 'tileLine',
+  },
+];
+
+export const crateReady: PathShape[] = [
+  ...crate,
+  {
+    d: 'M-5.35 -6.13L-3.45 -5.43L-2.7 -5.8L-1.96 -5.4L1.53 -5.95L2.58 -5.16L0.56 -4.65L-1.42 -4.86L-3.13 -4.43L-5.35 -5.02Z',
+    fill: 'tileLine',
+  },
+  ...eye(-1.6, -5.26, 0.94, 0.63),
+];
+
+export const contact: PathShape[] = [
+  {
+    d: 'M-3.5 -0.6L-0.95 -0.86L-1.5 -3.45L0.22 -1.39L2.09 -2.91L1.41 -0.68L3.8 0.05L1.02 0.65L1.53 3.02L-0.42 1.35L-2.35 2.45L-1.52 0.6Z',
+    fill: 'impact',
+  },
+  {
+    d: 'M-1.37 -0.27L-0.34 -0.48L-0.29 -1.55L0.43 -0.54L1.56 -0.62L0.77 0.06L1.12 1.28L0.15 0.7L-0.78 1.29L-0.66 0.39Z',
+    fill: 'fx',
   },
 ];
 

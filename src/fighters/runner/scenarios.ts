@@ -1,5 +1,6 @@
 import type { FighterScenarios } from '../../harness/scenarios';
 import { GRAVITY_SWITCH } from './moves';
+import { BOX_DROP } from './timing';
 
 const RUN = 'characters/runner';
 
@@ -128,7 +129,7 @@ export const scenarios: FighterScenarios = {
           bg: '#c4c6d0',
           sheet: '1',
           states:
-            'idle@0,dash@4,run@1,run@4,run@8,jumpSquat@2,jump@4,jump@20,fall@8,land@1,fsmash@8,fsmash@10,fsmash@12,fsmash@24,neutralB@14',
+            'idle@0,dash@4,run@1,run@4,run@8,jumpSquat@2,jump@4,jump@27,fall@8,land@1,fsmash@8,fsmash@10,fsmash@12,fsmash@24,neutralB@14',
         },
       },
       refs: [
@@ -136,6 +137,29 @@ export const scenarios: FighterScenarios = {
         `${RUN}/sprite-runner-run-cycle-*`,
         `${RUN}/sprite-runner-jump-*`,
       ],
+    },
+    {
+      name: 'runner-box-drop-exit',
+      description: 'Close-up of Box Drop sealed, ready to cancel, opening, and returning to Runner.',
+      page: {
+        kind: 'lab',
+        scene: 'fighter',
+        params: {
+          fighter: 'runner',
+          bg: '#c4c6d0',
+          sheet: '1',
+          states: [
+            BOX_DROP.cancelFrom - 1,
+            BOX_DROP.cancelFrom,
+            BOX_DROP.release,
+            BOX_DROP.release + 3,
+            BOX_DROP.release + 10,
+          ]
+            .map((frame) => `downB@${frame}`)
+            .join(','),
+        },
+      },
+      refs: [`${RUN}/official-art-runner-*`, `${RUN}/ingame-run2-*`],
     },
   ],
 };

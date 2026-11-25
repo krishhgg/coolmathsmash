@@ -87,11 +87,13 @@ function gait(length: number, poses: [Pose, Pose, Pose, Pose]): AnimClip {
 
 /** One leg's path through a run stride (sole positions), as fractions of the cycle. */
 const STRIDE: [number, Pt][] = [
-  [0, [3.7, 0]],
-  [0.22, [0.8, 0]],
-  [0.42, [-3.3, -0.5]],
-  [0.65, [-2.0, -3.1]],
-  [0.85, [3.1, -2.2]],
+  [0, [4.65, 0]],
+  [0.12, [3.25, 0]],
+  [0.29, [-1.0, 0]],
+  [0.42, [-4.7, -0.65]],
+  [0.58, [-4.8, -1.9]],
+  [0.72, [0.9, -3.55]],
+  [0.86, [4.75, -2.1]],
 ];
 
 function strideAt(t: number): Pt {
@@ -109,28 +111,40 @@ function strideAt(t: number): Pt {
 }
 
 /** A run pose `t` of the way through the cycle: leaning in hard, arms pumping, antennae streaming back. */
-export function runPose(t: number, lean = 27): Pose {
+export function runPose(t: number, lean = 31): Pose {
   const bob = Math.cos(t * Math.PI * 4);
   const swing = Math.sin(t * Math.PI * 2);
   return P({
-    x: 0.4,
-    y: 0.55 - 0.5 * bob,
-    rot: lean,
-    sy: 1 + 0.035 * bob,
-    sx: 1 - 0.025 * bob,
+    x: 0.7,
+    y: 0.64 + 0.46 * bob,
+    rot: lean + 6 * bob,
+    sy: 0.94 - 0.044 * bob,
+    sx: 1.04 + 0.031 * bob,
+    raw: {
+      thighB: { sy: 1.5 },
+      shinB: { sy: 1.29 },
+      thighF: { sy: 1.5 },
+      shinF: { sy: 1.29 },
+      armB: { sy: 1.22 },
+      armF: { sy: 1.22 },
+    },
     legs: [strideAt(t), strideAt(t + 0.5)],
     arms: [
-      [4.8 + 2.0 * swing, -4.6 - 1.4 * swing],
-      [-3.4 - 2.2 * swing, -4.4 + 1.6 * swing],
+      [5.0 + 1.8 * swing, -5.55 - 3.15 * swing],
+      [-3.85 + 2.0 * swing, -5.45 + 3.25 * swing],
     ],
-    ant: [34 + 6 * bob, 28 + 6 * bob],
+    ant: [42 + 10 * bob, 38 + 9 * bob],
   });
 }
 
 const RUN_LEN = 12;
+const runningArms = { armFLine: 19.1, foreFLine: 19.2 };
 function runCycle(length: number): Key[] {
-  return Array.from({ length: length / 2 }, (_, i) =>
-    key(i * 2, runPose((i * 2) / length), { ease: 'linear' }),
+  return Array.from({ length }, (_, i) =>
+    key(i, runPose(i / length), {
+      ease: 'linear',
+      ...(i === 0 ? { z: runningArms } : {}),
+    }),
   );
 }
 
@@ -167,11 +181,11 @@ function hang(hx: number, hy: number, drop: number, extra: Pose = {}): Pose {
   const base = mix(
     P({
       x: hx - GX - 0.35,
-      y: hy - GY - 1.0 + drop,
+      y: hy - GY - 0.18 + drop,
       rot: 8,
       raw: {
         ...HIGH_SHOULDERS,
-        face: { x: -1.8, y: 0.1 },
+        face: { x: -2.65, y: 0.45 },
         thighB: { rot: -12 },
         shinB: { rot: 16 },
         thighF: { rot: 6 },
@@ -526,31 +540,40 @@ export const clips: Record<string, AnimClip> = {
         ),
       ),
       key(
-        20,
+        27,
         mix(
           AIR,
           P({
-            sy: 0.98,
-            sx: 1.04,
-            raw: { thighB: { rot: -70 }, shinB: { rot: 30 }, thighF: { rot: 60 }, shinF: { rot: 20 } },
+            rot: -13,
+            sy: 0.87,
+            sx: 1.11,
+            raw: {
+              thighB: { rot: -76, sy: 1.24 },
+              shinB: { rot: 12 },
+              thighF: { rot: 66, sy: 1.24 },
+              shinF: { rot: 8 },
+            },
             arms: [
-              [3.0, -11.6],
-              [-3.2, -11.4],
+              [4.85, -3.8],
+              [-4.95, -3.65],
             ],
-            ant: [-6, -6],
+            ant: [-18, -13],
           }),
         ),
       ),
       key(
-        32,
+        34,
         ants(
           mix(
             AIR,
             P({
-              raw: { thighB: { rot: 20 }, shinB: { rot: 12 }, thighF: { rot: 26 }, shinF: { rot: 10 } },
+              rot: 12,
+              sx: 0.94,
+              sy: 1.09,
+              raw: { thighB: { rot: -16 }, shinB: { rot: 4 }, thighF: { rot: 3 }, shinF: { rot: 6 } },
               arms: [
-                [5.4, -7.0],
-                [-5.2, -6.8],
+                [5.05, -9.2],
+                [-5.15, -9.15],
               ],
               ant: [8, 4],
             }),
@@ -559,7 +582,20 @@ export const clips: Record<string, AnimClip> = {
           4,
         ),
       ),
-      key(40, ants(AIR, 4, 4)),
+      key(
+        40,
+        P({
+          rot: 15,
+          sy: 1.12,
+          sx: 0.91,
+          raw: { thighB: { rot: -11 }, shinB: { rot: 7 }, thighF: { rot: 14 }, shinF: { rot: 2 } },
+          arms: [
+            [5.2, -9.0],
+            [-5.35, -9.2],
+          ],
+          ant: [4, 1],
+        }),
+      ),
     ],
   },
   doubleJump: {
@@ -583,10 +619,13 @@ export const clips: Record<string, AnimClip> = {
           mix(
             AIR,
             P({
-              rot: -4,
+              rot: 14,
+              sy: 1.12,
+              sx: 0.9,
+              raw: { thighB: { rot: -10 }, shinB: { rot: 0 }, thighF: { rot: 10 }, shinF: { rot: 0 } },
               arms: [
-                [5.0, -7.4],
-                [-4.8, -7.2],
+                [5.8, -9.35],
+                [-5.6, -9.3],
               ],
             }),
           ),
@@ -600,10 +639,13 @@ export const clips: Record<string, AnimClip> = {
           mix(
             AIR,
             P({
-              rot: -4,
+              rot: 10,
+              sy: 1.08,
+              sx: 0.96,
+              raw: { thighB: { rot: -20 }, shinB: { rot: 4 }, thighF: { rot: 6 }, shinF: { rot: 2 } },
               arms: [
-                [5.4, -6.8],
-                [-5.2, -6.6],
+                [5.35, -8.95],
+                [-6, -9.65],
               ],
             }),
           ),

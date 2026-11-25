@@ -3,6 +3,7 @@ import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
 import { moves } from '../moves';
+import { BOX_DROP } from '../timing';
 import { art } from '.';
 
 /** Canonical clip lengths (loops: any length). */
@@ -45,6 +46,16 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
 };
 
 describe('runner art', () => {
+  it('reveals the Box Drop exit cue on the first cancellable frame and restores Runner on release', () => {
+    const poseAt = (frame: number) =>
+      samplePose(art, 'downB', moveClipFrame(art.clips.downB!, frame, moves.downB), frame).symbols;
+    expect(poseAt(BOX_DROP.cancelFrom - 1)).toMatchObject({ fx1: 'crate', body: null });
+    expect(poseAt(BOX_DROP.cancelFrom)).toMatchObject({ fx1: 'crateReady', body: null });
+    expect(poseAt(BOX_DROP.release)).toMatchObject({ fx1: 'crateReady', fxBack: 'contact' });
+    expect(poseAt(BOX_DROP.release + 3).fx1).toBeNull();
+    expect(poseAt(BOX_DROP.release + 3).body).toBe('body');
+  });
+
   it('has every canonical clip with its length, and a timed clip for every move', () => {
     for (const [name, len] of Object.entries(LENGTHS)) {
       const clip = art.clips[name];

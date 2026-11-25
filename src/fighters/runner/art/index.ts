@@ -1,18 +1,11 @@
-import { shapesBounds } from '../../../render/rig/geometry';
 import { symbolsToSvg } from '../../../render/rig/svg';
-import type { FighterArt, PathShape } from '../../../render/rig/types';
+import type { FighterArt } from '../../../render/rig/types';
 import { attacks } from './attacks';
 import { boxDropClips } from './box-drop';
 import { LEDGE_GRIP, clips } from './clips';
 import { costumeSwaps, palettes } from './palettes';
+import { iconAntennae } from './parts';
 import { rig } from './rig';
-
-/** Square viewBox around the body and its antennae, for the HUD icon. */
-function iconBox(): [number, number, number, number] {
-  const [x0, y0, x1, y1] = shapesBounds(rig.symbols.body as PathShape[]);
-  const size = Math.max(x1 - x0, y1 - y0) + 0.8;
-  return [(x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size, size];
-}
 
 /** The Runner (Run, Run 2 and Run 3, Joseph Cloutier, 2008-2014), drawn from scratch. Plain data: no Pixi. */
 export const art: FighterArt = {
@@ -22,5 +15,10 @@ export const art: FighterArt = {
   palettes,
   costumeSwaps,
   ledgeGrip: LEDGE_GRIP,
-  icon: symbolsToSvg(rig.symbols, ['body', 'faceFront'], palettes.default, iconBox()),
+  icon: symbolsToSvg(
+    { ...rig.symbols, iconAntennae },
+    ['iconAntennae', 'body', 'faceFront'],
+    palettes.default,
+    [-5.8, -7.11, 11.6, 11.6],
+  ),
 };

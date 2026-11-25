@@ -5,8 +5,7 @@ import { buffered, consume } from '../../sim/control';
 import type { MoveDef } from '../types';
 import { BOX_DROP } from './timing';
 
-const { impact: IMPACT, release: RELEASE } = BOX_DROP;
-const CANCEL_FROM = IMPACT + 18;
+const { impact: IMPACT, release: RELEASE, cancelFrom: CANCEL_FROM } = BOX_DROP;
 const PLUNGE_SPEED = 6;
 
 export const boxDropMoves: Record<string, MoveDef> = {

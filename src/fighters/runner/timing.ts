@@ -11,4 +11,11 @@
  */
 export const RAPID_JAB = { kicks: [1, 3, 5, 7], loop: 9, shove: [13, 14] as [number, number], faf: 50 };
 
-export const BOX_DROP = { impact: 12, airEnd: 16, release: 132, groundedFaf: 163, aerialFaf: 90 };
+export const BOX_DROP = {
+  impact: 12,
+  airEnd: 16,
+  cancelFrom: 30,
+  release: 132,
+  groundedFaf: 163,
+  aerialFaf: 90,
+};

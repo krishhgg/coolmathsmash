@@ -120,39 +120,39 @@ const JAB2 = hitting(
 /** The kick flurry: running in place, alternating feet thrust forward at hip height. */
 const KICK_B = hitting(
   P({
-    x: 0.9,
-    y: 0.4,
-    rot: -8,
+    x: 1.8,
+    y: 0.55,
+    rot: -26,
     legs: [
-      [6.2, -4.7],
+      [8.1, -5.2],
       [-1.6, 0],
     ],
-    raw: LONG_LEG_B,
+    raw: { thighB: { sy: 1.65 }, shinB: { sy: 1.48 } },
     arms: [
       [4.4, -7.4],
       [-5.2, -7.0],
     ],
-    ant: [12, 8],
+    ant: [-6, 18],
   }),
-  ['shinB', [6.5, -5], 1.5],
+  ['shinB', [8.45, -5.2], 1.15],
 );
 const KICK_F = hitting(
   P({
-    x: 0.9,
-    y: 0.4,
-    rot: -8,
+    x: 1.55,
+    y: 0.95,
+    rot: -15,
     legs: [
       [1.8, 0],
-      [6.0, -5.3],
+      [7.7, -3.65],
     ],
-    raw: LONG_LEG_F,
+    raw: { thighF: { sy: 1.6 }, shinF: { sy: 1.42 } },
     arms: [
       [5.4, -7.0],
       [-4.4, -7.4],
     ],
-    ant: [8, 12],
+    ant: [15, -8],
   }),
-  ['shinF', [6.5, -5], 1.5],
+  ['shinF', [8.1, -3.75], 1.28],
 );
 const SHOVE = hitting(
   P({
@@ -259,23 +259,24 @@ const DIVE = hitting(
 /** Running Dropkick: both feet forward, her body laid out behind them. */
 const DROPKICK = hitting(
   P({
-    x: 2.5,
+    x: 4.35,
     y: -0.6,
     rot: -78,
     raw: {
-      thighB: { rot: -4, sy: 1.45 },
-      shinB: { rot: 2, sy: 1.28 },
-      thighF: { rot: 4, sy: 1.2 },
-      shinF: { rot: 2, sy: 1.15 },
-      armB: { rot: 60 },
-      armF: { rot: -10 },
+      thighB: { rot: -4, sy: 1.72 },
+      shinB: { rot: 2, sy: 1.34 },
+      thighF: { rot: 4, sy: 1.49 },
+      shinF: { rot: 2, sy: 1.28 },
+      armB: { rot: -55 },
+      armF: { rot: -81 },
+      fx3: { x: 15.25, y: -5.7, sx: 1.05, sy: 0.97 },
     },
     ant: [10, 10],
   }),
-  ['shinB', [12.5, -6], 2.4],
-  ['shinF', [6, -6], 1.5],
+  ['shinB', [13.35, -6], 1.5],
+  ['shinF', [12.4, -4.25], 1.25],
 );
-const DROPKICK_LATE = hitting(mix(DROPKICK, { body: { rot: -70, y: 0 } }), ['shinB', [10, -5], 2.0]);
+const DROPKICK_LATE = hitting(mix(DROPKICK, { body: { x: 2.1, rot: -70, y: 0 } }), ['shinB', [10, -5], 1.5]);
 
 /** Handstand Flip: upside down on her hands, kicking both feet straight up. */
 const HANDSTAND = (spread: number): Pose =>
@@ -451,10 +452,10 @@ const SLAP = P({
     [2.6, 0],
     [-2.4, 0],
   ],
-  raw: { ...LONG_F, armF: { x: 4.8, y: -0.8, sy: 1.5 }, face: { x: -1, y: -0.65 } },
+  raw: { armF: { x: 6.6, y: 0.8, sy: 2.35 }, foreF: { sy: 1.3 }, face: { x: -1.85, y: -0.85 } },
   arms: [
     [5.6, -1.4],
-    [6.0, -0.4],
+    [7.8, -0.65],
   ],
   ant: [34, 28],
 });
@@ -462,6 +463,23 @@ function tileAt(rot: number): Pose {
   const angle = (rot * Math.PI) / 180;
   return { fx1: { x: 8.1 + 3.2 * Math.cos(angle), y: -0.74 + 3.2 * Math.sin(angle), rot } };
 }
+
+const TILE_BRACE = P({
+  x: -0.65,
+  y: 1.5,
+  rot: -24,
+  sx: 1.03,
+  sy: 0.89,
+  legs: [
+    [2.2, 0],
+    [-2.4, 0],
+  ],
+  arms: [
+    [5.25, -7.9],
+    [-5.2, -6.75],
+  ],
+  ant: [-19, -26],
+});
 
 /** Gravity Switch: upside down; `pose` is drawn as if standing and then flipped about her middle. */
 const flipped = (pose: Pose): Pose => mix(pose, FLIP);
@@ -481,7 +499,11 @@ const RUN_LEN = 12;
 function clingRun(from: number, to: number): Key[] {
   const keys: Key[] = [];
   for (let f = from; f <= to; f += 2)
-    keys.push(key(f, flipped(runPose(((f - from) % RUN_LEN) / RUN_LEN, 12)), { ease: 'linear' }));
+    keys.push(
+      key(f, mix(flipped(runPose(((f - from) % RUN_LEN) / RUN_LEN, 12)), { root: { y: -12.25 } }), {
+        ease: 'linear',
+      }),
+    );
   return keys;
 }
 
@@ -792,7 +814,7 @@ export const attacks: Record<string, AnimClip> = {
         }),
         { ease: 'out' },
       ),
-      ...strike(12, 14, DROPKICK, { ...STREAK2, ...SHOUT }),
+      ...strike(12, 14, DROPKICK, { ...STREAK2, ...SHOUT, fxBack: 'contact' }),
       ...strike(15, 18, DROPKICK_LATE, { ...STREAK1, fx2: null }),
       done(20, mix(DROPKICK_LATE, { body: { y: 1.6, rot: -60 } })),
       key(
@@ -813,7 +835,8 @@ export const attacks: Record<string, AnimClip> = {
           ant: [-30, -24],
         }),
       ),
-      key(34, mix(CROUCH, { body: { rot: -6 } }), { swaps: FACE }),
+      key(36, mix(CROUCH, { body: { y: 1.98, rot: -10 } }), { swaps: FACE }),
+      key(42, CROUCH),
       key(45, READY),
     ],
   ),
@@ -1029,14 +1052,23 @@ export const attacks: Record<string, AnimClip> = {
       ),
       key(12, mix(SLAP, tileAt(0)), { ease: 'linear' }),
       key(13, mix(SLAP, tileAt(-25)), { ease: 'linear' }),
-      key(14, mix(SLAP, tileAt(-53), { fx2: { x: 12.5, y: -5.8, rot: -83, sx: 4.3, sy: 1.65 } }), {
-        ease: 'linear',
+      key(
+        14,
+        mix(SLAP, tileAt(-53), {
+          fx2: { x: 12.5, y: -5.8, rot: -83, sx: 4.3, sy: 1.65 },
+          fx3: { x: 9.45, y: -6.55, sx: 0.9, sy: 1.12 },
+        }),
+        {
+          ease: 'linear',
+          swaps: { ...SHOUT, fx1: 'tile', fx2: 'streak', fxBack: 'contact' },
+        },
+      ),
+      key(17, mix(SLAP, tileAt(-88), { fx2: { x: 9.4, y: -9.4, rot: -90, sx: 3.3, sy: 1.6 } }), {
         swaps: { ...SHOUT, fx1: 'tile', fx2: 'streak' },
       }),
-      key(17, mix(SLAP, tileAt(-88), { fx2: { x: 9.4, y: -9.4, rot: -90, sx: 3.3, sy: 1.6 } })),
-      key(22, mix(CROUCH, tileAt(-168)), { ease: 'in', swaps: { fx1: 'tile' } }),
-      key(25, mix(CROUCH, tileAt(-180))),
-      key(28, CROUCH, { swaps: {} }),
+      key(22, mix(TILE_BRACE, tileAt(-168)), { ease: 'in', swaps: { fx1: 'tile' } }),
+      key(25, mix(TILE_BRACE, tileAt(-180))),
+      key(28, TILE_BRACE, { swaps: FACE }),
       key(39, READY, { swaps: FACE }),
     ],
   ),
