@@ -15,8 +15,10 @@ import { drawMobility } from './debug/mobility';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud, OverheadTags } from './hud';
 import { drawStagePieces, isMoving } from './stagePieces';
+import { paint } from './vfx/paint';
 import { fighterFx, Vfx } from './vfx/system';
 import { VfxView } from './vfx/view';
+import { Zoom, zoomFlashShapes, zoomFocus } from './zoom';
 
 /** Stage art: src/stages/<id>/view.ts exports createStageView (docs/stages.md). Stages without one draw flat. */
 const STAGE_VIEWS = import.meta.glob<{ createStageView: () => StageView }>('../stages/*/view.ts', {
@@ -50,12 +52,15 @@ export class Renderer {
   readonly eventLog = new EventLog();
   readonly camera = new Camera();
   readonly vfx = new Vfx();
+  readonly zoom = new Zoom();
   private readonly vfxView: VfxView;
   private readonly inputDisplay = new InputDisplay();
   readonly matchHud = new MatchHud();
   private readonly tags = new OverheadTags();
   private readonly stageLayer = new Container();
   private readonly stagePieces = new Graphics();
+  /** The Special and Finish Zoom flash, in screen pixels behind the fighters (like the KO blast). */
+  private readonly zoomFlash = new Graphics();
   private readonly fighterLayer = new Container();
   private readonly foregroundLayer = new Container();
   private stageView: StageView | null = null;
@@ -88,6 +93,7 @@ export class Renderer {
     this.world.addChild(
       this.stageLayer,
       this.stagePieces,
+      this.zoomFlash,
       this.vfxView.screen,
       this.vfxView.behind,
       this.fighterLayer,
@@ -162,17 +168,23 @@ export class Renderer {
     this.camera.step(state, getStage(state.config.stage));
     this.matchHud.step(state);
     this.vfx.step(state);
+    this.zoom.step(state);
   }
 
   /** Draw `state`; `alpha` interpolates between the previous and current simulated frame. */
   render(state: MatchState, alpha: number): void {
     this.sync(state);
     const fx = this.vfx.at(state);
-    const view = this.camera.viewFor(state, this.stage!);
+    const zoom = this.zoom.at(state);
+    const view = this.camera.viewFor(state, this.stage!, zoom && zoomFocus(zoom, state.frame));
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
-    this.vfxView.screen.scale.set(1 / view.zoom);
-    this.vfxView.screen.position.set(-this.world.x / view.zoom, -this.world.y / view.zoom);
+    for (const screen of [this.vfxView.screen, this.zoomFlash]) {
+      screen.scale.set(1 / view.zoom);
+      screen.position.set(-this.world.x / view.zoom, -this.world.y / view.zoom);
+    }
+    this.zoomFlash.clear();
+    if (zoom) paint(this.zoomFlash, zoomFlashShapes(zoom, state.frame, view, this.quality === 'lite'));
     this.stageView?.update(state.frame, view);
     drawStagePieces(this.stagePieces, this.stage!, state, alpha);
     state.fighters.forEach((f, i) =>
