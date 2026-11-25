@@ -56,6 +56,7 @@ export function startMove(x: Ctx, requested: string, action?: string): boolean {
   x.f.hitEntities = [];
   x.f.moveStale = 0;
   x.f.charge = 0;
+  x.f.counterDamage = 0;
   return true;
 }
 

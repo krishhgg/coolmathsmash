@@ -67,6 +67,8 @@ export interface FighterState {
   moveStale: number;
   /** Frames the current smash attack was charged (0-60). */
   charge: number;
+  /** A counterattack's damage (MoveDef.counter): its boxes deal at least this. 0 outside a counterattack. */
+  counterDamage: number;
   /** Names of the last moves that hit, most recent first (stale-move negation). */
   staleQueue: string[];
   /** Intangibility from outside the current action (ledge grab, respawn), counting down. */
@@ -150,6 +152,7 @@ export function createFighter(
     hitEntities: [],
     moveStale: 0,
     charge: 0,
+    counterDamage: 0,
     staleQueue: [],
     intangible: 0,
     ledge: -1,
