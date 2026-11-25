@@ -55,11 +55,12 @@ export function stepItems(m: MatchState): void {
   if (!m.config.items) return;
   const it = m.items;
   // Ultimate: a fighter KO'd in Final Smash standby loses the Final Smash.
-  for (const f of m.fighters) if (f.finalReady && (f.action === 'ko' || f.action === 'out')) f.finalReady = false;
+  for (const f of m.fighters)
+    if (f.finalReady && (f.action === 'ko' || f.action === 'out')) f.finalReady = false;
   const inPlay = m.entities.some((e) => e.kind === PLANET && !e.dead) || m.fighters.some((f) => f.finalReady);
   if (it.planetInPlay && !inPlay) it.lockout = SMASH_BALL.lockout;
+  else if (it.lockout > 0) it.lockout--;
   it.planetInPlay = inPlay;
-  if (it.lockout > 0) it.lockout--;
   if (it.timer === 0) it.timer = drawTimer(m);
   if (--it.timer > 0) return;
   it.timer = drawTimer(m);

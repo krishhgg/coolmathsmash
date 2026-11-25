@@ -23,13 +23,13 @@ export const PLANET_RADIUS = 5;
 
 /**
  * How it roams. SmashWiki says only that the Smash Ball hovers around the players who are behind and avoids the
- * leader; it gives no speed, so these are tuned by eye: a top speed under half of Mario's walk (1.155), a new spot
- * every 2 seconds, 24 to 40 units over the trailing fighter.
+ * leader; it gives no speed, so these are tuned by eye: a top speed about half of Mario's walk (1.155), a new spot
+ * every 2 seconds, up to 40 units to either side of the trailing fighter and 24 to 40 over it.
  */
-export const PLANET_SPEED = 0.45;
+export const PLANET_SPEED = 0.6;
 const PLANET_ACCEL = 0.02;
 const RETARGET_FRAMES = 120;
-const HOVER = { minX: -30, maxX: 30, minY: 24, maxY: 40 };
+const HOVER = { minX: -40, maxX: 40, minY: 24, maxY: 40 };
 const BOB_FRAMES = 96;
 const BOB_SPEED = 0.06;
 

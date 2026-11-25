@@ -4,6 +4,7 @@ import { DAMAGE_MAX } from './combat/hits';
 import { spawnEntity } from './entities/entities';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
+import { PLANET } from './items/planet';
 import { createMatch, type MatchState } from './match';
 import { lungeTester } from './testing/beast';
 import { gadgets } from './testing/gadgets';
@@ -379,5 +380,17 @@ describe('entity events', () => {
     runPorts(crate, 1, [{}, {}]);
     expect(of(crate, 'entityHit')).toMatchObject([{ id: 1, attacker: 0, damage: 12, hp: -2 }]);
     expect(of(crate, 'entityDestroy')).toMatchObject([{ id: 1, reason: 'broken' }]);
+  });
+
+  it('breaking the Coolmath Planet reports the break, then finalReady for the breaker', () => {
+    const m = pair('test-gadgets', -40, 60);
+    const planet = spawnEntity(m, { kind: PLANET, owner: -1, pos: { x: -32, y: 6 } });
+    planet.hp = 10;
+    attack(m, 0, 'strike');
+    runPorts(m, 1, [{}, {}]);
+    expect(of(m, 'entityDestroy')).toMatchObject([{ id: planet.id, kind: PLANET, reason: 'broken' }]);
+    expect(of(m, 'finalReady')).toEqual([{ type: 'finalReady', port: 0, x: planet.pos.x, y: planet.pos.y }]);
+    const types = m.events.map((e) => e.type);
+    expect(types.indexOf('entityDestroy')).toBeLessThan(types.indexOf('finalReady'));
   });
 });
