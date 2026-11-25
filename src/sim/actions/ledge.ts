@@ -111,30 +111,36 @@ export const LEDGE: Record<string, ActionDef> = {
   ledgeRoll: getup(LEDGE_ROLL, () => LEDGE_ROLL.distance),
   ledgeAttack: getup(LEDGE_ATTACK, (x) => x.s.width / 2 + 2),
 
-  /** Rise over the corner, then a jump that keeps the double jump. */
+  /**
+   * Rise over the corner, then a jump that keeps the double jump. The jump starts after the rise, but the fighter
+   * stays in this action, drifting and without its air options, until LEDGE_JUMP.faf (Ultimate: 14 frames total).
+   */
   ledgeJump: {
-    physics: 'none',
+    physics: 'air',
+    drift: (x) => x.f.actionFrame > LEDGE_JUMP.rise,
+    gravity: (x) => x.f.actionFrame > LEDGE_JUMP.rise,
     intangible: (f) =>
       inWindow(f.actionFrame, [LEDGE_JUMP.intangible[0], getupIntangibleEnd(f, LEDGE_JUMP.intangible[1])]),
     update(x) {
       const { f, d, s, stage } = x;
       if (f.actionFrame === 1) f.intangible = 0;
-      const L = stage.geo.ledges[f.ledge]!;
-      const from = hangPos(x);
-      const to = { x: L.x - L.side * (s.width / 2), y: L.y + 1 };
-      const t = smooth(Math.min(1, f.actionFrame / LEDGE_JUMP.rise));
-      f.pos.x = from.x + (to.x - from.x) * t;
-      f.pos.y = from.y + (to.y - from.y) * t;
-      if (f.actionFrame > LEDGE_JUMP.rise) {
-        f.ledge = -1;
-        f.intangible = Math.max(0, getupIntangibleEnd(f, LEDGE_JUMP.intangible[1]) - LEDGE_JUMP.rise + 1);
-        f.vel.x = -L.side * LEDGE_JUMP.hSpeed;
-        f.vel.y = d.ledgeJumpV;
-        f.ground = null;
-        f.airFrames = 0;
-        f.jumpsUsed = 1;
-        setAction(x, 'jump');
+      if (f.ledge >= 0) {
+        const L = stage.geo.ledges[f.ledge]!;
+        const from = hangPos(x);
+        const to = { x: L.x - L.side * (s.width / 2), y: L.y + 1 };
+        const t = smooth(Math.min(1, f.actionFrame / LEDGE_JUMP.rise));
+        f.pos.x = from.x + (to.x - from.x) * t;
+        f.pos.y = from.y + (to.y - from.y) * t;
+        if (f.actionFrame > LEDGE_JUMP.rise) {
+          f.ledge = -1;
+          f.vel.x = -L.side * LEDGE_JUMP.hSpeed;
+          f.vel.y = d.ledgeJumpV;
+          f.ground = null;
+          f.airFrames = 0;
+          f.jumpsUsed = 1;
+        }
       }
+      if (f.actionFrame >= LEDGE_JUMP.faf) setAction(x, 'jump');
     },
   },
 };

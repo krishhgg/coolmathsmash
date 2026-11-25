@@ -69,16 +69,29 @@ export const AIR_DODGE_DIRECTIONAL = {
   landingLagLate: 11,
 };
 
-/** Ledges (Ultimate): six grabs per airtime, intangibility on the first grab only. */
+/**
+ * Ledges (Ultimate): six grabs per airtime, intangibility on the first grab only. The hang intangibility is
+ * formulas.ts ledgeIntangibility (airtime and %, 23-123 frames counting the catch).
+ */
 export const LEDGE_MAX_GRABS = 6;
-export const LEDGE_INTANGIBILITY = 60;
 export const LEDGE_HANG_MAX = 300;
 export const LEDGE_REGRAB_LOCK = 20;
-export const LEDGE_CATCH_FRAMES = 8;
-export const LEDGE_CLIMB = { faf: 34, intangible: [1, 30] as [number, number], moveEnd: 30 };
-export const LEDGE_ROLL = { faf: 50, intangible: [1, 34] as [number, number], moveEnd: 40, distance: 25 };
-export const LEDGE_ATTACK = { faf: 56, intangible: [1, 22] as [number, number], moveEnd: 20 };
-export const LEDGE_JUMP = { rise: 6, intangible: [1, 13] as [number, number], hSpeed: 0.6 };
+/**
+ * The catch lasts 19 frames counting the grab frame, so the hang acts on frame 20 (physics-reference section 8;
+ * SmashWiki Edge, "lasts 19 frames by default, preventing action until frame 20"; data viewer cliff_catch
+ * CancelFrame 20).
+ */
+export const LEDGE_CATCH_FRAMES = 19;
+/**
+ * Getups, frame 1 being the input frame. Intangibility and totals are Mario's from UFD Ledge Stats
+ * (physics-reference section 8, physics-constants.json ledge.options_mario); faf = total + 1 (docs/fighters.md).
+ * Neutral getup 1-33 / 34 total, roll 1-25 / 45, attack 1-26 / 55, jump 1-12 / 14. `moveEnd` and `rise` (when the
+ * fighter reaches the stage) are not in the sources and stay as they were.
+ */
+export const LEDGE_CLIMB = { faf: 35, intangible: [1, 33] as [number, number], moveEnd: 30 };
+export const LEDGE_ROLL = { faf: 46, intangible: [1, 25] as [number, number], moveEnd: 40, distance: 25 };
+export const LEDGE_ATTACK = { faf: 56, intangible: [1, 26] as [number, number], moveEnd: 20 };
+export const LEDGE_JUMP = { rise: 6, faf: 15, intangible: [1, 12] as [number, number], hSpeed: 0.6 };
 /** Getup intangibility by grab count since last touching ground (Ultimate: ×0.8 on the 2nd grab, ×0.5 on the 3rd, none after). */
 export const LEDGE_GETUP_INTANGIBILITY_SCALE = [1, 0.8, 0.5];
 
