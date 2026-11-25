@@ -12,8 +12,8 @@ import { createMatch, type MatchState } from '../../sim/match';
 import { koPercent } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
-import { entities, LASER } from './entities';
-import { LASER_GUN, moves } from './moves';
+import { entities, LASER, MUZZLE } from './entities';
+import { moves } from './moves';
 
 /**
  * Falco's Blaster in Ultimate, the move Laser Gun copies: SmashWiki's Falco (SSBU)/Neutral special (hitbox table,
@@ -91,10 +91,10 @@ describe("Johnny Upgrade: Laser Gun (Falco's Blaster)", () => {
     expect(moves.neutralB).toMatchObject({ faf: FALCO.ground.faf, air: 'neutralBAir', hits: [] });
     expect(moves.neutralBAir).toMatchObject({ faf: FALCO.air.faf, landingLag: FALCO.air.landingLag });
     expect(moves.neutralB!.spawn).toEqual([
-      { frame: FALCO.ground.shot, entity: 'laser', x: LASER_GUN.x, y: LASER_GUN.y, vx: FALCO.laser.speed },
+      { frame: FALCO.ground.shot, entity: 'laser', x: MUZZLE.x, y: MUZZLE.y, vx: FALCO.laser.speed },
     ]);
     expect(moves.neutralBAir!.spawn).toEqual([
-      { frame: FALCO.air.shot, entity: 'laser', x: LASER_GUN.x, y: LASER_GUN.airY, vx: FALCO.laser.speed },
+      { frame: FALCO.air.shot, entity: 'laser', x: MUZZLE.x, y: MUZZLE.airY, vx: FALCO.laser.speed },
     ]);
     expect(LASER).toEqual(FALCO.laser);
     expect(entities.laser).toMatchObject({ radius: 1.44, lifetime: 27, transcendent: true });
@@ -115,7 +115,7 @@ describe("Johnny Upgrade: Laser Gun (Falco's Blaster)", () => {
       age: 1,
       facing: f.facing,
       move: 'neutralB',
-      pos: { x: f.pos.x + LASER_GUN.x * f.facing, y: f.pos.y + LASER_GUN.y },
+      pos: { x: f.pos.x + MUZZLE.x * f.facing, y: f.pos.y + MUZZLE.y },
       vel: { x: 4.6 * f.facing, y: 0 },
     });
   });

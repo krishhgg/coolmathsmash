@@ -50,8 +50,10 @@ rig point `(6, -6)`.
 - **Costume swaps** (`costumeSwaps`: palette name -> slot -> symbol, or `null`) replace slot defaults for one
   costume, below clip and key swaps, so a costume can wear a hat the others don't (The Duck's `crown`).
 - `icon` is a standalone SVG string for stock icons and portraits, `projectiles` holds props such as the
-  fireball (`PropArt { symbols, symbol, scale }`), and `ledgeGrip` is the rig point the ledge's top corner
-  should touch while hanging.
+  fireball (`PropArt { symbols, symbol, scale, preview }`), and `ledgeGrip` is the rig point the ledge's top
+  corner should touch while hanging. `preview` places the prop in lab sheets of the move that spawns it: on
+  clip frame `frame` on it sits at (`x`, `y`) from the feet (x forward, y up), then moves `vx`, `vy` units a
+  frame.
 
 Sampling is a pure function of `(clip, frame, globalFrame)`: no clocks and no randomness, so replays and the
 frame-capture harness always draw the same picture.

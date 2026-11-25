@@ -6,7 +6,7 @@ import { consume, isHeld, justPressed, stickDir, stickX } from '../../sim/contro
 import { emit } from '../../sim/events';
 import type { Ctx } from '../../sim/fighter';
 import type { HitboxDef, MoveDef } from '../types';
-import { LASER } from './entities';
+import { LASER, MUZZLE } from './entities';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -44,15 +44,11 @@ const throwHit =
   };
 
 /**
- * Laser Gun's timing (Falco's Blaster, SmashWiki's timing tables): a press of Special inside `window` loops the move
- * from frame `loop` back to frame 3, so the next laser leaves `loop - 3` frames after the last (26 grounded, 23 in
- * the air). The laser leaves the gun's muzzle at (x, y) from his feet, `airY` in the air (art/specials.ts draws the
- * gun there).
+ * Laser Gun's repeat timing (Falco's Blaster, SmashWiki's timing tables): a press of Special inside `window` loops
+ * the move from frame `loop` back to frame 3, so the next laser leaves `loop - 3` frames after the last (26
+ * grounded, 23 in the air).
  */
 export const LASER_GUN = {
-  x: 9.5,
-  y: 9.6,
-  airY: 9.6,
   ground: { window: [2, 17], loop: 29 },
   air: { window: [2, 15], loop: 26 },
 } as const;
@@ -392,7 +388,7 @@ export const moves: Record<string, MoveDef> = {
     faf: 42,
     air: 'neutralBAir',
     hits: [],
-    spawn: [{ frame: 8, entity: 'laser', x: LASER_GUN.x, y: LASER_GUN.y, vx: LASER.speed }],
+    spawn: [{ frame: 8, entity: 'laser', x: MUZZLE.x, y: MUZZLE.y, vx: LASER.speed }],
     script: laserRepeat(LASER_GUN.ground),
   },
   /** Laser Gun in the air: Falco's aerial Blaster, frame 7 and FAF 39, 6 frames of landing lag, a shot per 23. */
@@ -401,7 +397,7 @@ export const moves: Record<string, MoveDef> = {
     faf: 39,
     landingLag: 6,
     hits: [],
-    spawn: [{ frame: 7, entity: 'laser', x: LASER_GUN.x, y: LASER_GUN.airY, vx: LASER.speed }],
+    spawn: [{ frame: 7, entity: 'laser', x: MUZZLE.x, y: MUZZLE.airY, vx: LASER.speed }],
     script: laserRepeat(LASER_GUN.air),
   },
   /**
