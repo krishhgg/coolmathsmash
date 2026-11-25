@@ -1,6 +1,7 @@
 import type { FighterScenarios, LabScenario } from '../../harness/scenarios';
 import { art } from './art';
 import { GRAVITY_SWITCH } from './moves';
+import { BOX_DROP } from './timing';
 
 const RUN = 'characters/runner';
 
@@ -30,8 +31,8 @@ const sheet = (
 
 /**
  * The Runner's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus Gravity Switch on the underside of a platform, Tile Flip, the Jog Flurry, and lab contact sheets of
- * her key poses and every move on its first active frame. References live in the Captain drive's refs/.
+ * Fireboy, plus Gravity Switch on the underside of a platform, Tile Flip, the Jog Flurry, Box Drop, and lab contact
+ * sheets of her key poses, every move on its first active frame, and Box Drop's exit. References live in the Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'runner',
@@ -114,6 +115,35 @@ export const scenarios: FighterScenarios = {
       refs: ['smash/attack-active-*', `${RUN}/sprite-sheet-runner-*`],
     },
     {
+      name: 'runner-box-drop',
+      description:
+        'Runner stalls as a crate, plunges and lands next to Fireboy, knocking him away on impact.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'runner' }, { fighter: 'fireboy' }] },
+      patches: [
+        {
+          port: 0,
+          state: {
+            pos: { x: 20, y: 38 },
+            prevPos: { x: 20, y: 38 },
+            ground: null,
+            action: 'fall',
+            facing: 1,
+          },
+        },
+        { port: 1, state: { pos: { x: 32, y: 0 }, prevPos: { x: 32, y: 0 }, facing: -1 } },
+      ],
+      script: [{ port: 0, from: 0, y: -100, buttons: ['special'] }],
+      capture: {
+        label: 'Box Drop lands and hits P2',
+        when: (s, prev) =>
+          s.fighters[0]!.move === 'downB' && s.fighters[1]!.damage > prev.fighters[1]!.damage,
+      },
+      motion: { before: 18, after: 20 },
+      requires: ['move:downBAir'],
+      refs: [`${RUN}/ingame-run2-*`, 'smash/attack-active-*'],
+    },
+    {
       name: 'runner-key-poses',
       description: 'Close-up key poses for the dash, planted run, jump, dropkick and Tile Flip.',
       page: {
@@ -164,7 +194,7 @@ export const scenarios: FighterScenarios = {
     ),
     sheet(
       'grabs-specials',
-      'The first active frame of the grabs, pummel, the four throws, Tile Flip on the ground and in the air, and Gravity Switch.',
+      'The first active frame of the grabs, pummel, the four throws, Tile Flip and Box Drop on the ground and in the air, and Gravity Switch.',
       9,
       [
         'grab',
@@ -178,8 +208,33 @@ export const scenarios: FighterScenarios = {
         'neutralB',
         'neutralBAir',
         'upB',
+        'downB',
+        'downBAir',
       ].map(firstActive),
       ['smash/attack-active-*', `${RUN}/sprite-sheet-runner-*`, `${RUN}/ingame-run3-*`],
     ),
+    {
+      name: 'runner-box-drop-exit',
+      description: 'Close-up of Box Drop sealed, ready to cancel, opening, and returning to Runner.',
+      page: {
+        kind: 'lab',
+        scene: 'fighter',
+        params: {
+          fighter: 'runner',
+          bg: '#c4c6d0',
+          sheet: '1',
+          states: [
+            BOX_DROP.cancelFrom - 1,
+            BOX_DROP.cancelFrom,
+            BOX_DROP.release,
+            BOX_DROP.release + 3,
+            BOX_DROP.release + 10,
+          ]
+            .map((frame) => `downB@${frame}`)
+            .join(','),
+        },
+      },
+      refs: [`${RUN}/official-art-runner-*`, `${RUN}/ingame-run2-*`],
+    },
   ],
 };
