@@ -4,11 +4,14 @@ import { createPlayfield } from './art/playfield';
 
 export function createStageView(): StageView {
   const background = createBackground();
+  const playfield = createPlayfield();
   return {
     background: background.container,
-    world: createPlayfield(),
-    update(frame, camera) {
+    world: playfield.container,
+    drawsStagePieces: true,
+    update(frame, camera, pose) {
       background.update(frame, camera);
+      playfield.update(frame, pose);
     },
   };
 }
