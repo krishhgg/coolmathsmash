@@ -117,7 +117,7 @@ function rolling(
 }
 
 /** Running: leaning into it, a little smeared, speed lines behind. */
-const RUN = mix(body(1.07, 0.95, 0.45), fx('fx3', -5.4, -5.6, 0.85));
+const RUN = fx('fx3', -5.4, -5.6, 0.85);
 
 /** Dust kicked up behind a rolling ball. */
 const dustBehind = (x: number, s: number): Pose => fx('fx1', x, -0.45 * s, s);
@@ -166,9 +166,9 @@ export const clips: Record<string, AnimClip> = {
     swaps: { ...DETERMINED, fx1: 'dust' },
     keys: [
       key(0, mix(ground(1.14, 0.88, -0.4), roll(-12), dustBehind(-4.2, 0.55))),
-      key(3, mix(body(1.1, 0.93, 0.3), roll(28), dustBehind(-6, 0.9)), { ease: 'in' }),
+      key(3, mix(ground(1.1, 0.93, 0.3), roll(28), dustBehind(-6, 0.9)), { ease: 'in' }),
       key(8, undefined, { swaps: { fx1: null } }),
-      key(11, mix(body(1.08, 0.95, 0.4), roll(180), dustBehind(-7.5, 1.1))),
+      key(11, mix(ground(1.08, 0.95, 0.4), roll(180), dustBehind(-7.5, 1.1))),
     ],
   },
   /** Full speed: a turn every 15 frames, leaning into it, speed lines and dust behind. */
@@ -177,12 +177,15 @@ export const clips: Record<string, AnimClip> = {
     loop: true,
     swaps: { ...DETERMINED, fxBack: 'speed', fx1: 'dust' },
     keys: [
-      key(0, mix(RUN, roll(180), dustBehind(-4.4, 0.5)), { ease: 'linear', swaps: {} }),
-      key(3.75, mix(RUN, ground(1, 1, 0, 0.3), roll(270), dustBehind(-5.8, 0.8)), { ease: 'linear' }),
-      key(7.5, mix(RUN, roll(360), dustBehind(-7.0, 1.0)), { ease: 'linear' }),
+      key(0, mix(ground(1.08, 0.95, 0.4), RUN, roll(180), dustBehind(-4.4, 0.5)), {
+        ease: 'linear',
+        swaps: {},
+      }),
+      key(3.75, mix(ground(1.12, 0.91, 0.5), RUN, roll(270), dustBehind(-5.8, 0.8)), { ease: 'linear' }),
+      key(7.5, mix(ground(1.06, 0.97, 0.45), RUN, roll(360), dustBehind(-7.0, 1.0)), { ease: 'linear' }),
       key(9, undefined, { swaps: { fx1: null } }),
-      key(11.25, mix(RUN, ground(1, 1, 0, 0.3), roll(450), dustBehind(-5.6, 0.7)), { ease: 'linear' }),
-      key(15, mix(RUN, roll(540), dustBehind(-4.4, 0.5)), { ease: 'linear' }),
+      key(11.25, mix(ground(1.12, 0.91, 0.5), RUN, roll(450), dustBehind(-5.6, 0.7)), { ease: 'linear' }),
+      key(15, mix(ground(1.08, 0.95, 0.4), RUN, roll(540), dustBehind(-4.4, 0.5)), { ease: 'linear' }),
     ],
   },
   /** Skidding to a stop, squashed against the floor, dust thrown up in front. */
@@ -236,10 +239,10 @@ export const clips: Record<string, AnimClip> = {
   /** A midair jump: squashes, pops off a ring of air and does a little forward flip, grinning. */
   doubleJump: {
     length: 30,
-    swaps: { ...WHEE, fx1: 'ring', fxBack: 'pop' },
+    swaps: { ...WHEE, fx1: 'ring' },
     keys: [
-      key(0, mix(body(1.32, 0.74), fx('fx1', 0, 0.4, 0.55), fx('fx3', 0, -R, 1.45))),
-      key(3, mix(body(0.82, 1.22), roll(24), fx('fx1', 0, 2.0, 1.05), fx('fx3', 0, -R, 2.1)), {
+      key(0, mix(body(1.32, 0.74), fx('fx1', 0, 0.4, 0.55))),
+      key(3, mix(body(0.93, 1.08, 0.25, -0.5), roll(48), fx('fx1', 0, 2.0, 1.05)), {
         ease: 'out',
       }),
       key(6, mix(body(0.94, 1.07), roll(130), fx('fx1', 0, 3.4, 1.4)), {
@@ -383,8 +386,11 @@ export const clips: Record<string, AnimClip> = {
           swaps: { ...SHOCK, fx4: null },
         },
       ),
-      key(3, mix(HANG, body(1.08, 0.94), roll(-32)), { swaps: { ...STRAIN, ...BITE, fx4: null } }),
-      key(8, HANG, { swaps: { ...STRAIN, ...BITE } }),
+      key(3, mix(HANG, body(1.08, 0.94), roll(-32), fx('fx1', GX - 0.55, GY - 0.8, 0.72)), {
+        swaps: { ...STRAIN, ...BITE, fx1: 'pop', fx4: null },
+      }),
+      key(6, undefined, { swaps: { ...STRAIN, ...BITE, fx4: null } }),
+      key(8, mix(HANG, fx('fx1', GX - 0.55, GY - 0.8, 0.9)), { swaps: { ...STRAIN, ...BITE } }),
     ],
   },
   /** Hanging on by his teeth, sweating: the grip sags and pulls up again every two thirds of a second. */

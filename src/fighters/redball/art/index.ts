@@ -19,7 +19,9 @@ export const art: FighterArt = {
   clips: { ...clips, ...attacks, ...aliases },
   palettes,
   /** The Evil Box wears the box body and its mottled shade, in any clip that does not swap the body itself. */
-  costumeSwaps: { evil: { ballLine: 'cubeLine', ballFill: 'cubeFill', ballShade: 'evilShade' } },
+  costumeSwaps: {
+    evil: { ballLine: 'cubeLine', ballFill: 'cubeFill', ballShade: 'evilShade', costumeMouth: 'evilGrin' },
+  },
   icon: symbolsToSvg(
     rig.symbols,
     ['ballLine', 'ballFill', 'ballShade', 'eyesDetermined', 'browAngry', 'mouthSmirk', 'ballShine'],

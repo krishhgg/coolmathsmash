@@ -45,25 +45,32 @@ const lash = (dx: number, to: readonly [number, number], sx = 1.06, sy = 0.96): 
 const swirl = (x: number, y = -R, s = 1): Pose => fx('fx4', x, y, s);
 const speed = (x: number, y = -R, s = 1, rot = 0): Pose => fx('fx3', x, y, s, rot);
 const CUBE = { ballLine: 'cubeLine', ballFill: 'cubeFill', ballShade: 'cubeShade' };
+const BACK_FX2 = { fx2: 0.5 };
+const REV_START = 8;
+const REV_FRAMES = 60;
+const REV_CLIP_LENGTH = 77;
 
-/**
- * The Charge Roll rev from frame `from` to `length`: keys every `step` frames, the spin speeding up from `rate0`
- * to `rate1` degrees per frame by frame `full`, the ball shaking on the spot and dust thrown out behind.
- */
-function rev(from: number, length: number, full: number, rate0: number, rate1: number, step: number) {
-  const keys = [];
-  let deg = 0;
-  for (let f = from, i = 0; f <= length; f += step, i++) {
+function rev() {
+  let deg = -5;
+  return Array.from({ length: REV_CLIP_LENGTH - REV_START + 1 }, (_, i) => {
+    const f = REV_START + i;
+    const pulse = (i >= 19 && i < 22) || (i >= 44 && i < 47);
+    const flash = i >= REV_FRAMES - 3 && i < REV_FRAMES;
+    const x = -0.6 + 0.18 * Math.sin((i * Math.PI) / 3);
+    const dust = (i % 6) / 5;
     const pose = mix(
-      ground(1.1, 0.92, -0.6 + (i % 2 ? 0.15 : -0.15)),
+      ground(1.1, 0.92, x),
       roll(Math.round(deg)),
-      fx('fx1', -6.2 - (i % 3) * 0.6, -0.5 - (i % 3) * 0.3, 0.6 + (i % 3) * 0.2),
-      swirl(-0.6),
+      fx('fx1', -5.6 - dust * 1.8, -0.3 - dust * 0.5, 0.45 + dust * 0.55),
+      fx('fx2', x, -R * 0.92, 0.96),
+      swirl(x, -R * 0.92, pulse ? 2.55 : 0.94),
     );
-    keys.push(key(f, pose, { ease: 'linear' }));
-    deg += step * (rate0 + (rate1 - rate0) * Math.min(1, (f - from) / (full - from)));
-  }
-  return keys;
+    deg += 20 + 42 * Math.min(1, i / (REV_FRAMES - 1));
+    return key(f, pose, {
+      ease: 'linear',
+      swaps: { fx1: 'dust', fx2: flash ? 'flash' : null, fx4: pulse ? 'pop' : 'swirl' },
+    });
+  });
 }
 
 /**
@@ -79,7 +86,8 @@ function chargeRoll(
 ): MoveClip {
   const length = frames + 15;
   const end = Math.ceil((rate * (frames + 6)) / 360) * 360;
-  const lean: Pose = tier >= 3 ? body(1.22, 0.87, 1.0) : body(1.06 + tier * 0.03, 0.96 - tier * 0.015, 0.6);
+  const lean: Pose =
+    tier >= 3 ? ground(1.22, 0.87, 1.0) : ground(1.06 + tier * 0.03, 0.96 - tier * 0.015, 0.6);
   const fxOn = {
     fxBack: 'speed',
     fx4: tier >= 2 ? 'swirl' : null,
@@ -94,6 +102,7 @@ function chargeRoll(
       key(0, mix(lean, roll(0), speed(-3.5), swirl(0.8), fx('fx1', -5, -0.4, 0.6), fx('fx2', 0, -R, 1)), {
         swaps: fxOn,
         ease: 'linear',
+        z: BACK_FX2,
       }),
       key(
         frames,
@@ -254,6 +263,7 @@ export const attacks = {
       }),
       key(14, mix(body(1.46, 0.76, 4.6), roll(720), speed(0.4), fx('fx2', 0.6, -R, 1.05)), {
         swaps: { ...SHOUT, fxBack: 'speed', fx2: 'after' },
+        z: BACK_FX2,
         ease: 'out',
       }),
       key(18, mix(body(1.44, 0.77, 5.0), roll(725), speed(0.8), fx('fx2', 1.0, -R, 1.15))),
@@ -430,8 +440,8 @@ export const attacks = {
       key(11, mix(body(0.9, 1.18, 0, 0.6), speed(0, -12.5, 1.1, 90)), {
         swaps: { ...CUBE, fxBack: 'speed' },
       }),
-      key(14, mix(body(1.28, 0.8, 0, 0.9), speed(0, -12.5, 1.1, 90))),
-      key(16, mix(body(1.3, 0.76, 0, 1.1), speed(0, -12.5, 1.1, 90))),
+      key(13, mix(body(1.12, 0.94, 0, 3.3), speed(0, -10.3, 1.14, 90)), { ease: 'out' }),
+      key(16, mix(body(1.3, 0.76, 0, 2.4), speed(0, -11.2, 1.1, 90))),
       key(24, mix(body(1.2, 0.84, 0, 1.0), speed(0, -12.5, 1.1, 90))),
       key(25, undefined, { swaps: {} }),
       key(28, body(0.94, 1.08)),
@@ -572,21 +582,10 @@ export const attacks = {
 
   /** Charge Roll's rev: leans in and spins on the spot faster and faster, kicking up dust. */
   neutralB: {
-    length: 77,
+    length: REV_CLIP_LENGTH,
     active: [],
     swaps: GRIT,
-    keys: [
-      key(0, ground()),
-      key(4, mix(ground(1.15, 0.88, -0.5), roll(-15)), { ease: 'out' }),
-      key(8, undefined, { swaps: { fx1: 'dust', fx4: 'swirl' } }),
-      ...rev(8, 29, 68, 20, 62, 3),
-      key(30, undefined, { swaps: { ...SHOUT, fx1: 'dust', fx4: 'swirl' } }),
-      ...rev(8, 74, 68, 20, 62, 3).filter((k) => k.frame >= 30),
-      key(75, mix(fx('fx2', 0, -R, 1.15), swirl(-0.6)), {
-        swaps: { ...SHOUT, fx1: null, fx4: 'swirl', fx2: 'flash' },
-      }),
-      key(77, undefined, { swaps: { ...SHOUT, fx2: null, fx4: null } }),
-    ],
+    keys: [key(0, ground()), key(4, mix(ground(1.15, 0.88, -0.5), roll(-15)), { ease: 'out' }), ...rev()],
   },
   chargeRoll1: chargeRoll(30, 26, GRIT, 1),
   chargeRoll2: chargeRoll(40, 36, GRIT, 2),
@@ -605,6 +604,7 @@ export const attacks = {
         mix(ground(0.7, 1.46, 0, 0.6), fx('fx1', 0, 0, 0.9), fx('fx3', 0, -7, 1.7), fx('fx2', 0, -R, 1.15)),
         {
           swaps: { ...WHEE, fx1: 'ring', fxBack: 'pop', fx2: 'spike' },
+          z: BACK_FX2,
           ease: 'out',
         },
       ),
