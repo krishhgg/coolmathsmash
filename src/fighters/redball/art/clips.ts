@@ -22,6 +22,7 @@ import {
   ground,
   key,
   lick,
+  lickAt,
   look,
   mix,
   roll,
@@ -375,6 +376,33 @@ export const clips: Record<string, AnimClip> = {
       key(12, mix(body(0.96, 1.04), roll(345))),
       key(16, mix(body(), roll(360)), { swaps: DETERMINED }),
       key(46, mix(body(), roll(360))),
+    ],
+  },
+
+  /**
+   * Reeling in on Tongue Lash (the tetherPull action): stretched towards the ledge his tongue is stuck to and
+   * looking up at it, with speed lines behind. The tongue shortens as the reel closes in, 3 units a frame, from a
+   * ledge about 24 units ahead and 13 up (the usual catch from below) to the ledge catch, about 9 ahead and 10 up.
+   */
+  tetherPull: {
+    length: 20,
+    swaps: { ...LICK_AIM, eyes: 'eyesDeterminedUp', fxBack: 'speed' },
+    keys: [
+      key(
+        0,
+        mix(lickAt(mix(body(1.14, 0.9, 0.5), roll(-12)), [22.5, -12.8]), fx('fx3', -4.2, -3.6, 1, -24)),
+        {
+          ease: 'linear',
+        },
+      ),
+      key(
+        6,
+        mix(lickAt(mix(body(1.1, 0.92, 0.8), roll(-18)), [8.8, -10.2]), fx('fx3', -3.8, -3.8, 0.9, -28)),
+      ),
+      key(
+        20,
+        mix(lickAt(mix(body(1.08, 0.94, 0.8), roll(-20)), [8.8, -10.2]), fx('fx3', -3.8, -3.8, 0.9, -28)),
+      ),
     ],
   },
 

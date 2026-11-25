@@ -23,13 +23,19 @@ const STAND_INS: Record<string, string> = {
   getupRoll: 'techRoll',
 };
 
+/**
+ * Actions that keep the move's name but restart the frame count (a tether's reel and hang), so they play their own
+ * clip when the art has one instead of the move's clip from frame 1.
+ */
+const OWN_CLIP = new Set(['tetherPull', 'tetherHang']);
+
 export function fighterArt(def: FighterDef): FighterArt | undefined {
   return def.art as FighterArt | undefined;
 }
 
 /** The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. */
 export function clipFor(def: FighterDef, art: FighterArt, f: FighterState): [string, number] {
-  const own = f.move ?? f.action;
+  const own = f.move && !(OWN_CLIP.has(f.action) && art.clips[f.action]) ? f.move : f.action;
   const name = art.clips[own] ? own : (STAND_INS[own] ?? 'idle');
   const clip = art.clips[name];
   if (!clip || !f.move || name !== f.move) return [name, f.actionFrame];
