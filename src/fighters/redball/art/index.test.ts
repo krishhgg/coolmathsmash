@@ -133,6 +133,20 @@ describe('red ball art', () => {
     expect(x1 - x0).toBeLessThan(10.8);
   });
 
+  it('stays in the Cube Squash shape through the down air hit windows', () => {
+    const move = moves.dair!;
+    const clip = art.clips.dair!;
+    for (const {
+      frames: [start, end],
+    } of move.hits) {
+      for (let frame = start; frame <= end; frame++) {
+        const pose = samplePose(art, 'dair', moveClipFrame(clip, frame, move), frame);
+        expect(pose.symbols.ballFill, `dair@${frame}`).toBe('cubeFill');
+      }
+    }
+    expect(samplePose(art, 'dair', clip.length, 0).symbols.ballFill).toBe('ballFill');
+  });
+
   it('bites the ledge corner where the engine hangs him', () => {
     expect(art.ledgeGrip).toEqual([stats.width / 2 + 0.5, -stats.height * 0.85]);
     const pose = samplePose(art, 'ledgeHang', 0, 0);
