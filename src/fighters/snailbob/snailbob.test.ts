@@ -449,6 +449,18 @@ describe('Snail Bob: Shell Spin (side special)', () => {
 describe('Snail Bob: Rocket Hover (up special)', () => {
   const UP_B: Hold = { y: 50, buttons: ['special'] };
 
+  it('recovers onto Battlefield from below the right ledge with his midair jump spent', () => {
+    const m = snail();
+    const f = placeInAir(m, 100, -35, -1);
+    f.jumpsUsed = stats.jumps;
+    run(m, 1, UP_B);
+    expect(f.move).toBe('upB');
+    until(m, (g) => g.pos.y >= 10, { buttons: ['special'] }, 65);
+    until(m, (g) => g.pos.x <= 65, { x: -100, buttons: ['special'] }, 55);
+    until(m, (g) => g.ground !== null, {}, 60);
+    expect(f.stocks).toBe(3);
+  });
+
   it('thrusts on a 120-frame tank, rising over 100 units, then falls with his midair jump left', () => {
     const m = snail();
     const f = m.fighters[0]!;
