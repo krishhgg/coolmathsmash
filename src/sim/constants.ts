@@ -25,6 +25,13 @@ export const CROUCH_THRESHOLD = 0.45;
 export const DIRECTION_THRESHOLD = 0.25;
 
 /**
+ * Ultimate's special_stick_y and special_stick_x (common params, 13.0.1): Special is an up or down special once the
+ * stick is half way up or down, and a side special only once it is 0.6 sideways, so diagonals are up and down specials.
+ */
+export const SPECIAL_STICK_Y = 0.5;
+export const SPECIAL_STICK_X = 0.6;
+
+/**
  * Button presses are remembered this many frames, so an input made during lag comes out on the first actionable frame.
  * Ultimate's `precede` param is 7; its 2-frame `precede_extension` for held inputs is covered by HOLD_BUFFER.
  */
