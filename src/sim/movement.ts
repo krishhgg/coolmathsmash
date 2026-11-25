@@ -326,34 +326,54 @@ const BOX_SIDES = [
  * into its box, ends up inside the solid and rises out through its floor. Ultimate's ECB diamond keeps out of
  * solid ground as a shape: rising into the underside the fighter stops or slides along it, never into it.
  *
- * The push is the shallowest one through a side of the diamond that moves the fighter away from the corner, in
- * a direction between the outward normals of the corner's two edges. A side whose push points into either edge
- * is a diamond point against that edge instead, which pushOut handles.
+ * The corner came in if it is inside the diamond now and was not at `prev`, or if its path crossed one of the
+ * diamond's sides (past a narrow tip of the diamond it can cross in and out within one sub-step). The push is the
+ * shallowest one back through such a side that moves the fighter in a direction between the outward normals of
+ * the corner's two edges. A side whose push points into either edge is a diamond point against that edge
+ * instead, which pushOut handles.
  */
 export function pushOffCorner(f: FighterState, prev: { x: number; y: number }, e: Edge, box: Vec[]): boolean {
-  const c = e.a;
   const n1 = e.corner!;
   const n2 = e.n;
   const turn = n1.x * n2.y - n1.y * n2.x;
-  let side: Vec | null = null;
-  let depth = Infinity;
-  let entered = false;
+  // The corner relative to the fighter now and at `prev`.
+  const now = { x: e.a.x - f.pos.x, y: e.a.y - f.pos.y };
+  const was = { x: e.a.x - prev.x, y: e.a.y - prev.y };
+  const dNow: number[] = [];
+  const dPrev: number[] = [];
+  const normals: Vec[] = [];
   for (const [i, j] of BOX_SIDES) {
     const p = box[i]!;
     const q = box[j]!;
     const len = Math.hypot(q.x - p.x, q.y - p.y);
     const n = { x: (q.y - p.y) / len, y: (p.x - q.x) / len };
-    const dNow = (c.x - f.pos.x - p.x) * n.x + (c.y - f.pos.y - p.y) * n.y;
-    if (dNow >= 0) return false;
-    if ((c.x - prev.x - p.x) * n.x + (c.y - prev.y - p.y) * n.y >= -EPS) entered = true;
-    // The fighter moves along -n: it must lie between n1 and n2.
-    const between = (n1.x * -n.y + n1.y * n.x) * turn >= -EPS && (-n.x * n2.y + n.y * n2.x) * turn >= -EPS;
-    if (between && -dNow < depth) {
-      side = n;
-      depth = -dNow;
-    }
+    normals.push(n);
+    dNow.push((now.x - p.x) * n.x + (now.y - p.y) * n.y);
+    dPrev.push((was.x - p.x) * n.x + (was.y - p.y) * n.y);
   }
-  if (!entered || !side) return false;
+  const entered = dNow.every((d) => d < 0) && dPrev.some((d) => d >= -EPS);
+  let side: Vec | null = null;
+  let depth = Infinity;
+  for (let k = 0; k < BOX_SIDES.length; k++) {
+    const n = normals[k]!;
+    if (dNow[k]! >= 0 || -dNow[k]! >= depth) continue;
+    // The fighter moves along -n: it must lie between n1 and n2.
+    if ((n1.x * -n.y + n1.y * n.x) * turn < -EPS || (-n.x * n2.y + n.y * n2.x) * turn < -EPS) continue;
+    if (!entered) {
+      if (dPrev[k]! < -EPS) continue;
+      // Where the corner crossed the side's line: on the side itself, or past the diamond's end of it.
+      const s = dPrev[k]! > 0 ? dPrev[k]! / (dPrev[k]! - dNow[k]!) : 0;
+      const p = box[BOX_SIDES[k]![0]]!;
+      const q = box[BOX_SIDES[k]![1]]!;
+      const cx = was.x + (now.x - was.x) * s - p.x;
+      const cy = was.y + (now.y - was.y) * s - p.y;
+      const u = (cx * (q.x - p.x) + cy * (q.y - p.y)) / ((q.x - p.x) ** 2 + (q.y - p.y) ** 2);
+      if (u < 0 || u > 1) continue;
+    }
+    side = n;
+    depth = -dNow[k]!;
+  }
+  if (!side) return false;
   f.pos.x -= side.x * (depth + EPS);
   f.pos.y -= side.y * (depth + EPS);
   const into = (v: Vec) => {
