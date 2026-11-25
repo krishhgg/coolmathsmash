@@ -25,6 +25,13 @@ export const CROUCH_THRESHOLD = 0.45;
 export const DIRECTION_THRESHOLD = 0.25;
 
 /**
+ * Ultimate's special_stick_y and special_stick_x (common params, 13.0.1): Special is an up or down special once the
+ * stick is half way up or down, and a side special only once it is 0.6 sideways, so diagonals are up and down specials.
+ */
+export const SPECIAL_STICK_Y = 0.5;
+export const SPECIAL_STICK_X = 0.6;
+
+/**
  * Button presses are remembered this many frames, so an input made during lag comes out on the first actionable frame.
  * Ultimate's `precede` param is 7; its 2-frame `precede_extension` for held inputs is covered by HOLD_BUFFER.
  */
@@ -74,6 +81,18 @@ export const LEDGE_ATTACK = { faf: 56, intangible: [1, 22] as [number, number], 
 export const LEDGE_JUMP = { rise: 6, intangible: [1, 13] as [number, number], hSpeed: 0.6 };
 /** Getup intangibility by grab count since last touching ground (Ultimate: ×0.8 on the 2nd grab, ×0.5 on the 3rd, none after). */
 export const LEDGE_GETUP_INTANGIBILITY_SCALE = [1, 0.8, 0.5];
+
+/** Tethers (src/sim/actions/tether.ts, docs/fighters.md). */
+export const TETHER = {
+  /** The line leaves the hand at this share of the fighter's height above the feet. */
+  handHeight: 0.6,
+  /** A tether line catches a ledge it passes within this many units of, from off the stage (generous snapping). */
+  ledgeSnap: 10,
+  /** A reeling fighter this close to the ledge's hang position grabs the ledge. */
+  ledgeArrive: 6,
+  /** Extra frames a reel may take beyond range / pullSpeed before it gives up (stuck against a wall). */
+  pullSlack: 10,
+};
 
 /**
  * Grabs (Ultimate; physics-reference sections 6 and 14). A grab holds floor(90 + 1.7 x %) frames

@@ -9,12 +9,14 @@ import {
   consumeCStick,
   isHeld,
   smashDir,
+  specialDir,
   stickDir,
   type Dir,
 } from '../control';
 import { emit } from '../events';
 import type { Ctx, FighterState } from '../fighter';
 import { HELPLESS_LANDING_LAG } from '../constants';
+import { spawnFromMove } from '../entities/entities';
 import { leaveGround, normalLandingLag } from '../movement';
 import { fastFallCheck } from './air';
 import { groundGrab } from './grab';
@@ -49,6 +51,7 @@ export function startMove(x: Ctx, requested: string, action?: string): boolean {
   x.f.move = name;
   emit(x.m, { type: 'move', port: x.f.port, move: name });
   x.f.hitVictims = [];
+  x.f.hitEntities = [];
   x.f.moveStale = 0;
   x.f.charge = 0;
   return true;
@@ -103,7 +106,7 @@ export function groundAttack(x: Ctx): boolean {
   }
   if (buffered(c, Btn.Special)) {
     consume(c, Btn.Special);
-    const dir = stickDir(c, f.facing);
+    const dir = specialDir(c, f.facing);
     turnFor(x, dir);
     return startMove(x, SPECIAL[dir]);
   }
@@ -127,7 +130,7 @@ export function jumpSquatAttack(x: Ctx): boolean {
     consumeCStick(c);
     return startMove(x, 'usmash');
   }
-  if (buffered(c, Btn.Special) && stickDir(c, f.facing) === 'up') {
+  if (buffered(c, Btn.Special) && specialDir(c, f.facing) === 'up') {
     consume(c, Btn.Special);
     return startMove(x, 'upB');
   }
@@ -148,7 +151,7 @@ export function airAttack(x: Ctx): boolean {
   }
   if (buffered(c, Btn.Special)) {
     consume(c, Btn.Special);
-    const dir = stickDir(c, f.facing);
+    const dir = specialDir(c, f.facing);
     turnFor(x, dir);
     return startMove(x, SPECIAL[dir]);
   }
@@ -159,7 +162,7 @@ export function airAttack(x: Ctx): boolean {
 
 /**
  * Per-frame move bookkeeping: hold the charge frame while Attack (or the C-stick) is held, reopen `rehit`
- * windows, run the move's script. Returns the move.
+ * windows, spawn the frame's entities, run the move's script. Returns the move.
  */
 export function playMove(x: Ctx): MoveDef {
   const { f, c } = x;
@@ -169,7 +172,11 @@ export function playMove(x: Ctx): MoveDef {
     f.charge++;
     f.actionFrame--;
   }
-  if (move.hits.some((w) => w.rehit && w.frames[0] === f.actionFrame)) f.hitVictims = [];
+  if (move.hits.some((w) => w.rehit && w.frames[0] === f.actionFrame)) {
+    f.hitVictims = [];
+    f.hitEntities = [];
+  }
+  for (const s of move.spawn ?? []) if (s.frame === f.actionFrame) spawnFromMove(x, s);
   move.script?.(x);
   if (move.transform?.frame === f.actionFrame) {
     emit(x.m, { type: 'transform', port: f.port, from: f.fighter, to: move.transform.into });
@@ -219,7 +226,7 @@ export const ATTACK: Record<string, ActionDef> = {
     update(x) {
       const { f } = x;
       const move = playMove(x);
-      if (!move.helpless) fastFallCheck(x);
+      if (!move.helpless && !move.tether?.aimed) fastFallCheck(x);
       if (f.actionFrame < move.faf) return;
       if (!move.helpless) return setAction(x, 'fall');
       setAction(x, 'helpless');

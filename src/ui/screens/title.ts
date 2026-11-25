@@ -1,5 +1,6 @@
 import type { Flow, Screen, ScreenDef } from '../app';
 import { logoSvg, planetSvg } from '../art/logo';
+import { SHORT_DISCLAIMER } from '../credits';
 import { h, svg } from '../dom';
 import './title.css';
 
@@ -16,11 +17,7 @@ export function titleScreen(flow: Flow): Screen {
     h('div', { class: 'title-tagline' }, 'The Coolmath Games classics, in a Smash-style brawl'),
     h('div', { class: 'title-press' }, 'Press Start'),
     h('div', { class: 'title-keys' }, 'Enter · Space · any button'),
-    h(
-      'div',
-      { class: 'title-foot' },
-      'Fan-made for a video game class · not affiliated with Coolmath Games or Nintendo',
-    ),
+    h('div', { class: 'title-foot' }, SHORT_DISCLAIMER),
   );
   return {
     el,

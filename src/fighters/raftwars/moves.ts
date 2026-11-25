@@ -1,6 +1,8 @@
 import type { HitboxDef, MoveDef } from '../types';
-import { stickX } from '../../sim/control';
+import { Btn } from '../../input/types';
+import { isHeld, stickX } from '../../sim/control';
 import type { Ctx } from '../../sim/fighter';
+import { grenade } from './grenade';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -79,25 +81,90 @@ function rocketRide(x: Ctx): void {
 }
 
 /**
+ * Rapid Fire: while Attack stays held, the jab loops back from frame 12 to frame 4, so a ball leaves the launcher every
+ * 8 frames (Ultimate's rapid jabs also run while the button is held). Letting go plays out the last shot.
+ */
+function rapidFire(x: Ctx): void {
+  if (x.f.actionFrame === 12 && isHeld(x.c, Btn.Attack)) x.f.actionFrame = 4;
+}
+
+/** A shot's kick on the frame it fires: `dx` along their facing, and a lift up to `dy` (0 for none). */
+const recoil =
+  (frame: number, dx: number, dy = 0) =>
+  (x: Ctx): void => {
+    const { f } = x;
+    if (f.actionFrame !== frame) return;
+    f.vel.x += dx * f.facing;
+    if (dy > 0 && f.vel.y < dy) {
+      f.fastFalling = false;
+      f.vel.y = dy;
+    }
+  };
+
+/** Aerial timings shared by the shots: `autoCancel` early and from `lateFrom`. */
+const aerial = (faf: number, landingLag: number, lateFrom: number) => ({
+  kind: 'aerial' as const,
+  faf,
+  landingLag,
+  autoCancel: [
+    [1, 3],
+    [lateFrom, faf],
+  ] as [number, number][],
+});
+
+/**
  * Raft Wars kids' moves (roster sheet, fighter 9). They are a pure zoner: everything but the floaty moves fires the
- * tennis-ball launcher, so the projectile normals (jab, tilts, aerials) and the specials arrive with the shared
- * projectile system. These are the melee moves and the grab game. Frame windows are inclusive, faf is the first
- * actionable frame, and move names double as animation clip names.
+ * tennis-ball launcher (the balls are in entities.ts), so jab, tilts and aerials are shots, and the floaty is their
+ * only real melee (dash attack, forward and down smash). Frame windows are inclusive, faf is the first actionable
+ * frame, and move names double as animation clip names.
  */
 export const moves: Record<string, MoveDef> = {
-  /** Raft Slide: belly-slides along the ground on the pool float; strong on the flop, weaker as it slides. */
+  /** Rapid Fire: point-blank 1.5% balls out of the launcher from frame 5, one every 8 frames while Attack is held. */
+  jab: {
+    kind: 'other',
+    faf: 18,
+    hits: [],
+    spawn: [{ frame: 5, entity: 'jabBall', x: 7, y: 7, vx: 3 }],
+    script: rapidFire,
+  },
+  /** Straight Shot: one 6% ball straight ahead, 100 units. */
+  ftilt: {
+    kind: 'other',
+    faf: 30,
+    hits: [],
+    spawn: [{ frame: 9, entity: 'shot', x: 8, y: 7, vx: 3.2 }],
+  },
+  /** Lob: fires a ball straight up that falls back down; an anti-air that covers platforms above them. */
+  utilt: {
+    kind: 'other',
+    faf: 30,
+    hits: [],
+    spawn: [{ frame: 8, entity: 'lob', x: 2, y: 14, vy: 3.4 }],
+  },
+  /** Skip Shot: from a crouch, a ball that skims along the ground in low hops. */
+  dtilt: {
+    kind: 'other',
+    faf: 28,
+    hits: [],
+    spawn: [{ frame: 9, entity: 'skip', x: 7, y: 2, vx: 2.6, vy: 1 }],
+  },
+  /**
+   * Raft Slide: belly-slides along the ground on the pool float; strong on the flop, weaker as it slides. Knockback
+   * from Duck Hunt's dash attack (60 degrees, then 110 as it slides past; KBG 40, BKB 100): a poke, not a kill move.
+   */
   dashAttack: {
     kind: 'other',
     faf: 42,
     hits: [
-      { frames: [8, 11], boxes: [box(0, 5, 4, 5.5, { damage: 9, angle: 45, kbg: 75, bkb: 60 })] },
-      { frames: [12, 22], boxes: [box(0, 5, 4, 4.5, { damage: 6, angle: 45, kbg: 70, bkb: 45 })] },
+      { frames: [8, 11], boxes: [box(0, 5, 4, 5.5, { damage: 9, angle: 60, kbg: 40, bkb: 100 })] },
+      { frames: [12, 22], boxes: [box(0, 5, 4, 4.5, { damage: 6, angle: 110, kbg: 40, bkb: 100 })] },
     ],
     script: raftSlide,
   },
   /**
    * Floaty Shove: the video's "good knockback attack". A hip check with the inflatable ring, their one big melee hit
-   * and their best kill move (the roster targets about 90% on Mario at the ledge). The ring is the sweetspot, the body the sourspot.
+   * and their best kill move. The ring is the sweetspot, the body the sourspot. Analogue: Isabelle's forward smash, a
+   * zoner's one-hit swing (17%, 361 degrees, KBG 99, BKB 25), which KOs Mario at the Battlefield ledge from about 69%.
    */
   fsmash: {
     kind: 'smash',
@@ -107,15 +174,16 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [14, 16],
         boxes: [
-          box(0, 10, 6, 5.5, { damage: 16, angle: 361, kbg: 100, bkb: 40 }),
-          box(1, 4.5, 6, 4, { damage: 13, angle: 361, kbg: 100, bkb: 32 }),
+          box(0, 10, 6, 5.5, { damage: 17, angle: 361, kbg: 99, bkb: 25 }),
+          box(1, 4.5, 6, 4, { damage: 13, angle: 361, kbg: 99, bkb: 25 }),
         ],
       },
     ],
   },
   /**
    * Bottle Rocket: fires a small rocket straight up from the launcher. It rises above their head and bursts at the
-   * top, an anti-air that kills around 120%; it barely touches grounded opponents beside them.
+   * top, an anti-air that barely touches grounded opponents beside them. Analogue: Snake's up smash, the mortar shell
+   * (14%, 65 degrees, KBG 60, BKB 87), which KOs Mario at the ledge from about 132% at the same contact height.
    */
   usmash: {
     kind: 'smash',
@@ -124,19 +192,22 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [12, 14],
-        boxes: [box(0, 2, 16, 4.5, { damage: 13, angle: 88, kbg: 96, bkb: 38, direction: 'away' })],
+        boxes: [box(0, 2, 16, 4.5, { damage: 14, angle: 65, kbg: 60, bkb: 87, direction: 'away' })],
       },
       {
         frames: [15, 18],
-        boxes: [box(0, 2, 24, 5, { damage: 13, angle: 88, kbg: 96, bkb: 38, direction: 'away' })],
+        boxes: [box(0, 2, 24, 5, { damage: 14, angle: 65, kbg: 60, bkb: 87, direction: 'away' })],
       },
       {
         frames: [19, 22],
-        boxes: [box(0, 2, 31, 7, { damage: 11, angle: 85, kbg: 92, bkb: 38, direction: 'away' })],
+        boxes: [box(0, 2, 31, 7, { damage: 11, angle: 65, kbg: 60, bkb: 87, direction: 'away' })],
       },
     ],
   },
-  /** Splash Down: slams the floaty onto the water, a splash ring hitting both sides at once. */
+  /**
+   * Splash Down: slams the floaty onto the water, a splash ring hitting both sides at once. Analogue: Snake's down smash
+   * sweep (12%, 25 degrees, KBG 87, BKB 30), about 105% on Mario at the ledge.
+   */
   dsmash: {
     kind: 'smash',
     faf: 44,
@@ -145,8 +216,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [10, 12],
         boxes: [
-          box(0, 9, 2.5, 5, { damage: 11, angle: 30, kbg: 95, bkb: 30 }),
-          box(1, -9, 2.5, 5, { damage: 11, angle: 30, kbg: 95, bkb: 30, direction: 'back' }),
+          box(0, 9, 2.5, 5, { damage: 12, angle: 25, kbg: 87, bkb: 30 }),
+          box(1, -9, 2.5, 5, { damage: 12, angle: 25, kbg: 87, bkb: 30, direction: 'back' }),
         ],
       },
     ],
@@ -164,6 +235,50 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
+  /** Ring Volley: spins the launcher and fires four 3% balls on the diagonals at once. */
+  nair: {
+    ...aerial(40, 8, 30),
+    hits: [],
+    spawn: [
+      { frame: 8, entity: 'ringBall', x: 4, y: 10, vx: 1.7, vy: 1.7 },
+      { frame: 8, entity: 'ringBall', x: -4, y: 10, vx: -1.7, vy: 1.7 },
+      { frame: 8, entity: 'ringBall', x: 4, y: 3, vx: 1.7, vy: -1.7 },
+      { frame: 8, entity: 'ringBall', x: -4, y: 3, vx: -1.7, vy: -1.7 },
+    ],
+  },
+  /** Air Shot: a 6% ball straight ahead; the kick nudges them back a little. */
+  fair: {
+    ...aerial(36, 9, 28),
+    hits: [],
+    spawn: [{ frame: 9, entity: 'airShot', x: 8, y: 7, vx: 3 }],
+    script: recoil(9, -0.5),
+  },
+  /**
+   * Recoil Blast: fires a 7% ball behind them and the kick shoves them forward, past their normal air speed: their
+   * movement tech for crossing the stage or getting back to it.
+   */
+  bair: {
+    ...aerial(38, 10, 30),
+    hits: [],
+    spawn: [{ frame: 10, entity: 'recoilShot', x: -8, y: 7, vx: -3 }],
+    script: recoil(10, 1.4),
+  },
+  /** Up Shot: a 6% ball straight up. */
+  uair: {
+    ...aerial(34, 8, 26),
+    hits: [],
+    spawn: [{ frame: 8, entity: 'upShot', x: 1, y: 15, vy: 3 }],
+  },
+  /**
+   * Down Shot: a 6% ball straight down, and the kick lifts them to 1.2 units/frame upward (a faster rise is kept).
+   * That is about 8 units of hop per 40-frame down air, so chaining them still loses height.
+   */
+  dair: {
+    ...aerial(40, 12, 32),
+    hits: [],
+    spawn: [{ frame: 10, entity: 'downShot', x: 1, y: -1, vy: -3 }],
+    script: recoil(10, 0, 1.2),
+  },
   /** A short grab (10.5 units, Mario reaches 12): kids have short arms, so the grab game is a fallback. */
   grab: { kind: 'other', faf: 36, hits: [{ frames: [7, 8], boxes: [grabBox(0, 6.5, 7, 4)] }] },
   dashGrab: { kind: 'other', faf: 44, hits: [{ frames: [10, 11], boxes: [grabBox(0, 7.5, 7, 4.5)] }] },
@@ -171,38 +286,46 @@ export const moves: Record<string, MoveDef> = {
   pivotGrab: { kind: 'other', faf: 38, hits: [{ frames: [11, 12], boxes: [grabBox(0, 8, 7, 5)] }] },
   /** Launcher Bonk: knocks the held opponent on the head with the launcher. */
   pummel: { kind: 'other', faf: 7, hits: [], pummel: { frame: 1, damage: 1.2, hitlag: 2 } },
-  /** Point-Blank: shoves them off and fires a tennis ball into them. */
+  /** Point-Blank: shoves them off and fires a tennis ball into them. Snake's forward throw (9%, 40, KBG 65, BKB 60). */
   fthrow: {
     kind: 'other',
     faf: 34,
     hits: [],
-    throw: { frame: 15, hit: { damage: 9, angle: 40, kbg: 60, bkb: 55 } },
+    throw: { frame: 15, hit: { damage: 9, angle: 40, kbg: 65, bkb: 60 } },
   },
-  /** Rocket Toss: swings them behind on a rocket burst. Their kill throw (the roster targets about 160% from the ledge). */
+  /**
+   * Rocket Toss: swings them behind on a rocket burst, their kill throw. Analogue: Snake's back throw (9%, 140 degrees,
+   * KBG 65, BKB 65), about 157% on Mario from the ledge.
+   */
   bthrow: {
     kind: 'other',
     faf: 45,
     hits: [],
-    throw: { frame: 22, hit: { damage: 11, angle: 40, kbg: 72, bkb: 55, direction: 'back' } },
+    throw: { frame: 22, hit: { damage: 9, angle: 40, kbg: 65, bkb: 65, direction: 'back' } },
   },
-  /** Ball Launch: pops them straight up with a point-blank shot. */
+  /** Ball Launch: pops them straight up with a point-blank shot. Duck Hunt's up throw knockback (88, KBG 80, BKB 70). */
   uthrow: {
     kind: 'other',
     faf: 40,
     hits: [],
-    throw: { frame: 16, hit: { damage: 8, angle: 90, kbg: 70, bkb: 65 } },
+    throw: { frame: 16, hit: { damage: 8, angle: 88, kbg: 80, bkb: 70 } },
   },
-  /** Floaty Sit: plops onto them with the floaty; little knockback, so it starts combos at low %. */
+  /**
+   * Floaty Sit: plops onto them with the floaty; little knockback, so it starts combos at low %. Duck Hunt's down throw
+   * knockback (80, KBG 50, BKB 70).
+   */
   dthrow: {
     kind: 'other',
     faf: 38,
     hits: [],
-    throw: { frame: 20, hit: { damage: 6, angle: 75, kbg: 45, bkb: 55 } },
+    throw: { frame: 20, hit: { damage: 6, angle: 80, kbg: 50, bkb: 70 } },
   },
+  sideB: grenade,
   /**
    * Rocket Ride (up special): Simon's brother rides a rocket about 110 units up and forward, steerable 30 degrees
    * either side of vertical, and it explodes at the end. The ride clips whoever it touches; the explosion is the
-   * real hit (12%) and can hit them again. Ends in helpless fall; grabs the ledge from frame 12.
+   * real hit and can hit them again. Ends in helpless fall; grabs the ledge from frame 12. The explosion is Snake's
+   * Remote Missile (14%, 50 degrees, KBG 70, BKB 75), about 96% on Mario at the ledge.
    */
   upB: {
     kind: 'other',
@@ -219,7 +342,7 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [49, 52],
         rehit: true,
-        boxes: [box(0, 0, 8, 10, { damage: 12, angle: 361, kbg: 88, bkb: 45, direction: 'away' })],
+        boxes: [box(0, 0, 8, 10, { damage: 14, angle: 50, kbg: 70, bkb: 75, direction: 'away' })],
       },
     ],
     script: rocketRide,

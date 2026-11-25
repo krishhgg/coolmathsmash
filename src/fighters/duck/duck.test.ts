@@ -3,7 +3,7 @@ import { createMatch } from '../../sim/match';
 import type { FighterState } from '../../sim/fighter';
 import { activeHitboxes } from '../../sim/combat/hits';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
-import { koPercent, type KoSetup } from './ko';
+import { koPercent, type KoHit, type KoSetup } from '../../sim/testing/ko';
 import { moves } from './moves';
 import { stats } from './stats';
 
@@ -82,6 +82,70 @@ describe('The Duck: attack inputs', () => {
     expect(aerial({ x: -100, buttons: ['attack'] })).toBe('bair');
     expect(aerial({ y: 100, buttons: ['attack'] })).toBe('uair');
     expect(aerial({ y: -100, buttons: ['attack'] })).toBe('dair');
+  });
+});
+
+describe('The Duck: Seeds (neutral special)', () => {
+  it.each([1, -1] as const)('taps to spit on frames 10, 15 and 20, facing %s', (facing) => {
+    const m = duck();
+    const f = m.fighters[0]!;
+    f.facing = facing;
+    run(m, 1, { buttons: ['special'] });
+    expect(f.move).toBe('neutralB');
+    const frames: number[] = [];
+    for (let i = 0; i < 33; i++) {
+      run(m, 1);
+      for (const seed of m.entities.filter((e) => e.age === 1)) {
+        expect(seed).toMatchObject({ kind: 'duck/seed', owner: 0, facing, move: 'neutralB' });
+        expect(seed.pos.x * facing).toBeGreaterThan(f.pos.x * facing);
+        expect(seed.vel.x * facing).toBeGreaterThan(0);
+        frames.push(f.actionFrame);
+      }
+    }
+    expect(frames).toEqual([10, 15, 20]);
+    run(m, 24);
+    expect(m.entities).toHaveLength(0);
+  });
+
+  it('each seed makes Fireboy flinch without freezing the Duck', () => {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'duck' }, { fighter: 'fireboy' }],
+    });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    a.pos.x = -25;
+    v.pos.x = 18;
+    run(m, 10);
+    run(m, 1, { buttons: ['special'] });
+    const hits: number[] = [];
+    for (let i = 0; i < 60; i++) {
+      run(m, 1);
+      for (const e of m.events) {
+        if (e.type !== 'hit' || e.move !== 'neutralB') continue;
+        expect(e).toMatchObject({ attacker: 0, victim: 1, tumble: false });
+        expect(e.entity).toBeDefined();
+        expect(v.hitlag).toBeGreaterThan(0);
+        expect(v.launch).not.toBeNull();
+        expect(a.hitlag).toBe(0);
+        hits.push(e.damage);
+      }
+    }
+    expect(hits).toHaveLength(3);
+    expect(hits[0]).toBeCloseTo(1.26);
+    expect(v.damage).toBeCloseTo(hits.reduce((total, damage) => total + damage, 0));
+  });
+
+  it('finishes the burst after touching down', () => {
+    const m = duck();
+    const f = placeInAir(m, 0, 9);
+    run(m, 1, { buttons: ['special'] });
+    until(m, (g) => g.ground !== null);
+    expect(f.move).toBe('neutralB');
+    expect(m.entities).toHaveLength(2);
+    until(m, (g) => g.actionFrame === 20);
+    expect(m.entities).toHaveLength(3);
   });
 });
 
@@ -184,32 +248,60 @@ describe('The Duck: frame data (roster sheet)', () => {
   });
 });
 
-describe('The Duck: kill percents (Mario at the Battlefield ledge, fresh, no DI)', () => {
-  const KILLS: [string, KoSetup, number][] = [
-    ['ftilt', { move: 'ftilt', reach: 9 }, 165],
-    ['fsmash', { move: 'fsmash', reach: 11 }, 100],
-    ['usmash', { move: 'usmash', reach: 0, victimY: 10, at: 0 }, 115],
-    ['bair', { move: 'bair', reach: -8.5, duckY: 4 }, 140],
-    ['bthrow', { move: 'bthrow', reach: 0, throwInput: (s) => ({ x: -100 * s }) }, 155],
+/**
+ * Kill percents against the Mario reference on Battlefield (fresh, no rage, no DI), at the ledge unless specified.
+ * Compare each move with its Ultimate 13.0.1 analogue's hit in the same setup.
+ */
+describe('The Duck: kill percents (koPercent vs Ultimate analogues)', () => {
+  const ANALOGUES: [string, string, KoHit, Pick<KoSetup, 'air' | 'from'>][] = [
+    ['jab3', "Mario's jab 3", { damage: 4, angle: 361, kbg: 80, bkb: 60 }, {}],
+    ['ftilt', "Pikachu's ftilt", { damage: 9, angle: 361, kbg: 100, bkb: 15 }, {}],
+    ['utilt', "Wario's utilt", { damage: 6, angle: 92, kbg: 130, bkb: 28, direction: 'away' }, {}],
+    ['dtilt', "Pikachu's dtilt", { damage: 6, angle: 361, kbg: 100, bkb: 12 }, {}],
+    ['fsmash', "Yoshi's fsmash", { damage: 15.5, angle: 361, kbg: 102, bkb: 30 }, {}],
+    ['usmash', "Pikachu's usmash", { damage: 14, angle: 87, kbg: 89, bkb: 50 }, {}],
+    ['dsmash', "Mario's dsmash", { damage: 12, angle: 30, kbg: 100, bkb: 30 }, {}],
+    ['dashAttack', "Pikachu's dash attack", { damage: 11, angle: 60, kbg: 88, bkb: 70 }, {}],
+    ['nair', "Mario's nair", { damage: 8, angle: 361, kbg: 100, bkb: 20 }, { air: true }],
+    ['fair', "Bowser Jr.'s fair", { damage: 11, angle: 45, kbg: 93, bkb: 33 }, { air: true }],
+    [
+      'bair',
+      "Dr. Mario's bair",
+      { damage: 12, angle: 361, kbg: 95, bkb: 10, direction: 'back' },
+      { air: true },
+    ],
+    [
+      'uair',
+      "Villager's one-turnip uair",
+      { damage: 8, angle: 85, kbg: 100, bkb: 40 },
+      { air: true, from: 'centre' },
+    ],
+    ['fthrow', "Mario's fthrow", { damage: 8, angle: 45, kbg: 65, bkb: 60 }, {}],
+    ['bthrow', "Luigi's bthrow", { damage: 10, angle: 45, kbg: 65, bkb: 80, direction: 'back' }, {}],
+    ['uthrow', "Luigi's uthrow", { damage: 8, angle: 90, kbg: 72, bkb: 70 }, {}],
   ];
-  /**
-   * TODO(COOL-3 KO calibration): the knockback values are Ultimate-style, and the engine KOs earlier than Ultimate
-   * (fsmash: 62% here vs the roster's ~100%). Until COOL-3's calibration and koPercent helper land, the bounds are
-   * loose: no later than the roster target and no earlier than 55% of it. Tighten them to about ±8 afterwards.
-   */
-  it.each(KILLS)(
-    '%s KOs no later than the roster kill percent (loose until calibration)',
-    (_, setup, target) => {
-      const ko = koPercent(setup);
-      expect(ko).toBeGreaterThanOrEqual(target * 0.55);
-      expect(ko).toBeLessThanOrEqual(target + 8);
-    },
-  );
+  it.each(ANALOGUES)('%s KOs within 5 of %s', (move, _, hit, opts) => {
+    const duck = koPercent({ hit: { fighter: 'duck', move }, ...opts });
+    const analogue = koPercent({ hit, ...opts });
+    expect(duck).not.toBeNull();
+    expect(analogue).not.toBeNull();
+    expect(Math.abs(duck! - analogue!)).toBeLessThanOrEqual(5);
+  });
 
-  it('fsmash is his strongest grounded kill move, ahead of usmash and ftilt', () => {
-    const fsmash = koPercent(KILLS[1]![1]);
-    expect(fsmash).toBeLessThan(koPercent(KILLS[2]![1]));
-    expect(fsmash).toBeLessThan(koPercent(KILLS[0]![1]));
+  const ko = (move: string, opts: Pick<KoSetup, 'air' | 'from'> = {}) =>
+    koPercent({ hit: { fighter: 'duck', move }, ...opts }) ?? Infinity;
+
+  it('fsmash leads his grounded finishers, and usmash kills before ftilt', () => {
+    const fsmash = ko('fsmash');
+    for (const other of ['dsmash', 'usmash', 'dashAttack', 'ftilt']) expect(fsmash).toBeLessThan(ko(other));
+    expect(ko('usmash')).toBeLessThan(ko('ftilt'));
+  });
+
+  it('bair and fair are his aerial kill moves, well ahead of nair; Wing Fling (bthrow) is his kill throw', () => {
+    for (const aerial of ['bair', 'fair']) {
+      expect(ko(aerial, { air: true }) + 20).toBeLessThan(ko('nair', { air: true }));
+    }
+    for (const other of ['fthrow', 'uthrow', 'dthrow']) expect(ko('bthrow') + 30).toBeLessThan(ko(other));
   });
 });
 

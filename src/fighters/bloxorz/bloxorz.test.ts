@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
+import { koPercent, type KoHit, type KoSetup } from '../../sim/testing/ko';
 import { attack, placeInAir, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
-import { kosAt, lowestKo, throwKosAt } from './killpercent';
-import { moves, TIP_DISTANCE } from './moves';
+import { moves } from './moves';
+import { TIP_DISTANCE } from './tip';
 import { stats } from './stats';
 
 const block = () => testMatch({ fighter: 'bloxorz' });
@@ -130,39 +131,52 @@ describe('Bloxorz block: frame data (roster sheet)', () => {
   });
 });
 
-/**
- * TODO(COOL-3 koPercent): our engine KOs earlier than Ultimate at Ultimate-standard knockback, and COOL-3 is
- * calibrating it (CREW.md "Knockback values"). Until then these only check each kill move lands in a wide band
- * around the roster sheet's %, and the order between moves; tighten them to the sheet's numbers with koPercent.
- */
 describe('Bloxorz block: kill percents (Mario at the Battlefield ledge, fresh, no rage, no DI)', () => {
-  const near = (measured: number, sheet: number) => {
-    expect(measured).toBeGreaterThanOrEqual(sheet * 0.5);
-    expect(measured).toBeLessThanOrEqual(sheet * 1.3);
+  const measure = (setup: KoSetup) => {
+    const percent = koPercent(setup);
+    expect(percent).not.toBeNull();
+    return percent!;
   };
-  const fsmash = () => lowestKo((p) => kosAt('fsmash', p, { dx: -24, facing: 1 }));
-  const ftilt = () => lowestKo((p) => kosAt('ftilt', p, { dx: -22, facing: 1 }));
+  const blockKo = (move: string, setup: Omit<KoSetup, 'hit'> = {}, fighter = 'bloxorz') =>
+    measure({ hit: { fighter, move }, ...setup });
 
-  it.each([
-    ['fsmash', 80, { dx: -24, facing: 1 as const }],
-    ['usmash', 100, { dx: -6, facing: 1 as const }],
-    ['ftilt', 150, { dx: -22, facing: 1 as const }],
-    ['bair', 140, { dx: -16, air: 8, facing: -1 as const }],
-  ])("%s KOs in a wide band around the sheet's ~%i%%", (move, sheet, setup) => {
-    near(
-      lowestKo((p) => kosAt(move, p, setup)),
-      sheet,
-    );
+  // Ultimate analogues: SSBU-Calculator Data/ulthitboxes. Compare the launching hit, not earlier setup hits.
+  const analogues: [string, string, KoHit, Omit<KoSetup, 'hit'>?][] = [
+    ['fsmash', "Bowser's 20% forward smash", { damage: 20, angle: 361, kbg: 98, bkb: 25 }],
+    [
+      'usmash',
+      "King K. Rool's initial up smash",
+      { damage: 17, angle: 83, kbg: 90, bkb: 31 },
+      { air: true, from: { x: 79.9, y: 22.5 } },
+    ],
+    ['dsmash', "Ganondorf's down smash finisher", { damage: 15, angle: 35, kbg: 81, bkb: 61 }],
+    ['ftilt', "King K. Rool's 11% forward tilt", { damage: 11, angle: 361, kbg: 76, bkb: 64 }],
+    ['bair', "Donkey Kong's early back air", { damage: 13, angle: 361, kbg: 97, bkb: 20 }, { air: true }],
+    ['bthrow', "Donkey Kong's back throw", { damage: 11, angle: 40, kbg: 65, bkb: 60 }],
+    ['fthrow', "Ridley's forward throw", { damage: 9, angle: 42, kbg: 56, bkb: 60 }],
+  ];
+  it.each(analogues)('%s KOs within five points of %s', (move, _analogue, hit, setup = {}) => {
+    expect(Math.abs(blockKo(move, setup) - measure({ hit, ...setup }))).toBeLessThanOrEqual(5);
+  });
+
+  it('Lying Tip Over matches Donkey Kong’s forward tilt and KOs later than Standing Tip Over', () => {
+    const lying = blockKo('ftilt', {}, 'bloxorz-lying');
+    const analogue = measure({ hit: { damage: 8, angle: 361, kbg: 78, bkb: 50 } });
+    expect(Math.abs(lying - analogue)).toBeLessThanOrEqual(5);
+    expect(blockKo('ftilt')).toBeLessThan(lying);
   });
 
   it('Monolith Slam KOs well before Tip Over', () => {
-    expect(fsmash()).toBeLessThan(ftilt() - 20);
+    expect(blockKo('fsmash')).toBeLessThan(blockKo('ftilt') - 20);
   });
 
-  it("back throw is the kill throw: around the sheet's ~145%, well before forward throw", () => {
-    const bthrow = lowestKo((p) => throwKosAt({ x: 100 }, p, -1));
-    near(bthrow, 145);
-    expect(lowestKo((p) => throwKosAt({ x: 100 }, p, 1))).toBeGreaterThan(bthrow + 30);
+  it('back throw is the kill throw: it KOs well before forward throw', () => {
+    expect(blockKo('bthrow')).toBeLessThan(blockKo('fthrow') - 30);
+  });
+
+  it('its forward smash takes at least 10% more damage to KO a block than Mario', () => {
+    const mario = blockKo('fsmash');
+    expect(blockKo('fsmash', { target: 'bloxorz' })).toBeGreaterThan(mario * 1.1);
   });
 });
 
@@ -215,23 +229,5 @@ describe('Bloxorz block: moves', () => {
     for (let i = 0; i < 60 && v.kb.y === 0; i++) runPorts(m, 1, [{}, {}]);
     expect(v.damage).toBeGreaterThan(50);
     expect(v.kb.y).toBeLessThan(0);
-  });
-
-  it('weighs enough that its own forward smash KOs it at least 10% later than Mario, relatively', () => {
-    const mario = lowestKo((p) => kosAt('fsmash', p, { dx: -24, facing: 1 }));
-    const ko = (percent: number) => {
-      const t = testMatch({ fighter: 'bloxorz', players: 2 });
-      const [ta, tv] = t.fighters as [FighterState, FighterState];
-      Object.assign(ta, { pos: { x: 52, y: 0 }, prevPos: { x: 52, y: 0 }, facing: 1, action: 'idle' });
-      Object.assign(tv, { pos: { x: 76, y: 0 }, prevPos: { x: 76, y: 0 }, action: 'idle', damage: percent });
-      attack(t, 0, 'fsmash');
-      for (let i = 0; i < 400; i++) {
-        runPorts(t, 1, [{}, {}]);
-        const e = t.events.find((x) => x.type === 'ko');
-        if (e) return e.type === 'ko' && e.side !== 'bottom';
-      }
-      return false;
-    };
-    expect(lowestKo(ko)).toBeGreaterThan(mario * 1.1);
   });
 });

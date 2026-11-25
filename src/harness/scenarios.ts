@@ -269,6 +269,47 @@ const CORE: Scenario[] = [
     page: { kind: 'lab', scene: 'menu', params: { screen: 'main' } },
   },
   {
+    name: 'credits',
+    description: 'Credits: the fan-game disclaimer, each character with its rights holder, and the crew.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'credits' } },
+  },
+  {
+    name: 'match-countdown',
+    description: 'Match start: "2" of the 3-2-1 countdown over the stage, clock at 7:00.00.',
+    page: { kind: 'lab', scene: 'match', params: { at: 'countdown' } },
+  },
+  {
+    name: 'match-go',
+    description: 'GO! the moment play starts, clock just started.',
+    page: { kind: 'lab', scene: 'match', params: { at: 'go' } },
+  },
+  {
+    name: 'match-pause',
+    description: 'Pause: PAUSE plate top-left, Resume / Restart / Quit panel on the right, match dimmed.',
+    page: { kind: 'lab', scene: 'match', params: { at: 'pause' } },
+  },
+  {
+    name: 'match-game',
+    description: 'GAME! after the last stock is lost, speed streaks behind it.',
+    page: { kind: 'lab', scene: 'match', params: { at: 'game' } },
+  },
+  {
+    name: 'results-winner',
+    description: 'Results, first page: winner placing, name and art; the runner-up below.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'results', preset: 'winner-2p' } },
+  },
+  {
+    name: 'results-cards-2p',
+    description:
+      'Results, player cards (1v1): placing, out-at time, KOs, falls, SDs, damage; Rematch focused.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'results', preset: 'cards-2p' } },
+  },
+  {
+    name: 'results-cards-4p',
+    description: 'Results, player cards for four players.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'results', preset: 'cards-4p' } },
+  },
+  {
     name: 'css-2p',
     description:
       'Character select, 1v1: P1 (keyboard) has picked Fireboy, a level 9 CPU on Random; Ready to fight shows.',
@@ -279,6 +320,18 @@ const CORE: Scenario[] = [
     description:
       'Character select, four panels: P1 picked, P2 on a gamepad still choosing, two CPUs (Lv 5, Lv 9).',
     page: { kind: 'lab', scene: 'menu', params: { screen: 'css', preset: '4p' } },
+  },
+  {
+    name: 'stage-select',
+    description:
+      'Stage select: rules pill (3 Stock · 7:00), Coolmath Battlefield focused in the big preview, Random and every stage in the grid on the right, rule rows under the grid.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'stages', preset: 'default' } },
+  },
+  {
+    name: 'stage-select-rules',
+    description:
+      'Stage select with custom rules (2 Stock · 5:00, items on) and Random focused in the preview.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'stages', preset: 'rules' } },
   },
   {
     name: 'stage',

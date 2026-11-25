@@ -1,5 +1,6 @@
 import { pointOf, reach, type Pose } from '../../../render/rig/author';
-import { worldTransforms, type BoneTransform } from '../../../render/rig/sample';
+import { flattenPath } from '../../../render/rig/geometry';
+import { worldTransforms, type Affine, type BoneTransform } from '../../../render/rig/sample';
 import type { Key } from '../../../render/rig/types';
 import { ANKLE } from './parts';
 import { FOOT, HAND, rig } from './rig';
@@ -11,8 +12,8 @@ import { FOOT, HAND, rig } from './rig';
 
 export type Pt = readonly [number, number];
 
-/** World rotation (degrees) of every bone in `pose`. */
-function worldRot(pose: Pose): Record<string, number> {
+/** Rig-space matrix of every bone in `pose`. */
+function worldOf(pose: Pose): Record<string, Affine> {
   const local: Record<string, BoneTransform> = {};
   for (const bone of rig.bones) {
     const p = pose[bone.name] ?? {};
@@ -24,10 +25,32 @@ function worldRot(pose: Pose): Record<string, number> {
       sy: (bone.sy ?? 1) * (p.sy ?? 1),
     };
   }
-  const world = worldTransforms(rig, local);
+  return worldTransforms(rig, local);
+}
+
+/** World rotation (degrees) of every bone in `pose`. */
+function worldRot(pose: Pose): Record<string, number> {
   return Object.fromEntries(
-    Object.entries(world).map(([k, m]) => [k, (Math.atan2(m.b, m.a) * 180) / Math.PI]),
+    Object.entries(worldOf(pose)).map(([k, m]) => [k, (Math.atan2(m.b, m.a) * 180) / Math.PI]),
   );
+}
+
+/**
+ * Lifts an airborne drawing (through `body`) until nothing hangs below the rig root, the floor he lands on, so he
+ * never sinks into a platform in the air and pops up when he touches down.
+ */
+export function aloft(pose: Pose): Pose {
+  const world = worldOf(pose);
+  let low = -Infinity;
+  for (const slot of rig.slots) {
+    const sym = slot.symbol ? rig.symbols[slot.symbol] : undefined;
+    if (slot.decor || !Array.isArray(sym)) continue;
+    const m = world[slot.bone]!;
+    for (const shape of sym)
+      for (const pts of flattenPath(shape.d, 4))
+        for (let i = 0; i < pts.length; i += 2) low = Math.max(low, m.b * pts[i]! + m.d * pts[i + 1]! + m.ty);
+  }
+  return low <= 0 ? pose : mix(pose, { body: { y: (pose.body?.y ?? 0) - low } });
 }
 
 /** Turns one boot so its sole meets the world at `deg` degrees (0: flat, toes forward; 90: toes down). */
@@ -147,6 +170,8 @@ function above(over: string, slots: string[]): Record<string, number> {
 export const BACK_ARM_IN_FRONT = above('foreF', ['armBLine', 'foreBLine', 'armB', 'foreB']);
 export const FRONT_ARM_BEHIND = above('fxBack', ['armFLine', 'foreFLine', 'armF', 'foreF']);
 export const HEAD_IN_FRONT = above('foreF', ['', '', '', '', 'head', 'face']);
+/** The far arm drawn over his head and torso but under the near arm, for guards held across the face. */
+export const BACK_ARM_OVER_HEAD = above('face', ['armBLine', 'foreBLine', 'armB', 'foreB']);
 /** The far leg drawn over the torso but under the head and near arm (the knee). */
 export const BACK_LEG_IN_FRONT = above('torso', ['thighBLine', 'shinBLine', 'thighB', 'shinB', 'footB']);
 /** The near leg drawn over the torso, for kicks and knees raised across it. */

@@ -1,3 +1,4 @@
+import type { HitboxDef } from '../fighters/types';
 import type { Vec } from './vec';
 
 /**
@@ -26,6 +27,49 @@ export interface Moving {
   schedule?: Schedule;
 }
 
+/** What a solid or platform can be besides its shape (docs/stage-geometry.md). */
+export interface PieceOptions extends Moving {
+  /** Its motion and schedule are a stage hazard: with hazards off it stays at its authored place, present. */
+  hazard?: boolean;
+  /** A conveyor belt: fighters standing on it move this many units per frame along x (0 with hazards off). */
+  conveyor?: number;
+}
+
+/** Elements of damaging terrain. Fighters list the ones they are immune to in FighterDef.immune. */
+export type TerrainElement = 'goo' | 'lava' | 'water';
+
+/** The damage and knockback of a HitboxDef, for hazards that are areas rather than circles. */
+export type HazardHit = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius'>;
+
+/**
+ * A damaging area (goo, lava, water pools): hits fighters whose body overlaps it, with set knockback like
+ * Ultimate's damage floors. It may move and follow a schedule like a piece.
+ */
+export interface DamageZone extends Moving {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+  element: TerrainElement;
+  /** Damage and knockback; by default the element's (ELEMENT_HITS in src/sim/hazards.ts). */
+  hit?: HazardHit;
+  /** Frames after a hit before any stage hazard can hit that fighter again; by default the element's. */
+  rehit?: number;
+}
+
+/**
+ * Stage hitboxes (a sweeping blade, a falling hazard): circles around an anchor at (x, y) that moves with
+ * `motion` and is active while `schedule` says it is there. Box angles count from +x (`direction: 'back'`
+ * mirrors them, `'away'` sends fighters away from the anchor).
+ */
+export interface StageHitbox extends Moving {
+  x: number;
+  y: number;
+  boxes: HitboxDef[];
+  /** Frames after a hit before any stage hazard can hit that fighter again (default 30). */
+  rehit?: number;
+}
+
 /**
  * Collision geometry of a stage, in game units with y up. Rendering lives elsewhere (src/stages/<id>/view.ts);
  * the simulation only ever sees this.
@@ -34,9 +78,9 @@ export interface StageGeometry {
   id: string;
   name: string;
   /** Closed solid polygons. Edges are classified as floor, wall or ceiling from their outward normal. */
-  solids: ({ points: [number, number][] } & Moving)[];
+  solids: ({ points: [number, number][] } & PieceOptions)[];
   /** One-way (drop-through) platforms. */
-  platforms: ({ x1: number; x2: number; y: number } & Moving)[];
+  platforms: ({ x1: number; x2: number; y: number } & PieceOptions)[];
   /**
    * Grabbable corners. side -1 = left end of the stage (fighter hangs on its left, facing right). A ledge moves
    * and vanishes with its `solid`, by default the solid that has a corner at (x, y).
@@ -48,6 +92,10 @@ export interface StageGeometry {
   spawns: [number, number, 1 | -1][];
   /** Respawn platform positions per port. */
   respawns: [number, number][];
+  /** Damaging areas. Off, with every other hazard, when MatchConfig.hazards is false. */
+  zones?: DamageZone[];
+  /** Stage hitboxes. */
+  hitboxes?: StageHitbox[];
 }
 
 export type EdgeKind = 'floor' | 'wall' | 'ceiling';
