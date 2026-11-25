@@ -8,10 +8,10 @@ import { stickX, stickY } from '../control';
 import type { Ctx, FighterState, LaunchLink } from '../fighter';
 import { emit } from '../events';
 import type { MatchState } from '../match';
+import type { CompiledStage } from '../stage';
 import { destroyEntity, entityDef, entityHitboxes, sweepEntities } from '../entities/entities';
 import type { EntityState } from '../entities/types';
 import { leaveGround, restoreAirOptions, surfaceRange, surfaceY } from '../movement';
-import { posedStage } from '../movingStage';
 import {
   AUTOLINK,
   AUTOLINK_GROUND_ANGLE,
@@ -252,10 +252,15 @@ export function applyHit(
  * Find every hit this frame from the state before any of them lands, then apply them all, so two fighters
  * whose moves connect on the same frame trade. Each move hits a fighter once (per rehit window), lowest
  * hitbox id first. Hits on an open counter are caught instead (counters). Grab boxes are found from the same state
- * and resolved after the hits (grab.ts), so an attack beats a grab on the same frame. `stage` lands the stage hazards' hits (src/sim/hazards.ts) between the
+ * and resolved after the hits (grab.ts), so an attack beats a grab on the same frame. `posed` is the stage as it
+ * stands this frame (a counter can reappear on a floor). `stage` lands the stage hazards' hits (src/sim/hazards.ts) between the
  * two, adding its victims to `struck`, so they break grabs like any other hit.
  */
-export function resolveHits(m: MatchState, stage?: (struck: Set<FighterState>) => void): void {
+export function resolveHits(
+  m: MatchState,
+  posed: CompiledStage,
+  stage?: (struck: Set<FighterState>) => void,
+): void {
   const hits: Connection[] = [];
   const grabs = findGrabs(m);
   for (const a of m.fighters) {
@@ -288,7 +293,7 @@ export function resolveHits(m: MatchState, stage?: (struck: Set<FighterState>) =
     else hit(m, h, again);
   }
   for (const h of caught) {
-    counterattack(m, h, h.counter!);
+    counterattack(m, posed, h, h.counter!);
     struck.add(h.v);
   }
   for (const e of used) destroyEntity(m, e, 'hit');
@@ -387,11 +392,11 @@ function hit(m: MatchState, h: Connection, again: boolean): void {
  * counterattack's boxes deal the caught hit's damage (after staleness) times `multiplier`, capped at `max`, or their
  * own damage when that is more. A caught projectile is used up and freezes nobody else.
  */
-function counterattack(m: MatchState, h: Connection, c: CounterDef): void {
+function counterattack(m: MatchState, posed: CompiledStage, h: Connection, c: CounterDef): void {
   const { a, v: f } = h;
   const caught = h.damage * h.stale;
   const freeze = c.freeze ?? COUNTER.freeze;
-  if (a && c.behind !== undefined) reappearBehind(m, f, a, c.behind);
+  if (a && c.behind !== undefined) reappearBehind(posed, f, a, c.behind);
   else f.facing = (Math.sign(h.fromX - f.pos.x) || f.facing) as 1 | -1;
   Object.assign(f, {
     action: f.ground ? 'attack' : 'aerial',
@@ -420,13 +425,12 @@ function counterattack(m: MatchState, h: Connection, c: CounterDef): void {
 }
 
 /** Reappear `behind` units behind `a`, facing their back: on `a`'s floor (kept on it), or in the air beside them. */
-function reappearBehind(m: MatchState, f: FighterState, a: FighterState, behind: number): void {
+function reappearBehind(stage: CompiledStage, f: FighterState, a: FighterState, behind: number): void {
   const x = a.pos.x - a.facing * behind;
   f.facing = a.facing;
   f.vel = { x: 0, y: 0 };
   f.kb = { x: 0, y: 0 };
   if (a.ground) {
-    const stage = posedStage(m);
     const [lo, hi] = surfaceRange(stage, a.ground);
     const on = Math.min(Math.max(x, lo), hi);
     f.pos = { x: on, y: surfaceY(stage, a.ground, on) };

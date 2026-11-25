@@ -6,6 +6,7 @@ import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
 import { createMatch, type MatchState } from './match';
 import { lungeTester } from './testing/beast';
+import { COUNTER_TEST_FIGHTERS, counterTesterMarth } from './testing/counter';
 import { gadgets } from './testing/gadgets';
 import { MOBILITY_TEST_FIGHTERS, testFloater, testHover } from './testing/mobility';
 import { marioReference as mario } from './testing/reference';
@@ -13,6 +14,7 @@ import { tetherTester } from './testing/tethers';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from './testing/sim';
 
 registerFighter(gadgets);
+for (const def of COUNTER_TEST_FIGHTERS) registerFighter(def);
 
 function of<T extends SimEvent['type']>(m: MatchState, type: T): Extract<SimEvent, { type: T }>[] {
   return m.events.filter((e): e is Extract<SimEvent, { type: T }> => e.type === type);
@@ -229,6 +231,31 @@ describe('sim events', () => {
     expect(seen.map((e) => e.type)).toEqual(['commandGrab', 'pummel', 'pummel', 'throw', 'hit']);
     expect(seen[0]).toEqual({ type: 'commandGrab', attacker: 0, victim: 1, move: 'sideB' });
     expect(seen[3]).toEqual({ type: 'throw', attacker: 0, victim: 1, move: 'beastChew' });
+  });
+
+  it('a counter reports the catch and what the caught hit would have dealt, then its counterattack and hit', () => {
+    const { m, v } = duel();
+    v.fighter = counterTesterMarth.id;
+    attack(m, 1, 'downB');
+    runPorts(m, 9, [{}, {}]);
+    attack(m, 0, 'probe');
+    const seen: SimEvent[] = [];
+    for (let i = 0; i < 40 && !seen.some((e) => e.type === 'hit'); i++) {
+      runPorts(m, 1, [{}, {}]);
+      seen.push(...m.events.filter((e) => ['counter', 'move', 'hit'].includes(e.type)));
+    }
+    expect(seen.map((e) => e.type)).toEqual(['counter', 'move', 'hit']);
+    expect(seen[0]).toEqual({
+      type: 'counter',
+      port: 1,
+      attacker: 0,
+      move: 'downBHit',
+      damage: 12 * 1.05,
+      x: -2,
+      y: 8,
+    });
+    expect(seen[1]).toEqual({ type: 'move', port: 1, move: 'downBHit' });
+    expect(seen[2]).toMatchObject({ type: 'hit', attacker: 1, victim: 0, move: 'downBHit' });
   });
 
   it('tethers report the fire, the latch with what it anchored to, then the release', () => {

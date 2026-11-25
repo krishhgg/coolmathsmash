@@ -85,7 +85,7 @@ export function stepMatch(state: MatchState, inputs: readonly InputFrame[]): voi
   advanceStage(state);
   stepEntities(state);
   const owed = resolveEntityContacts(state);
-  resolveHits(state, (struck) => stageHits(state, struck));
+  resolveHits(state, posedStage(state), (struck) => stageHits(state, struck));
   state.fighters.forEach((f, i) => (f.hitlag = Math.max(f.hitlag, owed[i]!)));
   state.fighters.forEach((f, i) => {
     if (f.action !== before[i]) emit(state, { type: 'action', port: f.port, from: before[i]!, to: f.action });
