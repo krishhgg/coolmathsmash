@@ -85,6 +85,7 @@ export const moves: Record<string, MoveDef> = {
   ftilt: {
     kind: 'other',
     faf: 31,
+    reflectors: [{ frames: [7, 9], x: 15, y: 7.5, radius: 4, maxDamage: 10 }],
     hits: [
       {
         frames: [7, 9],
@@ -374,6 +375,13 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 22, hit: { damage: 6, angle: 68, kbg: 90, bkb: 40 } },
   },
+  /** Pepper Bomb (neutral special): a lob that bounces twice, then bursts on the next landing or a fighter. */
+  neutralB: {
+    kind: 'projectile',
+    faf: 40,
+    hits: [],
+    spawn: [{ frame: 14, entity: 'pepperBomb', x: 6, y: 9, vx: 1.25, vy: 1.55, max: 2 }],
+  },
   /**
    * Paddle Propeller (up special): spins the paddle overhead like a rotor and rises about 60 units, five 1% hits
    * carrying the opponent up and a 4% finisher at the top. Steers with the stick and can grab the ledge on the way.
@@ -422,11 +430,11 @@ export const moves: Record<string, MoveDef> = {
   /**
    * Paddle Deflect (down special): holds the paddle up flat, the move PL1 was built around. The paddle's edge hits
    * on frames 5-6; in the air the stance slows his fall.
-   * TODO(COOL-3): reflect projectiles on frames 5-20 (x1.5 damage, x1.25 speed) once projectiles land.
    */
   downB: {
     kind: 'other',
     faf: 36,
+    reflectors: [{ frames: [5, 20], x: 6.5, y: 8, radius: 5, damage: 1.5, speed: 1.25 }],
     hits: [{ frames: [5, 6], boxes: [box(0, 6.5, 8, 4.5, { damage: 7, angle: 45, kbg: 60, bkb: 45 })] }],
     script(x) {
       const { f } = x;
