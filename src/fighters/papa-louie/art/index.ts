@@ -1,6 +1,7 @@
 import { symbolsToSvg } from '../../../render/rig/svg';
 import type { FighterArt } from '../../../render/rig/types';
 import { clips } from './clips';
+import { LEDGE_GRIP } from './movement';
 import { head, moved, faces, stache, hat } from './parts';
 import { palettes } from './palettes';
 import { rig } from './rig';
@@ -14,10 +15,12 @@ export const art: FighterArt = {
   rig: { ...rig, symbols: { ...rig.symbols, iconHead } },
   clips,
   palettes,
+  costumeSwaps: { roy: { hat: 'cap' }, cori: { hat: 'captainHat' } },
   icon: symbolsToSvg({ iconHead }, ['iconHead'], palettes.default, [-2.3, -5.4, 5.6, 7.4]),
   projectiles: {
     pepperBomb: { symbols: rig.symbols, symbol: 'pepperBomb', scale: 1 },
     shaker: { symbols: rig.symbols, symbol: 'shaker', scale: 1 },
     cheeseCloud: { symbols: rig.symbols, symbol: 'cheeseCloud', scale: 1 },
   },
+  ledgeGrip: LEDGE_GRIP,
 };
