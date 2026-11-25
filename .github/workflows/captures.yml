@@ -4,8 +4,6 @@ on:
   pull_request:
     paths:
       - 'src/**'
-      - '!src/stages/*/**'
-      - 'src/stages/battlefield/**'
       - '!src/**/*.test.ts'
       - 'index.html'
       - 'lab.html'
@@ -13,6 +11,7 @@ on:
       - '!public/audio/**'
       - 'scripts/capture.ts'
       - 'scripts/lib/**'
+      - '!scripts/**/*.test.ts'
       - 'e2e/capture.spec.ts'
       - 'playwright.config.ts'
       - 'vite.config.ts'
@@ -21,11 +20,13 @@ on:
       - 'package-lock.json'
       - '.nvmrc'
       - '.github/workflows/captures.yml'
+  schedule:
+    - cron: '23 10 * * *'
   workflow_dispatch:
 
 concurrency:
-  group: captures-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: captures-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   capture:
@@ -33,6 +34,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Find changed paths on the PR merge commit
+        if: github.event_name == 'pull_request'
+        run: |
+          paths="$RUNNER_TEMP/capture-paths"
+          if git rev-parse --verify --quiet HEAD^2 >/dev/null &&
+             git diff --no-renames --name-only -z HEAD^1 HEAD -- > "$paths"; then
+            exit 0
+          fi
+          rm -f "$paths"
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -46,9 +58,19 @@ jobs:
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-shell
       - run: npx playwright install --with-deps --only-shell chromium
       - run: sudo apt-get install -y --no-install-recommends ffmpeg
-      - run: npm run capture -- --build --out captures/ci
+      - name: Capture the affected scenarios
+        run: |
+          args=()
+          if [[ -s "$RUNNER_TEMP/capture-paths" ]]; then
+            args+=(--changed-files "$RUNNER_TEMP/capture-paths")
+          fi
+          npm run capture -- --build --out captures/ci "${args[@]}"
       - name: Captures are byte-identical across runs (e2e/capture.spec.ts)
-        run: npx playwright test e2e/capture.spec.ts --grep "byte-identical PNGs"
+        run: |
+          check=$(jq '(.scoped != true) or any(.scenarios[]; .name == "idle" or .name == "jump-apex" or .name == "hud")' captures/ci/manifest.json)
+          if [[ "$check" == true ]]; then
+            npx playwright test e2e/capture.spec.ts --grep "byte-identical PNGs"
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

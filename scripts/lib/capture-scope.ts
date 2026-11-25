@@ -41,8 +41,7 @@ export function scopeCaptures(
     const { scene, params } = s.page;
     if (scene === 'menu') {
       return (
-        (params?.screen === 'css' && fighters.size > 0) ||
-        (params?.screen === 'stages' && stages.size > 0)
+        (params?.screen === 'css' && fighters.size > 0) || (params?.screen === 'stages' && stages.size > 0)
       );
     }
     if (scene === 'fighter') return params?.fighter ? fighters.has(params.fighter) : fighters.size > 0;
