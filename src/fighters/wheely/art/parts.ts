@@ -1796,6 +1796,12 @@ export const evadeTrail: PathShape[] = [
   ),
 ];
 
+export const throwStreak: PathShape[] = [
+  fill(curve([C(0, 0.1), [1.0, -0.15], C(3.8, -0.35), [1.75, 0.18], C(0.45, 0.34)]), 'glint'),
+  fill(curve([C(0.55, -0.05), [1.4, -0.66], C(3.08, -1.33), [1.62, -0.42]]), faded('beam', 0.82)),
+  fill(curve([C(0.7, 0.51), [1.65, 0.46], C(3.2, 0.88), [1.32, 0.75]]), faded('beam', 0.65)),
+];
+
 function star(cx: number, cy: number, r: number): string {
   const pts: Pt[] = [];
   for (let i = 0; i < 10; i++) {
