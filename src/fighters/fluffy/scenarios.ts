@@ -80,6 +80,21 @@ export const scenarios: FighterScenarios = {
       refs: ['smash/attack-active-*', `${F}/ingame-grab-*`, `${F}/official-art-02-*`],
     },
     {
+      name: 'fluffy-candy-frisbee',
+      description: 'Fluffy throws the candy across Battlefield and catches it as it curves back.',
+      page: { kind: 'game' },
+      match: VS_FIREBOY,
+      patches: faceOff({ pos: { x: -40, y: 0 } }, { pos: { x: 50, y: 0 } }),
+      script: [{ port: 0, from: 10, x: 100, buttons: ['special'] }],
+      capture: {
+        label: 'Candy begins its return',
+        when: (s) => s.entities.some((e) => e.kind === 'fluffy/candy' && e.age === 34),
+      },
+      motion: { before: 42, after: 42 },
+      requires: ['move:sideB'],
+      refs: [`${F}/official-art-*`, `${F}/ingame-*`],
+    },
+    {
       name: 'fluffy-stick-tight',
       description:
         'Fluffy down special (Stick Tight): the grabber planted and braced, armoured from frame 4 to 60.',
