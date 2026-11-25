@@ -1,4 +1,5 @@
 import { Container } from 'pixi.js';
+import type { StageState } from '../../sim/movingStage';
 import { createBackground } from './art/background';
 import { createIsland } from './art/island';
 import type { StageCamera } from './art/parallax';
@@ -16,6 +17,12 @@ export interface StageView {
   world: Container;
   foreground?: Container;
   update(frame: number, camera: StageCamera): void;
+  /**
+   * For a stage with moving pieces: place their art from the match's piece state (MatchState.stage), `alpha`
+   * between the last two frames as the renderer interpolates fighters (stagePieces.ts `pieceOffset`). A view
+   * with it draws its own solids and platforms, so the renderer leaves out its placeholder shapes for them.
+   */
+  pieces?(stage: StageState, alpha: number): void;
 }
 
 /** Coolmath Battlefield: a floating temple island under the Coolmath planet. */

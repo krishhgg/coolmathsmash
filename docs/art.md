@@ -50,8 +50,10 @@ rig point `(6, -6)`.
 - **Costume swaps** (`costumeSwaps`: palette name -> slot -> symbol, or `null`) replace slot defaults for one
   costume, below clip and key swaps, so a costume can wear a hat the others don't (The Duck's `crown`).
 - `icon` is a standalone SVG string for stock icons and portraits, `projectiles` holds props such as the
-  fireball (`PropArt { symbols, symbol, scale }`), and `ledgeGrip` is the rig point the ledge's top corner
-  should touch while hanging.
+  fireball (`PropArt { symbols, symbol, scale, preview }`), and `ledgeGrip` is the rig point the ledge's top
+  corner should touch while hanging. `preview` places the prop in lab sheets of the move that spawns it: on
+  clip frame `frame` on it sits at (`x`, `y`) from the feet (x forward, y up), then moves `vx`, `vy` units a
+  frame.
 
 Sampling is a pure function of `(clip, frame, globalFrame)`: no clocks and no randomness, so replays and the
 frame-capture harness always draw the same picture.
@@ -62,6 +64,17 @@ Name each clip after its engine action or the exact key in the fighter's move ta
 `f.move` when one is running, otherwise `f.action`. An unknown name falls back to `idle`, except for the
 shared stand-ins listed below. Use `loop: true` for cycles; other clips hold their last key.
 
+A clip for a timed ground action (`spotDodge`, `rollForward`, `rollBack`, `techInPlace`, `techRoll`, `getupStand`,
+`getupRoll`) lasts the action's `faf - 1` from `src/sim/constants.ts`, with its last key on that frame, so it
+neither stops early nor holds a pose. `src/fighters/dodgeClips.test.ts` checks every drawn fighter. When a timing
+changes, move the keys rather than cutting them; `retimeClip` in `src/render/rig/timing.ts` re-keys a whole clip,
+which is how the getup rolls reuse the tech rolls.
+
+Tech roll and getup roll keep the fighter's facing, so one away from it is a back roll. The renderer draws
+`techRollBack` or `getupRollBack` for it, falling back to `rollBack`. Build both from `rollBack` with `retimeClip`,
+moving its travel frames (4 to 20) onto the action's (4 to 30 for a tech roll, 4 to 28 for a getup roll). Wheely
+lies on his roof when down, so his `getupRollBack` mirrors his getup roll instead.
+
 For a move authored at simulation speed, frame 1 is the move's first frame, and the clip ends at `FAF - 1`.
 Record the clip's impact windows in `AnimClip.active`. To play a clip authored on a different timeline, the
 renderer maps those windows onto the move's hit windows (or the pummel/throw impact frame) and maps the clip
@@ -69,10 +82,10 @@ end to `FAF - 1`. Check the in-match result as well as the lab: the lab samples 
 frames directly. Fireboy's `art/index.test.ts` uses the same retiming as the renderer and checks that a
 drawn part reaches into every hitbox's inner half on its active frames.
 
-Tech roll and getup roll keep the fighter's facing, so a roll away from it is a back roll. The renderer draws
-`techRollBack` or `getupRollBack` when the fighter has one, else `rollBack` from its tuck (frame 4). A forward
-getup roll without its own clip borrows `techRoll`. Each roll clip is retimed so it rolls over the sim's travel
-frames (`TECH_ROLL.move`, `GETUP_ROLL.move`) and ends on the action's last frame.
+A tether move keeps its clip through the reel. `tetherPull` plays the move's clip on from the frame the line
+anchored, and `tetherHang` holds the frame the reel arrived on. Set `AnimClip.reel` to the clip frame a long reel
+should hold on (Fluffy's `upB` holds on 24, while the line still reaches well up), after the latest frame
+the line can anchor. Without it the clip plays on to its end.
 
 ## Pose checklist
 
@@ -99,7 +112,7 @@ with the same checks as its nearest shared action.
 | `hitstun`, `tumble`                                   | A sharp recoil is distinct from the curled or flailing tumble loop. Check the silhouette during hitlag and just after launch.                                                                               |
 | `downBound`, `down`                                   | Show ground contact, then settle into a low pose. `downBound` can reuse `down`; use its own clip if the bounce needs a readable pose.                                                                       |
 | `techInPlace`, `techRoll`                             | Catch the impact deliberately, then recover up or roll out. Both should read differently from being knocked down.                                                                                           |
-| `getupStand`, `getupRoll`, `getupAttack`              | Separate rise, retreat and strike. `getupRoll` can reuse `techRoll`, and a backward one `rollBack`; key the attack to its hit window.                                                                       |
+| `getupStand`, `getupRoll`, `getupAttack`              | Separate rise, retreat and strike. `getupRoll` can reuse `techRoll` retimed, and `getupRollBack` `rollBack`; key the attack to its hit window.                                                              |
 | `grab`, `dashGrab`, `pivotGrab`                       | Reach at the grab window and pull the hands back on a miss. Show a moving lunge for dash grab and a clear turn for pivot grab.                                                                              |
 | `grabHold`, `grabbed`, `grabRelease`                  | The holder braces against the victim's weight; the victim strains in the grip. A release pose should read as a separation, not another hit.                                                                 |
 | `grabPummel`, `grabThrow`                             | Author `pummel` and `fthrow`/`bthrow`/`uthrow`/`dthrow` clips. Key one compact pummel accent and a distinct release in each throw direction.                                                                |

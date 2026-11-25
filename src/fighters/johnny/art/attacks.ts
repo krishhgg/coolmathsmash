@@ -235,7 +235,7 @@ const DSMASH_2_HIT = mix(DSMASH_2, {
 });
 
 // --- Aerials. ----------------------------------------------------------------------------------------------
-const AIR_GUARD = fist(fist(AIR, 'B', [4.6, -10.6]), 'F', [1.0, -10.2], 1, 1);
+export const AIR_GUARD = fist(fist(AIR, 'B', [4.6, -10.6]), 'F', [1.0, -10.2], 1, 1);
 /** Nair: Double Kick, the near boot then the far one. */
 const NAIR_1 = leg(mix(AIR_GUARD, { body: { rot: -10 } }), 'F', [4.6, -7.4], -8, 1.25);
 const NAIR_1_HIT = mix(NAIR_1, { fx1: star([5.4, -8], 1.2), fx2: trail([1.0, -6.8], [5.0, -8.0], 1.2) });

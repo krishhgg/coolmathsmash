@@ -28,14 +28,6 @@ export function moveClipFrame(clip: AnimClip, frame: number, move: MoveDef | und
         : [];
   for (const [[s, e], [a, b]] of pairs) knots.push([s, a], [e, b]);
   knots.push([move.faf - 1, clip.length]);
-  return mapFrame(frame, knots);
-}
-
-/**
- * `frame` mapped through `knots` ([from, to] pairs in order), piecewise linearly; frames outside the knots clamp to
- * the first or last.
- */
-export function mapFrame(frame: number, knots: [number, number][]): number {
   for (let i = 1; i < knots.length; i++) {
     const [x0, y0] = knots[i - 1]!;
     const [x1, y1] = knots[i]!;
@@ -44,4 +36,29 @@ export function mapFrame(frame: number, knots: [number, number][]): number {
     return Math.max(y0, Math.min(y1, y0 + ((frame - x0) * (y1 - y0)) / (x1 - x0)));
   }
   return frame;
+}
+
+/**
+ * `clip` re-keyed to last `length` frames, to draw one action's clip over another action's timeline. Each key frame
+ * maps piecewise linearly through `knots` (`[old frame, new frame]` pairs in order) from frame 0 to the clip's end,
+ * then rounds; `active` windows move the same way. Throws if two keys round onto one frame.
+ */
+export function retimeClip(clip: AnimClip, length: number, knots: [number, number][] = []): AnimClip {
+  const points: [number, number][] = [[0, 0], ...knots, [clip.length, length]];
+  const at = (frame: number): number => {
+    let i = 1;
+    while (i < points.length - 1 && frame > points[i]![0]) i++;
+    const [x0, y0] = points[i - 1]!;
+    const [x1, y1] = points[i]!;
+    return Math.round(x1 === x0 ? y1 : y0 + ((frame - x0) * (y1 - y0)) / (x1 - x0));
+  };
+  const keys = clip.keys.map((k) => ({ ...k, frame: at(k.frame) }));
+  keys.forEach((k, i) => {
+    if (i && k.frame === keys[i - 1]!.frame && clip.keys[i]!.frame !== clip.keys[i - 1]!.frame)
+      throw new Error(
+        `retimeClip: keys ${clip.keys[i - 1]!.frame} and ${clip.keys[i]!.frame} both land on ${k.frame}`,
+      );
+  });
+  const active = clip.active?.map(([s, e]): [number, number] => [at(s), at(e)]);
+  return { ...clip, length, keys, ...(active && { active }) };
 }

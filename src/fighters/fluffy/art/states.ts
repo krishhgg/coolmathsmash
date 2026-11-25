@@ -1,4 +1,5 @@
 import type { Pose } from '../../../render/rig/author';
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip } from '../../../render/rig/types';
 import {
   FOCUS,
@@ -131,7 +132,7 @@ export const STATES: Record<string, AnimClip> = {
     ],
   },
   spotDodge: {
-    length: 26,
+    length: 25,
     swaps: BLINK,
     keys: [
       key(0, ball(STAND), { ease: 'out' }),
@@ -141,29 +142,29 @@ export const STATES: Record<string, AnimClip> = {
       }),
       key(15, ball({ sx: 1.4, sy: 0.52, face: { y: 0.95 } }), { ease: 'out' }),
       key(19, ball({ sx: 0.9, sy: 1.1 }), { ease: 'inOut', swaps: {} }),
-      key(26, ball(STAND)),
+      key(25, ball(STAND)),
     ],
   },
   rollForward: {
-    length: 30,
+    length: 29,
     swaps: { ...BLINK, fur: 'furRoll' },
     keys: [
       key(0, ball({ sx: 1.1, sy: 0.9 }), { ease: 'in' }),
       key(4, ball({ y: -0.5, tilt: 40 }), { ease: 'linear' }),
       key(18, ball({ y: -0.5, tilt: 340 }), { ease: 'out' }),
       key(22, ball({ sx: 1.12, sy: 0.88, tilt: 360 }), { ease: 'inOut', swaps: HALF }),
-      key(30, ball({ tilt: 360 })),
+      key(29, ball({ tilt: 360 })),
     ],
   },
   rollBack: {
-    length: 30,
+    length: 34,
     swaps: { ...BLINK, fur: 'furRoll' },
     keys: [
       key(0, ball({ sx: 1.1, sy: 0.9, face: LOOK_BACK }), { ease: 'in' }),
       key(4, ball({ y: -0.5, tilt: -40, face: LOOK_BACK }), { ease: 'linear' }),
       key(18, ball({ y: -0.5, tilt: -340, face: LOOK_BACK }), { ease: 'out' }),
       key(22, ball({ sx: 1.12, sy: 0.88, tilt: -360 }), { ease: 'inOut', swaps: HALF }),
-      key(30, ball({ tilt: -360 })),
+      key(34, ball({ tilt: -360 })),
     ],
   },
   airDodge: {
@@ -467,3 +468,18 @@ export const STATES: Record<string, AnimClip> = {
     ],
   },
 };
+
+/** The tech roll on the getup roll's timeline: the sim's travel ends on frame 28 instead of 30, and 35 frames in all. */
+STATES.getupRoll = retimeClip(STATES.techRoll!, 35, [
+  [4, 4],
+  [30, 28],
+]);
+/** Tech and getup rolls away from the facing: the back roll with its frames moved onto each action's travel. */
+STATES.techRollBack = retimeClip(STATES.rollBack!, 40, [
+  [4, 4],
+  [20, 30],
+]);
+STATES.getupRollBack = retimeClip(STATES.rollBack!, 35, [
+  [4, 4],
+  [20, 28],
+]);

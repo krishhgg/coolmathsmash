@@ -1,4 +1,5 @@
 import { defineFighter } from '../types';
+import { entities } from './entities';
 import { moves } from './moves';
 import { stats } from './stats';
 
@@ -8,4 +9,5 @@ export const fighter = defineFighter({
   series: 'Papa Louie: When Pizzas Attack! (2006)',
   stats,
   moves,
+  entities,
 });

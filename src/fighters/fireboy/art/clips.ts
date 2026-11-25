@@ -1,4 +1,5 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip } from '../../../render/rig/types';
 import { attacks } from './attacks';
 import {
@@ -439,7 +440,7 @@ export const clips: Record<string, AnimClip> = {
     keys: [key(0, STAND, { ease: 'out', z: ARMS_IN_FRONT }), key(6, SHIELD)],
   },
   spotDodge: {
-    length: 27,
+    length: 25,
     swaps: FRONT,
     keys: [
       key(0, STAND, { ease: 'out' }),
@@ -473,32 +474,32 @@ export const clips: Record<string, AnimClip> = {
           ease: 'inOut',
         },
       ),
-      key(22, undefined, { swaps: {} }),
-      key(27, STAND),
+      key(21, undefined, { swaps: {} }),
+      key(25, STAND),
     ],
   },
   rollForward: {
-    length: 31,
+    length: 29,
     swaps: FRONT,
     keys: [
       key(0, STAND, { ease: 'out' }),
       key(4, CROUCH, { ease: 'out' }),
       key(6, ROLL_BALL, { ease: 'linear', swaps: { ...NO_BODY, ...SIDE_ANGRY } }),
       key(23, ROLL_BALL, { ease: 'out', swaps: {} }),
-      key(26, mix(CROUCH, { body: { sx: -1 } }), { ease: 'out' }),
-      key(31, mix(STAND, { body: { sx: -1 } })),
+      key(25, mix(CROUCH, { body: { sx: -1 } }), { ease: 'out' }),
+      key(29, mix(STAND, { body: { sx: -1 } })),
     ],
   },
   rollBack: {
-    length: 31,
+    length: 34,
     swaps: FRONT,
     keys: [
       key(0, STAND, { ease: 'out' }),
       key(4, CROUCH, { ease: 'out' }),
       key(6, mix(ROLL_BALL, { body: { sx: -1 } }), { ease: 'linear', swaps: { ...NO_BODY, ...SIDE_ANGRY } }),
       key(23, mix(ROLL_BALL, { body: { sx: -1 } }), { ease: 'out', swaps: {} }),
-      key(26, CROUCH, { ease: 'out' }),
-      key(31, STAND),
+      key(27, CROUCH, { ease: 'out' }),
+      key(34, STAND),
     ],
   },
   airDodge: {
@@ -675,7 +676,7 @@ export const clips: Record<string, AnimClip> = {
     keys: [key(0, DOWN), key(20, mix(DOWN, { head: { sx: 1.03, sy: 0.97 }, armF: { rot: -50 } }))],
   },
   getupStand: {
-    length: 30,
+    length: 29,
     swaps: HURT,
     keys: [
       key(0, DOWN, { ease: 'in' }),
@@ -684,7 +685,7 @@ export const clips: Record<string, AnimClip> = {
         swaps: FRONT,
       }),
       key(20, CROUCH, { ease: 'out' }),
-      key(30, STAND),
+      key(29, STAND),
     ],
   },
   techInPlace: {
@@ -824,3 +825,18 @@ export const clips: Record<string, AnimClip> = {
   },
   ...attacks,
 };
+
+/** The tech roll on the getup roll's timeline: the sim's travel ends on frame 28 instead of 30, and 35 frames in all. */
+clips.getupRoll = retimeClip(clips.techRoll!, 35, [
+  [4, 4],
+  [30, 28],
+]);
+/** Tech and getup rolls away from the facing: the back roll with its frames moved onto each action's travel. */
+clips.techRollBack = retimeClip(clips.rollBack!, 40, [
+  [4, 4],
+  [20, 30],
+]);
+clips.getupRollBack = retimeClip(clips.rollBack!, 35, [
+  [4, 4],
+  [20, 28],
+]);

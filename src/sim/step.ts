@@ -1,5 +1,3 @@
-import { getFighter } from '../fighters/registry';
-import { getStage } from '../stages/registry';
 import './actions';
 import { tickMobility } from './actions/mobility';
 import { actionDef, runAction } from './actions/registry';
@@ -11,41 +9,16 @@ import {
   RESPAWN_DELAY,
   SHIELD_MAX,
   SHIELD_REGEN,
-  SHIELD_BREAK_HEIGHT,
   TOP_KO_MARGIN,
   TOP_KO_MIN_SPEED,
 } from './constants';
+import { makeCtx } from './context';
 import { emit } from './events';
-import { derived, type Ctx, type FighterState } from './fighter';
+import type { Ctx, FighterState } from './fighter';
 import type { MatchState, PlayerState } from './match';
 import { airMove, groundMove } from './movement';
-import { posedStage } from './movingStage';
-import { compileStage, type CompiledStage } from './stage';
 
-const compiled = new Map<string, CompiledStage>();
-
-export function compiledStage(id: string): CompiledStage {
-  let c = compiled.get(id);
-  if (!c) {
-    c = compileStage(getStage(id));
-    compiled.set(id, c);
-  }
-  return c;
-}
-
-export function makeCtx(m: MatchState, f: FighterState, p: PlayerState): Ctx {
-  const def = getFighter(f.fighter);
-  return {
-    m,
-    f,
-    p,
-    c: p.control,
-    def,
-    s: def.stats,
-    d: derived(def.stats, SHIELD_BREAK_HEIGHT),
-    stage: posedStage(m),
-  };
-}
+export { compiledStage, makeCtx } from './context';
 
 /** One frame of one fighter: advance the action, run its physics, tick timers, check the blast zones. */
 export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): void {
