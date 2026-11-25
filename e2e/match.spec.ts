@@ -60,6 +60,8 @@ test('a full match: select, countdown, pause, the last KO, GAME!, results and a 
   await page.keyboard.down('Escape');
   await expect(page.locator('.pause-layer')).toBeVisible({ timeout: 15_000 });
   await page.keyboard.up('Escape');
+  // No pad is plugged in or playing, so the tip shows Keyboard 1's default Attack and Pause keys only.
+  await expect(page.locator('.pause-tip span')).toHaveText(['↑↓ Move', 'F Select', 'Esc Resume']);
   const paused = await frame(page);
   await page.waitForTimeout(300);
   expect(await frame(page)).toBe(paused);
@@ -207,6 +209,7 @@ test('four-player match uses saved controls and quits back to character select',
   await page.keyboard.up('KeyQ');
   await page.keyboard.press('KeyP');
   await expect(page.locator('.pause-layer')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.pause-tip span')).toHaveText(['↑↓ Move', 'Q Select', 'P Resume']);
   await page.keyboard.press('KeyP');
   await expect(page.locator('.pause-layer')).toBeHidden({ timeout: 15_000 });
   await page.keyboard.press('KeyP');

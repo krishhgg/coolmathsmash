@@ -105,7 +105,7 @@ describe("Fireboy's Fireball (the worked example)", () => {
     expect(a.hitlag).toBe(0);
     expect(fireballs(m)).toHaveLength(0);
     expect(a.staleQueue).toEqual(['neutralB']);
-    const kb = knockback({ percent: 0, damage: 5.5, kbg: 35, bkb: 20, weight: 84, stale: 1.05 });
+    const kb = knockback({ percent: 0, damage: 5.5, kbg: 20, bkb: 35, weight: 84, stale: 1.05 });
     expect(v.launch!.kb).toBeCloseTo(kb, 6);
     expect(v.launch!.dir).toBe(1);
   });

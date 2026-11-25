@@ -25,6 +25,10 @@ flowchart LR
   jump, fast fall, platform drop) in `src/sim/control.ts`.
 - Stages can move: `MatchState.stage` holds where each solid and platform is on the current frame, a pure
   function of the frame, and every fighter's `Ctx.stage` is the stage as it stands then (`docs/stage-geometry.md`).
+- `src/sim/actions/index.ts` registers every shared action when `step.ts` loads it. Modules that action files
+  import must not import `step.ts`: through that cycle, an action file loaded first would reach the registry
+  before its own actions exist, and they would never be registered. `compiledStage`, `posedStage` and `makeCtx`
+  live in `src/sim/context.ts` for that reason.
 
 ## Loop (`src/engine/loop.ts`)
 
