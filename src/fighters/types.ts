@@ -129,7 +129,7 @@ export interface HoldHitDef {
 export type TetherLatch = 'ledge' | 'surface' | 'sky';
 
 /**
- * A tether (Fluffy's grapples, the Fisherman's line, Bob's grappling hook): a line fired from the hand that
+ * A tether (Fluffy's grapples, the Fisherman's line): a line fired from the hand that
  * travels out, anchors, and reels the fighter in. See docs/fighters.md.
  */
 export interface TetherDef {
