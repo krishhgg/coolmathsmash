@@ -178,4 +178,46 @@ describe('command grabs', () => {
     expect(v.damage).toBeCloseTo(caught + 2 * 3 * 1.2 + THROW.hit.damage * 1.05 * 1.2, 6);
     expect(a.staleQueue.slice(0, 2)).toEqual(['beastChew', 'sideB']);
   });
+
+  it("a throw's own hits and rehit windows don't move its chews: each lands on its frame", () => {
+    const chew = {
+      ...beastChew,
+      hits: [
+        // A swipe behind the Beast on frame 4 that catches a bystander before the first chew.
+        {
+          frames: [4, 4],
+          boxes: [{ id: 0, x: -12, y: 7, radius: 6, damage: 1, angle: 45, kbg: 0, bkb: 10 }],
+        },
+        // A rehit window between the chews, reaching nobody.
+        {
+          frames: [16, 18],
+          rehit: true,
+          boxes: [{ id: 1, x: 0, y: 60, radius: 1, damage: 1, angle: 45, kbg: 0, bkb: 10 }],
+        },
+      ],
+    } satisfies typeof beastChew;
+    const swiper = {
+      ...lungeTester,
+      id: 'test-lunge-swiper',
+      moves: { ...lungeTester.moves, beastChew: chew },
+    } satisfies typeof lungeTester;
+    registerFighter(swiper);
+    const m = testMatch({ fighter: swiper.id, players: 3 });
+    const [a, v, by] = m.fighters as [FighterState, FighterState, FighterState];
+    place(a, -10, 1, 1);
+    place(v, 4, 1, -1);
+    place(by, -24, 1, 1);
+    runPorts(m, 20, []);
+    runPorts(m, 1, [{ x: 100, buttons: ['special'] }, {}, {}]);
+    for (let i = 0; i < 40 && v.action !== 'grabbed'; i++) runPorts(m, 1, []);
+    expect([a.action, a.move]).toEqual(['grabThrow', 'beastChew']);
+    const chews: number[] = [];
+    for (let i = 0; i < 200 && v.action === 'grabbed'; i++) {
+      const before = v.damage;
+      runPorts(m, 1, []);
+      if (v.action === 'grabbed' && v.damage > before) chews.push(a.actionFrame);
+    }
+    expect(by.damage).toBeGreaterThan(0);
+    expect(chews).toEqual(beastChew.holdHits!.map((h) => h.frame));
+  });
 });
