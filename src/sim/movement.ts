@@ -392,9 +392,9 @@ export function grabLedge(x: Ctx, i: number): void {
   enterAction(x, 'ledgeCatch', 0);
 }
 
-/** Position of a fighter hanging from its ledge: hands at the corner, body against the wall. */
-export function hangPos(x: Ctx): { x: number; y: number } {
-  const L = x.stage.geo.ledges[x.f.ledge]!;
+/** Position of a fighter hanging from its ledge (or ledge `i`): hands at the corner, body against the wall. */
+export function hangPos(x: Ctx, i = x.f.ledge): { x: number; y: number } {
+  const L = x.stage.geo.ledges[i]!;
   return { x: L.x + L.side * (x.s.width / 2 + 0.5), y: L.y - x.s.height * 0.85 };
 }
 

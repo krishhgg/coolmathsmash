@@ -224,6 +224,62 @@ bthrow: {
   two grabs catch the same fighter the lower port wins.
 - **Shield grabs** use `grab` and come out from 4 frames after shieldstun ends.
 
+### Tethers
+
+A move with `tether` fires a line from the hand (`TETHER.handHeight` up the body) that travels out, anchors, and
+reels the fighter in: Fluffy's grapples, the Fisherman's line, Bob's grappling hook. Fluffy's Quick Grapple,
+from the test fixtures in `src/sim/testing/tethers.ts` (Point Grapple and the Line Tether are there too):
+
+```ts
+upB: {
+  kind: 'other',
+  faf: 45,
+  hits: [],
+  tether: {
+    frame: 8,
+    range: 120,
+    travel: 10,
+    angle: 90,
+    stickAdjust: 30,
+    latch: ['ledge', 'surface', 'sky'],
+    pullSpeed: 4,
+    hang: 'jump',
+  },
+},
+```
+
+- **Firing.** On `frame` the line leaves towards `angle` (degrees from forward towards up) at `range` units, bent
+  by up to `stickAdjust` degrees towards the stick's forward or back. Its tip reaches full range evenly over
+  `travel` frames, and each frame the line from the hand to the tip is cast through the stage (`castSegment`).
+- **Aiming.** With `aimed: { speed }` a reticle starts on the fighter and walks with the stick at `speed` units a
+  frame while special is held, clamped to `range`; the move waits on the frame before `frame`, the fighter keeps
+  drifting (aimed tethers don't fast-fall), and releasing special fires at the reticle. With
+  `aimed.quick: { frames }`, releasing special within `frames` of pressing it while the stick points somewhere
+  fires at full range in that 8-way direction instead. A reticle still on the fighter fires nothing.
+- **Anchoring.** The first thing the line touches anchors it if `latch` lists it: `ledge` (any ledge the line
+  passes within `TETHER.ledgeSnap`, 10 units, of from off the stage, if nobody holds it and the fighter still has
+  ledge grabs), `surface` (any solid edge or platform, from either side) or `sky` (empty air at full range).
+  Anything else stops the line and the move plays out. `onAnchor(x, hit)` can veto an anchor by returning false
+  (Fluffy's limited sky anchors).
+- **Reeling.** An anchored fighter goes into `tetherPull`: no gravity or drift, straight at `pullSpeed` towards
+  the anchor. A ledge anchor ends in a ledge grab once he is within `TETHER.ledgeArrive` (6 units) of the hang
+  position, which is tether recovery. Another anchor ends with his hand on it: holding `hang` keeps him there
+  (`tetherHang`) until he lets go of it, else he falls. A jump press lets go at any point, keeping the reel's
+  velocity as momentum. A reel blocked by a wall gives up after range / pullSpeed + `TETHER.pullSlack` frames.
+  Letting go ends in a fall, or helpless for a `helpless` move.
+- **Losing the line.** Getting hit or grabbed, landing, or anything else that ends the move or the reel drops the
+  line. `FighterState.tether` holds the line (`out` with its tip while it travels, then its anchor) and
+  `FighterState.aim` the reticle or target; the hitbox overlay draws both in teal.
+
+`castSegment(m, from, to, { platforms, fighters, ignore?, ledges? })` (`src/sim/cast.ts`) is the line test on its
+own, for projectiles too: it returns the nearest ledge, surface or fighter hurtbox the segment touches, with `t`
+(0 to 1 along it) and the point, or null.
+
+A tether ignores fighters unless it sets `targetsFighters: true`. If the line reaches a fighter before stage
+geometry, `onFighter(ctx, target, event)` can handle the contact in script or return `'pullSelf'` on
+`event.phase === 'hit'` to reel the user in. The same hook receives `'arrive'` on contact, where the move can
+apply its own hit. Grab and yank behavior is left to the move script.
+
 ### Kill percentages
 
 Test kill power with `koPercent` from `src/sim/testing/ko.ts` instead of writing your own launch loop:
