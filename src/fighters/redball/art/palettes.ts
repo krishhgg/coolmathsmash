@@ -38,7 +38,7 @@ const ball = (c: {
 });
 
 export const palettes: { default: Palette } & Record<string, Palette> = {
-  default: ball({ line: '#3d0b10', body: '#e7323a', bodyHi: '#ff7d78', bodyLo: '#b01a27' }),
+  default: ball({ line: '#3d0b10', body: '#fd4d4d', bodyHi: '#ff8f86', bodyLo: '#e13030' }),
   blue: ball({ line: '#0b2147', body: '#2f7fe6', bodyHi: '#7cc0ff', bodyLo: '#1b4fa8', mouthIn: '#10204a' }),
   green: ball({ line: '#0f3312', body: '#3dbb3a', bodyHi: '#94ec7a', bodyLo: '#21811f', mouthIn: '#173a12' }),
   yellow: ball({
@@ -58,10 +58,10 @@ export const palettes: { default: Palette } & Record<string, Palette> = {
   }),
   evil: ball({
     line: '#0b0b0d',
-    body: '#3b3c41',
-    bodyHi: '#696b73',
-    bodyLo: '#232428',
-    eyeWhite: '#f59a1b',
+    body: '#4a4a4a',
+    bodyHi: '#6b6d75',
+    bodyLo: '#2e2e2e',
+    eyeWhite: '#f7a21b',
     eyeLine: '#0b0b0d',
     pupil: '#0b0b0d',
     mouthIn: '#141416',

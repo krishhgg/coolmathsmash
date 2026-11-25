@@ -34,6 +34,26 @@ const BODY: Paint = {
   ],
 };
 
+/** A superellipse centred at the origin: a rounded box, n = 2 being a circle and 4 nearly a square. */
+function superellipse(cx: number, cy: number, w: number, h: number, n: number, a0 = 0, a1 = 360): Pt[] {
+  const steps = Math.max(2, Math.round(Math.abs(a1 - a0) / 5));
+  const e = 2 / n;
+  return Array.from({ length: steps + 1 }, (_, i) => {
+    const t = (a0 + ((a1 - a0) * i) / steps) * (Math.PI / 180);
+    const [c, s] = [Math.cos(t), Math.sin(t)];
+    return [
+      cx + (w / 2) * Math.sign(c) * Math.abs(c) ** e,
+      cy + (h / 2) * Math.sign(s) * Math.abs(s) ** e,
+    ] as Pt;
+  });
+}
+const box = (w: number, h: number, n: number): string =>
+  'M ' +
+  superellipse(0, 0, w, h, n)
+    .map(([x, y]) => String(Math.round(x * 1000) / 1000) + ' ' + String(Math.round(y * 1000) / 1000))
+    .join(' L ') +
+  ' Z';
+
 export const ballLine: PathShape[] = [fill(ellipse(0, 0, R), 'line')];
 export const ballFill: PathShape[] = [fill(ellipse(0, 0, IN), BODY)];
 /** The darker rim inside the ink along the shadow side, as in the cutscene drawings. */
@@ -56,10 +76,47 @@ export const ballShine: PathShape[] = [
   fill(ellipse(-3.35, -2.15, 0.3, 0.27), 'shine'),
 ];
 
-/* Eyes: two whites pressed together, the far (back) one a little lower, both looking the way he faces. */
+/** The Cube Squash body: the same ball drawn as a rounded box, for the plunge in the dair clip. */
+export const cubeLine: PathShape[] = [fill(box(2 * R, 2 * R, 3.2), 'line')];
+export const cubeFill: PathShape[] = [fill(box(2 * IN, 2 * IN, 3.2), BODY)];
+export const cubeShade: PathShape[] = [
+  fill(brush(superellipse(0, 0, (IN - 0.38) * 2, (IN - 0.38) * 2, 3.2, 22, 158), 0.78, 0.4, 0.4), 'bodyLo'),
+];
+/** The Evil Box costume's body: the box, blotched in the shade colour so the grey reads mottled. */
+export const evilShade: PathShape[] = [
+  fill(brush(superellipse(0, 0, (IN - 0.38) * 2, (IN - 0.38) * 2, 3.2, 22, 158), 0.78, 0.4, 0.4), 'bodyLo'),
+  fill(
+    blob([
+      [-3.1, -1.4],
+      [-2.2, -2.1],
+      [-1.1, -1.5],
+      [-1.9, -0.3],
+    ]),
+    'bodyLo',
+  ),
+  fill(
+    blob([
+      [1.0, 2.6],
+      [2.3, 2.1],
+      [3.0, 3.0],
+      [1.6, 3.4],
+    ]),
+    'bodyLo',
+  ),
+  fill(
+    blob([
+      [2.2, -2.6],
+      [3.4, -2.2],
+      [3.2, -1.2],
+      [2.0, -1.4],
+    ]),
+    'bodyLo',
+  ),
+];
+/* Eyes: two tall ovals pressed together at the bridge, the far (back) one a little lower, looking the way he faces. */
 type Eye = [cx: number, cy: number, rx: number, ry: number];
-const EYE_B: Eye = [-1.05, -1.15, 1.6, 1.45];
-const EYE_F: Eye = [1.95, -1.3, 1.52, 1.6];
+const EYE_B: Eye = [-1.15, -0.85, 1.5, 1.62];
+const EYE_F: Eye = [1.8, -0.95, 1.46, 1.68];
 const EYE_INK = 0.27;
 
 /** An eye white (or its ink, grown by `grow`) with everything above `lid(x)` cut away. */
@@ -83,22 +140,28 @@ function whites(lid?: (x: number) => number): PathShape[] {
   ];
 }
 
-/** Pupils at `back` and `front`, each with a pin glint. */
-function pupils(back: Pt, front: Pt, r = 0.5): PathShape[] {
+/** Pupils at `back` and `front`, big and high in the whites, each with a pin glint. */
+function pupils(back: Pt, front: Pt, r = 0.66): PathShape[] {
   return [back, front].flatMap(([x, y]) => [
     fill(ellipse(x, y, r * 0.92, r), 'pupil'),
     fill(ellipse(x + r * 0.32, y - r * 0.36, r * 0.27, r * 0.27), 'shine'),
   ]);
 }
 
-/** The brow line of the determined face: down to a V between the eyes, up and out over the front eye. */
+/** The brow line of the determined face: one heavy lid stroke over both eyes, a touch lower over the front one. */
 const BROW: Pt[] = [
-  [-2.95, -2.45],
-  [-1.4, -2.2],
-  [0.42, -1.72],
-  [2.1, -2.42],
-  [3.55, -3.0],
+  [-2.85, -2.3],
+  [-1.15, -2.42],
+  [0.3, -2.24],
+  [1.8, -2.6],
+  [3.3, -2.95],
 ];
+/** Half the brow stroke: the ink sits above the lid, so the white keeps the eye's full height underneath it. */
+const BROW_W = 0.9;
+const LID_DROP = BROW_W / 2 - 0.02;
+
+/** The bottom edge of the brow at x: the lid the eye whites are cut along. */
+const lidY = (x: number): number => browY(x) + LID_DROP;
 /** Height of the determined brow's centre line at x. */
 function browY(x: number): number {
   for (let i = 1; i < BROW.length; i++) {
@@ -152,8 +215,8 @@ function spiral(cx: number, cy: number, r: number, turns = 2.2): Pt[] {
 }
 
 export const eyes: Record<string, ArtSymbol> = {
-  /** The signature look: whites cut flat by the brow, pupils up under it towards the opponent. */
-  eyesDetermined: [...whites(browY), ...pupils([-0.3, -1.05], [2.55, -1.3])],
+  /** The signature look: tall whites cut by the brow, pupils big and up under it towards the opponent. */
+  eyesDetermined: [...whites(lidY), ...pupils([-0.4, -0.85], [2.3, -1.05])],
   /** Wide open, looking ahead and a little up (neutral smile). */
   eyesOpen: [...whites(), ...pupils([-0.65, -1.5], [2.3, -1.7])],
   /** Looking up (happy, jumping, hanging). */
@@ -161,9 +224,9 @@ export const eyes: Record<string, ArtSymbol> = {
   /** Looking down at the floor or the target below. */
   eyesDown: [...whites(), ...pupils([-0.65, -0.25], [2.25, -0.35])],
   /** Determined and looking down. */
-  eyesDeterminedDown: [...whites(browY), ...pupils([-0.55, -0.45], [2.35, -0.6])],
+  eyesDeterminedDown: [...whites(lidY), ...pupils([-0.55, -0.25], [2.25, -0.45], 0.62)],
   /** Determined and looking up. */
-  eyesDeterminedUp: [...whites(browY), ...pupils([-0.7, -1.35], [2.2, -1.62], 0.46)],
+  eyesDeterminedUp: [...whites(lidY), ...pupils([-0.75, -1.3], [2.1, -1.55], 0.6)],
   /** Shocked: pinprick pupils in wide whites. */
   eyesWide: [...whites(), ...pupils([-0.95, -1.15], [1.95, -1.3], 0.3)],
   /** Happy closed eyes. */
@@ -235,8 +298,8 @@ export const eyes: Record<string, ArtSymbol> = {
 };
 
 export const brows: Record<string, ArtSymbol> = {
-  /** One heavy brow, dipping into a V between the eyes. */
-  browAngry: [fill(brush(BROW, 0.98, 0.2, 0.22), 'line')],
+  /** One heavy lid stroke over both eyes, the ink sitting on their top edge. */
+  browAngry: [fill(brush(BROW, BROW_W, 0.12, 0.14), 'line')],
   /** Worried: inner ends raised. */
   browWorried: [
     fill(
@@ -772,6 +835,39 @@ export const effects: Record<string, ArtSymbol> = {
       'speed',
     );
   }),
+  /** Two hollow afterimages of the ball trailing behind (-x), for a fast roll. */
+  after: [line(ellipse(-1.9, 0, 3.6, 5.0), 0.6, 'bodyLo'), line(ellipse(-4.0, 0, 2.7, 3.7), 0.48, 'bodyLo')],
+  /** A white flare over the whole ball, for a full charge. */
+  flash: [fill(ellipse(0, 0, IN + 0.5), 'shine'), line(ellipse(0, 0, R + 0.7), 0.5, 'shine')],
+  /** A pair of speed spikes thrown out to the sides. */
+  spike: [
+    fill(
+      brush(
+        [
+          [1.4, -0.6],
+          [3.2, -2.2],
+          [4.9, -3.6],
+        ],
+        0.95,
+        0,
+        0.9,
+      ),
+      'speed',
+    ),
+    fill(
+      brush(
+        [
+          [-1.4, -0.6],
+          [-3.2, -2.2],
+          [-4.9, -3.6],
+        ],
+        0.95,
+        0,
+        0.9,
+      ),
+      'speed',
+    ),
+  ],
   /** A dizzy star. */
   star: [fill(star(0, 0, 0.95, 0.42), 'star'), line(star(0, 0, 0.95, 0.42), 0.16)],
   /** A sweat drop, tip up. */

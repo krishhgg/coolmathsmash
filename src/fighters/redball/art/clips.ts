@@ -64,6 +64,7 @@ const HANG = mix(
   fx('fx4', -3.8, -9.6, 0.8),
 );
 const HANG_SWAY = mix(HANG, body(0.94, 1.08), roll(-24), fx('fx4', -4.3, -7.9, 0.75));
+const HANG_SWAY_B = mix(HANG, body(0.96, 1.05), roll(-31), fx('fx4', -3.4, -9.2, 0.72));
 
 /** Lying flat after a missed tech: squashed, rolled onto his back. */
 const DOWN = mix(ground(1.32, 0.7), roll(-75));
@@ -237,9 +238,11 @@ export const clips: Record<string, AnimClip> = {
     length: 30,
     swaps: { ...WHEE, fx1: 'ring', fxBack: 'pop' },
     keys: [
-      key(0, mix(body(1.28, 0.76), fx('fx1', 0, 0.4, 0.55), fx('fx3', 0, -R, 1.45))),
-      key(3, mix(body(0.84, 1.2), roll(20), fx('fx1', 0, 1.8, 1.05), fx('fx3', 0, -R, 2.0)), { ease: 'out' }),
-      key(6, mix(body(0.95, 1.06), roll(110), fx('fx1', 0, 3.2, 1.35)), {
+      key(0, mix(body(1.32, 0.74), fx('fx1', 0, 0.4, 0.55), fx('fx3', 0, -R, 1.45))),
+      key(3, mix(body(0.82, 1.22), roll(24), fx('fx1', 0, 2.0, 1.05), fx('fx3', 0, -R, 2.1)), {
+        ease: 'out',
+      }),
+      key(6, mix(body(0.94, 1.07), roll(130), fx('fx1', 0, 3.4, 1.4)), {
         swaps: { fx1: 'ring', fxBack: null },
       }),
       key(9, undefined, { swaps: { fx1: null, fxBack: null } }),
@@ -384,12 +387,12 @@ export const clips: Record<string, AnimClip> = {
       key(8, HANG, { swaps: { ...STRAIN, ...BITE } }),
     ],
   },
-  /** Hanging on by his teeth, sweating. */
+  /** Hanging on by his teeth, sweating: the grip sags and pulls up again every two thirds of a second. */
   ledgeHang: {
     length: 90,
     loop: true,
     swaps: { ...STRAIN, ...BITE },
-    keys: [key(0, HANG), key(45, HANG_SWAY)],
+    keys: [key(0, HANG), key(24, HANG_SWAY), key(48, HANG_SWAY_B), key(70, HANG_SWAY), key(90, HANG)],
   },
   /** Lets go of the lip, hops up and rolls onto the stage. */
   ledgeClimb: {

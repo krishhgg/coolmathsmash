@@ -65,23 +65,45 @@ function rev(from: number, length: number, full: number, rate0: number, rate1: n
   return keys;
 }
 
-/** A Charge Roll tier: rolling at `rate` degrees per frame for `frames`, then slowing to an upright stop. */
-function chargeRoll(frames: number, rate: number, face: Record<string, string | null>): MoveClip {
+/**
+ * A Charge Roll tier: rolling at `rate` degrees per frame for `frames`, then slowing to an upright stop. Each tier
+ * rolls faster and reads faster: tier 1 is a plain lean, tier 2 adds the swirl arcs, tier 3 stretches into the roll
+ * and drags two afterimages behind it.
+ */
+function chargeRoll(
+  frames: number,
+  rate: number,
+  face: Record<string, string | null>,
+  tier: number,
+): MoveClip {
   const length = frames + 15;
   const end = Math.ceil((rate * (frames + 6)) / 360) * 360;
-  const fxOn = { fxBack: 'speed', fx4: rate > 30 ? 'swirl' : null, fx1: 'dust' };
+  const lean: Pose = tier >= 3 ? body(1.22, 0.87, 1.0) : body(1.06 + tier * 0.03, 0.96 - tier * 0.015, 0.6);
+  const fxOn = {
+    fxBack: 'speed',
+    fx4: tier >= 2 ? 'swirl' : null,
+    fx2: tier >= 3 ? 'after' : null,
+    fx1: 'dust',
+  };
   return {
     length,
     active: [[2, frames]],
     swaps: face,
     keys: [
-      key(0, mix(body(1.1, 0.92, 0.6), roll(0), speed(-3.5), swirl(0.8), fx('fx1', -5, -0.4, 0.6)), {
+      key(0, mix(lean, roll(0), speed(-3.5), swirl(0.8), fx('fx1', -5, -0.4, 0.6), fx('fx2', 0, -R, 1)), {
         swaps: fxOn,
         ease: 'linear',
       }),
       key(
         frames,
-        mix(body(1.1, 0.92, 0.8), roll(rate * frames), speed(-3.5), swirl(0.8), fx('fx1', -6.5, -0.7, 1)),
+        mix(
+          lean,
+          roll(rate * frames),
+          speed(-3.5),
+          swirl(0.8),
+          fx('fx1', -6.5, -0.7, 1),
+          fx('fx2', 0, -R, 1),
+        ),
         {
           ease: 'out',
         },
@@ -229,14 +251,14 @@ export const attacks = {
       key(13, mix(ground(1.06, 0.95, -1.2), roll(560), fx('fx1', -6.4, -0.6, 0.7), swirl(-1.2)), {
         ease: 'out',
       }),
-      key(14, mix(body(1.3, 0.82, 4.2), roll(720), speed(0.4)), {
-        swaps: { ...SHOUT, fxBack: 'speed' },
+      key(14, mix(body(1.46, 0.76, 4.6), roll(720), speed(0.4), fx('fx2', 0.6, -R, 1.05)), {
+        swaps: { ...SHOUT, fxBack: 'speed', fx2: 'after' },
         ease: 'out',
       }),
-      key(18, mix(body(1.28, 0.83, 4.6), roll(725), speed(0.8))),
+      key(18, mix(body(1.44, 0.77, 5.0), roll(725), speed(0.8), fx('fx2', 1.0, -R, 1.15))),
       key(19, undefined, { swaps: {} }),
-      key(22, mix(body(1.15, 0.9, 3.6), roll(720))),
-      key(30, mix(body(0.94, 1.05, 1.0), roll(712))),
+      key(22, mix(body(1.15, 0.9, 3.6), roll(732))),
+      key(30, mix(body(0.94, 1.05, 1.0), roll(724))),
       key(34, undefined, { swaps: DETERMINED }),
       key(38, mix(ground(1.06, 0.95), roll(720))),
       key(51, mix(ground(), roll(720))),
@@ -340,13 +362,13 @@ export const attacks = {
     keys: [
       key(0, body()),
       key(3, mix(body(0.95, 1.06, -1.0, -0.8), roll(-40)), { ease: 'in' }),
-      key(7, mix(body(1.15, 0.9, 2.8, 0.2), roll(160), swirl(2.8, -5.05)), {
+      key(7, mix(body(1.3, 0.86, 3.0, 0.2), roll(38), swirl(3.0, -4.8)), {
         swaps: { fx4: 'swirl' },
         ease: 'out',
       }),
-      key(11, mix(body(1.18, 0.88, 3.4, 0.8), roll(330), swirl(3.4, -4.45))),
+      key(11, mix(body(1.32, 0.85, 3.6, 0.8), roll(72), swirl(3.6, -4.2))),
       key(14, undefined, { swaps: {} }),
-      key(16, mix(body(1.12, 0.92, 3.0, 1.6), roll(360))),
+      key(16, mix(body(1.16, 0.9, 3.0, 1.4), roll(210))),
       key(22, mix(body(1, 1, 1.2, 0.6), roll(360)), { swaps: DETERMINED }),
       key(37, mix(body(), roll(360))),
     ],
@@ -400,13 +422,16 @@ export const attacks = {
     keys: [
       key(0, body()),
       key(3, mix(body(1.12, 0.9, 0, -0.5), roll(-8))),
-      key(9, mix(body(1.16, 0.86, 0, -0.8), roll(-12)), { ease: 'out' }),
-      key(11, mix(body(0.84, 1.24, 0, 0.6), roll(0), speed(0, -12.5, 1.1, 90)), {
-        swaps: { fxBack: 'speed' },
+      key(9, mix(body(1.18, 0.84, 0, -0.8), roll(-4)), {
+        ease: 'out',
+        swaps: { ...GRIT_DOWN, ballLine: 'cubeLine', ballFill: 'cubeFill', ballShade: 'cubeShade' },
       }),
-      key(24, mix(body(0.86, 1.22, 0, 0.6), roll(0), speed(0, -12.5, 1.1, 90))),
+      key(11, mix(body(0.9, 1.18, 0, 0.6), speed(0, -12.5, 1.1, 90)), { swaps: { fxBack: 'speed' } }),
+      key(14, mix(body(1.28, 0.8, 0, 0.9), speed(0, -12.5, 1.1, 90))),
+      key(16, mix(body(1.3, 0.76, 0, 1.1), speed(0, -12.5, 1.1, 90))),
+      key(24, mix(body(1.2, 0.84, 0, 1.0), speed(0, -12.5, 1.1, 90))),
       key(25, undefined, { swaps: {} }),
-      key(28, body(1.08, 0.94)),
+      key(28, body(0.94, 1.08)),
       key(30, undefined, { swaps: DETERMINED_DOWN }),
       key(34, body()),
       key(41, body()),
@@ -551,14 +576,18 @@ export const attacks = {
       key(0, ground()),
       key(4, mix(ground(1.15, 0.88, -0.5), roll(-15)), { ease: 'out' }),
       key(8, undefined, { swaps: { fx1: 'dust', fx4: 'swirl' } }),
-      ...rev(8, 29, 68, 12, 45, 3),
+      ...rev(8, 29, 68, 20, 62, 3),
       key(30, undefined, { swaps: { ...SHOUT, fx1: 'dust', fx4: 'swirl' } }),
-      ...rev(8, 77, 68, 12, 45, 3).filter((k) => k.frame >= 30),
+      ...rev(8, 74, 68, 20, 62, 3).filter((k) => k.frame >= 30),
+      key(75, mix(fx('fx2', 0, -R, 1.15), swirl(-0.6)), {
+        swaps: { ...SHOUT, fx1: null, fx4: 'swirl', fx2: 'flash' },
+      }),
+      key(77, undefined, { swaps: { ...SHOUT, fx2: null, fx4: null } }),
     ],
   },
-  chargeRoll1: chargeRoll(30, 26, GRIT),
-  chargeRoll2: chargeRoll(40, 33, GRIT),
-  chargeRoll3: chargeRoll(50, 41, SHOUT),
+  chargeRoll1: chargeRoll(30, 26, GRIT, 1),
+  chargeRoll2: chargeRoll(40, 36, GRIT, 2),
+  chargeRoll3: chargeRoll(50, 48, GRIT, 3),
   /** Mega Bounce: squashes flat, then springs up stretched off a ring of air, flipping as he goes. */
   upB: {
     length: 45,
@@ -567,15 +596,23 @@ export const attacks = {
     keys: [
       key(0, ground()),
       key(3, ground(1.3, 0.72)),
-      key(7, ground(1.46, 0.6), { ease: 'out' }),
-      key(8, mix(ground(0.74, 1.4, 0, 0.6), fx('fx1', 0, 0, 0.9), fx('fx3', 0, -7, 1.6)), {
-        swaps: { ...WHEE, fx1: 'ring', fxBack: 'pop' },
-        ease: 'out',
-      }),
-      key(12, mix(body(0.8, 1.3), roll(10), fx('fx1', 0, 3, 1.5), fx('fx3', 0, -R, 2.2)), {
-        swaps: { ...WHEE, fx1: 'ring' },
-      }),
-      key(15, undefined, { swaps: WHEE }),
+      key(7, ground(1.52, 0.6), { ease: 'out' }),
+      key(
+        8,
+        mix(ground(0.7, 1.46, 0, 0.6), fx('fx1', 0, 0, 0.9), fx('fx3', 0, -7, 1.7), fx('fx2', 0, -R, 1.15)),
+        {
+          swaps: { ...WHEE, fx1: 'ring', fxBack: 'pop', fx2: 'spike' },
+          ease: 'out',
+        },
+      ),
+      key(
+        12,
+        mix(body(0.76, 1.36), roll(10), fx('fx1', 0, 3, 1.6), fx('fx3', 0, -R, 2.4), fx('fx2', 0, -R, 1.3)),
+        {
+          swaps: { ...WHEE, fx1: 'ring', fx2: 'spike' },
+        },
+      ),
+      key(15, undefined, { swaps: { ...WHEE, fx2: null } }),
       key(20, mix(body(0.92, 1.1), roll(60))),
       key(30, mix(body(), roll(200))),
       key(34, undefined, { swaps: DIZZY }),
