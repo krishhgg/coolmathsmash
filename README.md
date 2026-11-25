@@ -1,0 +1,1 @@
+Screenshots and GIFs embedded in pull request descriptions. Nothing here ships with the game.
