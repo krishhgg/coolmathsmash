@@ -60,6 +60,7 @@ export const specials: Record<string, MoveDef> = {
     continuesOnLanding: true,
     landingLag: 20,
     ledgeFrom: 12,
+    armor: { frames: [ROLL_START, ROLL_START + ROLL_TIP - 1] },
     hits: Array.from({ length: ROLL_TIPS }, (_, k) => ({
       frames: [ROLL_START + ROLL_TIP * k + 9, ROLL_START + ROLL_TIP * k + 10] as [number, number],
       rehit: true,

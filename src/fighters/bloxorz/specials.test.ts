@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { FighterState } from '../../sim/fighter';
+import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until } from '../../sim/testing/sim';
 import { moves } from './moves';
-import { QUAKE_FRAME, QUAKE_REACH, ROLL_TIPS } from './specials';
+import { QUAKE_FRAME, QUAKE_REACH, ROLL_START, ROLL_TIP, ROLL_TIPS } from './specials';
 import { TIP_DISTANCE, TIP_SHAKE } from './tip';
 
 /** The block (P1) facing right at x = -40 and a second fighter `offset` units to its right, both standing. */
@@ -67,6 +68,28 @@ describe('Bloxorz block: Roll (side special)', () => {
     expect(a.action).toBe('idle');
     expect(damage.length).toBe(4);
     expect(damage.at(-1)).toBeGreaterThan(damage[0]!);
+  });
+
+  it('takes damage without launching on the first tip, but loses armor on the second', () => {
+    const hitAt = (frame: number) => {
+      const { m, a, v } = versus(-19, { fighter: marioReference.id });
+      attack(m, 0, 'sideB');
+      runPorts(m, frame - 1, [{}, {}]);
+      Object.assign(v, {
+        pos: { x: a.pos.x - 19, y: 0 },
+        prevPos: { x: a.pos.x - 19, y: 0 },
+        facing: 1,
+      });
+      attack(m, 1, 'probe');
+      runPorts(m, 1, [{}, {}]);
+      expect(a.damage).toBeGreaterThan(0);
+      return a;
+    };
+
+    const armored = hitAt(ROLL_START + Math.floor(ROLL_TIP / 2));
+    expect(armored.move).toBe('sideB');
+    expect(armored.launch).toBeNull();
+    expect(hitAt(ROLL_START + ROLL_TIP).launch).not.toBeNull();
   });
 
   it('in the air it rolls across nearly level, then falls helpless', () => {
