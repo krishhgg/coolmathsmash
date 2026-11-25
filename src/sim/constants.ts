@@ -82,10 +82,6 @@ export const LEDGE_JUMP = { rise: 6, intangible: [1, 13] as [number, number], hS
 /** Getup intangibility by grab count since last touching ground (Ultimate: ×0.8 on the 2nd grab, ×0.5 on the 3rd, none after). */
 export const LEDGE_GETUP_INTANGIBILITY_SCALE = [1, 0.8, 0.5];
 
-/**
- * Grabs (Ultimate; physics-reference sections 6 and 14). A grab holds floor(90 + 1.7 x %) frames
- * (formulas.ts grabHoldFrames), cut by the victim's mashing, but never under minHold frames.
- */
 /** Tethers (src/sim/actions/tether.ts, docs/fighters.md). */
 export const TETHER = {
   /** The line leaves the hand at this share of the fighter's height above the feet. */
@@ -98,6 +94,10 @@ export const TETHER = {
   pullSlack: 10,
 };
 
+/**
+ * Grabs (Ultimate; physics-reference sections 6 and 14). A grab holds floor(90 + 1.7 x %) frames
+ * (formulas.ts grabHoldFrames), cut by the victim's mashing, but never under minHold frames.
+ */
 export const GRAB = {
   /** Frames removed per new stick direction and per button press while held. */
   mashStick: 8,
