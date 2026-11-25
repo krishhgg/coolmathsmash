@@ -87,6 +87,8 @@ test('fighters run, jump and shield from scripted inputs', async ({ page }) => {
 });
 
 test('a frame looks the same however often the frames before it were drawn', async ({ page }) => {
+  // 61 full renders of the painted stage: slow on CI's software GPU (SwiftShader), instant on a real one.
+  test.slow();
   const capture = async (everyFrame: boolean) => {
     await page.goto('/?harness');
     await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');

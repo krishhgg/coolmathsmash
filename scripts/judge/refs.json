@@ -57,6 +57,8 @@
       "video/thumbnail-roster-art-*"
     ],
     "css-2p": ["smash/character-select-*", "video/roster-select-grid-*"],
-    "css-4p": ["smash/character-select-*", "video/roster-select-grid-*"]
+    "css-4p": ["smash/character-select-*", "video/roster-select-grid-*"],
+    "stage-select": ["smash/stage-select-*", "stages/coolmath-planet/planet-icon-*"],
+    "stage-select-rules": ["smash/stage-select-*", "stages/coolmath-planet/planet-icon-*"]
   }
 }

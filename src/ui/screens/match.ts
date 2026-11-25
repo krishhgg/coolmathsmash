@@ -4,12 +4,12 @@ import type { Flow, Screen, ScreenDef } from '../app';
 import { h } from '../dom';
 
 export const screen: ScreenDef = {
-  route: 'stages',
+  route: 'match',
   needsGame: true,
   create: (flow) => matchScreen(flow, flow.game!),
 };
 
-/** Stand-in until the stage select and match session land: the default match; Esc returns to the menu. */
+/** Stand-in until the match session lands: the default match whatever the setup says; Esc returns to the menu. */
 export function matchScreen(flow: Flow, game: Game): Screen {
   return {
     el: h('div', { class: 'match-overlay' }),

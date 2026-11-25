@@ -1,5 +1,8 @@
 import type { AnimClip, Key } from '../../../render/rig/types';
+<<<<<<< HEAD
 import { stats } from '../stats';
+=======
+>>>>>>> origin/main
 import { attacks } from './attacks';
 import { BODY, EXHAUST, WHEEL_R, WHEEL_X, type Pt } from './parts';
 import {
@@ -9,7 +12,10 @@ import {
   BLUR,
   CLOSED,
   DEG,
+<<<<<<< HEAD
   smooth,
+=======
+>>>>>>> origin/main
   DIZZY,
   FOCUS,
   FRONT,
@@ -36,7 +42,10 @@ import {
   mix,
   roll,
   rolling,
+<<<<<<< HEAD
   frontView,
+=======
+>>>>>>> origin/main
   smoke,
   spin,
   squash,

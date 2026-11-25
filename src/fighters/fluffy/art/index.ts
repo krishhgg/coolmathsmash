@@ -1,10 +1,12 @@
 import { shapesBounds } from '../../../render/rig/geometry';
 import { symbolsToSvg } from '../../../render/rig/svg';
 import type { AnimClip, FighterArt, PathShape } from '../../../render/rig/types';
+import { ATTACKS } from './attacks';
 import { LOCOMOTION } from './clips';
 import { palettes } from './palettes';
 import { FACE, eyes, pupils } from './parts';
 import { rig } from './rig';
+import { SPECIALS } from './specials';
 
 /** The ball with its eyes in body space, for the HUD icon (the face sits on the ball at FACE). */
 const iconSymbols = { ...rig.symbols, iconEyes: eyes(FACE), iconPupils: pupils(FACE) };
@@ -16,7 +18,7 @@ function iconBox(): [number, number, number, number] {
   return [(x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size, size];
 }
 
-const clips: Record<string, AnimClip> = { ...LOCOMOTION };
+const clips: Record<string, AnimClip> = { ...LOCOMOTION, ...ATTACKS, ...SPECIALS };
 
 /** Fluffy (IQ Ball, Coolmath 2011; Catch the Candy, FedoIT 2011), drawn by hand in their style. Plain data. */
 export const art: FighterArt = {

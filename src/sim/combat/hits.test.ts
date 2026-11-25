@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import ref from '../reference/physics-constants.json';
+import { SMASH_CHARGE_FRAMES } from '../actions/attack';
 import { SHIELD_DEPLETION } from '../constants';
 import type { FighterState } from '../fighter';
 import type { MatchState } from '../match';
@@ -14,9 +15,19 @@ function stepAll(m: MatchState, frames: number, hold: (port: number) => Hold): v
       m.players.map((p) => input(hold(p.port))),
     );
 }
-import { hitlagFrames, hitstunFrames, knockback, shieldstunFrames, speedUp } from './formulas';
+import { hitlagFrames, hitstunFrames, knockback, LAUNCH_DECAY, shieldstunFrames, speedUp } from './formulas';
 
 const kb10 = ref.knockback.test_vectors.find((v) => v.id === 'kb10_fresh_bonus')!;
+
+/**
+ * The launch velocity a fighter left with, read back after `frames` (sped-up) frames of flight: the launch speed only
+ * decays, by 0.051 per frame along its own direction.
+ */
+function launchedAt(f: FighterState, frames: number): { x: number; y: number } {
+  const speed = Math.hypot(f.kb.x, f.kb.y);
+  const k = (speed + LAUNCH_DECAY * frames) / speed;
+  return { x: f.kb.x * k, y: f.kb.y * k };
+}
 
 /** Two reference fighters standing on Battlefield's main stage, `a` facing `v`. */
 function duel(ax = -10, vx = -2): { m: MatchState; a: FighterState; v: FighterState } {
@@ -71,8 +82,10 @@ describe('hits (research vector kb10 end to end)', () => {
     run(m, 1);
     const faf = kb10.expected_first_actionable_frame_unsped;
     const step = speedUp(faf).steps[0]!;
-    expect((v.pos.x - frozen.x) / step).toBeCloseTo(kb10.expected_vx, 5);
-    expect((v.pos.y - frozen.y) / step).toBeCloseTo(kb10.expected_vy, 5);
+    const launched = launchedAt(v, step);
+    expect(launched.x).toBeCloseTo(kb10.expected_vx, 5);
+    expect(launched.y).toBeCloseTo(kb10.expected_vy, 5);
+    expect(v.pos.x - frozen.x).toBeLessThan(kb10.expected_vx * step);
 
     let frames = 1;
     while (v.hitstun > 0) {
@@ -254,9 +267,8 @@ describe('hits (research vector kb10 end to end)', () => {
       airborne(v, -2, 4);
       attack(m, 1, 'probe');
       runPorts(m, 1, [stick, {}]);
-      const before = { ...v.pos };
       runPorts(m, v.hitlag + 1, [stick, {}]);
-      return (Math.atan2(v.pos.y - before.y, v.pos.x - before.x) * 180) / Math.PI;
+      return (Math.atan2(v.kb.y, v.kb.x) * 180) / Math.PI;
     };
     const neutral = launchAngle({});
     expect(launchAngle({ x: 70.71, y: -70.71 })).toBeCloseTo(neutral - 9.74, 1);
@@ -302,6 +314,26 @@ describe('shield hits', () => {
     runPorts(m, 1, [{}, { buttons: ['shield'] }]);
     runPorts(m, v.hitlag + 1, [{}, { buttons: ['shield'] }]);
     expect(v.action).toBe('shieldBreak');
+  });
+
+  it('a full-power forward smash on a nearly empty shield empties it to 0, never below, then breaks it', () => {
+    const m = testMatch({ players: 2, fighter: 'johnny' });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    Object.assign(a, { pos: { x: -10, y: 0 }, prevPos: { x: -10, y: 0 }, facing: 1 });
+    Object.assign(v, { pos: { x: 2, y: 0 }, prevPos: { x: 2, y: 0 }, facing: -1 });
+    runPorts(m, 5, [{}, { buttons: ['shield'] }]);
+    expect(v.action).toBe('shield');
+    v.shieldHp = 5;
+    attack(m, 0, 'fsmash');
+    a.charge = SMASH_CHARGE_FRAMES;
+    const hp: number[] = [];
+    for (let i = 0; i < 60 && v.action !== 'shieldBreak'; i++) {
+      runPorts(m, 1, [{}, { buttons: ['shield'] }]);
+      hp.push(v.shieldHp);
+      for (const e of m.events) if (e.type === 'shieldHit') expect(e.shieldHp).toBe(0);
+    }
+    expect(m.events.some((e) => e.type === 'shieldBreak')).toBe(true);
+    expect(Math.min(...hp)).toBe(0);
   });
 });
 
