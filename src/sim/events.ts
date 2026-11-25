@@ -65,6 +65,10 @@ export type SimEvent =
   | { type: 'grabRelease'; holder: number; held: number }
   /** Two fighters grabbed each other on the same frame and both bounced off (Ultimate's grab clank). */
   | { type: 'grabClank'; ports: [number, number] }
+  /** A float started or ended (also when it ends during an aerial started from it, or by landing). */
+  | { type: 'float'; port: number; phase: 'start' | 'end' }
+  /** A fuel hover burned its last fuel while thrusting. */
+  | { type: 'fuelEmpty'; port: number }
   /** A scheduled stage piece appeared (`on`) or vanished (docs/stage-geometry.md). */
   | { type: 'stagePiece'; piece: 'solid' | 'platform'; index: number; on: boolean }
   /** A moving solid squeezed a fighter against other geometry and the fighter popped out on top of it. */

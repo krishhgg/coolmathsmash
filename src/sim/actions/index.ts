@@ -6,6 +6,7 @@ import { GROUND } from './ground';
 import { HITSTUN } from './hitstun';
 import { KNOCKDOWN } from './knockdown';
 import { LEDGE } from './ledge';
+import { MOBILITY } from './mobility';
 import { ACTIONS } from './registry';
 import { STATUS } from './status';
 import { TETHER_ACTIONS } from './tether';
@@ -21,6 +22,7 @@ Object.assign(
   HITSTUN,
   KNOCKDOWN,
   GRAB_ACTIONS,
+  MOBILITY,
   TETHER_ACTIONS,
 );
 

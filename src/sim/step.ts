@@ -1,6 +1,7 @@
 import { getFighter } from '../fighters/registry';
 import { getStage } from '../stages/registry';
 import './actions';
+import { tickMobility } from './actions/mobility';
 import { actionDef, runAction } from './actions/registry';
 import { dropLostTether, rideAnchor } from './actions/tether';
 import { stepTetherMove } from './actions/tetherCast';
@@ -59,6 +60,7 @@ export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): voi
   else if (f.launchMotion) stepLaunchMotion(x);
   f.actionFrame++;
   runAction(x);
+  tickMobility(x);
   stepTetherMove(x);
   const physics = actionDef(f).physics;
   if (physics === 'ground' && f.ground) groundMove(x);

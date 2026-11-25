@@ -85,6 +85,8 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
       expect(b.frames[1]).toBeLessThan(move.faf);
       expect(b.radius).toBeGreaterThan(0);
     }
+    if (move.action === 'hover') expect(def.hover, 'hover moves need FighterDef.hover').toBeDefined();
+    if (move.glide) expect(def.glide, 'glide moves need FighterDef.glide').toBeDefined();
   });
 
   it.each(Object.entries(def.entities ?? {}))('entity %s has consistent data', (_, e) => {
@@ -94,5 +96,26 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
       if (e.lifetime !== undefined) expect(w.frames[1]).toBeLessThanOrEqual(e.lifetime);
       expect(new Set(w.boxes.map((b) => b.id)).size).toBe(w.boxes.length);
     }
+  });
+
+  it('has 2 to 6 jumps, like the Ultimate cast, and per-jump heights that start at doubleJumpHeight', () => {
+    const { jumps, doubleJumpHeight, airJumpHeights } = def.stats;
+    expect(Number.isInteger(jumps)).toBe(true);
+    expect(jumps).toBeGreaterThanOrEqual(2);
+    expect(jumps).toBeLessThanOrEqual(6);
+    if (!airJumpHeights) return;
+    expect(airJumpHeights[0]).toBe(doubleJumpHeight);
+    expect(airJumpHeights.length).toBeLessThanOrEqual(jumps - 1);
+    for (const h of airJumpHeights) {
+      expect(h).toBeGreaterThan(0);
+      expect(h).toBeLessThanOrEqual(range.air_jump_height.max);
+    }
+  });
+
+  it('glides slower than it falls', () => {
+    if (!def.glide) return;
+    expect(def.glide.fallSpeed).toBeGreaterThan(0);
+    expect(def.glide.fallSpeed).toBeLessThan(def.stats.fallSpeed);
+    expect(def.glide.speed).toBeGreaterThan(0);
   });
 });

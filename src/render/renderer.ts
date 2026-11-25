@@ -11,6 +11,7 @@ import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
 import { drawEntities, drawEntityBoxes } from './entities';
 import { InputDisplay } from './debug/inputDisplay';
+import { drawMobility } from './debug/mobility';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud, OverheadTags } from './hud';
 import { drawStagePieces, isMoving } from './stagePieces';
@@ -196,7 +197,8 @@ export class Renderer {
     if (!this.overlays.hitboxes) return;
     for (const f of state.fighters) {
       if (f.action === 'ko' || f.action === 'out') continue;
-      const h = hurtbox(f, getFighter(f.fighter).stats);
+      const def = getFighter(f.fighter);
+      const h = hurtbox(f, def.stats);
       const hw = h.hw ?? 0;
       g.roundRect(h.x - hw - h.r, -h.y2 - h.r, (hw + h.r) * 2, h.y2 - h.y1 + h.r * 2, h.r).fill({
         color: '#ffe14a',
@@ -204,6 +206,7 @@ export class Renderer {
       });
       for (const b of activeHitboxes(f))
         g.circle(b.x, -b.y, b.box.radius).fill({ color: b.box.grab ? '#a33cff' : '#ff2a2a', alpha: 0.55 });
+      drawMobility(g, f, def);
       const o = tetherOrigin(f);
       if (f.tether) {
         g.moveTo(o.x, -o.y)
