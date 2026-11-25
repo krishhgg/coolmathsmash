@@ -16,6 +16,9 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 
 type Hit = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius'>;
 
+/** Quick Grapple's last airborne stall frame: the shot on 8 plus its 10 travel frames, when the line has landed or missed. */
+const QUICK_GRAPPLE_STALL = 18;
+
 /**
  * The grabber line: count boxes evenly spaced from the tip at to back to from (forward units) at height y. The tip
  * gets id 0, so it wins over the line behind it, and each box's size and hit are functions of its index from the tip.
@@ -450,5 +453,31 @@ export const moves: Record<string, MoveDef> = {
     faf: 46,
     hits: [],
     spawn: [{ frame: 14, entity: 'candy', x: 8.5, y: 5.5, vx: CANDY_SPEED, max: 1 }],
+  },
+  /**
+   * Quick Grapple (up special, roster sheet 8): the grabber fires straight up on frame 8 and reaches 120 units in 10
+   * frames, bent up to 30 degrees by the stick. A ledge it passes reels him into a ledge grab; a floor, wall or
+   * platform reels him to it, and holding Jump there hangs from the line. It is his recovery, so letting go of the
+   * line or a shot that finds nothing in range ends in helpless fall, as an up special does in Ultimate. In the air
+   * he stops falling while the grabber flies (QUICK_GRAPPLE_STALL), so a shot from below the ledge still reaches it.
+   */
+  upB: {
+    kind: 'other',
+    faf: 41,
+    helpless: true,
+    hits: [],
+    tether: {
+      frame: 8,
+      range: 120,
+      travel: 10,
+      angle: 90,
+      stickAdjust: 30,
+      latch: ['ledge', 'surface'],
+      pullSpeed: 4,
+      hang: 'jump',
+    },
+    script({ f }) {
+      if (!f.ground && f.actionFrame <= QUICK_GRAPPLE_STALL) f.vel.y = Math.max(f.vel.y * 0.5, 0);
+    },
   },
 };

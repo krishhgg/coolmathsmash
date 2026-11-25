@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { activeHitboxes } from '../../sim/combat/hits';
+import { HELPLESS_LANDING_LAG, TETHER } from '../../sim/constants';
+import type { SimEvent } from '../../sim/events';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, type MatchState } from '../../sim/match';
 import { koPercent, type KoSetup } from '../../sim/testing/ko';
@@ -348,5 +350,90 @@ describe('Fluffy: Candy Frisbee (side special)', () => {
     runPorts(m, 1, [{ x: 100, buttons: ['special'] }, {}]);
     runPorts(m, 14, [{}, {}]);
     expect(m.entities).toHaveLength(1);
+  });
+});
+
+describe('Fluffy: Quick Grapple (up special)', () => {
+  /** Fluffy alone on Battlefield at (x, y), airborne unless y is 0, with a stepper that collects tether events. */
+  function grapple(x: number, y: number, facing: 1 | -1) {
+    const m = testMatch({ fighter: 'fluffy' });
+    const f = m.fighters[0]!;
+    place(f, x, y, facing, y === 0 ? f.ground : null);
+    f.jumpsUsed = y === 0 ? 0 : 1;
+    const events: SimEvent[] = [];
+    const actions: string[] = [];
+    const step = (frames: number, hold: Hold = {}) => {
+      for (let i = 0; i < frames; i++) {
+        run(m, 1, hold);
+        events.push(...m.events.filter((e) => e.type.startsWith('tether')));
+        if (f.action !== actions.at(-1)) actions.push(f.action);
+      }
+    };
+    /** Up special from the stick and button, as a player inputs it. */
+    const fire = () => {
+      step(1, { y: 100, buttons: ['special'] });
+      expect(f.move).toBe('upB');
+    };
+    return { m, f, events, actions, step, fire };
+  }
+
+  it('fires straight up on frame 8 at 120 units, and a grounded shot stays on the ground until then', () => {
+    const { f, events, step, fire } = grapple(-40, 0, 1);
+    fire();
+    step(6);
+    expect([f.action, f.ground, f.tether]).toEqual(['attack', expect.anything(), null]);
+    step(1);
+    expect(f.actionFrame).toBe(8);
+    const hand = f.pos.y + stats.height * TETHER.handHeight;
+    expect(events).toEqual([
+      { type: 'tetherFire', port: 0, x: expect.closeTo(f.pos.x, 9), y: expect.closeTo(hand + 120, 9) },
+    ]);
+  });
+
+  it('recovers from 40 units below the ledge by latching it and reeling into a ledge grab', () => {
+    const { f, events, actions, step, fire } = grapple(88, -40, -1);
+    fire();
+    for (let i = 0; i < 60 && f.action !== 'ledgeCatch'; i++) step(1);
+    expect(events.map((e) => e.type)).toEqual(['tetherFire', 'tetherLatch', 'tetherRelease']);
+    expect(events[1]).toEqual({ type: 'tetherLatch', port: 0, kind: 'ledge', x: 80, y: 0 });
+    expect(actions).toEqual(['aerial', 'tetherPull', 'ledgeCatch']);
+    expect([f.ledge, f.facing, f.tether]).toEqual([1, -1, null]);
+  });
+
+  it('stops falling while the grabber flies, so the ledge is still in reach when the line lands', () => {
+    const { f, step, fire } = grapple(150, -40, -1);
+    f.vel.y = -stats.fallSpeed;
+    fire();
+    step(17);
+    expect(f.pos.y).toBeGreaterThan(-42);
+  });
+
+  it('a shot that finds nothing in range leaves Fluffy helpless, with no second up special', () => {
+    const { f, events, step, fire } = grapple(150, -20, -1);
+    fire();
+    step(moves.upB!.faf - 1);
+    expect(events.map((e) => e.type)).toEqual(['tetherFire', 'tetherRelease']);
+    expect([f.action, f.tether]).toEqual(['helpless', null]);
+    expect(f.landingLag).toBe(HELPLESS_LANDING_LAG);
+    step(1, { y: 100, buttons: ['special'] });
+    step(5);
+    expect([f.action, f.move]).toEqual(['helpless', null]);
+  });
+
+  it('reels up to the platform above and lets go into helpless fall, or hangs there while Jump is held', () => {
+    const fromGround = (hold: Hold) => {
+      const s = grapple(0, 0, 1);
+      s.fire();
+      for (let i = 0; i < 60 && s.f.action !== 'helpless' && s.f.action !== 'tetherHang'; i++)
+        s.step(1, hold);
+      expect(s.events[1]).toMatchObject({ type: 'tetherLatch', kind: 'surface', y: 47.19 });
+      return s;
+    };
+    expect(fromGround({}).actions).toEqual(['attack', 'tetherPull', 'helpless']);
+    const hang = fromGround({ buttons: ['jump'] });
+    hang.step(30, { buttons: ['jump'] });
+    expect(hang.f.action).toBe('tetherHang');
+    hang.step(1);
+    expect(hang.f.action).toBe('helpless');
   });
 });
