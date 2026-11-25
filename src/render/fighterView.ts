@@ -1,11 +1,11 @@
 import { ColorMatrixFilter, Container, Graphics, Text } from 'pixi.js';
 import { isIntangible } from '../sim/actions/registry';
-import { SHIELD_MAX } from '../sim/constants';
+import { GETUP_ROLL, ROLL_BACK, SHIELD_MAX, TECH_ROLL } from '../sim/constants';
 import type { FighterState } from '../sim/fighter';
 import type { MatchConfig } from '../sim/match';
 import type { FighterDef } from '../fighters/types';
 import { PORT_COLORS } from './debug/inputDisplay';
-import { moveClipFrame } from './rig/timing';
+import { mapFrame, moveClipFrame } from './rig/timing';
 import type { FighterArt } from './rig/types';
 import { createRigView, type RigView } from './rig/view';
 import { paint } from './vfx/paint';
@@ -20,15 +20,45 @@ import type { FighterFx } from './vfx/system';
 const STAND_INS: Record<string, string> = {
   shieldStun: 'shield',
   downBound: 'down',
-  getupRoll: 'techRoll',
 };
+
+/** The roll actions whose clip depends on the roll's direction, with their FAF and travel window (rollClip). */
+const ROLL_ACTIONS: Record<string, RollTiming> = { techRoll: TECH_ROLL, getupRoll: GETUP_ROLL };
+type RollTiming = Pick<typeof TECH_ROLL, 'faf' | 'move'>;
 
 export function fighterArt(def: FighterDef): FighterArt | undefined {
   return def.art as FighterArt | undefined;
 }
 
-/** The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. */
+/**
+ * Tech roll and getup roll travel along `dodgeDir` and keep the fighter's facing, so one away from the facing is a
+ * back roll. It draws the fighter's own `<action>Back` clip, else `rollBack`; a forward getup roll without its own
+ * clip borrows `techRoll`. The clip is retimed so it rolls while the sim travels and ends on the action's last
+ * frame. A borrowed `rollBack` starts at its tuck, which follows a tumble landing or lying down without a jump.
+ */
+function rollClip(art: FighterArt, f: FighterState): [string, number] | null {
+  const action = f.move ? undefined : ROLL_ACTIONS[f.action];
+  if (!action) return null;
+  const back = f.dodgeDir.x * f.facing < 0;
+  const own = back ? `${f.action}Back` : f.action;
+  const name = art.clips[own] ? own : back ? 'rollBack' : 'techRoll';
+  const clip = art.clips[name];
+  if (!clip) return null;
+  const from = name === own ? action : name === 'rollBack' ? ROLL_BACK : TECH_ROLL;
+  const start = name === 'rollBack' ? from.move[0] : 0;
+  const knots: [number, number][] = [
+    [0, start],
+    [action.move[0], from.move[0]],
+    [action.move[1], from.move[1]],
+    [action.faf - 1, clip.length],
+  ];
+  return [name, mapFrame(f.actionFrame, knots)];
+}
+
+/** The clip and clip frame that show `f`; move and roll clips are retimed onto the frame data. */
 export function clipFor(def: FighterDef, art: FighterArt, f: FighterState): [string, number] {
+  const roll = rollClip(art, f);
+  if (roll) return roll;
   const own = f.move ?? f.action;
   const name = art.clips[own] ? own : (STAND_INS[own] ?? 'idle');
   const clip = art.clips[name];

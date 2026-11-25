@@ -28,6 +28,14 @@ export function moveClipFrame(clip: AnimClip, frame: number, move: MoveDef | und
         : [];
   for (const [[s, e], [a, b]] of pairs) knots.push([s, a], [e, b]);
   knots.push([move.faf - 1, clip.length]);
+  return mapFrame(frame, knots);
+}
+
+/**
+ * `frame` mapped through `knots` ([from, to] pairs in order), piecewise linearly; frames outside the knots clamp to
+ * the first or last.
+ */
+export function mapFrame(frame: number, knots: [number, number][]): number {
   for (let i = 1; i < knots.length; i++) {
     const [x0, y0] = knots[i - 1]!;
     const [x1, y1] = knots[i]!;

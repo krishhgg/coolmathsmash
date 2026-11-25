@@ -617,6 +617,25 @@ export const authored: Record<string, AnimClip> = {
       key(30, mix(tilt(360, BODY), spin(720))),
     ],
   },
+  /**
+   * A getup roll away from his facing: getUp mirrored over GETUP_ROLL, rocking forward and flipping backwards onto
+   * his wheels. Rotations count down from -180 (the roof pose turned the other way) so the eyes stay upright.
+   */
+  getupRollBack: {
+    length: 35,
+    swaps: HURT,
+    keys: [
+      key(0, mix(UPSIDE_DOWN, tilt(-180, BODY, 0, -0.25), { eyes: { rot: -180 } }), { ease: 'in' }),
+      key(6, mix(UPSIDE_DOWN, tilt(-172, BODY, 0.4, -0.3), { eyes: { rot: -180 } }, spin(-90)), {
+        ease: 'in',
+      }),
+      key(12, mix(flip(-240), spin(-400), { eyes: { rot: -60 } }), { ease: 'linear', swaps: SHOUT }),
+      key(16, mix(flip(-300), spin(-600)), { ease: 'linear' }),
+      key(21, mix(flip(-360), SQUAT, spin(-720)), { ease: 'out', swaps: FOCUS }),
+      key(28, mix(tilt(-360, BODY), bob(-0.05), spin(-720)), { ease: 'inOut' }),
+      key(35, mix(tilt(-360, BODY), spin(-720))),
+    ],
+  },
   /** Hits the floor and bounces straight back onto his wheels. */
   tech: {
     length: 26,
