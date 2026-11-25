@@ -1,7 +1,7 @@
 import { getFighter } from '../fighters/registry';
 import { Btn, neutralInput, type InputFrame } from '../input/types';
 import type { FighterState } from '../sim/fighter';
-import { AIR_INPUTS, GROUND_INPUTS, STICK, press } from './inputs';
+import { AIR_INPUTS, DASH_INPUTS, GROUND_INPUTS, STICK, press } from './inputs';
 import { actionable } from './knowledge';
 import type { Attack } from './options';
 import { clampToStage, floorBelow, type StageInfo } from './stage';
@@ -186,14 +186,20 @@ export function dropJump(toward: number): Program {
   };
 }
 
-/** A grounded move: wait until actionable on the ground (out of a shield drop), then input it facing `facing`. */
+/**
+ * A grounded move: wait until actionable on the ground (out of a shield drop), then input it facing `facing`. A grab
+ * comes straight out of the shield instead (Grab with Shield still held), so it keeps holding Shield until then.
+ */
 export function groundMove(move: string, facing: 1 | -1): Program {
-  const input = GROUND_INPUTS[move] ?? (move === 'dashAttack' ? { buttons: Btn.Attack } : null);
+  const input = GROUND_INPUTS[move] ?? DASH_INPUTS[move];
   return {
     name: `ground:${move}`,
     interruptible: false,
+    holds: move === 'grab',
     step(t, f) {
       if (t > 40 || (f.move === move && f.action === 'attack')) return null;
+      if (move === 'grab' && f.action === 'shieldStun') return press({ buttons: Btn.Shield });
+      if (move === 'grab' && f.action === 'shield') return press({ buttons: Btn.Grab | Btn.Shield });
       if (!actionable(f) || f.ground === null) return neutralInput();
       return input ? press(input, facing) : null;
     },

@@ -9,6 +9,7 @@ import { LEDGE } from './ledge';
 import { MOBILITY } from './mobility';
 import { ACTIONS } from './registry';
 import { STATUS } from './status';
+import { TETHER_ACTIONS } from './tether';
 
 Object.assign(
   ACTIONS,
@@ -22,6 +23,7 @@ Object.assign(
   KNOCKDOWN,
   GRAB_ACTIONS,
   MOBILITY,
+  TETHER_ACTIONS,
 );
 
 export { ACTIONS };

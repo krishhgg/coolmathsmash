@@ -3,7 +3,8 @@ import { activeHitboxes } from '../../sim/combat/hits';
 import { attack, placeInAir, runPorts, type Hold } from '../../sim/testing/sim';
 import { moves } from './moves';
 import { stats } from './stats';
-import { firstActive, holding, killPercent, strike, throwKills, versus } from './testing';
+import { firstActive, holding, strike, versus } from './testing';
+import { koPercent, type KoHit } from '../../sim/testing/ko';
 
 describe('Papa Louie: stats', () => {
   it('match the roster: Mario-plus weight, Ness ground speeds, floaty Samus gravity and Zelda jumps', () => {
@@ -169,40 +170,49 @@ describe('Papa Louie: multi-hits and the meteor', () => {
 });
 
 /**
- * Roster kill percents against Mario in the middle of Battlefield, no DI.
- * TODO(COOL-3): the bands are deliberately wide (within 30% of the roster target) because
- * KBG stays at Ultimate values until the engine's KO calibration lands; switch these to
- * COOL-3's `koPercent` helper with tight tolerances and retune then.
+ * Kill percents with koPercent: the Mario reference at the Battlefield ledge, fresh, no rage, no DI (aerials hit him
+ * in the air). Each move takes its Ultimate analogue's angle, BKB and KBG (13.0.1 data from dragdown.wiki) and KOs
+ * within 5 points of the analogue's own hit. Where the roster gives Papa more damage than the analogue, he KOs
+ * earlier, so those moves are pinned to the analogue's knockback at Papa's damage instead.
  */
-describe('Papa Louie: kill percents', () => {
-  const near = (kp: number, target: number) => {
-    expect(kp).toBeGreaterThanOrEqual(target * 0.7);
-    expect(kp).toBeLessThanOrEqual(target * 1.3);
-  };
-
-  it.each([
-    ['fsmash', 95, (p: number) => strike('fsmash', { x: 14 }, p).ko],
-    ['usmash', 115, (p: number) => strike('usmash', { x: 10 }, p).ko],
-    ['dsmash', 120, (p: number) => strike('dsmash', { x: 13 }, p).ko],
-    ['ftilt', 170, (p: number) => strike('ftilt', { x: 14 }, p).ko],
-    ['dashAttack', 190, (p: number) => strike('dashAttack', { x: 11 }, p).ko],
-    ['bair', 140, (p: number) => strike('bair', { x: -12 }, p, { y: 40 }).ko],
-  ] as const)('%s KOs near the roster %s%%', (_, target, kills) => {
-    near(killPercent(kills), target);
+describe('Papa Louie: kill percents against Ultimate analogues', () => {
+  const ko = (move: string, air = false) => koPercent({ hit: { fighter: 'papa-louie', move }, air })!;
+  const ANALOGUES: [string, string, KoHit, boolean?][] = [
+    ['fsmash', "Mario's forward smash (sweetspot)", { damage: 17.8, angle: 361, kbg: 99, bkb: 25 }],
+    ['ftilt', "Luigi's forward tilt", { damage: 9, angle: 361, kbg: 75, bkb: 50 }],
+    ['nair', "Mario's neutral air (clean)", { damage: 8, angle: 361, kbg: 100, bkb: 20 }, true],
+    ['fthrow', "Luigi's forward throw", { damage: 9, angle: 45, kbg: 65, bkb: 60 }],
+    ['bthrow', "Mario's back throw", { damage: 11, angle: 45, kbg: 66, bkb: 70, direction: 'back' }],
+    ['uthrow', "Luigi's up throw", { damage: 8, angle: 90, kbg: 72, bkb: 70 }],
+  ];
+  it.each(ANALOGUES)('%s KOs within 5 points of %s', (move, _, hit, air = false) => {
+    expect(Math.abs(ko(move, air) - koPercent({ hit, air })!)).toBeLessThanOrEqual(5);
   });
 
-  it('fsmash is his strongest grounded kill move', () => {
-    const fsmash = killPercent((p) => strike('fsmash', { x: 14 }, p).ko);
-    expect(fsmash).toBeLessThan(killPercent((p) => strike('usmash', { x: 10 }, p).ko));
-    expect(fsmash).toBeLessThan(killPercent((p) => strike('ftilt', { x: 14 }, p).ko));
+  const HARDER: [string, number, string, KoHit, boolean?][] = [
+    ['usmash', 15, "Mario's 14% up smash", { damage: 14, angle: 83, kbg: 94, bkb: 32 }],
+    ['dsmash', 13, "Mario's 12% down smash (back)", { damage: 12, angle: 30, kbg: 100, bkb: 30 }],
+    ['dashAttack', 10, "Mario's 8% dash attack (clean)", { damage: 8, angle: 50, kbg: 43, bkb: 100 }],
+    ['bair', 11, "Mario's 10.5% back air (clean)", { damage: 10.5, angle: 361, kbg: 106, bkb: 12 }, true],
+    ['uair', 8, "Mario's 7% up air", { damage: 7, angle: 75, kbg: 135, bkb: 10 }, true],
+  ];
+  it.each(HARDER)(
+    '%s at %s%% KOs earlier than %s, as that knockback does at his damage',
+    (move, damage, _, hit, air = false) => {
+      const papa = ko(move, air);
+      expect(papa).toBeLessThan(koPercent({ hit, air })!);
+      expect(Math.abs(papa - koPercent({ hit: { ...hit, damage }, air })!)).toBeLessThanOrEqual(5);
+    },
+  );
+
+  it('forward smash is his strongest finisher, then down smash, then up smash', () => {
+    expect(ko('fsmash')).toBeLessThan(ko('dsmash'));
+    expect(ko('dsmash')).toBeLessThan(ko('usmash'));
   });
 
-  it('back throw into the oven is the kill throw at the ledge (roster ~150%); forward throw needs far more (~200%)', () => {
-    const back = killPercent((p) => throwKills(p, (s) => ({ x: -100 * s }), 66, -1));
-    const forward = killPercent((p) => throwKills(p, (s) => ({ x: 100 * s }), 66, 1));
-    near(back, 150);
-    near(forward, 200);
-    expect(forward - back).toBeGreaterThanOrEqual(20);
+  it('back throw into the oven is his kill throw, well ahead of forward and up throw', () => {
+    expect(ko('bthrow') + 30).toBeLessThan(ko('fthrow'));
+    expect(ko('fthrow')).toBeLessThan(ko('uthrow'));
   });
 });
 

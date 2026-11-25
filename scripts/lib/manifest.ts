@@ -3,6 +3,7 @@ import type { FighterSummary } from '../../src/harness/scenarios.ts';
 /** `manifest.json` written by scripts/capture.ts and read by scripts/judge-pack.ts. Paths are relative to it. */
 export interface Manifest {
   version: 1;
+  scoped?: boolean;
   createdAt: string;
   git: { sha: string; branch: string; dirty: boolean };
   baseUrl: string;

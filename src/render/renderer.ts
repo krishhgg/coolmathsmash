@@ -5,19 +5,27 @@ import type { MatchState } from '../sim/match';
 import { getStage } from '../stages/registry';
 import type { StageView } from '../stages/battlefield/view';
 import type { StageGeometry } from '../sim/stage';
+import { tetherOrigin } from '../sim/actions/tether';
 import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
+import { drawEntities, drawEntityBoxes } from './entities';
 import { InputDisplay } from './debug/inputDisplay';
 import { drawMobility } from './debug/mobility';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
-import { MatchHud } from './hud';
-import { drawMovingPieces, isMoving } from './stagePieces';
+import { MatchHud, OverheadTags } from './hud';
+import { drawStagePieces, isMoving } from './stagePieces';
 
 /** Stage art: src/stages/<id>/view.ts exports createStageView (docs/stages.md). Stages without one draw flat. */
 const STAGE_VIEWS = import.meta.glob<{ createStageView: () => StageView }>('../stages/*/view.ts', {
   eager: true,
 });
+
+/**
+ * `full` draws a stage's painted backdrop; `lite` leaves it flat (the clear colour) so tests and captures on software
+ * GPUs stay fast. Everything in the world (stage, fighters, effects) and the HUD draw the same in both.
+ */
+export type RenderQuality = 'full' | 'lite';
 
 export interface Overlays {
   inputs: boolean;
@@ -39,7 +47,8 @@ export class Renderer {
   readonly eventLog = new EventLog();
   readonly camera = new Camera();
   private readonly inputDisplay = new InputDisplay();
-  private readonly matchHud = new MatchHud();
+  readonly matchHud = new MatchHud();
+  private readonly tags = new OverheadTags();
   private readonly stageLayer = new Container();
   private readonly stagePieces = new Graphics();
   private readonly fighterLayer = new Container();
@@ -56,6 +65,7 @@ export class Renderer {
     antialias: true,
   });
   private readonly boxes = new Graphics();
+  private readonly entities = new Graphics();
   private fighters: FighterView[] = [];
   /** Fighter id each view was built for; a transform swaps the view. */
   private fighterIds: string[] = [];
@@ -65,20 +75,26 @@ export class Renderer {
   private stage: StageGeometry | null = null;
   private matchKey: unknown = null;
 
-  private constructor(readonly app: Application) {
+  private constructor(
+    readonly app: Application,
+    readonly quality: RenderQuality,
+  ) {
     this.world.addChild(
       this.stageLayer,
       this.stagePieces,
       this.fighterLayer,
+      this.entities,
       this.foregroundLayer,
       this.boxes,
     );
-    app.stage.addChild(new Sprite(this.backdrop), this.world, this.hud, this.debug);
+    const backdrop = new Sprite(this.backdrop);
+    backdrop.visible = quality === 'full';
+    app.stage.addChild(backdrop, this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
-    this.hud.addChild(this.matchHud.hud.container);
+    this.hud.addChild(this.tags.container, this.matchHud.hud.container);
   }
 
-  static async create(parent: HTMLElement): Promise<Renderer> {
+  static async create(parent: HTMLElement, quality: RenderQuality = 'full'): Promise<Renderer> {
     const app = new Application();
     await app.init({
       width: VIEW_WIDTH,
@@ -90,7 +106,7 @@ export class Renderer {
       autoStart: false,
     });
     parent.appendChild(app.canvas);
-    return new Renderer(app);
+    return new Renderer(app, quality);
   }
 
   private sync(state: MatchState): void {
@@ -141,9 +157,23 @@ export class Renderer {
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
     this.stageView?.update(state.frame, view);
-    drawMovingPieces(this.stagePieces, this.stage!, state.stage, state.frame, alpha);
+    drawStagePieces(this.stagePieces, this.stage!, state, alpha);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
+    drawEntities(this.entities, state, alpha);
     this.drawBoxes(state);
+    this.tags.update(
+      state.fighters.map((f, i) => {
+        const v = this.fighters[i];
+        const at = v?.container.position;
+        return {
+          port: f.port,
+          cpu: this.matchHud.cpus.has(f.port),
+          visible: !!v?.container.visible,
+          x: this.world.position.x + (at?.x ?? 0) * view.zoom,
+          y: this.world.position.y + ((at?.y ?? 0) - (v?.top ?? 0) - 1) * view.zoom,
+        };
+      }),
+    );
     this.matchHud.update(
       state,
       state.fighters.map((f) => ({
@@ -155,7 +185,8 @@ export class Renderer {
     if (this.overlays.inputs) this.inputDisplay.update(state.players);
     this.eventLog.container.visible = this.overlays.events;
     if (this.overlays.events) this.eventLog.update();
-    this.app.renderer.render({ container: this.background, target: this.backdrop, clear: true });
+    if (this.quality === 'full')
+      this.app.renderer.render({ container: this.background, target: this.backdrop, clear: true });
     this.app.render();
   }
 
@@ -176,7 +207,17 @@ export class Renderer {
       for (const b of activeHitboxes(f))
         g.circle(b.x, -b.y, b.box.radius).fill({ color: b.box.grab ? '#a33cff' : '#ff2a2a', alpha: 0.55 });
       drawMobility(g, f, def);
+      const o = tetherOrigin(f);
+      if (f.tether) {
+        g.moveTo(o.x, -o.y)
+          .lineTo(f.tether.anchor.x, -f.tether.anchor.y)
+          .stroke({ color: '#00c2a8', width: 0.8 });
+        g.circle(f.tether.anchor.x, -f.tether.anchor.y, 1.5).fill('#00c2a8');
+      } else if (f.aim) {
+        g.circle(o.x + f.aim.x, -(o.y + f.aim.y), 3).stroke({ color: '#00c2a8', width: 0.8 });
+      }
     }
+    drawEntityBoxes(g, state);
   }
 }
 

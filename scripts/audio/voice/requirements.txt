@@ -1,0 +1,16 @@
+# Python packages for scripts/audio/voice/build-voice.py (the announcer). Install into a venv:
+#
+#   uv venv .venv-voice && . .venv-voice/bin/activate
+#   uv pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   uv pip install -r scripts/audio/voice/requirements.txt
+#
+# System: ffmpeg built with libsoxr and libmp3lame, and espeak-ng (misaki's fallback for unknown words):
+#   sudo apt-get install ffmpeg espeak-ng
+# The Kokoro-82M weights and voices download from Hugging Face on first run.
+# The generator shapes pitch and duration through Kokoro's 0.9.4 model internals.
+kokoro==0.9.4
+misaki[en]==0.9.4
+soundfile>=0.13
+numpy>=1.26
+scipy>=1.13
+pyloudnorm>=0.1.1

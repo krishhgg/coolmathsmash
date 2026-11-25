@@ -1,5 +1,7 @@
-import type { HitboxDef } from '../fighters/types';
+import type { HitboxDef, TetherLatch } from '../fighters/types';
+import type { DestroyReason } from './entities/types';
 import type { MatchState } from './match';
+import type { TerrainElement } from './stage';
 
 type Side = 'left' | 'right' | 'top' | 'bottom';
 
@@ -9,10 +11,14 @@ type Side = 'left' | 'right' | 'top' | 'bottom';
  * they happened, then one `action` event for each fighter whose action changed that frame.
  */
 export type SimEvent =
-  /** A hit landed. `damage` is what it added to the victim's %; `x`, `y` is the hitbox centre. */
+  /**
+   * A hit landed. `damage` is what it added to the victim's %; `x`, `y` is the hitbox centre. An entity's hit
+   * carries its `entity` id and credits its owner as `attacker` (-1 for nobody).
+   */
   | {
       type: 'hit';
       attacker: number;
+      entity?: number;
       victim: number;
       move: string | null;
       damage: number;
@@ -27,6 +33,7 @@ export type SimEvent =
   | {
       type: 'shieldHit';
       attacker: number;
+      entity?: number;
       victim: number;
       move: string | null;
       damage: number;
@@ -68,7 +75,46 @@ export type SimEvent =
    * A fighter's move or action asks for a screen shake (a heavy landing, Bloxorz block's every tip): `amplitude`
    * in screen pixels at 1280x720, fading out over `frames` frames. Emitted by fighter scripts; the camera reacts.
    */
-  | { type: 'shake'; port: number; amplitude: number; frames: number };
+  | { type: 'shake'; port: number; amplitude: number; frames: number }
+  /** An entity (projectile, minion, object, item) appeared. */
+  | { type: 'entitySpawn'; id: number; kind: string; owner: number; x: number; y: number }
+  /** An entity left the match, and why (`hit`: used up by its hit; `clank`: cancelled by an attack or projectile). */
+  | { type: 'entityDestroy'; id: number; kind: string; reason: DestroyReason; x: number; y: number }
+  /** A fighter's reflector sent a projectile back; `port` now owns it. */
+  | { type: 'reflect'; id: number; kind: string; port: number; x: number; y: number }
+  /** A fighter's absorber ate a projectile and healed `heal` %. */
+  | { type: 'absorb'; id: number; kind: string; port: number; heal: number; x: number; y: number }
+  /** A hittable entity took a hit (`attacker` is the port credited, -1 for nobody); `hp` is what it has left. */
+  | {
+      type: 'entityHit';
+      id: number;
+      kind: string;
+      attacker: number;
+      damage: number;
+      hp: number;
+      x: number;
+      y: number;
+    }
+  /** A tether line left the hand towards (`x`, `y`), its full-range end. */
+  | { type: 'tetherFire'; port: number; x: number; y: number }
+  /** A fighter-targeting line touched a hurtbox at (`x`, `y`), before the move chooses how to respond. */
+  | { type: 'tetherFighterHit'; port: number; target: number; x: number; y: number }
+  /** A tether line anchored at (`x`, `y`) on a ledge, a surface or empty air (`sky`); the reel starts. */
+  | { type: 'tetherLatch'; port: number; kind: TetherLatch; x: number; y: number }
+  /** A tether line let go: it whiffed, the fighter let go or grabbed the ledge, or something knocked him off it. */
+  | { type: 'tetherRelease'; port: number }
+  /** A stage hazard hit a fighter: a damage zone (with its element) or a stage hitbox, by index. */
+  | {
+      type: 'stageHit';
+      victim: number;
+      source: 'zone' | 'hitbox';
+      index: number;
+      element: TerrainElement | null;
+      damage: number;
+      kb: number;
+      x: number;
+      y: number;
+    };
 
 export type SimEventType = SimEvent['type'];
 

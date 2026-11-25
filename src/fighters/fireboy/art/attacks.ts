@@ -91,12 +91,15 @@ const JAB2 = hands(
   [-0.2, -2.9],
   -1,
 );
-const JAB3 = hands(
-  stance(14, 0.45, -1.0, 1.3, { body: { x: 0.9 }, ...stretch([...FRONT_ARM, ...BACK_ARM], 1.5) }),
-  [2.6, -2.9],
-  [3.2, -3.5],
+/** The finisher kick: leaning back off the planted back foot, fists up, the front foot snapped out level. */
+const JAB3_GUARD = hands(
+  feet(mix({ body: { rot: -12, x: -0.2 }, hip: { y: 0.2 } }), [-0.8, 0], [0.6, 0], true),
+  [0.6, -4.6],
+  [1.4, -4.9],
   -1,
 );
+const JAB3 = mix(JAB3_GUARD, { thighF: { rot: -112 }, shinF: { rot: -6 } });
+const JAB3_FX = streak(JAB3, 'shinF', [6.4, -5.7], 2.3);
 
 const JAB1_FX = streak(JAB1, 'foreF', [6.5, -9], 1.6);
 const JAB2_FX = streak(JAB2, 'foreB', [5.9, -5.8], 1.5);
@@ -261,21 +264,13 @@ export const attacks: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, READY, { ease: 'in' }),
-      key(3, hands(stance(-6, 0.45, -0.9, 0.9), [-1.0, -3.4], [-0.6, -3.7]), { ease: 'out' }),
-      ...strike(
-        4,
-        7,
-        mix(JAB3, {
-          fx1: streak(JAB3, 'foreF', [6.4, -5.7], 2.3),
-          fx2: streak(JAB3, 'foreB', [5.3, -4.5], 1.3),
-        }),
-        { ...FISTS, fx1: 'fxJet', fx2: 'fxJet', face: 'faceFrontShout' },
-        ARMS_IN_FRONT,
-      ),
-      key(11, mix(JAB3, { fx1: flame(6.6, -6.0, 0.8, -4), fx2: flame(5.4, -4.2, 0.4, 12) }), {
+      key(3, mix(JAB3_GUARD, { thighF: { rot: -80 }, shinF: { rot: 110 } }), { ease: 'in', swaps: FISTS }),
+      ...strike(4, 7, mix(JAB3, { fx1: JAB3_FX }), { ...FISTS, fx1: 'fxJet', face: 'faceFrontShout' }),
+      key(11, mix(JAB3, { thighF: { rot: -100 }, fx1: { ...JAB3_FX, x: 7.2, sx: 0.08, sy: 0.08 } }), {
         ease: 'inOut',
       }),
       done(12),
+      key(18, mix(JAB3_GUARD, { thighF: { rot: -40 }, shinF: { rot: 60 } }), { ease: 'inOut' }),
       key(31, STAND),
     ],
   },

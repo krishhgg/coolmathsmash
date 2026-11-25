@@ -309,6 +309,7 @@ function grab(m: MatchState, a: FighterState, v: FighterState): void {
     grabTimer: grabHoldFrames(v.damage),
     grabDamage: 0,
     launch: null,
+    launchMotion: null,
     hitstun: 0,
     speedUpFaf: 0,
     vel: { x: 0, y: 0 },

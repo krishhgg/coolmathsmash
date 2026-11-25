@@ -49,7 +49,7 @@ export class FakePanner extends FakeNode {
 }
 
 export class FakeSource extends FakeNode {
-  buffer: { path: string } | null = null;
+  buffer: { path: string; duration: number } | null = null;
   loop = false;
   playbackRate = new FakeParam(1);
   onended: (() => void) | null = null;
@@ -72,6 +72,8 @@ export class FakeContext {
   state: 'running' | 'suspended' = 'running';
   destination = new FakeNode();
   sources: FakeSource[] = [];
+  /** Seconds each decoded file lasts, by path; 1 when not set. */
+  durations = new Map<string, number>();
   createGain() {
     return new FakeGain();
   }
@@ -93,13 +95,14 @@ export class FakeContext {
     });
   }
   decodeAudioData(data: ArrayBuffer) {
-    return Promise.resolve({ path: new TextDecoder().decode(data) });
+    const path = new TextDecoder().decode(data);
+    return Promise.resolve({ path, duration: this.durations.get(path) ?? 1 });
   }
   resume() {
     this.state = 'running';
     return Promise.resolve();
   }
-  /** Fake files decode to { path } so tests can see which variant played. */
+  /** Fake files decode to { path, duration } so tests can see which variant played. */
   static load = (path: string) => Promise.resolve(new TextEncoder().encode(path).buffer);
 }
 
