@@ -53,6 +53,11 @@ function planks(
   g.rect(l, y, r - l, depth).stroke({ color: C.INK, width: 0.45, join: 'round' });
 }
 
+/** An arc that starts its own path, so it is not joined to wherever the pen last stopped. */
+function arc(g: Graphics, x: number, y: number, r: number, from: number, to: number): Graphics {
+  return g.moveTo(x + r * Math.cos(from), y + r * Math.sin(from)).arc(x, y, r, from, to);
+}
+
 /** A round pole from (x1, y1) to (x2, y2), outlined. */
 function pole(g: Graphics, x1: number, y1: number, x2: number, y2: number, w: number, color: number): void {
   g.moveTo(x1, y1)
@@ -153,7 +158,7 @@ function swimRing(x: number, y: number): Graphics {
   const g = new Graphics({ label: 'swim-ring' });
   const r = 2.35;
   for (let i = 0; i < 4; i++)
-    g.arc(x, y, r, (i * Math.PI) / 2 + 0.3, ((i + 1) * Math.PI) / 2 + 0.3).stroke({
+    arc(g, x, y, r, (i * Math.PI) / 2 + 0.3, ((i + 1) * Math.PI) / 2 + 0.3).stroke({
       color: i % 2 === 0 ? C.RING_RED : C.RING_WHITE,
       width: 1.5,
     });
@@ -188,8 +193,8 @@ function drawFlag(g: Graphics, frame: number): void {
   const bx = x0 + len * 0.42;
   const by = top + h * 0.34 + wave(0.42);
   g.circle(bx, by, 1.45).fill(C.BALL).stroke({ color: C.INK, width: 0.25 });
-  g.arc(bx - 1.6, by, 1.2, -0.9, 0.9).stroke({ color: C.BALL_SEAM, width: 0.25 });
-  g.arc(bx + 1.6, by, 1.2, Math.PI - 0.9, Math.PI + 0.9).stroke({ color: C.BALL_SEAM, width: 0.25 });
+  arc(g, bx - 1.6, by, 1.2, -0.9, 0.9).stroke({ color: C.BALL_SEAM, width: 0.25 });
+  arc(g, bx + 1.6, by, 1.2, Math.PI - 0.9, Math.PI + 0.9).stroke({ color: C.BALL_SEAM, width: 0.25 });
 }
 
 /**
