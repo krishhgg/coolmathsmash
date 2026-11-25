@@ -99,6 +99,18 @@ fsmash: {
 - **Knockback.** `damage`, `angle` (degrees from the attacker's facing; 361 is the Sakurai angle), `kbg`
   and `bkb` follow Ultimate's frame data exactly. Optional fields: `wbkb` (set knockback), `hitlag` (a
   multiplier), `shieldDamage` (extra) and `effect` (`'electric'` gives 1.5x hitlag).
+- **Autolink.** Use these angles on linking hits of a multihit; the last hit usually uses a regular angle.
+  Damage and hitstun still come from the hit's own knockback.
+  - `365` launches at half the attacker's velocity.
+  - `366` keeps the hit's launch speed, steering toward the hitbox for five frames before following the
+    attacker's original movement direction.
+  - `367` launches airborne targets at the attacker's velocity plus 20% of the gap toward the hitbox.
+    Downward launch is limited to 1 unit/frame, and total launch speed is capped at 3 after five frames.
+    Grounded targets launch normally at 80°.
+  - `368` uses `vector: { x, y, frames }` on the box to aim at a point relative to the attacker's feet at
+    contact (forward and up). It pulls the target's middle toward that point over `frames` (rounded up)
+    and then drops its launch speed. Stage collision still applies. A vector works with any angle; without
+    one, `368` falls back to `367`.
 - **Direction.** A hit launches along the attacker's facing unless its box sets `direction`: `'back'` for boxes
   behind him (back aerials, the rear hit of a down smash) and `'away'` for boxes around his body (spins, up
   attacks), which send the target away from his centre.

@@ -73,7 +73,10 @@ export interface HitboxDef {
   y: number;
   radius: number;
   damage: number;
-  /** Launch angle in degrees from the attacker's facing direction; 361 is the Sakurai angle. */
+  /**
+   * Launch angle in degrees from the attacker's facing direction; 361 is the Sakurai angle and 365-368 are Ultimate's
+   * autolink angles (docs/fighters.md).
+   */
   angle: number;
   /** Knockback growth and base knockback, as in Ultimate's frame data. */
   kbg: number;
@@ -90,6 +93,11 @@ export interface HitboxDef {
    * behind him, or away from his centre for hits that surround him.
    */
   direction?: 'forward' | 'back' | 'away';
+  /**
+   * Position vector (Ultimate): instead of launching, pull the target's middle to this point, relative to the
+   * attacker's feet (x forward), over `frames` frames. Ultimate's 368-degree boxes always carry one.
+   */
+  vector?: { x: number; y: number; frames: number };
   /**
    * A grab box: no damage or knockback (leave those 0). Touching a fighter in front of the grabber puts both in
    * a grab; it ignores shields and is halved in radius against airborne fighters (Ultimate).
