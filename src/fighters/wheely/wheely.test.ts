@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { activeHitboxes, hurtbox } from '../../sim/combat/hits';
-import { TURN_FLIP, TURN_FRAMES } from './actions';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, type MatchState } from '../../sim/match';
 import { attack, placeInAir, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
 import { moves } from './moves';
-import { stats } from './stats';
+import { stats, TURN_FLIP, TURN_FRAMES } from './stats';
 
 /** Wheely (P1) against the Mario reference (P2) on Battlefield, settled on the ground. */
 function duel(): MatchState {
