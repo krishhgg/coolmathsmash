@@ -931,7 +931,14 @@ function assumedInput(snap: FighterState, info: StageInfo, state: Readonly<Match
   if (snap.ground === null && floorBelow(info, snap.pos.x, snap.pos.y) === null) {
     const k = knowledge(snap.fighter, state.config.stage);
     const special = (k.hints.recovery ?? ['upB', 'sideB']).find((s) => k.air[s]) ?? null;
-    return recoveryDriver(info, k, { jumpAt: 1, special, specialAt: Infinity, below: 10, dodgeAt: Infinity });
+    return recoveryDriver(info, k, {
+      jumpAt: 1,
+      special,
+      specialAt: Infinity,
+      below: 10,
+      clear: false,
+      dodgeAt: Infinity,
+    });
   }
   const vx = snap.vel.x;
   if (Math.abs(vx) < 0.4) return () => neutralInput();

@@ -7,12 +7,14 @@ import { actionable, type FighterKnowledge } from './knowledge';
 import { STICK, press } from './inputs';
 import type { CpuLevel } from './levels';
 import { run, soloMatch, type Driver, type Sample } from './look';
-import { floorBelow, type StageInfo } from './stage';
+import { floorBelow, underStage, type StageInfo } from './stage';
 
 /**
  * Getting back to the stage. The CPU tries a set of recovery plans (drift, double jump at different times, up or
  * side special at different heights, an air dodge) in a private copy of the simulation and picks one that ends on
- * the ledge or the stage. Low levels sometimes pick a plan at random, which is how they self-destruct.
+ * the ledge or the stage. From under the stage, plans can hold the special until the fighter has drifted out from
+ * under it, as Ultimate's CPUs do, instead of rising into the underside. Low levels sometimes pick a plan at
+ * random, which is how they self-destruct.
  */
 
 export interface RecoveryParams {
@@ -22,6 +24,8 @@ export interface RecoveryParams {
   special: string | null;
   specialAt: number;
   below: number;
+  /** Hold the special while the stage is straight overhead, so it starts once the fighter is out from under it. */
+  clear: boolean;
   /** Frame to air dodge toward the ledge, or Infinity. */
   dodgeAt: number;
 }
@@ -68,7 +72,9 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
       return i;
     }
     const low = L ? f.pos.y < L.y - p.below : false;
-    if (!special && p.special && (t >= p.specialAt || (p.specialAt === Infinity && low && f.vel.y <= 0.5))) {
+    const under = p.clear && underStage(info, f.pos.x, f.pos.y, L?.y ?? info.top, k.stats.width / 4);
+    const due = t >= p.specialAt || (p.specialAt === Infinity && low && f.vel.y <= 0.5);
+    if (!special && p.special && due && !under) {
       special = true;
       if (p.special === 'upB') return press({ x: 40 * dir, y: STICK.special, buttons: Btn.Special });
       if (p.special === 'sideB') return press({ x: STICK.special * dir, buttons: Btn.Special });
@@ -84,17 +90,26 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
   };
 }
 
-function candidates(k: FighterKnowledge, f: Readonly<FighterState>): RecoveryParams[] {
+function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterState>): RecoveryParams[] {
   const specials = (k.hints.recovery ?? ['upB', 'sideB']).filter((s) => k.air[s]);
   const out: RecoveryParams[] = [];
-  const none = { jumpAt: Infinity, special: null, specialAt: Infinity, below: 0, dodgeAt: Infinity };
+  const none = {
+    jumpAt: Infinity,
+    special: null,
+    specialAt: Infinity,
+    below: 0,
+    clear: false,
+    dodgeAt: Infinity,
+  };
   out.push(none);
   const canJump = f.jumpsUsed < k.stats.jumps;
   const jumps = canJump ? [1, 8, 16, 26, 38, 52] : [Infinity];
+  const clears = underStage(info, f.pos.x, f.pos.y, info.top) ? [false, true] : [false];
   for (const jumpAt of jumps) {
     if (jumpAt !== Infinity) out.push({ ...none, jumpAt });
     for (const special of specials) {
-      for (const below of [-24, -12, -4, 4, 12, 20, 30]) out.push({ ...none, jumpAt, special, below });
+      for (const clear of clears)
+        for (const below of [-24, -12, -4, 4, 12, 20, 30]) out.push({ ...none, jumpAt, special, below, clear });
       if (jumpAt === Infinity) for (const at of [1, 10]) out.push({ ...none, special, specialAt: at });
     }
   }
@@ -138,7 +153,7 @@ export function planRecovery(
   lv: CpuLevel,
   rng: { rng: number },
 ): RecoveryPlan {
-  const tried = candidates(k, f).map((params) => ({
+  const tried = candidates(info, k, f).map((params) => ({
     params,
     ...simulate(state, f, control, info, k, params),
   }));
