@@ -8,9 +8,9 @@ export function createBackground() {
   const container = new Container({ label: 'coolmath-planet-background' });
   const sky = new Graphics().rect(0, 0, VIEW_W, VIEW_H).fill(
     vGradient([
-      [0, 0x110e2a],
-      [0.56, 0x1c2346],
-      [1, 0x302757],
+      [0, 0x191632],
+      [0.54, 0x394669],
+      [1, 0x33264e],
     ]),
   );
   const stars = new Graphics({ label: 'starfield' });
@@ -36,13 +36,13 @@ export function createBackground() {
 
   const planet = new Container({ label: 'planet-and-orbit' });
   const orbit = new Graphics();
-  orbit.position.set(640, 453);
-  orbit.rotation = -0.11;
+  orbit.position.set(640, 450);
+  orbit.rotation = -0.025;
   orbit
-    .ellipse(0, 0, 471, 55)
-    .stroke({ width: 22, color: 0x32578e, alpha: 0.8 })
-    .ellipse(0, -5, 471, 55)
-    .stroke({ width: 2.5, color: 0x6083ad, alpha: 0.56 });
+    .ellipse(0, 0, 365, 31)
+    .stroke({ width: 13, color: 0x537ea9, alpha: 0.8 })
+    .ellipse(0, -3, 365, 31)
+    .stroke({ width: 2, color: 0x7ba5c6, alpha: 0.37 });
   const sphere = new Container({ label: 'green-planet' });
   sphere.position.set(640, 480);
   const r = 213;
