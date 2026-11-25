@@ -48,6 +48,7 @@ Donkey Kong, Bowser, Fox, Jigglypuff) and adjust.
 | `softLandingLag`, `hardLandingLag`                       | landing lag after short / long airtime                                      | 1, 3             | 1, 3                |                  |
 | `shieldSize`                                             | shield bubble radius at full health                                         | 9                | 9.7                 | 8–18.5           |
 | `rollDistance`, `airDodgeSpeed`                          | roll distance, directional air dodge speed                                  | 28, 2.8          | 32.17, 2.8          | 26.5–39.7 (roll) |
+| `backRollDistance` (optional)                            | back roll distance out of shield; defaults to `rollDistance`                | (default)        | 30.63               | 26.4–36.6        |
 
 Jump velocities are derived from the heights (`src/sim/physics.ts`), so you give heights, not speeds.
 
@@ -485,7 +486,7 @@ fireball: {
   gravity: 0.1, maxFall: 1.6,
   floor: 'bounce', bounce: 1.1, // every bounce reaches the same height, like Mario's fireball
   wall: 'bounce',
-  hits: [{ frames: [1, 70], boxes: [{ id: 0, x: 0, y: 0, radius: 2.4, damage: 5.5, angle: 361, kbg: 35, bkb: 20 }] }],
+  hits: [{ frames: [1, 70], boxes: [{ id: 0, x: 0, y: 0, radius: 2.4, damage: 5.5, angle: 361, kbg: 20, bkb: 35 }] }],
 },
 // moves.ts
 neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fireball', x: 6, y: 8, vx: 1.4, vy: -0.6 }] },

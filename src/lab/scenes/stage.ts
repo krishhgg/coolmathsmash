@@ -5,6 +5,7 @@ import { getStage } from '../../stages/registry';
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../../config';
 import { MAX_ZOOM } from '../../render/camera';
 import { placeholderStage } from '../../render/placeholderStage';
+import { stageStateAt } from '../../sim/movingStage';
 import type { StageGeometry } from '../../sim/stage';
 import type { LabScene } from '../types';
 
@@ -108,6 +109,7 @@ export const scene: LabScene = {
         root.scale.set(camera.zoom);
       }
       view.update(frame, camera);
+      view.pieces?.(stageStateAt(stage, frame), 1);
       drawOverlay();
     };
     setCamera = (x, y, zoom) => {
