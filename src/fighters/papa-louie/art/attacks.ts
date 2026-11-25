@@ -580,7 +580,62 @@ const pizzaBox = (s: number, squash = 1): BonePose => ({
   sy: 1.2 * s * squash,
 });
 
+function propeller(frame: number): Key {
+  const phase = frame % 4;
+  const side = phase < 2 ? 1 : -1;
+  const taper = phase % 2 ? 0.68 : 1;
+  const rise = frame < 28 ? 0 : 0.3;
+  const pose = arms(
+    mix(AIR, {
+      body: { x: side * 0.14, y: -0.8 - rise, sx: 0.93, sy: 1.07, rot: side * 3 },
+      head: { rot: -side * 4 },
+      thighB: { rot: 24 + side * 7 },
+      thighF: { rot: -31 + side * 8 },
+    }),
+    [-2.2, -7.5],
+    [side * 2.2, -16.1 - rise],
+  );
+  return key(
+    frame,
+    mix(aim(pose, 'handF', 180), {
+      fx1: { x: -side * 4.1 * taper, y: -17 - rise, rot: -side * 90, sx: 0.63, sy: taper },
+      fx2: { x: 0, y: -17 - rise, sx: side * (1.65 - taper * 0.35), sy: 0.16, rot: side * 2 },
+    }),
+    { ease: 'linear', swaps: { ...SHOUT, face: 'faceUp', paddle: null, fx1: 'paddle', fx2: 'rotorTrail' } },
+  );
+}
+
+const DEFLECT_WIND = grip(stance(-0.4, 0.85, -10, -1.5, 1.35), [2.5, -5.6], -173, [0.6, -5.2]);
+const DEFLECT_HIT = peel(stance(0.32, 0.66, 12, -1.45, 1.85), -139, box('downB'), 5.25, [0.7, -4.9]);
+const DEFLECT_HOLD = peel(stance(0.12, 0.79, 7, -1.45, 1.85), -145, [6.3, -8.2], 5.1, [0.5, -4.8]);
+
 const clips: Record<string, AnimClip> = {
+  upB: {
+    length: 45,
+    keys: [
+      key(0, STAND, { ease: 'out' }),
+      key(3, grip(stance(-0.15, 0.94, -13, -1.4, 1.55), [2.4, -5.4], -179), {
+        ease: 'in',
+        swaps: GRIT,
+      }),
+      ...Array.from({ length: 25 }, (_, i) => propeller(i + 5)),
+      key(30, grip(AIR, [3.1, -8.4], -155), { ease: 'inOut', swaps: GRIT }),
+      key(38, grip(AIR, [3.3, -6.4], -129), { ease: 'out', swaps: {} }),
+      key(45, AIR),
+    ],
+  },
+  downB: {
+    length: 35,
+    keys: [
+      key(0, STAND, { ease: 'out' }),
+      key(3, DEFLECT_WIND, { ease: 'in', swaps: GRIT }),
+      ...strike(4, 6, DEFLECT_HIT, GRIT),
+      key(10, DEFLECT_HOLD, { ease: 'out' }),
+      key(20, DEFLECT_HOLD, { ease: 'inOut' }),
+      key(27, DEFLECT_WIND, { ease: 'out', swaps: {} }),
+      key(35, STAND),
+    ],
+  },
   jab: {
     length: 19,
     swaps: ANGRY,
