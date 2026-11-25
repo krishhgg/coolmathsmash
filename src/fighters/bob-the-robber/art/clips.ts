@@ -29,6 +29,7 @@ import {
   worldRot,
   type Pt,
 } from './poses';
+import { attacks } from './attacks';
 import { FORE_ARM, SHIN, THIGH, UPPER_ARM, shoe } from './parts';
 import { rig } from './rig';
 
@@ -752,4 +753,5 @@ export const clips: Record<string, AnimClip> = {
       key(20, mix(AIR, { body: { sy: 1.02 } })),
     ]),
   },
+  ...attacks,
 };
