@@ -7,11 +7,23 @@ const advanceToGo = (page: Page) =>
     const harness = window.__smash!;
     harness.step(Math.max(0, 180 - harness.frame()));
   });
+/**
+ * Stop real-time stepping and advance to the first frame of GO!. Under software WebGL (CI's SwiftShader) the
+ * page can go seconds without an animation frame once the match starts drawing; holding the sim keeps GO! up
+ * until the screen catches up.
+ */
+const holdAtGo = (page: Page) =>
+  page.evaluate(() => {
+    const harness = window.__smash!;
+    harness.setManual(true);
+    harness.step(Math.max(0, 180 - harness.frame()));
+  });
+const setManual = (page: Page, on: boolean) => page.evaluate((v) => window.__smash!.setManual(v), on);
 
 test('a full match: select, countdown, pause, the last KO, GAME!, results and a rematch', async ({
   page,
 }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/?debug&quality=lite');
@@ -39,8 +51,9 @@ test('a full match: select, countdown, pause, the last KO, GAME!, results and a 
   ]);
   await expect(page.locator('.callout-slot[data-label="3"] svg')).toBeVisible();
   await expect(page.locator('.match-clock')).toContainText('7:00');
-  await advanceToGo(page);
-  await expect(page.locator('.callout-slot[data-label="GO!"]')).toBeAttached({ timeout: 10_000 });
+  await holdAtGo(page);
+  await expect(page.locator('.callout-slot[data-label="GO!"]')).toBeAttached({ timeout: 30_000 });
+  await setManual(page, false);
 
   await page.keyboard.down('Escape');
   await expect(page.locator('.pause-layer')).toBeVisible({ timeout: 15_000 });
@@ -53,17 +66,21 @@ test('a full match: select, countdown, pause, the last KO, GAME!, results and a 
   await page.keyboard.up('Escape');
   await expect.poll(() => frame(page)).toBeGreaterThan(paused);
 
-  await page.evaluate(() =>
-    window.__smash!.patch(1, {
+  // Drop P2 below the blast zone on their last stock and step past the KO by hand, as with GO!.
+  await page.evaluate(() => {
+    const harness = window.__smash!;
+    harness.setManual(true);
+    harness.patch(1, {
       stocks: 1,
       ground: null,
       action: 'fall',
       pos: { x: 30, y: -300 },
       vel: { x: 0, y: -5 },
-    }),
-  );
-  await expect(page.locator('.is-finale svg.callout')).toBeVisible({ timeout: 10_000 });
-  await expect(page.locator('.results-screen[data-phase="winner"]')).toBeVisible({ timeout: 10_000 });
+    });
+    harness.step(60);
+  });
+  await expect(page.locator('.is-finale svg.callout')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('.results-screen[data-phase="winner"]')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('.winner-name')).toContainText(/\w/);
   await page.keyboard.press('Enter');
   await expect(page.locator('.results-screen[data-phase="cards"]')).toBeVisible();
