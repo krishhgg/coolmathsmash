@@ -24,8 +24,11 @@ export const CROUCH_THRESHOLD = 0.45;
 /** Any stick magnitude above this picks a direction for tilts, specials and dodges. */
 export const DIRECTION_THRESHOLD = 0.25;
 
-/** Button presses are remembered this many frames, so an input made during lag comes out on the first actionable frame. */
-export const INPUT_BUFFER_FRAMES = 5;
+/**
+ * Button presses are remembered this many frames, so an input made during lag comes out on the first actionable frame.
+ * Ultimate's `precede` param is 7; its 2-frame `precede_extension` for held inputs is covered by HOLD_BUFFER.
+ */
+export const INPUT_BUFFER_FRAMES = 7;
 /**
  * Ultimate's "hold buffer": a press made during lag that is still held when the fighter becomes actionable
  * is used then, however long ago it was pressed.
@@ -71,6 +74,33 @@ export const LEDGE_ATTACK = { faf: 56, intangible: [1, 22] as [number, number], 
 export const LEDGE_JUMP = { rise: 6, intangible: [1, 13] as [number, number], hSpeed: 0.6 };
 /** Getup intangibility by grab count since last touching ground (Ultimate: ×0.8 on the 2nd grab, ×0.5 on the 3rd, none after). */
 export const LEDGE_GETUP_INTANGIBILITY_SCALE = [1, 0.8, 0.5];
+
+/**
+ * Grabs (Ultimate; physics-reference sections 6 and 14). A grab holds floor(90 + 1.7 x %) frames
+ * (formulas.ts grabHoldFrames), cut by the victim's mashing, but never under minHold frames.
+ */
+export const GRAB = {
+  /** Frames removed per new stick direction and per button press while held. */
+  mashStick: 8,
+  mashButton: 14.4,
+  minHold: 19,
+  /** After a grab ends without a throw, the freed fighter can't be grabbed again for this many frames. */
+  regrabImmunity: 60,
+  /** Damage from fighters outside the grab (3+ players) that frees the held fighter. */
+  breakDamage: 10,
+  /** Shield grabs come out this many frames after shieldstun ends (shield_setoff_catch_frame). */
+  shieldGrabLock: 4,
+  /** Grab boxes shrink to this share of their radius against airborne fighters. */
+  airborneRadius: 0.5,
+  /** Grab release: both fighters are stuck this long, so neither has the advantage (Ultimate: 29 frames of lag). */
+  releaseLag: 29,
+  /** Release push speed, decaying with traction (ESTIMATE). */
+  releaseSpeed: 1.5,
+  /** Two grabs connecting with each other: both release and take this damage (Ultimate: 1%, 1.2% in 1v1). */
+  clankDamage: 1,
+  /** Space between the two bodies while one holds the other (ESTIMATE). */
+  holdGap: 1,
+};
 
 /** Hitstun cancel (Ultimate): air dodge out of tumble from frame 40 once the launch has slowed to 2.5 u/frame. */
 export const HITSTUN_CANCEL_AIR_DODGE = { from: 40, maxSpeed: 2.5 };

@@ -1,10 +1,38 @@
 {
+  "battlefield": {
+    "file": "music/battlefield.mp3",
+    "title": "Battlefield",
+    "evokes": "a Smash-style Battlefield stage theme",
+    "loopStart": 0,
+    "loopEnd": 45.714286
+  },
+  "bloxorz-platform": {
+    "file": "music/bloxorz-platform.mp3",
+    "title": "Bloxorz Board",
+    "evokes": "an original theme in the spirit of Bloxorz's calm, cerebral puzzle music",
+    "loopStart": 0,
+    "loopEnd": 37.5
+  },
+  "coolmath-planet": {
+    "file": "music/coolmath-planet.mp3",
+    "title": "Coolmath Planet",
+    "evokes": "an original Final Destination theme with a nod to the main menu's motif",
+    "loopStart": 0,
+    "loopEnd": 38.4
+  },
   "duck-life-world": {
     "file": "music/duck-life-world.mp3",
     "title": "Duck Life",
     "evokes": "Duck Life (Wix Games): an original sunny countryside training two-step",
     "loopStart": 0,
     "loopEnd": 43.636372
+  },
+  "forest-temple": {
+    "file": "music/forest-temple.mp3",
+    "title": "Forest Temple",
+    "evokes": "an original theme in the spirit of Fireboy and Watergirl in the Forest Temple",
+    "loopStart": 0,
+    "loopEnd": 41.142857
   },
   "menu": {
     "file": "music/menu.mp3",
@@ -19,6 +47,13 @@
     "evokes": "Papa's Pizzeria (Flipline Studios): an original café swing and tarantella",
     "loopStart": 0,
     "loopEnd": 43.636372
+  },
+  "run-tunnel": {
+    "file": "music/run-tunnel.mp3",
+    "title": "Run Tunnel",
+    "evokes": "an original theme in the spirit of Run and Run 3's spacey electronica",
+    "loopStart": 0,
+    "loopEnd": 37.5
   },
   "snail-bob-construction": {
     "file": "music/snail-bob-construction.mp3",

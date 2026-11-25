@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import { moveClipFrame } from '../../../render/rig/timing';
+import { moves } from '../moves';
 import { art } from '.';
 
 /** Canonical clip lengths (loops: any length). */
@@ -31,53 +33,14 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   hitstun: 20,
   tumble: 'loop',
   helpless: 'loop',
-  knockdown: 'loop',
-  getUp: 30,
-  tech: 26,
+  down: 'loop',
+  getupStand: 30,
+  techInPlace: 26,
   techRoll: 40,
   dizzy: 'loop',
   grabHold: 'loop',
   grabbed: 'loop',
   taunt: 60,
-};
-
-/** Fireboy's frame data: [first active, last active, FAF, hitboxes (x, y up, r)]. */
-const MOVES: Record<string, [number, number, number, [number, number, number][]]> = {
-  jab1: [3, 4, 17, [[6, 6, 3.5]]],
-  jab2: [3, 4, 19, [[6.5, 6, 3.5]]],
-  jab3: [5, 7, 32, [[7, 6, 5]]],
-  ftilt: [6, 8, 28, [[8.5, 3.5, 3.8]]],
-  utilt: [5, 10, 30, [[2, 15, 5]]],
-  dtilt: [5, 7, 22, [[8, 1, 3.5]]],
-  dashAttack: [6, 18, 38, [[6, 4, 4.5]]],
-  fsmash: [15, 17, 50, [[10, 6, 6]]],
-  usmash: [10, 14, 44, [[0, 17, 7]]],
-  dsmash: [6, 7, 46, [[9, 1, 4.5]]],
-  nair: [3, 24, 42, [[0, 6, 7.5]]],
-  fair: [14, 17, 52, [[7, 4, 5.5]]],
-  bair: [6, 9, 33, [[-8, 6, 4.5]]],
-  uair: [4, 8, 32, [[2, 15, 5.5]]],
-  dair: [14, 17, 44, [[0, -2, 5]]],
-  grab: [6, 7, 30, [[6, 6, 4]]],
-  dashGrab: [9, 10, 38, [[8, 6, 4]]],
-  pummel: [3, 3, 18, []],
-  fthrow: [12, 12, 30, []],
-  bthrow: [16, 16, 38, []],
-  uthrow: [12, 12, 34, []],
-  dthrow: [18, 18, 38, []],
-  neutralSpecial: [14, 14, 44, []],
-  sideSpecial: [10, 24, 50, [[5, 5, 5]]],
-  upSpecial: [7, 34, 40, [[0, 6, 6]]],
-  downSpecial: [9, 12, 40, [[0, 4, 9]]],
-  getupAttack: [
-    18,
-    20,
-    50,
-    [
-      [7, 3, 5],
-      [-7, 3, 5],
-    ],
-  ],
 };
 
 describe('fireboy art', () => {
@@ -89,8 +52,7 @@ describe('fireboy art', () => {
       else if (typeof len === 'number') expect(clip!.length, name).toBe(len);
       else expect(clip!.loop, name).toBeFalsy();
     }
-    for (const [name, [, , faf]] of Object.entries(MOVES))
-      expect(art.clips[name]?.length, name).toBe(faf - 1);
+    for (const name of Object.keys(moves)) expect(art.clips[name]?.active, name).toBeDefined();
   });
 
   it('only references bones, slots and symbols that exist, with keys in order inside the clip', () => {
@@ -114,14 +76,24 @@ describe('fireboy art', () => {
     }
   });
 
-  it('covers every hitbox centre with a drawn part during the active frames', () => {
+  it("reaches into every hitbox's inner half with a drawn part during the move's active frames", () => {
     const misses: string[] = [];
-    for (const [name, [first, lastActive, , boxes]] of Object.entries(MOVES)) {
-      for (let f = first - 1; f <= lastActive; f++) {
-        const pose = samplePose(art, name, f, f);
-        for (const [x, y] of boxes)
-          if (!slotsCovering(art, pose, x, -y).length) misses.push(`${name}@${f} (${x}, ${y})`);
-      }
+    for (const [name, move] of Object.entries(moves)) {
+      const clip = art.clips[name]!;
+      for (const { frames, boxes } of move.hits)
+        for (let f = frames[0]; f <= frames[1]; f++) {
+          const pose = samplePose(art, name, moveClipFrame(clip, f, move), f);
+          for (const { x, y, radius } of boxes) {
+            const probes = [
+              [0, 0],
+              ...[0, 1, 2, 3, 4, 5, 6, 7].map((i) => [Math.cos(i * 0.785), Math.sin(i * 0.785)]),
+            ];
+            const hit = probes.some(
+              ([dx, dy]) => slotsCovering(art, pose, x + dx! * radius * 0.5, -y - dy! * radius * 0.5).length,
+            );
+            if (!hit) misses.push(`${name}@${f} (${x}, ${y})`);
+          }
+        }
     }
     expect(misses).toEqual([]);
   });

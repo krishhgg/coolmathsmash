@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Btn, neutralInput, type InputFrame } from '../input/types';
 import { INPUT_BUFFER_FRAMES } from './constants';
+import ref from './reference/physics-constants.json';
 import {
   buffered,
   cStickDir,
@@ -26,6 +27,10 @@ describe('control state', () => {
     expect(justPressed(c, Btn.Attack)).toBe(true);
     feedControl(c, f({ buttons: Btn.Attack }));
     expect(justPressed(c, Btn.Attack)).toBe(false);
+  });
+
+  it("uses Ultimate's 7-frame buffer (params precede)", () => {
+    expect(INPUT_BUFFER_FRAMES).toBe(ref.movement.buffer_frames);
   });
 
   it(`buffers a tapped button for ${INPUT_BUFFER_FRAMES} frames`, () => {
