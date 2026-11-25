@@ -152,9 +152,47 @@ test('controls: rebind keys and pad buttons, resolve conflicts, cancel, reset', 
   await setButton(1, true);
   await expect(chips(page, 'special')).toHaveText(['B']);
   await expect(page.locator('.controls-screen')).toBeVisible();
+  await setButton(1, false);
+
+  // A selects in the pause menu, so Pause on A would leave a controller no way to pick Restart or Quit (#163).
+  await focusRow(page, 'start');
+  await page.keyboard.press('Enter');
+  await expect(row(page, 'start')).toContainText('Press a button');
+  await setButton(0, true);
+  await expect(page.locator('.ctl-notice')).toHaveText('A selects in the pause menu, so it cannot be Pause');
+  await expect(row(page, 'start')).not.toHaveClass(/is-capturing/);
+  await expect(chips(page, 'start')).toHaveText(['Start']);
+  await expect(chips(page, 'attack')).toHaveText(['Y']);
+  await setButton(0, false);
+
+  // Start is Pause's only button, so it cannot leave for Attack: the pad would have no way to pause.
+  await focusRow(page, 'attack', 'ArrowUp');
+  await page.keyboard.press('Enter');
+  await expect(row(page, 'attack')).toHaveClass(/is-capturing/);
+  await setButton(9, true);
+  await expect(page.locator('.ctl-notice')).toHaveText(
+    'Start is the only Pause button, so give Pause another button first',
+  );
+  await expect(chips(page, 'attack')).toHaveText(['Y']);
+  await setButton(9, false);
+
+  // Pause still takes any other button, and once it has Y, Start is free for Attack.
+  await focusRow(page, 'start');
+  await page.keyboard.press('Enter');
+  await expect(row(page, 'start')).toHaveClass(/is-capturing/);
+  await setButton(3, true);
+  await expect(chips(page, 'start')).toHaveText(['Y']);
+  await expect(page.locator('.ctl-notice')).toHaveText('Y moved here from Attack');
+  await setButton(3, false);
+  await focusRow(page, 'attack', 'ArrowUp');
+  await page.keyboard.press('Enter');
+  await expect(row(page, 'attack')).toHaveClass(/is-capturing/);
+  await setButton(9, true);
+  await expect(chips(page, 'attack')).toHaveText(['Start']);
+  await setButton(9, false);
+  expect((await saved(page)).gamepad).toMatchObject({ attack: [9], start: [3] });
 
   await page.keyboard.press('Escape');
   await expect(page.locator('.main-menu')).toBeVisible();
-  await setButton(1, false);
   expect(errors).toEqual([]);
 });
