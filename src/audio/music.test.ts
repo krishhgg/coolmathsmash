@@ -37,7 +37,7 @@ describe('music', () => {
     const src = ctx.sources[0]!;
     expect(src.loop).toBe(true);
     expect(src).toMatchObject({ loopStart: TRACKS.menu!.loopStart, loopEnd: TRACKS.menu!.loopEnd });
-    expect(src.buffer).toEqual({ path: TRACKS.menu!.file });
+    expect(src.buffer).toEqual({ path: TRACKS.menu!.file, duration: 1 });
     const gain = src.out[0] as FakeGain;
     expect(gain.gain.events.at(-1)).toEqual(['ramp', 1, expect.any(Number)]);
     expect(gain.out[0]).toBe(engine.bus('music'));
@@ -65,11 +65,11 @@ describe('music', () => {
       player.play('menu');
       player.play('test-b');
       await tick();
-      expect(ctx.sources.map((s) => s.buffer)).toEqual([{ path: 'music/test-b.mp3' }]);
+      expect(ctx.sources.map((s) => s.buffer)).toEqual([{ path: 'music/test-b.mp3', duration: 1 }]);
       player.play('menu');
       await tick();
       expect(ctx.sources[0]!.stopped).not.toBeNull();
-      expect(ctx.sources[1]!.buffer).toEqual({ path: TRACKS.menu!.file });
+      expect(ctx.sources[1]!.buffer).toEqual({ path: TRACKS.menu!.file, duration: 1 });
     } finally {
       delete TRACKS['test-b'];
     }
