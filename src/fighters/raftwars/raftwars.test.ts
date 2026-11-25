@@ -160,12 +160,14 @@ describe('Raft Wars kids: frame data', () => {
  * Kill percents with koPercent: the Mario reference at Battlefield's ledge, fresh, no rage, no DI. Each move takes its
  * knockback from an Ultimate analogue (13.0.1 hitbox data) and KOs within 5 points of it; `ko` is the analogue's own
  * hitbox through koPercent, which reproduces Ultimate's KO calculator within about 2% (src/sim/testing/ko.test.ts).
+ * For Bottle Rocket, #100 places Mario's feet at y=16.5 for the strong box at y=24, so the mortar comparison
+ * starts airborne at (79.9, 16.5), not on the floor.
  */
 const analogues = [
   { move: 'fsmash', analogue: "Isabelle's forward smash (17%, 361, KBG 99, BKB 25)", ko: 68.6 },
   { move: 'upB', analogue: "Snake's Remote Missile (14%, 50, KBG 70, BKB 75)", ko: 96.2 },
   { move: 'dsmash', analogue: "Snake's down smash (12%, 25, KBG 87, BKB 30)", ko: 104.8 },
-  { move: 'usmash', analogue: "Snake's up smash mortar (14%, 65, KBG 60, BKB 87)", ko: 142.2 },
+  { move: 'usmash', analogue: "Snake's up smash mortar (14%, 65, KBG 60, BKB 87)", ko: 132.3 },
   { move: 'bthrow', analogue: "Snake's back throw (9%, 140, KBG 65, BKB 65)", ko: 156.8 },
   { move: 'fthrow', analogue: "Snake's forward throw (9%, 40, KBG 65, BKB 60)", ko: 166.6 },
 ];
