@@ -6,44 +6,115 @@ import { WALL, WALL_DEPTH } from './palette';
 function masonry(): Graphics {
   const g = new Graphics();
   const { left, top, right, bottom } = WALL;
-  const mortar = 0x2f3019;
+  const mortar = 0x303016;
   g.rect(left, top, right - left, bottom - top).fill(mortar);
   let n = 0;
-  for (let y = top; y < bottom; y += 48) {
-    const rowOffset = ((y - top) / 48) % 2 === 0 ? 0 : -42;
-    for (let x = left + rowOffset; x < right; x += 84) {
+  for (let y = top; y < bottom; y += 35) {
+    const rowOffset = ((y - top) / 35) % 2 === 0 ? 0 : -30;
+    for (let x = left + rowOffset; x < right; x += 60) {
       const s = n++;
-      const tint = mix(0x404127, 0x46472a, hash01(s));
-      const tilt = 1 + hash01(s + 941) * 3;
-      const w = 78 + hash01(s + 1889) * 5;
-      g.poly([x, y + tilt, x + w, y, x + w - 1, y + 43, x + 1, y + 46]).fill(mix(tint, mortar, 0.3));
-      g.poly([x + 4, y + tilt + 3, x + w - 5, y + 4, x + w - 7, y + 39, x + 5, y + 41]).fill(tint);
+      const patch = Math.sin((x + y) * 0.005) * Math.cos(y * 0.009);
+      const tint = mix(0x34351a, 0x414125, 0.48 + 0.28 * patch + 0.17 * hash01(s));
+      const tilt = hash01(s + 941) * 4;
+      const w = 54 + hash01(s + 1889) * 5;
+      g.poly([
+        x,
+        y + tilt + 3,
+        x + 4,
+        y + tilt,
+        x + w - 2,
+        y + 1,
+        x + w,
+        y + 5,
+        x + w - 2,
+        y + 30,
+        x + w - 6,
+        y + 33,
+        x + 4,
+        y + 34 - tilt,
+        x + 1,
+        y + 30 - tilt,
+      ]).fill(tint);
     }
   }
   const shade = vGradient([
     [0, 'rgba(15,16,9,0.5)'],
-    [0.4, 'rgba(23,25,10,0)'],
-    [0.58, 'rgba(29,27,9,0)'],
+    [0.34, 'rgba(23,25,10,0.1)'],
+    [0.51, 'rgba(29,27,9,0)'],
     [1, 'rgba(16,19,9,0.65)'],
   ]);
-  return g.rect(left, top, right - left, bottom - top).fill(shade);
+  g.rect(left, top, right - left, bottom - top).fill(shade);
+  return g;
 }
 
 function exitDoors(): Graphics {
   const g = new Graphics();
   const left = 772;
   const top = 154;
-  for (const [index, emblem] of [0xa75a43, 0x4e8b98].entries()) {
+  g.poly([
+    left - 39,
+    top + 135,
+    left - 30,
+    top - 16,
+    left + 21,
+    top - 46,
+    left + 139,
+    top - 37,
+    left + 197,
+    top - 8,
+    left + 198,
+    top + 145,
+    left + 151,
+    top + 163,
+    left - 3,
+    top + 149,
+  ]).fill({ color: 0x22250f, alpha: 0.55 });
+  g.ellipse(left + 83, top + 116, 102, 44).fill({ color: 0x252611, alpha: 0.48 });
+  for (const [index, emblem] of [0xb44c39, 0x378799].entries()) {
     const x = left + index * 92;
     const center = x + 37;
     const y = top + 51;
-    g.poly([x - 6, top + 99, x - 8, top, x + 8, top - 7, x + 78, top - 5, x + 84, top + 101]).fill(0x27281a);
-    g.poly([x, top + 96, x, top + 5, x + 75, top + 2, x + 77, top + 99]).fill(0x777454);
+    g.poly([
+      x - 8,
+      top + 102,
+      x - 10,
+      top + 13,
+      x - 6,
+      top - 5,
+      x + 12,
+      top - 9,
+      x + 77,
+      top - 7,
+      x + 82,
+      top + 3,
+      x + 82,
+      top + 47,
+      x + 86,
+      top + 101,
+    ]).fill(0x242614);
+    g.poly([
+      x + 3,
+      top + 97,
+      x + 1,
+      top + 68,
+      x - 2,
+      top + 5,
+      x + 8,
+      top + 1,
+      x + 72,
+      top + 3,
+      x + 75,
+      top + 60,
+      x + 77,
+      top + 95,
+      x + 59,
+      top + 100,
+    ]).fill(0x716c43);
     g.poly([x + 11, top + 97, x + 10, top + 15, x + 64, top + 12, x + 66, top + 99])
       .fill(0x514d30)
       .stroke({ width: 3, color: 0x35331e, join: 'round' });
-    g.circle(center, y, 23).fill({ color: emblem, alpha: 0.15 });
-    g.circle(center, y, 16).fill({ color: emblem, alpha: 0.16 });
+    g.circle(center, y, 19).fill({ color: emblem, alpha: 0.15 });
+    g.circle(center, y, 13).fill({ color: emblem, alpha: 0.16 });
     g.circle(center - 2, y, 7).stroke({ width: 4, color: emblem });
     if (index === 0) {
       g.moveTo(center + 3, y - 6)
@@ -58,6 +129,11 @@ function exitDoors(): Graphics {
         .lineTo(center + 4, y + 15);
     }
     g.stroke({ width: 3.5, color: emblem, cap: 'round', join: 'round' });
+    for (let n = 0; n < 8; n++) {
+      const u = n % 2 === 0 ? x + 5 : x + 71;
+      const v = top + (n % 3 === 0 ? 7 : 91) + hash01(n + index * 31) * 8;
+      g.ellipse(u + hash01(n + 62) * 12 - 5, v, 4.5, 3.4).fill(mix(0x294322, 0x415329, hash01(n + 773)));
+    }
   }
   return g;
 }

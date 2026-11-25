@@ -5,19 +5,26 @@ import { stage } from '../geometry';
 import { INK, IVY, MORTAR, STONES } from './palette';
 
 function ivy(g: Graphics, x: number, y: number, size: number, seed: number): void {
-  for (let i = 0; i < 5; i++) {
-    const dir = i - 2;
-    const s = size * (0.7 + hash01(seed + i * 107) * 0.55);
-    const dx = dir * s * 0.65;
-    const dy = (1.4 - Math.abs(dir) * 0.35) * s;
-    g.moveTo(x + dx * 0.24, y + 0.1)
-      .quadraticCurveTo(x + dx + s * 0.34, y - 0.2, x + dx, y + dy)
-      .quadraticCurveTo(x + dx - s * 0.8, y + dy * 0.72, x + dx * 0.24, y + 0.1)
+  const count = 4 + Math.floor(hash01(seed + 504) * 5);
+  const lean = hash01(seed + 123) - 0.5;
+  g.ellipse(x, y + size * 0.36, size * 1.85, size * 0.77).fill({ color: 0x203c21, alpha: 0.68 });
+  for (let i = 0; i < count; i++) {
+    const t = i / (count - 1);
+    const k = seed * 415 + i * 107;
+    const s = size * (0.55 + hash01(k) * 0.64);
+    const sx = x + (t - 0.5) * size * 2.25;
+    const sy = y + hash01(k + 436) * size * 0.55;
+    const dx = (t - 0.5 + lean) * size * 2.5;
+    const dy = s * (0.22 + hash01(k + 987) * 1.5);
+    g.moveTo(sx - s * 0.28, sy - 0.36)
+      .quadraticCurveTo(sx + dx * 0.63 + s * 0.57, sy - s * 0.58, sx + dx, sy + dy)
+      .lineTo(sx + dx * 0.84 - s * 0.27, sy + dy * 0.86)
+      .quadraticCurveTo(sx + dx * 0.29 - s * 0.85, sy + dy * 0.42, sx - s * 0.28, sy - 0.36)
       .closePath()
       .fill(IVY[(i + seed) % IVY.length]!)
-      .stroke({ width: 0.24, color: INK, alpha: 0.8 });
-    g.moveTo(x + dx * 0.29, y + 0.2)
-      .lineTo(x + dx * 0.83, y + dy * 0.66)
+      .stroke({ width: 0.23, color: INK, alpha: 0.78 });
+    g.moveTo(sx, sy + 0.1)
+      .lineTo(sx + dx * 0.71, sy + dy * 0.7)
       .stroke({ width: 0.13, color: 0x81ac54, alpha: 0.6 });
   }
 }
@@ -29,10 +36,10 @@ function stonework(g: Graphics): void {
   for (let y = -2; y < 30; y += stepY) {
     const row = Math.round((y + 2) / stepY);
     for (let x = -94 - (row % 2) * (stepX / 2); x < 90; x += stepX) {
-      const tint = mix(STONES[i % STONES.length]!, MORTAR, 0.4 * Math.max(0, y / 28));
+      const tint = mix(STONES[i % STONES.length]!, MORTAR, 0.34 * Math.max(0, y / 28));
       const w = stepX - 0.55;
       const h = stepY - 0.5;
-      const tilt = hash01(i++ + 9271) * 0.5;
+      const tilt = hash01(i++ + 9271) * 1.1;
       const a = x + 0.4 + tilt;
       const b = x + w;
       g.poly([
@@ -41,10 +48,10 @@ function stonework(g: Graphics): void {
         b - 0.5,
         y,
         b,
-        y + 0.62,
+        y + 0.59 + tilt,
         b - tilt,
         y + h - 0.5,
-        b - 0.6,
+        b - 0.5 - tilt,
         y + h,
         x + 0.46,
         y + h - tilt,
@@ -67,10 +74,13 @@ function stonework(g: Graphics): void {
       if (i % 3 !== 0) {
         const cx = x + 2.8 + hash01(i + 173) * 5;
         const cy = y + 2.2 + hash01(i + 766) * 1.4;
+        const z = hash01(i + 1121) - 0.5;
         g.moveTo(cx, cy)
-          .lineTo(cx + 1.4, cy + 0.5)
-          .lineTo(cx + 2.3, cy - 0.1)
-          .stroke({ width: 0.15, color: MORTAR, alpha: 0.7 });
+          .lineTo(cx + 0.74, cy + 1.1 * z)
+          .lineTo(cx + 1.6 + z, cy + 0.5)
+          .lineTo(cx + 2.42, cy + z)
+          .stroke({ width: 0.16, color: MORTAR, alpha: 0.8 });
+        g.ellipse(cx - 1.3, cy + 0.7, 1.1 + z, 0.4).fill({ color: 0x596030, alpha: 0.3 });
       }
     }
   }
@@ -98,24 +108,25 @@ function mainFloor(): Container {
       .lineTo(b.x, -b.y + 0.56)
       .stroke({ width: 0.75, color: 0xc1b78a, join: 'round' });
     if (Math.abs(a.x - b.x) < 30) continue;
-    for (let k = 0; k < 5; k++) {
-      const t = (k + 0.15 + hash01(i * 83 + k) * 0.68) / 5;
-      ivy(face, a.x + t * (b.x - a.x), -a.y + 0.3, 1.9 + hash01(i * 251 + k) * 1.25, i * 11 + k);
+    for (let k = 0; k < 4; k++) {
+      const t = (k + 0.1 + hash01(i * 83 + k) * 0.82) / 4;
+      ivy(face, a.x + t * (b.x - a.x), -a.y + 0.7, 0.9 + hash01(i * 251 + k) * 3.1, i * 11 + k);
     }
   }
-  for (let i = 0; i < 13; i++) {
-    const x = -80 + i * 13 + 3 * hash01(i + 472);
-    const y = 7 + hash01(i + 119) * 17;
-    ivy(face, x, y, 1.4 + hash01(i + 6376) * 0.9, i);
+  for (let i = 0; i < 11; i++) {
+    const x = -80 + i * 15 + 7 * hash01(i + 472);
+    const y = 6 + hash01(i + 119) * 18;
+    ivy(face, x, y, 0.8 + hash01(i + 6376) * 2.85, i);
   }
   rock.addChild(new Graphics().poly(hull).stroke({ width: 0.55, color: INK, join: 'round' }));
   return rock;
 }
 
 function lever(g: Graphics, x: number, y: number): void {
-  g.poly([x - 3, y, x + 3, y, x + 2.3, y + 1.6, x - 2.4, y + 1.6])
-    .fill(0xbba24c)
+  g.poly([x - 3.8, y, x + 3.7, y, x + 2.8, y + 1.6, x - 2.95, y + 1.6])
+    .fill(0xcbae46)
     .stroke({ color: INK, width: 0.36 });
+  g.poly([x - 2.7, y + 0.26, x + 2.68, y + 0.26, x + 1.97, y + 0.92, x - 2.2, y + 0.92]).fill(0xe7cd64);
   g.moveTo(x - 0.5, y + 0.25)
     .lineTo(x + 1.5, y - 3.35)
     .stroke({ width: 1.1, color: INK, cap: 'round' });
