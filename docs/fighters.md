@@ -114,7 +114,8 @@ fsmash: {
     one, `368` falls back to `367`.
 - **Windboxes.** `pushOnly: true` applies knockback without damage, hitlag, hitstun or interruption. It pushes
   grounded targets horizontally without lifting them, and shields ignore it. Use `damage: 0`; windbox
-  projectiles can be reflected or absorbed as usual, but heal nothing on absorption.
+  projectiles can be reflected or absorbed as usual, but heal nothing on absorption. Watergirl's Water Stream
+  (`src/fighters/watergirl/waterStream.ts`) is the example: F.L.U.D.D.'s windbox pumps, stronger with charge.
 - **Direction.** A hit launches along the attacker's facing unless its box sets `direction`: `'back'` for boxes
   behind him (back aerials, the rear hit of a down smash) and `'away'` for boxes around his body (spins, up
   attacks), which send the target away from his centre.
