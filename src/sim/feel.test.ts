@@ -361,12 +361,17 @@ describe('dodges', () => {
     expect(fireboy.distance).toBeCloseTo(getFighter('fireboy').stats.rollDistance, 2);
   });
 
-  it('back roll is intangible on frames 5-16 and actionable on 35', () => {
+  it("back roll is intangible on frames 5-16, actionable on 35, and covers the fighter's back roll distance", () => {
     const r = dodge('reference-mario', { x: -100 });
     expect(r.action).toBe('rollBack');
     expect(r.intangible).toEqual([5, 16]);
     expect(r.actionable).toBe(35);
-    expect(r.distance).toBeCloseTo(32.17, 2);
+    expect(r.distance).toBeCloseTo(30.63, 2);
+    // Fireboy sets no backRollDistance, so his back roll matches his forward roll.
+    const fireboy = dodge('fireboy', { x: -100 });
+    expect(fireboy.action).toBe('rollBack');
+    expect(getFighter('fireboy').stats.backRollDistance).toBeUndefined();
+    expect(fireboy.distance).toBeCloseTo(getFighter('fireboy').stats.rollDistance, 2);
   });
 
   it('spot dodge is intangible on frames 3-17 and actionable on 26', () => {

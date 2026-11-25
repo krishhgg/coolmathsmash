@@ -91,6 +91,7 @@ export const ROLL_FORWARD = {
   intangible: [4, 15] as [number, number],
   move: [4, 20] as [number, number],
 };
+/** Mario's back roll travels 30.63 u (SmashWiki: Roll); fighters set it as `backRollDistance`. */
 export const ROLL_BACK = {
   faf: 35,
   intangible: [5, 16] as [number, number],
