@@ -10,6 +10,7 @@ import {
   padButtonLabels,
   padMenuConflict,
   padMenusUsable,
+  pausePrompts,
   resetKeyboard,
 } from './controls';
 
@@ -135,5 +136,41 @@ describe('rebinding', () => {
     expect(padMenusUsable({ ...pad, start: [0] })).toBe(false);
     expect(padMenusUsable({ ...pad, start: [9, 0] })).toBe(false);
     expect(padMenusUsable({ ...pad, start: [] })).toBe(false);
+  });
+});
+
+describe('pause prompts', () => {
+  const keyboard = () => structuredClone(KEYBOARD_BINDINGS[0]!);
+  const pad = () => structuredClone(GAMEPAD_BUTTONS);
+
+  it('shows the default keys, and the pad buttons only when a pad is given', () => {
+    expect(pausePrompts(keyboard(), null)).toEqual({ select: 'F', resume: 'Esc' });
+    expect(pausePrompts(keyboard(), pad())).toEqual({ select: 'F · A', resume: 'Esc · Start' });
+  });
+
+  it('follows Keyboard 1 and the gamepad after a rebind', () => {
+    const keyboards = structuredClone(KEYBOARD_BINDINGS);
+    bindKey(keyboards, 0, 'attack', 'KeyQ');
+    bindKey(keyboards, 0, 'start', 'KeyP');
+    const buttons = pad();
+    bindButton(buttons, 'start', 3);
+    expect(pausePrompts(keyboards[0], buttons)).toEqual({ select: 'Q · A', resume: 'P · Y' });
+  });
+
+  it('keeps A on Select when the pad moves Attack off it', () => {
+    const buttons = pad();
+    bindButton(buttons, 'attack', 2);
+    expect(pausePrompts(keyboard(), buttons).select).toBe('F · A');
+  });
+
+  it('falls back to the menu keys when Keyboard 1 has nothing bound', () => {
+    const keyboards = structuredClone(KEYBOARD_BINDINGS);
+    bindKey(keyboards, 1, 'attack', 'KeyF');
+    bindKey(keyboards, 1, 'taunt', 'Escape');
+    expect(pausePrompts(keyboards[0], null)).toEqual({ select: 'Space', resume: 'Esc' });
+    expect(pausePrompts(undefined, { ...pad(), start: [] })).toEqual({
+      select: 'Space · A',
+      resume: 'Esc · B',
+    });
   });
 });

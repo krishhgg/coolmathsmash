@@ -14,7 +14,8 @@ import { InputDisplay } from './debug/inputDisplay';
 import { drawMobility } from './debug/mobility';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud, OverheadTags } from './hud';
-import { drawStagePieces, isMoving } from './stagePieces';
+import { placeholderStage } from './placeholderStage';
+import { drawStagePieces } from './stagePieces';
 import { fighterFx, Vfx } from './vfx/system';
 import { VfxView } from './vfx/view';
 
@@ -249,24 +250,4 @@ export class Renderer {
     }
     drawEntityBoxes(g, state);
   }
-}
-
-/** Collision geometry drawn flat, for stages without art. */
-function placeholderStage(stage: StageGeometry): Graphics {
-  const g = new Graphics();
-  for (const solid of stage.solids) {
-    if (isMoving(solid)) continue;
-    g.poly(solid.points.flatMap(([x, y]) => [x, -y])).fill('#7a5230');
-    const top = solid.points.filter(([, y]) => y === Math.max(...solid.points.map((p) => p[1])));
-    const xs = top.map(([x]) => x);
-    g.rect(
-      Math.min(...xs),
-      -Math.max(...solid.points.map((p) => p[1])),
-      Math.max(...xs) - Math.min(...xs),
-      3,
-    ).fill('#3d8f3a');
-  }
-  for (const p of stage.platforms)
-    if (!isMoving(p)) g.roundRect(p.x1, -p.y, p.x2 - p.x1, 2.2, 1.1).fill('#d9d2c0');
-  return g;
 }
