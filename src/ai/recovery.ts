@@ -3,6 +3,7 @@ import { Btn, neutralInput, type InputFrame } from '../input/types';
 import type { ControlState } from '../sim/control';
 import type { FighterState } from '../sim/fighter';
 import type { MatchState } from '../sim/match';
+import { ledgePresent } from '../sim/stage';
 import { actionable, type FighterKnowledge } from './knowledge';
 import { STICK, press } from './inputs';
 import type { CpuLevel } from './levels';
@@ -35,10 +36,13 @@ export interface RecoveryPlan {
 
 type Ledge = { x: number; y: number; side: -1 | 1 };
 
-/** The ledge to recover to: the nearest one horizontally. */
+/** The ledge to recover to: the nearest one horizontally that is there this frame. */
 export function targetLedge(info: StageInfo, x: number): Ledge | null {
   let best: Ledge | null = null;
-  for (const l of info.c.geo.ledges) if (!best || Math.abs(l.x - x) < Math.abs(best.x - x)) best = l;
+  info.c.geo.ledges.forEach((l, i) => {
+    if (!ledgePresent(info.c, i)) return;
+    if (!best || Math.abs(l.x - x) < Math.abs(best.x - x)) best = l;
+  });
   return best;
 }
 
