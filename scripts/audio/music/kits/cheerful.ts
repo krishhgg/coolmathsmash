@@ -21,6 +21,7 @@ import {
   pluck,
 } from '../../dsp.ts';
 import type { Instrument } from '../instruments.ts';
+import type { Bus, EqBand, Master } from '../render.ts';
 import type { Note } from '../notes.ts';
 
 const follow = (e: Float32Array) => (t: number) => e[Math.min(e.length - 1, Math.round(t * SR))]!;
@@ -821,3 +822,15 @@ export function roll(start: number, end: number, rate: number, v0: number, v1: n
 }
 
 export type { Rng };
+
+/** Shared mix settings for the cheerful songs: a tight drum room, the master chain and a few EQ moves. */
+export const drumRoom: Bus = { room: 0.12, damp: 0.45, wet: 0.5 };
+export const master: Master = { eq: [{ f: 300, gain: -1.5, q: 0.8 }], threshold: 3, ratio: 2, ceiling: -1.2 };
+/** Takes the fizz off cymbals and hats. */
+export const tame: EqBand = { type: 'highshelf', f: 8000, gain: -2 };
+/** Takes the nasal 2.5-4 kHz edge off reeds, whistles and mallets. */
+export const deHarsh: EqBand = { f: 3200, gain: -2.5, q: 0.9 };
+/** Clears boxiness out of comping parts. */
+export const lowMid: EqBand = { f: 350, gain: -2.5, q: 0.9 };
+/** Darkens bright sound effects so they sit inside the band. */
+export const darken: EqBand = { type: 'highshelf', f: 5000, gain: -4 };
