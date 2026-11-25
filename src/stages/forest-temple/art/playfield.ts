@@ -29,6 +29,28 @@ function ivy(g: Graphics, x: number, y: number, size: number, seed: number): voi
   }
 }
 
+function ivyPatch(g: Graphics, x: number, y: number, side: number, seed: number): void {
+  const px = (dx: number) => x + dx * side;
+  for (const [width, color] of [
+    [0.98, 0x202f18],
+    [0.45, 0x536330],
+  ] as const) {
+    g.moveTo(x, y)
+      .bezierCurveTo(px(1), y + 5, px(12), y - 2, px(11), y + 5.3)
+      .quadraticCurveTo(px(9.5), y + 10.4, px(16.1), y + 12)
+      .stroke({ width, color, cap: 'round' });
+  }
+  const leaves = [
+    [0, 0, 3.1],
+    [3, 2.05, 2.2],
+    [6, 1.7, 1.4],
+    [11.2, 4.8, 1.75],
+    [10.8, 7.6, 1.32],
+    [13, 10.8, 1],
+  ] as const;
+  for (const [i, [dx, dy, s]] of leaves.entries()) ivy(g, px(dx), y + dy, s, seed + i * 326);
+}
+
 function stonework(g: Graphics): void {
   const stepX = 12;
   const stepY = 6.2;
@@ -108,16 +130,13 @@ function mainFloor(): Container {
       .lineTo(b.x, -b.y + 0.56)
       .stroke({ width: 0.75, color: 0xc1b78a, join: 'round' });
     if (Math.abs(a.x - b.x) < 30) continue;
-    for (let k = 0; k < 4; k++) {
-      const t = (k + 0.1 + hash01(i * 83 + k) * 0.82) / 4;
-      ivy(face, a.x + t * (b.x - a.x), -a.y + 0.7, 0.9 + hash01(i * 251 + k) * 3.1, i * 11 + k);
-    }
+    const left = a.x + b.x < 0;
+    ivyPatch(face, left ? -63 : 63, -a.y + 1.15, left ? 1 : -1, i * 548);
+    const t = 0.57 + hash01(i * 87) * 0.34;
+    ivy(face, a.x + t * (b.x - a.x), -a.y + 1.15, 2.75, i * 11);
   }
-  for (let i = 0; i < 11; i++) {
-    const x = -80 + i * 15 + 7 * hash01(i + 472);
-    const y = 6 + hash01(i + 119) * 18;
-    ivy(face, x, y, 0.8 + hash01(i + 6376) * 2.85, i);
-  }
+  ivyPatch(face, -32, 15.4, 1, 772);
+  ivyPatch(face, 37, 13.8, -1, 654);
   rock.addChild(new Graphics().poly(hull).stroke({ width: 0.55, color: INK, join: 'round' }));
   return rock;
 }
