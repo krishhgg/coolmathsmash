@@ -47,6 +47,17 @@ describe('settings', () => {
     expect(loadSettings(memory({ [SETTINGS_KEY]: '7' }))).toEqual(d);
   });
 
+  it('loads a saved gamepad mapping that strands the pause menu as the defaults', () => {
+    const saved = (gamepad: Record<string, number[]>) =>
+      loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify({ gamepad }) })).gamepad;
+    const d = defaultSettings().gamepad;
+    // Pause on A, as the controls screen allowed before: A took Attack's place, so Attack was left empty.
+    expect(saved({ ...d, attack: [], start: [0] })).toEqual(d);
+    // Start moved to Attack while it was Pause's only button.
+    expect(saved({ ...d, attack: [9], start: [] })).toEqual(d);
+    expect(saved({ ...d, jump: [2], start: [3] })).toEqual({ ...d, jump: [2], start: [3] });
+  });
+
   it('survives storage that throws', () => {
     const blocked = {
       getItem: (): string | null => {
