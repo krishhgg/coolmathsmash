@@ -1,6 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { hudFontFamily } from './font';
-import { CPU_COLOR, portColor, SCREEN_H, SCREEN_W } from './style';
+import { SCREEN_H, SCREEN_W, slotColor } from './style';
 
 /** One fighter's overhead tag target, in screen pixels. */
 export interface TagTarget {
@@ -113,7 +113,7 @@ export class OverheadTags {
       if (!t?.visible) return;
       const label = tagLabel(t.port, t.cpu);
       const at = placeTag(t.x, t.y, tagWidth(label));
-      tag.draw(label, t.cpu ? CPU_COLOR : portColor(t.port), at.side);
+      tag.draw(label, slotColor(t.port, t.cpu), at.side);
       tag.container.position.set(Math.round(at.x), Math.round(at.y));
     });
   }

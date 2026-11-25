@@ -6,9 +6,6 @@
 /** Port colours: P1 red, P2 blue, P3 yellow, P4 green. */
 export const PORT_COLORS = [0xf2333a, 0x2f84ff, 0xffc21a, 0x2fbf45] as const;
 
-/** CPU players' grey, in place of the port colour. */
-export const CPU_COLOR = 0x8e949c;
-
 export function portColor(port: number): number {
   return PORT_COLORS[((port % 4) + 4) % 4]!;
 }
