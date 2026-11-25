@@ -532,14 +532,15 @@ export const clips: Record<string, AnimClip> = {
       key(26, ground()),
     ],
   },
+  /** Rolls one turn over the sim's travel (TECH_ROLL.move, frames 4 to 30), then settles. */
   techRoll: {
     length: 40,
     swaps: GRIT,
     keys: [
       key(0, mix(ground(1.3, 0.7), roll(-10))),
       key(4, mix(ground(), roll(0))),
-      key(22, mix(ground(1.02, 0.98), roll(360))),
-      key(28, mix(ground(1.08, 0.93), roll(360)), { swaps: DETERMINED }),
+      key(30, mix(ground(1.02, 0.98), roll(360))),
+      key(33, mix(ground(1.08, 0.93), roll(360)), { swaps: DETERMINED }),
       key(40, mix(ground(), roll(360))),
     ],
   },
@@ -566,6 +567,25 @@ export const clips: Record<string, AnimClip> = {
     loop: true,
     swaps: WORRY,
     keys: [key(0, mix(body(0.9, 1.08), roll(-5))), key(15, mix(body(0.93, 1.05), roll(5)))],
+  },
+  /**
+   * Pushed apart after a grab ends without a throw (either side): the tongue snaps in, he skids back
+   * squashed and wide-eyed with dust ahead of the slide, then settles. As long as GRAB.releaseLag.
+   */
+  grabRelease: {
+    length: 29,
+    swaps: { ...SHOCK, fx1: 'dust' },
+    keys: [
+      key(0, mix(ground(1.16, 0.88, 0.4), roll(-16), look(-0.2), fx('fx1', -4.8, -0.3, 0.55)), {
+        ease: 'out',
+      }),
+      key(6, mix(ground(1.1, 0.92, 0.2), roll(-12), look(-0.2), fx('fx1', -6.4, -0.6, 0.95))),
+      key(12, mix(ground(1.04, 0.97), roll(-5), fx('fx1', -7.2, -0.8, 1.05)), {
+        swaps: { ...WORRY, fx1: null },
+      }),
+      key(20, ground(0.98, 1.02), { swaps: { ...DETERMINED, fx1: null } }),
+      key(29, ground()),
+    ],
   },
 };
 

@@ -497,14 +497,14 @@ export const attacks = {
       key(41, body()),
     ],
   },
-  /** Lick: the stuck tongue slurps up over them. */
+  /** Lick: the stuck tongue slurps up over them, peaking on the pummel's damage frame (1). */
   pummel: {
     length: 6,
     active: [],
     swaps: LICK,
     keys: [
       key(0, HOLD),
-      key(2, lick(mix(body(1.06, 0.95, 0.8), roll(3)), [7.8, -7.4])),
+      key(1, lick(mix(body(1.06, 0.95, 0.8), roll(3)), [7.8, -7.4])),
       key(4, lick(mix(body(1.02, 0.98, 0.5), roll(4)), [7.4, -5.9])),
       key(6, HOLD),
     ],
