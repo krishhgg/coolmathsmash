@@ -5,6 +5,7 @@ import {
   bindKey,
   boundKeys,
   keyLabel,
+  keyboardMenusUsable,
   menuKeyConflict,
   padButtonLabel,
   padButtonLabels,
@@ -71,6 +72,27 @@ describe('rebinding', () => {
     expect(menuKeyConflict('Enter', 'start')).toBeNull();
     expect(menuKeyConflict('Space', 'attack')).toBeNull();
     expect(menuKeyConflict('KeyQ', 'attack')).toBeNull();
+  });
+
+  it('keeps Escape on Pause, since in a match it pauses whatever it is bound to', () => {
+    expect(menuKeyConflict('Escape', 'attack')).toBe('start');
+    expect(menuKeyConflict('Escape', 'up')).toBe('start');
+    expect(menuKeyConflict('Escape', 'walk')).toBe('start');
+    expect(menuKeyConflict('Escape', 'start')).toBeNull();
+  });
+
+  it('checks a whole keyboard half for menu keys on the wrong action', () => {
+    // The defaults pass, so Reset can never put a menu key on the wrong action.
+    for (const binding of KEYBOARD_BINDINGS) expect(keyboardMenusUsable(binding)).toBe(true);
+    const kb = structuredClone(KEYBOARD_BINDINGS);
+    kb[0]!.buttons.attack = ['Escape'];
+    kb[0]!.buttons.start = [];
+    expect(keyboardMenusUsable(kb[0]!)).toBe(false);
+    kb[1]!.left = ['Space'];
+    expect(keyboardMenusUsable(kb[1]!)).toBe(false);
+    kb[1]!.left = ['ArrowLeft'];
+    kb[1]!.buttons.start = ['Escape', 'Enter', 'NumpadEnter', 'Backspace'];
+    expect(keyboardMenusUsable(kb[1]!)).toBe(true);
   });
 
   it('rebinding a key to the action that has it keeps it', () => {
