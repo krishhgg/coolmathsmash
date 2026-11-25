@@ -9,6 +9,7 @@ import {
   consumeCStick,
   isHeld,
   smashDir,
+  specialDir,
   stickDir,
   type Dir,
 } from '../control';
@@ -105,7 +106,7 @@ export function groundAttack(x: Ctx): boolean {
   }
   if (buffered(c, Btn.Special)) {
     consume(c, Btn.Special);
-    const dir = stickDir(c, f.facing);
+    const dir = specialDir(c, f.facing);
     turnFor(x, dir);
     return startMove(x, SPECIAL[dir]);
   }
@@ -129,7 +130,7 @@ export function jumpSquatAttack(x: Ctx): boolean {
     consumeCStick(c);
     return startMove(x, 'usmash');
   }
-  if (buffered(c, Btn.Special) && stickDir(c, f.facing) === 'up') {
+  if (buffered(c, Btn.Special) && specialDir(c, f.facing) === 'up') {
     consume(c, Btn.Special);
     return startMove(x, 'upB');
   }
@@ -150,7 +151,7 @@ export function airAttack(x: Ctx): boolean {
   }
   if (buffered(c, Btn.Special)) {
     consume(c, Btn.Special);
-    const dir = stickDir(c, f.facing);
+    const dir = specialDir(c, f.facing);
     turnFor(x, dir);
     return startMove(x, SPECIAL[dir]);
   }
