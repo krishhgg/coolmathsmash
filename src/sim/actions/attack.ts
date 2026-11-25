@@ -54,6 +54,7 @@ export function startMove(x: Ctx, requested: string, action?: string): boolean {
   x.f.move = name;
   emit(x.m, { type: 'move', port: x.f.port, move: name });
   x.f.hitVictims = [];
+  x.f.holdHitsLanded = 0;
   x.f.hitEntities = [];
   x.f.moveStale = 0;
   x.f.charge = 0;
