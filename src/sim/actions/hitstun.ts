@@ -1,5 +1,5 @@
 import { Btn } from '../../input/types';
-import { HITSTUN_CANCEL_AIR_DODGE, TECH_LOCKOUT } from '../constants';
+import { HITSTUN_CANCEL_AIR_DODGE, PARRY, TECH_LOCKOUT } from '../constants';
 import { buffered, consume, isHeld, justPressed } from '../control';
 import type { Ctx } from '../fighter';
 import { launchTimeScale } from '../movement';
@@ -67,6 +67,7 @@ export const HITSTUN: Record<string, ActionDef> = {
       if (f.shieldHp <= 0) return breakShield(x);
       if (f.actionFrame <= f.hitstun) return;
       f.hitstun = 0;
+      f.parryFrom = x.m.frame + PARRY.lockout;
       setAction(x, isHeld(c, Btn.Shield) ? 'shield' : 'shieldDrop');
     },
   },

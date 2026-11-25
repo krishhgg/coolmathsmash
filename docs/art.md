@@ -50,8 +50,10 @@ rig point `(6, -6)`.
 - **Costume swaps** (`costumeSwaps`: palette name -> slot -> symbol, or `null`) replace slot defaults for one
   costume, below clip and key swaps, so a costume can wear a hat the others don't (The Duck's `crown`).
 - `icon` is a standalone SVG string for stock icons and portraits, `projectiles` holds props such as the
-  fireball (`PropArt { symbols, symbol, scale }`), and `ledgeGrip` is the rig point the ledge's top corner
-  should touch while hanging.
+  fireball (`PropArt { symbols, symbol, scale, preview }`), and `ledgeGrip` is the rig point the ledge's top
+  corner should touch while hanging. `preview` places the prop in lab sheets of the move that spawns it: on
+  clip frame `frame` on it sits at (`x`, `y`) from the feet (x forward, y up), then moves `vx`, `vy` units a
+  frame.
 
 Sampling is a pure function of `(clip, frame, globalFrame)`: no clocks and no randomness, so replays and the
 frame-capture harness always draw the same picture.
@@ -59,10 +61,8 @@ frame-capture harness always draw the same picture.
 ## Clips and timing
 
 Name each clip after its engine action or the exact key in the fighter's move table. The renderer picks
-`f.move` when one is running, otherwise `f.action`. A tether's reel and hang keep the move's name but play
-`tetherPull` and `tetherHang` from their own first frame when the art has those clips (Red Ball's tongue reel).
-An unknown name falls back to `idle`, except for the shared stand-ins listed below. Use `loop: true` for cycles;
-other clips hold their last key.
+`f.move` when one is running, otherwise `f.action`. An unknown name falls back to `idle`, except for the
+shared stand-ins listed below. Use `loop: true` for cycles; other clips hold their last key.
 
 For a move authored at simulation speed, frame 1 is the move's first frame, and the clip ends at `FAF - 1`.
 Record the clip's impact windows in `AnimClip.active`. To play a clip authored on a different timeline, the
@@ -70,6 +70,13 @@ renderer maps those windows onto the move's hit windows (or the pummel/throw imp
 end to `FAF - 1`. Check the in-match result as well as the lab: the lab samples the authored
 frames directly. Fireboy's `art/index.test.ts` uses the same retiming as the renderer and checks that a
 drawn part reaches into every hitbox's inner half on its active frames.
+
+A tether move keeps its clip through the reel. `tetherPull` plays the move's clip on from the frame the line
+anchored, and `tetherHang` holds the frame the reel arrived on. Set `AnimClip.reel` to the clip frame a long reel
+should hold on (Fluffy's `upB` holds on 24, while the line still reaches well up), after the latest frame
+the line can anchor. Without it the clip plays on to its end. A reel that needs its own drawing gets a clip
+named after the action instead: when the art has a `tetherPull` or `tetherHang` clip, the reel plays it from the
+reel's first frame (Red Ball's `tetherPull`, his tongue shortening towards the ledge).
 
 ## Pose checklist
 

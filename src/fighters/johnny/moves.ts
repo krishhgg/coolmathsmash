@@ -2,10 +2,11 @@ import { Btn } from '../../input/types';
 import { startMove } from '../../sim/actions/attack';
 import { hitlagFrames } from '../../sim/combat/formulas';
 import { addDamage } from '../../sim/combat/hits';
-import { isHeld, stickDir, stickX } from '../../sim/control';
+import { consume, isHeld, justPressed, stickDir, stickX } from '../../sim/control';
 import { emit } from '../../sim/events';
 import type { Ctx } from '../../sim/fighter';
 import type { HitboxDef, MoveDef } from '../types';
+import { LASER, MUZZLE } from './entities';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -41,6 +42,35 @@ const throwHit =
     f.hitlag = v.hitlag = hitlagFrames(damage);
     emit(m, { type: 'pummel', attacker: f.port, victim: v.port, damage: v.damage - before });
   };
+
+/**
+ * Laser Gun's repeat timing (Falco's Blaster, SmashWiki's timing tables): a press of Special inside `window` loops
+ * the move from frame `loop` back to frame 3, so the next laser leaves `loop - 3` frames after the last (26
+ * grounded, 23 in the air).
+ */
+export const LASER_GUN = {
+  ground: { window: [2, 17], loop: 29 },
+  air: { window: [2, 15], loop: 26 },
+} as const;
+const LOOP_TO = 3;
+
+/**
+ * Laser Gun's repeat fire. `f.charge` (0 outside smash charges, and reset by every move) remembers a press in the
+ * window until the loop frame, as Red Ball's and Snail Bob's specials use it for their own state.
+ */
+function laserRepeat(timing: { window: readonly [number, number]; loop: number }): MoveDef['script'] {
+  return ({ f, c }) => {
+    const [from, to] = timing.window;
+    if (f.actionFrame >= from && f.actionFrame <= to && justPressed(c, Btn.Special)) {
+      consume(c, Btn.Special);
+      f.charge = 1;
+    }
+    if (f.actionFrame === timing.loop && f.charge) {
+      f.charge = 0;
+      f.actionFrame = LOOP_TO;
+    }
+  };
+}
 
 /**
  * Johnny Upgrade's normals: the roster's damage and startup (handoffs/research/roster.md, fighter 12) on Captain
@@ -345,6 +375,30 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     script: throwHit(20, 1),
     throw: { frame: 21, hit: { damage: 6, angle: 68, kbg: 70, bkb: 65 } },
+  },
+  /**
+   * Laser Gun (neutral special): Falco's Blaster in Ultimate (SmashWiki, Falco (SSBU)/Neutral special). Falco's over
+   * Fox's because Fox's laser is flinchless and fires a held stream, a poke for a light, fast fighter; Falco's is one
+   * aimed shot that makes the opponent flinch, which fits a sidearm drawn and fired once and gives a heavy rushdown
+   * fighter a hit to dash in behind. The laser (entities.ts) leaves the muzzle on frame 8 and he can act on frame
+   * 42; pressing Special again on frames 2-17 fires again 26 frames later (laserRepeat).
+   */
+  neutralB: {
+    kind: 'other',
+    faf: 42,
+    air: 'neutralBAir',
+    hits: [],
+    spawn: [{ frame: 8, entity: 'laser', x: MUZZLE.x, y: MUZZLE.y, vx: LASER.speed }],
+    script: laserRepeat(LASER_GUN.ground),
+  },
+  /** Laser Gun in the air: Falco's aerial Blaster, frame 7 and FAF 39, 6 frames of landing lag, a shot per 23. */
+  neutralBAir: {
+    kind: 'other',
+    faf: 39,
+    landingLag: 6,
+    hits: [],
+    spawn: [{ frame: 7, entity: 'laser', x: MUZZLE.x, y: MUZZLE.airY, vx: LASER.speed }],
+    script: laserRepeat(LASER_GUN.air),
   },
   /**
    * Upgrade Dash (side special, Raptor Boost's role): a wind-up, a burst dash of about 40 units and a punch at the

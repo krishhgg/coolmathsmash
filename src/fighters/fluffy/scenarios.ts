@@ -11,8 +11,8 @@ const faceOff = (fluffy = {}, fireboy = {}): GameScenario['patches'] => [
 
 /**
  * Fluffy's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus his Grabber Whip, Stick Tight, Fluffy himself launched at high percent, and four Fluffys in their
- * costumes. References live in the Captain drive's refs/.
+ * Fireboy, plus his Grabber Whip, Stick Tight, a Quick Grapple ledge recovery, Fluffy himself launched at high
+ * percent, and four Fluffys in their costumes. References live in the Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'fluffy',
@@ -108,6 +108,34 @@ export const scenarios: FighterScenarios = {
       motion: { before: 15, after: 60 },
       requires: ['move:downB'],
       refs: [`${F}/official-art-03-*`, `${F}/ingame-grab-*`],
+    },
+    {
+      name: 'fluffy-quick-grapple',
+      description:
+        'Fluffy falls 40 units below the right ledge, fires Quick Grapple straight up, latches the ledge and reels into a ledge grab.',
+      page: { kind: 'game' },
+      match: VS_FIREBOY,
+      patches: [
+        {
+          port: 0,
+          state: {
+            pos: { x: 88, y: -36 },
+            vel: { x: 0, y: 0 },
+            ground: null,
+            action: 'fall',
+            facing: -1,
+            jumpsUsed: 2,
+          },
+        },
+      ],
+      script: [{ port: 0, from: 10, to: 11, y: 100, buttons: ['special'] }],
+      capture: {
+        label: "P1 action 'tetherPull', frame 2",
+        when: (s) => s.fighters[0]!.action === 'tetherPull' && s.fighters[0]!.actionFrame === 2,
+      },
+      motion: { before: 16, after: 30 },
+      requires: ['move:upB', 'action:tetherPull'],
+      refs: ['smash/ledge-hang-*', `${F}/ingame-grab-*`, `${F}/official-art-03-*`],
     },
     {
       name: 'fluffy-launched',
