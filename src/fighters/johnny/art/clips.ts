@@ -2,6 +2,7 @@ import type { Pose } from '../../../render/rig/author';
 import type { AnimClip } from '../../../render/rig/types';
 import { attacks } from './attacks';
 import { ledge } from './ledge';
+import { states } from './states';
 import {
   AIR,
   CROUCH,
@@ -341,4 +342,5 @@ export const clips: Record<string, AnimClip> = {
   },
   ...attacks,
   ...ledge,
+  ...states,
 };
