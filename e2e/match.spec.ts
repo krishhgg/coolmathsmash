@@ -98,6 +98,8 @@ test('a full match: select, countdown, pause, the last KO, GAME!, results and a 
 });
 
 test('four-player match uses saved controls and quits back to character select', async ({ page }) => {
+  // The key presses reach the match only through real-time frames, which a software-rendered runner draws slowly.
+  test.setTimeout(90_000);
   await page.addInitScript(() => {
     localStorage.setItem(
       'coolmathsmash.settings.v1',
@@ -134,24 +136,25 @@ test('four-player match uses saved controls and quits back to character select',
           (bit) => (window.__smash!.getState().players[0]!.control.cur.buttons & (bit as number)) !== 0,
           Btn.Attack,
         ),
-      { timeout: 10_000 },
+      { timeout: 30_000 },
     )
     .toBe(true);
   await page.keyboard.up('KeyQ');
   await page.keyboard.press('KeyP');
-  await expect(page.locator('.pause-layer')).toBeVisible();
+  await expect(page.locator('.pause-layer')).toBeVisible({ timeout: 15_000 });
   await page.keyboard.press('KeyP');
-  await expect(page.locator('.pause-layer')).toBeHidden();
+  await expect(page.locator('.pause-layer')).toBeHidden({ timeout: 15_000 });
   await page.keyboard.press('KeyP');
-  await expect(page.locator('.pause-layer')).toBeVisible();
+  await expect(page.locator('.pause-layer')).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Quit' }).click();
   await expect(page.locator('.css-panel')).toHaveCount(4);
 });
 
 test('match lab scene and results presets render', async ({ page }) => {
+  test.setTimeout(90_000);
   for (const at of ['countdown', 'go', 'pause', 'game']) {
     await page.goto(`/lab.html?scene=match&at=${at}`);
-    await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+    await expect(page.locator('body')).toHaveAttribute('data-ready', 'true', { timeout: 15_000 });
     await expect(page.locator('.match-screen')).toHaveCount(1);
   }
   await expect(page.locator('.is-finale svg')).toBeVisible();
