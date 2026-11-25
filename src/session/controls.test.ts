@@ -5,6 +5,7 @@ import {
   bindKey,
   boundKeys,
   keyLabel,
+  menuKeyConflict,
   padButtonLabel,
   padButtonLabels,
   resetKeyboard,
@@ -58,6 +59,16 @@ describe('rebinding', () => {
     expect(bindKey(kb, 0, 'jump', 'KeyJ')).toEqual([{ keyboard: 1, action: 'attack' }]);
     expect(kb[1]!.buttons.attack).toEqual(['Numpad1']);
     expect(kb[0]!.buttons.jump).toEqual(['KeyJ']);
+  });
+
+  it('keeps menu keys on the one action that means the same in menus', () => {
+    expect(menuKeyConflict('Enter', 'attack')).toBe('start');
+    expect(menuKeyConflict('NumpadEnter', 'jump')).toBe('start');
+    expect(menuKeyConflict('Backspace', 'special')).toBe('start');
+    expect(menuKeyConflict('Space', 'jump')).toBe('attack');
+    expect(menuKeyConflict('Enter', 'start')).toBeNull();
+    expect(menuKeyConflict('Space', 'attack')).toBeNull();
+    expect(menuKeyConflict('KeyQ', 'attack')).toBeNull();
   });
 
   it('rebinding a key to the action that has it keeps it', () => {

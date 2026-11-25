@@ -10,6 +10,7 @@ import {
   boundKeys,
   isMoveAction,
   keyLabel,
+  menuKeyConflict,
   padButtonLabel,
   padButtonLabels,
   resetKeyboard,
@@ -193,7 +194,8 @@ export function controlsScreen(flow: Flow): Screen {
 
   const focus = new Focus(el, (f) => {
     const key = f.dataset.key ?? '';
-    if (f.dataset.tab) return setTab(f.dataset.tab as Tab);
+    // A pointer passing over a tab mid-capture must not switch the keyboard the capture is binding.
+    if (f.dataset.tab) return capture ? undefined : setTab(f.dataset.tab as Tab);
     if (key === 'reset' || (CONTROL_ACTIONS as readonly string[]).includes(key)) {
       selected = key as ControlAction | 'reset';
       renderSide();
@@ -452,6 +454,13 @@ export function controlsScreen(flow: Flow): Screen {
     if (e.repeat) return;
     if (e.code === 'Escape') return endCapture();
     if (tab === 'pad') return;
+    const only = menuKeyConflict(e.code, capture.action);
+    if (only) {
+      capture = null;
+      notice = `${keyLabel(e.code)} is a menu key, so it can only be ${ACTION_LABELS[only]}`;
+      audio.ui('error');
+      return render();
+    }
     const taken = bindKey(settings.keyboard, kbIndex(), capture.action, e.code);
     flow.saveSettings();
     endCapture(takenNotice(keyLabel(e.code), taken.map(where)));

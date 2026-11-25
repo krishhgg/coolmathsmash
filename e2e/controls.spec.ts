@@ -68,6 +68,25 @@ test('controls: rebind keys and pad buttons, resolve conflicts, cancel, reset', 
   await expect(chips(page, 'attack')).toHaveText(['G']);
   await expect(page.locator('.controls-screen')).toBeVisible();
 
+  // Enter is a menu key (Pause): Attack on Enter would confirm and start at once, so the rebind is refused.
+  await page.keyboard.press('Enter');
+  await expect(row(page, 'attack')).toHaveClass(/is-capturing/);
+  await page.keyboard.press('Enter');
+  await expect(row(page, 'attack')).not.toHaveClass(/is-capturing/);
+  await expect(page.locator('.ctl-notice')).toHaveText('Enter is a menu key, so it can only be Pause');
+  await expect(chips(page, 'attack')).toHaveText(['G']);
+
+  // The pointer crossing another tab mid-capture leaves the capture on Keyboard 1.
+  await page.keyboard.press('Enter');
+  await expect(row(page, 'attack')).toHaveClass(/is-capturing/);
+  const kb2 = await page.locator('.ctl-tab[data-tab="kb2"]').boundingBox();
+  await page.mouse.move(kb2!.x + kb2!.width / 2, kb2!.y + kb2!.height / 2, { steps: 4 });
+  await expect(page.locator('.ctl-tab.is-active')).toContainText('Keyboard 1');
+  await expect(row(page, 'attack')).toHaveClass(/is-capturing/);
+  await page.keyboard.press('Escape');
+  await expect(row(page, 'attack')).not.toHaveClass(/is-capturing/);
+  await focusRow(page, 'attack');
+
   // Both halves share the keyboard: J leaves Keyboard 2's attack.
   await page.keyboard.press('Enter');
   await expect(row(page, 'attack')).toHaveClass(/is-capturing/);
