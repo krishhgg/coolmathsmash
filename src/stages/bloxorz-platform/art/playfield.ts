@@ -1,6 +1,7 @@
 import { Graphics } from 'pixi.js';
 import type { StageGeometry } from '../../../sim/stage';
-import { flipY, hash01, mix, type Point } from '../../battlefield/art/util';
+import { flipY, hash01, mix, vGradient, type Point } from '../../battlefield/art/util';
+import { stage } from '../geometry';
 import { FRAGILE, INK, STONE } from './palette';
 
 const TILE = 16;
@@ -96,6 +97,31 @@ function projector(left: number, y: number): Project {
   return (x, depth) => [x - depth * 0.75 * Math.min((x - left) / TILE, 1), y - depth];
 }
 
+export function drawGoalRecess(): Graphics {
+  const left = Math.max(...stage.solids[0]!.points.map(([x]) => x));
+  const right = Math.min(...stage.solids[1]!.points.map(([x]) => x));
+  const r = DECK_REAR;
+  const offset = r * 0.75;
+  const g = new Graphics({ label: 'non-solid-goal-shadow' });
+  g.poly([left - offset, -r, right, -r, right, 16, left, 16, left, 0]).fill(
+    vGradient([
+      [0, 0x45392f],
+      [0.3, 0x2b201e],
+      [0.67, 'rgba(42,22,24,0.72)'],
+      [1, 'rgba(42,22,24,0)'],
+    ]),
+  );
+  g.poly([left - offset, -r, right, -r, right - 2.4, -r + 2.8, left - offset + 1.5, -r + 3.2]).fill({
+    color: 0x7d6a58,
+    alpha: 0.43,
+  });
+  g.poly([right, -r, right, 9, right - 2.4, 4, right - 2.4, -r + 2.8]).fill({
+    color: 0x1c1316,
+    alpha: 0.37,
+  });
+  return g;
+}
+
 export function drawBank({ points }: StageGeometry['solids'][number]): Graphics {
   const left = Math.min(...points.map(([x]) => x));
   const right = Math.max(...points.map(([x]) => x));
@@ -104,63 +130,32 @@ export function drawBank({ points }: StageGeometry['solids'][number]): Graphics 
   const g = new Graphics({ label: `bank-${left}` });
   g.poly(flipY(points)).fill(INK);
 
-  const cuts = [left];
-  for (let x = Math.ceil(left / TILE) * TILE; x < right; x += TILE) if (x > left) cuts.push(x);
-  cuts.push(right);
   const project = projector(left, top);
 
-  for (let i = 0; i < cuts.length - 1; i++) {
-    const a = cuts[i]!;
-    const b = cuts[i + 1]!;
+  for (let a = left; a < right; a += TILE) {
+    const b = Math.min(a + TILE, right);
     const w = b - a;
     const seed = a + 251;
-    const palette = Math.abs((a + b) / 2) === 56 ? FRAGILE : STONE;
+    const palette = Math.abs((a + b) / 2) === 64 ? FRAGILE : STONE;
     const variation = hash01(seed);
     const wall = mix(palette.wall, INK, variation * 0.23);
     tileTop(g, project, a, b, DECK_REAR, palette, seed);
 
-    g.rect(a, top, w, 0.59).fill(palette.edge);
-    g.rect(a, top + 0.59, w, 2.3).fill(mix(palette.lip, INK, variation * 0.2));
-    g.rect(a, top + 2.89, w, 0.94).fill(mix(palette.lip, INK, 0.7));
-    g.rect(a + 0.58, top + 3.83, w - 1.1, bottom - top - 5.1).fill(wall);
+    g.rect(a, top, w, 0.55).fill(palette.edge);
+    g.rect(a, top + 0.55, w, 1.5).fill(mix(palette.lip, INK, variation * 0.2));
+    g.rect(a + 0.32, top + 2.05, w - 0.64, bottom - top - 2.65).fill(wall);
     g.poly([
-      a + 0.58,
-      bottom - 6.1 - 1.8 * variation,
-      a + w * (0.42 + 0.23 * variation),
-      bottom - 5.1,
-      b - 0.52,
-      bottom - 8.3 + 1.8 * variation,
-      b - 0.52,
-      bottom - 1.27,
-      a + 0.58,
-      bottom - 1.27,
-    ]).fill(mix(wall, INK, 0.27));
-    g.poly([a + 0.58, top + 3.83, a + 1.7, top + 5.4, a + 1.7, bottom - 3.1, a + 0.58, bottom - 1.27]).fill(
-      mix(wall, palette.lip, 0.22),
-    );
-    g.poly([
-      a + 0.58,
-      bottom - 1.27,
-      a + 1.7,
-      bottom - 3.1,
-      b - 1.85,
-      bottom - 3.1,
-      b - 0.52,
-      bottom - 1.27,
-    ]).fill(mix(wall, INK, 0.5));
-    g.poly([
-      a + w * (0.26 + variation * 0.1),
-      top + 5.5 + variation * 2.3,
-      a + w * 0.65,
-      top + 5.7,
-      a + w * (0.79 - variation * 0.15),
-      top + 9 + variation * 2.3,
-      a + w * 0.53,
-      top + 12.1 + variation * 2.8,
-      a + w * 0.23,
-      top + 12.3,
-    ]).fill(mix(wall, palette.lip, 0.11));
-    g.rect(a, top + 0.45, 0.25, 2.4).fill(mix(palette.lip, INK, 0.5));
+      a + 0.32,
+      bottom - 1.7,
+      a + w * (0.35 + 0.22 * variation),
+      bottom - 1.5,
+      b - 0.32,
+      bottom - 2.25,
+      b - 0.32,
+      bottom - 0.6,
+      a + 0.32,
+      bottom - 0.6,
+    ]).fill(mix(wall, INK, 0.45));
     if (palette === FRAGILE) {
       const crackX = (x: number) => (a < 0 ? a + x : b - x);
       g.moveTo(...project(crackX(10.4), DECK_REAR * 0.91))
@@ -171,17 +166,22 @@ export function drawBank({ points }: StageGeometry['solids'][number]): Graphics 
     }
   }
 
-  const near = left < 0 ? right : left;
-  const inset = near + (left < 0 ? -2 : 2);
-  g.poly([
-    ...project(near, DECK_REAR),
-    ...project(inset, DECK_REAR),
-    ...project(inset, 0),
-    ...project(near, 0),
-  ]).fill(0x554d49);
-  g.rect(Math.min(near, inset), top, 2, 2.89).fill(0x96877a);
-  g.poly([near, top + 2.89, inset, top + 2.89, inset, bottom - 3.2, near, bottom]).fill(0x382f30);
-  g.poly([near, top + 2.89, (near + inset) / 2, top + 2.89, near, bottom]).fill(0x31292a);
+  const ledge = stage.ledges.find(({ x }) => x === left || x === right);
+  if (ledge) {
+    const { x, side } = ledge;
+    const inner = x - side * 3;
+    g.poly([x, top, inner, top, inner - side * 1.3, top + 1.6, inner, top + 4, x, top + 3.1]).fill(0xe2d7b5);
+    g.rect(Math.min(x, inner), top, Math.abs(x - inner), 0.63).fill(0xffecbf);
+    const near = side === -1 ? right : left;
+    const inset = near + side * 2;
+    g.poly([
+      ...project(near, DECK_REAR),
+      ...project(inset, DECK_REAR),
+      ...project(inset, 0),
+      ...project(near, 0),
+    ]).fill(0x5d5851);
+    g.poly([near, top, inset, top, inset, bottom - 2.7, near, bottom]).fill(0x352b2a);
+  }
   return g;
 }
 

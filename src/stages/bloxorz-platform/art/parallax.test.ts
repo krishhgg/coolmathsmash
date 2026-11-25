@@ -38,16 +38,16 @@ describe('Bloxorz Board collision silhouettes', () => {
   it('follows both hulls, with shallow rear planes wholly outside the goal opening', () => {
     const banks = stage.solids.map(drawBank).sort((a, b) => a.bounds.minX - b.bounds.minX);
     expect(banks.map(({ bounds: b }) => [b.minX, b.maxX, b.minY, b.maxY])).toEqual([
-      [-88, -8, -DECK_REAR, 22],
-      [8, 88, -DECK_REAR, 22],
+      [-88, -8, -DECK_REAR, 8],
+      [8, 88, -DECK_REAR, 8],
     ]);
     for (const g of banks) {
       for (const x of [g.bounds.minX + 0.1, g.bounds.maxX - 0.1]) {
         expect(g.containsPoint({ x, y: 0.1 })).toBe(true);
-        expect(g.containsPoint({ x, y: 21.9 })).toBe(true);
+        expect(g.containsPoint({ x, y: 7.9 })).toBe(true);
       }
       for (const x of [-7.99, 0, 7.99]) {
-        for (const y of [-DECK_REAR / 2, 0, 11, 21.9]) expect(g.containsPoint({ x, y })).toBe(false);
+        for (const y of [-DECK_REAR / 2, 0, 4, 7.9]) expect(g.containsPoint({ x, y })).toBe(false);
       }
     }
     expect(stage.ledges.map(({ x, y }) => [x, y])).toEqual([

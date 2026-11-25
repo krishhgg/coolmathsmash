@@ -1,9 +1,9 @@
 export const INK = 0x28262a;
 export const STONE = {
-  back: 0x797b7b,
-  top: 0xafb5b3,
-  edge: 0xd0cebf,
-  lip: 0x696d70,
+  back: 0x959e9f,
+  top: 0xc7d0cf,
+  edge: 0xe2e0d4,
+  lip: 0x747f84,
   wall: 0x44464a,
 } as const;
 export const FRAGILE = {
@@ -13,4 +13,4 @@ export const FRAGILE = {
   lip: 0xad603d,
   wall: 0x644639,
 } as const;
-export const SKY = [0xa3391a, 0xa93119, 0x811f18, 0x461016, 0x210b14] as const;
+export const SKY = [0xa54121, 0xae422a, 0x91402c, 0x49181d, 0x210b14] as const;
