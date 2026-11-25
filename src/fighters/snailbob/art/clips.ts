@@ -25,6 +25,7 @@ import {
   stalks,
   type Pt,
 } from './poses';
+import { attacks } from './attacks';
 import { BODY_Y, SHELL_X, SHELL_Y, rig } from './rig';
 
 const TAU = Math.PI * 2;
@@ -294,8 +295,12 @@ const shield: AnimClip = {
 
 const shieldDrop: AnimClip = {
   length: 11,
-  swaps: IN_SHELL,
-  keys: [key(0, HIDE, { ease: 'linear' }), key(3, SHRINK, { ease: 'out', swaps: HAPPY }), key(11, STAND)],
+  swaps: HAPPY,
+  keys: [
+    key(0, HIDE, { ease: 'linear', swaps: IN_SHELL }),
+    key(3, SHRINK, { ease: 'out', swaps: {} }),
+    key(11, STAND),
+  ],
 };
 
 const shieldBreak: AnimClip = {
@@ -649,7 +654,7 @@ void rig;
 
 /**
  * Every clip: the engine's action names and the canonical names in docs/art.md that differ from them (knockdown,
- * getUp, tech). Move clips follow in the next change.
+ * getUp, tech), then every move's clip (attacks.ts).
  */
 export const clips: Record<string, AnimClip> = {
   idle,
@@ -693,4 +698,5 @@ export const clips: Record<string, AnimClip> = {
   getupRoll,
   respawn,
   grabbed,
+  ...attacks,
 };

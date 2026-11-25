@@ -7,8 +7,10 @@
 import type { ActionDef } from '../sim/actions/registry';
 import type { ButtonName } from '../input/types';
 import type { CastHit } from '../sim/cast';
+import type { Hurtbox } from '../sim/combat/hits';
 import type { AbsorberDef, EntityDef, ReflectorDef, SpawnDef } from '../sim/entities/types';
 import type { Ctx, FighterState } from '../sim/fighter';
+import type { TerrainElement } from '../sim/stage';
 import type { Vec } from '../sim/vec';
 
 export interface FighterStats {
@@ -247,12 +249,16 @@ export interface FighterDef {
    * end over end instead of walking. Keep them deterministic, like move scripts.
    */
   actions?: Record<string, ActionDef>;
+  /** A deterministic world-space capsule for a distinct pose, or undefined to use the normal body. */
+  hurtbox?: (f: Readonly<FighterState>) => Hurtbox | undefined;
   /** Kinds of entity this fighter's moves spawn, by name (the entity kind is "<id>/<name>"). */
   entities?: Record<string, EntityDef>;
   /** Art data for the renderer (src/render/rig). Plain data, no renderer imports. */
   art?: unknown;
   /** False for forms reached only by transforming (Watergirl), so menus list only the fighter that starts. */
   selectable?: boolean;
+  /** Damaging terrain this fighter is unharmed by, e.g. Fireboy's ['lava'] (docs/stage-geometry.md). */
+  immune?: TerrainElement[];
 }
 
 export function defineFighter<T extends FighterDef>(def: T): T {

@@ -21,6 +21,23 @@ export const scenarios: FighterScenarios = {
   refs,
   extra: [
     {
+      name: 'duck-seeds',
+      description: 'The Duck taps neutral special to spit three seeds at Fireboy.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'duck' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -25, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: 18, y: 0 }, facing: -1 } },
+      ],
+      script: [{ port: 0, from: 10, buttons: ['special'] }],
+      capture: {
+        label: 'All three seeds in flight',
+        when: (s) => s.entities.filter((e) => e.kind === 'duck/seed').length === 3,
+      },
+      motion: { before: 20, after: 27 },
+      requires: ['move:neutralB'],
+    },
+    {
       name: 'duck-launch',
       description: 'Fireboy launches the Duck at 150%; capture the first tumble pose.',
       page: { kind: 'game' },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FIGHTERS } from '../fighters/registry';
-import { PLANNED_ROSTER, rosterTiles } from './roster';
+import { PLANNED_ROSTER, rosterTiles, selectableFighterIds } from './roster';
 
 const f = (id: string, name: string) => ({ id, name });
 
@@ -50,5 +50,16 @@ describe('roster grid', () => {
     const selectable = Object.values(FIGHTERS).filter((d) => d.selectable !== false);
     expect([...ids].sort()).toEqual(selectable.map((d) => d.id).sort());
     expect(ids).not.toContain('watergirl');
+  });
+});
+
+describe('selectableFighterIds', () => {
+  it('leaves out forms reached only in a match', () => {
+    expect(selectableFighterIds()).toEqual(
+      Object.values(FIGHTERS)
+        .filter((d) => d.selectable !== false)
+        .map((d) => d.id),
+    );
+    expect(selectableFighterIds()).not.toContain('watergirl');
   });
 });

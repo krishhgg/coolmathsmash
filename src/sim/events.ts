@@ -1,6 +1,7 @@
 import type { HitboxDef, TetherLatch } from '../fighters/types';
 import type { DestroyReason } from './entities/types';
 import type { MatchState } from './match';
+import type { TerrainElement } from './stage';
 
 type Side = 'left' | 'right' | 'top' | 'bottom';
 
@@ -97,7 +98,19 @@ export type SimEvent =
   /** A tether line anchored at (`x`, `y`) on a ledge, a surface or empty air (`sky`); the reel starts. */
   | { type: 'tetherLatch'; port: number; kind: TetherLatch; x: number; y: number }
   /** A tether line let go: it whiffed, the fighter let go or grabbed the ledge, or something knocked him off it. */
-  | { type: 'tetherRelease'; port: number };
+  | { type: 'tetherRelease'; port: number }
+  /** A stage hazard hit a fighter: a damage zone (with its element) or a stage hitbox, by index. */
+  | {
+      type: 'stageHit';
+      victim: number;
+      source: 'zone' | 'hitbox';
+      index: number;
+      element: TerrainElement | null;
+      damage: number;
+      kb: number;
+      x: number;
+      y: number;
+    };
 
 export type SimEventType = SimEvent['type'];
 

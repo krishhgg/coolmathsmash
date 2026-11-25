@@ -51,6 +51,7 @@ feeds back into the simulation.
 | `tetherFire`    | `port`, `x`, `y`                                                                                  | a tether line leaves the hand towards (`x`, `y`), the end of its full range                                                                        |
 | `tetherLatch`   | `port`, `kind` (`ledge`, `surface`, `sky`), `x`, `y`                                              | a tether line anchors at (`x`, `y`) and the reel starts                                                                                            |
 | `tetherRelease` | `port`                                                                                            | a tether line lets go: it whiffed, the fighter let go or grabbed the ledge, or a hit knocked him off                                               |
+| `stageHit`      | `victim`, `source` (`zone`, `hitbox`), `index`, `element` (or null), `damage`, `kb`, `x`, `y`     | a stage hazard hits a fighter; `damage` is what it added                                                                                           |
 
 `x` and `y` are world units with y up. `action` events come last in a frame, one per fighter whose action
 differs from the frame before, which also covers states without their own event: `shield`, `spotDodge`,

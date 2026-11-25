@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { poseBounds } from '../../../render/rig/geometry';
+import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import { moveClipFrame } from '../../../render/rig/timing';
+import { moves } from '../moves';
 import { stats } from '../stats';
 import { art } from '.';
 
@@ -47,10 +49,15 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   getupRoll: 35,
   respawn: 'loop',
   grabbed: 'loop',
+  grabHold: 'loop',
 };
 
+/** Specials are COOL-11's to draw; the art covers the standard, grab and throw moveset. */
+const SPECIALS = ['neutralB', 'sideB', 'upB', 'downB'];
+const drawnMoves = Object.entries(moves).filter(([name]) => !SPECIALS.includes(name));
+
 describe('snail bob art', () => {
-  it('has every canonical movement, defence, ledge and hurt clip', () => {
+  it('has every canonical clip, and a clip with active windows for every standard move', () => {
     for (const [name, len] of Object.entries(LENGTHS)) {
       const clip = art.clips[name];
       expect(clip, name).toBeDefined();
@@ -58,6 +65,7 @@ describe('snail bob art', () => {
       else if (typeof len === 'number') expect(clip!.length, name).toBe(len);
       else expect(clip!.loop, name).toBeFalsy();
     }
+    for (const [name] of drawnMoves) expect(art.clips[name]?.active, name).toBeDefined();
   });
 
   it('only references bones, slots and symbols that exist, with keys in order inside the clip', () => {
@@ -79,6 +87,48 @@ describe('snail bob art', () => {
       for (let f = 0; f <= clip.length; f++)
         expect(() => samplePose(art, name, f, f), `${name}@${f}`).not.toThrow();
     }
+  });
+
+  it('never draws the face or the arms without the head, nor an eye without its stalk', () => {
+    const loose: string[] = [];
+    for (const [name, clip] of Object.entries(art.clips))
+      for (let f = 0; f <= clip.length; f++) {
+        const { symbols } = samplePose(art, name, f, f);
+        const needs: [string, string][] = [
+          ['eyeF', 'stalkF2'],
+          ['eyeB', 'stalkB2'],
+          ['mouth', 'head'],
+          ['stalkF1', 'head'],
+          ['stalkB1', 'head'],
+          ['foreF', 'neck'],
+          ['foreB', 'neck'],
+        ];
+        for (const [part, host] of needs)
+          if (symbols[part] && !symbols[host]) loose.push(`${name}@${f}: ${part} without ${host}`);
+      }
+    expect(loose).toEqual([]);
+  });
+
+  it("reaches into every hitbox's inner half with a drawn part during the move's active frames", () => {
+    const misses: string[] = [];
+    for (const [name, move] of drawnMoves) {
+      const clip = art.clips[name]!;
+      for (const { frames, boxes } of move.hits)
+        for (let f = frames[0]; f <= frames[1]; f++) {
+          const pose = samplePose(art, name, moveClipFrame(clip, f, move), f);
+          for (const { x, y, radius } of boxes) {
+            const probes = [
+              [0, 0],
+              ...[0, 1, 2, 3, 4, 5, 6, 7].map((i) => [Math.cos(i * 0.785), Math.sin(i * 0.785)]),
+            ];
+            const hit = probes.some(
+              ([dx, dy]) => slotsCovering(art, pose, x + dx! * radius * 0.5, -y - dy! * radius * 0.5).length,
+            );
+            if (!hit) misses.push(`${name}@${f} (${x}, ${y})`);
+          }
+        }
+    }
+    expect(misses).toEqual([]);
   });
 
   it('stands 13 units tall and about 12 wide, feet on the ground', () => {

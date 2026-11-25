@@ -300,7 +300,7 @@ describe('grabs with more players', () => {
     expect(v.pos.x).toBeCloseTo(-1, 6);
     attack(m, 2, 'jab');
     step(m, 4);
-    expect(v.damage).toBeCloseTo(3 * 1.05, 6);
+    expect(v.damage).toBeCloseTo(moves.jab!.hits[0]!.boxes[0]!.damage * 1.05, 6);
     expect(v.action).toBe('grabbed');
     step(m, 30);
     expect(v.action).toBe('grabbed');

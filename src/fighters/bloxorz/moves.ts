@@ -44,7 +44,7 @@ const TUMBLE_CARRY = [
  * force the sheet's kill %, until COOL-3's engine calibration lands). Frame windows are inclusive, faf is the first actionable frame.
  */
 export const moves: Record<string, MoveDef> = {
-  /** Edge Rock: rocks forward onto its front edge and back; Attack again rocks harder (jab2). */
+  /** Edge Rock: rocks forward onto its front edge and back; Attack again rocks harder (jab2). Pyra's linking jab. */
   jab: {
     kind: 'other',
     faf: 24,
@@ -53,13 +53,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [5, 6],
         boxes: [
-          box(0, 10, 15, 5, { damage: 3, angle: 361, kbg: 30, bkb: 25 }),
-          box(1, 7, 6, 4.5, { damage: 3, angle: 361, kbg: 30, bkb: 25 }),
+          box(0, 10, 15, 5, { damage: 3, angle: 361, kbg: 20, bkb: 15 }),
+          box(1, 7, 6, 4.5, { damage: 3, angle: 361, kbg: 20, bkb: 15 }),
         ],
       },
     ],
   },
-  /** Edge Rock, second rock: a harder lean that shoves them away. */
+  /** Edge Rock, second rock: a harder lean that shoves them away, like Yoshi's second jab. */
   jab2: {
     kind: 'other',
     faf: 32,
@@ -67,8 +67,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [6, 7],
         boxes: [
-          box(0, 11, 15, 5.5, { damage: 4, angle: 361, kbg: 80, bkb: 45 }),
-          box(1, 8, 6, 5, { damage: 4, angle: 361, kbg: 80, bkb: 45 }),
+          box(0, 11, 15, 5.5, { damage: 4, angle: 361, kbg: 70, bkb: 56 }),
+          box(1, 8, 6, 5, { damage: 4, angle: 361, kbg: 70, bkb: 56 }),
         ],
       },
     ],
@@ -81,13 +81,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [12, 14],
         boxes: [
-          box(0, 24, 6, 6, { damage: 11, angle: 40, kbg: 98, bkb: 38 }),
-          box(1, 14, 9, 6, { damage: 11, angle: 40, kbg: 98, bkb: 38 }),
+          box(0, 24, 6, 6, { damage: 11, angle: 361, kbg: 76, bkb: 64 }),
+          box(1, 14, 9, 6, { damage: 11, angle: 361, kbg: 76, bkb: 64 }),
         ],
       },
     ],
   },
-  /** Stand Up: rears onto its end; the rising end swats anything above. Anti-air. A lying block ends up standing. */
+  /** Stand Up: rears onto its end for a Dedede-style anti-air. A lying block ends up standing. */
   utilt: {
     kind: 'other',
     faf: 36,
@@ -98,8 +98,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [9, 12],
         boxes: [
-          box(0, 2, 27, 7, { damage: 9, angle: 88, kbg: 105, bkb: 42, direction: 'away' }),
-          box(1, 9, 17, 6, { damage: 9, angle: 80, kbg: 105, bkb: 42 }),
+          box(0, 2, 27, 7, { damage: 9, angle: 96, kbg: 94, bkb: 65, direction: 'away' }),
+          box(1, 9, 17, 6, { damage: 9, angle: 96, kbg: 94, bkb: 65 }),
         ],
       },
     ],
@@ -112,8 +112,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [8, 10],
         boxes: [
-          box(0, 15, 2.5, 5, { damage: 7, angle: 20, kbg: 40, bkb: 50 }),
-          box(1, 7, 2.5, 4.5, { damage: 7, angle: 20, kbg: 40, bkb: 50 }),
+          box(0, 15, 2.5, 5, { damage: 7, angle: 30, kbg: 40, bkb: 40 }),
+          box(1, 7, 2.5, 4.5, { damage: 7, angle: 30, kbg: 40, bkb: 40 }),
         ],
       },
     ],
@@ -132,8 +132,8 @@ export const moves: Record<string, MoveDef> = {
         frames: [30, 32],
         rehit: true,
         boxes: [
-          box(0, 8, 6, 8, { damage: 4, angle: 45, kbg: 95, bkb: 60 }),
-          box(1, -4, 6, 7, { damage: 4, angle: 45, kbg: 95, bkb: 60 }),
+          box(0, 8, 6, 8, { damage: 4, angle: 361, kbg: 100, bkb: 60 }),
+          box(1, -4, 6, 7, { damage: 4, angle: 361, kbg: 100, bkb: 60 }),
         ],
       },
     ],
@@ -154,8 +154,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [20, 22],
         boxes: [
-          box(0, 24, 6, 7, { damage: 20, angle: 361, kbg: 94, bkb: 36 }),
-          box(1, 12, 9, 7, { damage: 18, angle: 361, kbg: 94, bkb: 32 }),
+          box(0, 24, 6, 7, { damage: 20, angle: 361, kbg: 98, bkb: 25 }),
+          box(1, 12, 9, 7, { damage: 18, angle: 361, kbg: 103, bkb: 10 }),
         ],
       },
     ],
@@ -169,9 +169,9 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [14, 17],
         boxes: [
-          box(0, 0, 30, 8, { damage: 17, angle: 90, kbg: 92, bkb: 36, direction: 'away' }),
-          box(1, 7, 18, 7, { damage: 15, angle: 85, kbg: 92, bkb: 34, direction: 'away' }),
-          box(2, 9, 5, 6, { damage: 12, angle: 80, kbg: 90, bkb: 30 }),
+          box(0, 0, 30, 8, { damage: 17, angle: 83, kbg: 90, bkb: 31, direction: 'away' }),
+          box(1, 7, 18, 7, { damage: 15, angle: 83, kbg: 84, bkb: 32, direction: 'away' }),
+          box(2, 9, 5, 6, { damage: 12, angle: 83, kbg: 84, bkb: 32 }),
         ],
       },
     ],
@@ -186,15 +186,15 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [13, 15],
         boxes: [
-          box(0, 13, 4, 7, { damage: 15, angle: 30, kbg: 92, bkb: 34 }),
-          box(1, -13, 4, 7, { damage: 15, angle: 30, kbg: 92, bkb: 34, direction: 'back' }),
+          box(0, 13, 4, 7, { damage: 15, angle: 35, kbg: 81, bkb: 61 }),
+          box(1, -13, 4, 7, { damage: 15, angle: 35, kbg: 81, bkb: 61, direction: 'back' }),
         ],
       },
       {
         frames: [16, 19],
         boxes: [
-          box(0, 26, 2.5, 5, { damage: 10, angle: 35, kbg: 85, bkb: 35 }),
-          box(1, -26, 2.5, 5, { damage: 10, angle: 35, kbg: 85, bkb: 35, direction: 'back' }),
+          box(0, 26, 2.5, 5, { damage: 10, angle: 35, kbg: 81, bkb: 61 }),
+          box(1, -26, 2.5, 5, { damage: 10, angle: 35, kbg: 81, bkb: 61, direction: 'back' }),
         ],
       },
     ],
@@ -228,7 +228,7 @@ export const moves: Record<string, MoveDef> = {
       },
       {
         frames: [13, 22],
-        boxes: [box(0, 0, 12, 12, { damage: 7, angle: 361, kbg: 100, bkb: 10, direction: 'away' })],
+        boxes: [box(0, 0, 12, 12, { damage: 7, angle: 361, kbg: 90, bkb: 20, direction: 'away' })],
       },
     ],
   },
@@ -245,8 +245,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [11, 13],
         boxes: [
-          box(0, 16, 10, 7, { damage: 12, angle: 361, kbg: 96, bkb: 30 }),
-          box(1, 8, 17, 6, { damage: 12, angle: 361, kbg: 96, bkb: 30 }),
+          box(0, 16, 10, 7, { damage: 12, angle: 361, kbg: 98, bkb: 15 }),
+          box(1, 8, 17, 6, { damage: 12, angle: 361, kbg: 98, bkb: 15 }),
         ],
       },
     ],
@@ -264,8 +264,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [10, 12],
         boxes: [
-          box(0, -16, 10, 7, { damage: 13, angle: 361, kbg: 98, bkb: 30, direction: 'back' }),
-          box(1, -8, 16, 6, { damage: 13, angle: 361, kbg: 98, bkb: 30, direction: 'back' }),
+          box(0, -16, 10, 7, { damage: 13, angle: 361, kbg: 97, bkb: 20, direction: 'back' }),
+          box(1, -8, 16, 6, { damage: 13, angle: 361, kbg: 97, bkb: 20, direction: 'back' }),
         ],
       },
     ],
@@ -282,7 +282,7 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [9, 12],
-        boxes: [box(0, 0, 30, 8, { damage: 11, angle: 80, kbg: 100, bkb: 32, direction: 'away' })],
+        boxes: [box(0, 0, 30, 8, { damage: 11, angle: 80, kbg: 94, bkb: 55, direction: 'away' })],
       },
     ],
   },
@@ -302,7 +302,7 @@ export const moves: Record<string, MoveDef> = {
       },
       {
         frames: [19, 26],
-        boxes: [box(0, 0, -1, 6.5, { damage: 12, angle: 361, kbg: 90, bkb: 25, direction: 'away' })],
+        boxes: [box(0, 0, -1, 6.5, { damage: 12, angle: 361, kbg: 90, bkb: 20, direction: 'away' })],
       },
     ],
   },
@@ -318,28 +318,28 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 36,
     hits: [],
-    throw: { frame: 16, hit: { damage: 9, angle: 40, kbg: 60, bkb: 62 } },
+    throw: { frame: 16, hit: { damage: 9, angle: 42, kbg: 56, bkb: 60 } },
   },
   /** Flip Over: flips end over end over them and flings them behind. Its kill throw. */
   bthrow: {
     kind: 'other',
     faf: 52,
     hits: [],
-    throw: { frame: 30, hit: { damage: 11, angle: 42, kbg: 70, bkb: 60, direction: 'back' } },
+    throw: { frame: 30, hit: { damage: 11, angle: 40, kbg: 65, bkb: 60, direction: 'back' } },
   },
   /** Stand Launch: stands up under them and pops them straight up. */
   uthrow: {
     kind: 'other',
     faf: 44,
     hits: [],
-    throw: { frame: 20, hit: { damage: 10, angle: 90, kbg: 75, bkb: 65 } },
+    throw: { frame: 20, hit: { damage: 10, angle: 90, kbg: 73, bkb: 77 } },
   },
   /** Crush: drops its full weight on them; low knockback for follow-ups. */
   dthrow: {
     kind: 'other',
     faf: 44,
     hits: [],
-    throw: { frame: 22, hit: { damage: 7, angle: 75, kbg: 45, bkb: 60 } },
+    throw: { frame: 22, hit: { damage: 7, angle: 65, kbg: 50, bkb: 70 } },
   },
   ...specials,
 };
@@ -357,8 +357,8 @@ export const lyingMoves: Record<string, MoveDef> = {
       {
         frames: [8, 10],
         boxes: [
-          box(0, 17, 5, 6, { damage: 8, angle: 361, kbg: 90, bkb: 30 }),
-          box(1, 9, 9, 5, { damage: 8, angle: 361, kbg: 90, bkb: 30 }),
+          box(0, 17, 5, 6, { damage: 8, angle: 361, kbg: 78, bkb: 50 }),
+          box(1, 9, 9, 5, { damage: 8, angle: 361, kbg: 78, bkb: 50 }),
         ],
       },
     ],
