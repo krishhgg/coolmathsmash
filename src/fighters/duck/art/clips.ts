@@ -1,4 +1,5 @@
 import type { Pose } from '../../../render/rig/author';
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip } from '../../../render/rig/types';
 import { attacks } from './attacks';
 import {
@@ -414,7 +415,7 @@ export const clips: Record<string, AnimClip> = {
     ],
   },
   spotDodge: {
-    length: 27,
+    length: 25,
     swaps: { ...BLINK, ...WINGS },
     keys: [
       key(0, STAND, { ease: 'out' }),
@@ -450,11 +451,11 @@ export const clips: Record<string, AnimClip> = {
         ),
       ),
       key(20, undefined, { swaps: { wingF: null, wingB: null } }),
-      key(27, STAND),
+      key(25, STAND),
     ],
   },
   rollForward: {
-    length: 31,
+    length: 29,
     keys: [
       key(0, CROUCH, { ease: 'in', swaps: BLINK }),
       key(4, ball(90), { ease: 'linear', swaps: { ...BLINK, ...WINGS } }),
@@ -462,21 +463,21 @@ export const clips: Record<string, AnimClip> = {
       key(16, ball(300), { ease: 'linear' }),
       key(22, ball(380), { ease: 'out' }),
       key(24, undefined, { swaps: {} }),
-      key(26, mix(CROUCH, { body: { rot: 360 } }), { ease: 'out' }),
-      key(31, mix(STAND, { body: { rot: 360 } })),
+      key(25, mix(CROUCH, { body: { rot: 360 } }), { ease: 'out' }),
+      key(29, mix(STAND, { body: { rot: 360 } })),
     ],
   },
   rollBack: {
-    length: 31,
+    length: 34,
     keys: [
       key(0, CROUCH, { ease: 'in', swaps: BLINK }),
       key(4, ball(-90), { ease: 'linear', swaps: { ...BLINK, ...WINGS } }),
       key(10, ball(-200), { ease: 'linear' }),
       key(16, ball(-300), { ease: 'linear' }),
       key(22, ball(-380), { ease: 'out' }),
-      key(24, undefined, { swaps: {} }),
-      key(26, mix(CROUCH, { body: { rot: -360 } }), { ease: 'out' }),
-      key(31, mix(STAND, { body: { rot: -360 } })),
+      key(25, undefined, { swaps: {} }),
+      key(27, mix(CROUCH, { body: { rot: -360 } }), { ease: 'out' }),
+      key(34, mix(STAND, { body: { rot: -360 } })),
     ],
   },
   airDodge: {
@@ -602,7 +603,7 @@ export const clips: Record<string, AnimClip> = {
     keys: [key(0, DOWN), key(20, mix(DOWN, { body: { sy: 1.03, sx: 0.98 }, head: { rot: -14 } }))],
   },
   getUp: {
-    length: 30,
+    length: 29,
     swaps: { ...BLINK, ...WINGS },
     keys: [
       key(0, DOWN, { ease: 'inOut' }),
@@ -611,7 +612,7 @@ export const clips: Record<string, AnimClip> = {
         swaps: { ...ANGRY, ...WINGS },
       }),
       key(18, mix(CROUCH, { body: { rot: 6 } }), { ease: 'inOut', swaps: ANGRY }),
-      key(30, STAND),
+      key(29, STAND),
     ],
   },
   tech: {
@@ -691,5 +692,10 @@ export const clips: Record<string, AnimClip> = {
 clips.down = clips.knockdown!;
 clips.getupStand = clips.getUp!;
 clips.techInPlace = clips.tech!;
+/** The tech roll on the getup roll's timeline: the sim's travel ends on frame 28 instead of 30, and 35 frames in all. */
+clips.getupRoll = retimeClip(clips.techRoll!, 35, [
+  [4, 4],
+  [30, 28],
+]);
 /** `jab1` is the canonical name of the first jab hit; the Duck's move is `jab`. */
 clips.jab1 = clips.jab!;

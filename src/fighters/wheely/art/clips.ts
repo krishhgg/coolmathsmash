@@ -1,3 +1,4 @@
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import { stats, TURN_FLIP, TURN_FRAMES } from '../stats';
 import { attacks } from './attacks';
@@ -423,19 +424,19 @@ export const authored: Record<string, AnimClip> = {
   },
   /** Flattens on his springs, eyes shut, then pops back up. */
   spotDodge: {
-    length: 27,
+    length: 25,
     swaps: IDLE_FACE,
     keys: [
       key(0, PARK, { ease: 'out' }),
       key(3, mix(squash(0.7, 1.16), bob(0.6)), { ease: 'inOut', swaps: CLOSED }),
       key(16, mix(squash(0.74, 1.14), bob(0.55)), { ease: 'outBack' }),
       key(18, undefined, { swaps: {} }),
-      key(27, PARK),
+      key(25, PARK),
     ],
   },
   /** Wheelspin forward and a handbrake turn: the engine faces him back the other way when it ends. */
   rollForward: {
-    length: 31,
+    length: 29,
     swaps: FOCUS,
     keys: [
       key(0, PARK, { ease: 'out' }),
@@ -455,13 +456,13 @@ export const authored: Record<string, AnimClip> = {
         ease: 'inOut',
         swaps: { fx1: 'fxSkid' },
       }),
-      key(25, undefined, { swaps: {} }),
-      key(31, mix(spin(roll(27)), { body: { sx: -1 } })),
+      key(24, undefined, { swaps: {} }),
+      key(29, mix(spin(roll(27)), { body: { sx: -1 } })),
     ],
   },
   /** Reversing out fast, looking over his shoulder. */
   rollBack: {
-    length: 31,
+    length: 34,
     swaps: BACK,
     keys: [
       key(0, PARK, { ease: 'out' }),
@@ -474,8 +475,8 @@ export const authored: Record<string, AnimClip> = {
       key(22, mix(tilt(-2.5, REAR), bob(-0.05), spin(-roll(29)), { fx1: at(-WHEEL_X, 0, -1.1, 0, 1) }), {
         ease: 'inOut',
       }),
-      key(25, undefined, { swaps: IDLE_FACE }),
-      key(31, spin(-roll(29))),
+      key(26, undefined, { swaps: IDLE_FACE }),
+      key(34, spin(-roll(29))),
     ],
   },
   /** Twirls round twice in mid-air, eyes shut: a Flash card-flip, never thinner than a fifth of the car. */
@@ -605,7 +606,7 @@ export const authored: Record<string, AnimClip> = {
   },
   /** Rocks back, then flips over onto his wheels. */
   getUp: {
-    length: 30,
+    length: 29,
     swaps: HURT,
     keys: [
       key(0, UPSIDE_DOWN, { ease: 'in' }),
@@ -614,7 +615,7 @@ export const authored: Record<string, AnimClip> = {
       key(14, mix(flip(300), spin(600)), { ease: 'linear' }),
       key(18, mix(flip(360), SQUAT, spin(720)), { ease: 'out', swaps: FOCUS }),
       key(24, mix(tilt(360, BODY), bob(-0.05), spin(720)), { ease: 'inOut' }),
-      key(30, mix(tilt(360, BODY), spin(720))),
+      key(29, mix(tilt(360, BODY), spin(720))),
     ],
   },
   /** Hits the floor and bounces straight back onto his wheels. */
@@ -693,6 +694,7 @@ export const clips: Record<string, AnimClip> = {
   ...baked,
   down: baked.knockdown!,
   getupStand: baked.getUp!,
-  getupRoll: baked.getUp!,
+  /** The same flip, spread over the getup roll's 35 frames while the sim slides him sideways. */
+  getupRoll: retimeClip(baked.getUp!, 35),
   techInPlace: baked.tech!,
 };

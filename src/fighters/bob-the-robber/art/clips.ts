@@ -389,6 +389,20 @@ function shush(depth: number): Pose {
   return aim(wrists, 'handF', 180);
 }
 
+/** A turn along the floor from frame 4 to `turned`, a crouch on `crouch`, standing on the last frame. */
+function floorRoll(length: number, turned: number, crouch: number): AnimClip {
+  return floorContact({
+    length,
+    swaps: SIDE,
+    keys: continuous([
+      key(0, grounded(mix(CROUCH, { body: { rot: -20 } })), { ease: 'out' }),
+      ...rollKeys(4, turned, 1),
+      key(crouch, mix(grounded(CROUCH), { body: { rot: 360 } }), { ease: 'out' }),
+      key(length, mix(READY, { body: { rot: 360 } })),
+    ]),
+  });
+}
+
 const PIVOT = feet({ hip: { y: 0.34 }, neck: { y: 0.1 } }, floor(-1.05), floor(1.05), true);
 
 const LEDGE_INWARD = 6.25;
@@ -661,7 +675,7 @@ export const clips: Record<string, AnimClip> = {
     keys: [key(0, SHIELD, { ease: 'out' }), key(6, undefined, { z: {} }), key(11, READY)],
   },
   spotDodge: {
-    length: 27,
+    length: 25,
     swaps: SIDE,
     keys: [
       key(0, READY, { ease: 'out' }),
@@ -681,32 +695,32 @@ export const clips: Record<string, AnimClip> = {
           ease: 'inOut',
         },
       ),
-      key(22, undefined, { swaps: {}, z: {} }),
-      key(27, READY),
+      key(21, undefined, { swaps: {}, z: {} }),
+      key(25, READY),
     ],
   },
   rollForward: floorContact({
-    length: 31,
+    length: 29,
     swaps: SIDE,
     keys: continuous([
       key(0, READY, { ease: 'out' }),
       key(4, grounded(CROUCH), { ease: 'out' }),
       ...rollKeys(6, 22, 1),
-      key(25, mix(PIVOT, { body: { rot: 360 } }), { ease: 'step', swaps: FRONT }),
-      key(26, mix(PIVOT, { body: { rot: 360, sx: -1 } }), { ease: 'out' }),
-      key(28, undefined, { swaps: {} }),
-      key(31, mix(READY, { body: { rot: 360, sx: -1 } })),
+      key(24, mix(PIVOT, { body: { rot: 360 } }), { ease: 'step', swaps: FRONT }),
+      key(25, mix(PIVOT, { body: { rot: 360, sx: -1 } }), { ease: 'out' }),
+      key(27, undefined, { swaps: {} }),
+      key(29, mix(READY, { body: { rot: 360, sx: -1 } })),
     ]),
   }),
   rollBack: floorContact({
-    length: 31,
+    length: 34,
     swaps: SIDE,
     keys: continuous([
       key(0, READY, { ease: 'out' }),
       key(4, grounded(CROUCH), { ease: 'out' }),
       ...rollKeys(6, 22, -1),
-      key(26, grounded(mix(CROUCH, { body: { rot: -344 } })), { ease: 'out' }),
-      key(31, mix(READY, { body: { rot: -356 } })),
+      key(27, grounded(mix(CROUCH, { body: { rot: -344 } })), { ease: 'out' }),
+      key(34, mix(READY, { body: { rot: -356 } })),
     ]),
   }),
   airDodge: {
@@ -882,16 +896,9 @@ export const clips: Record<string, AnimClip> = {
       key(26, READY),
     ],
   }),
-  techRoll: floorContact({
-    length: 40,
-    swaps: SIDE,
-    keys: continuous([
-      key(0, grounded(mix(CROUCH, { body: { rot: -20 } })), { ease: 'out' }),
-      ...rollKeys(4, 26, 1),
-      key(31, mix(grounded(CROUCH), { body: { rot: 360 } }), { ease: 'out' }),
-      key(40, mix(READY, { body: { rot: 360 } })),
-    ]),
-  }),
+  techRoll: floorRoll(40, 26, 31),
+  /** The tech roll on the getup roll's shorter timeline: the turn ends two frames sooner, as the travel does. */
+  getupRoll: floorRoll(35, 24, 29),
   grabbed: {
     length: 20,
     loop: true,
