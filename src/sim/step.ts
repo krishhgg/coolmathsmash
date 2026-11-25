@@ -2,7 +2,7 @@ import { getFighter } from '../fighters/registry';
 import { getStage } from '../stages/registry';
 import './actions';
 import { actionDef, runAction } from './actions/registry';
-import { applyLaunch } from './combat/hits';
+import { applyLaunch, stepLaunchMotion } from './combat/hits';
 import {
   RESPAWN_DELAY,
   SHIELD_MAX,
@@ -52,6 +52,7 @@ export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): voi
     return;
   }
   if (f.launch) applyLaunch(x);
+  else if (f.launchMotion) stepLaunchMotion(x);
   f.actionFrame++;
   runAction(x);
   const physics = actionDef(f).physics;
@@ -90,6 +91,7 @@ function checkBlastZones(x: Ctx): void {
   f.vel = { x: 0, y: 0 };
   f.kb = { x: 0, y: 0 };
   f.launch = null;
+  f.launchMotion = null;
   f.hitstun = 0;
   f.speedUpFaf = 0;
   f.flyTop = false;

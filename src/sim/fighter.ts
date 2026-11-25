@@ -57,6 +57,7 @@ export interface FighterState {
   /** The current launch is near-vertical (70-110 degree tumble): DamageFlyTop gravity and fall speed during hitstun. */
   flyTop: boolean;
   launch: PendingLaunch | null;
+  launchMotion: LaunchMotion | null;
   /** Ports the current move has already hit. */
   hitVictims: number[];
   /** Stale multiplier of the current move activation, fixed when it first connects (0 = not connected yet). */
@@ -121,6 +122,7 @@ export function createFighter(
     speedUpFaf: 0,
     flyTop: false,
     launch: null,
+    launchMotion: null,
     hitVictims: [],
     moveStale: 0,
     charge: 0,
@@ -147,7 +149,24 @@ export interface PendingLaunch {
   /** World direction the attacker was facing: launch angles are measured from it. */
   dir: 1 | -1;
   setKnockback: boolean;
+  /** An autolink (365-368) or position-vector hit: what the launch follows instead of its angle. */
+  link?: LaunchLink;
 }
+
+/** The attacker's motion and the hitbox, captured when an autolink or position-vector hit lands. */
+export interface LaunchLink {
+  /** The attacker's velocity, self-propelled plus knockback. */
+  vel: Vec;
+  /** World centre of the hitbox that connected. */
+  at: Vec;
+  /** HitboxDef.vector in world space: where the target's middle is pulled, over `frames` frames. */
+  to?: { x: number; y: number; frames: number };
+}
+
+export type LaunchMotion =
+  | { kind: 'vortex'; frames: number; at: Vec; dir: Vec }
+  | { kind: 'vector'; frames: number; at: Vec }
+  | { kind: 'cap'; frames: number };
 
 /** Values derived from a fighter's stats once (initial jump speeds that hit the stated apex heights). */
 export interface Derived {

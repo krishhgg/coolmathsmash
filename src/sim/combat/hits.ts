@@ -5,16 +5,26 @@ import { findGrabs, grabArmour, resolveGrabs } from '../actions/grab';
 import { inWindow, isIntangible } from '../actions/registry';
 import { LEDGE_HIT_LOCK } from '../constants';
 import { stickX, stickY } from '../control';
-import type { Ctx, FighterState } from '../fighter';
+import type { Ctx, FighterState, LaunchLink } from '../fighter';
 import { emit } from '../events';
 import type { MatchState } from '../match';
 import { leaveGround } from '../movement';
 import {
+  AUTOLINK,
+  AUTOLINK_GROUND_ANGLE,
+  AUTOLINK_HALF,
+  AUTOLINK_PULL,
+  AUTOLINK_SPEED_CAP_DELAY,
+  AUTOLINK_SPEED_MAX,
+  AUTOLINK_VORTEX_FRAMES,
+  AUTOLINK_VY_MIN,
   hitlagFrames,
   hitstunFrames,
+  isAutolink,
   isTumble,
   knockback,
   launch,
+  LAUNCH_SPEED_PER_KB,
   ONE_V_ONE_DAMAGE,
   rageMultiplier,
   SHIELD_DAMAGE_MULT,
@@ -97,6 +107,7 @@ interface Connection {
   at: { x: number; y: number };
   /** The attacker's move, kept here because an earlier hit this frame may clear it. */
   move: string | null;
+  link?: LaunchLink;
   /** The victim's armor this frame (MoveDef.armor): hits below both thresholds don't launch. Null without armor. */
   armor: { kb: number; damage: number } | null;
 }
@@ -133,6 +144,7 @@ function connection(
     shielding: v.action === 'shield' || v.action === 'shieldStun',
     at,
     move,
+    link: isAutolink(box.angle) || box.vector ? linkOf(a, box, at) : undefined,
     armor: armorOf(v),
   };
 }
@@ -205,7 +217,7 @@ export function addDamage(m: MatchState, v: FighterState, damage: number): void 
  */
 function hit(
   m: MatchState,
-  { a, v, box, damage: base, stale, rage, dir, percent, crouch, at, move, armor }: Connection,
+  { a, v, box, damage: base, stale, rage, dir, percent, crouch, at, move, link, armor }: Connection,
   again: boolean,
 ): void {
   const kb = knockback({
@@ -241,7 +253,7 @@ function hit(
   if (armor && kb < armor.kb && damage < armor.damage) return;
   const held = grabArmour(m, v, damage);
   if (again && v.launch && v.launch.kb >= kb) return;
-  v.launch = { kb, angle: box.angle, dir, setKnockback: (box.wbkb ?? 0) > 0 };
+  v.launch = { kb, angle: box.angle, dir, setKnockback: (box.wbkb ?? 0) > 0, ...(link && { link }) };
   if (held) return;
   v.action = isTumble(kb) ? 'tumble' : 'hitstun';
   v.actionFrame = 0;
@@ -278,41 +290,120 @@ function shieldHit(
   });
 }
 
+/** The attacker's motion and the hitbox an autolink or position-vector hit needs after hitlag, captured on contact. */
+function linkOf(a: FighterState, box: HitboxDef, at: { x: number; y: number }): LaunchLink {
+  const link: LaunchLink = { vel: { x: a.vel.x + a.kb.x, y: a.vel.y + a.kb.y }, at };
+  if (box.vector) {
+    link.to = { x: a.pos.x + box.vector.x * a.facing, y: a.pos.y + box.vector.y, frames: box.vector.frames };
+  }
+  return link;
+}
+
 /**
  * Hitlag is over: launch. DI comes from the victim's stick now. Grounded fighters hit flat (0 or 180 degrees)
  * or downward without tumble slide along the ground in hitstun; tumble spikes into the ground bounce off it.
+ * Autolink and position-vector hits replace the launch speed (but not the hitstun) with their own (formulas.ts).
  */
 export function applyLaunch(x: Ctx): void {
   const { f, c, s } = x;
   const pending = f.launch!;
   f.launch = null;
+  f.launchMotion = null;
+  const autolink = isAutolink(pending.angle);
+  const grounded367 =
+    autolink && f.ground !== null && pending.angle !== AUTOLINK.half && pending.angle !== AUTOLINK.vortex;
+  const link = pending.link && (pending.link.to || !grounded367) ? pending.link : undefined;
   const l = launch({
     kb: pending.kb,
-    angle: pending.angle,
+    angle: autolink ? AUTOLINK_GROUND_ANGLE : pending.angle,
     aerial: f.ground === null,
     gravity: s.gravity,
     setKnockback: pending.setKnockback,
-    stick: { x: stickX(c) * pending.dir, y: stickY(c) },
+    stick: link ? undefined : { x: stickX(c) * pending.dir, y: stickY(c) },
   });
   f.vel = { x: 0, y: 0 };
-  f.kb = { x: l.vx * pending.dir, y: l.vy };
+  const stun = hitstunFrames(pending.kb);
+  f.hitstun = stun + 1;
+  f.kb = link
+    ? linkedLaunch(x, pending.angle, link, pending.kb * LAUNCH_SPEED_PER_KB)
+    : { x: l.vx * pending.dir, y: l.vy };
   f.ledge = -1;
   f.ledgeLock = LEDGE_HIT_LOCK;
   f.ledgeGrabs = 0;
   f.ledgeFresh = true;
   f.fastFalling = false;
   f.airDodgeUsed = false;
-  const stun = hitstunFrames(pending.kb);
-  f.hitstun = stun + 1;
-  f.speedUpFaf = l.tumble && !pending.setKnockback ? stun + 1 : 0;
-  f.flyTop = l.vertical;
+  f.speedUpFaf = l.tumble && !pending.setKnockback && !link?.to ? stun + 1 : 0;
+  f.flyTop = l.vertical && !link;
   if (!f.ground) return;
-  const flat = l.angle === 0 || l.angle === 180;
+  const flat = link ? f.kb.y === 0 : l.angle === 0 || l.angle === 180;
   if (!flat && f.kb.y > 0) return leaveGround(x);
-  if (!flat && l.tumble) {
+  if (!link && !flat && l.tumble) {
     f.kb.y = Math.abs(f.kb.y) * 0.8;
     return leaveGround(x);
   }
   f.kb.y = 0;
   if (f.action === 'tumble') f.action = 'hitstun';
+}
+
+/** Launch velocity of an autolink (365-367) or position-vector hit; `speed` is the knockback's own launch speed. */
+function linkedLaunch(x: Ctx, angle: number, link: LaunchLink, speed: number): { x: number; y: number } {
+  const { f, s } = x;
+  if (link.to) {
+    f.launchMotion = { kind: 'vector', at: link.to, frames: Math.max(1, Math.ceil(link.to.frames)) };
+    stepLaunchMotion(x);
+    return f.kb;
+  }
+  const { vel } = link;
+  if (angle === AUTOLINK.half) return { x: vel.x * AUTOLINK_HALF, y: vel.y * AUTOLINK_HALF };
+  if (angle === AUTOLINK.vortex) {
+    const dir = withSpeed(vel, 1);
+    f.launchMotion = { kind: 'vortex', at: link.at, frames: AUTOLINK_VORTEX_FRAMES, dir };
+    f.kb = withSpeed(dir, speed);
+    stepLaunchMotion(x, speed);
+    return f.kb;
+  }
+  const v = {
+    x: vel.x + AUTOLINK_PULL * (link.at.x - f.pos.x),
+    y: Math.max(AUTOLINK_VY_MIN, vel.y + AUTOLINK_PULL * (link.at.y - f.pos.y - s.height / 2)),
+  };
+  if (Math.hypot(v.x, v.y) > AUTOLINK_SPEED_MAX) {
+    f.launchMotion = { kind: 'cap', frames: AUTOLINK_SPEED_CAP_DELAY - 1 };
+  }
+  return v;
+}
+
+function withSpeed(v: { x: number; y: number }, speed: number): { x: number; y: number } {
+  const n = Math.hypot(v.x, v.y);
+  return n > 0 ? { x: (v.x / n) * speed, y: (v.y / n) * speed } : { x: 0, y: 0 };
+}
+
+export function stepLaunchMotion(x: Ctx, speed = Math.hypot(x.f.kb.x, x.f.kb.y)): void {
+  const { f, s } = x;
+  const p = f.launchMotion!;
+  if (f.hitstun <= 0 || (f.action !== 'tumble' && f.action !== 'hitstun')) {
+    f.launchMotion = null;
+    return;
+  }
+  if (p.frames === 0) {
+    f.launchMotion = null;
+    if (p.kind === 'cap') {
+      if (speed > AUTOLINK_SPEED_MAX) f.kb = withSpeed(f.kb, AUTOLINK_SPEED_MAX);
+    } else {
+      f.kb = p.kind === 'vortex' ? withSpeed(p.dir, speed) : { x: 0, y: 0 };
+    }
+    return;
+  }
+  p.frames--;
+  if (p.kind === 'cap') return;
+  const dx = p.at.x - f.pos.x;
+  const dy = p.at.y - f.pos.y - s.height / 2;
+  f.kb =
+    p.kind === 'vector'
+      ? { x: dx / (p.frames + 1) - f.vel.x, y: dy / (p.frames + 1) - f.vel.y }
+      : withSpeed(
+          { x: p.dir.x * speed + dx * AUTOLINK_PULL, y: p.dir.y * speed + dy * AUTOLINK_PULL },
+          speed,
+        );
+  if (f.ground && f.kb.y > 0) leaveGround(x);
 }
