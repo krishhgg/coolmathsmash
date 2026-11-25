@@ -563,3 +563,43 @@ export const oven = inked(
     ),
   ],
 );
+
+/** A puff of pepper flakes shaken out of the shaker's cap at the origin, spreading down +y (the pummel). */
+export const pepperDust: PathShape[] = [
+  {
+    d: 'M-0.15 0.1L0.15 0.1L1.45 4.1C0.7 4.6 -0.7 4.6 -1.45 4.1Z',
+    fill: {
+      type: 'linear',
+      x0: 0,
+      y0: 0,
+      x1: 0,
+      y1: 4.5,
+      stops: [
+        { offset: 0, color: 'flakes', alpha: 0.45 },
+        { offset: 1, color: 'flakes', alpha: 0 },
+      ],
+    },
+  },
+  ...inked(
+    [
+      [0.05, 0.55],
+      [-0.25, 1.0],
+      [0.3, 1.3],
+      [-0.1, 1.75],
+      [0.5, 2.05],
+      [-0.55, 2.3],
+      [0.15, 2.6],
+      [-0.3, 3.0],
+      [0.7, 3.1],
+      [0.0, 3.5],
+      [-0.75, 3.55],
+      [0.45, 3.9],
+      [-0.25, 4.2],
+    ].map(
+      ([x, y], i) =>
+        [ellipse(x!, y!, 0.17 - (i % 3) * 0.02, 0.11), i % 2 ? 'flakesLo' : 'flakes'] as [string, Paint],
+    ),
+    [],
+    0.05,
+  ),
+];
