@@ -7,14 +7,6 @@ import { createPlatforms } from './art/platforms';
 
 export type { StageCamera } from './art/parallax';
 
-/** The match as a view that draws its own moving pieces sees it: where every piece is, hazards and interpolation. */
-export interface StageMatch {
-  pieces: StageState;
-  hazards: boolean;
-  /** Between the previous (0) and current (1) simulated frame, as the renderer draws fighters. */
-  alpha: number;
-}
-
 /**
  * What a stage hands the renderer. `background` is screen space (1280x720) and parallaxes from the camera;
  * `world` is drawn in game units at (x, -y) and is placed by the renderer's world container; `foreground`, when
@@ -24,9 +16,13 @@ export interface StageView {
   background: Container;
   world: Container;
   foreground?: Container;
-  /** The view draws the stage's moving pieces from `match`, so the renderer skips its placeholder shapes. */
-  drawsPieces?: boolean;
-  update(frame: number, camera: StageCamera, match?: StageMatch): void;
+  update(frame: number, camera: StageCamera): void;
+  /**
+   * For a stage with moving pieces: place their art from the match's piece state (MatchState.stage), `alpha`
+   * between the last two frames as the renderer interpolates fighters (stagePieces.ts `pieceOffset`). A view
+   * with it draws its own solids and platforms, so the renderer leaves out its placeholder shapes for them.
+   */
+  pieces?(stage: StageState, alpha: number): void;
 }
 
 /** Coolmath Battlefield: a floating temple island under the Coolmath planet. */
