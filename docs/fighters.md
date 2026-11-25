@@ -528,6 +528,9 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   never hit or clank with entities.
 - **Order of a frame.** Fighters act (spawning), the stage moves, entities move, then reflectors, absorbers and clanks, then every hit
   from fighters and entities lands at once, then grabs (an attack or projectile beats a grab on the same frame).
+- **Items.** Items are entities registered as `item/<name>`. `onBreak(m, e, by)` runs when a hittable entity breaks,
+  with the port that landed the last hit. `pickup(m, f, e)` makes an entity something an idle fighter picks up with
+  Attack. The Items rule, spawning and the Coolmath Planet are in docs/items.md.
 - **Events.** Entities report `entitySpawn`, `entityDestroy` (with the reason), `reflect`, `absorb` and `entityHit`,
   and their hits are `hit` and `shieldHit` events carrying the `entity` id (`docs/sim-events.md`).
 

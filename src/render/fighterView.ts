@@ -5,6 +5,7 @@ import type { FighterState } from '../sim/fighter';
 import type { MatchConfig } from '../sim/match';
 import type { FighterDef } from '../fighters/types';
 import { PORT_COLORS } from './debug/inputDisplay';
+import { drawFinalGlow } from './items';
 import { moveClipFrame } from './rig/timing';
 import type { FighterArt } from './rig/types';
 import { createRigView, type RigView } from './rig/view';
@@ -62,6 +63,8 @@ export class FighterView {
   private readonly art: FighterArt | undefined;
   private readonly rig: RigView | null;
   private readonly shield = new Graphics();
+  /** The rainbow aura of a fighter holding a Final Smash charge (FighterState.finalReady). */
+  private readonly glow = new Graphics();
   private readonly shieldColor: string;
   /** Height of the head above the feet, in world units; the overhead tag points here. */
   readonly top: number;
@@ -91,7 +94,7 @@ export class FighterView {
     this.top = this.art?.height ?? h;
     this.label.position.set(0, -this.top - 5);
     this.label.visible = false;
-    this.container.addChild(this.body, this.shield, this.label);
+    this.container.addChild(this.glow, this.body, this.shield, this.label);
   }
 
   update(f: FighterState, alpha: number, frame: number, debug: boolean): void {
@@ -105,6 +108,8 @@ export class FighterView {
     this.body.scale.x = f.facing;
     if (this.rig && this.art) this.rig.pose(...clipFor(this.def, this.art, f), frame);
     this.body.alpha = isIntangible(f) && frame % 8 < 4 ? 0.55 : 1;
+    this.glow.clear();
+    if (f.finalReady) drawFinalGlow(this.glow, this.def.stats.width, this.top, frame);
     this.shield.clear();
     if (f.action === 'shield' || f.action === 'shieldStun') {
       const r = shieldRadius(this.def, f.shieldHp);
