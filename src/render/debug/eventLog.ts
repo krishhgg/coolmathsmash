@@ -6,9 +6,9 @@ const LINES = 16;
 const WIDTH = 420;
 const p = (port: number) => `P${port + 1}`;
 const n = (v: number) => v.toFixed(1);
-/** Who dealt a hit: a port, or "stage" for a stage hazard's, which credits nobody and has no entity. */
+/** Who dealt a hit: a port, or a stage hazard, which credits nobody and has no entity. */
 const by = (e: { attacker: number; entity?: number }) =>
-  e.attacker < 0 && e.entity === undefined ? 'stage' : p(e.attacker);
+  e.attacker < 0 && e.entity === undefined ? 'stage hazard' : p(e.attacker);
 
 function describe(e: SimEvent): string {
   switch (e.type) {
