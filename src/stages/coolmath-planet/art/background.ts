@@ -44,8 +44,7 @@ export function createBackground() {
   ] as const)
     sparkle(stars, x, y, size, 0x909bcd);
 
-  const planet = new Container({ label: 'parallax-planet' });
-  const orbit = new Container({ label: 'world-aligned-back-ring' });
+  const orbit = new Container({ label: 'world-aligned-ring-and-globe' });
   const { x, y, half } = BACK_RING;
   const ring = new Graphics();
   ring.position.set(x, y);
@@ -65,7 +64,8 @@ export function createBackground() {
 
   orbit.pivot.set(VIEW_W / 2, VIEW_H / 2);
   const sphere = new Container({ label: 'green-planet' });
-  sphere.position.set(640, 480);
+  sphere.position.set(x, y + 30);
+  sphere.scale.set(half / 360);
   const r = 213;
   const disc = new Graphics()
     .circle(0, 0, r + 2.6)
@@ -103,18 +103,16 @@ export function createBackground() {
     .arc(0, 0, r - 1, Math.PI * 1.01, Math.PI * 1.73)
     .stroke({ width: 3, color: 0xa4df77, alpha: 0.53, cap: 'round' });
   sphere.addChild(disc, mask, bands, shadow, rim);
-  planet.addChild(sphere);
-  container.addChild(sky, stars, orbit, planet);
+  orbit.addChild(sphere);
+  container.addChild(sky, stars, orbit);
 
   stars.pivot.set(VIEW_W / 2, VIEW_H / 2);
-  planet.pivot.set(VIEW_W / 2, VIEW_H / 2);
   return {
     container,
     update(frame: number, camera: StageCamera) {
       for (const [layer, d] of [
         [stars, depth],
         [orbit, BACK_RING.depth],
-        [planet, 0.13],
       ] as const) {
         const t = layerTransform(d, camera);
         layer.position.set(t.x, t.y);
