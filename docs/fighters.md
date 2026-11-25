@@ -205,9 +205,10 @@ or reaching full charge, carries on with the move.
   Releasing Special fires. With `tap: true` the move charges by itself and fires on the next Special or Attack
   press. `storeAtFull: true` stores the charge and ends the move once it is full; otherwise the move waits at full
   charge. Samus's Charge Shot and Donkey Kong's Giant Punch are `{ tap: true, storeAtFull: true }`.
-- **Forms.** A stored charge belongs to the form that stored it. After a `transform`, the new form's move of the
-  same name starts uncharged, and the charge is back after transforming again. Only a KO as the storing form loses
-  it (Ultimate: Squirtle keeps Water Gun's charge through Pokemon Change).
+- **Variants and forms.** A move and its `air` variant share one stored charge (Ultimate: Samus's grounded and
+  aerial Charge Shot). A stored charge belongs to the form that stored it. After a `transform`, the new form's move
+  of the same name starts uncharged, and the charge is back after transforming again. Only a KO as the storing form
+  loses it (Ultimate: Squirtle keeps Water Gun's charge through Pokemon Change).
 - A charging move, and a fighter holding a stored charge for its current form, glow behind the fighter
   (`src/render/chargeGlow.ts`, placeholder art).
 - `src/sim/testing/charge.ts` (`test-charger`, registered for tests and `?harness`) has one move of each kind.

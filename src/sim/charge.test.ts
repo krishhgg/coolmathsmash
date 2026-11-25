@@ -16,6 +16,19 @@ const charger = () => testMatch({ fighter: testCharger.id });
 const otherForm = defineFighter({ ...testCharger, id: 'test-charger-form', name: 'Test: form' });
 registerFighter(otherForm);
 
+/** The test charger with a separate air version of its neutral special, as Runner's Tile Flip has. */
+const withAirVariant = defineFighter({
+  ...testCharger,
+  id: 'test-charger-air',
+  name: 'Test: air variant',
+  moves: {
+    ...testCharger.moves,
+    neutralB: { ...testCharger.moves.neutralB, air: 'neutralBAir' },
+    neutralBAir: testCharger.moves.neutralB,
+  },
+});
+registerFighter(withAirVariant);
+
 /** The % a move adds to a fighter standing 8 units ahead: `press` starts it, then `hold` for `frames` frames. */
 function damageDealt(press: (facing: number) => Hold, hold: Hold, frames: number): number {
   const m = testMatch({ fighter: testCharger.id, players: 2 });
@@ -204,6 +217,29 @@ describe('stored charge', () => {
     run(m, 1);
     expect(f.action).toBe('ko');
     expect(f.storedCharge).toBeNull();
+  });
+
+  it('a move and its air variant share one charge (Ultimate: grounded and aerial Charge Shot)', () => {
+    const m = testMatch({ fighter: withAirVariant.id });
+    placeInAir(m, 0, 40);
+    const f = chargeTo(m, neutralB, 25);
+    expect(f.move).toBe('neutralBAir');
+    run(m, 1, { buttons: ['special', 'shield'] });
+    expect(f.action).toBe('airDodge');
+    until(m, (g) => g.action === 'idle', {}, 300);
+    run(m, 1, neutralB);
+    until(m, (g) => g.actionFrame > 8);
+    expect(f).toMatchObject({ move: 'neutralB', charge: 25, storedCharge: null });
+
+    until(m, (g) => g.action === 'idle');
+    chargeTo(m, neutralB, 35);
+    run(m, 1, { buttons: ['special', 'shield'] });
+    expect(f.action).toBe('shield');
+    run(m, 1);
+    placeInAir(m, 0, 40);
+    run(m, 1, neutralB);
+    until(m, (g) => g.actionFrame > 8);
+    expect(f).toMatchObject({ move: 'neutralBAir', charge: 35, storedCharge: null });
   });
 
   it('belongs to the form that stored it: a transform keeps it, and the other form cannot use it', () => {

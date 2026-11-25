@@ -39,13 +39,18 @@ function store(x: Ctx): void {
 }
 
 /**
- * The charge stored for the move `f` is playing, if any. A charge belongs to the form that stored it: a transformed
- * fighter's move of the same name starts uncharged (Ultimate: Squirtle keeps Water Gun's charge through Pokemon
- * Change, and Ivysaur and Charizard cannot use it).
+ * The charge stored for the move `x` is playing, if any. A move and its `air` variant share one charge (Ultimate:
+ * Samus's grounded and aerial Charge Shot). A charge belongs to the form that stored it: a transformed fighter's
+ * move of the same name starts uncharged (Ultimate: Squirtle keeps Water Gun's charge through Pokemon Change, and
+ * Ivysaur and Charizard cannot use it).
  */
-function storedFor(f: FighterState): { frames: number } | null {
+function storedFor(x: Ctx): { frames: number } | null {
+  const { f, def } = x;
   const s = f.storedCharge;
-  return s && s.fighter === f.fighter && s.move === f.move ? s : null;
+  if (!s || s.fighter !== f.fighter || f.move === null) return null;
+  const same =
+    s.move === f.move || def.moves?.[s.move]?.air === f.move || def.moves?.[f.move]?.air === s.move;
+  return same ? s : null;
 }
 
 /** Shield (on the ground; roll or spot dodge from there), an air dodge or a jump keeps the charge and cancels. */
@@ -87,7 +92,7 @@ export function chargeHold(x: Ctx, move: MoveDef): 'hold' | 'go' | 'cancel' {
   };
   const fire = () => {
     if (f.charge > 0) report(x, 'fire');
-    if (storedFor(f)) f.storedCharge = null;
+    if (storedFor(x)) f.storedCharge = null;
     return 'go' as const;
   };
   const opts = move.storeCharge;
@@ -95,7 +100,7 @@ export function chargeHold(x: Ctx, move: MoveDef): 'hold' | 'go' | 'cancel' {
     const holding = move.kind === 'smash' ? isHeld(c, Btn.Attack) || cStickHeld(c) : isHeld(c, Btn.Special);
     return f.charge < max && holding ? grow() : fire();
   }
-  const kept = f.charge === 0 ? storedFor(f) : null;
+  const kept = f.charge === 0 ? storedFor(x) : null;
   if (kept) {
     f.charge = kept.frames;
     if (f.charge >= max) return fire();
