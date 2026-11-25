@@ -230,7 +230,7 @@ const stabTrack = (pan: number, seed: number) => ({
   eq: [lowMid, { f: 2500, gain: -3 }],
   loop: humanize(stabs, { seed, time: 0.008, vel: 0.06 }),
 });
-const timpRoot = (s: string) => voice(s.replace('m', ''), 40)[0]!;
+const timpRoot = (s: string) => rootIn(s, 40);
 const timps = [
   ...section(3).flatMap((s, i) => [
     { t: sec(3) + i * bar, d: 1, n: timpRoot(s), v: 0.95 },
