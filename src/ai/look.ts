@@ -85,15 +85,13 @@ export function run(
   drive: Driver = idle,
   until?: (f: Readonly<FighterState>, t: number) => boolean,
 ): Sample[] {
-  const f = m.fighters[0]!;
-  const stats = getFighter(f.fighter).stats;
   const out: Sample[] = [];
   const inputs = [neutralInput()];
   for (let t = 0; t < frames; t++) {
     inputs[0] = drive(t, m.fighters[0]!);
     stepMatch(m, inputs);
     const g = m.fighters[0]!;
-    out.push(sample(g, stats));
+    out.push(sample(g, getFighter(g.fighter).stats));
     if (g.action === 'ko' || g.action === 'out') break;
     if (until?.(g, t)) break;
   }

@@ -39,6 +39,7 @@ Donkey Kong, Bowser, Fox, Jigglypuff) and adjust.
 | `runSpeed`, `runAccelBase`, `runAccelAdd`                | run speed and acceleration                                                  | 1.85             | 1.76                | 1.18–3.85        |
 | `airSpeed`, `airAccelBase`, `airAccelAdd`, `airFriction` | air drift                                                                   | 1.15             | 1.208               | 0.735–1.344      |
 | `gravity`, `fallSpeed`, `fastFallSpeed`                  | per-frame gravity and terminal speeds                                       | 0.09, 1.55, 2.48 | 0.087, 1.5, 2.4     | 0.053–0.23       |
+| `damageFlyTopGravity` (optional)                         | gravity in hitstun after a 70–110° tumble launch (fall speed 1.8 then)      | (default)        | 0.074928            | 0.0628–0.0874    |
 | `jumpSquat`                                              | frames on the ground before leaving it                                      | 3                | 3                   | 3–6              |
 | `fullHopHeight`, `shortHopHeight`, `doubleJumpHeight`    | apex heights above take-off                                                 | 34, 16, 33       | 36.33, 17.54, 36.33 | 16.5–50.5        |
 | `jumps`                                                  | total jumps including the grounded one                                      | 2                | 2                   | 2–6              |
@@ -119,6 +120,8 @@ fsmash: {
   - Fireboy's `upB` uses all three.
   - `continuesOnLanding` lets an airborne special carry on from the same frame when it lands, instead of
     ending in landing lag.
+  - `drift: false` turns off air drift (and air friction) while an airborne move plays, so a scripted path such
+    as a tether zip (Bob the Robber's `upB`) is not bent by the stick.
   - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
     `neutralB: { ..., air: 'neutralBAir' }`. The variant is its own move, so it has its own frame data and clip,
     and the `move` event carries its name.
@@ -216,6 +219,45 @@ bthrow: {
   Ultimate: both go into grab release and take 1% (1.2% in 1v1). Otherwise grabs resolve in port order, so when
   two grabs catch the same fighter the lower port wins.
 - **Shield grabs** use `grab` and come out from 4 frames after shieldstun ends.
+
+### Kill percentages
+
+Test kill power with `koPercent` from `src/sim/testing/ko.ts` instead of writing your own launch loop:
+
+```ts
+import { koPercent, kos } from '../../sim/testing/ko';
+
+const fsmash = koPercent({ hit: { fighter: 'fireboy', move: 'fsmash' } }); // 58 today
+koPercent({ hit: { fighter: 'fireboy', move: 'uair' }, air: true, from: 'centre' });
+koPercent({ hit: { damage: 17.8, angle: 361, kbg: 99, bkb: 25 }, di: { x: -98, y: 17 } });
+kos({ hit: { fighter: 'fireboy', move: 'bthrow' } }, 150); // does it KO from 150%?
+```
+
+Kill-% tests take each move's angle, BKB and KBG from its Ultimate analogue and assert `koPercent` within about 5
+points of that analogue's own kill % from the same setup (CREW.md, "Knockback values and kill percents").
+
+It returns the lowest % (to 0.1) from which the hit KOs the target: the target crosses a blast zone **before its
+hitstun ends**, with no input other than the optional DI stick, which is the definition the community KO calculator
+uses. Defaults: the Mario reference (weight 98) standing at Battlefield's ledge (`from: 'ledge'`, launched toward
+the near blast zone), fresh (×1.05), no rage, no DI. A move is as strong as its strongest box; pass `box` to pick
+one. `from` also takes `'centre'` or a point, `target` another fighter id, `attackerPercent` adds rage.
+
+It reproduces SSBU-Calculator's KO calculator (rubendal/SSBU-Calculator 233590e, run headless) on Mario's own 13.0.1
+moves within about 2%:
+
+| Mario on Mario, Battlefield, no DI | Calculator ledge / centre | Engine ledge / centre |
+| ---------------------------------- | ------------------------- | --------------------- |
+| fsmash sweetspot (17.8%, 99/25)    | 64.8 / 90.4               | 64.3 / 89.7           |
+| fsmash, best survival DI           | 70.2                      | 69.7                  |
+| bthrow (11%, 45°, 66/70)           | 130.5 / 192.5             | 128.8 / 190.3         |
+| usmash (14%, 83°, 94/32)           | 124.5                     | 126.0                 |
+| uair (7%, 75°, 135/10), airborne   | 186.2                     | 187.9                 |
+| uthrow (7%, 90°, 72/70)            | 240.6                     | 243.8                 |
+
+So with Ultimate-standard knockback an 18% smash KOs Mario at the ledge in the 60s, not near 100%. SmashWiki agrees:
+Mario's fsmash sweetspot "is capable of KOing most characters reliably at 70% near the ledge". Two engine rules
+matter for vertical kills: a 70–110° tumble launch falls with `damageFlyTopGravity` capped at 1.8 during hitstun,
+and the top blast zone only KOs at a vertical launch speed of at least 2.4 or 30 units past it.
 
 ### Tuning tools
 

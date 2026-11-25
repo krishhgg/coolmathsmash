@@ -33,6 +33,8 @@ export interface CaptureRecord {
   /** sha256 of the PNG: equal on every run of the same commit. */
   sha256?: string;
   files: { png?: string; strip?: string; gif?: string; mp4?: string };
+  /** The scenario's own reference globs (fighter states); the judge pack falls back to scripts/judge/refs.json. */
+  refs?: string[];
   motion?: { from: number; to: number; fps: number; frames: { frame: number; fighters: FighterSummary[] }[] };
 }
 

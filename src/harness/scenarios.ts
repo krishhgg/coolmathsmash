@@ -1,4 +1,6 @@
+import { getFighter } from '../fighters/registry';
 import { ACTIONS } from '../sim/actions';
+import { activeHitboxes } from '../sim/combat/hits';
 import type { FighterState } from '../sim/fighter';
 import { DEFAULT_MATCH, createMatch, stepMatch, type MatchConfig, type MatchState } from '../sim/match';
 import { inputsAt, type ScriptStep } from './script';
@@ -39,6 +41,8 @@ export interface GameScenario {
    * during the scenario, `hud` needs the in-match HUD.
    */
   requires?: string[];
+  /** Reference globs for the judge pack, under its reference library; without them scripts/judge/refs.json decides. */
+  refs?: string[];
 }
 
 export interface LabScenario {
@@ -47,9 +51,39 @@ export interface LabScenario {
   page: { kind: 'lab'; scene: string; params?: Record<string, string> };
   /** `window.__lab.call(fn, ...args)` in order after the scene mounts. */
   calls?: { fn: string; args?: unknown[] }[];
+  /** Reference globs for the judge pack, under its reference library; without them scripts/judge/refs.json decides. */
+  refs?: string[];
 }
 
 export type Scenario = GameScenario | LabScenario;
+
+/** The states every fighter gets its own copy of, named `<fighter>-<state>`. */
+export const FIGHTER_STATES = [
+  'idle',
+  'run',
+  'jump-apex',
+  'attack-active',
+  'launch-high-percent',
+  'shield',
+  'ledge-hang',
+  'sheet',
+] as const;
+export type FighterStateName = (typeof FIGHTER_STATES)[number];
+
+/**
+ * A fighter's capture states, exported as `scenarios` from `src/fighters/<id>/scenarios.ts` and found
+ * automatically. The fighter gets its own copy of each of FIGHTER_STATES, played against `opponent` and judged
+ * against `refs` (the rig `sheet` once it has art), plus any `extra` scenarios. Import only types from this module there (it imports the file).
+ */
+export interface FighterScenarios {
+  fighter: string;
+  /** P2 in the standard states (default fireboy). */
+  opponent?: string;
+  /** Reference globs per standard state, under the judge pack's reference library (the Captain drive's refs/). */
+  refs: Partial<Record<FighterStateName, string[]>>;
+  /** More scenarios of the fighter's own (specials, statuses); name them `<fighter>-<state>`. */
+  extra?: Scenario[];
+}
 
 /** JSON form of a game scenario for `__smash.scenarios()`: the predicate becomes its label. */
 export type GameScenarioInfo = Omit<GameScenario, 'capture'> & {
@@ -108,7 +142,8 @@ const faceOff = (p2: FighterPatch = {}): GameScenario['patches'] => [
 /** C-stick forward: a forward smash in Ultimate's default controls. */
 const FSMASH: ScriptStep[] = [{ port: 0, from: 10, to: 12, cx: 100 }];
 
-export const SCENARIOS: Scenario[] = [
+/** The shared states, with Fireboy (DEFAULT_MATCH). */
+const CORE: Scenario[] = [
   {
     name: 'idle',
     description: 'Two fighters standing at their Battlefield spawns, 0%, one second in.',
@@ -146,8 +181,8 @@ export const SCENARIOS: Scenario[] = [
     patches: faceOff(),
     script: FSMASH,
     capture: {
-      label: "P1 move 'fsmash', action frame >= 15",
-      when: (s) => P1(s).move === 'fsmash' && P1(s).actionFrame >= 15,
+      label: "P1 move 'fsmash', first frame with a hitbox out",
+      when: (s) => P1(s).move === 'fsmash' && activeHitboxes(P1(s)).length > 0,
     },
     motion: { before: 20, after: 25 },
     requires: ['move:fsmash'],
@@ -246,6 +281,18 @@ export const SCENARIOS: Scenario[] = [
     page: { kind: 'lab', scene: 'menu', params: { screen: 'css', preset: '4p' } },
   },
   {
+    name: 'stage-select',
+    description:
+      'Stage select: rules pill (3 Stock · 7:00), Coolmath Battlefield focused in the big preview, Random and every stage in the grid on the right, rule rows under the grid.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'stages', preset: 'default' } },
+  },
+  {
+    name: 'stage-select-rules',
+    description:
+      'Stage select with custom rules (2 Stock · 5:00, items on) and Random focused in the preview.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'stages', preset: 'rules' } },
+  },
+  {
     name: 'stage',
     description: 'Coolmath Battlefield on its own at the reference camera (centre 0,20, zoom 4.5).',
     page: { kind: 'lab', scene: 'stage' },
@@ -257,6 +304,46 @@ export const SCENARIOS: Scenario[] = [
     page: { kind: 'lab', scene: 'fighter', params: { fighter: 'fireboy' } },
     calls: [{ fn: 'sheet' }],
   },
+];
+
+/** One fighter's copies of the standard states, then its extra scenarios. */
+export function fighterScenarios(spec: FighterScenarios): Scenario[] {
+  const { fighter, opponent = 'fireboy', refs } = spec;
+  const name = getFighter(fighter).name;
+  const ports = [{ fighter }, { fighter: opponent }];
+  const states = CORE.filter((s) => (FIGHTER_STATES as readonly string[]).includes(s.name)).map(
+    (s): Scenario => ({
+      ...s,
+      name: `${fighter}-${s.name}`,
+      description: `${name} (P1) vs ${getFighter(opponent).name}: ${s.description}`,
+      match: { ports },
+      refs: refs[s.name as FighterStateName],
+    }),
+  );
+  const sheet: LabScenario = {
+    name: `${fighter}-sheet`,
+    description: `${name}'s rig: every clip's key poses on one sheet.`,
+    page: { kind: 'lab', scene: 'fighter', params: { fighter } },
+    calls: [{ fn: 'sheet' }],
+    refs: refs.sheet,
+  };
+  const drawn = `../fighters/${fighter}/art/index.ts` in FIGHTER_ART;
+  return [...states, ...(drawn ? [sheet] : []), ...(spec.extra ?? [])];
+}
+
+/** Fighters with rig art, which the lab's fighter scene can draw (not loaded here). */
+const FIGHTER_ART = import.meta.glob('../fighters/*/art/index.ts');
+
+const fighterSpecs = import.meta.glob<{ scenarios: FighterScenarios }>('../fighters/*/scenarios.ts', {
+  eager: true,
+});
+
+/** Every scenario: the shared states, then each fighter's (src/fighters/<id>/scenarios.ts) in id order. */
+export const SCENARIOS: Scenario[] = [
+  ...CORE,
+  ...Object.keys(fighterSpecs)
+    .sort()
+    .flatMap((path) => fighterScenarios(fighterSpecs[path]!.scenarios)),
 ];
 
 export function findScenario(name: string, list: readonly Scenario[] = SCENARIOS): Scenario {

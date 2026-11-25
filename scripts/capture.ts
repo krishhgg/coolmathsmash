@@ -3,7 +3,7 @@
  * `<name>.png` at the capture frame, and for scenarios with a motion window a filmstrip (`<name>.strip.png`,
  * for judges), a GIF (Drive) and an H.264 MP4 (PR uploads), plus `manifest.json`. See docs/hill-climb.md.
  *
- *   npm run capture -- [--only idle,run] [--out captures/<run>] [--url <base>] [--build] [--keep-frames]
+ *   npm run capture -- [--only idle,run,redball-*] [--out captures/<run>] [--url <base>] [--build] [--keep-frames]
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -227,7 +227,9 @@ async function main(): Promise<number> {
       ?.split(',')
       .map((n) => n.trim())
       .filter(Boolean);
-    const unknown = only?.filter((n) => !all.some((s) => s.name === n)) ?? [];
+    const picked = (name: string, pattern: string) =>
+      pattern.endsWith('*') ? name.startsWith(pattern.slice(0, -1)) : name === pattern;
+    const unknown = only?.filter((n) => !all.some((s) => picked(s.name, n))) ?? [];
     if (unknown.length)
       throw new Error(
         `unknown scenario(s) ${unknown.join(', ')} (have: ${all.map((s) => s.name).join(', ')})`,
@@ -235,7 +237,7 @@ async function main(): Promise<number> {
     rmSync(out, { recursive: true, force: true });
     mkdirSync(out, { recursive: true });
     const records: CaptureRecord[] = [];
-    for (const s of all.filter((x) => !only || only.includes(x.name))) {
+    for (const s of all.filter((x) => !only || only.some((n) => picked(x.name, n)))) {
       errors.length = 0;
       let rec: CaptureRecord;
       try {
@@ -252,6 +254,7 @@ async function main(): Promise<number> {
         };
       }
       if (errors.length) Object.assign(rec, { status: 'error', reason: `page error: ${errors.join('; ')}` });
+      if (s.refs) rec.refs = s.refs;
       records.push(rec);
       const detail =
         rec.status === 'captured'

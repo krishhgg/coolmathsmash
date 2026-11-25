@@ -8,12 +8,13 @@ import {
 } from './constants';
 import { stickY } from './control';
 import { getFighter } from '../fighters/registry';
+import type { FighterStats } from '../fighters/types';
 import type { Ctx, FighterState, GroundRef } from './fighter';
 import { emit } from './events';
 import type { MatchState } from './match';
 import { edgeMaxX, edgeMinX, floorY, ledgePresent, type CompiledStage, type Edge } from './stage';
-import { approach } from './vec';
-import { LAUNCH_DECAY, speedUp } from './combat/formulas';
+import { approach, type Vec } from './vec';
+import { DAMAGE_FLY_TOP_GRAVITY, LAUNCH_DECAY, speedUp, VERTICAL_LAUNCH_FALL_SPEED } from './combat/formulas';
 import { actionDef, enterAction } from './actions/registry';
 
 const EPS = 0.001;
@@ -172,11 +173,41 @@ export function launchTimeScale(f: FighterState): number {
 }
 
 /** Launch speed shrinks by `amount` along its own direction (Ultimate: 0.051 u/frame). */
-function decayKnockback(f: FighterState, amount: number): void {
-  const speed = Math.hypot(f.kb.x, f.kb.y);
+function decayKnockback(kb: Vec, amount: number): void {
+  const speed = Math.hypot(kb.x, kb.y);
   const k = speed > amount ? (speed - amount) / speed : 0;
-  f.kb.x *= k;
-  f.kb.y *= k;
+  kb.x *= k;
+  kb.y *= k;
+}
+
+/**
+ * Gravity on the fighter's own vertical speed over `t` frames. A near-vertical tumble launch falls with the fighter's
+ * DamageFlyTop gravity, capped at 1.8, during hitstun; afterwards a fall faster than the fighter's own fall speed
+ * eases back to it by its gravity each frame (as SSBU-Calculator's launch simulation does).
+ */
+function fallStep(f: FighterState, s: FighterStats, vy: number, t: number): number {
+  if (f.flyTop && f.hitstun > 0) {
+    return Math.max(vy - (s.damageFlyTopGravity ?? DAMAGE_FLY_TOP_GRAVITY) * t, -VERTICAL_LAUNCH_FALL_SPEED);
+  }
+  if (f.flyTop && vy < -s.fallSpeed) return Math.min(vy + s.gravity * t, -s.fallSpeed);
+  return Math.max(vy - s.gravity * t, -s.fallSpeed);
+}
+
+/**
+ * Advances `vel` and `kb` through `scale` frames of launch decay and gravity (whole frames, then the fraction) and
+ * returns the distance they cover.
+ */
+function integrate(f: FighterState, s: FighterStats, vel: Vec, kb: Vec, gravity: boolean, scale: number) {
+  let dx = 0;
+  let dy = 0;
+  for (let left = scale; left > 0; left--) {
+    const t = Math.min(1, left);
+    dx += (vel.x + kb.x) * t;
+    dy += (vel.y + kb.y) * t;
+    decayKnockback(kb, LAUNCH_DECAY * t);
+    if (gravity) vel.y = fallStep(f, s, vel.y, t);
+  }
+  return { dx, dy };
 }
 
 /** Air physics: drift, sub-stepped movement with landing/wall/ceiling collision, gravity, ledge grabs. */
@@ -186,9 +217,9 @@ export function airMove(x: Ctx): void {
   f.airFrames++;
   const drift = typeof action.drift === 'function' ? action.drift(x) : (action.drift ?? true);
   if (drift) airDrift(x, drift === 'helpless' ? s.airSpeed * HELPLESS_AIR_SPEED : s.airSpeed);
-  const dt = launchTimeScale(f);
-  const dx = (f.vel.x + f.kb.x) * dt;
-  const dy = (f.vel.y + f.kb.y) * dt;
+  const gravity = typeof action.gravity === 'function' ? action.gravity(x) : (action.gravity ?? true);
+  const scale = launchTimeScale(f);
+  const { dx, dy } = integrate(f, s, { ...f.vel }, { ...f.kb }, gravity, scale);
   const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / MAX_SUBSTEP));
   for (let i = 0; i < steps; i++) {
     const prev = { x: f.pos.x, y: f.pos.y };
@@ -200,12 +231,8 @@ export function airMove(x: Ctx): void {
       return;
     }
   }
-  decayKnockback(f, LAUNCH_DECAY * dt);
-  const gravity = typeof action.gravity === 'function' ? action.gravity(x) : (action.gravity ?? true);
-  if (gravity) {
-    f.vel.y = Math.max(f.vel.y - s.gravity * dt, -s.fallSpeed);
-    if (f.fastFalling) f.vel.y = -s.fastFallSpeed;
-  }
+  integrate(f, s, f.vel, f.kb, gravity, scale);
+  if (gravity && f.fastFalling) f.vel.y = -s.fastFallSpeed;
   tryLedgeGrab(x);
 }
 

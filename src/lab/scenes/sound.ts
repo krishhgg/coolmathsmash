@@ -25,6 +25,7 @@ const CSS = `
 .sound-test h3 { margin: 0 0 .5cqw; font-size: 1.3cqw; letter-spacing: .1em; text-transform: uppercase; color: #ffcc33; }
 .sound-test .row { display: flex; flex-wrap: wrap; gap: .5cqw; }
 .sound-test button { font: inherit; color: #fff; background: #26304a; border: .15cqw solid #4a5a85; border-radius: .6cqw; padding: .45cqw .9cqw; cursor: pointer; }
+.sound-test select { flex: 1; font: inherit; color: #fff; background: #26304a; border: .15cqw solid #4a5a85; border-radius: .6cqw; padding: .45cqw .6cqw; }
 .sound-test button:hover, .sound-test button.on { background: #3b4f86; border-color: #8fb0ff; }
 .sound-test .mixer { position: absolute; right: 3cqw; top: 10cqw; width: 26cqw; display: grid; gap: 1cqw; background: #141a2bcc; border: .15cqw solid #33405f; border-radius: 1cqw; padding: 1.4cqw; }
 .sound-test label { display: grid; grid-template-columns: 6cqw 1fr 3.5cqw; align-items: center; gap: .8cqw; }
@@ -99,18 +100,18 @@ export const scene: LabScene = {
     }
 
     const tunes = document.createElement('section');
-    tunes.innerHTML = `<h3>Music</h3><div class="row"></div>`;
-    const tuneRow = tunes.querySelector('.row')!;
-    for (const id of [...Object.keys(TRACKS), 'stop']) {
-      const b = document.createElement('button');
-      b.textContent = id === 'stop' ? '■ stop' : TRACKS[id]!.title;
-      b.dataset.music = id;
-      b.addEventListener('click', () => {
-        audio.music(id === 'stop' ? null : id);
-        now.text = id === 'stop' ? '■ music stopped' : `♪ ${TRACKS[id]!.title}  (${TRACKS[id]!.evokes})`;
-      });
-      tuneRow.appendChild(b);
-    }
+    tunes.innerHTML = `<h3>Music</h3><div class="row"><select data-music><option value="" disabled selected>Play a track…</option></select><button data-music-stop>■ stop</button></div>`;
+    const track = tunes.querySelector('select')!;
+    for (const id of Object.keys(TRACKS)) track.add(new Option(TRACKS[id]!.title, id));
+    track.addEventListener('change', () => {
+      audio.music(track.value);
+      now.text = `♪ ${TRACKS[track.value]!.title}  (${TRACKS[track.value]!.evokes})`;
+    });
+    tunes.querySelector('button')!.addEventListener('click', () => {
+      audio.music(null);
+      track.selectedIndex = 0;
+      now.text = '■ music stopped';
+    });
 
     const slider = (
       label: string,
