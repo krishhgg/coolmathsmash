@@ -1,5 +1,5 @@
 import { Container } from 'pixi.js';
-import type { StageMatch, StageView } from '../battlefield/view';
+import type { StageView } from '../battlefield/view';
 import { createBackground } from './art/background';
 import { createCarrier } from './art/carrier';
 import { createHauler } from './art/hauler';
@@ -9,8 +9,8 @@ import { haulerPoses } from './traffic';
 
 /**
  * Truck Convoy: the car carrier the fight is on, the two haulers in the far lane whose upper decks are the soft
- * platforms, and the highway sliding by underneath. The view draws the haulers where the match has them, so the
- * renderer skips its placeholder pieces; without a match (the stage lab) it shows them as hazards-on traffic.
+ * platforms, and the highway sliding by underneath. `pieces` puts the haulers where the match has them, so the
+ * renderer leaves out its placeholder platforms.
  */
 export function createStageView(): StageView {
   const background = createBackground();
@@ -22,12 +22,14 @@ export function createStageView(): StageView {
   return {
     background: background.container,
     world,
-    drawsPieces: true,
-    update(frame, camera, match?: StageMatch) {
+    update(frame, camera) {
       background.update(frame, camera);
       road.update(frame);
       carrier.update(frame);
-      haulerPoses(frame, match).forEach((pose, i) => haulers[i]!.update(frame, pose.x, pose.y, pose.braking));
+      for (const h of haulers) h.spin(frame);
+    },
+    pieces(pieces, alpha) {
+      haulerPoses(pieces, alpha).forEach((pose, i) => haulers[i]!.place(pose.x, pose.y, pose.braking));
     },
   };
 }

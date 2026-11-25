@@ -42,8 +42,10 @@ const PAINTS = [
 
 export interface Hauler {
   container: Container;
-  /** Show the hauler shifted by (x, y) game units, its wheels at `frame`, braking or not. */
-  update(frame: number, x: number, y: number, braking: boolean): void;
+  /** Turn the wheels to `frame`. */
+  spin(frame: number): void;
+  /** Show the hauler shifted by (x, y) game units from its home, braking or not. */
+  place(x: number, y: number, braking: boolean): void;
 }
 
 function body(g: Graphics, x1: number, x2: number, top: number, paint: number[]): void {
@@ -146,10 +148,11 @@ export function createHauler(index: number): Hauler {
   container.addChild(deck);
   return {
     container,
-    update(frame, x, y, braking) {
+    spin(frame) {
+      for (const rim of rims) rim.rotation = (frame * ROAD_SPEED) / WHEEL;
+    },
+    place(x, y, braking) {
       container.position.set(x, -y);
-      const spin = (frame * ROAD_SPEED + x) / WHEEL;
-      for (const rim of rims) rim.rotation = spin;
       brake.visible = braking;
     },
   };

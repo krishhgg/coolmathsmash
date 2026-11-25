@@ -4,7 +4,7 @@ import { stageStateAt } from '../../sim/movingStage';
 import { MOUNTAINS, SKY, VALLEY } from './art/background';
 import { HIGHWAY } from './art/road';
 import { HAULERS, stage } from './geometry';
-import { BRAKE_WARNING, braking, haulerPoses } from './traffic';
+import { haulerPoses } from './traffic';
 
 const ZOOMS = [CAMERA_LIMITS.minZoom, REF_CAMERA.zoom, CAMERA_LIMITS.maxZoom];
 
@@ -44,35 +44,35 @@ describe('Truck Convoy backdrop', () => {
 });
 
 describe('Truck Convoy haulers', () => {
+  const states = (hazards: boolean) => {
+    const out = [stageStateAt(stage, 0, undefined, hazards)];
+    for (let f = 1; f <= HAULERS.period; f++) out.push(stageStateAt(stage, f, out[f - 1], hazards));
+    return out;
+  };
+
   it('are drawn where the match has their decks, between frames', () => {
-    const prev = stageStateAt(stage, 299);
-    const pieces = stageStateAt(stage, 300, prev);
-    const poses = haulerPoses(300, { pieces, hazards: true, alpha: 0.5 });
-    const mid = (pieces.platforms[0]!.x + prev.platforms[0]!.x) / 2;
-    expect(mid).toBeLessThan(0);
-    for (const pose of poses) {
+    const [prev, now] = [stageStateAt(stage, 299), stageStateAt(stage, 300, stageStateAt(stage, 299))];
+    const mid = (now.platforms[0]!.x + prev.platforms[0]!.x) / 2;
+    expect(mid).toBeLessThan(-HAULERS.creep);
+    for (const pose of haulerPoses(now, 0.5)) {
       expect(pose.x).toBeCloseTo(mid, 9);
       expect(pose.y).toBe(0);
       expect(pose.braking).toBe(true);
     }
-    const still = stageStateAt(stage, 300, undefined, false);
-    expect(haulerPoses(300, { pieces: still, hazards: false, alpha: 0.5 })).toEqual([
-      { x: 0, y: 0, braking: false },
-      { x: 0, y: 0, braking: false },
-    ]);
-    expect(haulerPoses(480).map((p) => p.x)).toEqual([-HAULERS.drift, -HAULERS.drift]);
+    for (const pieces of states(false))
+      expect(haulerPoses(pieces, 0.5)).toEqual([
+        { x: 0, y: 0, braking: false },
+        { x: 0, y: 0, braking: false },
+      ]);
   });
 
-  it('light their brake lights before and while they fall back, and only then', () => {
-    expect(braking(0, 240 - BRAKE_WARNING - 5)).toBe(false);
-    expect(braking(0, 240 - BRAKE_WARNING + 5)).toBe(true);
-    expect(braking(0, 300)).toBe(true);
-    expect(braking(0, 420)).toBe(false);
-    expect(braking(0, 1000)).toBe(false);
-    for (let f = 0; f < HAULERS.period; f++) {
-      const dx = stageStateAt(stage, f + 1, stageStateAt(stage, f)).platforms[0]!.dx;
-      if (dx < -1e-6) expect(braking(0, f)).toBe(true);
-      if (dx > 1e-6) expect(braking(0, f)).toBe(false);
-    }
+  it('light their brake lights a brake tap before they fall back, and only while dropping back', () => {
+    const traffic = states(true);
+    const lit = traffic.map((pieces) => haulerPoses(pieces, 1)[0]!.braking);
+    const first = lit.indexOf(true);
+    expect(first).toBe(241);
+    expect(traffic[first + HAULERS.warning - 1]!.platforms[0]!.x).toBeGreaterThanOrEqual(-HAULERS.creep);
+    for (const [f, pieces] of traffic.entries()) expect(lit[f]).toBe(pieces.platforms[0]!.dx < 0);
+    expect(lit.slice(960, 1080).some(Boolean)).toBe(false);
   });
 });

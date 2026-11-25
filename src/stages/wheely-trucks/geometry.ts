@@ -12,15 +12,24 @@ export const ROAD = { far: -14, near: -32 } as const;
 /**
  * The two car haulers in the far lane. Their upper decks are the soft platforms, `width` wide at `y`, centred at
  * `centers` when hazards are off. With hazards on the pair falls back `drift` units and later pulls ahead the same
- * distance, together, so the decks never meet and always end over the carrier's deck.
+ * distance, together, so the decks never meet and always end over the carrier's deck. Before falling back they
+ * tap the brakes: a `creep` of 1.5 units over `warning` frames with their brake lights on.
  */
-export const HAULERS = { y: 26, width: 38, centers: [-42, 42], drift: 36, period: 1440 } as const;
+export const HAULERS = {
+  y: 26,
+  width: 38,
+  centers: [-42, 42],
+  drift: 36,
+  creep: 1.5,
+  warning: 45,
+  period: 1440,
+} as const;
 
-const { drift, period } = HAULERS;
+const { drift, creep, warning, period } = HAULERS;
 
 /**
- * 24 seconds of traffic: 4 s level with the carrier, 2 s falling back, 4 s behind, 2 s catching up, 4 s level,
- * 2 s pulling ahead, 4 s ahead and 2 s easing back to level.
+ * 24 seconds of traffic: 4 s level with the carrier, a 0.75 s brake tap, 2 s falling back, about 3 s behind, 2 s
+ * catching up, 4 s level, 2 s pulling ahead, 4 s ahead and 2 s easing back to level.
  */
 export const HAULER_MOTION: Motion = {
   period,
@@ -28,7 +37,8 @@ export const HAULER_MOTION: Motion = {
   keys: [
     [0, 0, 0],
     [240, 0, 0],
-    [360, -drift, 0],
+    [240 + warning, -creep, 0],
+    [405, -drift, 0],
     [600, -drift, 0],
     [720, 0, 0],
     [960, 0, 0],
