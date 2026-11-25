@@ -450,7 +450,7 @@ describe('Fireboy: kill percents (koPercent: Mario at the Battlefield ledge, fre
 });
 
 describe("Fireboy: Fireball knockback (Mario's Fire Ball clean hit in Ultimate)", () => {
-  const box = entities.fireball!.hits[0]!.boxes[0]!;
+  const box = entities.fireball!.hits![0]!.boxes[0]!;
   const { damage, angle, kbg, bkb } = box;
 
   it("uses SmashWiki's clean hit (Mario (SSBU)/Neutral special): base 35, growth 20, angle 361, radius 2.4", () => {
