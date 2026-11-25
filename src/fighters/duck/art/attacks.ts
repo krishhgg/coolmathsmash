@@ -978,6 +978,25 @@ export const attacks: Record<string, AnimClip> = {
       key(55, STAND),
     ],
   },
+  neutralB: {
+    length: 32,
+    keys: [
+      key(0, STAND, { ease: 'out' }),
+      key(7, COCK, { ease: 'in' }),
+      ...[10, 15, 20].flatMap((frame) => [
+        key(frame, strike({ lean: 16, head: [3.6, -6.6], squash: [1.08, 0.96] }), {
+          ease: 'out',
+          swaps: SHOUT,
+        }),
+        key(frame + 2, strike({ lean: -10, head: [1, -7.2], squash: [0.96, 1.04] }), {
+          ease: 'in',
+          swaps: ANGRY,
+        }),
+      ]),
+      key(26, undefined, { swaps: {} }),
+      key(32, STAND),
+    ],
+  },
   upB: {
     length: 51,
     swaps: LOOK_UP,
