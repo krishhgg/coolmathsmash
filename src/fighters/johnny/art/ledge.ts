@@ -1,6 +1,6 @@
 import type { Pose } from '../../../render/rig/author';
 import type { AnimClip } from '../../../render/rig/types';
-import { AIR, FISTS, GRIT, HEAD_IN_FRONT, SHOUT, hands, key, mix, sole, type Pt } from './poses';
+import { AIR, FISTS, GRIT, HEAD_IN_FRONT, SHOUT, hands, key, mix, shortTurns, sole, type Pt } from './poses';
 
 /**
  * Where the hands hold the ledge (rig space): the ledge's top corner while hanging. It matches the engine's hang
@@ -19,7 +19,7 @@ function hang(extra: Pose = {}): Pose {
       {
         body: { x: -0.5, y: -0.2 },
         neck: { rot: 5 },
-        armF: { x: 4.6, y: 0.5, sy: 1.2 },
+        armF: { x: 6.4, y: -1.0, sy: 1.05 },
         armB: { x: 1.8, y: 0.6, sy: 1.2 },
       },
       extra,
@@ -100,7 +100,7 @@ export const ledge: Record<string, AnimClip> = {
   ledgeJump: {
     length: 20,
     swaps: { ...GRIT, ...FISTS },
-    keys: [
+    keys: shortTurns([
       key(0, HANG, { ease: 'in', z: HEAD_IN_FRONT }),
       key(
         4,
@@ -119,7 +119,7 @@ export const ledge: Record<string, AnimClip> = {
       ),
       key(8, RELEASE, { ease: 'out', z: {} }),
       key(20, mix(AIR, { body: { y: -3 } })),
-    ],
+    ]),
   },
 };
 

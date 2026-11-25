@@ -137,8 +137,8 @@ describe('johnny art', () => {
         const pose = samplePose(art, clip, f, f);
         const b = fist(pose, 'B');
         const n = fist(pose, 'F');
-        expect(Math.hypot(b[0]! - far[0], b[1]! - far[1]), `${clip}@${f} far fist`).toBeLessThan(0.5);
-        expect(Math.hypot(n[0]! - near[0], n[1]! - near[1]), `${clip}@${f} near fist`).toBeLessThan(1.8);
+        expect(Math.hypot(b[0]! - far[0], b[1]! - far[1]), `${clip}@${f} far fist`).toBeLessThan(0.4);
+        expect(Math.hypot(n[0]! - near[0], n[1]! - near[1]), `${clip}@${f} near fist`).toBeLessThan(0.4);
       }
   });
 
