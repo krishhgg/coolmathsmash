@@ -1,6 +1,7 @@
 import type { HitboxDef } from '../fighters/types';
 import type { DestroyReason } from './entities/types';
 import type { MatchState } from './match';
+import type { TerrainElement } from './stage';
 
 type Side = 'left' | 'right' | 'top' | 'bottom';
 
@@ -87,6 +88,18 @@ export type SimEvent =
       attacker: number;
       damage: number;
       hp: number;
+      x: number;
+      y: number;
+    }
+  /** A stage hazard hit a fighter: a damage zone (with its element) or a stage hitbox, by index. */
+  | {
+      type: 'stageHit';
+      victim: number;
+      source: 'zone' | 'hitbox';
+      index: number;
+      element: TerrainElement | null;
+      damage: number;
+      kb: number;
       x: number;
       y: number;
     };
