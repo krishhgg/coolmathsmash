@@ -452,7 +452,6 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 45,
     helpless: true,
-    leavesGround: true,
     hits: [],
     tether: {
       frame: 8,

@@ -370,6 +370,16 @@ describe('Fluffy: Point Grapple (neutral special)', () => {
 });
 
 describe('Fluffy: Quick Grapple (up special)', () => {
+  it('fires from the ground without landing out of its startup', () => {
+    const m = testMatch({ fighter: 'fluffy' });
+    const a = m.fighters[0]!;
+    place(a, 0, 0, 1, a.ground);
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(a.move).toBe('upB');
+    run(m, 8);
+    expect(a.tether?.kind).toBe('out');
+  });
+
   /** Fluffy alone and placed in the air at (x, y). */
   function put(m: MatchState, f: FighterState, x: number, y: number): void {
     place(f, x, y, 1, null);
