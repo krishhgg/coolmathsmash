@@ -17,9 +17,11 @@ import {
 import { emit } from './events';
 import { derived, type Ctx, type FighterState } from './fighter';
 import type { MatchState, PlayerState } from './match';
+import { resetMetersOnKo, tickMeters } from './meters';
 import { airMove, groundMove } from './movement';
 import { posedStage } from './movingStage';
 import { compileStage, type CompiledStage } from './stage';
+import { clearStatusesOnKo, tickStatuses } from './statuses';
 
 const compiled = new Map<string, CompiledStage>();
 
@@ -61,6 +63,8 @@ export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): voi
   f.actionFrame++;
   runAction(x);
   tickMobility(x);
+  tickStatuses(x);
+  tickMeters(x);
   stepTetherMove(x);
   const physics = actionDef(f).physics;
   if (physics === 'ground' && f.ground) groundMove(x);
@@ -86,6 +90,8 @@ function checkBlastZones(x: Ctx): void {
   const pastTop = f.pos.y >= b.top + TOP_KO_MARGIN || (f.pos.y >= b.top && f.kb.y >= TOP_KO_MIN_SPEED);
   if (f.pos.x > b.left && f.pos.x < b.right && f.pos.y > b.bottom && !pastTop) return;
   f.stocks--;
+  clearStatusesOnKo(x.m, f);
+  resetMetersOnKo(f);
   const side =
     f.pos.x <= b.left ? 'left' : f.pos.x >= b.right ? 'right' : f.pos.y >= b.top ? 'top' : 'bottom';
   emit(x.m, { type: 'ko', port: f.port, stocks: f.stocks, side, x: f.pos.x, y: f.pos.y });

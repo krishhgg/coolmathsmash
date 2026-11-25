@@ -10,8 +10,10 @@ import type { CastHit } from '../sim/cast';
 import type { Hurtbox } from '../sim/combat/hits';
 import type { AbsorberDef, EntityDef, ReflectorDef, SpawnDef } from '../sim/entities/types';
 import type { Ctx, FighterState } from '../sim/fighter';
+import type { MeterDef } from '../sim/meters';
 import type { FloatDef, GlideDef, HoverDef } from '../sim/mobility';
 import type { TerrainElement } from '../sim/stage';
+import type { StatusDef } from '../sim/statuses';
 import type { Vec } from '../sim/vec';
 
 export interface FighterStats {
@@ -110,6 +112,8 @@ export interface HitboxDef {
    * a grab; it ignores shields and is halved in radius against airborne fighters (Ultimate).
    */
   grab?: boolean;
+  /** A status the hit puts on its victim (not through a shield), by kind "<fighter id>/<name>" (FighterDef.statuses). */
+  status?: string;
 }
 
 /** A throw's release hit: a hitbox without a position, since it lands on the held fighter wherever they are. */
@@ -300,6 +304,10 @@ export interface FighterDef {
   selectable?: boolean;
   /** Damaging terrain this fighter is unharmed by, e.g. Fireboy's ['lava'] (docs/stage-geometry.md). */
   immune?: TerrainElement[];
+  /** Timed statuses this fighter's hits and scripts inflict, by name (the kind is "<id>/<name>"; src/sim/statuses.ts). */
+  statuses?: Record<string, StatusDef>;
+  /** This fighter's meters by name: charge, ammo, coins, counts (src/sim/meters.ts). */
+  meters?: Record<string, MeterDef>;
 }
 
 export function defineFighter<T extends FighterDef>(def: T): T {

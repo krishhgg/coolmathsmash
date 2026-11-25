@@ -37,7 +37,8 @@ const THROWS: Record<Exclude<Dir, 'neutral'>, string> = {
   up: 'uthrow',
   down: 'dthrow',
 };
-const MASH_BUTTONS = [Btn.Attack, Btn.Special, Btn.Jump, Btn.Shield, Btn.Grab];
+/** Buttons that count as mashing (a grab, a status with StatusDef.mash). */
+export const MASH_BUTTONS = [Btn.Attack, Btn.Special, Btn.Jump, Btn.Shield, Btn.Grab];
 
 /** Grab, or Attack while Shield is held (Smash's shield + attack). */
 const grabInput = (c: ControlState) =>
@@ -69,7 +70,7 @@ export function shieldGrab(x: Ctx): boolean {
 }
 
 /** The stick's direction for mashing: 0 in the dead zone, else 1-4 for right, left, up, down. */
-function mashDir(i: InputFrame): number {
+export function mashDir(i: InputFrame): number {
   const x = i.x / 100;
   const y = i.y / 100;
   if (Math.max(Math.abs(x), Math.abs(y)) < DIRECTION_THRESHOLD) return 0;
