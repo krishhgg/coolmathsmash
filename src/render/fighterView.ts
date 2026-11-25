@@ -1,6 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { isIntangible } from '../sim/actions/registry';
-import { SHIELD_MAX } from '../sim/constants';
+import { LEDGE_JUMP, SHIELD_MAX } from '../sim/constants';
 import type { FighterState } from '../sim/fighter';
 import type { MatchConfig } from '../sim/match';
 import type { FighterDef } from '../fighters/types';
@@ -25,6 +25,10 @@ export function fighterArt(def: FighterDef): FighterArt | undefined {
 
 /** The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. */
 export function clipFor(def: FighterDef, art: FighterArt, f: FighterState): [string, number] {
+  // After the rise over the corner a ledge jump is a jump the sim holds without air options until its FAF: draw
+  // the jump clip from the frame the jump began, and the jump action carries on from there.
+  if (f.action === 'ledgeJump' && f.actionFrame > LEDGE_JUMP.rise && art.clips.jump)
+    return ['jump', f.actionFrame - LEDGE_JUMP.rise];
   const own = f.move ?? f.action;
   const name = art.clips[own] ? own : (STAND_INS[own] ?? 'idle');
   const clip = art.clips[name];

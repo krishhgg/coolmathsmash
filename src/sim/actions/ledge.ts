@@ -140,7 +140,11 @@ export const LEDGE: Record<string, ActionDef> = {
           f.jumpsUsed = 1;
         }
       }
-      if (f.actionFrame >= LEDGE_JUMP.faf) setAction(x, 'jump');
+      if (f.actionFrame >= LEDGE_JUMP.faf) {
+        setAction(x, 'jump');
+        // The jump began after the rise: keep counting from there, so the jump clip carries on unbroken.
+        f.actionFrame = LEDGE_JUMP.faf - LEDGE_JUMP.rise;
+      }
     },
   },
 };
