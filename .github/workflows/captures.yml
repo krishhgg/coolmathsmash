@@ -22,3 +22,44 @@ on:
       - '.nvmrc'
       - '.github/workflows/captures.yml'
   workflow_dispatch:
+
+concurrency:
+  group: captures-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: Capture named scenarios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-shell
+      - run: npx playwright install --with-deps --only-shell chromium
+      - run: sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: npm run capture -- --build --out captures/ci
+      - name: Captures are byte-identical across runs (e2e/capture.spec.ts)
+        run: npx playwright test e2e/capture.spec.ts --grep "byte-identical PNGs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: captures-${{ github.event.pull_request.head.sha || github.sha }}
+          path: captures/ci
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-captures
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
