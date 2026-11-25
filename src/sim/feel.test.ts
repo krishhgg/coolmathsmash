@@ -4,7 +4,8 @@ import { cameraTarget } from '../render/camera';
 import { getStage } from '../stages/registry';
 import { createMatch, stepMatch, type MatchState } from './match';
 import { attack, input, run } from './testing/sim';
-import { isTumble } from './combat/formulas';
+import { FRESHNESS_BONUS, isTumble } from './combat/formulas';
+import { getFighter } from '../fighters/registry';
 
 /**
  * Feel metrics: the moment-to-moment behaviours a Smash player feels, measured frame by frame against
@@ -208,19 +209,25 @@ describe('hits', () => {
     return { m, v, hitlag, kb, damage, tumble, hitstun };
   }
 
-  it('freezes both fighters for the Ultimate hitlag of a 3.78% jab (8 frames)', () => {
+  /** Damage a fresh hit of `move`'s first box deals before the 1v1 meter bonus, from Fireboy's own data. */
+  const fresh = (move: string) =>
+    getFighter('fireboy').moves![move]!.hits[0]!.boxes[0]!.damage * FRESHNESS_BONUS;
+  /** Ultimate's hitlag: floor(0.65 x damage + 6) frames. */
+  const ultimateHitlag = (damage: number) => Math.floor(damage * 0.65 + 6);
+
+  it("freezes both fighters for the Ultimate hitlag of a jab's damage", () => {
     const hit = connect('jab');
-    expect(hit.damage).toBeCloseTo(3.78, 2);
-    expect(hit.hitlag).toBe(8);
+    expect(hit.damage).toBeCloseTo(fresh('jab') * 1.2, 6);
+    expect(hit.hitlag).toBe(ultimateHitlag(fresh('jab')));
     expect(P(hit.m, 0).hitlag).toBe(0);
   });
 
-  it('a 22% forward smash freezes for 18 frames and launches into a tumble that grows with %', () => {
-    const fresh = connect('fsmash', 0);
+  it('a forward smash freezes for its Ultimate hitlag and launches into a tumble that grows with %', () => {
+    const light = connect('fsmash', 0);
     const heavy = connect('fsmash', 100);
-    expect(fresh.damage).toBeCloseTo(22.43, 1);
-    expect(fresh.hitlag).toBe(18);
-    expect(heavy.kb).toBeGreaterThan(fresh.kb * 2.5);
+    expect(light.damage).toBeCloseTo(fresh('fsmash') * 1.2, 6);
+    expect(light.hitlag).toBe(ultimateHitlag(fresh('fsmash')));
+    expect(heavy.kb).toBeGreaterThan(light.kb * 2.5);
     expect(isTumble(heavy.kb)).toBe(true);
   });
 
