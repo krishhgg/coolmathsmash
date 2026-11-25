@@ -362,6 +362,150 @@ const CORE: Scenario[] = [
     page: { kind: 'lab', scene: 'fighter', params: { fighter: 'fireboy' } },
     calls: [{ fn: 'sheet' }],
   },
+  {
+    name: 'hit-spark',
+    description:
+      "P1 forward smash launches P2 from 60%: the fire hit spark 3 frames into the hit's 18-frame hitlag, at full size.",
+    page: { kind: 'game' },
+    patches: faceOff({ damage: 60 }),
+    script: FSMASH,
+    capture: {
+      label: 'P2 hit, hitlag down to 15',
+      when: (s) => P2(s).launch !== null && P2(s).hitlag === 15,
+    },
+    motion: { before: 8, after: 30 },
+    requires: ['move:fsmash'],
+  },
+  {
+    name: 'hit-spark-weak',
+    description: 'P1 jab (no element) on P2 at 0%: the small white-yellow spark, 2 frames after it connects.',
+    page: { kind: 'game' },
+    patches: [
+      { port: 0, state: { pos: { x: -8, y: 0 }, facing: 1 } },
+      { port: 1, state: { pos: { x: 2, y: 0 }, facing: -1 } },
+    ],
+    script: [{ port: 0, from: 10, to: 12, buttons: ['attack'] }],
+    capture: {
+      label: 'P2 in hitstun, hitlag down to 6',
+      when: (s) => P2(s).action === 'hitstun' && P2(s).hitlag === 6,
+    },
+    motion: { before: 6, after: 20 },
+    requires: ['move:jab'],
+  },
+  {
+    name: 'launch-smoke',
+    description:
+      'P2 launched from 60% by P1 forward smash: the launch smoke trail 10 frames into the tumble, still on camera.',
+    page: { kind: 'game' },
+    patches: faceOff({ damage: 60 }),
+    script: FSMASH,
+    capture: {
+      label: "P2 action 'tumble', frame >= 10",
+      when: (s) => P2(s).action === 'tumble' && P2(s).actionFrame >= 10,
+    },
+    motion: { before: 14, after: 40 },
+    requires: ['move:fsmash', 'action:tumble'],
+  },
+  {
+    name: 'ko-blast',
+    description: 'P2 at 150% KOd off the right blast zone by P1 forward smash: the KO blast 6 frames in.',
+    page: { kind: 'game' },
+    patches: faceOff({ damage: 150 }),
+    script: FSMASH,
+    capture: {
+      label: "P2 action 'ko', frame >= 6",
+      when: (s) => P2(s).action === 'ko' && P2(s).actionFrame >= 6,
+    },
+    motion: { before: 12, after: 40 },
+    requires: ['move:fsmash', 'action:ko'],
+  },
+  {
+    name: 'shield-hit',
+    description:
+      "P2 forward smash into P1's shield: the bubble's white flash and wobble 3 frames after the hit.",
+    page: { kind: 'game' },
+    patches: faceOff(),
+    script: [
+      { port: 0, from: 4, to: 90, buttons: ['shield'] },
+      { port: 1, from: 10, to: 12, cx: -100 },
+    ],
+    capture: {
+      label: "P1 action 'shieldStun', hitlag down to 15",
+      when: (s) => P1(s).action === 'shieldStun' && P1(s).hitlag === 15,
+    },
+    motion: { before: 6, after: 24 },
+    requires: ['move:fsmash', 'action:shieldStun'],
+  },
+  {
+    name: 'shield-break',
+    description: "P2 forward smash breaks P1's nearly empty shield: the shatter 4 frames after the break.",
+    page: { kind: 'game' },
+    patches: [
+      { port: 0, state: { pos: { x: -12, y: 0 }, facing: 1, shieldHp: 8 } },
+      { port: 1, state: { pos: { x: 6, y: 0 }, facing: -1 } },
+    ],
+    script: [
+      { port: 0, from: 4, to: 90, buttons: ['shield'] },
+      { port: 1, from: 10, to: 12, cx: -100 },
+    ],
+    capture: {
+      label: "P1 action 'shieldBreak', frame >= 4",
+      when: (s) => P1(s).action === 'shieldBreak' && P1(s).actionFrame >= 4,
+    },
+    motion: { before: 6, after: 34 },
+    requires: ['move:fsmash', 'action:shieldBreak'],
+  },
+  {
+    name: 'smash-charge',
+    description:
+      'P1 holds a forward smash charge (C-stick held): the charge sparkle 20 frames into the charge.',
+    page: { kind: 'game' },
+    script: [{ port: 0, from: 10, to: 70, cx: 100 }],
+    capture: { label: 'P1 charge >= 20', when: (s) => P1(s).charge >= 20 },
+    motion: { before: 10, after: 30 },
+    requires: ['move:fsmash'],
+  },
+  {
+    name: 'respawn-halo',
+    description: 'P2 KOd at 150% comes back on the respawn platform: the halo 20 frames after the respawn.',
+    page: { kind: 'game' },
+    patches: faceOff({ damage: 150 }),
+    script: FSMASH,
+    capture: {
+      label: "P2 action 'respawn', frame >= 20",
+      when: (s) => P2(s).action === 'respawn' && P2(s).actionFrame >= 20,
+    },
+    requires: ['move:fsmash', 'action:respawn'],
+  },
+  {
+    name: 'land-dust',
+    description: 'P1 short hop and landing: the landing dust puffs 3 frames after touching down.',
+    page: { kind: 'game' },
+    script: [{ port: 0, from: 10, to: 12, buttons: ['jump'] }],
+    capture: {
+      label: "P1 action 'land', frame >= 3",
+      when: (s) => P1(s).action === 'land' && P1(s).actionFrame >= 3,
+      from: 20,
+    },
+    motion: { before: 20, after: 20 },
+  },
+  {
+    name: 'projectile-spark',
+    description:
+      "P1's fireball hits P2 at 0%: the spark at the contact point 2 frames in; only P2 shakes, since the sim freezes neither the fireball nor P1.",
+    page: { kind: 'game' },
+    patches: [
+      { port: 0, state: { pos: { x: -30, y: 0 }, facing: 1 } },
+      { port: 1, state: { pos: { x: 10, y: 0 }, facing: -1 } },
+    ],
+    script: [{ port: 0, from: 10, to: 11, buttons: ['special'] }],
+    capture: {
+      label: 'P2 hit by the fireball, hitlag down to 7',
+      when: (s) => P2(s).damage > 0 && P2(s).hitlag === 7,
+    },
+    motion: { before: 6, after: 16 },
+    requires: ['move:neutralB'],
+  },
 ];
 
 /** One fighter's copies of the standard states, then its extra scenarios. */
