@@ -46,6 +46,9 @@ const STICK_THRESHOLD = 0.55;
 export const REPEAT_DELAY_MS = 380;
 export const REPEAT_EVERY_MS = 95;
 
+/** Keys whose browser default (activating a focused button, scrolling, moving focus) would act alongside the menu. */
+const NATIVE_KEYS = new Set(['Enter', 'NumpadEnter', 'Space', 'Backspace', 'Tab']);
+
 /**
  * Turns keyboards and gamepads into menu events, per device so several players can drive their own cursors on the
  * character select. Each keyboard half follows its fight bindings (directions, attack = confirm, special = back,
@@ -142,9 +145,8 @@ export class MenuInput {
 
   attach(target: Window): () => void {
     const down = (e: KeyboardEvent) => {
-      if (e.repeat) return;
-      this.keyDown(e.code, performance.now());
-      if (e.code === 'Space' || e.code === 'Backspace' || e.code === 'Tab') e.preventDefault();
+      if (NATIVE_KEYS.has(e.code)) e.preventDefault();
+      if (!e.repeat) this.keyDown(e.code, performance.now());
     };
     const up = (e: KeyboardEvent) => this.keyUp(e.code);
     const blur = () => {

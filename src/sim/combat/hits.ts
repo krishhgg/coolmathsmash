@@ -258,7 +258,7 @@ function shieldHit(
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric' });
   a.hitlag = lag;
   v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
-  v.shieldHp -= damage * SHIELD_DAMAGE_MULT + (box.shieldDamage ?? 0);
+  v.shieldHp = Math.max(0, v.shieldHp - damage * SHIELD_DAMAGE_MULT - (box.shieldDamage ?? 0));
   const away = Math.sign(v.pos.x - a.pos.x) || dir;
   const push = shieldPushback(damage, stun);
   v.kb.x = away * push.defender;
