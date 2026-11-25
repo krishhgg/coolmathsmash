@@ -105,7 +105,7 @@ export const ledge: Record<string, AnimClip> = {
       key(
         4,
         dangling({
-          body: { y: 0.8 },
+          body: { y: -0.2 },
           neck: { rot: -4 },
           thighF: { rot: -48 },
           shinF: { rot: 52 },

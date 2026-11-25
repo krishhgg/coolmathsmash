@@ -131,7 +131,7 @@ describe('johnny art', () => {
     for (const [clip, frames] of [
       ['ledgeCatch', [8]],
       ['ledgeHang', [0, 15, 30, 45, 59]],
-      ['ledgeJump', [0]],
+      ['ledgeJump', [0, 2, 4]],
     ] as [string, number[]][])
       for (const f of frames) {
         const pose = samplePose(art, clip, f, f);
