@@ -24,16 +24,13 @@
     "fighter-watergirl": { "text": "Water girl!", "style": "name", "delivery": { "rise": 1.05 } },
     "fighter-runner": { "text": "Runner!", "style": "name", "delivery": { "pitch": 1.22 } },
     "fighter-bob-the-robber": { "text": "Bob the Robber!", "style": "name" },
-    "fighter-snail-bob": { "text": "Snail Bob!", "style": "name" },
-    "fighter-red-ball": { "text": "Red Ball!", "style": "name" },
+    "fighter-snailbob": { "text": "Snail Bob!", "style": "name" },
+    "fighter-redball": { "text": "Red Ball!", "style": "name" },
     "fighter-duck": { "text": "Duck!", "style": "name", "delivery": { "hold": 1.4 } },
     "fighter-fluffy": { "text": "Fluffy!", "style": "name", "delivery": { "pitch": 1.22, "lufs": -13 } },
-    "fighter-raft-wars": { "text": "Raft Wars!", "style": "name" },
-    "fighter-balloon-boy": { "text": "Balloon Boy and the Beast!", "style": "name" },
+    "fighter-raftwars": { "text": "Raft Wars!", "style": "name" },
     "fighter-bloxorz": { "text": "[Bloxorz](/blˈɑksɔɹz/)!", "style": "name" },
-    "fighter-johnny-upgrade": { "text": "Johnny Upgrade!", "style": "name" },
-    "fighter-wheely": { "text": "Wheely!", "style": "name", "delivery": { "pitch": 1.22 } },
-    "fighter-fisherman": { "text": "Fisherman!", "style": "name", "delivery": { "hold": 1.1 } },
-    "fighter-moby": { "text": "Moby!", "style": "name" }
+    "fighter-johnny": { "text": "Johnny Upgrade!", "style": "name" },
+    "fighter-wheely": { "text": "Wheely!", "style": "name", "delivery": { "pitch": 1.22 } }
   }
 }

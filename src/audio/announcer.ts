@@ -10,6 +10,7 @@ export const ANNOUNCER_DUCK = 0.35;
 const SOUND = new Map<string, SoundId>([
   ...ANNOUNCER_LINES.map((line) => [line, `voice-${line}`] as const),
   ...ANNOUNCED_FIGHTERS.map((id) => [`fighter:${id}`, `voice-fighter-${id}`] as const),
+  ['fighter:bloxorz-lying', 'voice-fighter-bloxorz'],
 ]);
 
 /** The bank sound for a line, or null when the announcer has no such line. */

@@ -11,7 +11,7 @@ async function setup() {
   ctx.durations.set('voice/fighter-fireboy.mp3', 1.5);
   ctx.durations.set('voice/go.mp3', 1.2);
   const engine = new AudioEngine({ context: ctx as unknown as BaseAudioContext, load: FakeContext.load });
-  await engine.preload(['voice-go', 'voice-winner-is', 'voice-fighter-fireboy', 'voice-fighter-moby']);
+  await engine.preload(['voice-go', 'voice-winner-is', 'voice-fighter-fireboy']);
   const duck = (engine.duckNode as unknown as FakeGain).gain;
   return { ctx, engine, duck };
 }
@@ -28,14 +28,17 @@ describe('announcer', () => {
       expect(soundDef(id!).bus).toBe('voice');
       expect(soundDef(id!).files).toEqual([`voice/${line.replace(':', '-')}.mp3`]);
     }
-    for (const unknown of ['', 'hit-light', 'voice-go', 'fighter:mario', 'fighter-moby', 'fighter:']) {
+    for (const unknown of ['', 'hit-light', 'voice-go', 'fighter:mario', 'fighter:moby', 'fighter:']) {
       expect(announcerSound(unknown), unknown).toBeNull();
     }
   });
 
   it('names every fighter in the game', () => {
-    const named = new Set<string>(ANNOUNCED_FIGHTERS);
-    expect(Object.keys(FIGHTERS).filter((id) => !named.has(id))).toEqual([]);
+    expect(Object.keys(FIGHTERS).filter((id) => !announcerSound(`fighter:${id}`))).toEqual([]);
+  });
+
+  it('uses the same name for both Bloxorz forms', () => {
+    expect(announcerSound('fighter:bloxorz-lying')).toBe('voice-fighter-bloxorz');
   });
 
   it('says a line on the voice bus and ducks the music until it has finished', async () => {

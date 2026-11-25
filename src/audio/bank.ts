@@ -45,17 +45,14 @@ export const ANNOUNCED_FIGHTERS = [
   'watergirl',
   'runner',
   'bob-the-robber',
-  'snail-bob',
-  'red-ball',
+  'snailbob',
+  'redball',
   'duck',
   'fluffy',
-  'raft-wars',
-  'balloon-boy',
+  'raftwars',
   'bloxorz',
-  'johnny-upgrade',
+  'johnny',
   'wheely',
-  'fisherman',
-  'moby',
 ] as const;
 
 /** One announcer sound per name: `voice-<name>` plays public/audio/voice/<name>.mp3. */

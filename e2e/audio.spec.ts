@@ -11,7 +11,7 @@ test('the sound test loads every sound and announcer line and plays them after t
   await page.goto('/lab.html?scene=sound');
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await expect(page.locator('[data-sound]')).toHaveCount(34);
-  await expect(page.locator('[data-announce]')).toHaveCount(30);
+  await expect(page.locator('[data-announce]')).toHaveCount(27);
   await page.mouse.click(640, 700);
   await expect.poll(() => page.evaluate(() => window.__lab!.call('play', 'hit-heavy', 0.5))).toBe(true);
   expect(await page.evaluate(() => window.__lab!.call('missing'))).toEqual([]);
