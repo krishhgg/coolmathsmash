@@ -5,8 +5,9 @@
  */
 
 import type { ActionDef } from '../sim/actions/registry';
+import type { Hurtbox } from '../sim/combat/hits';
 import type { AbsorberDef, EntityDef, ReflectorDef, SpawnDef } from '../sim/entities/types';
-import type { Ctx } from '../sim/fighter';
+import type { Ctx, FighterState } from '../sim/fighter';
 
 export interface FighterStats {
   /** Ultimate weight (Mario 98). Heavier fighters take less knockback. */
@@ -195,6 +196,8 @@ export interface FighterDef {
    * end over end instead of walking. Keep them deterministic, like move scripts.
    */
   actions?: Record<string, ActionDef>;
+  /** A deterministic world-space capsule for a distinct pose, or undefined to use the normal body. */
+  hurtbox?: (f: Readonly<FighterState>) => Hurtbox | undefined;
   /** Kinds of entity this fighter's moves spawn, by name (the entity kind is "<id>/<name>"). */
   entities?: Record<string, EntityDef>;
   /** Art data for the renderer (src/render/rig). Plain data, no renderer imports. */
