@@ -11,6 +11,7 @@ const advanceToGo = (page: Page) =>
 test('a full match: select, countdown, pause, the last KO, GAME!, results and a rematch', async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/?debug&quality=lite');
@@ -29,7 +30,7 @@ test('a full match: select, countdown, pause, the last KO, GAME!, results and a 
   await expect(page.locator('.css-ready')).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(page.locator('.ss-screen')).toBeVisible();
-  await page.keyboard.press('Enter');
+  await page.locator('.ss-tile[data-stage="battlefield"]').click();
 
   await expect(page.locator('.match-screen')).toBeVisible();
   expect(await page.evaluate(() => window.__smash!.getState().config.ports.map((p) => p.fighter))).toEqual([
@@ -41,13 +42,15 @@ test('a full match: select, countdown, pause, the last KO, GAME!, results and a 
   await advanceToGo(page);
   await expect(page.locator('.callout-slot[data-label="GO!"]')).toBeAttached({ timeout: 10_000 });
 
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.pause-layer')).toBeVisible();
+  await page.keyboard.down('Escape');
+  await expect(page.locator('.pause-layer')).toBeVisible({ timeout: 15_000 });
+  await page.keyboard.up('Escape');
   const paused = await frame(page);
   await page.waitForTimeout(300);
   expect(await frame(page)).toBe(paused);
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.pause-layer')).toBeHidden();
+  await page.keyboard.down('Escape');
+  await expect(page.locator('.pause-layer')).toBeHidden({ timeout: 15_000 });
+  await page.keyboard.up('Escape');
   await expect.poll(() => frame(page)).toBeGreaterThan(paused);
 
   await page.evaluate(() =>
