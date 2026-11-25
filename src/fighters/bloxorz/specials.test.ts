@@ -3,7 +3,15 @@ import type { FighterState } from '../../sim/fighter';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until } from '../../sim/testing/sim';
 import { moves } from './moves';
-import { BRIDGE_FRAME, FLIGHT_END, QUAKE_FRAME, QUAKE_REACH, ROLL_START, ROLL_TIP, ROLL_TIPS } from './specials';
+import {
+  BRIDGE_FRAME,
+  FLIGHT_END,
+  QUAKE_FRAME,
+  QUAKE_REACH,
+  ROLL_START,
+  ROLL_TIP,
+  ROLL_TIPS,
+} from './specials';
 import { TIP_DISTANCE, TIP_SHAKE } from './tip';
 
 /** The block (P1) facing right at x = -40 and a second fighter `offset` units to its right, both standing. */

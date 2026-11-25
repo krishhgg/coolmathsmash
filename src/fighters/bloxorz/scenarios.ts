@@ -141,7 +141,14 @@ export const scenarios: FighterScenarios = {
       patches: [
         {
           port: 0,
-          state: { pos: { x: 88, y: -40 }, vel: { x: 0, y: 0 }, ground: null, action: 'fall', facing: -1, jumpsUsed: 2 },
+          state: {
+            pos: { x: 88, y: -40 },
+            vel: { x: 0, y: 0 },
+            ground: null,
+            action: 'fall',
+            facing: -1,
+            jumpsUsed: 2,
+          },
         },
       ],
       script: [{ port: 0, from: 10, y: 100, buttons: ['special'] }],

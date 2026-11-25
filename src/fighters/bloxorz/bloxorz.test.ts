@@ -154,7 +154,13 @@ describe('Bloxorz block: kill percents (Mario at the Battlefield ledge, fresh, n
     ['bair', "Donkey Kong's early back air", { damage: 13, angle: 361, kbg: 97, bkb: 20 }, { air: true }],
     ['bthrow', "Donkey Kong's back throw", { damage: 11, angle: 40, kbg: 65, bkb: 60 }],
     ['fthrow', "Ridley's forward throw", { damage: 9, angle: 42, kbg: 56, bkb: 60 }],
-    ['upB', "Ridley's up Wing Blitz", { damage: 18, angle: 64, kbg: 46, bkb: 85 }],
+    // Where Switch Bridge's leading end meets Mario: lifted off the floor, as Wing Blitz's top box would lift him.
+    [
+      'upB',
+      "Ridley's up Wing Blitz",
+      { damage: 18, angle: 64, kbg: 46, bkb: 85 },
+      { air: true, from: { x: 79.9, y: 18.5 } },
+    ],
   ];
   it.each(analogues)('%s KOs within five points of %s', (move, _analogue, hit, setup = {}) => {
     expect(Math.abs(blockKo(move, setup) - measure({ hit, ...setup }))).toBeLessThanOrEqual(5);
