@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { registerFighter } from '../../fighters/registry';
 import { defineFighter } from '../../fighters/types';
+import { KEYBOARD_BINDINGS } from '../../input/bindings';
+import { KeyboardState } from '../../input/keyboard';
 import { marioReference } from '../testing/reference';
 import { placeInAir, run, testMatch } from '../testing/sim';
 
@@ -59,5 +61,57 @@ describe('ground/air move variants (MoveDef.air)', () => {
     const f = placeInAir(m, 0, 60);
     run(m, 1, { x: 100, buttons: ['special'] });
     expect(f.move).toBe('sideB');
+  });
+});
+
+/** Specials in all four directions, for the stick-angle rules. */
+registerFighter(
+  defineFighter({
+    ...marioReference,
+    id: 'test-specials',
+    moves: Object.fromEntries(
+      ['neutralB', 'sideB', 'upB', 'downB'].map((name) => [
+        name,
+        { kind: 'other' as const, faf: 30, hits: [] },
+      ]),
+    ),
+  }),
+);
+
+describe('special directions (Ultimate: up/down from 0.5 of the stick, side from 0.6)', () => {
+  const keys = (codes: string[]) => {
+    const k = new KeyboardState();
+    for (const code of codes) k.keyDown(code);
+    return k.read(KEYBOARD_BINDINGS[0]!);
+  };
+  const special = (stick: { x: number; y: number }, air = false) => {
+    const m = testMatch({ fighter: 'test-specials' });
+    if (air) placeInAir(m, 0, 60);
+    run(m, 1, { x: stick.x, y: stick.y, buttons: ['special'] });
+    return m.fighters[0]!.move;
+  };
+  const p1 = KEYBOARD_BINDINGS[0]!;
+
+  it('a keyboard up + side is an up special, on the ground and in the air, whichever key went down first', () => {
+    for (const order of [
+      [p1.up[0]!, p1.right[0]!],
+      [p1.right[0]!, p1.up[0]!],
+      [p1.left[0]!, p1.up[0]!],
+    ]) {
+      expect(special(keys(order))).toBe('upB');
+      expect(special(keys(order), true)).toBe('upB');
+    }
+  });
+
+  it('a keyboard down + side is a down special', () => {
+    expect(special(keys([p1.down[0]!, p1.right[0]!]))).toBe('downB');
+  });
+
+  it('side special needs the stick 0.6 sideways and under half way up or down', () => {
+    expect(special({ x: 100, y: 0 })).toBe('sideB');
+    expect(special({ x: 100, y: 45 })).toBe('sideB');
+    expect(special({ x: 60, y: 0 })).toBe('sideB');
+    expect(special({ x: 55, y: 0 })).toBe('neutralB');
+    expect(special({ x: 30, y: 50 })).toBe('upB');
   });
 });
