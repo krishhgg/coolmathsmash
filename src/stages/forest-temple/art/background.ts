@@ -9,33 +9,28 @@ function masonry(): Graphics {
   const mortar = 0x303016;
   g.rect(left, top, right - left, bottom - top).fill(mortar);
   let n = 0;
-  for (let y = top; y < bottom; y += 35) {
-    const rowOffset = ((y - top) / 35) % 2 === 0 ? 0 : -30;
-    for (let x = left + rowOffset; x < right; x += 60) {
+  for (let y = top, row = 0; y < bottom; row++) {
+    const height = 24 + Math.floor(hash01(row + 594) * 13);
+    const rowOffset = Math.floor(hash01(row + 20) * 70);
+    for (let x = left - rowOffset; x < right;) {
       const s = n++;
-      const patch = Math.sin((x + y) * 0.005) * Math.cos(y * 0.009);
-      const tint = mix(0x34351a, 0x414125, 0.48 + 0.28 * patch + 0.17 * hash01(s));
+      const patch = Math.sin((x + y) * 0.012) * Math.cos(y * 0.016);
+      const tint = mix(0x313319, 0x444323, 0.43 + 0.31 * patch + 0.17 * hash01(s));
       const tilt = hash01(s + 941) * 4;
-      const w = 54 + hash01(s + 1889) * 5;
-      g.poly([
-        x,
-        y + tilt + 3,
-        x + 4,
-        y + tilt,
-        x + w - 2,
-        y + 1,
-        x + w,
-        y + 5,
-        x + w - 2,
-        y + 30,
-        x + w - 6,
-        y + 33,
-        x + 4,
-        y + 34 - tilt,
-        x + 1,
-        y + 30 - tilt,
-      ]).fill(tint);
+      const w = 37 + Math.floor(hash01(s + 1889) * 54);
+      g.moveTo(x, y + tilt + 5)
+        .quadraticCurveTo(x + 1, y + tilt, x + 5, y + tilt)
+        .lineTo(x + w - 7, y + 1)
+        .quadraticCurveTo(x + w, y + 2, x + w, y + 6)
+        .lineTo(x + w - 2, y + height - 8)
+        .quadraticCurveTo(x + w - 2, y + height - 3, x + w - 8, y + height - 2)
+        .lineTo(x + 5, y + height - 2 - tilt)
+        .quadraticCurveTo(x + 1, y + height - 3 - tilt, x + 1, y + height - 7 - tilt)
+        .closePath()
+        .fill(tint);
+      x += w + 2;
     }
+    y += height;
   }
   const shade = vGradient([
     [0, 'rgba(15,16,9,0.5)'],
@@ -70,6 +65,24 @@ function exitDoors(): Graphics {
     top + 149,
   ]).fill({ color: 0x22250f, alpha: 0.55 });
   g.ellipse(left + 83, top + 116, 102, 44).fill({ color: 0x252611, alpha: 0.48 });
+  g.poly([
+    left - 17,
+    top + 90,
+    left + 18,
+    top + 97,
+    left + 140,
+    top + 96,
+    left + 183,
+    top + 91,
+    left + 171,
+    top + 111,
+    left + 101,
+    top + 124,
+    left + 26,
+    top + 119,
+    left - 23,
+    top + 105,
+  ]).fill(0x3c3f23);
   for (const [index, emblem] of [0xb44c39, 0x378799].entries()) {
     const x = left + index * 92;
     const center = x + 37;
