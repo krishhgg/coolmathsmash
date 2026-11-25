@@ -54,7 +54,7 @@ export const scenarios: FighterScenarios = {
   extra: [
     sheet(
       'movement',
-      'Run, walk, dash, run brake, turnaround, crouch and landing key poses.',
+      'Run, walk, dash, run brake, turnaround, crouch, landing key poses and the dash push-off.',
       8.5,
       [
         'run@0',
@@ -78,7 +78,7 @@ export const scenarios: FighterScenarios = {
     sheet(
       'air-hurt',
       'Jump squat to apex, the double-jump flip, the fall loop, shield, hitstun and tumble.',
-      8.5,
+      7.2,
       [
         'jumpSquat@3',
         'jump@0',
