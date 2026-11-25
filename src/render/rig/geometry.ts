@@ -1,13 +1,15 @@
 import type { PathShape } from './types';
-import { toLocal, type RigPose } from './sample';
+import { toLocal, type Affine, type RigPose } from './sample';
 import type { FighterArt } from './types';
+
+const PATH_TOKENS = /[MLHVQCZmlhvqcz]|-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/g;
 
 /**
  * Flattens SVG path data (M L H V Q C Z, absolute or relative) into polygons, one per subpath. Curves are
  * sampled, which is plenty for hit tests, bounds and coverage checks.
  */
 export function flattenPath(d: string, steps = 8): number[][] {
-  const tokens = d.match(/[MLHVQCZmlhvqcz]|-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/g) ?? [];
+  const tokens = d.match(PATH_TOKENS) ?? [];
   const polys: number[][] = [];
   let poly: number[] = [];
   let cmd = 'M';
@@ -90,6 +92,68 @@ export function flattenPath(d: string, steps = 8): number[][] {
   }
   if (poly.length) polys.push(poly);
   return polys;
+}
+
+/**
+ * Path data (M L H V Q C Z, absolute or relative) with every point mapped through `m`, as absolute M L Q C Z
+ * commands rounded to 0.001. Curves stay curves: an affine map of a Bézier's control points is exact.
+ */
+export function transformPath(d: string, m: Affine): string {
+  const tokens = d.match(PATH_TOKENS) ?? [];
+  const r = (v: number) => String(Math.round(v * 1000) / 1000);
+  const pt = (px: number, py: number) => `${r(m.a * px + m.c * py + m.tx)} ${r(m.b * px + m.d * py + m.ty)}`;
+  const out: string[] = [];
+  let cmd = 'M';
+  let x = 0;
+  let y = 0;
+  let sx = 0;
+  let sy = 0;
+  let i = 0;
+  const num = () => Number(tokens[i++]);
+  while (i < tokens.length) {
+    if (/[A-Za-z]/.test(tokens[i]!)) cmd = tokens[i++]!;
+    const rel = cmd === cmd.toLowerCase();
+    const ox = rel ? x : 0;
+    const oy = rel ? y : 0;
+    switch (cmd.toUpperCase()) {
+      case 'M':
+        x = sx = ox + num();
+        y = sy = oy + num();
+        out.push(`M${pt(x, y)}`);
+        cmd = rel ? 'l' : 'L';
+        break;
+      case 'L':
+      case 'H':
+      case 'V':
+        if (cmd.toUpperCase() !== 'V') x = ox + num();
+        if (cmd.toUpperCase() !== 'H') y = oy + num();
+        out.push(`L${pt(x, y)}`);
+        break;
+      case 'Q': {
+        const c = pt(ox + num(), oy + num());
+        x = ox + num();
+        y = oy + num();
+        out.push(`Q${c} ${pt(x, y)}`);
+        break;
+      }
+      case 'C': {
+        const c1 = pt(ox + num(), oy + num());
+        const c2 = pt(ox + num(), oy + num());
+        x = ox + num();
+        y = oy + num();
+        out.push(`C${c1} ${c2} ${pt(x, y)}`);
+        break;
+      }
+      case 'Z':
+        x = sx;
+        y = sy;
+        out.push('Z');
+        break;
+      default:
+        throw new Error(`unsupported path command ${cmd}`);
+    }
+  }
+  return out.join('');
 }
 
 /** Even-odd point-in-shape test over every subpath of every filled path. */

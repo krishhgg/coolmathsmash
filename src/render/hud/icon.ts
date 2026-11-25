@@ -1,4 +1,4 @@
-import { Container, Graphics, GraphicsContext } from 'pixi.js';
+import { Container, Graphics, GraphicsContext, type LineCap, type LineJoin } from 'pixi.js';
 
 /** Neutral head used until a fighter ships its own icon. */
 export const PLACEHOLDER_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
@@ -22,6 +22,31 @@ interface IconArt {
 
 const cache = new Map<string, IconArt>();
 
+/** The value `attr` takes in the SVG, when every element that sets it sets the same one. */
+function onlyValue(svg: string, attr: string): string | undefined {
+  const values = new Set(Array.from(svg.matchAll(new RegExp(`${attr}="([a-z]+)"`, 'g')), (m) => m[1]));
+  return values.size === 1 ? [...values][0] : undefined;
+}
+
+/**
+ * Pixi's SVG reader strokes every line with miter joins and butt caps, whatever the SVG says. Fighter icons ask
+ * for round ones (as the rig strokes in game), and miters on a jagged outline such as Fluffy's fur spike out up
+ * to ten half-widths past the drawing. Put back the join and cap the SVG names, when it names one for all. Runs
+ * on a context fresh from `svg()`, before anything has measured or drawn it.
+ */
+function restoreStrokeShape(context: GraphicsContext, svg: string): void {
+  const join = onlyValue(svg, 'stroke-linejoin') as LineJoin | undefined;
+  const cap = onlyValue(svg, 'stroke-linecap') as LineCap | undefined;
+  if (!join && !cap) return;
+  for (const step of context.instructions)
+    if (step.action === 'stroke')
+      step.data.style = {
+        ...step.data.style,
+        join: join ?? step.data.style.join,
+        cap: cap ?? step.data.style.cap,
+      };
+}
+
 function iconArt(svg: string): IconArt {
   let art = cache.get(svg);
   if (!art) {
@@ -29,13 +54,18 @@ function iconArt(svg: string): IconArt {
       svg,
     );
     const [x, y, w, h] = vb ? vb.slice(1, 5).map(Number) : [0, 0, 100, 100];
-    art = { context: new GraphicsContext().svg(svg), x: x!, y: y!, w: w!, h: h! };
+    const context = new GraphicsContext().svg(svg);
+    restoreStrokeShape(context, svg);
+    art = { context, x: x!, y: y!, w: w!, h: h! };
     cache.set(svg, art);
   }
   return art;
 }
 
-/** The icon scaled so its viewBox fits a `size` square centred on the returned container's origin. */
+/**
+ * The icon scaled so its viewBox fits a `size` square centred on the returned container's origin. Pixi's SVG
+ * reader does not apply `transform` attributes, so an icon SVG must give its paths in viewBox coordinates.
+ */
 export function iconView(svg: string | undefined, size: number): Container {
   const art = iconArt(svg ?? PLACEHOLDER_ICON);
   const g = new Graphics(art.context);
