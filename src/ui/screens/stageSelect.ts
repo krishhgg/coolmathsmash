@@ -1,5 +1,6 @@
 import { audio } from '../../audio';
 import { stageIds } from '../../session/roster';
+import { INFINITE_STOCKS } from '../../sim/constants';
 import { RANDOM, STOCK_CHOICES, TIME_CHOICES, pickFighter, type Rules } from '../../session/setup';
 import { getStage } from '../../stages/registry';
 import type { Flow, Screen, ScreenDef } from '../app';
@@ -40,7 +41,7 @@ export function stepRule(rules: Rules, key: RuleKey, step: 1 | -1): void {
 export function ruleText(rules: Rules, key: RuleKey): string {
   switch (key) {
     case 'stocks':
-      return rules.stocks >= 99 ? 'Infinite' : String(rules.stocks);
+      return rules.stocks >= INFINITE_STOCKS ? 'Infinite' : String(rules.stocks);
     case 'minutes':
       return rules.minutes > 0 ? `${rules.minutes}:00` : 'No Limit';
     case 'items':
