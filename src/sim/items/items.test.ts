@@ -45,7 +45,7 @@ function step(m: MatchState, frames: number, holds: Hold[] = [], seen?: SimEvent
 
 /** Every planet spawn and departure in `frames` frames of neutral play. */
 function itemLog(m: MatchState, frames: number) {
-  const log: { frame: number; event: 'spawn' | string; x: number; y: number }[] = [];
+  const log: { frame: number; event: string; x: number; y: number }[] = [];
   for (let i = 0; i < frames; i++) {
     stepMatch(m, [neutralInput(), neutralInput()]);
     for (const e of m.events) {
