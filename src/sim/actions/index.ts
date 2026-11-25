@@ -8,7 +8,20 @@ import { KNOCKDOWN } from './knockdown';
 import { LEDGE } from './ledge';
 import { ACTIONS } from './registry';
 import { STATUS } from './status';
+import { TETHER_ACTIONS } from './tether';
 
-Object.assign(ACTIONS, GROUND, AIR, DEFENSE, LEDGE, STATUS, ATTACK, HITSTUN, KNOCKDOWN, GRAB_ACTIONS);
+Object.assign(
+  ACTIONS,
+  GROUND,
+  AIR,
+  DEFENSE,
+  LEDGE,
+  STATUS,
+  ATTACK,
+  HITSTUN,
+  KNOCKDOWN,
+  GRAB_ACTIONS,
+  TETHER_ACTIONS,
+);
 
 export { ACTIONS };

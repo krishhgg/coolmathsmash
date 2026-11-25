@@ -86,6 +86,18 @@ export const LEDGE_GETUP_INTANGIBILITY_SCALE = [1, 0.8, 0.5];
  * Grabs (Ultimate; physics-reference sections 6 and 14). A grab holds floor(90 + 1.7 x %) frames
  * (formulas.ts grabHoldFrames), cut by the victim's mashing, but never under minHold frames.
  */
+/** Tethers (src/sim/actions/tether.ts, docs/fighters.md). */
+export const TETHER = {
+  /** The line leaves the hand at this share of the fighter's height above the feet. */
+  handHeight: 0.6,
+  /** A tether line catches a ledge it passes within this many units of, from off the stage (generous snapping). */
+  ledgeSnap: 10,
+  /** A reeling fighter this close to the ledge's hang position grabs the ledge. */
+  ledgeArrive: 6,
+  /** Extra frames a reel may take beyond range / pullSpeed before it gives up (stuck against a wall). */
+  pullSlack: 10,
+};
+
 export const GRAB = {
   /** Frames removed per new stick direction and per button press while held. */
   mashStick: 8,

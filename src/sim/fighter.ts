@@ -1,5 +1,5 @@
 import { getFighter } from '../fighters/registry';
-import type { FighterDef, FighterStats } from '../fighters/types';
+import type { FighterDef, FighterStats, TetherLatch } from '../fighters/types';
 import { SHIELD_MAX, TECH_LOCKOUT } from './constants';
 import type { ControlState } from './control';
 import type { MatchState, PlayerState } from './match';
@@ -86,6 +86,13 @@ export interface FighterState {
   grabbableFrom: number;
   /** First match frame a shield grab can come out (GRAB.shieldGrabLock frames after shieldstun). */
   shieldGrabFrom: number;
+  /**
+   * The fighter's tether line (null = none): `out` while it travels, with `anchor` at its tip, then where it
+   * anchored. `frame` is the match frame it fired or anchored; `ledge` the ledge index of a ledge anchor.
+   */
+  tether: { anchor: Vec; kind: 'out' | TetherLatch; ledge?: number; frame: number } | null;
+  /** A tether's target as an offset from the fighter: the reticle while aiming, then where the line is going. */
+  aim: Vec | null;
 }
 
 export function createFighter(
@@ -139,6 +146,8 @@ export function createFighter(
     grabDamage: 0,
     grabbableFrom: 0,
     shieldGrabFrom: 0,
+    tether: null,
+    aim: null,
   };
 }
 

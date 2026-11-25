@@ -7,6 +7,7 @@ import type { FighterState } from './fighter';
 import { createMatch, type MatchState } from './match';
 import { gadgets } from './testing/gadgets';
 import { marioReference as mario } from './testing/reference';
+import { tetherTester } from './testing/tethers';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from './testing/sim';
 
 registerFighter(gadgets);
@@ -208,6 +209,19 @@ describe('sim events', () => {
     const e = next(m, 'squeeze');
     expect(e).toMatchObject({ port: 0, solid: 2, x: -50 });
     expect(e.y).toBeCloseTo(m.fighters[0]!.pos.y, 9);
+  });
+
+  it('tethers report the fire, the latch with what it anchored to, then the release', () => {
+    const m = testMatch({ fighter: tetherTester.id, x: -70 });
+    attack(m, 0, 'upB');
+    const seen: SimEvent[] = [];
+    for (let i = 0; i < 80 && !seen.some((e) => e.type === 'tetherRelease'); i++) {
+      run(m, 1);
+      seen.push(...m.events.filter((e) => e.type.startsWith('tether')));
+    }
+    expect(seen.map((e) => e.type)).toEqual(['tetherFire', 'tetherLatch', 'tetherRelease']);
+    expect(seen[1]).toMatchObject({ type: 'tetherLatch', port: 0, kind: 'sky' });
+    expect(seen[2]).toEqual({ type: 'tetherRelease', port: 0 });
   });
 
   it('the event stream is deterministic', () => {

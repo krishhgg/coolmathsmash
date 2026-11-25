@@ -5,8 +5,11 @@
  */
 
 import type { ActionDef } from '../sim/actions/registry';
+import type { ButtonName } from '../input/types';
+import type { CastHit } from '../sim/cast';
 import type { AbsorberDef, EntityDef, ReflectorDef, SpawnDef } from '../sim/entities/types';
 import type { Ctx } from '../sim/fighter';
+import type { Vec } from '../sim/vec';
 
 export interface FighterStats {
   /** Ultimate weight (Mario 98). Heavier fighters take less knockback. */
@@ -98,6 +101,43 @@ export type ThrowHitDef = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius' | 'grab' |
   direction?: 'forward' | 'back';
 };
 
+/** What a tether line can anchor to: a ledge, any solid or platform surface, or empty air at full range. */
+export type TetherLatch = 'ledge' | 'surface' | 'sky';
+
+/**
+ * A tether (Fluffy's grapples, the Fisherman's line, Bob's grappling hook): a line fired from the hand that
+ * travels out, anchors, and reels the fighter in. See docs/fighters.md.
+ */
+export interface TetherDef {
+  /** Move frame the line leaves the hand (aimed tethers wait here until special is released). */
+  frame: number;
+  /** Reach in units. */
+  range: number;
+  /** Frames the tip takes to reach full range, travelling at an even speed. */
+  travel: number;
+  /** Direction in degrees from straight forward (0) towards straight up (90). */
+  angle: number;
+  /** The stick's forward/back bends `angle` by up to this many degrees (Fluffy's Quick Grapple: 30). */
+  stickAdjust?: number;
+  /**
+   * Reticle aiming: while special is held the reticle walks from the fighter at `speed` units a frame with the
+   * stick (clamped to `range`), and releasing special fires at it. With `quick`, releasing special within
+   * `quick.frames` of pressing it while the stick points somewhere fires at full range in that 8-way direction.
+   */
+  aimed?: { speed: number; quick?: { frames: number } };
+  /** What the line may anchor to; hitting anything else stops it. */
+  latch: TetherLatch[];
+  /** Reel speed towards the anchor, units per frame. */
+  pullSpeed: number;
+  /** Holding this button when the reel arrives keeps the fighter hanging at the anchor. */
+  hang?: ButtonName;
+  /** Veto a latch (spend a resource, refuse sky anchors): return false and the line whiffs. */
+  onAnchor?: (x: Ctx, hit: TetherHit) => boolean;
+}
+
+/** Where a tether line stopped: a cast hit, or empty air at full range. */
+export type TetherHit = CastHit | { kind: 'sky'; t: number; point: Vec };
+
 /** A window of frames (inclusive) during which a set of hitboxes is out. */
 export interface HitWindow {
   frames: [number, number];
@@ -164,6 +204,8 @@ export interface MoveDef {
    * staleness and rage included). Throws have no hitlag unless `hit.hitlag` sets a multiplier, as in Ultimate.
    */
   throw?: { frame: number; hit: ThrowHitDef };
+  /** Tethers: fire a line on `tether.frame` that anchors and reels the fighter in (see TetherDef). */
+  tether?: TetherDef;
   /**
    * Scripted behaviour (specials): runs every frame of the move before physics, after actionFrame advances.
    * It may set velocity or facing. Keep it deterministic: no Math.random, no clocks.

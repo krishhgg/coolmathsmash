@@ -1,4 +1,4 @@
-import type { HitboxDef } from '../fighters/types';
+import type { HitboxDef, TetherLatch } from '../fighters/types';
 import type { DestroyReason } from './entities/types';
 import type { MatchState } from './match';
 
@@ -89,7 +89,13 @@ export type SimEvent =
       hp: number;
       x: number;
       y: number;
-    };
+    }
+  /** A tether line left the hand towards (`x`, `y`), its full-range end. */
+  | { type: 'tetherFire'; port: number; x: number; y: number }
+  /** A tether line anchored at (`x`, `y`) on a ledge, a surface or empty air (`sky`); the reel starts. */
+  | { type: 'tetherLatch'; port: number; kind: TetherLatch; x: number; y: number }
+  /** A tether line let go: it whiffed, the fighter let go or grabbed the ledge, or something knocked him off it. */
+  | { type: 'tetherRelease'; port: number };
 
 export type SimEventType = SimEvent['type'];
 

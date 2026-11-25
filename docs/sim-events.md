@@ -48,6 +48,9 @@ feeds back into the simulation.
 | `reflect`       | `id`, `kind`, `port`, `x`, `y`                                                                    | a reflector sends a projectile back; `port` now owns it                                                                                            |
 | `absorb`        | `id`, `kind`, `port`, `heal`, `x`, `y`                                                            | an absorber eats a projectile and heals `heal` %                                                                                                   |
 | `entityHit`     | `id`, `kind`, `attacker`, `damage`, `hp`, `x`, `y`                                                | a hittable entity takes a hit; `hp` is what it has left                                                                                            |
+| `tetherFire`    | `port`, `x`, `y`                                                                                  | a tether line leaves the hand towards (`x`, `y`), the end of its full range                                                                        |
+| `tetherLatch`   | `port`, `kind` (`ledge`, `surface`, `sky`), `x`, `y`                                              | a tether line anchors at (`x`, `y`) and the reel starts                                                                                            |
+| `tetherRelease` | `port`                                                                                            | a tether line lets go: it whiffed, the fighter let go or grabbed the ledge, or a hit knocked him off                                               |
 
 `x` and `y` are world units with y up. `action` events come last in a frame, one per fighter whose action
 differs from the frame before, which also covers states without their own event: `shield`, `spotDodge`,
