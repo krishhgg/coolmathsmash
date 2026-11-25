@@ -895,6 +895,8 @@ interface Look {
   iris?: number;
   /** Brows (only strong expressions have them, as in the game): lift (up is negative y) and each brow's rotation. */
   brows?: boolean;
+  /** Spiral pupils, for a dizzy car. */
+  swirl?: boolean;
   lift?: number;
   near?: number;
   far?: number;
@@ -948,30 +950,41 @@ function oneEye(e: EyeShape, look: Look, near: boolean): PathShape[] {
       'iris',
     ),
   );
-  const pr = 0.3 * (look.pupil ?? 1) * iris;
-  const pc: Pt = [ic[0] + 0.04 * k, ic[1] + 0.03];
-  shapes.push(
-    fill(
-      poly(
-        clipConvex(
-          ellipsePts(
-            pc[0],
-            pc[1],
-            pr * k * (near ? 1 : 0.95),
-            pr * (near ? 1 : 1.0),
-            e.rot,
-            0,
-            360,
-            20,
-          ).slice(0, -1),
-          outline,
+  if (look.swirl) {
+    const spiral: Pt[] = [];
+    for (let k = 0; k <= 72; k++) {
+      const t = k / 72;
+      const a = t * Math.PI * 6;
+      const rad = (near ? 0.6 : 0.42) * (1 - t);
+      spiral.push([ic[0] + Math.cos(a) * rad, ic[1] + Math.sin(a) * rad * 1.2]);
+    }
+    shapes.push(ink(curve(spiral, false), 'eyeLine', 0.14));
+  } else {
+    const pr = 0.3 * (look.pupil ?? 1) * iris;
+    const pc: Pt = [ic[0] + 0.04 * k, ic[1] + 0.03];
+    shapes.push(
+      fill(
+        poly(
+          clipConvex(
+            ellipsePts(
+              pc[0],
+              pc[1],
+              pr * k * (near ? 1 : 0.95),
+              pr * (near ? 1 : 1.0),
+              e.rot,
+              0,
+              360,
+              20,
+            ).slice(0, -1),
+            outline,
+          ),
         ),
+        'pupil',
       ),
-      'pupil',
-    ),
-  );
-  shapes.push(fill(circle(pc[0] - 0.13 * k, pc[1] - 0.16, 0.12 * (near ? 1 : 0.7)), 'eyeWhite'));
-  shapes.push(fill(circle(pc[0] + 0.12 * k, pc[1] + 0.13, 0.05), 'eyeWhite'));
+    );
+    shapes.push(fill(circle(pc[0] - 0.13 * k, pc[1] - 0.16, 0.12 * (near ? 1 : 0.7)), 'eyeWhite'));
+    shapes.push(fill(circle(pc[0] + 0.12 * k, pc[1] + 0.13, 0.05), 'eyeWhite'));
+  }
   const lid = look.lid ?? 0;
   if (lid > 0) {
     const top = e.c[1] - e.ry;
@@ -1029,8 +1042,19 @@ export const EXPRESSIONS: Record<string, Look> = {
     pupil: 0.8,
   },
   eyesSurprised: { brows: true, x: 0.2, y: 0, iris: 0.82, pupil: 0.65, lift: -0.42, near: -8, far: -10 },
-  eyesHurt: { brows: true, x: -0.2, y: 0.3, lid: 0.55, tilt: -14, near: -22, far: -26, lift: -0.1 },
-  eyesDizzy: { x: -0.5, y: -0.4, lid: 0.25, iris: 0.9, near: -15, far: -18 },
+  eyesHurt: {
+    brows: true,
+    x: -0.25,
+    y: 0.35,
+    lid: 0.08,
+    tilt: 22,
+    near: -34,
+    far: -38,
+    lift: 0.1,
+    iris: 0.72,
+    pupil: 0.5,
+  },
+  eyesDizzy: { swirl: true, x: -0.3, y: -0.2, lid: 0.3, tilt: 14, near: -18, far: -22 },
   eyesUp: { x: 0.25, y: -0.85, lift: -0.15, near: -6, far: -6 },
   eyesDown: { x: 0.45, y: 0.85, lid: 0.15, near: 8, far: 6 },
   eyesBack: { x: -0.95, y: 0.1, near: 4, far: 6 },

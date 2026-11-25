@@ -22,6 +22,7 @@ import {
   at,
   bob,
   flip,
+  frontView,
   fxOn,
   key,
   mix,
@@ -411,7 +412,7 @@ export const attacks: Record<string, AnimClip> = {
       key(
         12,
         mix(tilt(2, FRONT, 1.3), bob(0.2), spin(1200), {
-          body: { sx: 0.6 },
+          car: { sy: 0.97 },
           fx1: at(2, 0, 1.4),
           fx2: at(10.2, -2.8, 1.4),
           fx4: at(-6, -1.6, 1.2),
@@ -428,12 +429,12 @@ export const attacks: Record<string, AnimClip> = {
           fx2: at(10.4, -3, 1.55),
           fx4: at(-1, -1.8, 1.4),
         }),
-        { ease: 'step' },
+        { ease: 'step', swaps: frontView('frontEyesShout') },
       ),
       key(
         14,
         mix(bob(0.25), spin(1400), {
-          body: { sx: -0.55, x: -0.9 },
+          car: { sy: 0.95 },
           fx1: at(-2, 0, -1.4, 0, 1),
           fx3: at(-10, -2.6, 1.3),
           fx4: at(4, -1.8, 1.4),

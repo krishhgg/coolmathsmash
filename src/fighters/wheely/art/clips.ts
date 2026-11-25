@@ -11,7 +11,6 @@ import {
   DEG,
   smooth,
   DIZZY,
-  DOWN,
   FOCUS,
   FRONT,
   HURT,
@@ -210,15 +209,34 @@ const idle: AnimClip = {
 };
 
 /** Rolling at walking pace: one tyre turn per 14 frames is 0.9 units a frame, his walk speed. */
+/** Rolling at walking pace with the road under him: the shell rocks a little on its springs between the bumps. */
 const walk: AnimClip = {
   length: 14,
   loop: true,
-  swaps: IDLE_FACE,
-  keys: rolling(14, 1, [bob(0.05), bob(-0.03)]),
+  swaps: FOCUS,
+  keys: rolling(14, 1, [
+    mix(bob(0.07), tilt(-1.5, REAR), { car: { sy: 0.985 } }),
+    mix(bob(-0.05), tilt(1.5, FRONT), { car: { sy: 1.01 } }),
+  ]),
 };
 
-const RUN_A = smoke(mix(tilt(-1.5, REAR), bob(0.06), { fx3: at(-8.9, 0) }), 0.45);
-const RUN_B = smoke(mix(tilt(-1, REAR), bob(-0.04), { fx3: at(-9.1, 0.1) }), 0.6);
+/** Flat out: the nose is up under acceleration and the tail squats over the rear tyres, bouncing with them. */
+const RUN_A = smoke(
+  mix(tilt(-5.5, REAR), bob(0.1), {
+    car: { sx: 1.01, sy: 0.99 },
+    fx3: at(-8.9, -0.2),
+    fx1: at(-9.6, -0.3, -0.9, 0, 0.5),
+  }),
+  0.45,
+);
+const RUN_B = smoke(
+  mix(tilt(-3.5, REAR), bob(-0.06), {
+    car: { sx: 0.995, sy: 1.015 },
+    fx3: at(-9.1, 0.1),
+    fx1: at(-9.9, -0.5, -1, 0, 0.8),
+  }),
+  0.6,
+);
 
 /** The clips as written, before effects are held between keys (index.test.ts checks their effect lifetimes). */
 export const authored: Record<string, AnimClip> = {
@@ -371,11 +389,15 @@ export const authored: Record<string, AnimClip> = {
     ],
   },
   /** Nose dipping, wheels hanging and idly turning. */
+  /** Nose down and wheels hanging on the springs, eyes on the ground he is falling toward. */
   fall: {
     length: 40,
     loop: true,
-    swaps: DOWN,
-    keys: rolling(40, 1, [mix(AIR, tilt(4, BODY)), mix(bob(-0.18, 0.55), tilt(6, BODY))]),
+    swaps: SCARED,
+    keys: rolling(40, 1, [
+      mix(AIR, tilt(10, BODY), bob(-0.22, 0.62), { car: { sy: 1.02 } }),
+      mix(bob(-0.3, 0.72), tilt(13, BODY), { eyes: { y: 0.7 } }),
+    ]),
   },
   land: {
     length: 4,
@@ -441,17 +463,20 @@ export const authored: Record<string, AnimClip> = {
       key(8, mix(tilt(-6, REAR), bob(0.1), spin(roll(12)), { fx1: at(-WHEEL_X - 1, 0, -1.1, 0, 1) }), {
         ease: 'linear',
       }),
-      key(13, mix(bob(0.15), spin(roll(22)), { body: { sx: 0.55 }, fx1: at(2.2, 0, 0.8) }), {
+      key(13, mix(bob(0.15), spin(roll(22)), { fx1: at(2.2, 0, 0.8) }), {
         ease: 'linear',
-        swaps: { ...SURPRISED, fx1: 'fxSkid' },
+        swaps: { ...frontView('frontEyesSurprised'), fx1: 'fxSkid' },
       }),
-      key(17, mix(bob(0.2), spin(roll(26)), { body: { sx: -0.35 }, fx1: at(2.2, 0, 1.1) }), { ease: 'out' }),
-      key(21, mix(squash(0.94), bob(0.15), spin(roll(27)), { body: { sx: -1 }, fx1: at(2.2, 0, 1.2) }), {
+      key(17, mix(bob(0.2), spin(roll(26)), { car: { sy: 0.96 }, fx1: at(2.2, 0, 1.1) }), {
+        ease: 'out',
+        swaps: frontView('frontEyesFocus'),
+      }),
+      key(21, mix(squash(0.94), bob(0.15), spin(roll(27)), { fx1: at(2.2, 0, 1.2) }), {
         ease: 'inOut',
-        swaps: { fx1: 'fxSkid' },
+        swaps: { ...FOCUS, fx1: 'fxSkid' },
       }),
       key(25, undefined, { swaps: {} }),
-      key(31, mix(spin(roll(27)), { body: { sx: -1 } })),
+      key(31, spin(roll(27))),
     ],
   },
   /** Reversing out fast, looking over his shoulder. */
@@ -473,22 +498,22 @@ export const authored: Record<string, AnimClip> = {
       key(31, spin(-roll(29))),
     ],
   },
-  /** Twirls round twice in mid-air, eyes shut: a Flash card-flip, never thinner than a fifth of the car. */
+  /** Twirls round twice in mid-air, eyes shut: he swings through the head-on view at each quarter turn. */
   airDodge: {
     length: 49,
-    swaps: IDLE_FACE,
+    swaps: { ...IDLE_FACE, ...CLOSED },
     keys: [
       key(0, AIR, { ease: 'out' }),
       ...[2, 8, 14, 20].flatMap((f, i) => {
         const side = i % 2 ? -1 : 1;
         const twirl = (sx: number) => mix(AIR, squash(1.04, 0.96), { body: { sx } });
         return [
-          key(f, twirl(side), { ease: 'in', ...(i === 0 ? { swaps: CLOSED } : {}) }),
-          key(f + 4, twirl(side * 0.2), { ease: 'step' }),
-          key(f + 5, twirl(-side * 0.2), { ease: 'out' }),
+          key(f, twirl(side), { ease: 'in' }),
+          key(f + 3, mix(AIR, squash(1.02, 0.98)), { ease: 'step', swaps: frontView('frontEyesClosed') }),
+          key(f + 5, twirl(-side), { ease: 'out', swaps: CLOSED }),
         ];
       }),
-      key(26, mix(AIR, squash(1.02, 0.98)), { ease: 'inOut' }),
+      key(26, mix(AIR, squash(1.02, 0.98)), { ease: 'inOut', swaps: CLOSED }),
       key(29, undefined, { swaps: {} }),
       key(49, AIR),
     ],
@@ -615,7 +640,7 @@ export const authored: Record<string, AnimClip> = {
   /** Hits the floor and bounces straight back onto his wheels. */
   tech: {
     length: 26,
-    swaps: CLOSED,
+    swaps: HURT,
     keys: [
       key(0, mix(SQUAT, tilt(-12, REAR)), { ease: 'out' }),
       key(6, mix(squash(0.9), bob(0.3)), { ease: 'inOut' }),
