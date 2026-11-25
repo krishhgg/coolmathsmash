@@ -288,6 +288,26 @@ export const moves: Record<string, MoveDef> = {
     throw: { frame: 18, hit: { damage: 5, angle: 68, kbg: 90, bkb: 40 } },
   },
   /**
+   * Fireball (neutral special): a bouncing fireball like Mario's, out on frame 17 (roster sheet; Mario's FAF 50).
+   * Named in full so Watergirl, who borrows these moves for now, throws Fireboy's fireball.
+   */
+  neutralB: {
+    kind: 'other',
+    faf: 50,
+    hits: [],
+    spawn: [{ frame: 17, entity: 'fireboy/fireball', x: 6, y: 8, vx: 1.4, vy: -0.6 }],
+  },
+  /**
+   * Temple Mirror (side special): Mario's Cape in Ultimate. The mirror reflects projectiles on frames 9-20 with the
+   * Cape's multipliers (SmashWiki, Reflection: damage x1.5, speed x1, lifespan x0.75) and hits for 7% on 12-14.
+   */
+  sideB: {
+    kind: 'other',
+    faf: 36,
+    hits: [{ frames: [12, 14], boxes: [box(0, 7, 8, 6, { damage: 7, angle: 110, kbg: 100, bkb: 0 })] }],
+    reflectors: [{ frames: [9, 20], x: 7, y: 8, radius: 7, damage: 1.5, speed: 1, lifetime: 0.75 }],
+  },
+  /**
    * Flame Jump (up special): a rising column of fire, steerable with the stick. Leaves Fireboy helpless and can
    * grab the ledge on the way up. Mario's Super Jump Punch: a 5% opener, five 0.6% set-knockback hits that carry
    * the opponent up, a 3% finisher.

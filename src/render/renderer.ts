@@ -8,6 +8,7 @@ import type { StageGeometry } from '../sim/stage';
 import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
+import { drawEntities, drawEntityBoxes } from './entities';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud } from './hud';
@@ -61,6 +62,7 @@ export class Renderer {
     antialias: true,
   });
   private readonly boxes = new Graphics();
+  private readonly entities = new Graphics();
   private fighters: FighterView[] = [];
   /** Fighter id each view was built for; a transform swaps the view. */
   private fighterIds: string[] = [];
@@ -78,6 +80,7 @@ export class Renderer {
       this.stageLayer,
       this.stagePieces,
       this.fighterLayer,
+      this.entities,
       this.foregroundLayer,
       this.boxes,
     );
@@ -153,6 +156,7 @@ export class Renderer {
     this.stageView?.update(state.frame, view);
     drawMovingPieces(this.stagePieces, this.stage!, state.stage, state.frame, alpha);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
+    drawEntities(this.entities, state, alpha);
     this.drawBoxes(state);
     this.matchHud.update(
       state,
@@ -186,6 +190,7 @@ export class Renderer {
       for (const b of activeHitboxes(f))
         g.circle(b.x, -b.y, b.box.radius).fill({ color: b.box.grab ? '#a33cff' : '#ff2a2a', alpha: 0.55 });
     }
+    drawEntityBoxes(g, state);
   }
 }
 

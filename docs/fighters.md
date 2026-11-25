@@ -9,6 +9,7 @@ src/fighters/<id>/
   index.ts      defineFighter({ id, name, series, stats, moves, art })
   stats.ts      FighterStats: movement, jumps, weight, shield
   moves.ts      Record<string, MoveDef>: frame data for every move
+  entities.ts   Record<string, EntityDef>: projectiles, minions and objects the moves spawn (optional)
   art/          the rig art (docs/art.md); plain data, no renderer imports
   <id>.test.ts  inputs and frame data you care about
 ```
@@ -283,8 +284,9 @@ and the top blast zone only KOs at a vertical launch speed of at least 2.4 or 30
 
 ### Tuning tools
 
-- `?hitboxes` on the game URL (or **F4**) draws hurtboxes in yellow, active hitboxes in red and grab boxes in
-  purple; `?actions` (F3) labels each fighter's action and frame.
+- `?hitboxes` on the game URL (or **F4**) draws hurtboxes in yellow, active hitboxes in red (entities' too),
+  grab boxes in purple, reflector bubbles in cyan and absorber bubbles in green; `?actions` (F3) labels each
+  fighter's action and frame.
 - `/lab.html?scene=knockback` charts a hit's knockback and hitstun against target % for four weights.
 - `/lab.html?scene=launch` simulates the real launch trajectories of a hit at 0–200% on your fighter:
   `__lab.call('hit', { damage, kbg, bkb, angle, fighter: '<id>' })`.
@@ -298,6 +300,72 @@ moving ledge moves with it, and a solid that runs into a fighter pushes them out
 it. Nothing in a fighter needs to change for that. A move's `script` that reads the stage (`x.stage`) sees it
 as it stands on the current frame, moved pieces and all, and should skip absent pieces
 (`x.stage.present`).
+
+## Entities and projectiles
+
+Anything a move puts into the match that is not a fighter is an **entity**: projectiles, minions (Fisherman's fish),
+setplay objects (Snail Bob's crate, Bloxorz's split cube) and items. Entities are plain data in
+`MatchState.entities` (`EntityState`, `src/sim/entities/types.ts`), hashed and replayed with everything else. Each
+has a monotonic `id`, a `kind`, an `owner` port (-1 for nobody), position, velocity, `facing`, `age` (1 on the
+frame it appears) and `lifetime`. Their behaviour comes from an `EntityDef`, listed under the fighter's
+`entities` and named `"<fighter id>/<name>"` in state. Fireboy's Fireball (`src/fighters/fireboy/entities.ts`) is
+the worked example; `src/sim/testing/gadgets.ts` shows the rest (a piercing beam, a reflector, an absorber, a
+crate, a minion).
+
+```ts
+// entities.ts
+fireball: {
+  radius: 2.4,            // body circle: stage collision, reflectors, absorbers, attacks
+  lifetime: 70,           // frames; omit to live until destroyed
+  gravity: 0.1, maxFall: 1.6,
+  floor: 'bounce', bounce: 1.1, // every bounce reaches the same height, like Mario's fireball
+  wall: 'bounce',
+  hits: [{ frames: [1, 70], boxes: [{ id: 0, x: 0, y: 0, radius: 2.4, damage: 5.5, angle: 361, kbg: 35, bkb: 20 }] }],
+},
+// moves.ts
+neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fireball', x: 6, y: 8, vx: 1.4, vy: -0.6 }] },
+```
+
+- **Spawning.** A move's `spawn` puts an entity out on an action frame, offset from the feet (x forward) with an
+  initial velocity (x forward). The entity shows and hits at that point on that frame (its hits start at age 1), so
+  the spawn frame is the move's first active frame; it starts moving the next frame. `max` caps how many of that
+  kind the fighter may own at once (Pepper Bombs: 2); further spawns are skipped. Scripts can call
+  `spawnEntity(m, { kind, owner, pos, vel, facing, move })` (`src/sim/entities/entities.ts`) directly.
+- **Hits.** `hits` are windows over the entity's age (`rehit` works as for moves), x mirrored by its `facing`. They
+  go through the same hit path as fighters' hits as `kind` (default `'projectile'`: shieldstun x0.29), staled by
+  the owner's spawning move, scaled by the owner's rage, with DI, shields and the victim's hitlag. The entity itself
+  never freezes when it hits, and neither does its owner. It hits each fighter once and is used up by its first
+  victim or shield unless `pierce` is set. It never hits its owner. On a grab it counts like any hit: hitting the
+  holder frees the held fighter, and a held fighter armours through it up to the grab's break damage.
+- **Stage.** `floor` is `'bounce'` (up at `bounce` speed), `'land'` (rest on it; `grounded` is set),
+  `'destroy'` (default) or `'pass'`; `wall` (walls and ceilings) is `'bounce'`, `'stop'`, `'destroy'` (default) or
+  `'pass'`. Entities land on soft platforms too, and vanish past the blast zones or when `lifetime` runs out. Moving
+  pieces (docs/stage-geometry.md) collide by their motion relative to the entity, absent ones are skipped: a resting
+  entity rides the floor or platform under it up, down and sideways (in hitlag too), a solid running into one pushes it, and one on a
+  floor that a ceiling comes down on is crushed (destroyed, reason `stage`).
+- **Scripts.** `script(x)` runs every frame before movement with `x.e` (the entity), `x.owner` and `x.c` (the
+  owner's controller, for owner-controlled minions), `x.m` and `x.stage`. It may steer, spawn or
+  `destroyEntity`, and keeps its own state in `x.e.data`. Deterministic only: use `x.m.rng`.
+- **Hittable entities.** Give `hp` and fighters' attacks and other owners' projectiles damage it (once per move);
+  attacker and entity share the hitlag, it breaks at 0 HP, and with a `weight` it is launched by Ultimate's
+  knockback formula using the % it has taken. A fighter cannot hit its own entities.
+- **Reflectors.** A move's `reflectors` are bubbles (`frames`, `x`, `y`, `radius`) that turn a touching projectile
+  away from the fighter, make it his, and multiply its damage, speed and remaining lifetime. Defaults are Fox's
+  Reflector in Ultimate: damage x1.4, speed x1.4, lifespan x1, up to 50% (SmashWiki, Reflection); Mario's Cape is
+  x1.5 / x1 / x0.75, as on Fireboy's Temple Mirror. A projectile over the limit goes through and hits; one reflected
+  7 times is destroyed by the next reflector (Ultimate).
+- **Absorbers.** A move's `absorbers` bubbles eat absorbable projectiles and heal the fighter by their damage x
+  `heal`. Defaults are Ness's PSI Magnet in Ultimate: x1.6, up to 30% (SmashWiki, Absorption). Projectiles are
+  `reflectable` and `absorbable` unless they opt out; hittable entities are neither.
+- **Clanks.** Ultimate's 9% rule (SmashWiki, Priority), simplified: a fighter's attack destroys a projectile unless
+  the projectile deals more than 9% more, in which case it passes through the attack (and usually hits). The
+  attacker is never interrupted (there is no rebound yet). Two projectiles of different owners clank and each is
+  destroyed unless it deals more than 9% more than the other. `transcendent` projectiles never clank, and grab boxes
+  never hit or clank with entities.
+- **Order of a frame.** Fighters act (spawning), the stage moves, entities move, then reflectors, absorbers and clanks, then every hit
+  from fighters and entities lands at once, then grabs (an attack or projectile beats a grab on the same frame).
+- **Events.** Entities report `entitySpawn`, `entityDestroy` (with the reason), `reflect`, `absorb` and `entityHit`,
+  and their hits are `hit` and `shieldHit` events carrying the `entity` id (`docs/sim-events.md`).
 
 ## Art
 
