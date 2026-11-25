@@ -1,6 +1,6 @@
 import { getFighter } from '../../fighters/registry';
 import { DEVICES, deviceLabel, keyboardIndex, type DeviceId } from '../../session/devices';
-import { costumeColors, fighterCostumes, fighterIcon, fighterIds } from '../../session/roster';
+import { costumeColors, fighterCostumes, fighterIcon, rosterTiles } from '../../session/roster';
 import {
   CPU_LEVELS,
   MAX_PLAYERS,
@@ -29,6 +29,30 @@ interface Hand {
 }
 
 const slotLabel = (s: SlotSetup, i: number) => (s.kind === 'cpu' ? 'CPU' : `P${i + 1}`);
+
+/** The portrait grid's band (Ultimate's top half; .css-grid places it at y 60-430), 4 px between tiles. */
+const GRID = { width: 1248, height: 370, gap: 4 };
+/** Where a placed token sits inside its tile, by slot: a 2x2 block from the top-left of the portrait. */
+const TOKEN_INSET = 6;
+const TOKEN_STEP = 33;
+/** Hands are drawn 48 px wide; the glove's fingertip is 3 px in from its corner. */
+const HAND_TIP = 3;
+const HAND_STEP = 24;
+/** The name strip along the bottom of a tile, as a share of its height. Tokens and the cursor tip stay above it. */
+const NAME_STRIP = 0.24;
+
+/** Columns and rows that fill the grid band with tiles closest to a 1.3:1 portrait. */
+function gridShape(count: number): { cols: number; rows: number; tileW: number; tileH: number } {
+  let best = { cols: count, rows: 1, tileW: 0, tileH: 0, miss: Infinity };
+  for (let rows = 1; rows <= 4; rows++) {
+    const cols = Math.ceil(count / rows);
+    const tileW = (GRID.width - (cols - 1) * GRID.gap) / cols;
+    const tileH = (GRID.height - (rows - 1) * GRID.gap) / rows;
+    const miss = Math.abs(Math.log(tileW / tileH / 1.3));
+    if (miss < best.miss) best = { cols, rows, tileW, tileH, miss };
+  }
+  return best;
+}
 
 export function rulesSummary(setup: MatchSetup): string {
   const { stocks, minutes } = setup.rules;
@@ -98,17 +122,23 @@ export function characterSelectScreen(flow: Flow): Screen {
     ]),
   );
 
-  const ids = fighterIds();
-  const tiles = [...ids, RANDOM].map((id) =>
+  const roster = [...rosterTiles(), { id: RANDOM, name: 'Random' }];
+  const ids = roster.flatMap((t) => (t.id && t.id !== RANDOM ? [t.id] : []));
+  const shape = gridShape(roster.length);
+  const tiles = roster.map((t, n) =>
     h(
       'button',
-      { class: 'css-tile', data: { nav: '', key: `tile:${id}` } },
-      portrait(id, 'css-tile-art'),
-      h('span', { class: 'css-tile-name' }, id === RANDOM ? 'Random' : getFighter(id).name),
+      {
+        class: t.id ? 'css-tile' : 'css-tile is-locked',
+        data: { nav: '', key: t.id ? `tile:${t.id}` : `locked:${n}` },
+        style: `--name-size: ${Math.min(shape.tileW * 0.13, (shape.tileW - 14) / (t.name.length * 0.6))}px`,
+      },
+      portrait(t.id, 'css-tile-art'),
+      h('span', { class: 'css-tile-name' }, t.name),
     ),
   );
-  const cols = Math.min(8, Math.max(4, Math.ceil(tiles.length / 2)));
-  grid.style.setProperty('--cols', String(Math.min(cols, tiles.length)));
+  grid.style.setProperty('--tile-w', `${shape.tileW}px`);
+  grid.style.setProperty('--tile-h', `${shape.tileH}px`);
   grid.append(...tiles);
 
   const humanOf = (device: MenuDevice) =>
@@ -174,6 +204,7 @@ export function characterSelectScreen(flow: Flow): Screen {
   function activate(key: string, actor: number, hand: Hand): void {
     const [kind, a, b] = key.split(':');
     if (kind === 'ready') return start();
+    if (kind === 'locked') return audio.ui('error');
     if (kind === 'add') {
       if (setup.slots.length >= MAX_PLAYERS) return audio.ui('error');
       setup.slots.push(cpuSlot());
@@ -317,7 +348,7 @@ export function characterSelectScreen(flow: Flow): Screen {
         ? h(
             'div',
             { class: 'css-level' },
-            h('span', { class: 'css-level-label' }, 'CPU Lv.'),
+            h('span', { class: 'css-level-label' }, 'Lv.'),
             btn('down', 'css-step', '−'),
             h('span', { class: 'css-level-value' }, String(s.level)),
             btn('up', 'css-step', '+'),
@@ -377,16 +408,13 @@ export function characterSelectScreen(flow: Flow): Screen {
   function placeCursors(): void {
     cursors.replaceChildren();
     for (const t of el.querySelectorAll('.is-pointed')) t.classList.remove('is-pointed');
-    const stacks = new Map<string, number>();
     setup.slots.forEach((s, i) => {
       if (s.fighter === null || [...hands.values(), mouse].some((hd) => hd.carrying === i)) return;
       const tile = find(tileKey(s));
       if (!tile) return;
-      const n = stacks.get(tileKey(s)) ?? 0;
-      stacks.set(tileKey(s), n + 1);
       const b = box(tile);
       const c = coin(s, i);
-      c.style.transform = `translate(${b.x + 8 + n * 30}px, ${b.y + b.h * 0.42}px)`;
+      c.style.transform = `translate(${b.x + TOKEN_INSET + (i % 2) * TOKEN_STEP}px, ${b.y + TOKEN_INSET + Math.floor(i / 2) * TOKEN_STEP}px)`;
       cursors.append(c);
     });
     const pointing = new Map<string, number>();
@@ -397,15 +425,18 @@ export function characterSelectScreen(flow: Flow): Screen {
       const n = pointing.get(hand.key) ?? 0;
       pointing.set(hand.key, n + 1);
       const b = box(target);
-      b.x += n * 26;
-      b.y += n * 14;
+      const onTile = target.classList.contains('css-tile');
+      const tipX = b.x + b.w * (onTile ? 0.5 : 0.55) + (n % 2) * HAND_STEP;
+      const tipY = onTile
+        ? Math.min(b.y + b.h * 0.32 + Math.floor(n / 2) * HAND_STEP, b.y + b.h * (1 - NAME_STRIP) - 6)
+        : b.y + b.h * 0.5 + Math.floor(n / 2) * HAND_STEP;
       const glove = h(
         'div',
         { class: 'css-hand', style: `--port: var(--p${slot + 1})` },
         svg(HAND_SVG),
         h('span', null, `P${slot + 1}`),
       );
-      glove.style.transform = `translate(${b.x + b.w * 0.55}px, ${b.y + b.h * 0.5}px)`;
+      glove.style.transform = `translate(${tipX - HAND_TIP}px, ${tipY - HAND_TIP}px)`;
       if (hand.carrying !== null) glove.append(coin(setup.slots[hand.carrying]!, hand.carrying));
       cursors.append(glove);
     }
