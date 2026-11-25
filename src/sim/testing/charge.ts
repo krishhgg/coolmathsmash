@@ -36,7 +36,10 @@ export const testCharger = defineFighter({
   moves: {
     /** A smash attack on the defaults: 60 frames of charge for 1.4x damage. */
     fsmash: { kind: 'smash', faf: 40, charge: 6, hits: [{ frames: [10, 12], boxes: [hit(10, 6)] }] },
-    /** The Duck's Running Ram (Skull Bash role): hold Special to charge, then a headfirst dash, 10% to 22%. */
+    /**
+     * Held charge, the shape planned for the Duck's Running Ram (Pikachu's Skull Bash role): hold Special to charge,
+     * then a headfirst dash, 10% to 22%.
+     */
     sideB: {
       kind: 'other',
       faf: 50,
@@ -46,8 +49,9 @@ export const testCharger = defineFighter({
       script: rush(12, 28, 1.2, 2.6),
     },
     /**
-     * Wheely's Rev Up (Lucario's Aura Sphere role): hold Special to rev for up to 90 frames, release to blast
-     * forward, 8% to 24%; shield keeps the charge for next time.
+     * Held stored charge, the shape planned for Wheely's Rev Up: hold Special to rev for up to 90 frames, release to
+     * blast forward, 8% to 24%; shield keeps the charge for next time. Ultimate's stored charges are all tap moves
+     * (downB below); this is Skull Bash's hold with storage added.
      */
     neutralB: {
       kind: 'other',
@@ -60,7 +64,7 @@ export const testCharger = defineFighter({
       script: rush(12, 26, 1.4, 3.2),
     },
     /**
-     * Moby's Chest Blaster (Samus's Charge Shot role): charges by itself for up to 120 frames and fires on the next
+     * Tap stored charge (Samus's Charge Shot role): charges by itself for up to 120 frames and fires on the next
      * Special or Attack press, 5% to 26%; at full charge it is stored and the move ends.
      */
     downB: {

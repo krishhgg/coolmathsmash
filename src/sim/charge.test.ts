@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { registerFighter } from '../fighters/registry';
+import { defineFighter } from '../fighters/types';
 import { chargeMultiplier } from './actions/charge';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
@@ -9,6 +11,10 @@ import { placeInAir, run, testMatch, until, type Hold } from './testing/sim';
 type Hit = Extract<SimEvent, { type: 'hit' }>;
 
 const charger = () => testMatch({ fighter: testCharger.id });
+
+/** A second form of the test charger with the same move names, as Watergirl is to Fireboy. */
+const otherForm = defineFighter({ ...testCharger, id: 'test-charger-form', name: 'Test: form' });
+registerFighter(otherForm);
 
 /** The % a move adds to a fighter standing 8 units ahead: `press` starts it, then `hold` for `frames` frames. */
 function damageDealt(press: (facing: number) => Hold, hold: Hold, frames: number): number {
@@ -115,7 +121,7 @@ describe('stored charge', () => {
     const f = chargeTo(m, neutralB, 30);
     run(m, 1, { buttons: ['special', 'shield'] });
     expect(f.action).toBe('shield');
-    expect(f.storedCharge).toEqual({ move: 'neutralB', frames: 30 });
+    expect(f.storedCharge).toEqual({ fighter: testCharger.id, move: 'neutralB', frames: 30 });
     until(m, (g) => g.action === 'idle');
     run(m, 1, neutralB);
     until(m, (g) => g.actionFrame > 8);
@@ -131,7 +137,7 @@ describe('stored charge', () => {
     until(m, (g) => g.action === 'idle');
     const f = chargeTo(m, neutralB, 50);
     run(m, 1, { buttons: ['special', 'shield'] });
-    expect(f.storedCharge).toEqual({ move: 'neutralB', frames: 50 });
+    expect(f.storedCharge).toEqual({ fighter: testCharger.id, move: 'neutralB', frames: 50 });
   });
 
   it('a jump keeps the charge on the ground, and an air dodge or an air jump in the air', () => {
@@ -139,7 +145,7 @@ describe('stored charge', () => {
     const g = chargeTo(ground, neutralB, 20);
     run(ground, 1, { buttons: ['special', 'jump'] });
     expect(g.action).toBe('jumpSquat');
-    expect(g.storedCharge).toEqual({ move: 'neutralB', frames: 20 });
+    expect(g.storedCharge).toEqual({ fighter: testCharger.id, move: 'neutralB', frames: 20 });
 
     for (const [button, action] of [
       ['shield', 'airDodge'],
@@ -151,7 +157,7 @@ describe('stored charge', () => {
       expect(f.action).toBe('aerial');
       run(m, 1, { buttons: ['special', button] });
       expect(f.action).toBe(action);
-      expect(f.storedCharge).toEqual({ move: 'neutralB', frames: 20 });
+      expect(f.storedCharge).toEqual({ fighter: testCharger.id, move: 'neutralB', frames: 20 });
     }
   });
 
@@ -170,7 +176,7 @@ describe('stored charge', () => {
     until(m, (g) => g.charge === 120);
     run(m, 1);
     expect(f.action).toBe('idle');
-    expect(f.storedCharge).toEqual({ move: 'downB', frames: 120 });
+    expect(f.storedCharge).toEqual({ fighter: testCharger.id, move: 'downB', frames: 120 });
 
     run(m, 1, downB);
     until(m, (g) => g.actionFrame > 10);
@@ -198,5 +204,34 @@ describe('stored charge', () => {
     run(m, 1);
     expect(f.action).toBe('ko');
     expect(f.storedCharge).toBeNull();
+  });
+
+  it('belongs to the form that stored it: a transform keeps it, and the other form cannot use it', () => {
+    const m = charger();
+    const f = chargeTo(m, neutralB, 30);
+    run(m, 1, { buttons: ['special', 'shield'] });
+    until(m, (g) => g.action === 'idle');
+    f.fighter = otherForm.id;
+    run(m, 1, neutralB);
+    until(m, (g) => g.actionFrame > 8, {});
+    expect(f.charge).toBe(0);
+    expect(f.storedCharge).toEqual({ fighter: testCharger.id, move: 'neutralB', frames: 30 });
+    until(m, (g) => g.action === 'idle');
+    f.fighter = testCharger.id;
+    run(m, 1, neutralB);
+    until(m, (g) => g.actionFrame > 8, {});
+    expect(f.charge).toBe(30);
+    expect(f.storedCharge).toBeNull();
+  });
+
+  it('survives a KO as another form (Ultimate: Squirtle loses Water Gun charge only when KOed as Squirtle)', () => {
+    const m = charger();
+    const f = chargeTo(m, neutralB, 30);
+    run(m, 1, { buttons: ['special', 'shield'] });
+    f.fighter = otherForm.id;
+    Object.assign(f, { pos: { x: 0, y: -10000 }, ground: null, action: 'fall' });
+    run(m, 1);
+    expect(f.action).toBe('ko');
+    expect(f.storedCharge).toEqual({ fighter: testCharger.id, move: 'neutralB', frames: 30 });
   });
 });

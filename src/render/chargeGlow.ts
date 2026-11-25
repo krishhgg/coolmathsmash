@@ -5,7 +5,7 @@ import type { MatchState } from '../sim/match';
 
 /**
  * Placeholder charge glow behind each fighter, in world units (y down): it grows while a move charges and pulses
- * around a fighter holding a stored charge, brighter the fuller the charge. `alpha` interpolates positions like
+ * around a fighter holding a stored charge for its current form, brighter the fuller the charge. `alpha` interpolates positions like
  * the fighter views.
  */
 export function drawChargeGlows(g: Graphics, state: MatchState, alpha: number): void {
@@ -16,7 +16,8 @@ export function drawChargeGlows(g: Graphics, state: MatchState, alpha: number): 
     const full = (move: string) => def.moves?.[move]?.chargeFrames ?? SMASH_CHARGE_FRAMES;
     const charging =
       f.move !== null && def.moves?.[f.move]?.charge === f.actionFrame ? f.charge / full(f.move) : 0;
-    const stored = f.storedCharge ? f.storedCharge.frames / full(f.storedCharge.move) : 0;
+    const kept = f.storedCharge?.fighter === f.fighter ? f.storedCharge : null;
+    const stored = kept ? kept.frames / full(kept.move) : 0;
     const level = Math.max(charging, stored);
     if (level === 0) continue;
     const { height } = def.stats;

@@ -61,9 +61,10 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
       }
     }
     if (move.charge !== undefined) {
+      const special = SPECIALS.some((b) => b === name || def.moves?.[b]?.air === name);
       expect(
-        move.kind === 'smash' || SPECIALS.includes(name),
-        `${name}: only smashes and specials charge`,
+        move.kind === 'smash' || special,
+        `${name}: only smashes and specials (or their air variants) charge`,
       ).toBe(true);
       expect(move.charge).toBeLessThan(Math.min(...move.hits.map((w) => w.frames[0])));
     }

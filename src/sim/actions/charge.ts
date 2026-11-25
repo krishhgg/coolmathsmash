@@ -34,8 +34,18 @@ function report(x: Ctx, phase: 'full' | 'store' | 'fire'): void {
 function store(x: Ctx): void {
   const { f } = x;
   if (f.charge === 0) return;
-  f.storedCharge = { move: f.move!, frames: f.charge };
+  f.storedCharge = { fighter: f.fighter, move: f.move!, frames: f.charge };
   report(x, 'store');
+}
+
+/**
+ * The charge stored for the move `f` is playing, if any. A charge belongs to the form that stored it: a transformed
+ * fighter's move of the same name starts uncharged (Ultimate: Squirtle keeps Water Gun's charge through Pokemon
+ * Change, and Ivysaur and Charizard cannot use it).
+ */
+function storedFor(f: FighterState): { frames: number } | null {
+  const s = f.storedCharge;
+  return s && s.fighter === f.fighter && s.move === f.move ? s : null;
 }
 
 /** Shield (on the ground; roll or spot dodge from there), an air dodge or a jump keeps the charge and cancels. */
@@ -77,7 +87,7 @@ export function chargeHold(x: Ctx, move: MoveDef): 'hold' | 'go' | 'cancel' {
   };
   const fire = () => {
     if (f.charge > 0) report(x, 'fire');
-    if (move.storeCharge) f.storedCharge = null;
+    if (storedFor(f)) f.storedCharge = null;
     return 'go' as const;
   };
   const opts = move.storeCharge;
@@ -85,8 +95,9 @@ export function chargeHold(x: Ctx, move: MoveDef): 'hold' | 'go' | 'cancel' {
     const holding = move.kind === 'smash' ? isHeld(c, Btn.Attack) || cStickHeld(c) : isHeld(c, Btn.Special);
     return f.charge < max && holding ? grow() : fire();
   }
-  if (f.charge === 0 && f.storedCharge?.move === f.move) {
-    f.charge = f.storedCharge.frames;
+  const kept = f.charge === 0 ? storedFor(f) : null;
+  if (kept) {
+    f.charge = kept.frames;
     if (f.charge >= max) return fire();
   }
   if (storeCancel(x)) return 'cancel';

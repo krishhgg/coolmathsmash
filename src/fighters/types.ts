@@ -204,10 +204,10 @@ export interface MoveDef {
   /** Damage multiplier at full charge (default 1.4); less charge scales linearly from 1. */
   chargeDamage?: number;
   /**
-   * Stored charge (Samus's Charge Shot, Lucario's Aura Sphere): shield, an air dodge or a jump while charging keeps
-   * the charge for the move's next use. `tap` charges without holding Special and fires on the next Special or
-   * Attack press (otherwise releasing Special fires); `storeAtFull` stores the charge and ends the move once it is
-   * full (otherwise the move waits at full charge).
+   * Stored charge: shield, an air dodge or a jump while charging keeps the charge for the move's next use by this
+   * form. `tap` charges without holding Special and fires on the next Special or Attack press (otherwise releasing
+   * Special fires); `storeAtFull` stores the charge and ends the move once it is full (otherwise the move waits at
+   * full charge). Samus's Charge Shot and Donkey Kong's Giant Punch are `{ tap: true, storeAtFull: true }`.
    */
   storeCharge?: { tap?: boolean; storeAtFull?: boolean };
   /**
