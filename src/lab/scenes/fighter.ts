@@ -1,5 +1,6 @@
 import { Container, Graphics, Text, type Application } from 'pixi.js';
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../../config';
+import { sheetLayout } from '../sheet';
 import type { FighterArt } from '../../render/rig/types';
 import { createPropView, createRigView, type RigView } from '../../render/rig/view';
 import type { LabScene } from '../types';
@@ -106,11 +107,8 @@ export const scene: LabScene = {
     const sheet = (states: string[] = KEY_STATES) => {
       redraw = () => sheet(states);
       root.removeChildren().forEach((c) => c.destroy({ children: true }));
-      const cols = Math.min(5, states.length);
-      const rows = Math.ceil(states.length / cols);
-      const w = VIEW_WIDTH / cols;
-      const h = VIEW_HEIGHT / rows;
-      const zoom = Number(params.get('zoom') ?? Math.min(w / 22, h / 19));
+      const { cols, w, h, zoom: fit } = sheetLayout(states.length);
+      const zoom = Number(params.get('zoom') ?? fit);
       states.forEach((state, i) => {
         const [clip, frame] = parseState(state);
         const cell = new Container();
