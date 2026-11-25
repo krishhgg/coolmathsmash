@@ -24,6 +24,42 @@ export const scenarios: FighterScenarios = {
   },
   extra: [
     {
+      name: 'papa-louie-pepper-bomb',
+      description:
+        'Papa lobs a Pepper Bomb and it bounces off Battlefield like his throw in When Pizzas Attack!.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'papa-louie' }, { fighter: 'fireboy' }] },
+      script: [{ port: 0, from: 10, buttons: ['special'] }],
+      capture: {
+        label: 'Pepper Bomb leaves Papa’s hand',
+        when: (s) => s.entities.some((e) => e.kind === 'papa-louie/pepperBomb' && e.age === 1),
+      },
+      motion: { before: 14, after: 42 },
+      requires: ['move:neutralB'],
+      refs: [`${PAPA}/item-pepper-bomb-*`, `${PAPA}/ingame-pepper-bomb-hit-*`],
+    },
+    {
+      name: 'papa-louie-paddle-reflect',
+      description: 'Paddle Deflect intercepts Fireboy’s Fireball and sends it back.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'papa-louie' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: 0, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: 28, y: 0 }, facing: -1 } },
+      ],
+      script: [
+        { port: 1, from: 7, buttons: ['special'] },
+        { port: 0, from: 24, y: -100, buttons: ['special'] },
+      ],
+      capture: {
+        label: 'Fireball changes owner on the peel',
+        when: (s) => s.entities.some((e) => e.kind === 'fireboy/fireball' && e.owner === 0),
+      },
+      motion: { before: 15, after: 20 },
+      requires: ['move:downB'],
+      refs: [`${PAPA}/ingame-attack-paddle-*`, `${PAPA}/official-art-paddle-*`],
+    },
+    {
       name: 'papa-louie-propeller',
       description: 'Papa spins his pizza peel overhead as his up special carries him off the floor.',
       page: { kind: 'game' },

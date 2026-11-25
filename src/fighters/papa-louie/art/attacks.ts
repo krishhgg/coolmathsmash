@@ -634,7 +634,55 @@ const DEFLECT_WIND = mix(grip(stance(-0.6, 1.08, -15, -2.25, 2.04), [2.45, -5.45
 const DEFLECT_HIT = peel(stance(0.48, 0.67, 15, -2.25, 2.15), -136, box('downB'), 5.25, [0.7, -4.9]);
 const DEFLECT_HOLD = peel(stance(0.13, 0.94, 7, -2.1, 2), -149, [6.3, -8.2], 5.1, [0.5, -4.8]);
 
+const PEPPER_DIP = propAt(
+  grip(stance(-0.38, 0.99, -12, -1.6, 1.1), [2.1, -4.22], -82, [-2.8, -5.6]),
+  [-3.15, -6.1],
+  -20,
+  [1.13, 1.13],
+);
+const PEPPER_WIND = propAt(
+  grip(
+    stance(-0.5, 0.49, -21, -1.55, 1.6, { head: { rot: 10 }, hat: { rot: -8 } }),
+    [2.1, -3.8],
+    -95,
+    [-3.3, -9.15],
+  ),
+  [-3.4, -9.8],
+  -35,
+  [1.13, 1.13],
+);
+const PEPPER_TOSS = grip(
+  stance(0.85, 0.49, 19, -1.7, 2.05, { head: { rot: -6 }, hat: { rot: 9 } }),
+  [1, -4.3],
+  -65,
+  [5.6, -8.46],
+);
+const PEPPER_RELEASE = propAt(PEPPER_TOSS, [6, -9], -35, [1.13, 1.13]);
+const PEPPER_FOLLOW = grip(
+  stance(0.83, 1.04, 28, -1.28, 2.15, { neck: { rot: -13 }, hat: { rot: 14 } }),
+  [1.3, -3.6],
+  -72,
+  [5.28, -5.95],
+);
+
 const clips: Record<string, AnimClip> = {
+  neutralB: {
+    length: 39,
+    keys: [
+      key(0, STAND, { ease: 'out' }),
+      key(5, PEPPER_DIP, { ease: 'inOut', swaps: { prop: 'pepperBomb', handB: 'fist' } }),
+      key(10, PEPPER_WIND, { ease: 'in', swaps: { ...GRIT, prop: 'pepperBomb', handB: 'fist' } }),
+      key(13, PEPPER_RELEASE, {
+        ease: 'linear',
+        swaps: { ...SHOUT, prop: 'pepperBomb', handB: 'fist' },
+        z: BACK_ARM_FRONT,
+      }),
+      key(14, aim(PEPPER_TOSS, 'handB', -112), { ease: 'out', swaps: SHOUT }),
+      key(19, PEPPER_FOLLOW, { ease: 'inOut', swaps: GRIT }),
+      key(27, PEPPER_DIP, { ease: 'out', swaps: {}, z: {} }),
+      key(39, STAND),
+    ],
+  },
   upB: {
     length: 45,
     keys: [
