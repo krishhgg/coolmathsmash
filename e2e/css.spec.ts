@@ -42,6 +42,8 @@ test('special/B backs out: first undoes a pick, then leaves for the main menu', 
   await page.keyboard.press('Enter');
   await expect(page.locator('.main-menu')).toBeVisible();
   await page.keyboard.press('KeyD');
+  await expect(page.locator('.tile-controls')).toHaveClass(/is-focus/);
+  await page.keyboard.press('KeyA');
   await expect(page.locator('.menu-tile.is-focus')).toContainText('Smash');
   await page.keyboard.press('Enter');
   await expect(page.locator('.css-screen')).toBeVisible();

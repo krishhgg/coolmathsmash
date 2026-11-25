@@ -11,3 +11,6 @@ export const KEYBOARD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 
 export const GAMEPAD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 40"><path d="M16 4 H48 C58 4 63 16 63 28 C63 36 57 40 51 36 L43 29 H21 L13 36 C7 40 1 36 1 28 C1 16 6 4 16 4 Z" fill="currentColor"/><g fill="#1a1d26"><rect x="10" y="15" width="12" height="4" rx="1"/><rect x="14" y="11" width="4" height="12" rx="1"/><circle cx="45" cy="12" r="3"/><circle cx="51" cy="17" r="3"/><circle cx="39" cy="17" r="3"/><circle cx="45" cy="22" r="3"/></g></svg>`;
 
 export const CPU_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 40"><rect x="14" y="4" width="36" height="32" rx="5" fill="currentColor"/><g stroke="currentColor" stroke-width="3"><path d="M20 0 V4 M32 0 V4 M44 0 V4 M20 36 V40 M32 36 V40 M44 36 V40 M8 12 H14 M8 28 H14 M50 12 H56 M50 28 H56"/></g><rect x="22" y="12" width="20" height="16" rx="2" fill="#1a1d26"/></svg>`;
+
+/** A circular arrow: put something back to its defaults. */
+export const RESET_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 13 A7.2 7.2 0 1 1 15.8 6.6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M13.5 2.6 L20.6 4.6 L16.5 10.4 Z" fill="currentColor"/></svg>`;

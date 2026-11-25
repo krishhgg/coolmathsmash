@@ -59,6 +59,9 @@
     "css-2p": ["smash/character-select-*", "video/roster-select-grid-*"],
     "css-4p": ["smash/character-select-*", "video/roster-select-grid-*"],
     "stage-select": ["smash/stage-select-*", "stages/coolmath-planet/planet-icon-*"],
-    "stage-select-rules": ["smash/stage-select-*", "stages/coolmath-planet/planet-icon-*"]
+    "stage-select-rules": ["smash/stage-select-*", "stages/coolmath-planet/planet-icon-*"],
+    "controls": ["smash/pause-01*", "smash/character-select-01*"],
+    "controls-gamepad": ["smash/pause-01*", "smash/character-select-01*"],
+    "options": ["smash/pause-01*", "smash/character-select-01*"]
   }
 }
