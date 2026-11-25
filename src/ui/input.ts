@@ -47,7 +47,7 @@ export const REPEAT_DELAY_MS = 380;
 export const REPEAT_EVERY_MS = 95;
 
 /** Keys whose browser default (activating a focused button, scrolling, moving focus) would act alongside the menu. */
-const NATIVE_KEYS = new Set(['Enter', 'NumpadEnter', 'Space', 'Backspace', 'Tab']);
+const NATIVE_KEYS = new Set(['Enter', 'NumpadEnter', 'Space', 'Escape', 'Backspace', 'Tab']);
 
 /**
  * Turns keyboards and gamepads into menu events, per device so several players can drive their own cursors on the
@@ -60,13 +60,23 @@ export class MenuInput {
   private readonly keysDown = new Set<string>();
   private padButtons: boolean[][] = [];
 
-  constructor(private readonly bindings: () => readonly KeyboardBinding[]) {}
+  constructor(
+    private readonly bindings: () => readonly KeyboardBinding[],
+    private readonly matchPadStart: () => readonly number[] | null = () => null,
+  ) {}
 
   private keyEvents(code: string): MenuEvent[] {
+    const menu = MENU_KEYS[code];
+    const inMatch = this.matchPadStart() !== null;
+    if (inMatch && menu) return [{ device: 'keys', action: menu }];
     const out: MenuEvent[] = [];
     this.bindings().forEach((b, i) => {
       const device: DeviceId = i === 0 ? 'kb1' : 'kb2';
       const has = (codes: string[] | undefined) => codes?.includes(code) ?? false;
+      if (inMatch && has(b.buttons.start)) {
+        out.push({ device, action: 'start' });
+        return;
+      }
       for (const dir of DIRECTIONS) if (has(b[dir])) out.push({ device, action: dir });
       if (has(b.buttons.attack)) out.push({ device, action: 'confirm' });
       if (has(b.buttons.special)) out.push({ device, action: 'back' });
@@ -74,7 +84,6 @@ export class MenuInput {
       if (has(b.buttons.grab)) out.push({ device, action: 'next' });
       if (has(b.buttons.jump)) out.push({ device, action: 'alt' });
     });
-    const menu = MENU_KEYS[code];
     if (menu && !out.some((e) => e.action === menu)) out.push({ device: 'keys', action: menu });
     return out;
   }
@@ -103,7 +112,15 @@ export class MenuInput {
 
   /** Everything pressed since the last poll plus repeats of held directions, oldest first. */
   poll(now: number, pads: readonly (PadLike | null)[] = []): MenuEvent[] {
-    pads.forEach((pad, slot) => this.pollPad(pad, slot, now));
+    const start = this.matchPadStart();
+    const buttons: readonly [number, MenuAction][] =
+      start === null
+        ? PAD_BUTTONS
+        : [
+            ...PAD_BUTTONS.filter(([index, action]) => action !== 'start' && !start.includes(index)),
+            ...Array.from(new Set(start), (index): [number, MenuAction] => [index, 'start']),
+          ];
+    pads.forEach((pad, slot) => this.pollPad(pad, slot, now, buttons));
     for (const h of this.held.values()) {
       if (now - h.since >= REPEAT_DELAY_MS && now - h.last >= REPEAT_EVERY_MS) {
         h.last = now;
@@ -113,10 +130,15 @@ export class MenuInput {
     return this.queue.splice(0);
   }
 
-  private pollPad(pad: PadLike | null, slot: number, now: number): void {
+  private pollPad(
+    pad: PadLike | null,
+    slot: number,
+    now: number,
+    buttons: readonly [number, MenuAction][],
+  ): void {
     const device = padDevice(slot);
     const prev = this.padButtons[slot] ?? [];
-    const cur: boolean[] = [];
+    const cur = (pad?.buttons ?? []).map((b) => b.pressed || b.value > 0.5);
     const x = pad?.axes[0] ?? 0;
     const y = pad?.axes[1] ?? 0;
     const stick: Record<Direction, boolean> = {
@@ -125,10 +147,8 @@ export class MenuInput {
       left: x < -STICK_THRESHOLD,
       right: x > STICK_THRESHOLD,
     };
-    for (const [index, action] of PAD_BUTTONS) {
-      const b = pad?.buttons[index];
-      const down = !!b && (b.pressed || b.value > 0.5);
-      cur[index] = down;
+    for (const [index, action] of buttons) {
+      const down = cur[index] ?? false;
       const key = `pad:${slot}:${index}`;
       if (down && !prev[index]) this.press(key, { device, action }, now);
       if (!down) this.held.delete(key);

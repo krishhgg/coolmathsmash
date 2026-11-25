@@ -2,11 +2,7 @@ import { groundActionable } from '../../sim/actions/common';
 import { setAction, type ActionDef } from '../../sim/actions/registry';
 import { stickX } from '../../sim/control';
 import { approach } from '../../sim/vec';
-import { stats } from './stats';
-
-/** The three-point turn runs again on frame TURN_FRAMES (the engine's turn uses 12); he swings round on TURN_FLIP. */
-export const TURN_FRAMES = 20;
-export const TURN_FLIP = 12;
+import { stats, TURN_FLIP, TURN_FRAMES } from './stats';
 
 /**
  * Wheely's own versions of shared actions: he handles like a car (roster sheet, "Car physics").

@@ -284,3 +284,69 @@ describe('Fluffy: Stick Tight (down special)', () => {
     expect(moves.downB!.faf).toBe(61 + 40);
   });
 });
+
+describe('Fluffy: Candy Frisbee (side special)', () => {
+  /** Fluffy at x -40 facing right throws the candy; the Mario reference stands at x target (far away if omitted). */
+  function throwCandy(target = 200) {
+    const m = vsMario();
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    place(a, -40, 0, 1, a.ground);
+    if (target < 200) place(v, target, 0, -1, a.ground);
+    else place(v, 70, 0, -1, a.ground);
+    runPorts(m, 1, [{ x: 100, buttons: ['special'] }, {}]);
+    expect(a.move).toBe('sideB');
+    return { m, a, v };
+  }
+
+  it('flings the candy on frame 14; it flies out about 45 units, turns back and he catches it', () => {
+    const { m, a } = throwCandy();
+    runPorts(m, 12, [{}, {}]);
+    expect(m.entities).toHaveLength(0);
+    runPorts(m, 1, [{}, {}]);
+    expect(a.actionFrame).toBe(14);
+    expect(m.entities.map((e) => e.kind)).toEqual(['fluffy/candy']);
+    let far = -Infinity;
+    let caught = false;
+    for (let i = 0; i < 120 && !caught; i++) {
+      runPorts(m, 1, [{}, {}]);
+      for (const e of m.entities) far = Math.max(far, e.pos.x);
+      caught = m.events.some((e) => e.type === 'entityDestroy' && e.reason === 'script');
+    }
+    expect(caught).toBe(true);
+    expect(far - a.pos.x).toBeGreaterThan(40);
+    expect(far - a.pos.x).toBeLessThan(60);
+  });
+
+  it('hits for 7% on the way out and 5% on the way back', () => {
+    const { m, v } = throwCandy(-15);
+    let hits = 0;
+    let last = 0;
+    for (let i = 0; i < 120; i++) {
+      runPorts(m, 1, [{}, {}]);
+      if (v.damage > last) hits++;
+      last = v.damage;
+    }
+    expect(hits).toBe(2);
+    expect(v.damage).toBeCloseTo((7 + 5) * 1.05 * 1.2, 6);
+  });
+
+  it('turns toward Fluffy after he crosses to the far side of its path', () => {
+    const { m, a } = throwCandy();
+    run(m, 48);
+    expect(m.entities[0]!.vel.x).toBeLessThan(0);
+    place(a, 34, 0, -1, a.ground);
+    run(m, 1);
+    expect(m.entities[0]!.vel.x).toBeGreaterThan(0);
+    run(m, 45);
+    expect(m.entities).toHaveLength(0);
+  });
+
+  it('only one candy flies at a time', () => {
+    const { m } = throwCandy();
+    runPorts(m, 50, [{}, {}]);
+    expect(m.entities).toHaveLength(1);
+    runPorts(m, 1, [{ x: 100, buttons: ['special'] }, {}]);
+    runPorts(m, 14, [{}, {}]);
+    expect(m.entities).toHaveLength(1);
+  });
+});

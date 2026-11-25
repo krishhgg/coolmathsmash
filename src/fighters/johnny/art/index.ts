@@ -2,6 +2,7 @@ import { shapesBounds } from '../../../render/rig/geometry';
 import { symbolsToSvg } from '../../../render/rig/svg';
 import type { FighterArt } from '../../../render/rig/types';
 import { clips } from './clips';
+import { LEDGE_GRIP } from './ledge';
 import { head } from './parts';
 import { palettes } from './palettes';
 import { rig } from './rig';
@@ -19,5 +20,6 @@ export const art: FighterArt = {
   rig,
   clips,
   palettes,
+  ledgeGrip: LEDGE_GRIP,
   icon: symbolsToSvg(rig.symbols, ['head', 'grit'], palettes.default, iconBox()),
 };

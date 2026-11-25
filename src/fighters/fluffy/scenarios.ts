@@ -33,6 +33,34 @@ export const scenarios: FighterScenarios = {
   },
   extra: [
     {
+      name: 'fluffy-ledge-climb',
+      description:
+        'Fluffy catches the left ledge, hangs, then pulls himself onto Battlefield with his grabber.',
+      page: { kind: 'game' },
+      match: VS_FIREBOY,
+      patches: [
+        {
+          port: 0,
+          state: {
+            pos: { x: -86, y: 6 },
+            vel: { x: 0, y: 0 },
+            ground: null,
+            action: 'fall',
+            facing: 1,
+            jumpsUsed: 1,
+          },
+        },
+      ],
+      script: [{ port: 0, from: 44, to: 46, x: 100 }],
+      capture: {
+        label: "P1 action 'ledgeClimb', frame 12",
+        when: (s) => s.fighters[0]!.action === 'ledgeClimb' && s.fighters[0]!.actionFrame === 12,
+      },
+      motion: { before: 31, after: 28 },
+      requires: ['action:ledgeClimb'],
+      refs: ['smash/ledge-hang-*', `${F}/official-art-03-*`, `${F}/ingame-grab-closeup-*`],
+    },
+    {
       name: 'fluffy-ftilt',
       description:
         'Fluffy forward tilt (Grabber Whip) into Fireboy at 0%; capture its first active frame (7-9).',
@@ -50,6 +78,21 @@ export const scenarios: FighterScenarios = {
       motion: { before: 10, after: 30 },
       requires: ['move:ftilt'],
       refs: ['smash/attack-active-*', `${F}/ingame-grab-*`, `${F}/official-art-02-*`],
+    },
+    {
+      name: 'fluffy-candy-frisbee',
+      description: 'Fluffy throws the candy across Battlefield and catches it as it curves back.',
+      page: { kind: 'game' },
+      match: VS_FIREBOY,
+      patches: faceOff({ pos: { x: -40, y: 0 } }, { pos: { x: 50, y: 0 } }),
+      script: [{ port: 0, from: 10, x: 100, buttons: ['special'] }],
+      capture: {
+        label: 'Candy begins its return',
+        when: (s) => s.entities.some((e) => e.kind === 'fluffy/candy' && e.age === 34),
+      },
+      motion: { before: 42, after: 42 },
+      requires: ['move:sideB'],
+      refs: [`${F}/official-art-*`, `${F}/ingame-*`],
     },
     {
       name: 'fluffy-stick-tight',

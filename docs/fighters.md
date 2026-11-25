@@ -9,6 +9,7 @@ src/fighters/<id>/
   index.ts      defineFighter({ id, name, series, stats, moves, art })
   stats.ts      FighterStats: movement, jumps, weight, shield
   moves.ts      Record<string, MoveDef>: frame data for every move
+  entities.ts   Record<string, EntityDef>: projectiles, minions and objects the moves spawn (optional)
   art/          the rig art (docs/art.md); plain data, no renderer imports
   <id>.test.ts  inputs and frame data you care about
 ```
@@ -98,6 +99,18 @@ fsmash: {
 - **Knockback.** `damage`, `angle` (degrees from the attacker's facing; 361 is the Sakurai angle), `kbg`
   and `bkb` follow Ultimate's frame data exactly. Optional fields: `wbkb` (set knockback), `hitlag` (a
   multiplier), `shieldDamage` (extra) and `effect` (`'electric'` gives 1.5x hitlag).
+- **Autolink.** Use these angles on linking hits of a multihit; the last hit usually uses a regular angle.
+  Damage and hitstun still come from the hit's own knockback.
+  - `365` launches at half the attacker's velocity.
+  - `366` keeps the hit's launch speed, steering toward the hitbox for five frames before following the
+    attacker's original movement direction.
+  - `367` launches airborne targets at the attacker's velocity plus 20% of the gap toward the hitbox.
+    Downward launch is limited to 1 unit/frame, and total launch speed is capped at 3 after five frames.
+    Grounded targets launch normally at 80°.
+  - `368` uses `vector: { x, y, frames }` on the box to aim at a point relative to the attacker's feet at
+    contact (forward and up). It pulls the target's middle toward that point over `frames` (rounded up)
+    and then drops its launch speed. Stage collision still applies. A vector works with any angle; without
+    one, `368` falls back to `367`.
 - **Direction.** A hit launches along the attacker's facing unless its box sets `direction`: `'back'` for boxes
   behind him (back aerials, the rear hit of a down smash) and `'away'` for boxes around his body (spins, up
   attacks), which send the target away from his centre.
@@ -163,6 +176,10 @@ lowers an upright body only. A form that
 changes shape mid-match (Bloxorz block standing up or lying down) is a separate FighterDef with its own size,
 reached by `transform`. `?hitboxes` draws either shape.
 
+For a distinct pose, `FighterDef.hurtbox` can return a world-space capsule from the simulation state. Return
+`undefined` to keep the default capsule. This changes hit and grab contact, not how the fighter collides with the
+stage. The debug overlay uses the same capsule.
+
 `src/sim/combat/`; a fighter only supplies numbers.
 
 Every move start, hit and landing is reported as a sim event (`docs/sim-events.md`). Audio and effects key off
@@ -218,6 +235,62 @@ bthrow: {
   Ultimate: both go into grab release and take 1% (1.2% in 1v1). Otherwise grabs resolve in port order, so when
   two grabs catch the same fighter the lower port wins.
 - **Shield grabs** use `grab` and come out from 4 frames after shieldstun ends.
+
+### Tethers
+
+A move with `tether` fires a line from the hand (`TETHER.handHeight` up the body) that travels out, anchors, and
+reels the fighter in: Fluffy's grapples, the Fisherman's line, Bob's grappling hook. Fluffy's Quick Grapple,
+from the test fixtures in `src/sim/testing/tethers.ts` (Point Grapple and the Line Tether are there too):
+
+```ts
+upB: {
+  kind: 'other',
+  faf: 45,
+  hits: [],
+  tether: {
+    frame: 8,
+    range: 120,
+    travel: 10,
+    angle: 90,
+    stickAdjust: 30,
+    latch: ['ledge', 'surface', 'sky'],
+    pullSpeed: 4,
+    hang: 'jump',
+  },
+},
+```
+
+- **Firing.** On `frame` the line leaves towards `angle` (degrees from forward towards up) at `range` units, bent
+  by up to `stickAdjust` degrees towards the stick's forward or back. Its tip reaches full range evenly over
+  `travel` frames, and each frame the line from the hand to the tip is cast through the stage (`castSegment`).
+- **Aiming.** With `aimed: { speed }` a reticle starts on the fighter and walks with the stick at `speed` units a
+  frame while special is held, clamped to `range`; the move waits on the frame before `frame`, the fighter keeps
+  drifting (aimed tethers don't fast-fall), and releasing special fires at the reticle. With
+  `aimed.quick: { frames }`, releasing special within `frames` of pressing it while the stick points somewhere
+  fires at full range in that 8-way direction instead. A reticle still on the fighter fires nothing.
+- **Anchoring.** The first thing the line touches anchors it if `latch` lists it: `ledge` (any ledge the line
+  passes within `TETHER.ledgeSnap`, 10 units, of from off the stage, if nobody holds it and the fighter still has
+  ledge grabs), `surface` (any solid edge or platform, from either side) or `sky` (empty air at full range).
+  Anything else stops the line and the move plays out. `onAnchor(x, hit)` can veto an anchor by returning false
+  (Fluffy's limited sky anchors).
+- **Reeling.** An anchored fighter goes into `tetherPull`: no gravity or drift, straight at `pullSpeed` towards
+  the anchor. A ledge anchor ends in a ledge grab once he is within `TETHER.ledgeArrive` (6 units) of the hang
+  position, which is tether recovery. Another anchor ends with his hand on it: holding `hang` keeps him there
+  (`tetherHang`) until he lets go of it, else he falls. A jump press lets go at any point, keeping the reel's
+  velocity as momentum. A reel blocked by a wall gives up after range / pullSpeed + `TETHER.pullSlack` frames.
+  Letting go ends in a fall, or helpless for a `helpless` move.
+- **Losing the line.** Getting hit or grabbed, landing, or anything else that ends the move or the reel drops the
+  line. `FighterState.tether` holds the line (`out` with its tip while it travels, then its anchor) and
+  `FighterState.aim` the reticle or target; the hitbox overlay draws both in teal.
+
+`castSegment(m, from, to, { platforms, fighters, ignore?, ledges? })` (`src/sim/cast.ts`) is the line test on its
+own, for projectiles too: it returns the nearest ledge, surface or fighter hurtbox the segment touches, with `t`
+(0 to 1 along it) and the point, or null.
+
+A tether ignores fighters unless it sets `targetsFighters: true`. If the line reaches a fighter before stage
+geometry, `onFighter(ctx, target, event)` can handle the contact in script or return `'pullSelf'` on
+`event.phase === 'hit'` to reel the user in. The same hook receives `'arrive'` on contact, where the move can
+apply its own hit. Grab and yank behavior is left to the move script.
 
 ### Kill percentages
 
@@ -283,8 +356,9 @@ and the top blast zone only KOs at a vertical launch speed of at least 2.4 or 30
 
 ### Tuning tools
 
-- `?hitboxes` on the game URL (or **F4**) draws hurtboxes in yellow, active hitboxes in red and grab boxes in
-  purple; `?actions` (F3) labels each fighter's action and frame.
+- `?hitboxes` on the game URL (or **F4**) draws hurtboxes in yellow, active hitboxes in red (entities' too),
+  grab boxes in purple, reflector bubbles in cyan and absorber bubbles in green; `?actions` (F3) labels each
+  fighter's action and frame.
 - `/lab.html?scene=knockback` charts a hit's knockback and hitstun against target % for four weights.
 - `/lab.html?scene=launch` simulates the real launch trajectories of a hit at 0–200% on your fighter:
   `__lab.call('hit', { damage, kbg, bkb, angle, fighter: '<id>' })`.
@@ -298,6 +372,76 @@ moving ledge moves with it, and a solid that runs into a fighter pushes them out
 it. Nothing in a fighter needs to change for that. A move's `script` that reads the stage (`x.stage`) sees it
 as it stands on the current frame, moved pieces and all, and should skip absent pieces
 (`x.stage.present`).
+
+Stage hazards (damage zones, stage hitboxes) hit fighters through the same strike as moves. A fighter unharmed
+by some damaging terrain lists its elements in `immune` on its FighterDef: Fireboy's is `['lava']` and
+Watergirl's `['water']`; goo hurts everyone.
+
+## Entities and projectiles
+
+Anything a move puts into the match that is not a fighter is an **entity**: projectiles, minions (Fisherman's fish),
+setplay objects (Snail Bob's crate, Bloxorz's split cube) and items. Entities are plain data in
+`MatchState.entities` (`EntityState`, `src/sim/entities/types.ts`), hashed and replayed with everything else. Each
+has a monotonic `id`, a `kind`, an `owner` port (-1 for nobody), position, velocity, `facing`, `age` (1 on the
+frame it appears) and `lifetime`. Their behaviour comes from an `EntityDef`, listed under the fighter's
+`entities` and named `"<fighter id>/<name>"` in state. Fireboy's Fireball (`src/fighters/fireboy/entities.ts`) is
+the worked example; `src/sim/testing/gadgets.ts` shows the rest (a piercing beam, a reflector, an absorber, a
+crate, a minion).
+
+```ts
+// entities.ts
+fireball: {
+  radius: 2.4,            // body circle: stage collision, reflectors, absorbers, attacks
+  lifetime: 70,           // frames; omit to live until destroyed
+  gravity: 0.1, maxFall: 1.6,
+  floor: 'bounce', bounce: 1.1, // every bounce reaches the same height, like Mario's fireball
+  wall: 'bounce',
+  hits: [{ frames: [1, 70], boxes: [{ id: 0, x: 0, y: 0, radius: 2.4, damage: 5.5, angle: 361, kbg: 35, bkb: 20 }] }],
+},
+// moves.ts
+neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fireball', x: 6, y: 8, vx: 1.4, vy: -0.6 }] },
+```
+
+- **Spawning.** A move's `spawn` puts an entity out on an action frame, offset from the feet (x forward) with an
+  initial velocity (x forward). The entity shows and hits at that point on that frame (its hits start at age 1), so
+  the spawn frame is the move's first active frame; it starts moving the next frame. `max` caps how many of that
+  kind the fighter may own at once (Pepper Bombs: 2); further spawns are skipped. Scripts can call
+  `spawnEntity(m, { kind, owner, pos, vel, facing, move })` (`src/sim/entities/entities.ts`) directly.
+- **Hits.** `hits` are windows over the entity's age (`rehit` works as for moves), x mirrored by its `facing`. They
+  go through the same hit path as fighters' hits as `kind` (default `'projectile'`: shieldstun x0.29), staled by
+  the owner's spawning move, scaled by the owner's rage, with DI, shields and the victim's hitlag. The entity itself
+  never freezes when it hits, and neither does its owner. It hits each fighter once and is used up by its first
+  victim or shield unless `pierce` is set. It never hits its owner. On a grab it counts like any hit: hitting the
+  holder frees the held fighter, and a held fighter armours through it up to the grab's break damage.
+- **Stage.** `floor` is `'bounce'` (up at `bounce` speed), `'land'` (rest on it; `grounded` is set),
+  `'destroy'` (default) or `'pass'`; `wall` (walls and ceilings) is `'bounce'`, `'stop'`, `'destroy'` (default) or
+  `'pass'`. Entities land on soft platforms too, and vanish past the blast zones or when `lifetime` runs out. Moving
+  pieces (docs/stage-geometry.md) collide by their motion relative to the entity, absent ones are skipped: a resting
+  entity rides the floor or platform under it up, down and sideways (in hitlag too), a solid running into one pushes it, and one on a
+  floor that a ceiling comes down on is crushed (destroyed, reason `stage`).
+- **Scripts.** `script(x)` runs every frame before movement with `x.e` (the entity), `x.owner` and `x.c` (the
+  owner's controller, for owner-controlled minions), `x.m` and `x.stage`. It may steer, spawn or
+  `destroyEntity`, and keeps its own state in `x.e.data`. Deterministic only: use `x.m.rng`.
+- **Hittable entities.** Give `hp` and fighters' attacks and other owners' projectiles damage it (once per move);
+  attacker and entity share the hitlag, it breaks at 0 HP, and with a `weight` it is launched by Ultimate's
+  knockback formula using the % it has taken. A fighter cannot hit its own entities.
+- **Reflectors.** A move's `reflectors` are bubbles (`frames`, `x`, `y`, `radius`) that turn a touching projectile
+  away from the fighter, make it his, and multiply its damage, speed and remaining lifetime. Defaults are Fox's
+  Reflector in Ultimate: damage x1.4, speed x1.4, lifespan x1, up to 50% (SmashWiki, Reflection); Mario's Cape is
+  x1.5 / x1 / x0.75, as on Fireboy's Temple Mirror. A projectile over the limit goes through and hits; one reflected
+  7 times is destroyed by the next reflector (Ultimate).
+- **Absorbers.** A move's `absorbers` bubbles eat absorbable projectiles and heal the fighter by their damage x
+  `heal`. Defaults are Ness's PSI Magnet in Ultimate: x1.6, up to 30% (SmashWiki, Absorption). Projectiles are
+  `reflectable` and `absorbable` unless they opt out; hittable entities are neither.
+- **Clanks.** Ultimate's 9% rule (SmashWiki, Priority), simplified: a fighter's attack destroys a projectile unless
+  the projectile deals more than 9% more, in which case it passes through the attack (and usually hits). The
+  attacker is never interrupted (there is no rebound yet). Two projectiles of different owners clank and each is
+  destroyed unless it deals more than 9% more than the other. `transcendent` projectiles never clank, and grab boxes
+  never hit or clank with entities.
+- **Order of a frame.** Fighters act (spawning), the stage moves, entities move, then reflectors, absorbers and clanks, then every hit
+  from fighters and entities lands at once, then grabs (an attack or projectile beats a grab on the same frame).
+- **Events.** Entities report `entitySpawn`, `entityDestroy` (with the reason), `reflect`, `absorb` and `entityHit`,
+  and their hits are `hit` and `shieldHit` events carrying the `entity` id (`docs/sim-events.md`).
 
 ## Art
 

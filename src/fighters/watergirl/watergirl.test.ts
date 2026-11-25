@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { isIntangible } from '../../sim/actions/registry';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
+import { koPercent, type KoHit, type KoSetup } from '../../sim/testing/ko';
 import { attack, placeInAir, run, runPorts, testMatch, until } from '../../sim/testing/sim';
 import { moves as fireboyMoves } from '../fireboy/moves';
 import type { MoveDef } from '../types';
@@ -34,13 +35,16 @@ function play(move: string): { active: number[]; frames: number } {
   return { active, frames };
 }
 
-/** `fighter` (P1, facing right) does `move` at a second one `offset` units ahead at 100%; returns its knockback. */
-function launch(fighter: string, move: string, offset: number, air: boolean) {
+/**
+ * `fighter` (P1, facing right) does `move` at a second one `offset` units ahead (and `below` units lower) at 100%;
+ * returns its knockback.
+ */
+function launch(fighter: string, move: string, offset: number, air: boolean, below = 0) {
   const m = testMatch({ fighter, players: 2 });
   const [a, v] = m.fighters as [FighterState, FighterState];
   if (air) placeInAir(m, -70, 150, 1);
   else a.facing = 1;
-  const at = { x: a.pos.x + offset, y: a.pos.y };
+  const at = { x: a.pos.x + offset, y: a.pos.y - below };
   Object.assign(v, {
     pos: { ...at },
     prevPos: { ...at },
@@ -173,10 +177,10 @@ describe('Watergirl: the spacer next to Fireboy', () => {
   });
 
   it("her forward air launches up and forward where Fireboy's sweetspot meteors", () => {
-    const hers = launch('watergirl', 'fair', 11, true);
+    const hers = launch('watergirl', 'fair', 13, true, 4);
     expect(hers.x).toBeGreaterThan(0);
     expect(hers.y).toBeGreaterThan(0);
-    expect(launch('fireboy', 'fair', 11, true).y).toBeLessThan(0);
+    expect(launch('fireboy', 'fair', 13, true, 4).y).toBeLessThan(0);
   });
 
   it('back air and the rear hit of down smash launch backward', () => {
@@ -330,7 +334,50 @@ describe('Watergirl: swap back to Fireboy', () => {
   });
 });
 
-// TODO(#66): kill-% tests with koPercent (src/sim/testing/ko.ts) against each move's Ultimate analogue.
+describe('Watergirl: kill percents (koPercent: Mario at the Battlefield ledge, fresh, no DI)', () => {
+  function atLedge(hit: KoSetup['hit'], air = false): number {
+    const percent = koPercent({ hit, from: 'ledge', air });
+    if (percent === null) throw new Error(`No KO threshold for ${JSON.stringify(hit)}`);
+    return percent;
+  }
+
+  const ko = (move: string, air = false) => atLedge({ fighter: 'watergirl', move }, air);
+
+  /**
+   * Mario's hitboxes and SSBU-Calculator thresholds from ko.test.ts. Where roster damage differs, apply the KO
+   * difference between the two raw damage values to the calculator threshold.
+   */
+  it.each([
+    ['fsmash', { damage: 17.8, angle: 361, kbg: 99, bkb: 25 }, 15, 64.8, false],
+    ['usmash', { damage: 14, angle: 83, kbg: 94, bkb: 32 }, 13, 124.5, false],
+    ['bthrow', { damage: 11, angle: 45, kbg: 66, bkb: 70, direction: 'back' }, 10, 130.5, false],
+    ['uthrow', { damage: 7, angle: 90, kbg: 72, bkb: 70 }, 7, 240.6, false],
+    ['uair', { damage: 7, angle: 75, kbg: 135, bkb: 10 }, 7, 186.2, true],
+  ] satisfies [string, KoHit, number, number, boolean][])(
+    "%s KOs within 5 points of Mario's",
+    (move, hit, damage, reference, air) => {
+      const delta = hit.damage === damage ? 0 : atLedge({ ...hit, damage }, air) - atLedge(hit, air);
+      expect(Math.abs(ko(move, air) - (reference + delta))).toBeLessThanOrEqual(5);
+    },
+  );
+
+  it("fair KOs within 5 points of Toon Link's forward aerial at her damage", () => {
+    const reference = atLedge({ damage: 11, angle: 361, kbg: 98, bkb: 35 }, true);
+    expect(Math.abs(ko('fair', true) - reference)).toBeLessThanOrEqual(5);
+  });
+
+  it('at the ledge fsmash KOs earlier than bair, then usmash and bthrow', () => {
+    const bair = ko('bair', true);
+    const usmash = ko('usmash');
+    expect(ko('fsmash')).toBeLessThan(bair);
+    expect(bair).toBeLessThan(usmash);
+    expect(usmash).toBeLessThan(ko('bthrow'));
+  });
+
+  it("her forward smash kills later than Fireboy's", () => {
+    expect(ko('fsmash')).toBeGreaterThan(atLedge({ fighter: 'fireboy', move: 'fsmash' }));
+  });
+});
 
 function range(from: number, to: number): number[] {
   return Array.from({ length: to - from + 1 }, (_, i) => from + i);

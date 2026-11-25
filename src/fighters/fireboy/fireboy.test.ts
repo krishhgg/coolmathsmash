@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import ref from '../../sim/reference/physics-constants.json';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
+import { koPercent, type KoHit, type KoSetup } from '../../sim/testing/ko';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
 import { moves } from './moves';
 
@@ -81,10 +82,10 @@ describe('Fireboy: frame data', () => {
     runPorts(m, 100, [{ buttons: ['attack'] }, {}]);
     expect(a.charge).toBe(60);
     run(m, 10);
-    expect(v.damage).toBeCloseTo(17.8 * 1.4 * 1.05 * 1.2, 6);
+    expect(v.damage).toBeCloseTo(18 * 1.4 * 1.05 * 1.2, 6);
   });
 
-  it('dair connects up to five times through its rehit windows', () => {
+  it('dair can rehit a falling opponent', () => {
     const m = testMatch({ fighter: 'fireboy', players: 2 });
     const [a, v] = m.fighters as [FighterState, FighterState];
     placeInAir(m, 0, 30, 1);
@@ -109,6 +110,29 @@ describe('Fireboy: frame data', () => {
     expect(hits).toBeLessThanOrEqual(5);
   });
 
+  it('dair can land all six hits when started on the rise', () => {
+    const m = testMatch({ fighter: 'fireboy', players: 2 });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    placeInAir(m, 0, 60).vel.y = 1.5;
+    Object.assign(v, {
+      pos: { x: 0, y: 52 },
+      prevPos: { x: 0, y: 52 },
+      ground: null,
+      action: 'fall',
+      vel: { x: 0, y: 0 },
+      intangible: 0,
+    });
+    run(m, 1, { cy: -100 });
+    expect(a.move).toBe('dair');
+    const hits: number[] = [];
+    until(m, (f) => {
+      if (m.events.some((e) => e.type === 'hit' && e.attacker === 0)) hits.push(f.actionFrame);
+      return f.move !== 'dair';
+    });
+    expect(hits).toEqual([5, 7, 9, 11, 13, 23]);
+    expect(v.damage).toBeCloseTo((1.4 * 5 + 5) * 1.05 * 1.2, 6);
+  });
+
   it('up special rises well above a full hop, then leaves Fireboy helpless', () => {
     const m = fireboy();
     const f = m.fighters[0]!;
@@ -123,7 +147,23 @@ describe('Fireboy: frame data', () => {
     expect(top - y0).toBeGreaterThan(40);
     until(m, (g) => g.ground !== null);
     expect(f.action).toBe('land');
-    expect(f.landingLag).toBe(20);
+    expect(f.landingLag).toBe(30);
+  });
+
+  it('Flame Jump carries a nearby opponent through all seven hits', () => {
+    const m = testMatch({ fighter: 'fireboy', players: 2 });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    const pos = { x: a.pos.x + 6 * a.facing, y: a.pos.y };
+    Object.assign(v, { pos, prevPos: { ...pos }, ground: a.ground, action: 'idle', intangible: 0 });
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(a.move).toBe('upB');
+    const hits: number[] = [];
+    until(m, (f) => {
+      if (m.events.some((e) => e.type === 'hit' && e.attacker === 0)) hits.push(f.actionFrame);
+      return f.move !== 'upB';
+    });
+    expect(hits).toEqual([3, 7, 9, 11, 13, 15, 17]);
+    expect(v.damage).toBeCloseTo((5 + 0.6 * 5 + 3) * 1.05 * 1.2, 6);
   });
 
   it('up special out of a fast fall still rises and arcs, without fast-falling afterwards', () => {
@@ -317,5 +357,91 @@ describe('Fireboy: pummel and throws', () => {
     }
     expect(fireboyFree).toBeGreaterThan(0);
     expect(fireboyFree).toBeLessThan(victimFree);
+  });
+});
+
+describe('Fireboy: 1-2-Kick jab chain', () => {
+  const mash = (i: number, every = 8, until = 24): Hold =>
+    i % every === 0 && i < until ? { buttons: ['attack'] } : {};
+
+  it('Attack again inside each window chains jab -> jab2 -> jab3', () => {
+    const m = fireboy();
+    const f = m.fighters[0]!;
+    const seen: string[] = [];
+    for (let i = 0; i < 80; i++) {
+      run(m, 1, mash(i));
+      if (f.move && seen.at(-1) !== f.move) seen.push(f.move);
+    }
+    expect(seen).toEqual(['jab', 'jab2', 'jab3']);
+  });
+
+  it("a single press plays only the first punch and ends on Mario's first actionable frame", () => {
+    const m = fireboy();
+    const f = m.fighters[0]!;
+    run(m, 1, { buttons: ['attack'] });
+    let frames = 1;
+    while (f.move === 'jab') {
+      run(m, 1, {});
+      frames++;
+    }
+    expect(frames).toBe(20);
+    expect(f.action).toBe('idle');
+  });
+
+  it('mashing lands all three hits on a standing opponent: 2.2 + 1.7 + 4.5, fresh (x1.05) and x1.2 in 1v1', () => {
+    const m = testMatch({ fighter: 'fireboy', players: 2 });
+    const [a, v] = m.fighters;
+    Object.assign(v!, {
+      pos: { x: a!.pos.x + 9 * a!.facing, y: a!.pos.y },
+      ground: a!.ground,
+      action: 'idle',
+    });
+    v!.intangible = 0;
+    for (let i = 0; i < 100; i++) runPorts(m, 1, [mash(i, 4, 44), {}]);
+    expect(v!.damage).toBeCloseTo((2.2 + 1.7 + 4.5) * 1.05 * 1.2, 6);
+  });
+
+  it("uses Mario's jab frame data", () => {
+    expect([moves.jab!, moves.jab2!, moves.jab3!].map((j) => [j.hits[0]!.frames, j.faf])).toEqual([
+      [[2, 3], 20],
+      [[2, 3], 22],
+      [[3, 4], 34],
+    ]);
+  });
+});
+
+describe('Fireboy: kill percents (koPercent: Mario at the Battlefield ledge, fresh, no DI)', () => {
+  function atLedge(hit: KoSetup['hit'], air = false): number {
+    const percent = koPercent({ hit, from: 'ledge', air });
+    if (percent === null) throw new Error(`No KO threshold for ${JSON.stringify(hit)}`);
+    return percent;
+  }
+
+  const ko = (move: string, air = false) => atLedge({ fighter: 'fireboy', move }, air);
+
+  /**
+   * Mario's hitboxes and SSBU-Calculator thresholds from ko.test.ts. Where roster damage differs, apply the KO
+   * difference between the two raw damage values to the calculator threshold.
+   */
+  it.each([
+    ['fsmash', { damage: 17.8, angle: 361, kbg: 99, bkb: 25 }, 18, 64.8, false],
+    ['usmash', { damage: 14, angle: 83, kbg: 94, bkb: 32 }, 14, 124.5, false],
+    ['bthrow', { damage: 11, angle: 45, kbg: 66, bkb: 70, direction: 'back' }, 11, 130.5, false],
+    ['uthrow', { damage: 7, angle: 90, kbg: 72, bkb: 70 }, 7, 240.6, false],
+    ['uair', { damage: 7, angle: 75, kbg: 135, bkb: 10 }, 7, 186.2, true],
+  ] satisfies [string, KoHit, number, number, boolean][])(
+    "%s KOs within 5 points of Mario's",
+    (move, hit, damage, reference, air) => {
+      const delta = hit.damage === damage ? 0 : atLedge({ ...hit, damage }, air) - atLedge(hit, air);
+      expect(Math.abs(ko(move, air) - (reference + delta))).toBeLessThanOrEqual(5);
+    },
+  );
+
+  it('at the ledge fsmash KOs earlier than bair, then usmash and bthrow', () => {
+    const bair = ko('bair', true);
+    const usmash = ko('usmash');
+    expect(ko('fsmash')).toBeLessThan(bair);
+    expect(bair).toBeLessThan(usmash);
+    expect(usmash).toBeLessThan(ko('bthrow'));
   });
 });

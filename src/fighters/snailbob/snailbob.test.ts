@@ -6,6 +6,7 @@ import { createMatch, type MatchState } from '../../sim/match';
 import { koPercent, type KoHit } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
+import { CRATE_FRAMES, CRATE_RADIUS } from './entities';
 import { DAIR_PLUNGE_FROM, SPIN_ROLL, moves } from './moves';
 import { stats } from './stats';
 
@@ -441,5 +442,95 @@ describe('Snail Bob: Shell Spin (side special)', () => {
     const x = f.pos.x;
     run(m, 5);
     expect(f.pos.x - x).toBeGreaterThan(5);
+  });
+});
+
+describe('Snail Bob: Crate Drop (neutral special)', () => {
+  const crates = (m: MatchState, kind: string) => m.entities.filter((e) => e.kind === `snailbob/${kind}`);
+
+  it('keeps the crate on the elevator when it lands mid-ascent', () => {
+    const m = testMatch({ fighter: 'snailbob', stage: 'testbed' });
+    run(m, 90);
+    placeInAir(m, 110, 14);
+    run(m, 1, { buttons: ['special'] });
+    until(m, () => crates(m, 'crate').length > 0, {}, 75);
+    const [crate] = crates(m, 'crate');
+    expect(m.stage.solids[1]!.dy).toBeGreaterThan(0);
+    for (let i = 0; i < 10; i++) {
+      expect(crate!.pos.y).toBeCloseTo(m.stage.solids[1]!.y + CRATE_RADIUS, 6);
+      expect(crate!.grounded).toBe(true);
+      run(m, 1);
+    }
+  });
+
+  it('drops a crate that lands about 20 units ahead around frame 30 and rests there for 4 s', () => {
+    const m = snail();
+    const f = m.fighters[0]!;
+    const x0 = f.pos.x;
+    run(m, 1, { buttons: ['special'] });
+    expect(f.move).toBe('neutralB');
+    let frame = 1;
+    while (crates(m, 'crate').length === 0 && frame < 60) {
+      run(m, 1);
+      frame++;
+    }
+    expect(frame).toBeGreaterThanOrEqual(28);
+    expect(frame).toBeLessThanOrEqual(34);
+    expect(crates(m, 'crateFall')).toHaveLength(0);
+    const [crate] = crates(m, 'crate');
+    expect(crate!.pos.x - x0).toBeCloseTo(20, 0);
+    expect(crate!.hp).toBe(12);
+    run(m, CRATE_FRAMES - 1);
+    expect(crates(m, 'crate')).toHaveLength(1);
+    run(m, 1);
+    expect(crates(m, 'crate')).toHaveLength(0);
+  });
+
+  it('hits whoever it lands on for 12% and still lands', () => {
+    const { m, a, v } = vsMario();
+    place(a, 0).facing = 1;
+    place(v, 20);
+    Object.assign(v, { ground: a.ground, action: 'idle', intangible: 0 });
+    runPorts(m, 1, [{ buttons: ['special'] }, {}]);
+    for (let i = 0; i < 40 && v.damage === 0; i++) runPorts(m, 1, [{}, {}]);
+    expect(v.damage).toBeCloseTo(12 * 1.05 * 1.2, 6);
+    runPorts(m, 20, [{}, {}]);
+    expect(crates(m, 'crate')).toHaveLength(1);
+  });
+
+  it('keeps one crate at a time: the next one replaces it', () => {
+    const m = snail();
+    const f = m.fighters[0]!;
+    run(m, 1, { buttons: ['special'] });
+    until(m, () => crates(m, 'crate').length > 0);
+    const first = crates(m, 'crate')[0]!.id;
+    until(m, (g) => g.action === 'idle');
+    run(m, 1, { buttons: ['special'] });
+    expect(f.move).toBe('neutralB');
+    until(m, () => crates(m, 'crateFall').length > 0);
+    expect(crates(m, 'crate')).toHaveLength(0);
+    expect(crates(m, 'crateFall')).toHaveLength(1);
+    until(m, () => crates(m, 'crate').some((e) => e.id !== first));
+    expect(crates(m, 'crate')).toHaveLength(1);
+  });
+
+  it('enemy hits wear down the resting crate without launching it, then break it', () => {
+    const { m, a, v } = vsMario();
+    place(a, 0).facing = 1;
+    place(v, -20).facing = 1;
+    runPorts(m, 1, [{ buttons: ['special'] }, {}]);
+    until(m, () => crates(m, 'crate').length > 0);
+    const [crate] = crates(m, 'crate');
+    const pos = { ...crate!.pos };
+    place(v, pos.x - 10);
+    runPorts(m, 3, [{}, { buttons: ['attack'] }]);
+    expect(crate!.hp).toBeLessThan(12);
+    expect(crate!.hp).toBeGreaterThan(0);
+    expect(crate!.pos).toEqual(pos);
+    expect(crate!.kb).toEqual({ x: 0, y: 0 });
+    runPorts(m, 30, [{}, {}]);
+    attack(m, 1, 'probe');
+    runPorts(m, 3, [{}, {}]);
+    expect(crates(m, 'crate')).toHaveLength(0);
   });
 });

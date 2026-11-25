@@ -1,4 +1,5 @@
 import type { AnimClip, Key } from '../../../render/rig/types';
+import { stats, TURN_FLIP, TURN_FRAMES } from '../stats';
 import { attacks } from './attacks';
 import { BODY, EXHAUST, WHEEL_R, WHEEL_X, type Pt } from './parts';
 import {
@@ -12,6 +13,7 @@ import {
   DOWN,
   FOCUS,
   FRONT,
+  HOLD,
   HURT,
   IDLE_FACE,
   LOW,
@@ -52,8 +54,12 @@ const HONK = { ...SHOUT, fx1: 'fxHonk' };
  * Where the front tyre hooks the ledge (rig space): the ledge's top corner while hanging. It matches the engine's
  * hang position: width / 2 + 0.5 out from the corner and 0.85 x height below it (src/sim/movement.ts hangPos).
  */
-export const LEDGE_GRIP: [number, number] = [6.5, -9.35];
+export const LEDGE_GRIP: [number, number] = [stats.width / 2 + 0.5, -stats.height * 0.85];
 const [GX, GY] = LEDGE_GRIP;
+/** How far onto the stage the climb and attack getups set his origin (src/sim/actions/ledge.ts). */
+const GETUP = stats.width / 2 + 2;
+
+const TURN_LENGTH = TURN_FRAMES - 1;
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -143,22 +149,28 @@ function ledgeRollKeys(): Key[] {
   return keys;
 }
 
-/** Ledge jump: the origin rises to 1 over the stage, 6 in from the corner, in 6 frames (src/sim/actions/ledge.ts). */
+/**
+ * Ledge jump: the origin rises to 1 over the stage, width / 2 in from the corner, in 6 frames (src/sim/actions/ledge.ts).
+ * The car rises up the wall before it swings in, so it clears the corner the engine moves him straight across.
+ */
 function ledgeJumpKeys(): Key[] {
   const top = mix(AIR, tilt(-12, BODY), spin(roll(5)));
   const c = (f: number): Pt => {
     const t = smooth(Math.min(1, f / 6));
-    return [GX - (GX + 6) * t, GY + (1 - GY) * t];
+    return [GX - (GX + stats.width / 2) * t, GY + (1 - GY) * t];
   };
   const [x0, y0, r0] = [HANG.body!.x! - GX, HANG.body!.y! - GY, HANG.body!.rot!];
   const [c6x, c6y] = c(6);
   const [x1, y1, r1] = [top.body!.x! - c6x, top.body!.y! - c6y, top.body!.rot!];
   const keys: Key[] = [];
-  for (let f = 0; f <= 6; f += 1.5) {
+  for (let f = 0; f <= 6; f++) {
     const s = smooth(f / 6);
+    const [over, up] = [s ** 3, 1 - (1 - s) ** 2];
     const extra = mix(bob(0, 0.45 * s), spin(roll(5) * s), { eyes: { rot: -r0 * 0.3 * (1 - s) } });
     keys.push(
-      key(f, nearCorner(c(f), lerp(x0, x1, s), lerp(y0, y1, s), lerp(r0, r1, s), extra), { ease: 'linear' }),
+      key(f, nearCorner(c(f), lerp(x0, x1, over), lerp(y0, y1, up), lerp(r0, r1, up), extra), {
+        ease: 'linear',
+      }),
     );
   }
   keys.push(key(20, mix(AIR, tilt(-3, BODY), spin(roll(5)))));
@@ -264,19 +276,56 @@ export const authored: Record<string, AnimClip> = {
       key(14, PARK),
     ],
   },
-  /** Run turnaround: the engine faces him the new way on frame 1, so the drawing starts mirrored and flips over. */
+  /**
+   * The three-point turn (src/fighters/wheely/actions.ts): he stamps on the brakes still facing the old way and
+   * skids to a stop on locked tyres, swings round as the engine faces him the new way on TURN_FLIP, then spins his
+   * tyres and pulls away.
+   */
   turn: {
-    length: 8,
-    swaps: { ...IDLE_FACE, fx1: 'fxSkid' },
+    length: TURN_LENGTH,
+    swaps: SURPRISED,
     keys: [
-      key(0, mix(bob(0.1), { body: { sx: -1 }, fx1: at(-2, 0, -0.8, 0, 1) }), { ease: 'in' }),
-      key(3, mix(bob(0.15), { body: { sx: -0.15, sy: 1.02 }, fx1: at(-1, 0, -0.9, 0, 1) }), {
-        ease: 'step',
-        swaps: { eyes: 'eyesBlink2', fx1: 'fxSkid' },
+      key(
+        0,
+        mix(tilt(6, FRONT), bob(0.2), { fx1: at(WHEEL_X, 0, 0.5), fx2: at(WHEEL_X + 2.2, -0.7, 0.45) }),
+        { ease: 'out', swaps: { ...SURPRISED, brake: 'brakeGlow', fx1: 'fxSkid', fx2: 'fxPuff2' } },
+      ),
+      key(5, mix(tilt(5, FRONT), bob(0.2), { fx1: at(WHEEL_X, 0, 1.1), fx2: at(WHEEL_X + 3, -1.3, 0.85) }), {
+        ease: 'inOut',
+        swaps: { ...FOCUS, brake: 'brakeGlow', fx1: 'fxSkid', fx2: 'fxPuff3' },
       }),
-      key(4, mix(bob(0.15), { body: { sx: 0.15, sy: 1.02 }, fx1: at(-1, 0, -0.9, 0, 1) }), { ease: 'out' }),
-      key(6, undefined, { swaps: { fx1: null } }),
-      key(8, PARK),
+      key(
+        8,
+        mix(tilt(-2, REAR), bob(-0.05), {
+          body: { sx: 0.8 },
+          eyes: { x: -0.6 },
+          fx2: at(WHEEL_X + 3.4, -1.8, 0.95),
+        }),
+        { ease: 'in', swaps: { ...BACK, fx2: 'fxPuff3' } },
+      ),
+      key(TURN_FLIP - 1, mix(bob(-0.3), spin(-60), { body: { sx: 0.4, sy: 1.04 }, eyes: { x: -1 } }), {
+        ease: 'linear',
+        swaps: { ...BACK, ...BLUR },
+      }),
+      key(TURN_FLIP, mix(bob(-0.3), spin(-60), { body: { sx: 0.4, sy: 1.04 }, eyes: { x: 1 } }), {
+        ease: 'out',
+        swaps: { ...ANGRY, ...BLUR },
+      }),
+      key(
+        TURN_FLIP + 2,
+        smoke(
+          mix(SQUAT, tilt(-4, REAR), spin(240), {
+            body: { sx: 1.04 },
+            fx1: at(-WHEEL_X - 0.4, 0, -0.6, 0, 0.6),
+          }),
+          0.5,
+        ),
+        { ease: 'inOut', swaps: { ...ANGRY, ...BLUR, fx1: 'fxGravel', fxBack: 'fxSmoke' } },
+      ),
+      key(
+        TURN_LENGTH,
+        smoke(mix(tilt(-2, REAR), bob(0.04), spin(620), { fx1: at(-WHEEL_X - 1.4, 0, -1, 0, 0.8) }), 0.65),
+      ),
     ],
   },
   /** Suspension right down. */
@@ -474,9 +523,9 @@ export const authored: Record<string, AnimClip> = {
     length: 34,
     swaps: ANGRY,
     keys: [
-      ...climb(30, 8, 3, 17),
+      ...climb(30, GETUP, 3, 17),
       key(22, undefined, { swaps: FOCUS }),
-      key(34, mix(bob(0.06), spin(roll(WHEEL_X + 8 - HOOK[0])))),
+      key(34, mix(bob(0.06), spin(roll(WHEEL_X + GETUP - HOOK[0])))),
     ].sort((a, b) => a.frame - b.frame),
   },
   ledgeRoll: {
@@ -499,11 +548,11 @@ export const authored: Record<string, AnimClip> = {
     length: 55,
     swaps: ANGRY,
     keys: [
-      ...climb(20, 8, 1, 10),
-      key(24, mix(SQUAT, tilt(-4, REAR), spin(roll(WHEEL_X + 8.3))), { ease: 'in' }),
+      ...climb(20, GETUP, 1, 10),
+      key(24, mix(SQUAT, tilt(-4, REAR), spin(roll(WHEEL_X + GETUP + 0.3))), { ease: 'in' }),
       key(
         27,
-        mix(tilt(4, FRONT, 1.6), bob(0.1), spin(roll(WHEEL_X + 11)), {
+        mix(tilt(4, FRONT, 1.6), bob(0.1), spin(roll(WHEEL_X + GETUP + 3)), {
           fx1: at(-WHEEL_X - 0.5, 0, -0.9, 0, 0.9),
         }),
         {
@@ -511,8 +560,8 @@ export const authored: Record<string, AnimClip> = {
           swaps: { ...SHOUT, ...BLUR, fx1: 'fxGravel' },
         },
       ),
-      key(33, mix(tilt(1, FRONT, 1.2), spin(roll(WHEEL_X + 12))), { ease: 'inOut', swaps: ANGRY }),
-      key(55, spin(roll(WHEEL_X + 12))),
+      key(33, mix(tilt(1, FRONT, 1.2), spin(roll(WHEEL_X + GETUP + 4))), { ease: 'inOut', swaps: ANGRY }),
+      key(55, spin(roll(WHEEL_X + GETUP + 4))),
     ].sort((a, b) => a.frame - b.frame),
   },
   hitstun: {
@@ -599,10 +648,7 @@ export const authored: Record<string, AnimClip> = {
     length: 30,
     loop: true,
     swaps: { ...ANGRY, ...SCOOP },
-    keys: [
-      key(0, mix(bob(0.15), tilt(1.5, FRONT), { door: { sx: -1.05, sy: 1.04 } })),
-      key(15, mix(bob(0.24), tilt(1, FRONT), { door: { sx: -0.98, sy: 1.04 } })),
-    ],
+    keys: [key(0, HOLD), key(15, mix(HOLD, bob(0.24), tilt(1, FRONT)))],
   },
   /** Lifted off his wheels, which spin uselessly. */
   grabbed: {
@@ -642,6 +688,11 @@ export const authored: Record<string, AnimClip> = {
   },
 };
 
-export const clips: Record<string, AnimClip> = Object.fromEntries(
-  Object.entries(authored).map(([name, clip]) => [name, holdEffects(clip)]),
-);
+const baked = Object.fromEntries(Object.entries(authored).map(([name, clip]) => [name, holdEffects(clip)]));
+export const clips: Record<string, AnimClip> = {
+  ...baked,
+  down: baked.knockdown!,
+  getupStand: baked.getUp!,
+  getupRoll: baked.getUp!,
+  techInPlace: baked.tech!,
+};

@@ -1,5 +1,5 @@
 import { getFighter } from '../fighters/registry';
-import type { FighterDef, FighterStats } from '../fighters/types';
+import type { FighterDef, FighterStats, TetherLatch } from '../fighters/types';
 import { SHIELD_MAX, TECH_LOCKOUT } from './constants';
 import type { ControlState } from './control';
 import type { MatchState, PlayerState } from './match';
@@ -57,8 +57,11 @@ export interface FighterState {
   /** The current launch is near-vertical (70-110 degree tumble): DamageFlyTop gravity and fall speed during hitstun. */
   flyTop: boolean;
   launch: PendingLaunch | null;
+  launchMotion: LaunchMotion | null;
   /** Ports the current move has already hit. */
   hitVictims: number[];
+  /** Ids of entities the current move has already hit. */
+  hitEntities: number[];
   /** Stale multiplier of the current move activation, fixed when it first connects (0 = not connected yet). */
   moveStale: number;
   /** Frames the current smash attack was charged (0-60). */
@@ -84,6 +87,24 @@ export interface FighterState {
   grabbableFrom: number;
   /** First match frame a shield grab can come out (GRAB.shieldGrabLock frames after shieldstun). */
   shieldGrabFrom: number;
+  /**
+   * The fighter's tether line (null = none): `out` while it travels, with `anchor` at its tip, then where it
+   * anchored. `frame` is the match frame it fired or anchored; `ledge` the ledge index of a ledge anchor; a
+   * surface anchor also keeps that surface and the anchor within it, so a moving piece carries the line along.
+   */
+  tether: {
+    anchor: Vec;
+    kind: 'out' | TetherLatch | 'fighter';
+    ledge?: number;
+    port?: number;
+    frame: number;
+    surface?: GroundRef;
+    local?: Vec;
+  } | null;
+  /** A tether's target as an offset from the fighter: the reticle while aiming, then where the line is going. */
+  aim: Vec | null;
+  /** Frames before stage hazards (damage zones, stage hitboxes) can hit this fighter again. */
+  stageHitLock: number;
 }
 
 export function createFighter(
@@ -121,7 +142,9 @@ export function createFighter(
     speedUpFaf: 0,
     flyTop: false,
     launch: null,
+    launchMotion: null,
     hitVictims: [],
+    hitEntities: [],
     moveStale: 0,
     charge: 0,
     staleQueue: [],
@@ -136,6 +159,9 @@ export function createFighter(
     grabDamage: 0,
     grabbableFrom: 0,
     shieldGrabFrom: 0,
+    tether: null,
+    aim: null,
+    stageHitLock: 0,
   };
 }
 
@@ -147,7 +173,24 @@ export interface PendingLaunch {
   /** World direction the attacker was facing: launch angles are measured from it. */
   dir: 1 | -1;
   setKnockback: boolean;
+  /** An autolink (365-368) or position-vector hit: what the launch follows instead of its angle. */
+  link?: LaunchLink;
 }
+
+/** The attacker's motion and the hitbox, captured when an autolink or position-vector hit lands. */
+export interface LaunchLink {
+  /** The attacker's velocity, self-propelled plus knockback. */
+  vel: Vec;
+  /** World centre of the hitbox that connected. */
+  at: Vec;
+  /** HitboxDef.vector in world space: where the target's middle is pulled, over `frames` frames. */
+  to?: { x: number; y: number; frames: number };
+}
+
+export type LaunchMotion =
+  | { kind: 'vortex'; frames: number; at: Vec; dir: Vec }
+  | { kind: 'vector'; frames: number; at: Vec }
+  | { kind: 'cap'; frames: number };
 
 /** Values derived from a fighter's stats once (initial jump speeds that hit the stated apex heights). */
 export interface Derived {

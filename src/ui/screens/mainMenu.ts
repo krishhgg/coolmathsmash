@@ -46,6 +46,14 @@ export const screen: ScreenDef = { route: 'main', create: mainMenuScreen };
 /** Ultimate-style main menu: one big red Smash tile and two smaller ones, with a description bar. */
 export function mainMenuScreen(flow: Flow): Screen {
   const blurb = h('div', { class: 'menu-blurb' });
+  const smashRight = flow.has('controls') ? '.tile-controls' : flow.has('options') ? '.tile-options' : '';
+  // Pinned moves: the Credits pill sits top right, above Controls, and geometry alone sends Down from Smash to
+  // Options and Up from Options past Controls. A pin to a disabled target falls back to geometry (nav.ts).
+  const pins: Record<string, Record<string, string>> = {
+    css: { navRight: smashRight, navUp: '.menu-credits', navDown: '' },
+    controls: { navUp: '.menu-credits', navDown: '.tile-options', navLeft: '.tile-smash' },
+    options: { navUp: '.tile-controls', navLeft: '.tile-smash', navDown: '' },
+  };
   const tiles = TILES.map((t) =>
     h(
       'button',
@@ -55,7 +63,7 @@ export function mainMenuScreen(flow: Flow): Screen {
           nav: '',
           route: t.route,
           blurb: t.blurb,
-          ...(t.route === 'css' ? { navRight: '.tile-controls' } : {}),
+          ...pins[t.route],
         },
         disabled: !flow.has(t.route),
         on: { click: () => flow.go(t.route) },
@@ -65,12 +73,28 @@ export function mainMenuScreen(flow: Flow): Screen {
       flow.has(t.route) ? null : h('span', { class: 'menu-tile-soon' }, 'Coming soon'),
     ),
   );
+  const credits = h(
+    'button',
+    {
+      class: 'menu-credits',
+      data: {
+        nav: '',
+        route: 'credits',
+        blurb: 'Who made this fan game, and who owns each character.',
+        navDown: flow.has('controls') ? '.tile-controls' : '.tile-smash',
+      },
+      disabled: !flow.has('credits'),
+      on: { click: () => flow.go('credits') },
+    },
+    'Credits',
+  );
   const el = h(
     'div',
     { class: 'main-menu bg-menu' },
     h('div', { class: 'bg-rays' }),
     backTab(() => flow.go('title')),
     headerPlate('Main Menu'),
+    credits,
     h('div', { class: 'menu-tiles' }, tiles),
     blurb,
     footerHints([

@@ -85,6 +85,70 @@ describe('The Duck: attack inputs', () => {
   });
 });
 
+describe('The Duck: Seeds (neutral special)', () => {
+  it.each([1, -1] as const)('taps to spit on frames 10, 15 and 20, facing %s', (facing) => {
+    const m = duck();
+    const f = m.fighters[0]!;
+    f.facing = facing;
+    run(m, 1, { buttons: ['special'] });
+    expect(f.move).toBe('neutralB');
+    const frames: number[] = [];
+    for (let i = 0; i < 33; i++) {
+      run(m, 1);
+      for (const seed of m.entities.filter((e) => e.age === 1)) {
+        expect(seed).toMatchObject({ kind: 'duck/seed', owner: 0, facing, move: 'neutralB' });
+        expect(seed.pos.x * facing).toBeGreaterThan(f.pos.x * facing);
+        expect(seed.vel.x * facing).toBeGreaterThan(0);
+        frames.push(f.actionFrame);
+      }
+    }
+    expect(frames).toEqual([10, 15, 20]);
+    run(m, 24);
+    expect(m.entities).toHaveLength(0);
+  });
+
+  it('each seed makes Fireboy flinch without freezing the Duck', () => {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'duck' }, { fighter: 'fireboy' }],
+    });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    a.pos.x = -25;
+    v.pos.x = 18;
+    run(m, 10);
+    run(m, 1, { buttons: ['special'] });
+    const hits: number[] = [];
+    for (let i = 0; i < 60; i++) {
+      run(m, 1);
+      for (const e of m.events) {
+        if (e.type !== 'hit' || e.move !== 'neutralB') continue;
+        expect(e).toMatchObject({ attacker: 0, victim: 1, tumble: false });
+        expect(e.entity).toBeDefined();
+        expect(v.hitlag).toBeGreaterThan(0);
+        expect(v.launch).not.toBeNull();
+        expect(a.hitlag).toBe(0);
+        hits.push(e.damage);
+      }
+    }
+    expect(hits).toHaveLength(3);
+    expect(hits[0]).toBeCloseTo(1.26);
+    expect(v.damage).toBeCloseTo(hits.reduce((total, damage) => total + damage, 0));
+  });
+
+  it('finishes the burst after touching down', () => {
+    const m = duck();
+    const f = placeInAir(m, 0, 9);
+    run(m, 1, { buttons: ['special'] });
+    until(m, (g) => g.ground !== null);
+    expect(f.move).toBe('neutralB');
+    expect(m.entities).toHaveLength(2);
+    until(m, (g) => g.actionFrame === 20);
+    expect(m.entities).toHaveLength(3);
+  });
+});
+
 describe('The Duck: jab combo (peck, peck, wing slap)', () => {
   it('Attack again inside each window chains jab -> jab2 -> jab3', () => {
     const m = duck();

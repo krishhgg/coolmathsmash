@@ -361,6 +361,17 @@ export const moves: Record<string, MoveDef> = {
       f.vel.x = f.facing * (slow + ((fast - slow) * f.charge) / SMASH_CHARGE_FRAMES);
     },
   },
+  /**
+   * Crate Drop: he presses a remote button and a construction crate drops from high above, a little ahead of him,
+   * landing around frame 30 (roster) on the floor he stands on. It hits whoever it lands on and then rests there
+   * (entities.ts). Only one falling crate at a time.
+   */
+  neutralB: {
+    kind: 'other',
+    faf: 46,
+    hits: [],
+    spawn: [{ frame: 14, entity: 'snailbob/crateFall', x: 20, y: 45, vy: -1.5, max: 1 }],
+  },
   /** Grabs: slow, short-armed (frame 9, about 11.5 units against Mario's 12 from a wider body). */
   grab: { kind: 'other', faf: 40, hits: [{ frames: [9, 10], boxes: [grabBox(0, 7.5, 6, 4)] }] },
   dashGrab: { kind: 'other', faf: 48, hits: [{ frames: [11, 12], boxes: [grabBox(0, 8.5, 6, 4.5)] }] },

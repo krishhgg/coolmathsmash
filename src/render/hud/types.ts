@@ -10,6 +10,8 @@ export interface HudPlayer {
   /** Standalone SVG markup with a viewBox, from the fighter's art. A neutral head is used when absent. */
   icon?: string;
   eliminated: boolean;
+  /** A computer player: grey card and a CPU tag instead of the port colour, as in Ultimate. */
+  cpu?: boolean;
   /** Match frame of the last damage taken, -1 if none. Drives the shake and flash. */
   hitFrame: number;
 }
