@@ -61,6 +61,11 @@ export interface FighterState {
   launchMotion: LaunchMotion | null;
   /** Ports the current move has already hit. */
   hitVictims: number[];
+  /**
+   * Hold hits (a pummel, a throw's chews) the current move has landed, kept apart from hitVictims so the move's
+   * own hitboxes and rehit windows can't skip or repeat one.
+   */
+  holdHitsLanded: number;
   /** Ids of entities the current move has already hit. */
   hitEntities: number[];
   /** Stale multiplier of the current move activation, fixed when it first connects (0 = not connected yet). */
@@ -88,6 +93,8 @@ export interface FighterState {
   grabbableFrom: number;
   /** First match frame a shield grab can come out (GRAB.shieldGrabLock frames after shieldstun). */
   shieldGrabFrom: number;
+  /** First match frame a shield drop can start and still parry (PARRY.lockout frames after shieldstun ends). */
+  parryFrom: number;
   /** Glide, float and hover state (src/sim/mobility.ts). */
   mobility: MobilityState;
   /**
@@ -147,6 +154,7 @@ export function createFighter(
     launch: null,
     launchMotion: null,
     hitVictims: [],
+    holdHitsLanded: 0,
     hitEntities: [],
     moveStale: 0,
     charge: 0,
@@ -162,6 +170,7 @@ export function createFighter(
     grabDamage: 0,
     grabbableFrom: 0,
     shieldGrabFrom: 0,
+    parryFrom: 0,
     mobility: createMobility(getFighter(fighterId)),
     tether: null,
     aim: null,

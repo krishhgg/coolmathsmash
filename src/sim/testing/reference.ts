@@ -38,7 +38,8 @@ export const marioReference = defineFighter({
     softLandingLag: 1,
     hardLandingLag: 3,
     shieldSize: 9.7,
-    rollDistance: 28,
+    /** Forward roll distance (SmashWiki: Roll, 32.17 u). */
+    rollDistance: 32.17,
     airDodgeSpeed: 2.8,
   },
   /** Test moves with round numbers (not Mario's real frame data). `probe` is research vector kb10's hit. */

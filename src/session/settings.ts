@@ -1,5 +1,6 @@
 import { GAMEPAD_BUTTONS, KEYBOARD_BINDINGS, type KeyboardBinding } from '../input/bindings';
 import type { ButtonName } from '../input/types';
+import { padMenusUsable } from './controls';
 
 /** Player-facing settings kept in localStorage: control bindings and options. */
 export interface Settings {
@@ -32,7 +33,11 @@ function browserStorage(): StorageLike | null {
   }
 }
 
-/** Saved settings over the defaults; anything missing or malformed falls back to its default. */
+/**
+ * Saved settings over the defaults; anything missing or malformed falls back to its default. A saved gamepad mapping
+ * with Pause on A or on no button at all (possible before the controls screen refused those) loads as the defaults,
+ * so a controller-only player is never stuck in or out of the pause menu.
+ */
 export function loadSettings(storage: StorageLike | null = browserStorage()): Settings {
   const defaults = defaultSettings();
   let saved: Partial<Settings>;
@@ -70,7 +75,7 @@ export function loadSettings(storage: StorageLike | null = browserStorage()): Se
   ) as Settings['gamepad'];
   return {
     keyboard,
-    gamepad,
+    gamepad: padMenusUsable(gamepad) ? gamepad : defaults.gamepad,
     tapJump: typeof saved.tapJump === 'boolean' ? saved.tapJump : defaults.tapJump,
   };
 }
