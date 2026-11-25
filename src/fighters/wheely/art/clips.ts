@@ -541,11 +541,11 @@ export const authored: Record<string, AnimClip> = {
           key(f, twirl(side), { ease: 'in' }),
           key(f + 2, headOn(side, -24 * side), {
             ease: 'step',
-            swaps: { ...frontView('frontEyesClosed'), fx3: 'fxSwipe' },
+            swaps: { ...frontView('frontEyesClosed'), fx3: 'fxEvade' },
           }),
           key(f + 3, headOn(-side, -31 * side), {
             ease: 'out',
-            swaps: { ...frontView('frontEyesClosed'), fx3: 'fxSwipe' },
+            swaps: { ...frontView('frontEyesClosed'), fx3: 'fxEvade' },
           }),
           key(f + 5, twirl(-side), { ease: 'inOut', swaps: CLOSED }),
         ];

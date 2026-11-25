@@ -335,91 +335,28 @@ export function badge(cx = 0, cy = -4.75): PathShape[] {
     fill(curve([...arc(cx, cy, 1.3, 198, 342, 18).map(([x, y]) => [x, y] as Node)]), 'badgeLo'),
     fill(
       poly([
-        [cx - 0.66, cy - 0.5],
-        [cx + 0.02, cy - 1.22],
-        [cx + 0.62, cy - 1.22],
-        [cx + 0.42, cy + 1.18],
-        [cx - 0.26, cy + 1.18],
-        [cx - 0.1, cy - 0.34],
-        [cx - 0.52, cy - 0.12],
+        [cx - 0.54, cy - 0.51],
+        [cx + 0.04, cy - 1.03],
+        [cx + 0.34, cy - 1.03],
+        [cx + 0.34, cy + 1.01],
+        [cx - 0.16, cy + 1.01],
+        [cx - 0.16, cy - 0.39],
+        [cx - 0.4, cy - 0.22],
       ]),
       'digit',
     ),
   ];
 }
 
-const ROOF_RACK: PathShape[] = [
-  ink(
-    poly(
-      [
-        [-3.85, -9.62],
-        [-3.98, -10.2],
-      ],
-      false,
-    ),
-    'rackLine',
-    0.42,
-  ),
-  ink(
-    poly(
-      [
-        [2.2, -9.45],
-        [2.34, -10.05],
-      ],
-      false,
-    ),
-    'rackLine',
-    0.42,
-  ),
-  ink(
-    curve(
-      [
-        [-4.12, -10.12],
-        [-1.2, -10.42],
-        [1.4, -10.36],
-        [2.48, -10.02],
-      ],
-      false,
-    ),
-    'rackLine',
-    0.44,
-  ),
-  ink(
-    poly(
-      [
-        [-3.85, -9.62],
-        [-3.98, -10.2],
-      ],
-      false,
-    ),
-    'rack',
-    0.24,
-  ),
-  ink(
-    poly(
-      [
-        [2.2, -9.45],
-        [2.34, -10.05],
-      ],
-      false,
-    ),
-    'rack',
-    0.24,
-  ),
-  ink(
-    curve(
-      [
-        [-4.12, -10.12],
-        [-1.2, -10.42],
-        [1.4, -10.36],
-        [2.48, -10.02],
-      ],
-      false,
-    ),
-    'rack',
-    0.26,
-  ),
-];
+const ROOF_RACK = rail([
+  [-4.04, -9.95],
+  [-3.9, -10.39],
+  [-2.18, -10.74],
+  [-0.45, -10.86],
+  [1.39, -10.71],
+  [2.38, -10.42],
+  [2.4, -9.54],
+]);
 
 function bumper(cx: number, cy: number, rx: number, ry: number, rot: number): PathShape[] {
   return [
@@ -918,8 +855,8 @@ interface EyeShape {
   rot: number;
 }
 
-const NEAR: EyeShape = { c: [-0.4, 0.02], rx: 1.0, ry: 1.5, rot: -7 };
-const FAR: EyeShape = { c: [0.52, -0.08], rx: 0.64, ry: 1.36, rot: -3 };
+const NEAR: EyeShape = { c: [-0.44, 0.07], rx: 1.05, ry: 1.64, rot: -8 };
+const FAR: EyeShape = { c: [0.55, -0.08], rx: 0.72, ry: 1.48, rot: -9 };
 
 function eyeOutline(e: EyeShape): Pt[] {
   return ellipsePts(e.c[0], e.c[1], e.rx, e.ry, e.rot, 0, 360, 12).slice(0, -1);
@@ -1007,6 +944,23 @@ function oneEye(e: EyeShape, look: Look, near: boolean): PathShape[] {
     ];
     const cover = clipConvex(outline, cut);
     if (cover.length > 2) shapes.push(fill(poly(cover), 'lid', 'eyeLine', 0.1));
+    if (lid >= 1) {
+      const [cx, cy] = e.c;
+      shapes.push(
+        ink(
+          curve(
+            [
+              [cx - e.rx * 0.62, cy + e.ry * 0.15],
+              [cx, cy + e.ry * 0.27],
+              [cx + e.rx * 0.62, cy + e.ry * 0.12],
+            ],
+            false,
+          ),
+          'eyeLine',
+          0.1,
+        ),
+      );
+    }
   }
   shapes.push(ink(poly([...outline, outline[0]!], false), 'eyeLine', 0.13));
   return shapes;
@@ -1031,7 +985,7 @@ export function eyes(look: Look): PathShape[] {
 }
 
 export const EXPRESSIONS: Record<string, Look> = {
-  eyes: { x: 0.25, y: 0.05 },
+  eyes: { x: 0.38, y: 0.05, brows: true, near: 15, far: 8, lift: -0.025, iris: 1.09 },
   eyesBlink1: { x: 0.25, y: 0.05, lid: 0.35 },
   eyesBlink2: { x: 0.25, y: 0.05, lid: 0.7 },
   eyesClosed: { x: 0.25, y: 0.05, lid: 1, lift: 0.08 },
@@ -1830,6 +1784,17 @@ export const speedLines: PathShape[] = [
     ],
   }),
 );
+
+export const evadeTrail: PathShape[] = [
+  fill(
+    curve([C(-0.5, 0.43), [-0.16, 0.7], [0.24, 0.8], C(0.75, 0.64), [0.28, 0.74], [-0.11, 0.61]]),
+    faded('chromeHi', 0.65),
+  ),
+  fill(
+    curve([C(-0.65, 0.52), [-0.3, 0.77], [0.01, 0.91], C(0.42, 0.91), [0.02, 0.86], [-0.31, 0.71]]),
+    faded('chrome', 0.46),
+  ),
+];
 
 function star(cx: number, cy: number, r: number): string {
   const pts: Pt[] = [];
