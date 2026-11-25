@@ -275,6 +275,11 @@ upB: {
 own, for projectiles too: it returns the nearest ledge, surface or fighter hurtbox the segment touches, with `t`
 (0 to 1 along it) and the point, or null.
 
+A tether ignores fighters unless it sets `targetsFighters: true`. If the line reaches a fighter before stage
+geometry, `onFighter(ctx, target, event)` can handle the contact in script or return `'pullSelf'` on
+`event.phase === 'hit'` to reel the user in. The same hook receives `'arrive'` on contact, where the move can
+apply its own hit. Grab and yank behavior is left to the move script.
+
 ### Kill percentages
 
 Test kill power with `koPercent` from `src/sim/testing/ko.ts` instead of writing your own launch loop:

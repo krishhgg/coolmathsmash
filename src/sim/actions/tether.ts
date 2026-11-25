@@ -1,5 +1,7 @@
 import { getFighter } from '../../fighters/registry';
 import { Btn, buttonBit } from '../../input/types';
+import { castSegment } from '../cast';
+import { hittable } from '../combat/hits';
 import { HELPLESS_LANDING_LAG, LEDGE_MAX_GRABS, TETHER } from '../constants';
 import { consume, isHeld, justPressed } from '../control';
 import { emit } from '../events';
@@ -106,24 +108,42 @@ export const TETHER_ACTIONS: Record<string, ActionDef> = {
     drift: false,
     gravity: false,
     update(x) {
-      const { f, c, m } = x;
+      const { f, c, m, s } = x;
       const t = moveOf(f)?.tether;
-      if (!t || !f.tether) return letGo(x, false);
+      const tether = f.tether;
+      if (!t || !tether) return letGo(x, false);
       if (justPressed(c, Btn.Jump)) {
         consume(c, Btn.Jump);
         return letGo(x, true);
       }
+      const target =
+        tether.kind === 'fighter' && tether.port !== undefined ? m.fighters[tether.port] : undefined;
+      if (tether.kind === 'fighter') {
+        if (!target || !hittable(target) || !tether.local) return letGo(x, false);
+        tether.anchor = { x: target.pos.x + tether.local.x, y: target.pos.y + tether.local.y };
+      }
       const to = pullTarget(x);
+      if (target) to.y = Math.max(to.y, target.pos.y);
       const d = { x: to.x - f.pos.x, y: to.y - f.pos.y };
       const dist = Math.hypot(d.x, d.y);
-      if (f.tether.kind === 'ledge' && dist <= TETHER.ledgeArrive) {
-        const i = f.tether.ledge!;
+      if (tether.kind === 'ledge' && dist <= TETHER.ledgeArrive) {
+        const i = tether.ledge!;
         if (!ledgeFree(x, i)) return letGo(x, false);
         releaseTether(m, f);
         return grabLedge(x, i);
       }
-      if (f.tether.kind !== 'ledge' && dist <= ARRIVED) {
+      const reach = target ? Math.min(s.width, s.height) / 2 : ARRIVED;
+      if (tether.kind !== 'ledge' && dist <= reach) {
         f.vel = { x: 0, y: 0 };
+        if (target) {
+          if (castSegment(m, tetherOrigin(f), tether.anchor, { platforms: true, fighters: false }))
+            return letGo(x, false);
+          const move = f.move;
+          t.onFighter?.(x, target, { phase: 'arrive', point: { ...tether.anchor } });
+          if (f.tether !== tether) return;
+          if (f.action !== 'tetherPull' || f.move !== move) return releaseTether(m, f);
+          return letGo(x, false);
+        }
         if (!t.hang || !isHeld(c, buttonBit(t.hang))) return letGo(x, false);
         const move = f.move;
         setAction(x, 'tetherHang');

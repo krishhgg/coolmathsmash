@@ -1,6 +1,7 @@
 import { fighter as fireboy } from '../../fighters/fireboy';
 import { registerFighter } from '../../fighters/registry';
 import { defineFighter, type MoveDef } from '../../fighters/types';
+import { applyHit } from '../combat/hits';
 
 /** Fluffy's Point Grapple (roster neutral special): aim a reticle, release to fire up to 160 units. */
 export const pointGrapple: MoveDef = {
@@ -16,6 +17,18 @@ export const pointGrapple: MoveDef = {
     latch: ['ledge', 'surface', 'sky'],
     pullSpeed: 4,
     hang: 'jump',
+  },
+};
+
+export const fighterGrapple: MoveDef = {
+  ...pointGrapple,
+  tether: {
+    ...pointGrapple.tether!,
+    targetsFighters: true,
+    onFighter(x, target, event) {
+      if (event.phase === 'hit') return 'pullSelf';
+      applyHit(x.m, x.f, target, { id: 0, x: 0, y: 0, radius: 0, damage: 10, angle: 45, kbg: 60, bkb: 40 });
+    },
   },
 };
 

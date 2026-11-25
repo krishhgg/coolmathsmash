@@ -7,18 +7,18 @@ import { ledgePresent } from './stage';
 import type { Vec } from './vec';
 
 /** The first thing a segment touches (castSegment). */
-export interface CastHit {
-  kind: 'ledge' | 'surface' | 'fighter';
+interface CastContact {
   /** How far along the segment: 0 at `from`, 1 at `to`. */
   t: number;
   point: Vec;
-  /** Fighter hits: the fighter's port. */
-  port?: number;
-  /** Ledge hits: the ledge's index in the stage's ledges; `point` is the ledge corner. */
-  ledge?: number;
-  /** Surface hits: the solid edge or platform that was hit. */
-  surface?: GroundRef;
 }
+
+export type CastHit = CastContact &
+  (
+    | { kind: 'fighter'; port: number }
+    | { kind: 'ledge'; ledge: number }
+    | { kind: 'surface'; surface: GroundRef }
+  );
 
 export interface CastOptions {
   /** Hit one-way platforms, from either side. */

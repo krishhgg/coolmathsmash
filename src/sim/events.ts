@@ -93,6 +93,8 @@ export type SimEvent =
     }
   /** A tether line left the hand towards (`x`, `y`), its full-range end. */
   | { type: 'tetherFire'; port: number; x: number; y: number }
+  /** A fighter-targeting line touched a hurtbox at (`x`, `y`), before the move chooses how to respond. */
+  | { type: 'tetherFighterHit'; port: number; target: number; x: number; y: number }
   /** A tether line anchored at (`x`, `y`) on a ledge, a surface or empty air (`sky`); the reel starts. */
   | { type: 'tetherLatch'; port: number; kind: TetherLatch; x: number; y: number }
   /** A tether line let go: it whiffed, the fighter let go or grabbed the ledge, or something knocked him off it. */
