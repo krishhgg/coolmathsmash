@@ -44,9 +44,12 @@ export const scenarios: FighterScenarios = {
       match: { ports: [{ fighter: 'papa-louie' }, { fighter: 'fireboy' }] },
       patches: [
         { port: 0, state: { pos: { x: 0, y: 0 }, facing: 1 } },
-        { port: 1, state: { pos: { x: 10, y: 0 }, facing: -1 } },
+        { port: 1, state: { pos: { x: 24, y: 0 }, facing: -1 } },
       ],
-      script: [{ port: 0, from: 12, y: -100, buttons: ['special'] }],
+      script: [
+        { port: 1, from: 7, to: 13, x: -100 },
+        { port: 0, from: 12, y: -100, buttons: ['special'] },
+      ],
       capture: {
         label: 'Paddle Deflect reaches its first active frame',
         when: (s) => s.fighters[0]!.move === 'downB' && s.fighters[0]!.actionFrame === 5,
@@ -54,6 +57,57 @@ export const scenarios: FighterScenarios = {
       motion: { before: 8, after: 25 },
       requires: ['move:downB'],
       refs: [`${PAPA}/official-art-paddle-*`, `${PAPA}/ingame-attack-paddle-*`],
+    },
+    {
+      name: 'papa-louie-poses',
+      description: 'The chef silhouette and his movement and paddle poses at the same lab scale.',
+      page: { kind: 'lab', scene: 'fighter', params: { fighter: 'papa-louie', zoom: '8' } },
+      calls: [
+        {
+          fn: 'sheet',
+          args: [
+            [
+              'idle@0',
+              'dash@2',
+              'run@7',
+              'jump@28',
+              'fall@8',
+              'fsmash@10',
+              'fsmash@16',
+              'upB@28',
+              'downB@5',
+              'ledgeHang@0',
+            ],
+          ],
+        },
+      ],
+      refs: [
+        `${PAPA}/official-art-standing-*`,
+        `${PAPA}/ingame-run-*`,
+        `${PAPA}/ingame-attack-paddle-*`,
+        `${PAPA}/ingame-glide-*`,
+      ],
+    },
+    {
+      name: 'papa-louie-brick-oven',
+      description: 'Papa scoops up Fireboy on his peel and shoves him backwards into the brick oven.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'papa-louie' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: 0, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: 11, y: 0 }, facing: -1 } },
+      ],
+      script: [
+        { port: 0, from: 10, buttons: ['grab'] },
+        { port: 0, from: 22, x: -100 },
+      ],
+      capture: {
+        label: 'Brick Oven releases the throw',
+        when: (s) => s.fighters[0]!.move === 'bthrow' && s.fighters[0]!.actionFrame === 30,
+      },
+      motion: { before: 24, after: 17 },
+      requires: ['move:bthrow'],
+      refs: [`${PAPA}/official-art-paddle-*`, `${PAPA}/ingame-run-*`],
     },
     {
       name: 'papa-louie-roy',
