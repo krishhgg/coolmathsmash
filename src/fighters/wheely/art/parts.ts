@@ -206,7 +206,7 @@ export const EYES: Pt = [4.05, -8.05];
 export const HOOD: Pt = [4.45, -6.6];
 export const DOOR: Pt = [2.7, -6.0];
 /** Where the eyes sit in the head-on view: the middle of the windscreen. */
-export const FRONT_EYES: Pt = [0, -7.05];
+export const FRONT_EYES: Pt = [0, -7.55];
 export const EXHAUST: Pt = [-9.1, -2.2];
 /** The horn, behind the front bumper: jab sound waves start here. */
 export const HORN: Pt = [8.6, -3.6];
@@ -1069,315 +1069,440 @@ export const EXPRESSIONS: Record<string, Look> = {
   eyesScared: { brows: true, x: 0.1, y: 0.2, iris: 0.85, pupil: 0.55, lift: -0.3, near: -30, far: -32 },
 };
 
-/** A vertical gradient through palette keys, with typed stops for the front view's literals. */
-const grad = (y0: number, y1: number, stops: [number, string][]): Paint => vgrad(y0, y1, ...stops);
+// ---------------------------------------------------------------- turning views (body bone space)
 
-// ---------------------------------------------------------------- front view (head-on, for turns and rolls)
-
-/**
- * The car head-on: for the frames where he swings through the camera, so a turn never collapses to a sliver. Drawn
- * on the same ground and in the same space as the side view, and swapped in for the side body.
- */
-const FRONT_SILHOUETTE: Node[] = [
-  C(-4.35, -2.15),
-  [-4.72, -3.3],
-  [-4.86, -5.4],
-  [-4.7, -7.45],
-  [-4.22, -8.8],
-  [-3.28, -9.62],
-  [-1.9, -9.94],
-  C(0, -10),
-  [1.9, -9.94],
-  [3.28, -9.62],
-  [4.22, -8.8],
-  [4.7, -7.45],
-  [4.86, -5.4],
-  [4.72, -3.3],
-  C(4.35, -2.15),
-  [2.6, -1.9],
-  C(0, -1.8),
-  [-2.6, -1.9],
+const FRONT_BODY: Node[] = [
+  [-4.85, -2.45],
+  [-5.05, -3.65],
+  [-4.72, -5.3],
+  [-3.94, -6.4],
+  [-3.52, -8.25],
+  [-2.58, -9.74],
+  [-1.24, -10.17],
+  [0, -10.25],
+  [1.24, -10.17],
+  [2.58, -9.74],
+  [3.52, -8.25],
+  [3.94, -6.4],
+  [4.72, -5.3],
+  [5.05, -3.65],
+  [4.85, -2.45],
+  [2.4, -1.92],
+  [0, -1.8],
+  [-2.4, -1.92],
 ];
 
-const FRONT_GLASS: Node[] = [
-  [-2.5, -8.9],
-  [-2.86, -7.6],
-  [-2.86, -6.15],
-  [-2.4, -5.5],
-  [2.4, -5.5],
-  [2.86, -6.15],
-  [2.86, -7.6],
-  [2.5, -8.9],
-];
+const frontPaint = vgrad(-10.1, -1.8, [0, 'paintHi'], [0.38, 'paint'], [0.73, 'paint'], [1, 'paintLo']);
+const frontGlass = vgrad(-9.8, -5.35, [0, 'glassHi'], [0.34, 'glass'], [1, 'glassLo']);
 
-/** A tyre seen head-on: a slab of tread behind the body, its outer edge catching the light. */
-function frontTyre(side: 1 | -1): PathShape[] {
-  const x = side * 3.62;
-  const outer = side * 0.72;
+function tread(x: number, w: number): PathShape[] {
   return [
     fill(
       curve([
-        C(x - 1.05, 0),
-        [x - 1.05, -2.2],
-        [x - 0.85, -3.7],
-        C(x, -4.15),
-        [x + 0.85, -3.7],
-        [x + 1.05, -2.2],
-        C(x + 1.05, 0),
+        C(x - w, 0),
+        [x - w, -2.6],
+        [x - w * 0.62, -4.05],
+        [x + w * 0.62, -4.05],
+        [x + w, -2.6],
+        C(x + w, 0),
       ]),
       'tyre',
       'tyreLine',
       0.14,
     ),
-    fill(
-      poly([
-        [x - 1.05, -0.5],
-        [x + 1.05, -0.5],
-        [x + 1.05, -1],
-        [x - 1.05, -1],
-      ]),
-      'tyreTread',
-    ),
-    fill(
-      poly([
-        [x - 0.95, -2.3],
-        [x + 0.95, -2.3],
-        [x + 0.95, -2.7],
-        [x - 0.95, -2.7],
-      ]),
-      'tyreTread',
-    ),
-    ink(
-      poly(
-        [
-          [x + outer, -3.6],
-          [x + outer * 1.12, -2.4],
-        ],
-        false,
+    ...[-0.65, -1.45].map((y) =>
+      ink(
+        curve(
+          [
+            [x - w * 0.8, y + 0.14],
+            [x, y],
+            [x + w * 0.8, y + 0.14],
+          ],
+          false,
+        ),
+        'tyreTread',
+        0.22,
       ),
-      'tyreShine',
-      0.14,
     ),
   ];
 }
 
-const FRONT_LAMP = (side: 1 | -1): PathShape[] => {
-  const x = side * 3.15;
-  const lamp: Paint = grad(-6.1, -4.6, [
-    [0, 'chromeHi'],
-    [1, 'chromeLo'],
-  ]);
+function faceLamp(x: number, y: number, rx = 0.88, ry = 0.94): PathShape[] {
+  const grid: PathShape[] = [];
+  for (const t of [-0.5, 0, 0.5]) {
+    const e = Math.sqrt(0.74 - t * t);
+    grid.push(
+      ink(
+        poly(
+          [
+            [x + rx * t, y - ry * e],
+            [x + rx * t, y + ry * e],
+          ],
+          false,
+        ),
+        'chrome',
+        0.075,
+      ),
+      ink(
+        poly(
+          [
+            [x - rx * e, y + ry * t],
+            [x + rx * e, y + ry * t],
+          ],
+          false,
+        ),
+        'chrome',
+        0.075,
+      ),
+    );
+  }
   return [
-    fill(circle(x, -5.35, 0.92), 'chrome', 'line', SEAM),
-    fill(circle(x, -5.35, 0.74), lamp, 'line', FINE),
-    fill(ellipse(x - side * 0.16, -5.6, 0.32, 0.2, side * -20), 'shine'),
+    fill(
+      ellipse(x, y, rx, ry),
+      vgrad(y - ry, y + ry, [0, 'chromeHi'], [0.5, 'rim'], [1, 'rimLo']),
+      'line',
+      SEAM,
+    ),
+    ...grid,
+    fill(ellipse(x - rx * 0.26, y - ry * 0.36, rx * 0.24, ry * 0.21, -24), 'glint'),
   ];
-};
+}
 
-const FRONT_MIRROR = (side: 1 | -1): PathShape[] => {
-  const paint: Paint = {
-    type: 'radial',
-    cx: side * 4.55,
-    cy: -7.05,
-    r: 0.62,
-    stops: [
-      { offset: 0, color: 'paintHi' },
-      { offset: 0.6, color: 'paint' },
-      { offset: 1, color: 'paintLo' },
-    ],
-  };
+function grille(x: number, y: number, w: number, lean = 0): PathShape[] {
+  return [0, 0.5, 0.98].map((dy) =>
+    fill(
+      curve([C(x - w, y + dy - lean), [x, y + dy - 0.18], C(x + w, y + dy + lean), [x, y + dy + 0.22]]),
+      vgrad(y + dy - 0.18, y + dy + 0.22, [0, 'line'], [1, 'paintLo']),
+    ),
+  );
+}
+
+function headBumper(x: number, y: number, w: number, lean = 0): PathShape[] {
   return [
+    fill(
+      curve([
+        [x - w, y - lean],
+        [x - w * 0.55, y - 0.47],
+        [x + w * 0.64, y - 0.46],
+        [x + w, y + lean],
+        [x + w * 0.65, y + 0.5],
+        [x, y + 0.62],
+        [x - w * 0.62, y + 0.49],
+      ]),
+      vgrad(y - 0.45, y + 0.6, [0, 'bumperHi'], [0.5, 'bumper'], [1, 'bumperLo']),
+      'bumperLine',
+      0.15,
+    ),
     ink(
-      poly(
+      curve(
         [
-          [side * 4.3, -6.45],
-          [side * 4.62, -6.75],
+          [x - w * 0.89, y - lean - 0.05],
+          [x, y - 0.32],
+          [x + w * 0.82, y + lean - 0.07],
         ],
         false,
       ),
-      'line',
-      0.24,
+      'bumperShine',
+      0.12,
     ),
-    fill(circle(side * 4.68, -6.9, 0.5), paint, 'line', SEAM),
   ];
-};
+}
+
+function rail(points: Node[]): PathShape[] {
+  const d = curve(points, false);
+  return [ink(d, 'rackLine', 0.38), ink(d, 'rack', 0.22)];
+}
 
 function frontShapes(): PathShape[] {
   return [
-    ...frontTyre(-1),
-    ...frontTyre(1),
+    ...tread(-3.57, 1.15),
+    ...tread(3.57, 1.15),
+    fill(curve(FRONT_BODY), frontPaint, 'line', LINE),
     fill(
-      curve(FRONT_SILHOUETTE),
-      grad(-10, -1.8, [
-        [0, 'paintHi'],
-        [0.28, 'paint'],
-        [0.82, 'paint'],
-        [1, 'paintLo'],
+      curve([
+        [-3.89, -6.09],
+        [-4.56, -4.87],
+        [-4.6, -3.62],
+        [-3.24, -3.63],
+        [-2.51, -5.04],
+        [-3.08, -5.95],
       ]),
+      'paintHi',
+    ),
+    fill(
+      curve([
+        [3.89, -6.09],
+        [4.56, -4.87],
+        [4.6, -3.62],
+        [3.24, -3.63],
+        [2.51, -5.04],
+        [3.08, -5.95],
+      ]),
+      'paintHi',
+    ),
+    fill(
+      curve([
+        [-3.25, -6.08],
+        [-3.09, -8.25],
+        [-2.43, -9.52],
+        [0, -9.89],
+        [2.43, -9.52],
+        [3.09, -8.25],
+        [3.25, -6.08],
+        [0, -5.57],
+      ]),
+      frontGlass,
+      'line',
+      SEAM,
+    ),
+    ink(
+      curve(
+        [
+          [-2.97, -5.82],
+          [-1.75, -5.63],
+          [0, -5.57],
+          [1.75, -5.63],
+          [2.97, -5.82],
+        ],
+        false,
+      ),
+      'paintLo',
+      0.14,
+    ),
+    ...rail([
+      [-2.31, -9.89],
+      [-2.18, -10.33],
+      [-1.45, -10.5],
+      [-1.05, -10.24],
+    ]),
+    ...rail([
+      [1.05, -10.24],
+      [1.45, -10.5],
+      [2.18, -10.33],
+      [2.31, -9.89],
+    ]),
+    ...faceLamp(-3.59, -4.76),
+    ...faceLamp(3.59, -4.76),
+    ...grille(0, -4.74, 1.98),
+    ...bumper(0, -5.22, 0.62, 0.21, 0),
+    ...headBumper(0, -3.02, 4.66),
+    ...[-1, 1].flatMap((side) => [
+      ink(
+        poly(
+          [
+            [3.28 * side, -6.56],
+            [3.93 * side, -6.91],
+          ],
+          false,
+        ),
+        'line',
+        0.24,
+      ),
+      fill(
+        circle(4.04 * side, -7.04, 0.58),
+        vgrad(-7.55, -6.44, [0, 'paintHi'], [1, 'paintLo']),
+        'line',
+        SEAM,
+      ),
+      fill(ellipse(4.19 * side, -7.23, 0.16, 0.11, -35), 'shine'),
+    ]),
+  ];
+}
+
+function quarterTyre(x: number, y: number, rx: number, ry: number): PathShape[] {
+  return [
+    fill(ellipse(x, y, rx, ry, -8), 'tyre', 'tyreLine', 0.12),
+    fill(
+      ellipse(x - rx * 0.07, y, rx * 0.65, ry * 0.66, -8),
+      vgrad(y - ry, y + ry, [0, 'rimHi'], [1, 'rimLo']),
+      'rimLo',
+      0.1,
+    ),
+    fill(ellipse(x - rx * 0.11, y + 0.08, rx * 0.29, ry * 0.29, -8), 'hub', 'rimLo', FINE),
+    ink(
+      curve(
+        [
+          [x - rx * 0.72, y - ry * 0.35],
+          [x - rx * 0.57, y - ry * 0.62],
+          [x - rx * 0.29, y - ry * 0.73],
+        ],
+        false,
+      ),
+      'tyreShine',
+      0.1,
+    ),
+  ];
+}
+
+function quarterShapes(): PathShape[] {
+  return [
+    ...tread(4.98, 1.13),
+    ...quarterTyre(-4.68, -1.86, 1.19, 1.78),
+    ...quarterTyre(-0.55, -1.97, 1.37, 1.89),
+    fill(
+      curve([
+        C(-6.58, -2.74),
+        [-7.17, -4.44],
+        [-6.62, -6.55],
+        [-5.11, -8.32],
+        [-3.1, -9.52],
+        [-0.8, -10.0],
+        [1.82, -9.93],
+        [3.43, -9.23],
+        [4.4, -7.53],
+        [5.75, -6.05],
+        [6.9, -4.97],
+        [7.16, -3.52],
+        [6.43, -2.67],
+        [3.35, -1.88],
+        C(1.19, -1.74),
+        [0.78, -3.38],
+        [-0.3, -4.15],
+        [-1.61, -3.72],
+        C(-2.23, -1.87),
+        C(-3.24, -2.0),
+        [-3.47, -3.47],
+        [-4.65, -3.94],
+        [-5.63, -3.34],
+        C(-5.95, -2.32),
+      ]),
+      frontPaint,
       'line',
       LINE,
     ),
     fill(
       curve([
-        [-4.2, -8.9],
-        [-2.4, -9.75],
-        [2.4, -9.75],
-        [4.2, -8.9],
-        [4.05, -9.55],
-        [0, -10.02],
-        [-4.05, -9.55],
+        [-6.12, -6.49],
+        [-5.14, -7.84],
+        [-3.82, -8.85],
+        [-2.26, -9.23],
+        [-2.89, -6.55],
+        [-4.32, -6.29],
       ]),
-      faded('paintHi', 0.55),
-    ),
-    fill(
-      curve([
-        [3.1, -2.6],
-        [4.4, -3.5],
-        [4.62, -5.6],
-        [4.4, -7.4],
-        [4.0, -8.6],
-        [3.5, -8.1],
-        [3.6, -5.6],
-        [3.35, -3.2],
-      ]),
-      faded('paintLo', 0.5),
-    ),
-    fill(
-      curve(FRONT_GLASS),
-      grad(-9.2, -5.4, [
-        [0, 'glassHi'],
-        [0.35, 'glass'],
-        [1, 'glassLo'],
-      ]),
+      frontGlass,
       'line',
       SEAM,
     ),
     ink(
       curve(
         [
-          [-2.2, -8.55],
-          [0, -8.85],
-          [2.2, -8.55],
-        ],
-        false,
-      ),
-      'shine',
-      0.12,
-    ),
-    ink(
-      curve(
-        [
-          [-2.55, -6],
-          [-2.2, -5.72],
-          [2.2, -5.72],
-          [2.55, -6],
-        ],
-        false,
-      ),
-      'glassHi',
-      0.16,
-    ),
-    fill(
-      curve([
-        [-1.62, -4.85],
-        [-1.55, -3.95],
-        [1.55, -3.95],
-        [1.62, -4.85],
-      ]),
-      'well',
-      'line',
-      SEAM,
-    ),
-    ...[0, -1.1, 1.1].map((x) =>
-      ink(
-        poly(
-          [
-            [x, -4.75],
-            [x, -4.05],
-          ],
-          false,
-        ),
-        'chrome',
-        0.14,
-      ),
-    ),
-    fill(
-      curve([
-        [-4.3, -3.5],
-        [-1.9, -3.72],
-        [1.9, -3.72],
-        [4.3, -3.5],
-        [4.24, -2.3],
-        [1.9, -2.14],
-        [-1.9, -2.14],
-        [-4.24, -2.3],
-      ]),
-      grad(-3.6, -2.1, [
-        [0, 'bumperHi'],
-        [0.5, 'bumper'],
-        [1, 'bumperLo'],
-      ]),
-      'bumperLine',
-      0.16,
-    ),
-    ink(
-      curve(
-        [
-          [-3.35, -3.32],
-          [-1.6, -3.46],
-          [1.6, -3.46],
-          [3.35, -3.32],
-        ],
-        false,
-      ),
-      'bumperShine',
-      0.14,
-    ),
-    ...FRONT_LAMP(-1),
-    ...FRONT_LAMP(1),
-    fill(
-      curve([
-        C(-3.3, -10.32),
-        [-3.2, -10.62],
-        [-1, -10.68],
-        [0, -10.62],
-        [1, -10.68],
-        [3.2, -10.62],
-        C(3.3, -10.32),
-      ]),
-      'rack',
-      'rackLine',
-      0.12,
-    ),
-    ink(
-      curve(
-        [
-          [-2.9, -10.52],
-          [0, -10.56],
-          [2.9, -10.52],
+          [-3.77, -8.8],
+          [-4.41, -7.65],
+          [-4.73, -6.55],
         ],
         false,
       ),
       'paintHi',
-      0.1,
+      0.25,
     ),
-    ...FRONT_MIRROR(-1),
-    ...FRONT_MIRROR(1),
+    fill(
+      curve([
+        [-1.38, -8.6],
+        [-0.23, -9.45],
+        [1.7, -9.62],
+        [3.25, -8.85],
+        [4.33, -6.43],
+        [2.27, -5.95],
+        [-0.19, -6.11],
+        [-1.66, -7.18],
+      ]),
+      frontGlass,
+      'line',
+      SEAM,
+    ),
+    ...rail([
+      [-3.98, -9.04],
+      [-3.65, -9.72],
+      [-2.56, -10.22],
+      [-1.67, -10.35],
+      [-1.27, -10.0],
+    ]),
+    ...rail([
+      [0.46, -10.04],
+      [1.18, -10.51],
+      [2.44, -10.18],
+      [2.77, -9.71],
+    ]),
+    ink(
+      curve(
+        [
+          [-1.94, -8.97],
+          [-2.57, -6.41],
+          [-3.0, -4.47],
+          [-2.6, -2.1],
+        ],
+        false,
+      ),
+      'line',
+      SEAM,
+    ),
+    fill(ellipse(-3.62, -4.93, 1.01, 1.24, 12), 'badgeLine'),
+    fill(ellipse(-3.64, -4.95, 0.82, 1.05, 12), 'badge'),
+    fill(
+      poly([
+        [-4.02, -5.17],
+        [-3.5, -5.81],
+        [-3.19, -5.8],
+        [-3.52, -4.16],
+        [-3.92, -4.18],
+        [-3.64, -5.31],
+        [-3.91, -5.06],
+      ]),
+      'digit',
+    ),
+    fill(circle(-1.93, -6.49, 0.57), vgrad(-7.1, -5.9, [0, 'paintHi'], [1, 'paintLo']), 'line', SEAM),
+    ink(
+      curve(
+        [
+          [-1.87, -3.49],
+          [-0.53, -4.39],
+          [0.56, -4.04],
+          [1.1, -3.08],
+        ],
+        false,
+      ),
+      'paintHi',
+      0.39,
+    ),
+    ...faceLamp(1.52, -4.69, 0.85, 0.95),
+    ...faceLamp(6.37, -4.95, 0.47, 0.75),
+    ...grille(4.18, -4.63, 1.47, -0.22),
+    ...bumper(3.76, -5.28, 0.5, 0.17, -9),
+    ...headBumper(4.1, -2.94, 2.95, -0.42),
   ];
 }
 
-/** The eyes head-on: two big lobes side by side on the windscreen, both seen squarely. */
-const FRONT_LEFT: EyeShape = { c: [-1.05, 0.12], rx: 0.95, ry: 1.34, rot: 6 };
-const FRONT_RIGHT: EyeShape = { c: [1.05, 0.12], rx: 0.95, ry: 1.34, rot: -6 };
+const FRONT_LEFT: EyeShape = { c: [-1.21, -0.08], rx: 1.54, ry: 1.99, rot: 12 };
+const FRONT_RIGHT: EyeShape = { c: [1.18, -0.13], rx: 1.54, ry: 1.94, rot: -11 };
+const QUARTER_LEFT: EyeShape = { c: [0.05, -0.05], rx: 1.43, ry: 1.89, rot: 9 };
+const QUARTER_RIGHT: EyeShape = { c: [1.8, -0.13], rx: 1.02, ry: 1.71, rot: -11 };
 
-export function frontEyes(look: Look): PathShape[] {
-  const shapes = [...oneEye(FRONT_LEFT, look, true), ...oneEye(FRONT_RIGHT, look, true)];
+function frontEyes(look: Look, quarter = false): PathShape[] {
+  const [near, far] = quarter ? [QUARTER_LEFT, QUARTER_RIGHT] : [FRONT_LEFT, FRONT_RIGHT];
+  const shapes = [...oneEye(far, look, !quarter), ...oneEye(near, look, true)];
+  const lift = look.lift ?? 0;
   if (look.brows) {
-    shapes.push(fill(brow(-1, -1.72 + (look.lift ?? 0), 1.2, -18 + (look.near ?? 0), 0.36), 'brow'));
-    shapes.push(fill(brow(1, -1.72 + (look.lift ?? 0), 1.2, 18 - (look.far ?? 0), 0.36), 'brow'));
+    shapes.push(fill(brow(near.c[0] - 0.08, -2.26 + lift, 1.48, -19 + (look.near ?? 0), 0.34), 'brow'));
+    shapes.push(
+      fill(brow(far.c[0] + 0.1, -2.21 + lift, quarter ? 0.93 : 1.41, 15 - (look.far ?? 0), 0.32), 'brow'),
+    );
   }
   return shapes;
 }
+
+export const front = toBody(frontShapes());
+export const quarter = toBody(quarterShapes());
+
+export const FRONT_EXPRESSIONS = {
+  frontEyesBack: frontEyes({ ...EXPRESSIONS.eyesBack!, brows: true, iris: 1.33 }),
+  frontEyesFocus: frontEyes({ ...EXPRESSIONS.eyesFocus!, brows: true, iris: 1.32 }),
+  frontEyesAngry: frontEyes({ ...EXPRESSIONS.eyesAngry!, iris: 1.3 }),
+  frontEyesShout: frontEyes({ ...EXPRESSIONS.eyesShout!, iris: 1.36 }),
+  frontEyesSurprised: frontEyes({ ...EXPRESSIONS.eyesSurprised!, iris: 1.36 }),
+  frontEyesClosed: frontEyes({ ...EXPRESSIONS.eyesClosed!, brows: true, lift: -0.12 }),
+  quarterEyesBack: frontEyes({ ...EXPRESSIONS.eyesBack!, brows: true, iris: 1.2 }, true),
+  quarterEyesAngry: frontEyes({ ...EXPRESSIONS.eyesAngry!, iris: 1.23 }, true),
+};
 
 // ---------------------------------------------------------------- effects (fx bone space)
 
@@ -1730,11 +1855,3 @@ export const spring: PathShape[] = (() => {
   pts.push([0, -1]);
   return [ink(poly(pts, false), 'pipeLine', 0.16), ink(poly(pts, false), 'chrome', 0.07)];
 })();
-
-/** Every expression again for the front view, under the same names with a `front` prefix. */
-export const FRONT_EXPRESSIONS: Record<string, PathShape[]> = Object.fromEntries(
-  Object.entries(EXPRESSIONS).map(([name, look]) => [name.replace('eyes', 'frontEyes'), frontEyes(look)]),
-);
-
-/** The front body, shifted onto the body bone like the side `body`. */
-export const front = toBody(frontShapes());

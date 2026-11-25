@@ -80,7 +80,7 @@ export const BLUR = { wheelB: 'wheelBlur', wheelF: 'wheelBlur' };
  * The head-on view in place of the side one, for the frames a turn or a roll swings through the camera: the front
  * body and its own pair of eyes in for the side body and face, everything else about him hidden.
  */
-export function frontView(face: string): Record<string, string | null> {
+export function frontView(face: string, view: 'front' | 'quarter' = 'front'): Record<string, string | null> {
   return {
     body: null,
     door: null,
@@ -94,7 +94,7 @@ export function frontView(face: string): Record<string, string | null> {
     shineB: null,
     shineF: null,
     eyes: null,
-    front: 'front',
+    front: view,
     eyesFront: face,
   };
 }

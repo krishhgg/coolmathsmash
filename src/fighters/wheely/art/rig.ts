@@ -25,6 +25,7 @@ import {
   hoodBay,
   pipe,
   puff,
+  quarter,
   ramp,
   skid,
   speedLines,
@@ -39,15 +40,15 @@ import {
 
 /** The original blinks every few seconds; Flash ran at 35 fps. */
 const BLINK_FPS = 35;
-const blink = (open: string, hold = 110, set = 'eyes') => ({
+const blink = (open: string, hold = 110) => ({
   loop: [
     ...Array<string>(hold).fill(open),
-    set + 'Blink1',
-    set + 'Blink2',
-    set + 'Closed',
-    set + 'Closed',
-    set + 'Blink2',
-    set + 'Blink1',
+    'eyesBlink1',
+    'eyesBlink2',
+    'eyesClosed',
+    'eyesClosed',
+    'eyesBlink2',
+    'eyesBlink1',
   ],
   fps: BLINK_FPS,
 });
@@ -127,9 +128,8 @@ export const rig: Rig = {
     ...Object.fromEntries(Object.entries(EXPRESSIONS).map(([name, look]) => [name, eyes(look)])),
     eyesIdle: blink('eyes'),
     eyesFocusIdle: blink('eyesFocus', 90),
-    frontEyesIdle: blink('frontEyes', 110, 'frontEyes'),
-    frontEyesFocusIdle: blink('frontEyesFocus', 90, 'frontEyes'),
     front,
+    quarter,
     ...FRONT_EXPRESSIONS,
     fxWaves: waves(3),
     fxHonk: waves(4, 0.4),

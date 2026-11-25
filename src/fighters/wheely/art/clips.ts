@@ -314,13 +314,20 @@ export const authored: Record<string, AnimClip> = {
         ease: 'inOut',
         swaps: { ...FOCUS, brake: 'brakeGlow', fx1: 'fxSkid', fx2: 'fxPuff3' },
       }),
-      key(8, mix(tilt(-2, REAR), bob(-0.05), { body: { sx: 0.78 }, eyes: { x: -0.6 } }), {
+      key(8, mix(tilt(-2, REAR), bob(-0.05), { eyes: { x: -0.6 } }), {
         ease: 'in',
         swaps: { ...BACK, fx1: null },
       }),
-      key(9, mix({ body: { sx: 0.62 }, eyes: { x: -0.8 } }), { ease: 'in' }),
-      key(TURN_FLIP - 2, undefined, { ease: 'step', swaps: frontView('frontEyesBack') }),
-      key(TURN_FLIP, mix({ car: { sy: 0.96 } }), { ease: 'out', swaps: frontView('frontEyesBack') }),
+      key(
+        TURN_FLIP - 3,
+        { body: { y: -0.18, rot: -1.4 } },
+        {
+          ease: 'linear',
+          swaps: frontView('quarterEyesBack', 'quarter'),
+        },
+      ),
+      key(TURN_FLIP - 1, { car: { sy: 0.965 } }, { ease: 'step', swaps: frontView('frontEyesBack') }),
+      key(TURN_FLIP, { car: { sy: 0.965 } }, { ease: 'out', swaps: frontView('frontEyesAngry') }),
       key(
         TURN_FLIP + 1,
         mix({
@@ -328,7 +335,10 @@ export const authored: Record<string, AnimClip> = {
           fx1: at(-WHEEL_X - 1.4, -0.9, -0.65, 0, 0.6),
           fx2: at(WHEEL_X + 1.4, -0.9, 0.65, 0, 0.6),
         }),
-        { ease: 'out', swaps: { ...frontView('frontEyesAngry'), fx1: 'fxGravel', fx2: 'fxPuff2' } },
+        {
+          ease: 'out',
+          swaps: { ...frontView('quarterEyesAngry', 'quarter'), fx1: 'fxGravel', fx2: 'fxPuff2' },
+        },
       ),
       key(
         TURN_FLIP + 2,
@@ -463,14 +473,26 @@ export const authored: Record<string, AnimClip> = {
       key(8, mix(tilt(-6, REAR), bob(0.1), spin(roll(12)), { fx1: at(-WHEEL_X - 1, 0, -1.1, 0, 1) }), {
         ease: 'linear',
       }),
-      key(13, mix(bob(0.15), spin(roll(22)), { fx1: at(2.2, 0, 0.8) }), {
-        ease: 'linear',
-        swaps: { ...frontView('frontEyesSurprised'), fx1: 'fxSkid' },
-      }),
-      key(17, mix(bob(0.2), spin(roll(26)), { car: { sy: 0.96 }, fx1: at(2.2, 0, 1.1) }), {
-        ease: 'out',
-        swaps: frontView('frontEyesFocus'),
-      }),
+      key(
+        13,
+        mix(tilt(6, BODY, 0.4, -0.64), squash(0.94), {
+          fx1: at(-3.5, -0.32, -0.95, 0, 0.8),
+        }),
+        {
+          ease: 'linear',
+          swaps: { ...frontView('frontEyesSurprised'), fx1: 'fxGravel' },
+        },
+      ),
+      key(
+        17,
+        mix(tilt(-3, BODY, -0.35, -0.38), squash(0.94), {
+          fx1: at(-4.8, -0.55, -1.15, 0, 0.72),
+        }),
+        {
+          ease: 'out',
+          swaps: { ...frontView('frontEyesFocus'), fx1: 'fxGravel' },
+        },
+      ),
       key(21, mix(squash(0.94), bob(0.15), spin(roll(27)), { fx1: at(2.2, 0, 1.2) }), {
         ease: 'inOut',
         swaps: { ...FOCUS, fx1: 'fxSkid' },
@@ -485,8 +507,11 @@ export const authored: Record<string, AnimClip> = {
     swaps: BACK,
     keys: [
       key(0, PARK, { ease: 'out' }),
-      key(3, mix(SQUAT, tilt(3, FRONT)), { ease: 'in', swaps: BLUR }),
-      key(9, mix(tilt(4, FRONT), bob(0.1), spin(-roll(14))), { ease: 'linear' }),
+      key(3, mix(SQUAT, tilt(3, FRONT)), { ease: 'in', swaps: { ...BACK, ...BLUR, brake: 'brakeGlow' } }),
+      key(9, mix(tilt(8, FRONT), bob(0.15), spin(-roll(14)), { fx1: at(-4.2, -0.45, -0.55, 0, 0.65) }), {
+        ease: 'linear',
+        swaps: { ...BACK, ...BLUR, brake: 'brakeGlow', fx1: 'fxGravel' },
+      }),
       key(18, mix(tilt(2, FRONT), spin(-roll(27)), { fx1: at(-WHEEL_X, 0, -0.8, 0, 1) }), {
         ease: 'out',
         swaps: { brake: 'brakeGlow', fx1: 'fxSkid' },
@@ -507,11 +532,21 @@ export const authored: Record<string, AnimClip> = {
       ...[2, 8, 14, 20].flatMap((f, i) => {
         const side = i % 2 ? -1 : 1;
         const twirl = (sx: number) => mix(AIR, squash(1.04, 0.96), { body: { sx } });
-        const headOn = (sx: number) => mix(AIR, squash(1.02, 0.98), { body: { sx } });
+        const headOn = (sx: number, bank: number) =>
+          mix(AIR, squash(0.91, 0.99), {
+            body: { sx, rot: bank, y: -1.25 },
+            fx3: at(-1.2 * side, -4.25, 7.7, side > 0 ? 145 : -35),
+          });
         return [
           key(f, twirl(side), { ease: 'in' }),
-          key(f + 2, headOn(side), { ease: 'step', swaps: frontView('frontEyesClosed') }),
-          key(f + 3, headOn(-side), { ease: 'out', swaps: frontView('frontEyesClosed') }),
+          key(f + 2, headOn(side, -24 * side), {
+            ease: 'step',
+            swaps: { ...frontView('frontEyesClosed'), fx3: 'fxSwipe' },
+          }),
+          key(f + 3, headOn(-side, -31 * side), {
+            ease: 'out',
+            swaps: { ...frontView('frontEyesClosed'), fx3: 'fxSwipe' },
+          }),
           key(f + 5, twirl(-side), { ease: 'inOut', swaps: CLOSED }),
         ];
       }),
