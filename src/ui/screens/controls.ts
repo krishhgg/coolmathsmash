@@ -12,6 +12,7 @@ import {
   keyLabel,
   menuKeyConflict,
   padButtonLabel,
+  padMenuConflict,
   padButtonLabels,
   resetKeyboard,
   type ControlAction,
@@ -145,7 +146,7 @@ export function controlsScreen(flow: Flow): Screen {
   let notice = '';
   /** Listening for a key or button for `action`; `pads` is which pad buttons were already down when it began. */
   let capture: { action: ControlAction; until: number; pads: boolean[][] } | null = null;
-  /** A pad button just bound: menu input waits for its release, so the same press never also works the menu. */
+  /** A pad button just bound or refused: menu input waits for its release, so the same press never also works the menu. */
   let held: { slot: number; button: number } | null = null;
   let padStatus = '';
 
@@ -476,9 +477,19 @@ export function controlsScreen(flow: Flow): Screen {
       for (const [button, down] of buttons.entries()) {
         if (!down || capture.pads[slot]?.[button]) continue;
         const action = capture.action as ButtonName;
+        held = { slot, button };
+        const conflict = padMenuConflict(settings.gamepad, action, button);
+        if (conflict) {
+          capture = null;
+          notice =
+            conflict === 'confirm'
+              ? `${padButtonLabel(button)} selects in the pause menu, so it cannot be Pause`
+              : `${padButtonLabel(button)} is the only Pause button, so give Pause another button first`;
+          audio.ui('error');
+          return render();
+        }
         const taken = bindButton(settings.gamepad, action, button);
         flow.saveSettings();
-        held = { slot, button };
         return endCapture(
           takenNotice(
             padButtonLabel(button),
