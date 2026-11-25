@@ -1,43 +1,34 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { SCENARIOS, isLabScenario, scenarioConfig } from '../src/harness/scenarios';
 
 /**
- * `.github/workflows/captures.yml` skips PRs that only touch fighter and stage files no capture scenario draws, so
- * every fighter and stage a scenario puts on screen has to be in its path filter.
+ * `.github/workflows/captures.yml` runs the capture suite on every PR that can change what a scenario draws. Fighter
+ * folders are covered by `src/**` as a whole, so a new fighter needs no workflow edit; only stages are listed by name.
  */
 const workflow = readFileSync(new URL('../.github/workflows/captures.yml', import.meta.url), 'utf8');
 const listed = (pattern: string) => workflow.includes(`- '${pattern}'`);
 
-function drawn(): string[] {
-  const folders = new Set<string>();
-  for (const s of SCENARIOS) {
-    if (isLabScenario(s)) {
-      if (s.page.params?.fighter) folders.add(`src/fighters/${s.page.params.fighter}`);
-      if (s.page.params?.stage) folders.add(`src/stages/${s.page.params.stage}`);
-      continue;
-    }
-    const config = scenarioConfig(s);
-    folders.add(`src/stages/${config.stage}`);
-    for (const port of config.ports) folders.add(`src/fighters/${port.fighter}`);
-  }
-  return [...folders].sort();
-}
-
 describe('captures.yml path filter', () => {
-  it('includes the folder of every fighter and stage a capture scenario draws', () => {
-    const folders = drawn();
-    expect(folders.length).toBeGreaterThan(1);
-    for (const folder of folders) {
-      expect(existsSync(new URL(`../${folder}`, import.meta.url)), `${folder} exists`).toBe(true);
-      expect(listed(`${folder}/**`), `add '${folder}/**' to captures.yml's paths`).toBe(true);
+  it('covers every fighter folder generically, naming none and excluding none', () => {
+    for (const line of workflow.split('\n')) {
+      const rule = line.trim();
+      expect(rule, `${rule} lists fighters by name`).not.toMatch(/^-s*'src\/fighters\/[a-z0-9-]+\//);
+      expect(rule, `${rule} excludes fighter changes`).not.toBe("- '!src/fighters/*/**'");
     }
   });
 
-  it("includes every fighter's name and art while a scenario shows the character select", () => {
-    const roster = SCENARIOS.some((s) => isLabScenario(s) && s.page.params?.screen === 'css');
-    expect(roster).toBe(true);
-    for (const pattern of ['src/fighters/*/index.ts', 'src/fighters/*/art/**'])
-      expect(listed(pattern), `add '${pattern}' to captures.yml's paths`).toBe(true);
+  it('includes every stage a capture scenario draws', () => {
+    const stages = new Set<string>();
+    for (const s of SCENARIOS) {
+      if (isLabScenario(s)) {
+        if (s.page.params?.stage) stages.add(s.page.params.stage);
+        continue;
+      }
+      stages.add(scenarioConfig(s).stage);
+    }
+    expect(stages.size).toBeGreaterThan(0);
+    for (const stage of stages)
+      expect(listed(`src/stages/${stage}/**`), `add 'src/stages/${stage}/**'`).toBe(true);
   });
 });
