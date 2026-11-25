@@ -10,7 +10,6 @@ import {
   LOOK_UP,
   OPEN,
   OPEN_B,
-  OPEN_F,
   ROCKET,
   SCARED,
   SHOUT,
@@ -30,6 +29,9 @@ import {
   sole,
   type Pt,
 } from './poses';
+import { LEDGE_ATTACK, LEDGE_CLIMB, LEDGE_JUMP, LEDGE_ROLL } from '../../../sim/constants';
+import { stats } from '../stats';
+import { BRO_ARM } from './parts';
 
 /**
  * The kids' movement, defence, ledge and hurt clips. The big kid carries the launcher in both hands and wades
@@ -39,6 +41,9 @@ import {
 
 // ---------------------------------------------------------------------------------------------------------
 // The brother.
+
+const DEG = 180 / Math.PI;
+const round = (v: number) => Math.round(v * 1000) / 1000;
 
 /** The brother's offsets: lean (degrees, + leans forwards), head tilt, far arm, near arm and leg swing. */
 function bro(lean = 0, head = 0, armB = 0, armF = 0, leg = 0, lift = 0): Pose {
@@ -337,58 +342,104 @@ const DOWN: Pose = (() => {
  * Where the hands hold the ledge (rig space): the ledge's top corner while hanging. It matches the engine's hang
  * position, width / 2 + 0.5 out from the corner and 0.85 x height below it (src/sim/movement.ts hangPos).
  */
-export const LEDGE_GRIP: [number, number] = [5.0, -11.05];
+export const LEDGE_GRIP: [number, number] = [stats.width / 2 + 0.5, -stats.height * 0.85];
 const [GX, GY] = LEDGE_GRIP;
 
-/**
- * How far below the floor the fighter's origin still is `frame` frames into a ledge getup: the engine lifts the
- * origin from the hang position to the floor with a smoothstep that finishes rising at 1/1.6 of `moveEnd`.
- */
-function belowFloor(frame: number, moveEnd: number): number {
-  const t = Math.min(1, frame / moveEnd);
-  return -GY * (1 - Math.min(1, 1.6 * t * t * (3 - 2 * t)));
-}
+const smooth = (u: number) => u * u * (3 - 2 * u);
+
+/** How far past the corner each getup ends: the stance width plus 2 for the climb and attack, a set roll. */
+const CLIMB_TO = stats.width / 2 + 2;
 
 /**
- * Hanging from the corner at (hx, hy): both fists on the lip, the ring pressed against the wall, legs dangling
- * and the launcher swinging on its strap. The brother clings on, looking up past his brother's shoulder.
+ * Where the ledge corner sits in rig space `frame` frames into a climb, roll or attack getup. The engine slides the
+ * origin from the hang position to `distance` past the corner along a smoothstep, rising 1.6 times as fast
+ * (src/sim/actions/ledge.ts getup), so the corner sweeps back and down towards the feet.
  */
-function hang(hx = GX, hy = GY, extra: Pose = {}): Pose {
+function corner(frame: number, moveEnd: number, distance: number): [number, number] {
+  const u = smooth(Math.min(1, frame / moveEnd));
+  return [GX - (GX + distance) * u, GY * (1 - Math.min(1, 1.6 * u))];
+}
+
+/** The corner `frame` frames into a ledge jump, which rises to a unit above the floor over the jump's rise. */
+/**
+ * A pose drawn `clear` above the stage `frame` frames into a getup, while the engine still lifts the origin.
+ */
+function onLip(pose: Pose, frame: number, moveEnd: number, clear = 0.5): Pose {
+  return mix(pose, { root: { y: round(corner(frame, moveEnd, 0)[1] - clear) } });
+}
+
+/** Knees up and launcher raised: springing off the lip. */
+const TUCK = aloft(air({ body: { rot: -6 }, ...BRO_CHEER }, -30, 1));
+
+function jumpCorner(frame: number): [number, number] {
+  const u = smooth(Math.min(1, frame / LEDGE_JUMP.rise));
+  return [GX - (GX + stats.width / 2) * u, GY + (1 - GY) * u];
+}
+
+/** The body's offset from the hands while hanging: chin over the lip, the ring tipped up against the wall. */
+const HANG_AT = { x: 1.2, y: -3.7, rot: 8 };
+
+/**
+ * Hanging from the corner at (hx, hy) with the chin over the lip: both fists on the edge, legs dangling and the
+ * launcher swinging on its strap. The brother clings on, looking up. `lift` raises the body towards the hands
+ * and `swing` turns it, for the pull-ups and the idle sway.
+ */
+function hang(hx = GX, hy = GY, extra: Pose = {}, lift = 0, swing = 0, shift = 0): Pose {
   const pose = mix(
     {
-      body: { x: hx - GX + 2.3, y: hy - GY - 2.7, rot: 14 },
-      neck: { rot: -14 },
+      body: { x: hx - GX + HANG_AT.x + shift, y: hy - GY + HANG_AT.y - lift, rot: HANG_AT.rot + swing },
+      neck: { rot: -6 },
+      ring: { rot: 16 },
       thighF: { rot: -8 },
       shinF: { rot: 14 },
       thighB: { rot: 14 },
       shinB: { rot: 18 },
-      gun: { rot: 70 },
+      gun: { rot: 100, x: -0.8 },
       ...bro(-6, -20, -30, 0, -20),
     },
     extra,
   );
-  return sole(sole(hands(pose, [hx - 0.1, hy + 0.1], [hx - 0.55, hy + 0.2], -1, -1), 'B', 50), 'F', 40);
+  return sole(sole(hands(pose, [hx - 0.1, hy + 0.15], [hx - 0.75, hy + 0.2]), 'B', 50), 'F', 40);
 }
 const HANG = hang();
 
 /** The hang swinging by `rot`, the legs paddling at the wall. */
 function paddle(rot: number, kick: number): Pose {
-  return hang(GX, GY, {
-    body: { x: 2.3, y: -2.7, rot: 14 + rot },
-    thighF: { rot: -8 + kick * 30 },
-    shinF: { rot: 14 + kick * 20 },
-    thighB: { rot: 14 - kick * 30 },
-    shinB: { rot: 18 - kick * 10 },
-    ...bro(-6 - rot, -20 + rot * 2, -30 + kick * 40, 0, -20 - kick * 30),
-  });
+  return hang(
+    GX,
+    GY,
+    {
+      thighF: { rot: -8 + kick * 30 },
+      shinF: { rot: 14 + kick * 20 },
+      thighB: { rot: 14 - kick * 30 },
+      shinB: { rot: 18 - kick * 10 },
+      ...bro(-6 - rot, -20 + rot * 2, -30 + kick * 40, 0, -20 - kick * 30),
+    },
+    0,
+    rot,
+  );
 }
 
-/** Mid pull-up `frame` frames into a getup: the fists stay on the corner, which sinks as the engine lifts them. */
-function pull(frame: number, moveEnd: number, progress: number): Pose {
-  const hy = -belowFloor(frame, moveEnd);
-  return hang(GX - 1.4 * progress, hy, {
-    body: { x: 2.3 - 1.4 * progress - 1.0 * progress, y: -2.7 - 1.2 * progress, rot: 14 + 10 * progress },
-  });
+/**
+ * Pulling up with the fists on the corner at `at`: `lift` raises the body past the hands, `shift` moves it towards
+ * the stage, and `knee` (0 to 1) swings the near knee up over the lip.
+ */
+function pull([cx, cy]: [number, number], lift: number, shift: number, knee: number): Pose {
+  return hang(
+    cx,
+    cy,
+    {
+      thighF: { rot: -8 - 75 * knee },
+      shinF: { rot: 14 + 80 * knee },
+      thighB: { rot: 14 - 50 * knee },
+      shinB: { rot: 18 + 70 * knee },
+      neck: { rot: -6 + 8 * knee },
+      ...BRO_DUCK,
+    },
+    lift,
+    10 * knee,
+    shift,
+  );
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -425,22 +476,36 @@ const HELD: Pose = aloft(
 // ---------------------------------------------------------------------------------------------------------
 // The taunt: the brother hoists the rocket overhead while the big kid pumps the launcher in the air.
 
-/** The rocket held up by the brother: tail at his hands, nose up and back. */
-function rocketUp(pose: Pose, lift: number, tilt: number): Pose {
-  const [x, y] = at(pose, 'broHead', 0, -3.3);
-  return mix(pose, { rocket: { x: x - 0.2, y: y + 1.6 - lift, rot: tilt, sx: 0.62, sy: 0.62 } });
+/** Turns the brother's arms to world angles (degrees; 180 points straight up). */
+function broArms(pose: Pose, far: number, near: number): Pose {
+  const turn = (bone: string, deg: number) => ({
+    rot: round(deg - rotOf(pose, bone) + (pose[bone]?.rot ?? 0)),
+  });
+  return mix(pose, { broArmB: turn('broArmB', far), broArmF: turn('broArmF', near) });
 }
 
-function tauntPose(pump: number, lift: number): Pose {
+/**
+ * The rocket held up behind the brother's head: his far arm raised up and back with the fist round the tail, his
+ * near arm punching the air. The rocket leans `tilt` degrees (negative: nose back).
+ */
+function rocketUp(pose: Pose, tilt: number, wave: number): Pose {
+  const held = broArms(pose, 145 + tilt / 2, 205 + wave);
+  const [hx, hy] = at(held, 'broArmB', 0, BRO_ARM);
+  const S = 0.7;
+  const t = tilt / DEG;
+  const grip = 1.1 * S;
+  return mix(held, {
+    rocket: { x: round(hx - grip * Math.sin(t)), y: round(hy + grip * Math.cos(t)), rot: tilt, sx: S, sy: S },
+  });
+}
+
+/** The taunt: the big kid pumps the launcher skywards while his brother shows off the rocket. */
+function tauntPose(pump: number): Pose {
   const base = stand(
-    {
-      body: { y: -0.1 * pump },
-      neck: { rot: -8 },
-      ...bro(-6, -14, -170 + pump * 6, -150, -20, 0.6 + 0.4 * pump),
-    },
+    { body: { y: -0.15 * pump }, neck: { rot: -8 - 4 * pump }, ...bro(-4, -16, 0, 0, -20, 0.9 + 0.5 * pump) },
     -60 - pump * 20,
   );
-  return rocketUp(base, lift, -14 + pump * 6);
+  return rocketUp(base, -28 + 8 * pump, 12 * pump);
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -707,8 +772,9 @@ export const clips: Record<string, AnimClip> = {
     swaps: GRIT,
     keys: [
       key(0, HANG, { ease: 'linear' }),
-      key(6, pull(6, 30, 0.45), { ease: 'linear' }),
-      key(12, pull(12, 30, 1), { ease: 'out' }),
+      key(6, pull(corner(6, LEDGE_CLIMB.moveEnd, CLIMB_TO), 1, 0, 0.4), { ease: 'linear' }),
+      key(10, pull(corner(10, LEDGE_CLIMB.moveEnd, CLIMB_TO), 3, 1.0, 1), { ease: 'out' }),
+      key(13, onLip(CLIMB, 13, LEDGE_CLIMB.moveEnd), { ease: 'linear' }),
       key(18, CLIMB, { ease: 'out', swaps: BLINK }),
       key(24, CROUCH, { ease: 'inOut', swaps: {} }),
       key(34, STAND),
@@ -719,13 +785,14 @@ export const clips: Record<string, AnimClip> = {
     swaps: GRIT,
     keys: [
       key(0, HANG, { ease: 'linear' }),
-      key(6, pull(6, 40, 0.6), { ease: 'linear' }),
+      key(6, pull(corner(6, LEDGE_ROLL.moveEnd, LEDGE_ROLL.distance), 1, 0, 0.5), { ease: 'linear' }),
       ...spin(
         10,
         34,
         120,
         540,
-        (deg) => mix(ball(deg), { root: { y: -belowFloor(10 + ((deg - 120) * 24) / 420, 40) } }),
+        (deg) =>
+          mix(ball(deg), { root: { y: corner(10 + ((deg - 120) * 24) / 420, LEDGE_ROLL.moveEnd, 0)[1] } }),
         30,
         {
           ...BLINK,
@@ -741,7 +808,9 @@ export const clips: Record<string, AnimClip> = {
     swaps: { ...SHOUT, ...OPEN },
     keys: [
       key(0, HANG, { ease: 'in' }),
-      key(4, pull(4, 6, 0.4), { ease: 'out' }),
+      key(2, pull(jumpCorner(2), 3, 0, 1), { ease: 'out' }),
+      key(3, mix(TUCK, { root: { y: round(jumpCorner(3)[1] - 0.3) } }), { ease: 'out' }),
+      key(5, TUCK, { ease: 'out' }),
       key(8, aloft(RISE), { ease: 'out', swaps: { ...LOOK_UP, broFace: 'broCheer' } }),
       key(20, aloft(mix(RISE, { body: { sy: 1.0 } }))),
     ],
@@ -751,7 +820,8 @@ export const clips: Record<string, AnimClip> = {
     swaps: GRIT,
     keys: shortTurns([
       key(0, HANG, { ease: 'linear' }),
-      key(8, pull(8, 20, 0.6), { ease: 'linear' }),
+      key(4, pull(corner(4, LEDGE_ATTACK.moveEnd, CLIMB_TO), 2.5, 0.6, 0.9), { ease: 'out' }),
+      key(7, onLip(CLIMB, 7, LEDGE_ATTACK.moveEnd), { ease: 'linear' }),
       key(14, CLIMB, { ease: 'out', swaps: GRIT }),
       key(17, stand({ body: { rot: 2, y: 0.7 }, ...bro(0, -4, -80, 0, -4) }, -40, [1.0, 0], [-0.9, 0]), {
         ease: 'linear',
@@ -865,25 +935,25 @@ export const clips: Record<string, AnimClip> = {
     length: 60,
     keys: [
       key(0, STAND, { ease: 'out', swaps: GRIN }),
-      key(8, tauntPose(0, 0), { ease: 'out', swaps: { ...HAPPY, ...ROCKET, ...OPEN_F } }),
-      key(16, tauntPose(1, 0.8), { ease: 'inOut' }),
-      key(24, tauntPose(0, 0)),
-      key(32, tauntPose(1, 0.8)),
-      key(40, tauntPose(0, 0)),
-      key(48, tauntPose(1, 0.6), { ease: 'in' }),
-      key(52, undefined, { swaps: { ...GRIN, ...OPEN_F } }),
+      key(8, tauntPose(0), { ease: 'out', swaps: { ...HAPPY, ...ROCKET } }),
+      key(16, tauntPose(1), { ease: 'inOut' }),
+      key(24, tauntPose(0)),
+      key(32, tauntPose(1)),
+      key(40, tauntPose(0)),
+      key(48, tauntPose(1), { ease: 'in' }),
+      key(52, undefined, { swaps: GRIN }),
       key(60, STAND, { swaps: GRIN }),
     ],
   },
   respawn: {
     length: 60,
-    swaps: { ...HAPPY, ...OPEN_F },
+    swaps: HAPPY,
     keys: [
-      key(0, hands(stand({ ...BRO_CHEER }, 10), null, [-1.2, -11.6], -1, 1), { ease: 'inOut' }),
-      key(10, hands(stand({ ...bro(6, 0, -120, 0, -10, 0.2) }, 10), null, [0.2, -12.0], -1, 1)),
-      key(20, hands(stand({ ...BRO_CHEER }, 10), null, [-1.2, -11.6], -1, 1)),
-      key(30, hands(stand({ ...bro(6, 0, -120, 0, -10, 0.2) }, 10), null, [0.2, -12.0], -1, 1)),
-      key(40, hands(stand({ ...BRO_CHEER }, 10), null, [-1.2, -11.6], -1, 1), { swaps: { ...GRIN } }),
+      key(0, stand({ ...BRO_CHEER }, -40), { ease: 'inOut' }),
+      key(10, stand({ body: { y: 0.3 }, ...bro(6, 0, -120, 0, -10, 0.2) }, -55)),
+      key(20, stand({ ...BRO_CHEER }, -40)),
+      key(30, stand({ body: { y: 0.3 }, ...bro(6, 0, -120, 0, -10, 0.2) }, -55)),
+      key(40, stand({ ...BRO_CHEER }, -40), { swaps: GRIN }),
       key(60, STAND),
     ],
   },

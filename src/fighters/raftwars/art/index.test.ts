@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import { LEDGE_ATTACK, LEDGE_CLIMB, LEDGE_JUMP, LEDGE_ROLL } from '../../../sim/constants';
 import { placeInAir, run, testMatch, until } from '../../../sim/testing/sim';
 import { moves } from '../moves';
 import { stats } from '../stats';
@@ -121,16 +122,7 @@ describe('raft wars art', () => {
       'down',
       'getupStand',
     ];
-    for (const name of [
-      ...planted,
-      'run',
-      'dash',
-      'rollForward',
-      'rollBack',
-      'techRoll',
-      'ledgeClimb',
-      'ledgeAttack',
-    ])
+    for (const name of [...planted, 'run', 'dash', 'rollForward', 'rollBack', 'techRoll'])
       for (let f = 0; f <= art.clips[name]!.length; f++) {
         const [, , , bottom] = poseBounds(art, samplePose(art, name, f, f));
         expect(bottom, `${name}@${f} sinks`).toBeLessThan(0.35);
@@ -141,6 +133,48 @@ describe('raft wars art', () => {
         const [, , , bottom] = poseBounds(art, samplePose(art, name, f, f));
         expect(bottom, `${name}@${f}`).toBeLessThan(0.1);
       }
+  });
+
+  /**
+   * The corner in rig space through each getup, from the kids' size and the engine's getup paths
+   * (src/sim/movement.ts hangPos, src/sim/actions/ledge.ts). They may scrape the lip by about a unit, no more,
+   * and finish standing on the floor.
+   */
+  it('climbs where the engine puts the ledge corner for their size', () => {
+    const smooth = (u: number) => u * u * (3 - 2 * u);
+    const [hx, hy] = [stats.width / 2 + 0.5, -stats.height * 0.85];
+    expect(art.ledgeGrip).toEqual([hx, hy]);
+    const getup = (moveEnd: number, dist: number) => (f: number) => {
+      const u = smooth(Math.min(1, f / moveEnd));
+      return [hx - (hx + dist) * u, hy * (1 - Math.min(1, 1.6 * u))] as const;
+    };
+    const rise = (f: number) => {
+      const u = smooth(Math.min(1, f / LEDGE_JUMP.rise));
+      return [hx - (hx + stats.width / 2) * u, hy + (1 - hy) * u] as const;
+    };
+    const clips: [string, number, (f: number) => readonly [number, number]][] = [
+      ['ledgeClimb', LEDGE_CLIMB.moveEnd, getup(LEDGE_CLIMB.moveEnd, stats.width / 2 + 2)],
+      ['ledgeAttack', LEDGE_ATTACK.moveEnd, getup(LEDGE_ATTACK.moveEnd, stats.width / 2 + 2)],
+      ['ledgeRoll', LEDGE_ROLL.moveEnd, getup(LEDGE_ROLL.moveEnd, LEDGE_ROLL.distance)],
+      ['ledgeJump', LEDGE_JUMP.rise, rise],
+    ];
+    const inside: string[] = [];
+    const floating: string[] = [];
+    for (const [name, end, corner] of clips) {
+      for (let f = 0; f <= end; f++) {
+        const [cx, cy] = corner(f);
+        const pose = samplePose(art, name, f, f);
+        const block: [number, number][] = [];
+        for (let d = 0; d < 10; d += 0.5)
+          block.push([cx + 1.2 + d, cy + 1.2], [cx + 1.2 + d, cy + 3], [cx + 1.2, cy + 1.2 + d]);
+        if (block.some(([x, y]) => slotsCovering(art, pose, x, y).length)) inside.push(`${name}@${f}`);
+      }
+      const bottom = poseBounds(art, samplePose(art, name, end, end))[3];
+      if (name !== 'ledgeJump' && Math.abs(bottom - corner(end)[1]) > 0.3)
+        floating.push(`${name} ${bottom.toFixed(2)}`);
+    }
+    expect(inside).toEqual([]);
+    expect(floating).toEqual([]);
   });
 
   it('holds the ledge on its grip while hanging', () => {
