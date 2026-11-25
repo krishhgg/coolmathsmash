@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { neutralInput } from '../input/types';
+import { INFINITE_STOCKS } from '../sim/constants';
 import type { SimEvent } from '../sim/events';
-import { createMatch } from '../sim/match';
+import { createMatch, stepMatch } from '../sim/match';
 import { COUNTDOWN_FRAMES, MatchSession, countdownLabel, formatClock } from './match';
 import { defaultSetup, pickFighter, resolveMatch } from './setup';
 
@@ -19,8 +20,9 @@ const hit: SimEvent = {
   y: 0,
 };
 
-function start() {
+function start(stocks = 3) {
   const setup = defaultSetup();
+  setup.rules.stocks = stocks;
   pickFighter(setup, 0, 'fireboy');
   const match = resolveMatch(setup, 42, false);
   return { match, state: createMatch(match.config), session: new MatchSession(match, setup.rules) };
@@ -96,5 +98,55 @@ describe('match session', () => {
     expect(session.timeLeft(state)).toBe(0);
     expect(session.result?.reason).toBe('time');
     expect(session.result?.players.map((p) => p.place)).toEqual([2, 1]);
+  });
+
+  it('keeps an Infinite stock match going past 99 falls until the clock runs out', () => {
+    const { state, session } = start(INFINITE_STOCKS);
+    const idle = [neutralInput(), neutralInput()];
+    const step = () => (stepMatch(state, idle), session.observe(state));
+    while (state.frame < COUNTDOWN_FRAMES) step();
+    for (let fall = 1; fall <= 120; fall++) {
+      Object.assign(state.fighters[1]!, { ground: null, action: 'fall', pos: { x: 30, y: -300 } });
+      for (let i = 0; i < 200 && state.fighters[1]!.action !== 'respawn'; i++) step();
+      expect(state.fighters[1]!.action).toBe('respawn');
+    }
+    expect(session.phase).toBe('play');
+    expect(state.fighters[1]!.stocks).toBe(INFINITE_STOCKS);
+
+    state.frame = COUNTDOWN_FRAMES + 7 * 60 * 60 - 1;
+    step();
+    expect(session.result).toMatchObject({
+      reason: 'time',
+      players: [{ place: 1 }, { place: 2, stocks: INFINITE_STOCKS, stats: { falls: 120, sds: 120 } }],
+    });
+  });
+
+  it('ranks a timed-out Infinite stock match by KOs minus falls, then damage (Ultimate Time battle)', () => {
+    const { state, session } = start(INFINITE_STOCKS);
+    const ko = (port: number): SimEvent => ({
+      type: 'ko',
+      port,
+      stocks: INFINITE_STOCKS,
+      side: 'bottom',
+      x: 0,
+      y: 0,
+    });
+    state.frame = COUNTDOWN_FRAMES + 10;
+    // P1: 2 KOs and 3 self-destructs, score -1. P2: 2 falls, score -2, but fewer falls and less damage.
+    for (const events of [[hit, ko(1)], [hit, ko(1)], [ko(0)], [ko(0)], [ko(0)]]) {
+      state.events = events;
+      session.observe(state);
+      state.frame++;
+    }
+    state.fighters[0]!.damage = 80;
+    state.fighters[1]!.damage = 30;
+    state.frame = COUNTDOWN_FRAMES + 7 * 60 * 60;
+    state.events = [];
+    session.observe(state);
+    expect(session.result?.reason).toBe('time');
+    expect(session.result?.players.map((p) => [p.place, p.stats.kos, p.stats.falls])).toEqual([
+      [1, 2, 3],
+      [2, 0, 2],
+    ]);
   });
 });

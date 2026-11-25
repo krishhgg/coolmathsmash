@@ -69,6 +69,11 @@ end to `FAF - 1`. Check the in-match result as well as the lab: the lab samples 
 frames directly. Fireboy's `art/index.test.ts` uses the same retiming as the renderer and checks that a
 drawn part reaches into every hitbox's inner half on its active frames.
 
+A tether move keeps its clip through the reel. `tetherPull` plays the move's clip on from the frame the line
+anchored, and `tetherHang` holds the frame the reel arrived on. Set `AnimClip.reel` to the clip frame a long reel
+should hold on (Fluffy's `upB` holds on 24, while the line still reaches well up), after the latest frame
+the line can anchor. Without it the clip plays on to its end.
+
 ## Pose checklist
 
 Check each row at match scale, facing both ways. In the fighter lab, inspect the start, strongest silhouette
