@@ -36,10 +36,10 @@ export const boxDropClips: Record<string, AnimClip> = {
       key(impact - 1, { fx1: { sy: 0.88 } }, { swaps: transform }),
       key(
         impact,
-        { fx1: { sy: 1.06 }, fx2: { y: -4, sx: 8, sy: 4.5, rot: 90 } },
-        { swaps: { ...transform, fx2: 'streak' } },
+        { fx1: { sy: 1.06 }, fx3: { y: -9.4, sx: 8, sy: 4.5, rot: 90 } },
+        { swaps: { ...transform, fxBack: 'streak' } },
       ),
-      key(airEnd + 2, { fx1: { sy: 1.02 }, fx2: { y: -4, sx: 12, sy: 3.9, rot: 90 } }),
+      key(airEnd + 2, { fx1: { sy: 1.02 }, fx3: { y: -9.4, sx: 12, sy: 3.9, rot: 90 } }),
       key(airEnd + 7, {}, { swaps: transform }),
       key(aerialFaf - 1, {}),
     ],

@@ -171,6 +171,7 @@ function hang(hx: number, hy: number, drop: number, extra: Pose = {}): Pose {
       rot: 8,
       raw: {
         ...HIGH_SHOULDERS,
+        face: { x: -1.8, y: 0.1 },
         thighB: { rot: -12 },
         shinB: { rot: 16 },
         thighF: { rot: 6 },

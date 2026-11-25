@@ -259,12 +259,12 @@ const DIVE = hitting(
 /** Running Dropkick: both feet forward, her body laid out behind them. */
 const DROPKICK = hitting(
   P({
-    x: 1.6,
+    x: 2.5,
     y: -0.6,
     rot: -78,
     raw: {
-      thighB: { rot: -4, sy: 1.2 },
-      shinB: { rot: 2, sy: 1.15 },
+      thighB: { rot: -4, sy: 1.45 },
+      shinB: { rot: 2, sy: 1.28 },
       thighF: { rot: 4, sy: 1.2 },
       shinF: { rot: 2, sy: 1.15 },
       armB: { rot: 60 },
@@ -272,7 +272,7 @@ const DROPKICK = hitting(
     },
     ant: [10, 10],
   }),
-  ['shinB', [11, -6], 2.4],
+  ['shinB', [12.5, -6], 2.4],
   ['shinF', [6, -6], 1.5],
 );
 const DROPKICK_LATE = hitting(mix(DROPKICK, { body: { rot: -70, y: 0 } }), ['shinB', [10, -5], 2.0]);
@@ -451,7 +451,7 @@ const SLAP = P({
     [2.6, 0],
     [-2.4, 0],
   ],
-  raw: { ...LONG_F, armF: { x: 4.8, y: -0.8, sy: 1.5 } },
+  raw: { ...LONG_F, armF: { x: 4.8, y: -0.8, sy: 1.5 }, face: { x: -1, y: -0.65 } },
   arms: [
     [5.6, -1.4],
     [6.0, -0.4],
