@@ -1,4 +1,5 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import { FORE_ARM, UPPER_ARM } from './parts';
 import {
@@ -758,22 +759,22 @@ export const clips: Record<string, AnimClip> = {
     ],
   },
   spotDodge: {
-    length: 27,
+    length: 25,
     swaps: BLINK,
     keys: [
       key(0, READY, { ease: 'out' }),
       key(3, mix(TUCK, { body: { y: BALL_Y + 0.3, sy: 0.86, sx: 1.08 } })),
       key(20, mix(TUCK, { body: { y: BALL_Y + 0.3, sy: 0.86, sx: 1.08 } })),
-      key(27, READY, { swaps: FACE }),
+      key(25, READY, { swaps: FACE }),
     ],
   },
   rollForward: {
-    length: 31,
-    keys: [key(0, READY, { ease: 'out' }), ...roll(4, 24, 1), key(31, READY)],
+    length: 29,
+    keys: [key(0, READY, { ease: 'out' }), ...roll(4, 24, 1), key(29, READY)],
   },
   rollBack: {
-    length: 31,
-    keys: [key(0, READY, { ease: 'out' }), ...roll(4, 24, -1), key(31, READY)],
+    length: 34,
+    keys: [key(0, READY, { ease: 'out' }), ...roll(4, 24, -1), key(34, READY)],
   },
   airDodge: {
     length: 49,
@@ -861,7 +862,7 @@ export const clips: Record<string, AnimClip> = {
     keys: [key(0, DOWN), key(30, mix(DOWN, { body: { sx: 1.03, sy: 0.97 } }))],
   },
   getupStand: {
-    length: 30,
+    length: 29,
     swaps: ANGRY,
     keys: [
       key(0, DOWN),
@@ -883,7 +884,7 @@ export const clips: Record<string, AnimClip> = {
         }),
       ),
       key(16, CROUCH, { swaps: FACE }),
-      key(30, STAND),
+      key(29, STAND),
     ],
   },
   techInPlace: {
@@ -1080,6 +1081,12 @@ export const clips: Record<string, AnimClip> = {
     ],
   },
 };
+
+/** The tech roll on the getup roll's timeline: the sim's travel ends on frame 28 instead of 30, and 35 frames in all. */
+clips.getupRoll = retimeClip(clips.techRoll!, 35, [
+  [4, 4],
+  [30, 28],
+]);
 
 export { BALL_Y, GX, GY, SHIELD, belowFloor, roll, runCycle, strideAt };
 export const swapsFor = { SHOUT, AWAY, turn };
