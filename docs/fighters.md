@@ -99,6 +99,9 @@ fsmash: {
 - **Knockback.** `damage`, `angle` (degrees from the attacker's facing; 361 is the Sakurai angle), `kbg`
   and `bkb` follow Ultimate's frame data exactly. Optional fields: `wbkb` (set knockback), `hitlag` (a
   multiplier), `shieldDamage` (extra) and `effect` (`'electric'` gives 1.5x hitlag).
+- **Windboxes.** `pushOnly: true` applies knockback without damage, hitlag, hitstun or interruption. It pushes
+  grounded targets horizontally without lifting them, and shields ignore it. Use `damage: 0`; windbox
+  projectiles can be reflected or absorbed as usual, but heal nothing on absorption.
 - **Direction.** A hit launches along the attacker's facing unless its box sets `direction`: `'back'` for boxes
   behind him (back aerials, the rear hit of a down smash) and `'away'` for boxes around his body (spins, up
   attacks), which send the target away from his centre.
