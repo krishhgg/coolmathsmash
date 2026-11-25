@@ -61,7 +61,7 @@ side walls and slopes follow the hull, and the outline stroke is drawn on the hu
 collision shape. Drop-through platforms are thin (about 2 units) with the walkable surface exactly at their y;
 small ornaments may hang below them. Decorations that stick out (vines) should be thin and obviously
 non-solid. A shallow, muted rear plane (about 1.3 units) above the main deck's front edge is fine as a depth cue;
-the crisp front edge stays the walkable surface. Check alignment in the lab: `/lab.html?scene=stage&collision=1` overlays the hull (magenta), platform
+the crisp front edge stays the walkable surface. Check alignment in the lab: `/lab.html?scene=stage&stage=<id>&collision=1` overlays the hull (magenta), platform
 surfaces (cyan), ledge points (yellow dots), camera bounds (yellow) and blast zones (red).
 
 ## Readability
@@ -90,8 +90,8 @@ variety comes from `hash01(n)` (a fixed integer hash). Build Graphics once and o
    shared file changes; a stage without a view is drawn as flat collision shapes.
 2. Put art in `src/stages/<slug>/art/`: a palette, the playfield (world units) and background layers (screen
    pixels at the reference camera plus a depth). Reuse `parallax.ts` and `util.ts` from Battlefield.
-3. Copy `src/lab/scenes/stage.ts` (or parameterise it) to view the stage at any camera
-   (`?scene=stage&x=0&y=20&zoom=4.5&frame=0`, api `camera(x, y, zoom)`, `frame(n)`, `collision(on)`) and check
+3. Use the stage lab scene to view a registered stage at any camera
+   (`?scene=stage&stage=<id>&x=0&y=20&zoom=4.5&frame=0`, api `camera(x, y, zoom)`, `frame(n)`, `collision(on)`) and check
    alignment with `&collision=1`.
 4. Add a coverage test like `parallax.test.ts` and pin the geometry numbers the art uses.
 5. Capture the stage at the default camera and zoomed in on a platform for the PR and the judge panel.
