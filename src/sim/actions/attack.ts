@@ -47,7 +47,8 @@ export function startMove(x: Ctx, requested: string, action?: string): boolean {
   const move = x.def.moves?.[name];
   if (!move) return false;
   if (x.f.ground && move.leavesGround) leaveGround(x);
-  if (move.helpless) x.f.fastFalling = false;
+  // Recoveries own their vertical motion: a fast fall carried into one would snap back once it ends.
+  if (move.helpless || move.action === 'hover') x.f.fastFalling = false;
   setAction(x, action ?? move.action ?? (x.f.ground ? 'attack' : 'aerial'));
   x.f.move = name;
   emit(x.m, { type: 'move', port: x.f.port, move: name });

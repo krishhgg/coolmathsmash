@@ -267,6 +267,24 @@ describe('fuel hover (Snail Bob: 120 frames of fuel, refills on the ground)', ()
     expect(f.action).toBe('doubleJump');
   });
 
+  it('a hover out of a fast fall rises, and letting go keeps rising instead of fast falling again', () => {
+    const m = testMatch({ fighter: testHover.id });
+    const f = placeInAir(m, 0, 150);
+    run(m, 1);
+    run(m, 1, { y: -100 });
+    expect(f.fastFalling).toBe(true);
+    run(m, 1, UP_B);
+    expect(f.action).toBe('hover');
+    expect(f.fastFalling).toBe(false);
+    run(m, 46, { buttons: ['special'] });
+    const vy = f.vel.y;
+    expect(vy).toBeGreaterThan(0);
+    run(m, 1);
+    expect(f.action).toBe('fall');
+    expect(f.fastFalling).toBe(false);
+    expect(f.vel.y).toBeGreaterThan(vy - 3 * testHover.stats.gravity);
+  });
+
   it('letting go keeps the fuel that is left for the next use', () => {
     const m = testMatch({ fighter: testHover.id });
     const f = m.fighters[0]!;
