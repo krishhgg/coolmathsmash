@@ -160,7 +160,7 @@ export const SPECIALS: Record<string, AnimClip> = {
   },
   /**
    * Quick Grapple: fires the grabber straight up on 8 and zips up the line after it. A long reel holds on 24, the
-   * last frame the line still reaches well above him, until he arrives.
+   * last frame the line still reaches well up, until the reel arrives.
    */
   upB: {
     length: 40,
