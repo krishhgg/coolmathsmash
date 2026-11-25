@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
+import { flattenPath, poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
 import { moves } from '../moves';
@@ -152,5 +152,24 @@ describe('snail bob art', () => {
     expect(art.icon.length).toBeGreaterThan(1000);
     expect(art.ledgeGrip![0]).toBeCloseTo(stats.width / 2 + 0.5);
     expect(art.ledgeGrip![1]).toBeCloseTo(-stats.height * 0.85);
+  });
+
+  it('draws the icon in viewBox coordinates, centred, with no transform for the HUD to drop', () => {
+    expect(art.icon).not.toContain('transform');
+    const [vx, vy, size] = /viewBox="([^"]+)"/.exec(art.icon)![1]!.split(' ').map(Number) as [
+      number,
+      number,
+      number,
+    ];
+    const points = [...art.icon.matchAll(/ d="([^"]+)"/g)].flatMap((m) => flattenPath(m[1]!).flat());
+    const xs = points.filter((_, i) => i % 2 === 0);
+    const ys = points.filter((_, i) => i % 2 === 1);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    expect(x0).toBeGreaterThan(vx);
+    expect(y0).toBeGreaterThan(vy);
+    expect(x1).toBeLessThan(vx + size);
+    expect(y1).toBeLessThan(vy + size);
+    expect(Math.abs((x0 + x1) / 2 - (vx + size / 2))).toBeLessThan(size * 0.02);
+    expect(Math.abs((y0 + y1) / 2 - (vy + size / 2))).toBeLessThan(size * 0.02);
   });
 });
