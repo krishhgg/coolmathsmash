@@ -6,7 +6,7 @@ import { createMatch, type MatchState } from '../../sim/match';
 import { koPercent, type KoHit } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
-import { CRATE_FRAMES } from './entities';
+import { CRATE_FRAMES, CRATE_RADIUS } from './entities';
 import { DAIR_PLUNGE_FROM, SPIN_ROLL, moves } from './moves';
 import { stats } from './stats';
 
@@ -447,6 +447,21 @@ describe('Snail Bob: Shell Spin (side special)', () => {
 
 describe('Snail Bob: Crate Drop (neutral special)', () => {
   const crates = (m: MatchState, kind: string) => m.entities.filter((e) => e.kind === `snailbob/${kind}`);
+
+  it('keeps the crate on the elevator when it lands mid-ascent', () => {
+    const m = testMatch({ fighter: 'snailbob', stage: 'testbed' });
+    run(m, 90);
+    placeInAir(m, 110, 14);
+    run(m, 1, { buttons: ['special'] });
+    until(m, () => crates(m, 'crate').length > 0, {}, 75);
+    const [crate] = crates(m, 'crate');
+    expect(m.stage.solids[1]!.dy).toBeGreaterThan(0);
+    for (let i = 0; i < 10; i++) {
+      expect(crate!.pos.y).toBeCloseTo(m.stage.solids[1]!.y + CRATE_RADIUS, 6);
+      expect(crate!.grounded).toBe(true);
+      run(m, 1);
+    }
+  });
 
   it('drops a crate that lands about 20 units ahead around frame 30 and rests there for 4 s', () => {
     const m = snail();

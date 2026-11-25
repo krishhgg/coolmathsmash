@@ -1,14 +1,16 @@
-import { destroyEntity, spawnEntity } from '../../sim/entities/entities';
+import { destroyEntity } from '../../sim/entities/entities';
 import type { EntityDef } from '../../sim/entities/types';
 
 /** Half the crate's side: its body circle on the stage and its hurt circle. */
 export const CRATE_RADIUS = 5;
 /** Crate Drop: the crate stays on the stage this long after it lands (roster: 4 s). */
 export const CRATE_FRAMES = 240;
+const CRATE_HP = 12;
+const crateBody = { radius: CRATE_RADIUS, gravity: 0.2, maxFall: 3.5, floor: 'land', wall: 'stop' } as const;
 
 /**
  * Crate Drop's construction crate. `crateFall` replaces Bob's previous crate on spawn, hits whoever it lands
- * on, and becomes a resting `crate` on touchdown.
+ * on, and becomes a resting `crate` in place so it keeps riding the surface it landed on.
  */
 export const entities: Record<string, EntityDef> = {
   /**
@@ -16,11 +18,7 @@ export const entities: Record<string, EntityDef> = {
    * airborne targets at 58°). Too heavy to swat, reflect or absorb, and it keeps falling through whoever it hits.
    */
   crateFall: {
-    radius: CRATE_RADIUS,
-    gravity: 0.2,
-    maxFall: 3.5,
-    floor: 'land',
-    wall: 'stop',
+    ...crateBody,
     pierce: true,
     transcendent: true,
     reflectable: false,
@@ -39,18 +37,15 @@ export const entities: Record<string, EntityDef> = {
         if (old) destroyEntity(m, old, 'script');
       }
       if (!e.grounded) return;
-      spawnEntity(m, { kind: 'snailbob/crate', owner: e.owner, pos: e.pos, facing: e.facing, move: e.move });
-      destroyEntity(m, e, 'script');
+      e.kind = 'snailbob/crate';
+      e.hp = CRATE_HP;
+      e.lifetime = e.age + CRATE_FRAMES - 1;
     },
   },
   /** The crate at rest: Steve's wood Create Block, 12 HP; hits wear it down without moving it, and it breaks at 0. */
   crate: {
-    radius: CRATE_RADIUS,
+    ...crateBody,
     lifetime: CRATE_FRAMES,
-    hp: 12,
-    gravity: 0.2,
-    maxFall: 3.5,
-    floor: 'land',
-    wall: 'stop',
+    hp: CRATE_HP,
   },
 };
