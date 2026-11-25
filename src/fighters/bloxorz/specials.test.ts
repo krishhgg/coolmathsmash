@@ -3,7 +3,7 @@ import type { FighterState } from '../../sim/fighter';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until } from '../../sim/testing/sim';
 import { moves } from './moves';
-import { QUAKE_FRAME, QUAKE_REACH, ROLL_START, ROLL_TIP, ROLL_TIPS } from './specials';
+import { BRIDGE_FRAME, FLIGHT_END, QUAKE_FRAME, QUAKE_REACH, ROLL_START, ROLL_TIP, ROLL_TIPS } from './specials';
 import { TIP_DISTANCE, TIP_SHAKE } from './tip';
 
 /** The block (P1) facing right at x = -40 and a second fighter `offset` units to its right, both standing. */
@@ -152,5 +152,86 @@ describe('Bloxorz block: Heavy Switch (down special)', () => {
     expect(f.ground).not.toBeNull();
     expect(shake).toBeGreaterThan(TIP_SHAKE.amplitude);
     expect(frames).toBeLessThan(30);
+  });
+});
+
+describe('Bloxorz block: Switch Bridge (up special)', () => {
+  const upB = moves.upB!;
+
+  it("comes out of the up special input with Ridley's up Wing Blitz frame data", () => {
+    const m = testMatch({ fighter: 'bloxorz' });
+    const f = m.fighters[0]!;
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    expect(upB.hits.map((w) => w.frames)).toEqual([[BRIDGE_FRAME, FLIGHT_END]]);
+    expect([BRIDGE_FRAME, FLIGHT_END, upB.faf, upB.ledgeFrom, upB.landingLag]).toEqual([34, 57, 63, 35, 32]);
+    for (const b of upB.hits[0]!.boxes)
+      expect([b.damage, b.angle, b.kbg, b.bkb, b.direction]).toEqual([18, 64, 46, 85, 'away']);
+  });
+
+  it('sits on the switch until the bridge flips, then flies straight up and falls helpless', () => {
+    const m = testMatch({ fighter: 'bloxorz' });
+    const f = m.fighters[0]!;
+    const start = { ...f.pos };
+    run(m, 1, { y: 100, buttons: ['special'] });
+    run(m, BRIDGE_FRAME - 2);
+    expect(f.actionFrame).toBe(BRIDGE_FRAME - 1);
+    expect(f.ground).not.toBeNull();
+    expect(f.pos).toEqual(start);
+    let top = f.pos.y;
+    run(m, 1);
+    expect(f.ground).toBeNull();
+    for (let i = 0; i < 60 && f.vel.y > 0; i++) {
+      run(m, 1);
+      top = Math.max(top, f.pos.y);
+    }
+    expect(top - start.y).toBeGreaterThan(65);
+    expect(top - start.y).toBeLessThan(90);
+    expect(f.pos.x).toBeCloseTo(start.x, 6);
+    until(m, (g) => g.move !== 'upB');
+    expect(f.action).toBe('helpless');
+  });
+
+  it('stalls in the air while the switch is pressed', () => {
+    const m = testMatch({ fighter: 'bloxorz' });
+    const f = placeInAir(m, 0, 100);
+    f.vel.y = -1.5;
+    run(m, 1, { y: 100, buttons: ['special'] });
+    run(m, BRIDGE_FRAME - 2);
+    expect(f.move).toBe('upB');
+    expect(f.pos.y).toBeGreaterThan(95);
+  });
+
+  it(`hits an opponent beside it for 18% from frame ${BRIDGE_FRAME}`, () => {
+    const { m, a, v } = versus(9);
+    runPorts(m, 1, [{ y: 100, buttons: ['special'] }, {}]);
+    expect(a.move).toBe('upB');
+    let frame = 0;
+    for (let i = 0; i < 60 && !frame; i++) {
+      runPorts(m, 1, [{}, {}]);
+      if (v.damage > 0) frame = a.actionFrame;
+    }
+    expect(frame).toBe(BRIDGE_FRAME);
+    expect(v.damage).toBeCloseTo(18 * 1.05 * 1.2, 6);
+  });
+
+  it('a lying block stands on end for it', () => {
+    const m = testMatch({ fighter: 'bloxorz' });
+    const f = m.fighters[0]!;
+    run(m, 12, { y: -100 });
+    expect(f.fighter).toBe('bloxorz-lying');
+    attack(m, 0, 'upB');
+    run(m, 10);
+    expect(f.fighter).toBe('bloxorz');
+  });
+
+  it('recovers to the ledge from 60 units below it, with no jump left', () => {
+    const m = testMatch({ fighter: 'bloxorz' });
+    const f = placeInAir(m, 88, -60, -1);
+    f.jumpsUsed = 2;
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    until(m, (g) => g.action.startsWith('ledge') || g.pos.y < -120);
+    expect(['ledgeCatch', 'ledgeHang']).toContain(f.action);
   });
 });
