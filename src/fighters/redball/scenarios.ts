@@ -4,7 +4,8 @@ const RB = 'characters/red-ball';
 
 /**
  * Red Ball's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus his four jumps and the Cube Squash bounce. References live in the Captain drive's refs/.
+ * Fireboy, plus his four jumps, the Cube Squash bounce, a full Charge Roll and lab sheets of every move on its
+ * first active frame (zoom 10 keeps the lunges inside their cells). References live in the Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'redball',
@@ -70,22 +71,27 @@ export const scenarios: FighterScenarios = {
     {
       name: 'redball-sheet-ground',
       description:
-        "Red Ball's ground attacks on their active frames: jab chain, tilts, dash attack, smashes, getup attack.",
-      page: { kind: 'lab', scene: 'fighter', params: { fighter: 'redball' } },
+        'Red Ball idle, rolling, jumping and hanging from the ledge, then every ground attack on its first active frame.',
+      page: { kind: 'lab', scene: 'fighter', params: { fighter: 'redball', zoom: '10' } },
       calls: [
         {
           fn: 'sheet',
           args: [
             [
+              'idle@0',
+              'run@6',
+              'jump@4',
+              'ledgeHang@0',
               'jab@3',
-              'jab3@5',
-              'ftilt@7',
-              'utilt@7',
-              'dtilt@6',
-              'dashAttack@8',
-              'fsmash@16',
-              'usmash@12',
-              'dsmash@10',
+              'jab2@3',
+              'jab3@4',
+              'ftilt@6',
+              'utilt@5',
+              'dtilt@5',
+              'dashAttack@6',
+              'fsmash@15',
+              'usmash@11',
+              'dsmash@9',
               'getupAttack@17',
             ],
           ],
@@ -100,23 +106,29 @@ export const scenarios: FighterScenarios = {
     },
     {
       name: 'redball-sheet-air',
-      description: "Red Ball's aerials, tongue grabs, pummel and throws on their key frames.",
-      page: { kind: 'lab', scene: 'fighter', params: { fighter: 'redball' } },
+      description:
+        "Red Ball's aerials, grabs, Charge Roll and Mega Bounce on their first active frames, and the pummel and throws on their impact frames.",
+      page: { kind: 'lab', scene: 'fighter', params: { fighter: 'redball', zoom: '10' } },
       calls: [
         {
           fn: 'sheet',
           args: [
             [
-              'nair@6',
-              'fair@9',
-              'bair@8',
-              'uair@6',
-              'dair@14',
+              'nair@4',
+              'fair@8',
+              'bair@7',
+              'uair@5',
+              'dair@12',
               'grab@10',
-              'pummel@2',
+              'dashGrab@12',
+              'pivotGrab@13',
+              'pummel@1',
               'fthrow@12',
+              'bthrow@24',
               'uthrow@18',
               'dthrow@20',
+              'chargeRoll1@2',
+              'upB@8',
             ],
           ],
         },
@@ -131,7 +143,7 @@ export const scenarios: FighterScenarios = {
     {
       name: 'redball-sheet-specials',
       description:
-        "Red Ball's Charge Roll rev and rolls, Mega Bounce, air jump, taunt, helpless and ledge catch.",
+        "Red Ball's Charge Roll rev and faster rolls, Mega Bounce, air jump, dodge roll, taunt, helpless, ledge catch and grab release.",
       page: { kind: 'lab', scene: 'fighter', params: { fighter: 'redball' } },
       calls: [
         {
@@ -139,15 +151,15 @@ export const scenarios: FighterScenarios = {
           args: [
             [
               'neutralB@40',
-              'chargeRoll1@10',
+              'chargeRoll2@2',
               'chargeRoll3@10',
-              'upB@7',
-              'upB@10',
+              'upB@12',
               'doubleJump@3',
-              'taunt@13',
+              'rollForward@12',
               'taunt@50',
               'helpless@10',
               'ledgeCatch@3',
+              'grabRelease@4',
             ],
           ],
         },
