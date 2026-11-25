@@ -55,23 +55,25 @@ function crane(): Graphics {
   g.circle(1116.5, 229, 8).fill(0xb1a8ac).stroke({ color: 0x8c818a, width: 2 });
   g.circle(1116.5, 229, 3.5).fill(0x8c818a);
   g.moveTo(1040, 224)
-    .bezierCurveTo(1086, 223, 1075, 308, 1143, 313)
-    .quadraticCurveTo(1167, 314, 1167, 329)
-    .stroke({ color: 0x929089, width: 4, cap: 'round' });
+    .bezierCurveTo(1040, 246, 1068, 240, 1052, 259)
+    .quadraticCurveTo(1040, 265, 1040, 276)
+    .stroke({ color: 0x867f75, width: 4, cap: 'round' });
   g.roundRect(1017, 179, 43, 54, 5)
     .fill(
       vGradient([
-        [0, 0xe4c264],
-        [1, 0xbb8d45],
+        [0, 0xf7d96b],
+        [0.49, 0xe9ae40],
+        [1, 0xbb8241],
       ]),
     )
     .stroke({
       color: CRANE_INK,
       width: 2,
     });
+  g.roundRect(1021, 183, 36, 3, 1).fill(0xf3d991);
   g.roundRect(1025, 204, 26, 19, 3).fill(0xa18d69);
   for (let x = 1030; x <= 1046; x += 4) g.rect(x, 208, 2, 11).fill(0xb0a184);
-  g.roundRect(1122, 327, 102, 31, 7)
+  g.roundRect(1024, 272, 31, 96, 7)
     .fill(
       vGradient([
         [0, 0xbab7aa],
@@ -82,15 +84,66 @@ function crane(): Graphics {
       color: 0x8d867a,
       width: 2,
     });
-  for (const [i, x] of [1141, 1173, 1205].entries()) {
-    g.circle(x, 342, 10).fill(0xc6b9a8).stroke({ color: 0x9d9084, width: 1.5 });
-    g.circle(x, 342, 6.25).fill(i === 1 ? 0xb07c53 : 0x9f6559);
+  for (const [i, y] of [290, 320, 350].entries()) {
+    g.circle(1039.5, y, 10).fill(0xc6b9a8).stroke({ color: 0x9d9084, width: 1.5 });
+    g.circle(1039.5, y, 6.25).fill(i === 1 ? 0xb77950 : 0xb26750);
+    g.ellipse(1038, y - 2.5, 3.1, 1.5).fill(0xc99069);
   }
-  for (const x of [1130, 1215]) {
-    g.circle(x, 332, 1.4).fill(0x8d867a);
-    g.circle(x, 353, 1.4).fill(0x8d867a);
+  for (const x of [1029, 1050]) {
+    g.circle(x, 277, 1.4).fill(0x8d867a);
+    g.circle(x, 363, 1.4).fill(0x8d867a);
   }
   return g;
+}
+
+function yardProps(g: Graphics): void {
+  for (const [x, y, s] of [
+    [134, 576, 46],
+    [176, 588, 44],
+    [153, 540, 36],
+  ] as const) {
+    g.rect(x, y, s, s).fill(0xc9aa71).stroke({ width: 2.4, color: 0xb0936a });
+    g.rect(x + 4, y + 4, s - 8, s - 8)
+      .fill(0xd7b97c)
+      .stroke({ width: 1.3, color: 0xb69a6d });
+    for (let line = 11; line < s - 6; line += 8)
+      g.moveTo(x + line, y + 5)
+        .lineTo(x + line + 0.8, y + s - 5)
+        .stroke({ width: 1.2, color: 0xc6a670 });
+    g.moveTo(x + 5, y + s - 5)
+      .lineTo(x + s - 5, y + 5)
+      .stroke({ width: 5.1, color: 0xe0c18a });
+    g.circle(x + 4.8, y + s - 5.2, 1.6)
+      .circle(x + s - 4.8, y + 4.8, 1.6)
+      .fill(0xa68868);
+  }
+  const sign = new Graphics();
+  sign.poly([0, 3, 70, 0, 73, 30, 3, 33]).fill(0xe4dcc4);
+  sign.rect(-2, 2, 13, 5).rect(63, 25, 13, 5).fill({ color: 0xece3c7, alpha: 0.65 });
+  sign
+    .moveTo(19, 10)
+    .lineTo(10, 10)
+    .lineTo(10, 23)
+    .lineTo(19, 23)
+    .moveTo(10, 16)
+    .lineTo(17, 16)
+    .moveTo(23, 10)
+    .lineTo(33, 23)
+    .moveTo(33, 10)
+    .lineTo(23, 23)
+    .moveTo(38, 10)
+    .lineTo(38, 23)
+    .moveTo(43, 10)
+    .lineTo(54, 10)
+    .moveTo(48.5, 10)
+    .lineTo(48.5, 23)
+    .moveTo(58, 11)
+    .lineTo(65, 16.5)
+    .lineTo(58, 22)
+    .stroke({ width: 2.4, color: 0x94715c, join: 'round' });
+  sign.position.set(1028, 581);
+  sign.rotation = -0.085;
+  g.addChild(sign);
 }
 
 export function createBackground() {
@@ -148,11 +201,11 @@ export function createBackground() {
     width: 4,
     color: 0x96a3ba,
   });
-  gantries.moveTo(371, 124).lineTo(371, 280).stroke({ width: 2.4, color: 0x98a9c0 });
+  gantries.moveTo(371, 124).lineTo(371, 242).stroke({ width: 2.4, color: 0x98a9c0 });
   gantries
-    .moveTo(371, 276)
-    .quadraticCurveTo(372, 294, 362, 293)
-    .quadraticCurveTo(352, 290, 357, 284)
+    .moveTo(371, 238)
+    .quadraticCurveTo(372, 256, 362, 255)
+    .quadraticCurveTo(352, 252, 357, 246)
     .stroke({ width: 4, color: 0xa1a9b3, cap: 'round' });
   const cranes = new Container({ label: 'yard cranes' });
   cranes.addChild(gantries, crane());
@@ -213,6 +266,14 @@ export function createBackground() {
       yard.ellipse(x + i * 19, EARTH_LINE - r * 0.36, r, r * 0.62).fill(i % 2 ? 0x9da675 : 0xa9ae80);
     }
   }
+  const props = new Graphics();
+  yardProps(props);
+  for (let i = 0; i < 43; i++) {
+    const x = -600 + i * 62 + hash01(i + 318) * 28;
+    const y = EARTH_LINE + 2 + Math.sin(i) * 5;
+    props.poly([x, y, x + 5, y - 8, x + 9, y - 3, x + 15, y - 9, x + 20, y]).fill(0x9eaa64);
+  }
+  yard.addChild(props);
   for (const [x, direction] of [
     [60, 1],
     [1225, -1],
@@ -220,9 +281,9 @@ export function createBackground() {
     const pipe = new Graphics();
     pipe.rect(-310, -29, 312, 58).fill(
       vGradient([
-        [0, 0xd7a856],
-        [0.46, 0xe8c174],
-        [1, 0xbc9860],
+        [0, 0xd7a552],
+        [0.36, 0xeec16a],
+        [1, 0xb1915e],
       ]),
     );
     pipe.roundRect(-20, -35, 19, 70, 5).fill(0xd4b47c).stroke({ color: 0xb39e7c, width: 3 });
