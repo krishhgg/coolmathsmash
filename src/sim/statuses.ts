@@ -41,6 +41,8 @@ export interface StatusState {
   frames: number;
   /** Frames it has ticked: 1 on its first. */
   age: number;
+  /** Match frame it went on. It starts ticking on the fighter's next frame, however it was applied. */
+  since: number;
   /** Port credited with it: the fighter whose hit applied it, or that entity's owner (-1 for nobody). */
   source: number;
 }
@@ -86,7 +88,7 @@ export function applyStatus(
     if (opts.source !== undefined) on.source = opts.source;
     return on;
   }
-  const status: StatusState = { kind, frames: length, age: 0, source: opts.source ?? -1 };
+  const status: StatusState = { kind, frames: length, age: 0, since: m.frame, source: opts.source ?? -1 };
   f.statuses.push(status);
   emit(m, { type: 'statusStart', port: f.port, status: kind, frames: length, source: status.source });
   return status;
@@ -110,7 +112,8 @@ function end(m: MatchState, f: FighterState, s: StatusState, reason: StatusEndRe
 
 /**
  * One frame of every status on the fighter, oldest first: mashing cuts it, its script runs, its tick deals damage
- * (no hitlag, no knockback), then it counts down and ends at 0. Runs only on frames the fighter acts.
+ * (no hitlag, no knockback), then it counts down and ends at 0. Runs only on frames the fighter acts, from the
+ * frame after the status went on.
  */
 export function tickStatuses(x: Ctx): void {
   const { m, f, c } = x;
@@ -119,7 +122,7 @@ export function tickStatuses(x: Ctx): void {
   const stick = dir !== 0 && dir !== mashDir(c.prev) ? 1 : 0;
   const buttons = MASH_BUTTONS.filter((b) => justPressed(c, b)).length;
   for (const s of [...f.statuses]) {
-    if (!f.statuses.includes(s)) continue;
+    if (!f.statuses.includes(s) || s.since === m.frame) continue;
     const def = statusDef(s.kind);
     s.age++;
     if (def.mash) s.frames -= stick * def.mash.stick + buttons * def.mash.button;

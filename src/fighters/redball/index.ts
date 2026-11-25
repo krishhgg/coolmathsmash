@@ -2,6 +2,7 @@ import { defineFighter } from '../types';
 import { moves } from './moves';
 import { stats } from './stats';
 import { actions } from './actions';
+import { statuses } from './statuses';
 
 export const fighter = defineFighter({
   id: 'redball',
@@ -10,4 +11,5 @@ export const fighter = defineFighter({
   actions,
   stats,
   moves,
+  statuses,
 });
