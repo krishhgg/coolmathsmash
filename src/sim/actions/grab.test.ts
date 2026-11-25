@@ -262,14 +262,22 @@ describe('pummel and throws', () => {
 
   it('a started throw cannot be mashed out of', () => {
     const { m, a, v } = grabbed(0);
+    const { frame, hit } = moves.bthrow!.throw!;
     step(m, 1, [{ x: -100 }]);
     expect(a.move).toBe('bthrow');
-    step(m, moves.bthrow!.throw!.frame, (i) => [
-      {},
-      { x: i % 2 ? -100 : 100, buttons: i % 2 ? [] : ['jump'] },
-    ]);
-    expect(v.action).toBe('hitstun');
-    expect(v.damage).toBeCloseTo(moves.bthrow!.throw!.hit.damage * 1.05 * 1.2, 6);
+    for (let i = 2; i < frame; i++) {
+      step(m, 1, [{}, { x: i % 2 ? -100 : 100, buttons: i % 2 ? [] : ['jump'] }]);
+      expect(v.action).toBe('grabbed');
+      expect(v.grabPartner).toBe(a.port);
+      expect(v.damage).toBe(0);
+    }
+    step(m, 1);
+    expect(a.actionFrame).toBe(frame);
+    expect(v.grabPartner).toBe(-1);
+    expect(v.action).toBe('tumble');
+    expect(v.launch).toMatchObject({ angle: hit.angle, dir: -a.facing });
+    expect(v.launch!.kb).toBeCloseTo(knockback({ ...hit, percent: 0, weight: stats.weight, stale: 1.05 }));
+    expect(v.damage).toBeCloseTo(hit.damage * 1.05 * 1.2, 6);
   });
 
   it('back throw carries the opponent behind the thrower and launches them that way', () => {

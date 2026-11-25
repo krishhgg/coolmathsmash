@@ -1,5 +1,5 @@
 import type { AnimClip, Key } from '../../../render/rig/types';
-import { stats } from '../stats';
+import { stats, TURN_FLIP, TURN_FRAMES } from '../stats';
 import { attacks } from './attacks';
 import { BODY, EXHAUST, WHEEL_R, WHEEL_X, type Pt } from './parts';
 import {
@@ -13,6 +13,7 @@ import {
   DIZZY,
   FOCUS,
   FRONT,
+  HOLD,
   HURT,
   IDLE_FACE,
   LOW,
@@ -59,9 +60,7 @@ const [GX, GY] = LEDGE_GRIP;
 /** How far onto the stage the climb and attack getups set his origin (src/sim/actions/ledge.ts). */
 const GETUP = stats.width / 2 + 2;
 
-/** The three-point turn's length and the frame the engine faces him round on (src/fighters/wheely/actions.ts). */
-const TURN_LENGTH = 19;
-const TURN_FLIP = 12;
+const TURN_LENGTH = TURN_FRAMES - 1;
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -729,10 +728,7 @@ export const authored: Record<string, AnimClip> = {
     length: 30,
     loop: true,
     swaps: { ...ANGRY, ...SCOOP },
-    keys: [
-      key(0, mix(bob(0.15), tilt(1.5, FRONT), { door: { sx: -1.05, sy: 1.04 } })),
-      key(15, mix(bob(0.24), tilt(1, FRONT), { door: { sx: -0.98, sy: 1.04 } })),
-    ],
+    keys: [key(0, HOLD), key(15, mix(HOLD, bob(0.24), tilt(1, FRONT)))],
   },
   /** Lifted off his wheels, which spin uselessly. */
   grabbed: {
@@ -772,6 +768,11 @@ export const authored: Record<string, AnimClip> = {
   },
 };
 
-export const clips: Record<string, AnimClip> = Object.fromEntries(
-  Object.entries(authored).map(([name, clip]) => [name, holdEffects(clip)]),
-);
+const baked = Object.fromEntries(Object.entries(authored).map(([name, clip]) => [name, holdEffects(clip)]));
+export const clips: Record<string, AnimClip> = {
+  ...baked,
+  down: baked.knockdown!,
+  getupStand: baked.getUp!,
+  getupRoll: baked.getUp!,
+  techInPlace: baked.tech!,
+};

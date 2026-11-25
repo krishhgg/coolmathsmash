@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { poseBounds, shapesBounds, shapesContain, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose, toLocal, type RigPose } from '../../../render/rig/sample';
-import { TURN_FLIP, TURN_FRAMES } from '../actions';
 import { LEDGE_ATTACK, LEDGE_CLIMB, LEDGE_JUMP, LEDGE_ROLL } from '../../../sim/constants';
 import { moves } from '../moves';
-import { stats } from '../stats';
+import { stats, TURN_FLIP, TURN_FRAMES } from '../stats';
 import { authored } from './clips';
 import { art } from '.';
 

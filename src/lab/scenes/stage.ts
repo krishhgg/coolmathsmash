@@ -1,27 +1,47 @@
 import { Container, Graphics } from 'pixi.js';
 import { REF_CAMERA, type StageCamera } from '../../stages/battlefield/art/parallax';
-import { stage } from '../../stages/battlefield/geometry';
-import { createStageView } from '../../stages/battlefield/view';
+import type { StageView } from '../../stages/battlefield/view';
+import { getStage } from '../../stages/registry';
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../../config';
+import type { StageGeometry } from '../../sim/stage';
 import type { LabScene } from '../types';
 
+const views = import.meta.glob<{ createStageView: () => StageView }>('../../stages/*/view.ts', {
+  eager: true,
+});
+
+function flatStage(stage: StageGeometry): StageView {
+  const world = new Graphics();
+  for (const solid of stage.solids) world.poly(solid.points.flatMap(([x, y]) => [x, -y])).fill(0x69738c);
+  for (const p of stage.platforms) world.rect(p.x1, -p.y, p.x2 - p.x1, 2).fill(0xa0b4d1);
+  return { background: new Container(), world, update() {} };
+}
+
 /** Lab-only stand-ins (port-coloured, Flash-outlined) to judge readability before real fighters exist. */
-function dummies(): Container {
+function dummies(stage: StageGeometry): Container {
   const root = new Container({ label: 'dummies' });
-  const spots = [
-    [-40, 0, 0xf2333a],
-    [40, 0, 0x2f84ff],
-    [-42, 24.12, 0xffc21a],
-    [3, 47.19, 0x2fbf45],
-  ] as const;
-  for (const [x, y, color] of spots) {
+  const spots: [number, number][] =
+    stage.id === 'battlefield'
+      ? [
+          [-40, 0],
+          [40, 0],
+          [-42, 24.12],
+          [3, 47.19],
+        ]
+      : [
+          ...stage.spawns.slice(0, 2).map(([x, y]): [number, number] => [x, y]),
+          ...stage.platforms.map(({ x1, x2, y }): [number, number] => [(x1 + x2) / 2, y]),
+        ];
+  const colors = [0xf2333a, 0x2f84ff, 0xffc21a, 0x2fbf45];
+  spots.forEach(([x, y], i) => {
+    const color = colors[i % colors.length]!;
     const g = new Graphics();
     g.roundRect(-4.2, -15, 8.4, 15, 4).fill(color).stroke({ width: 0.7, color: 0x111111 });
     g.circle(0, -18.5, 4.6).fill(color).stroke({ width: 0.7, color: 0x111111 });
     g.circle(1.4, -19.2, 1.1).fill(0xffffff).circle(1.7, -19.1, 0.5).fill(0x111111);
     g.position.set(x, -y);
     root.addChild(g);
-  }
+  });
   return root;
 }
 
@@ -30,22 +50,23 @@ let setFrame: (n: number) => void = () => {};
 let setCollision: (on: boolean) => void = () => {};
 
 /**
- * Coolmath Battlefield at a given camera: ?scene=stage&x=0&y=20&zoom=4.5&frame=0, &collision=1 overlays the
+ * A registered stage at a given camera: ?scene=stage&stage=battlefield&x=0&y=20&zoom=4.5&frame=0, &collision=1 overlays the
  * collision geometry, ledges, camera bounds and blast zones, &play=1 animates from the ticker.
  */
 export const scene: LabScene = {
-  title: 'Coolmath Battlefield stage',
+  title: 'Stage at a camera',
   mount(app, params) {
     const num = (key: string, fallback: number) => {
       const v = Number(params.get(key));
       return params.has(key) && Number.isFinite(v) ? v : fallback;
     };
-    const view = createStageView();
+    const stage = getStage(params.get('stage') ?? 'battlefield');
+    const view = views[`../../stages/${stage.id}/view.ts`]?.createStageView() ?? flatStage(stage);
     const worldRoot = new Container({ label: 'world-root' });
     const foregroundRoot = new Container({ label: 'foreground-root' });
     const overlay = new Graphics({ label: 'collision-overlay' });
     worldRoot.addChild(view.world, overlay);
-    if (params.get('dummies') === '1') worldRoot.addChild(dummies());
+    if (params.get('dummies') === '1') worldRoot.addChild(dummies(stage));
     if (view.foreground) foregroundRoot.addChild(view.foreground);
     app.stage.addChild(view.background, worldRoot, foregroundRoot);
 

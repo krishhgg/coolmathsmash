@@ -59,6 +59,8 @@ export interface FighterState {
   launch: PendingLaunch | null;
   /** Ports the current move has already hit. */
   hitVictims: number[];
+  /** Ids of entities the current move has already hit. */
+  hitEntities: number[];
   /** Stale multiplier of the current move activation, fixed when it first connects (0 = not connected yet). */
   moveStale: number;
   /** Frames the current smash attack was charged (0-60). */
@@ -122,6 +124,7 @@ export function createFighter(
     flyTop: false,
     launch: null,
     hitVictims: [],
+    hitEntities: [],
     moveStale: 0,
     charge: 0,
     staleQueue: [],
