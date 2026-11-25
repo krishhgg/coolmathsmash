@@ -4,6 +4,10 @@ A fighter is one directory, `src/fighters/<id>/`, whose `index.ts` exports `figh
 (`src/fighters/registry.ts`) finds it with `import.meta.glob`, so adding a fighter edits no shared file. Fireboy
 (`src/fighters/fireboy/`) is the worked example; copy it.
 
+A fighter's files may import sim code, and the sim imports the registry, so the registry reads the fighter
+modules on the first `getFighter` or `allFighters` call. Look fighters up inside functions, never at module
+load: a lookup while a fighter module is still loading throws.
+
 ```
 src/fighters/<id>/
   index.ts      defineFighter({ id, name, series, stats, moves, art })
