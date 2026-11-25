@@ -154,12 +154,11 @@ describe('CPUs on the hazard testbed', () => {
     }
   });
 
-  // Three trapdoor and blade cycles. Zone hits aren't asserted here: an aerial with its own motion (a stalling,
-  // plunging down air) can still come down in a pool, because attack arcs don't model move-specific motion.
-  it('stay out of the pit over full trapdoor and blade cycles', () => {
+  // Three full trapdoor and blade cycles against a fighter standing across the trapdoor.
+  it('keep out of trouble they make themselves over full trapdoor and blade cycles', () => {
     for (const level of [5, 9]) {
-      const { pit, selfDestructs } = hazardRun(level, 3, ['redball', 'fireboy'], [-25, 25], 0, 1080);
-      expect({ pit, selfDestructs }, `level ${level}`).toEqual({ pit: 0, selfDestructs: 0 });
+      const r = hazardRun(level, 3, ['redball', 'fireboy'], [-25, 25], 0, 1080);
+      expect(r, `level ${level}`).toEqual({ pit: 0, zone: 0, selfDestructs: 0 });
     }
-  });
+  }, 60_000);
 });
