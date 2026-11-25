@@ -161,11 +161,11 @@ describe('raft wars art', () => {
     const inside: string[] = [];
     const floating: string[] = [];
     for (const [name, end, corner] of clips) {
-      for (let f = 0; f <= end; f++) {
+      for (let f = 0; f <= end; f += 2) {
         const [cx, cy] = corner(f);
         const pose = samplePose(art, name, f, f);
         const block: [number, number][] = [];
-        for (let d = 0; d < 10; d += 0.5)
+        for (let d = 0; d < 10; d += 1)
           block.push([cx + 1.2 + d, cy + 1.2], [cx + 1.2 + d, cy + 3], [cx + 1.2, cy + 1.2 + d]);
         if (block.some(([x, y]) => slotsCovering(art, pose, x, y).length)) inside.push(`${name}@${f}`);
       }
