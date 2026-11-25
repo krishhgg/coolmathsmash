@@ -40,7 +40,7 @@ const THROWS: Record<Exclude<Dir, 'neutral'>, string> = {
 const MASH_BUTTONS = [Btn.Attack, Btn.Special, Btn.Jump, Btn.Shield, Btn.Grab];
 
 /** Grab, or Attack while Shield is held (Smash's shield + attack). */
-const grabInput = (c: ControlState) =>
+export const grabInput = (c: ControlState) =>
   buffered(c, Btn.Grab) || (buffered(c, Btn.Attack) && isHeld(c, Btn.Shield));
 
 function startGrab(x: Ctx, name: string): boolean {
