@@ -376,13 +376,14 @@ export const moves: Record<string, MoveDef> = {
   /**
    * Paddle Propeller (up special): spins the paddle overhead like a rotor and rises about 60 units, five 1% hits
    * carrying the opponent up and a 4% finisher at the top. Steers with the stick and can grab the ledge on the way.
-   * TODO(COOL-3): end in his glide (hold jump) instead of helpless once the glide system lands.
+   * Holding Jump at the end spreads his toque into a glide before he becomes helpless.
    */
   upB: {
     kind: 'other',
     faf: 46,
     leavesGround: true,
     helpless: true,
+    glide: true,
     ledgeFrom: 12,
     landingLag: 22,
     hits: [

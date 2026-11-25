@@ -8,4 +8,5 @@ export const fighter = defineFighter({
   series: 'Papa Louie: When Pizzas Attack! (2006)',
   stats,
   moves,
+  glide: { speed: 1.2, fallSpeed: 0.6 },
 });
