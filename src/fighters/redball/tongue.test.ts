@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { getFighter } from '../registry';
 import { shieldstunFrames } from '../../sim/combat/formulas';
 import { LEDGE_MAX_GRABS } from '../../sim/constants';
 import { koPercent } from '../../sim/testing/ko';
@@ -79,12 +80,17 @@ describe('Red Ball: Tongue Lash (side special) copies Ivysaur’s Vine Whip', ()
     expect(v.kb.y).toBeGreaterThan(0);
   });
 
-  it('reaches no further than the tongue: Mario 29 units away is out of range', () => {
-    const { m, a, v } = versusMario();
-    v.pos.x = v.prevPos.x = a.pos.x + (TONGUE_LASH.range + 1 + stats.width / 2) * a.facing;
-    runPorts(m, 1, [LASH, {}]);
-    runPorts(m, VINE_WHIP.faf, [{}, {}]);
-    expect(v.damage).toBe(0);
+  it('reaches as far as the tip box (28.5 units): hits Mario whose body starts 28 units out, not 29', () => {
+    const lands = (gap: number) => {
+      const { m, a, v } = versusMario();
+      const x = a.pos.x + (gap + getFighter(v.fighter).stats.width / 2) * a.facing;
+      v.pos.x = v.prevPos.x = x;
+      runPorts(m, 1, [LASH, {}]);
+      runPorts(m, VINE_WHIP.faf, [{}, {}]);
+      return v.damage > 0;
+    };
+    expect(lands(28)).toBe(true);
+    expect(lands(29)).toBe(false);
   });
 
   it('on a shield, the tip deals shield damage and 12 frames of shieldstun, and Mario keeps shielding', () => {
