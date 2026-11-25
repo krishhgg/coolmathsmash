@@ -47,9 +47,9 @@ describe('clipFor through a tether reel', () => {
     return seen;
   }
 
-  /** The frames from the move's start to the reel's end, which all draw the move's clip. */
+  /** The frames from the move's start to the reel's end (the aerial, then the tether actions). */
   const throughReel = (seen: ReturnType<typeof grapple>) =>
-    seen.slice(0, seen.findLastIndex((s) => s.action.startsWith('tether')) + 1);
+    seen.filter((s) => s.action === 'aerial' || s.action.startsWith('tether'));
 
   it.each([
     ['Fluffy', grappler],
