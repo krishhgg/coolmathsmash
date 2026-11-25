@@ -344,16 +344,6 @@ export const moves: Record<string, MoveDef> = {
   dashGrab: { kind: 'other', faf: 45, hits: [{ frames: [10, 11], boxes: [grabBox(0, 10, 7, 5)] }] },
   /** Turns around out of a dash or run and scoops behind; the slide keeps going the old way. */
   pivotGrab: { kind: 'other', faf: 39, hits: [{ frames: [11, 12], boxes: [grabBox(0, 10.5, 7, 5.5)] }] },
-  /**
-   * Pepper Bomb (neutral special): his game's X button. A lobbed bomb that bounces twice and bursts on contact for
-   * 10%, two at a time, as the roster has it.
-   */
-  neutralB: {
-    kind: 'projectile',
-    faf: 40,
-    hits: [],
-    spawn: [{ frame: 14, entity: 'pepperBomb', x: 6, y: 9, vx: 1.25, vy: 1.55, max: 2 }],
-  },
   /** Pepper Shake: shakes pepper on the opponent sitting on the paddle. */
   pummel: { kind: 'other', faf: 7, hits: [], pummel: { frame: 1, damage: 1.3, hitlag: 2.1 } },
   /** Into the Oven: slides the opponent off the peel forward; it only kills from the ledge at very high %. */
@@ -383,6 +373,13 @@ export const moves: Record<string, MoveDef> = {
     faf: 40,
     hits: [],
     throw: { frame: 22, hit: { damage: 6, angle: 80, kbg: 50, bkb: 60 } },
+  },
+  /** Pepper Bomb (neutral special): a lob that bounces twice, then bursts on the next landing or a fighter. */
+  neutralB: {
+    kind: 'projectile',
+    faf: 40,
+    hits: [],
+    spawn: [{ frame: 14, entity: 'pepperBomb', x: 6, y: 9, vx: 1.25, vy: 1.55, max: 2 }],
   },
   /**
    * Paddle Propeller (up special): spins the paddle overhead like a rotor and rises about 60 units, five 1% hits

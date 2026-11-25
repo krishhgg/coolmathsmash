@@ -20,13 +20,13 @@ describe('Papa Louie: paddle reflects projectiles', () => {
   });
 
   it.each([
-    ['ftilt', 1.4, 1.4],
-    ['downB', 1.5, 1.25],
-  ] as const)('%s returns Fireball with %sx damage and %sx speed', (move, damage, speed) => {
+    ['ftilt', 7, 1.4, 1.4],
+    ['downB', 5, 1.5, 1.25],
+  ] as const)('%s reflects from frame %i with %sx damage and %sx speed', (move, start, damage, speed) => {
     const m = versus();
     attack(m, 0, move);
     const f = m.fighters[0]!;
-    while (activeReflectors(f).length === 0) runPorts(m, 1, [{}, {}]);
+    runPorts(m, start, [{}, {}]);
     const at = activeReflectors(f)[0]!;
     const fireball = spawnEntity(m, {
       kind: 'fireboy/fireball',
