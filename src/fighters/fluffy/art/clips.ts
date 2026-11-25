@@ -27,17 +27,16 @@ const SQUAT: Ball = { sx: 1.24, sy: 0.74, face: { y: 0.35 }, look: [0.15, -0.25]
 const ROLL: Ball = { y: -0.45, face: { x: 0.35 }, look: [0.3, 0.05], tilt: 4 };
 
 /**
- * A bouncing loop of `hops` hops over `length` frames; `roll` turns the fur once per loop (rolling), which only
- * suits fur without wind, because the wind would turn with it.
+ * A bouncing loop of `hops` hops over `length` frames. The fur rolls once while the face looks ahead.
  */
-function rolling(length: number, hops: number, base: Ball, hop: Ball, land: Ball, roll = true): AnimClip {
+function rolling(length: number, hops: number, base: Ball, hop: Ball, land: Ball): AnimClip {
   const keys = [];
   const step = length / (hops * 2);
   for (let i = 0; i <= hops * 2; i++) {
     const pose = i % 2 ? hop : land;
     keys.push(
-      key(Math.round(i * step), ball({ ...base, ...pose, spin: roll ? (360 * i) / (hops * 2) : 0 }), {
-        ease: roll ? 'linear' : 'inOut',
+      key(Math.round(i * step), ball({ ...base, ...pose, spin: (360 * i) / (hops * 2) }), {
+        ease: 'linear',
       }),
     );
   }
@@ -55,8 +54,10 @@ export const LOCOMOTION: Record<string, AnimClip> = {
       key(60, ball({ look: [-0.45, -0.3] })),
       key(70, ball({ look: [0.1, 0] })),
       key(90, ball({ sx: 1.035, sy: 0.965 })),
+      key(98, undefined, { swaps: HALF }),
       key(100, undefined, { swaps: BLINK }),
-      key(104, undefined, { swaps: {} }),
+      key(103, undefined, { swaps: HALF }),
+      key(105, undefined, { swaps: {} }),
       key(120, ball(STAND)),
     ],
   },
@@ -70,10 +71,9 @@ export const LOCOMOTION: Record<string, AnimClip> = {
       2,
       { ...ROLL, tilt: 9, face: { x: 0.6, y: 0.1 }, look: [0.45, 0.05] },
       { y: -1.6, sx: 0.94, sy: 1.07 },
-      { sx: 1.1, sy: 0.9 },
-      false,
+      { y: -0.22, sx: 1.1, sy: 0.88 },
     ),
-    swaps: RUN_FUR,
+    swaps: { fur: 'furRoll' },
   },
   dash: {
     length: 11,
@@ -141,8 +141,26 @@ export const LOCOMOTION: Record<string, AnimClip> = {
     keys: [
       key(0, ball({ sx: 0.8, sy: 1.28, face: { y: -0.4 }, look: [0.25, -0.5] }), { ease: 'out' }),
       key(10, ball({ sx: 0.92, sy: 1.1, float: true, look: [0.3, -0.45] }), { ease: 'inOut', swaps: {} }),
-      key(22, ball({ float: true, look: [0.35, -0.1] })),
-      key(30, ball({ sx: 1.03, sy: 0.97, float: true, spin: -6, look: [0.35, 0.2] })),
+      key(
+        21,
+        ball({
+          sx: 1.1,
+          sy: 0.93,
+          float: true,
+          tilt: -4,
+          spin: -4,
+          face: { x: 0.3, y: 0.28 },
+          look: [0.45, 0.52],
+        }),
+        {
+          ease: 'out',
+          swaps: FALL_FUR,
+        },
+      ),
+      key(
+        30,
+        ball({ sx: 1.07, sy: 0.95, float: true, spin: -7, face: { x: 0.34, y: 0.32 }, look: [0.45, 0.55] }),
+      ),
     ],
   },
   doubleJump: {
@@ -150,15 +168,16 @@ export const LOCOMOTION: Record<string, AnimClip> = {
     swaps: PUFF,
     keys: [
       key(0, ball({ sx: 1.2, sy: 0.82, float: true, puff: 1.08, look: [0.2, 0.4] }), { ease: 'out' }),
-      key(5, ball({ sx: 0.86, sy: 1.18, float: true, spin: 140, look: [0.25, -0.5] }), {
+      key(5, ball({ sx: 0.86, sy: 1.18, float: true, tilt: 118, spin: 16, look: [0.25, -0.5] }), {
         ease: 'linear',
         swaps: FLAT_FUR,
       }),
-      key(14, ball({ sx: 0.96, sy: 1.04, float: true, spin: 330, look: [0.3, -0.3] }), {
+      key(14, ball({ sx: 0.96, sy: 1.04, float: true, tilt: 335, spin: -12, look: [0.3, -0.3] }), {
         ease: 'out',
         swaps: {},
       }),
-      key(30, ball({ sx: 1.03, sy: 0.97, float: true, spin: 360, look: [0.35, 0.2] })),
+      key(21, ball({ sx: 1.06, sy: 0.96, float: true, tilt: 367, look: [0.42, 0.46] }), { swaps: FALL_FUR }),
+      key(30, ball({ sx: 1.03, sy: 0.97, float: true, tilt: 360, look: [0.35, 0.2] })),
     ],
   },
   fall: {

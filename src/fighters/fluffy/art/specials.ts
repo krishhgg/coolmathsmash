@@ -1,8 +1,9 @@
 import type { AnimClip } from '../../../render/rig/types';
 import {
-  ANGRY,
   EFFORT,
   FALL_FUR,
+  FIERCE,
+  FOCUS,
   GRAB,
   HALF,
   HAPPY,
@@ -35,11 +36,11 @@ export const SPECIALS: Record<string, AnimClip> = {
   /** Point Grapple: aims IQ Ball's reticle, fires the grabber at it, latches, and is reeled up the line. */
   neutralB: {
     length: 50,
-    swaps: ANGRY,
+    swaps: FOCUS,
     keys: [
       key(0, ball({ look: [0.3, -0.2], fx2: at(10, -9, 0.2) }), {
         ease: 'out',
-        swaps: { ...ANGRY, reticle: 'reticle' },
+        swaps: { ...FOCUS, reticle: 'reticle' },
       }),
       key(
         8,
@@ -56,7 +57,7 @@ export const SPECIALS: Record<string, AnimClip> = {
       ),
       key(11, ball({ sx: 1.16, sy: 0.84, look: [0.5, -0.5], fx2: at(TARGET[0], TARGET[1], 1, 90) }), {
         ease: 'in',
-        swaps: { ...ANGRY, reticle: 'reticle', fur: 'furPuff' },
+        swaps: { ...FOCUS, reticle: 'reticle', fur: 'furPuff' },
       }),
       key(
         12,
@@ -70,7 +71,7 @@ export const SPECIALS: Record<string, AnimClip> = {
         }),
         {
           ease: 'linear',
-          swaps: { ...ANGRY, ...GRAB, reticle: 'reticle' },
+          swaps: { ...FOCUS, ...GRAB, reticle: 'reticle' },
         },
       ),
       key(
@@ -147,9 +148,9 @@ export const SPECIALS: Record<string, AnimClip> = {
       }),
       key(14, ball({ x: 1.6, tilt: 12, sx: 1.16, sy: 0.88, look: [0.5, 0], fx1: at(8.5, -5.5, 1) }), {
         ease: 'out',
-        swaps: { ...ANGRY, prop: 'candy', ...RUN_FUR },
+        swaps: { ...FOCUS, prop: 'candy', ...RUN_FUR },
       }),
-      key(15, undefined, { swaps: { ...ANGRY, prop: null, ...RUN_FUR } }),
+      key(15, undefined, { swaps: { ...FOCUS, prop: null, ...RUN_FUR } }),
       key(24, ball({ x: 1.2, tilt: 8, sx: 1.05, sy: 0.96, look: [0.5, 0] }), {
         ease: 'inOut',
         swaps: { ...HAPPY, prop: null },
@@ -160,12 +161,12 @@ export const SPECIALS: Record<string, AnimClip> = {
   /** Quick Grapple: fires the grabber straight up on 8 and zips up the line after it. */
   upB: {
     length: 40,
-    swaps: ANGRY,
+    swaps: FOCUS,
     keys: [
       key(0, ball({ float: true, look: [0.2, -0.5] }), { ease: 'out' }),
       key(6, ball({ float: true, sx: 1.2, sy: 0.82, look: [0.2, -0.6], face: { y: -0.2 } }), {
         ease: 'in',
-        swaps: { ...ANGRY, ...PUFF },
+        swaps: { ...FOCUS, ...PUFF },
       }),
       key(
         8,
@@ -178,7 +179,7 @@ export const SPECIALS: Record<string, AnimClip> = {
         }),
         {
           ease: 'linear',
-          swaps: { ...ANGRY, ...GRAB },
+          swaps: { ...FOCUS, ...GRAB },
         },
       ),
       key(
@@ -232,12 +233,12 @@ export const SPECIALS: Record<string, AnimClip> = {
   /** Stick Tight: plants the grabber in the ground on 4 and braces, armoured, until 60; then lets go. */
   downB: {
     length: 100,
-    swaps: { ...EFFORT, ...GRAB, ...PUFF },
+    swaps: { ...FIERCE, ...GRAB, ...PUFF },
     keys: [
-      key(0, ball({ look: [0.2, 0.3] }), { ease: 'out', swaps: ANGRY }),
+      key(0, ball({ look: [0.2, 0.3] }), { ease: 'out', swaps: FOCUS }),
       key(3, ball({ sx: 1.08, sy: 0.92, look: [0.1, 0.5], grab: { from: [0.5, -4], to: [1, 0.5] } }), {
         ease: 'linear',
-        swaps: { ...EFFORT, ...GRAB, ...PUFF },
+        swaps: { ...FIERCE, ...GRAB, ...PUFF },
       }),
       ...[4, 12, 20, 28, 36, 44, 52, 60].map((f, i) =>
         key(
@@ -265,9 +266,9 @@ export const SPECIALS: Record<string, AnimClip> = {
       ),
       key(74, ball({ sx: 1.06, sy: 0.95, grab: { from: [0, -4.5], to: [0.6, -4.5] } }), {
         ease: 'out',
-        swaps: HALF,
+        swaps: { ...HALF, grabLine: null, tip: null },
       }),
-      key(100, ball(STAND), { swaps: {} }),
+      key(100, ball(STAND), { swaps: { grabLine: null, tip: null, mouth: null, lids: null, fur: 'fur' } }),
     ],
   },
 };
