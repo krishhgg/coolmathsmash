@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeHitboxes, hurtbox } from '../../sim/combat/hits';
+import { activeHitboxes, hurtbox, touches } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, type MatchState } from '../../sim/match';
 import { koPercent } from '../../sim/testing/ko';
@@ -59,6 +59,18 @@ describe('Wheely: car handling', () => {
     const body = hurtbox(f, stats);
     expect(body.r).toBeCloseTo(stats.height / 2, 6);
     expect((body.hw ?? 0) + body.r).toBeCloseTo(9, 6);
+  });
+
+  it.each([1, -1] as const)('hangs vertically when facing %s and cannot be hit behind the car', (facing) => {
+    const m = testMatch({ fighter: 'wheely' });
+    const f = m.fighters[0]!;
+    Object.assign(f, { action: 'ledgeHang', facing, ground: null, pos: { x: 20, y: -9.35 } });
+    const body = hurtbox(f, stats);
+    const box = { id: 0, x: 0, y: 0, radius: 0.25, damage: 1, angle: 45, kbg: 0, bkb: 0 };
+
+    expect(body.y2 - body.y1 + 2 * body.r).toBeCloseTo(stats.width);
+    expect(touches({ box, x: f.pos.x + 5.5 * facing, y: f.pos.y + 15 }, body)).toBe(true);
+    expect(touches({ box, x: f.pos.x - 7 * facing, y: f.pos.y + 5.5 }, body)).toBe(false);
   });
 
   it('starts slow and builds to top speed over the first 40 frames of the run', () => {

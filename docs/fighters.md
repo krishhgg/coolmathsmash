@@ -164,6 +164,10 @@ lowers an upright body only. A form that
 changes shape mid-match (Bloxorz block standing up or lying down) is a separate FighterDef with its own size,
 reached by `transform`. `?hitboxes` draws either shape.
 
+For a distinct pose, `FighterDef.hurtbox` can return a world-space capsule from the simulation state. Return
+`undefined` to keep the default capsule. This changes hit and grab contact, not how the fighter collides with the
+stage. The debug overlay uses the same capsule.
+
 `src/sim/combat/`; a fighter only supplies numbers.
 
 Every move start, hit and landing is reported as a sim event (`docs/sim-events.md`). Audio and effects key off
