@@ -1,24 +1,38 @@
-import type { StageGeometry } from '../../sim/stage';
+import type { DamageZone, StageGeometry } from '../../sim/stage';
+
+export const GOO = { x1: -12, x2: 12, y1: -6, y2: -0.45, element: 'goo' } satisfies DamageZone;
+
+export const POOL_FILL: StageGeometry['solids'][number] = {
+  points: [
+    [GOO.x1, 0],
+    [GOO.x2, 0],
+    [5, GOO.y1],
+    [-5, GOO.y1],
+  ],
+  hazard: true,
+  schedule: () => false,
+};
+
+export const TEMPLE_HULL: StageGeometry['solids'][number] = {
+  points: [
+    [-85, 0],
+    [GOO.x1, 0],
+    [-5, GOO.y1],
+    [5, GOO.y1],
+    [GOO.x2, 0],
+    [85, 0],
+    [85, -10],
+    [72, -28],
+    [-72, -28],
+    [-85, -10],
+  ],
+};
 
 export const stage: StageGeometry = {
   id: 'forest-temple',
   name: 'Forest Temple',
-  solids: [
-    {
-      points: [
-        [-85, 0],
-        [-12, 0],
-        [-5, -6],
-        [5, -6],
-        [12, 0],
-        [85, 0],
-        [85, -10],
-        [72, -28],
-        [-72, -28],
-        [-85, -10],
-      ],
-    },
-  ],
+  solids: [POOL_FILL, TEMPLE_HULL],
+  zones: [GOO],
   platforms: [
     { x1: -59.42, x2: -24.79, y: 24.12 },
     { x1: -17.32, x2: 17.32, y: 47.19 },

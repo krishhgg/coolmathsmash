@@ -1,7 +1,7 @@
 import { Container, Graphics } from 'pixi.js';
 import { compileStage } from '../../../sim/stage';
 import { diamond, flipY, hash01, mix, vGradient } from '../../battlefield/art/util';
-import { stage } from '../geometry';
+import { stage, TEMPLE_HULL } from '../geometry';
 import { INK, IVY, MORTAR, STONES } from './palette';
 
 function ivy(g: Graphics, x: number, y: number, size: number, seed: number): void {
@@ -110,7 +110,7 @@ function stonework(g: Graphics): void {
 
 function mainFloor(): Container {
   const rock = new Container({ label: 'temple-floor' });
-  const hull = flipY(stage.solids[0]!.points);
+  const hull = flipY(TEMPLE_HULL.points);
   const face = new Graphics();
   const mask = new Graphics().poly(hull).fill(0xffffff);
   rock.addChild(face, mask);
@@ -123,7 +123,7 @@ function mainFloor(): Container {
   );
   stonework(face);
   for (const [i, edge] of compileStage(stage).edges.entries()) {
-    if (edge.kind !== 'floor') continue;
+    if (edge.kind !== 'floor' || stage.solids[edge.solid] !== TEMPLE_HULL) continue;
     const { a, b } = edge;
     face
       .moveTo(a.x, -a.y + 0.56)

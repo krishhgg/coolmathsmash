@@ -5,7 +5,6 @@ import { stage } from './geometry';
 describe('Forest Temple geometry', () => {
   it.each([
     [-70, 12, 0],
-    [0, 12, -6],
     [70, 12, 0],
   ])('lands on the temple floor at x=%i', (x, fromY, y) => {
     const m = testMatch({ stage: stage.id });
@@ -13,6 +12,16 @@ describe('Forest Temple geometry', () => {
     until(m, (g) => g.ground !== null);
     expect(f.ground?.kind).toBe('solid');
     expect(f.pos.y).toBe(y);
+  });
+
+  it('has a solid basin underneath the goo', () => {
+    const m = testMatch({ stage: stage.id });
+    const f = placeInAir(m, 0, 12);
+    f.intangible = 60;
+    until(m, (g) => g.ground !== null);
+    expect(f.ground?.kind).toBe('solid');
+    expect(f.pos.y).toBe(-6);
+    expect(f.damage).toBe(0);
   });
 
   it.each([
@@ -27,6 +36,7 @@ describe('Forest Temple geometry', () => {
     expect(f.pos.y).toBe(y);
     run(m, 1, { y: -100 });
     expect(f.ground).toBeNull();
+    f.intangible = 60;
     until(m, (g) => g.ground !== null);
     expect(f.ground?.kind).toBe('solid');
     expect(f.pos.y).toBe(floor);
