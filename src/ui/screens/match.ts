@@ -22,7 +22,7 @@ const FREEZE_AFTER = 40;
 /** How long GAME! stays up before the results. */
 const RESULTS_AFTER_MS = 2600;
 
-const ANNOUNCE: Record<string, string> = { '3': 'three', '2': 'two', '1': 'one', 'GO!': 'go' };
+const ANNOUNCE = { '3': 'three', '2': 'two', '1': 'one', 'GO!': 'go' } as const;
 
 const ICONS = {
   resume: `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" stroke-width="5"/><path d="M16 12 L28 20 L16 28 Z" fill="currentColor"/></svg>`,
@@ -161,7 +161,7 @@ export function matchScreen(flow: Flow, game: Game, seed = newSeed()): Screen {
           ...(label ? [svg(calloutSvg(label, label === 'GO!' ? 'count' : 'steel'), 'callout')] : []),
         );
         countdown.dataset.label = label ?? '';
-        if (label) audio.announce(ANNOUNCE[label]!);
+        if (label) audio.announce(ANNOUNCE[label]);
       }
       const left = session.timeLeft(state);
       if (left !== null) {
@@ -182,7 +182,7 @@ export function matchScreen(flow: Flow, game: Game, seed = newSeed()): Screen {
             'callout',
           ),
         );
-        audio.announce('game');
+        audio.announce(session.reason === 'time' ? 'time' : 'game');
       }
       if (finaleAt >= 0 && now - finaleAt >= RESULTS_AFTER_MS) toResults();
     },

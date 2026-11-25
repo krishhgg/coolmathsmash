@@ -198,20 +198,11 @@ export function resultsScreen(flow: Flow): Screen {
     show();
   }
 
-  let enteredAt: number | null = null;
-  let named = tie;
   show();
   return {
     el,
     enter() {
-      audio.announce('winner-is');
-    },
-    update(now) {
-      enteredAt ??= now;
-      if (!named && now - enteredAt > 1100) {
-        named = true;
-        audio.announce(`fighter:${winner.fighter}`);
-      }
+      if (!tie) audio.announceWinner(winner.fighter);
     },
     input(e) {
       if (phase === 'winner') {

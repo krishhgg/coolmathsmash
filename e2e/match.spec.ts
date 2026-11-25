@@ -13,7 +13,7 @@ test('a full match: select, countdown, pause, the last KO, GAME!, results and a 
 }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/?debug');
+  await page.goto('/?debug&quality=lite');
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await page.keyboard.press('Enter');
   await expect(page.locator('.main-menu')).toBeVisible();
@@ -84,7 +84,7 @@ test('four-player match uses saved controls and quits back to character select',
       JSON.stringify({ keyboard: [{ buttons: { attack: ['KeyQ'], start: ['KeyP'] } }], tapJump: false }),
     );
   });
-  await page.goto('/?debug');
+  await page.goto('/?debug&quality=lite');
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await page.keyboard.press('Enter');
   await expect(page.locator('.main-menu')).toBeVisible();

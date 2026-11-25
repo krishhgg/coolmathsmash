@@ -13,9 +13,12 @@ export const GO_FRAMES = 50;
 
 export type Phase = 'countdown' | 'play' | 'over';
 
+const COUNTDOWN_NUMBERS = ['3', '2', '1'] as const;
+
 /** "3", "2", "1", then "GO!" for a moment after the countdown, then nothing. */
-export function countdownLabel(frame: number): string | null {
-  if (frame < COUNTDOWN_FRAMES) return String(3 - Math.floor((frame * 3) / COUNTDOWN_FRAMES));
+export function countdownLabel(frame: number): (typeof COUNTDOWN_NUMBERS)[number] | 'GO!' | null {
+  if (frame < COUNTDOWN_FRAMES)
+    return COUNTDOWN_NUMBERS[Math.floor((Math.max(0, frame) * COUNTDOWN_NUMBERS.length) / COUNTDOWN_FRAMES)]!;
   return frame < COUNTDOWN_FRAMES + GO_FRAMES ? 'GO!' : null;
 }
 
