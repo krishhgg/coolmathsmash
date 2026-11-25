@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { VIEW_HEIGHT, VIEW_WIDTH } from '../../config';
+import { sheetLayout } from '../../lab/sheet';
 import { poseBounds } from '../../render/rig/geometry';
 import { samplePose } from '../../render/rig/sample';
 import { art } from './art';
@@ -16,9 +16,7 @@ describe("Johnny's lab contact sheets", () => {
     if (!params?.states) continue;
     it(`${s.name} fits every pose inside its cell`, () => {
       const states = params.states!.split(',');
-      const cols = Math.min(5, states.length);
-      const w = VIEW_WIDTH / cols;
-      const h = VIEW_HEIGHT / Math.ceil(states.length / cols);
+      const { w, h } = sheetLayout(states.length);
       const zoom = Number(params.zoom);
       expect(zoom, 'sheets pass a fitted zoom').toBeGreaterThan(0);
       for (const state of states) {
