@@ -69,6 +69,11 @@ end to `FAF - 1`. Check the in-match result as well as the lab: the lab samples 
 frames directly. Fireboy's `art/index.test.ts` uses the same retiming as the renderer and checks that a
 drawn part reaches into every hitbox's inner half on its active frames.
 
+Tech roll and getup roll keep the fighter's facing, so a roll away from it is a back roll. The renderer draws
+`techRollBack` or `getupRollBack` when the fighter has one, else `rollBack` from its tuck (frame 4). A forward
+getup roll without its own clip borrows `techRoll`. Each roll clip is retimed so it rolls over the sim's travel
+frames (`TECH_ROLL.move`, `GETUP_ROLL.move`) and ends on the action's last frame.
+
 ## Pose checklist
 
 Check each row at match scale, facing both ways. In the fighter lab, inspect the start, strongest silhouette
@@ -94,7 +99,7 @@ with the same checks as its nearest shared action.
 | `hitstun`, `tumble`                                   | A sharp recoil is distinct from the curled or flailing tumble loop. Check the silhouette during hitlag and just after launch.                                                                               |
 | `downBound`, `down`                                   | Show ground contact, then settle into a low pose. `downBound` can reuse `down`; use its own clip if the bounce needs a readable pose.                                                                       |
 | `techInPlace`, `techRoll`                             | Catch the impact deliberately, then recover up or roll out. Both should read differently from being knocked down.                                                                                           |
-| `getupStand`, `getupRoll`, `getupAttack`              | Separate rise, retreat and strike. `getupRoll` can reuse `techRoll`; key the attack to its hit window.                                                                                                      |
+| `getupStand`, `getupRoll`, `getupAttack`              | Separate rise, retreat and strike. `getupRoll` can reuse `techRoll`, and a backward one `rollBack`; key the attack to its hit window.                                                                       |
 | `grab`, `dashGrab`, `pivotGrab`                       | Reach at the grab window and pull the hands back on a miss. Show a moving lunge for dash grab and a clear turn for pivot grab.                                                                              |
 | `grabHold`, `grabbed`, `grabRelease`                  | The holder braces against the victim's weight; the victim strains in the grip. A release pose should read as a separation, not another hit.                                                                 |
 | `grabPummel`, `grabThrow`                             | Author `pummel` and `fthrow`/`bthrow`/`uthrow`/`dthrow` clips. Key one compact pummel accent and a distinct release in each throw direction.                                                                |
