@@ -199,6 +199,7 @@ function drawPizzaPart(start: number, end: number, slice: boolean): Container {
 export function createPizza(): Container {
   const pizza = new Container({ label: 'giant-pizza' });
   pizza.position.set(628, 247);
+  pizza.alpha = 0.82;
   const whole = drawPizzaPart(CUT_END, CUT_START + TAU, false);
   const slice = drawPizzaPart(CUT_START, CUT_END, true);
   slice.position.set(19, 13);
