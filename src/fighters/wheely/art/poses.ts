@@ -95,6 +95,7 @@ export const PARK: Pose = {};
 export const AIR = bob(-0.12, 0.45);
 export const LOW = mix(squash(0.88), bob(0.5));
 export const SQUAT = mix(squash(0.8), bob(0.55));
+export const HOLD = mix(bob(0.15), tilt(1.5, FRONT), { door: { sx: -1.62, sy: 1.04 } });
 
 /** Rotated `rot` degrees about the middle and lifted just clear of the ground, for flips near the floor. */
 export function flip(rot: number, extra = 0): Pose {

@@ -274,6 +274,42 @@ const CORE: Scenario[] = [
     page: { kind: 'lab', scene: 'menu', params: { screen: 'credits' } },
   },
   {
+    name: 'match-countdown',
+    description: 'Match start: "2" of the 3-2-1 countdown over the stage, clock at 7:00.00.',
+    page: { kind: 'lab', scene: 'match', params: { at: 'countdown' } },
+  },
+  {
+    name: 'match-go',
+    description: 'GO! the moment play starts, clock just started.',
+    page: { kind: 'lab', scene: 'match', params: { at: 'go' } },
+  },
+  {
+    name: 'match-pause',
+    description: 'Pause: PAUSE plate top-left, Resume / Restart / Quit panel on the right, match dimmed.',
+    page: { kind: 'lab', scene: 'match', params: { at: 'pause' } },
+  },
+  {
+    name: 'match-game',
+    description: 'GAME! after the last stock is lost, speed streaks behind it.',
+    page: { kind: 'lab', scene: 'match', params: { at: 'game' } },
+  },
+  {
+    name: 'results-winner',
+    description: 'Results, first page: winner placing, name and art; the runner-up below.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'results', preset: 'winner-2p' } },
+  },
+  {
+    name: 'results-cards-2p',
+    description:
+      'Results, player cards (1v1): placing, out-at time, KOs, falls, SDs, damage; Rematch focused.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'results', preset: 'cards-2p' } },
+  },
+  {
+    name: 'results-cards-4p',
+    description: 'Results, player cards for four players.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'results', preset: 'cards-4p' } },
+  },
+  {
     name: 'css-2p',
     description:
       'Character select, 1v1: P1 (keyboard) has picked Fireboy, a level 9 CPU on Random; Ready to fight shows.',

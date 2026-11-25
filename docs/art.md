@@ -58,28 +58,50 @@ frame-capture harness always draw the same picture.
 
 ## Clips and timing
 
-`frame` is the number of frames since the action began, which the engine already tracks. Clips that cycle set
-`loop: true`; the rest hold their last key. Move clips use Smash numbering (frame 1 is the first frame of the
-move) and `length = FAF - 1`, so a clip ends exactly when the fighter can act again. Each strike is keyed so
-its limb or flame covers every hitbox centre during that hitbox's active frames; the art test in
-`src/fighters/fireboy/art/index.test.ts` checks this against `moves.ts`.
+Name each clip after its engine action or the exact key in the fighter's move table. The renderer picks
+`f.move` when one is running, otherwise `f.action`. An unknown name falls back to `idle`, except for the
+shared stand-ins listed below. Use `loop: true` for cycles; other clips hold their last key.
 
-Canonical clip names (unknown names fall back to `idle`):
+For a move authored at simulation speed, frame 1 is the move's first frame, and the clip ends at `FAF - 1`.
+Record the clip's impact windows in `AnimClip.active`. To play a clip authored on a different timeline, the
+renderer maps those windows onto the move's hit windows (or the pummel/throw impact frame) and maps the clip
+end to `FAF - 1`. Check the in-match result as well as the lab: the lab samples the authored
+frames directly. Fireboy's `art/index.test.ts` uses the same retiming as the renderer and checks that a
+drawn part reaches into every hitbox's inner half on its active frames.
 
-| Group    | Clips                                                                                       |
-| -------- | ------------------------------------------------------------------------------------------- |
-| Ground   | `idle` `walk` `dash` `run` `runBrake` `turn` `crouch` `jumpSquat` `land` `taunt`            |
-| Air      | `jump` `doubleJump` `fall` `helpless`                                                       |
-| Defence  | `shield` `shieldDrop` `shieldBreak` `dizzy` `spotDodge` `rollForward` `rollBack` `airDodge` |
-| Ledge    | `ledgeCatch` `ledgeHang` `ledgeClimb` `ledgeRoll` `ledgeJump` `ledgeAttack`                 |
-| Hurt     | `hitstun` `tumble` `knockdown` `getUp` `getupAttack` `tech` `techRoll` `respawn`            |
-| Grabs    | `grab` `dashGrab` `grabHold` `pummel` `fthrow` `bthrow` `uthrow` `dthrow` `grabbed`         |
-| Attacks  | `jab1` `jab2` `jab3` `ftilt` `utilt` `dtilt` `dashAttack` `fsmash` `usmash` `dsmash`        |
-| Aerials  | `nair` `fair` `bair` `uair` `dair`                                                          |
-| Specials | `neutralSpecial` `sideSpecial` `upSpecial` `downSpecial`                                    |
+## Pose checklist
 
-Ledge getups are drawn in rig space while the engine lifts the fighter's origin from the hang position to the
-floor; `clips.ts` mirrors that lift (`belowFloor`) so the hands stay on the corner until the fighter is up.
+Check each row at match scale, facing both ways. In the fighter lab, inspect the start, strongest silhouette
+and exit with `states=clip@frame,...`; play cycles to check the seam. Review each fighter-specific action
+with the same checks as its nearest shared action.
+
+| Action or move                                        | What the pose needs to show                                                                                                                                                                                 |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `idle`                                                | Feet planted, eyes and silhouette clear. Breathing and blinks loop without a jump at the seam.                                                                                                              |
+| `walk`                                                | Smaller lean and stride than run. Each planted foot stays on the ground through weight transfer.                                                                                                            |
+| `dash`                                                | A sharp push-off and exaggerated first stride, readable before the run begins.                                                                                                                              |
+| `run`                                                 | Forward drive, alternating plant and passing poses, readable arms and feet. Match the stride to travel so the feet don't skate.                                                                             |
+| `runBrake`, `turn`                                    | Brake with a foot out in front; turn with the weight shifting onto the new lead foot.                                                                                                                       |
+| `crouch`, `jumpSquat`                                 | Crouch holds low; jump squat compresses quickly and stretches into takeoff. Keep the feet planted until takeoff.                                                                                            |
+| `jump`, `doubleJump`                                  | Show extension at liftoff, then a tuck. Give the double jump its own gesture so the spent jump reads.                                                                                                       |
+| `fall`, `helpless`                                    | Fall looks controlled; helpless has a different, slack or spread silhouette. Check that a single frame distinguishes them.                                                                                  |
+| `land`                                                | Feet meet the floor before the body compresses, then the fighter unwinds into the next action.                                                                                                              |
+| `shield`, `shieldStun`, `shieldDrop`                  | Brace inside the bubble; show recoil on block; uncurl as the bubble drops. `shieldStun` can reuse `shield`, and the bubble is rendered separately.                                                          |
+| `shieldBreak`, `dizzy`                                | Break snaps up or back, then gives way to a dazed sway. Neither should read like a voluntary jump or idle.                                                                                                  |
+| `spotDodge`, `rollForward`, `rollBack`, `airDodge`    | Pull back for a spot dodge, tuck and unroll in the direction of a ground roll, and twist then recover in the air. Don't animate a second copy of the sim's travel.                                          |
+| `ledgeCatch`, `ledgeHang`                             | Reach for the corner, take the weight, then hang with the grip on `ledgeGrip`. Check the hands and feet against the lab's ledge block.                                                                      |
+| `ledgeClimb`, `ledgeRoll`, `ledgeJump`, `ledgeAttack` | Pull up before standing, tuck before rolling, push off before rising, and show the strike on its hit window. Compensate for the sim lifting the origin while the hands still grip (Fireboy's `belowFloor`). |
+| `hitstun`, `tumble`                                   | A sharp recoil is distinct from the curled or flailing tumble loop. Check the silhouette during hitlag and just after launch.                                                                               |
+| `downBound`, `down`                                   | Show ground contact, then settle into a low pose. `downBound` can reuse `down`; use its own clip if the bounce needs a readable pose.                                                                       |
+| `techInPlace`, `techRoll`                             | Catch the impact deliberately, then recover up or roll out. Both should read differently from being knocked down.                                                                                           |
+| `getupStand`, `getupRoll`, `getupAttack`              | Separate rise, retreat and strike. `getupRoll` can reuse `techRoll`; key the attack to its hit window.                                                                                                      |
+| `grab`, `dashGrab`, `pivotGrab`                       | Reach at the grab window and pull the hands back on a miss. Show a moving lunge for dash grab and a clear turn for pivot grab.                                                                              |
+| `grabHold`, `grabbed`, `grabRelease`                  | The holder braces against the victim's weight; the victim strains in the grip. A release pose should read as a separation, not another hit.                                                                 |
+| `grabPummel`, `grabThrow`                             | Author `pummel` and `fthrow`/`bthrow`/`uthrow`/`dthrow` clips. Key one compact pummel accent and a distinct release in each throw direction.                                                                |
+| `attack`                                              | Author each move by name (`jab`, tilts, dash attack, smashes, and any combo follow-ups). Show anticipation, contact and recovery; verify the active silhouette with hitboxes visible.                       |
+| `aerial`                                              | Author `nair`, `fair`, `bair`, `uair` and `dair`. Make the strike direction clear without the ground line; check the transition out on landing.                                                             |
+| `neutralB`, `sideB`, `upB`, `downB` moves             | Give each special a distinct windup and release. Check that props and effects start where the fighter sends them, and transformations read before the swap.                                                 |
+| `taunt`, `respawn`, `ko`, `out`                       | Taunt holds a character-specific gesture; respawn reads before the drop. The renderer hides the fighter during `ko` and `out`; no body pose is needed.                                                      |
 
 ## Rendering
 
@@ -129,9 +151,9 @@ circles, feet-relative, y up) and `play=1`. Scripts drive it through `__lab.call
 `__lab.call('sheet', states)`, `__lab.call('palette', name)` and `__lab.call('clips')`.
 
 The key states the judges score are `idle@0`, `run@6`, `jump@40`, `fall@8`, `ftilt@7`,
-`fsmash@16`, `tumble@8`, `shield@10`, `ledgeHang@0` and `neutralSpecial@16`. Each round: capture the sheets,
-put them beside the reference sprites, have the judge panel score them and list concrete gaps, fix the top
-gaps, and repeat.
+`fsmash@16`, `tumble@8`, `shield@10`, `ledgeHang@0` and `neutralB@16`. Each round: capture the sheets
+and put them beside the reference frames. Ask the judges to score recognizability and Flash-style match,
+as well as animation. Fix the largest gaps and repeat until both judges score both axes at least 8/10.
 
 ## Drawing a fighter from scratch
 

@@ -8,6 +8,7 @@ import {
   CLOSED,
   FOCUS,
   FRONT,
+  HOLD,
   IDLE_FACE,
   OPEN_DOOR,
   OPEN_HOOD,
@@ -90,9 +91,6 @@ function scoop(
     key(length, PARK),
   ];
 }
-
-/** Holding someone in the open door (the grabHold pose). */
-const HOLD = mix(bob(0.15), tilt(1.5, FRONT), door(-1.05, 1.04));
 
 export const attacks: Record<string, AnimClip> = {
   /** Beep. */
@@ -564,6 +562,7 @@ export const attacks: Record<string, AnimClip> = {
     swaps: { ...ANGRY, ...SCOOP },
     keys: [
       key(0, HOLD, { ease: 'out' }),
+      key(1, HOLD, { ease: 'in' }),
       key(2, mix(bob(0.3), tilt(2, FRONT), door(-0.55, 1.02)), {
         ease: 'out',
         swaps: { ...SHOUT, ...SCOOP },

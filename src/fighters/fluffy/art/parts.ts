@@ -48,7 +48,7 @@ const curve = (p0: Pt, c: Pt, p1: Pt) =>
     .join('L')}`;
 
 /** The ink line around the body and its parts. */
-export const LINE = 0.3;
+export const LINE = 0.24;
 const ink = (width = LINE) => ({ color: 'line', width });
 const strand = (d: string, color: string, width: number): PathShape => ({ d, stroke: { color, width } });
 
@@ -60,7 +60,7 @@ const JITTER = [
 const jit = (i: number) => JITTER[((i % JITTER.length) + JITTER.length) % JITTER.length]!;
 
 /** Radius of the ball where the tufts start. */
-export const CORE = 4.25;
+export const CORE = 4.5;
 
 interface Tufts {
   /** Valley radius. */
@@ -93,7 +93,7 @@ function tufts(o: Tufts): string {
     const a0 = (i + o.phase) * step - Math.PI / 2;
     const a1 = a0 + step;
     const am = a0 + step * (0.5 + 0.16 * jit(i + o.seed) * o.wobble);
-    const len = o.len(am) * (1 + 0.32 * jit(i * 7 + o.seed + 3) * o.wobble);
+    const len = o.len(am) * (1 + 0.45 * jit(i * 7 + o.seed + 3) * o.wobble);
     const valley = o.r * (1 + 0.025 * jit(i * 3 + o.seed + 1) * o.wobble);
     const [bx, by] = polar(valley, a0);
     const [ex, ey] = polar(o.r * (1 + 0.025 * jit((i + 1) * 3 + o.seed + 1) * o.wobble), a1);
@@ -110,13 +110,19 @@ function tufts(o: Tufts): string {
   return poly(out);
 }
 
-/** Fur length around the ball: short underneath (he sits on it), long on top, with a cowlick at the back. */
+/**
+ * Fur length around the ball: a short fuzz all round, shortest underneath (he sits on it), with a crown of longer
+ * clumps on top and a cowlick at the back, like the pom-pom in IQ Ball and Catch the Candy.
+ */
 function furLength(scale: number, cowlick: number) {
   return (a: number) => {
     const up = Math.max(0, -Math.sin(a));
     const down = Math.max(0, Math.sin(a));
-    const lick = Math.exp(-((Math.atan2(Math.sin(a + 1.95), Math.cos(a + 1.95)) / 0.32) ** 2));
-    return scale * (0.95 + 0.4 * up * up - 0.62 * down ** 3) + cowlick * lick;
+    const near = (c: number, w: number) =>
+      Math.exp(-((Math.atan2(Math.sin(a - c), Math.cos(a - c)) / w) ** 2));
+    return (
+      scale * (0.5 + 0.6 * up ** 3 - 0.25 * down ** 2) + cowlick * (near(-1.95, 0.3) + 0.6 * near(-1.3, 0.22))
+    );
   };
 }
 
@@ -134,8 +140,8 @@ export interface FurStyle {
 }
 
 /**
- * The whole ball: a dark rim of tufts in ink, a mid-tone middle with its own smaller tufts, a light patch up front
- * where the light falls, and strands of fur flicked outwards.
+ * The whole ball: a dark rim of fuzz in ink, a mid-tone middle with its own smaller tufts, a rim light up and back,
+ * a soft pale glow under the eyes, and strands of fur flicked outwards.
  */
 export function fur(style: FurStyle = {}): PathShape[] {
   const length = style.length ?? 1;
@@ -182,8 +188,8 @@ export function fur(style: FurStyle = {}): PathShape[] {
     {
       d: tufts({
         r: CORE,
-        count: 30,
-        len: style.round ? () => 0.78 * length : furLength(length, 0.65 * length),
+        count: 46,
+        len: style.round ? () => 0.55 * length : furLength(length, 0.8 * length),
         wind,
         phase,
         seed,
@@ -196,8 +202,8 @@ export function fur(style: FurStyle = {}): PathShape[] {
     {
       d: tufts({
         r: CORE * 0.8,
-        count: 21,
-        len: furLength(0.62 * length, 0.2),
+        count: 30,
+        len: furLength(0.55 * length, 0.2),
         wind,
         phase: phase + 0.4,
         seed: seed + 5,
@@ -209,29 +215,46 @@ export function fur(style: FurStyle = {}): PathShape[] {
     },
     {
       d: tufts({
-        r: CORE * 0.44,
-        count: 13,
-        len: () => 0.42 * Math.sqrt(length),
+        r: CORE * 0.3,
+        count: 12,
+        len: () => 0.3 * Math.sqrt(length),
         wind,
         phase: phase + 0.2,
         seed: seed + 9,
         wobble: 0.8,
         sharp,
-        at: [-0.35, -1.1],
+        at: [-1.75, -2.2],
       }),
       fill: 'furLight',
+    },
+    {
+      d: ellipse(0.45, 1.35, 2.5, 2.5),
+      fill: {
+        type: 'radial',
+        cx: 0.45,
+        cy: 1.35,
+        r: 2.5,
+        stops: [
+          { offset: 0, color: 'furGlow', alpha: 0.95 },
+          { offset: 0.5, color: 'furGlow', alpha: 0.58 },
+          { offset: 1, color: 'furGlow', alpha: 0 },
+        ],
+      },
     },
     ...strands,
   ];
 }
 
 /** The face: where the eyes sit on the ball (the face bone's rest position). */
-export const FACE: Pt = [0.95, -1.95];
+export const FACE: Pt = [0.45, -1.3];
 
-/** Back and front eyes in face space: [cx, cy, rx, ry]. The front one is bigger (he faces right). */
+/**
+ * Back and front eyes in face space: [cx, cy, rx, ry]. Big and side by side across most of his face, as in his
+ * games; the front one is bigger (he faces right).
+ */
 export const EYES: [number, number, number, number][] = [
-  [-1.25, 0.12, 1.45, 1.78],
-  [1.15, 0, 1.62, 1.95],
+  [-1.62, 0.1, 1.98, 2.3],
+  [1.6, 0, 2.15, 2.45],
 ];
 
 /** Eye whites with a cool shade along the bottom, under an ink outline. */
@@ -246,9 +269,9 @@ export function eyes(at: Pt = [0, 0]): PathShape[] {
 /** Pupils (an iris ring, the pupil and two glints), looking a little ahead and down as in his games. */
 export function pupils(at: Pt = [0, 0], size = 1): PathShape[] {
   return EYES.flatMap(([x, y, , ry], i) => {
-    const px = at[0] + x + (i ? 0.42 : 0.38);
+    const px = at[0] + x + (i ? 0.52 : 0.48);
     const py = at[1] + y + 0.3 * (ry / 1.9);
-    const r = (i ? 0.72 : 0.66) * size;
+    const r = (i ? 0.92 : 0.84) * size;
     return [
       { d: ellipse(px, py, r, r * 1.05), fill: 'iris' },
       { d: ellipse(px + 0.05, py + 0.04, r * 0.66, r * 0.7), fill: 'pupil' },
@@ -263,7 +286,7 @@ export const dizzyPupils: PathShape[] = EYES.map(([x, y], i) => {
   const pts: string[] = [];
   for (let k = 0; k <= 28; k++) {
     const a = k * 0.62 + (i ? 1 : 0);
-    const r = 0.06 + k * 0.032;
+    const r = 0.07 + k * 0.04;
     pts.push(pt(x + 0.2 + r * Math.cos(a), y + 0.15 + r * Math.sin(a)));
   }
   return strand(`M${pts.join('L')}`, 'pupil', 0.17);
@@ -301,60 +324,49 @@ export function lids(outer: number, inner: number): PathShape[] {
     const cap = clipHalf(ring(x, y, rx + 0.02, ry + 0.02), left, right);
     if (cap.length < 3) return [];
     return [
-      { d: poly(cap), fill: 'fur', stroke: ink(0.24) },
+      { d: poly(cap), fill: 'furLight', stroke: ink(0.24) },
       strand(`M${pt(left[0] + 0.12, left[1])}L${pt(right[0] - 0.12, right[1])}`, 'line', 0.3),
     ];
   });
 }
 
-/** Eyes shut: full lids with a curved lash line, or squeezed tight into chevrons when hurt. */
+/**
+ * Eyes shut: light lids drawn inside the eye outline, closed down to a curved lash with a sliver of white left
+ * below it so the pair still reads at gameplay size, or squeezed tight into chevrons when hurt.
+ */
 export function shut(squeeze: boolean): PathShape[] {
-  return EYES.flatMap(([x, y, rx, ry], i) => [
-    { d: ellipse(x, y, rx, ry), fill: 'fur', stroke: ink(0.24) },
-    squeeze
-      ? strand(
+  return EYES.flatMap(([x, y, rx, ry], i) => {
+    if (squeeze)
+      return [
+        { d: ellipse(x, y, rx - 0.1, ry - 0.1), fill: 'furLight' },
+        strand(
           i
             ? `M${pt(x + rx * 0.55, y - ry * 0.45)}L${pt(x - rx * 0.45, y + 0.05)}L${pt(x + rx * 0.55, y + ry * 0.45)}`
             : `M${pt(x - rx * 0.55, y - ry * 0.45)}L${pt(x + rx * 0.45, y + 0.05)}L${pt(x - rx * 0.55, y + ry * 0.45)}`,
           'line',
           0.32,
-        )
-      : strand(
-          curve([x - rx * 0.8, y + ry * 0.1], [x, y + ry * 0.72], [x + rx * 0.8, y + ry * 0.1]),
-          'line',
-          0.3,
         ),
-  ]);
+      ];
+    const cut = y + ry * 0.6;
+    const lid = clipHalf(ring(x, y, rx - 0.1, ry - 0.1), [x - rx, cut], [x + rx, cut]);
+    const half = rx * Math.sqrt(1 - 0.36) - 0.1;
+    return [
+      { d: poly(lid), fill: 'furLight' },
+      strand(curve([x - half, cut - 0.05], [x, cut + ry * 0.22], [x + half, cut - 0.05]), 'line', 0.3),
+    ];
+  });
 }
 
 /** Mouths, under the eyes (face space). */
-export const MOUTH: Pt = [0.15, 2.75];
+export const MOUTH: Pt = [0.1, 3.2];
 export const mouthO: PathShape[] = [
   { d: ellipse(MOUTH[0], MOUTH[1], 0.72, 0.86), fill: 'mouth', stroke: ink(0.22) },
   { d: ellipse(MOUTH[0] + 0.05, MOUTH[1] + 0.4, 0.42, 0.3), fill: 'tongue' },
 ];
-export const mouthGrit: PathShape[] = [
-  {
-    d: poly([
-      [MOUTH[0] - 1.1, MOUTH[1] - 0.25],
-      ...quad(
-        [MOUTH[0] - 1.1, MOUTH[1] - 0.25],
-        [MOUTH[0], MOUTH[1] + 0.05],
-        [MOUTH[0] + 1.1, MOUTH[1] - 0.3],
-        8,
-      ),
-      [MOUTH[0] + 0.95, MOUTH[1] + 0.35],
-      ...quad(
-        [MOUTH[0] + 0.95, MOUTH[1] + 0.35],
-        [MOUTH[0], MOUTH[1] + 0.6],
-        [MOUTH[0] - 0.95, MOUTH[1] + 0.35],
-        8,
-      ),
-    ]),
-    fill: 'mouth',
-    stroke: ink(0.2),
-  },
-  strand(`M${pt(MOUTH[0] - 0.85, MOUTH[1] + 0.12)}L${pt(MOUTH[0] + 0.85, MOUTH[1] + 0.1)}`, 'eye', 0.14),
+/** Straining: a small round mouth, tongue showing. */
+export const mouthEffort: PathShape[] = [
+  { d: ellipse(MOUTH[0], MOUTH[1], 0.5, 0.58), fill: 'mouth', stroke: ink(0.2) },
+  { d: ellipse(MOUTH[0] + 0.04, MOUTH[1] + 0.27, 0.3, 0.2), fill: 'tongue' },
 ];
 export const mouthSmile: PathShape[] = [
   {
@@ -424,22 +436,22 @@ export function wave(amplitude: number, waves = 2): PathShape[] {
   ];
 }
 
-/** Radius of the spiky ball on the grabber's end (spikes included). */
-export const TIP_R = 1.95;
+/** Radius of the ball on the grabber's end (nubs included). */
+export const TIP_R = 1.75;
 
-/** The spiked ball on the end of the grabber, as in IQ Ball: a little burr in his own fur colours. */
+/** The sticky ball on the end of the grabber: a round bulb ringed with small fuzzy nubs, in his own colours. */
 export function tip(turn = 0): PathShape[] {
-  const spikes = 9;
+  const nubs = 12;
   const points: Pt[] = [];
-  for (let i = 0; i < spikes * 2; i++) {
-    const a = ((i + turn) / (spikes * 2)) * TAU;
-    const r = i % 2 ? 1.22 : TIP_R - LINE / 2;
+  for (let i = 0; i < nubs * 2; i++) {
+    const a = ((i + turn) / (nubs * 2)) * TAU;
+    const r = i % 2 ? 1.38 : TIP_R - LINE / 2 - 0.08 * (1 + jit(i));
     points.push([r * Math.cos(a), r * Math.sin(a)]);
   }
   return [
-    { d: poly(points), fill: 'grabDark', stroke: ink(0.24) },
-    { d: ellipse(0, 0, 1.05, 1.05), fill: 'grab' },
-    { d: ellipse(-0.32, -0.34, 0.42, 0.32), fill: 'grabHi' },
+    { d: poly(points), fill: 'grabDark', stroke: ink(0.22) },
+    { d: ellipse(0, 0, 1.15, 1.15), fill: 'grab' },
+    { d: ellipse(-0.36, -0.38, 0.46, 0.34), fill: 'grabHi' },
   ];
 }
 
@@ -450,10 +462,10 @@ export function candy(turn: number): PathShape[] {
   const inner: Pt[] = [];
   for (let i = 0; i <= 36; i++) {
     const t = i / 36;
-    const a = turn + t * 2.3 * Math.PI;
-    const rr = 0.25 + t * (r - 0.45);
+    const a = turn + t * 2.5 * Math.PI;
+    const rr = 0.2 + t * (r - 0.4);
     swirl.push([rr * Math.cos(a), rr * Math.sin(a)]);
-    const w = 0.12 + 0.3 * t;
+    const w = 0.2 + 0.42 * t;
     inner.push([(rr + w) * Math.cos(a + 0.5), (rr + w) * Math.sin(a + 0.5)]);
   }
   return [
@@ -469,6 +481,61 @@ export const reticle: PathShape[] = [
   { d: ellipse(0, 0, 1.25, 1.25), stroke: { color: 'reticle', width: 0.22 } },
   strand('M0 -3.5L0 -1.7M0 1.7L0 3.5M-3.5 0L-1.7 0M1.7 0L3.5 0', 'reticle', 0.3),
   { d: ellipse(0, 0, 0.32, 0.32), fill: 'reticle' },
+];
+
+export const thrustSmear: PathShape[] = [
+  { d: 'M-19 0Q-5 -2.2 0 -1.15Q2.4 0 0 1.15Q-7 1.9 -19 0Z', fill: 'smear' },
+  strand('M-24 -1.6L-10 -1.9M-16 2L-4 1.75', 'grabHi', 0.22),
+];
+
+export const sweat: PathShape[] = [
+  {
+    d: 'M-3.4 -3.4Q-4.6 -2.3 -4.13 -1.77Q-3.4 -1.04 -2.67 -1.77Q-2.2 -2.3 -3.4 -3.4Z',
+    fill: 'sweat',
+    stroke: ink(0.17),
+  },
+  { d: ellipse(-3.67, -2.16, 0.2, 0.29), fill: 'eye' },
+];
+
+export const santaHat: PathShape[] = [
+  {
+    d: 'M-3.5 -3.6Q-3.65 -6.2 -1.4 -7.5Q0.7 -8.65 2.55 -6.2Q3.1 -5.4 3.3 -4.45L2.4 -4.22Q1.5 -5.6 0.64 -5.55L0.13 -3.7Z',
+    fill: 'hatRed',
+    stroke: ink(),
+  },
+  {
+    d: 'M-0.48 -4.2Q0.1 -6.28 0.95 -6.05L2.3 -4.46L2.1 -4.14Q1.07 -5.65 0.62 -5.55L0.18 -4.04Z',
+    fill: 'hatRedDark',
+  },
+  {
+    d: 'M-3.98 -4.06Q-2.25 -4.9 0.05 -4.49Q0.76 -4.16 0.52 -3.54Q0.36 -2.93 -0.22 -3.07Q-2.02 -3.4 -3.51 -2.83Q-4.24 -2.75 -4.42 -3.34Q-4.53 -3.78 -3.98 -4.06Z',
+    fill: 'hatTrim',
+    stroke: ink(),
+  },
+  { d: ellipse(3.07, -4.3, 0.9, 0.9), fill: 'hatTrimShade', stroke: ink() },
+  { d: ellipse(2.87, -4.48, 0.6, 0.6), fill: 'hatTrim' },
+];
+
+export const witchHat: PathShape[] = [
+  {
+    d: 'M-5.23 -3.32Q-3.45 -4.74 -0.93 -4.94Q1.9 -5.23 3.52 -4.65Q2.69 -3.47 -0.31 -2.83Q-3.06 -2.26 -5.23 -3.32Z',
+    fill: 'hatBlackHi',
+    stroke: ink(),
+  },
+  {
+    d: 'M-3.94 -3.91L-2.68 -7.06L-0.19 -8.1L-0.78 -6.36L1.43 -4.69Q-0.18 -3.45 -3.94 -3.91Z',
+    fill: 'hatBlack',
+    stroke: ink(),
+  },
+  {
+    d: 'M-3.94 -3.91L-3.5 -5.01Q-1.41 -4.73 0.5 -5.4L1.43 -4.69Q-0.17 -3.45 -3.94 -3.91Z',
+    fill: 'hatBand',
+    stroke: ink(0.14),
+  },
+  {
+    d: 'M-1.92 -4.77L-0.69 -4.99L-0.48 -4.12L-1.72 -3.91ZM-1.53 -4.49L-1.45 -4.25L-0.86 -4.36L-0.92 -4.61Z',
+    fill: 'hatBuckle',
+  },
 ];
 
 /** A puff of dust kicked up by a landing or a skid, centred on the floor. */

@@ -1,4 +1,5 @@
 import type { HitboxDef, MoveDef } from '../types';
+import { CANDY_SPEED } from './entities';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -439,5 +440,15 @@ export const moves: Record<string, MoveDef> = {
     armor: { frames: [4, 60] },
     continuesOnLanding: true,
     hits: [],
+  },
+  /**
+   * Candy Frisbee (side special): flings the candy forward on frame 14; it boomerangs back to him (entities.ts). One
+   * candy at a time: while it is out, the throw comes out empty.
+   */
+  sideB: {
+    kind: 'other',
+    faf: 46,
+    hits: [],
+    spawn: [{ frame: 14, entity: 'candy', x: 8.5, y: 5.5, vx: CANDY_SPEED, max: 1 }],
   },
 };
