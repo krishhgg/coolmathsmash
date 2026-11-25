@@ -7,11 +7,10 @@ import {
   startScenario,
   type GameScenario,
 } from '../harness/scenarios';
-import { registerStage } from '../stages/registry';
+import { RAFT } from '../stages/raft-wars-water/geometry';
 import type { FighterState } from './fighter';
 import { createMatch, stepMatch, type MatchState } from './match';
 import { posedStage } from './movingStage';
-import type { StageGeometry } from './stage';
 import { placeInAir, run, testMatch, type Hold } from './testing/sim';
 
 /**
@@ -20,44 +19,6 @@ import { placeInAir, run, testMatch, type Hold } from './testing/sim';
  * and one rising past a corner (a side wall meeting the underside, a ledge) slides off it. Drop-through platforms
  * still let fighters through from below.
  */
-
-/** Raft War Lagoon's hull (PR #184): 10 deep with chamfered corners, bobbing 1.6 up and back every 300 frames. */
-const bobbingHull: StageGeometry = {
-  id: 'bobbing-hull',
-  name: 'Bobbing hull',
-  solids: [
-    {
-      points: [
-        [-75, 0],
-        [75, 0],
-        [75, -6.1],
-        [74.4, -8.8],
-        [72.8, -10],
-        [-72.8, -10],
-        [-74.4, -8.8],
-        [-75, -6.1],
-      ],
-      motion: {
-        period: 300,
-        ease: true,
-        keys: [
-          [0, 0, 0],
-          [150, 0, 1.6],
-        ],
-      },
-    },
-  ],
-  platforms: [],
-  ledges: [
-    { x: -75, y: 0, side: -1 },
-    { x: 75, y: 0, side: 1 },
-  ],
-  blastZones: { left: -240, right: 240, top: 192, bottom: -140 },
-  camera: { left: -170, right: 170, top: 130, bottom: -80 },
-  spawns: [[-40, 0, 1]],
-  respawns: [[0, 70]],
-};
-registerStage(bobbingHull);
 
 /** The fighter's collision box (movement.ts ecb): a diamond from the feet to 0.75 of its height, half its width wide. */
 function boxOf(f: FighterState) {
@@ -213,11 +174,11 @@ describe('under a moving solid', () => {
     }
   });
 
-  it("stops under a bobbing raft hull and never enters it, whatever the swell's phase", () => {
+  it("stops under Raft War Lagoon's bobbing raft and never enters it, whatever the swell's phase", () => {
     for (const settle of [0, 75, 150, 225]) {
       for (let x = -84; x <= 84; x += 6) {
         for (const stick of [-100, 0, 100]) {
-          const { m, f } = flameJump('bobbing-hull', x, -10 - FIREBOY_BOX_TOP - 2, settle);
+          const { m, f } = flameJump('raft-wars-water', x, RAFT.bottom - FIREBOY_BOX_TOP - 2, settle);
           clearOfSolids(m, f, 50, { x: stick });
         }
       }
