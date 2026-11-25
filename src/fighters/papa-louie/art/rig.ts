@@ -19,6 +19,7 @@ import {
   oven,
   paddle,
   pepperBomb,
+  pepperDust,
   scarf,
   shaker,
   shin,
@@ -136,6 +137,7 @@ export const rig: Rig = {
     boxes,
     swoosh,
     oven,
+    pepperDust,
   },
 };
 
