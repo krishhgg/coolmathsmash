@@ -28,9 +28,10 @@ const ACTIONS: Record<string, number> = {
 
 /**
  * Fighters whose clips still follow the old timings because other PRs were changing their art when the rest were
- * retimed. Their check is expected to fail; take a fighter off this list once its clips match.
+ * retimed. Their check is expected to fail; take a fighter off this list once its clips match. Watergirl draws
+ * Fireboy's clips, so she matches through his.
  */
-const WAITING = ['fluffy', 'runner', 'snailbob', 'watergirl'];
+const WAITING = ['fluffy', 'runner', 'snailbob'];
 
 /**
  * Each action whose clip is not as long as the action, as `action: clip length/last key (want n)`. An action with
