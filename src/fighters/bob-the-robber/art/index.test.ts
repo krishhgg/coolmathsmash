@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { poseBounds, shapesBounds, slotsCovering } from '../../../render/rig/geometry';
+import { poseBounds, shapesBounds, shapesContain, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import type { PathShape } from '../../../render/rig/types';
 import { fighter } from '..';
@@ -119,6 +119,14 @@ describe('bob the robber art', () => {
       const explorer = samplePose(art, clip, frame, frame, 'explorer').symbols;
       expect(explorer.gear).toBe('explorerHat');
       expect(explorer.torso).toBe('explorerJacket');
+    }
+  });
+
+  it('draws a sole across the bottom of both shoe views', () => {
+    for (const name of ['shoe', 'shoeFront']) {
+      const sole = (art.rig.symbols[name] as PathShape[]).filter((shape) => shape.fill === 'sole');
+      expect(shapesContain(sole, 0, 0.81), name).toBe(true);
+      expect(shapesContain(sole, 0, 0.5), name).toBe(false);
     }
   });
 });

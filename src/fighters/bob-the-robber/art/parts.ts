@@ -1,5 +1,5 @@
 import type { PathShape } from '../../../render/rig/types';
-import { bands, blob, curve, ellipse, line, n, poly, tube, type P } from './shapes';
+import { bands, blob, bottomOf, curve, ellipse, line, n, poly, tube, type P } from './shapes';
 
 /**
  * Bob the Robber's parts, drawn from scratch in the Coolmath port's style: flat fills, one shade and one
@@ -47,16 +47,19 @@ export function capsule(x0: number, y0: number, x1: number, y1: number, r0: numb
 
 const FACE: P[] = [
   [0, -2.9],
-  [2.2, -2.3],
-  [3.08, -0.4],
-  [2.85, 1.5],
-  [1.7, 2.8],
-  [0, 3.15],
-  [-1.7, 2.8],
-  [-2.85, 1.5],
-  [-3.08, -0.4],
-  [-2.2, -2.3],
+  [2.28, -2.38],
+  [3.26, -0.85],
+  [3.35, 0.72],
+  [2.86, 1.96],
+  [1.62, 2.85],
+  [0, 3.16],
+  [-1.62, 2.85],
+  [-2.86, 1.96],
+  [-3.35, 0.72],
+  [-3.26, -0.85],
+  [-2.28, -2.38],
 ];
+const faceOutline = blob(FACE);
 
 const ear = (x: number, flip: number): PathShape[] => [
   ink(ellipse(x, 0.45, 0.72, 0.86), 'skin'),
@@ -73,44 +76,46 @@ const ear = (x: number, flip: number): PathShape[] => [
 
 /** The bare head: face disc and ears, with a soft shadow under the jaw. */
 export const headFront: PathShape[] = [
-  ...ear(-3.0, 1),
-  ...ear(3.0, -1),
-  ink(blob(FACE), 'skin'),
+  ...ear(-3.1, 1),
+  ...ear(3.1, -1),
+  fill(faceOutline, 'skin'),
   fill(
     blob([
-      [-2.85, 1.0],
-      [-1.7, 2.45],
-      [0, 2.85],
-      [1.7, 2.45],
-      [2.85, 1.0],
-      [1.8, 2.05],
-      [0, 2.35],
-      [-1.8, 2.05],
+      [-3.22, 0.96],
+      [-2.79, 1.92],
+      [-1.58, 2.82],
+      [0, 3.12],
+      [1.58, 2.82],
+      [2.79, 1.92],
+      [3.22, 0.96],
+      [2.27, 2.02],
+      [0, 2.72],
+      [-2.27, 2.02],
     ]),
     'skinLo',
   ),
-  fill(ellipse(-1.9, 1.45, 0.55, 0.32), 'blush'),
-  fill(ellipse(1.9, 1.45, 0.55, 0.32), 'blush'),
+  stroke(faceOutline, LW),
 ];
 
 /** Three-quarter view facing right: only the back ear shows, the jaw shadow sits on the back cheek. */
 export const head3q: PathShape[] = [
-  ...ear(-3.0, 1),
-  ink(blob(FACE), 'skin'),
+  ...ear(-3.1, 1),
+  fill(faceOutline, 'skin'),
   fill(
     blob([
-      [-3.0, 0.0],
-      [-2.6, 1.6],
-      [-1.3, 2.7],
-      [0.6, 3.05],
-      [-0.7, 2.35],
-      [-1.8, 1.5],
-      [-2.35, 0.2],
+      [-3.29, 0.4],
+      [-3.02, 1.55],
+      [-2.4, 2.41],
+      [-1.42, 2.89],
+      [0.1, 3.11],
+      [1.75, 2.77],
+      [-0.03, 2.63],
+      [-1.66, 2.11],
+      [-2.63, 1.05],
     ]),
     'skinLo',
   ),
-  fill(ellipse(-1.75, 1.45, 0.5, 0.3), 'blush'),
-  fill(ellipse(2.35, 1.35, 0.45, 0.28), 'blush'),
+  stroke(faceOutline, LW),
 ];
 
 type View = 'front' | '3q';
@@ -134,15 +139,15 @@ function mask(view: View): PathShape {
         [m, -2.05],
         [3.25, -1.95],
         [3.4, -1.1],
-        [3.05, -0.22],
-        [b + 0.9, 0.42],
-        [b, 0.8],
-        [b - 0.78, 0.5],
+        [3.1, -0.15],
+        [b + 0.95, 0.53],
+        [b + 0.09, 0.87],
+        [b - 0.75, 0.63],
         [m, -0.12],
-        [a + 0.78, 0.5],
-        [a, 0.8],
-        [a - 0.9, 0.42],
-        [-3.05, -0.22],
+        [a + 0.75, 0.63],
+        [a - 0.09, 0.87],
+        [a - 0.95, 0.53],
+        [-3.1, -0.15],
         [-3.4, -1.1],
       ],
       0.9,
@@ -217,7 +222,7 @@ function eyes(view: View, kind: Eyes): PathShape[] {
       return;
     }
     const lid = {
-      sly: [EYE_Y - 0.28, EYE_Y - 0.22],
+      sly: view === 'front' ? [EYE_Y - 0.3, EYE_Y - 0.3] : [EYE_Y - 0.42, EYE_Y - 0.22],
       sneak: [EYE_Y - 0.37, EYE_Y - 0.3],
       angry: i === 0 ? [EYE_Y - 0.25, EYE_Y + 0.12] : [EYE_Y + 0.12, EYE_Y - 0.25],
       wide: [EYE_Y - 0.75, EYE_Y - 0.75],
@@ -461,7 +466,18 @@ function ribs(turn: number): PathShape[] {
       ),
     );
   }
-  return out;
+  const seams = xs
+    .filter((x) => Math.abs(x) < 2.99)
+    .map((x) =>
+      stroke(
+        line([
+          [x * 0.95, CUFF_TOP + 0.09 + bowY(x)],
+          [x, CUFF_BOT - 0.08 + bowY(x)],
+        ]),
+        0.11,
+      ),
+    );
+  return [...out, ...seams];
 }
 
 const DOME: P[] = [
@@ -684,13 +700,13 @@ const TORSO: P[] = [
   [2.45, -2.7],
   [2.62, -1.55],
   [2.86, -0.4],
-  [3.1, 0.45],
-  [2.75, 0.86],
-  [1.4, 0.99],
-  [0, 1.02],
-  [-1.4, 0.99],
-  [-2.75, 0.86],
-  [-3.1, 0.45],
+  [3.05, 0.28],
+  [2.71, 0.65],
+  [1.4, 0.88],
+  [0, 0.95],
+  [-1.4, 0.88],
+  [-2.71, 0.65],
+  [-3.05, 0.28],
   [-2.86, -0.4],
   [-2.62, -1.55],
   [-2.45, -2.7],
@@ -705,8 +721,8 @@ const shirtBase: PathShape[] = [
       [2.05, -3.24],
       [2.45, -2.43],
       [2.66, -1.1],
-      [3.02, 0.45],
-      [2.52, 0.82],
+      [2.96, 0.25],
+      [2.52, 0.62],
       [2.3, -0.8],
       [2.06, -2.34],
     ]),
@@ -714,17 +730,16 @@ const shirtBase: PathShape[] = [
   ),
 ];
 
-/** The striped shirt, flaring into a bell at the hem: white with three black hoops, shaded on the far side. */
+/** The striped shirt, with two wide hoops rounded over the belly. */
 export const torso: PathShape[] = [
   ...shirtBase,
   ...bands(
     torsoOutline,
     [
-      [-2.62, -2.02],
-      [-1.5, -0.9],
-      [-0.36, 0.26],
+      [-2.85, -1.92],
+      [-1.15, -0.16],
     ],
-    0.24,
+    0.44,
   ).map((d) => fill(d, 'stripe')),
   stroke(torsoOutline, LW),
 ];
@@ -958,7 +973,7 @@ const SHOE: P[] = [
 const shoeOutline = blob(SHOE, 0.95);
 export const shoe: PathShape[] = [
   fill(shoeOutline, 'shoe'),
-  ...bands(shoeOutline, [[0.66, 1.2]]).map((d) => fill(d, 'sole')),
+  fill(bottomOf(shoeOutline, 0.63), 'sole'),
   fill(
     blob([
       [0.85, -0.18],
@@ -986,7 +1001,7 @@ const shoeFrontOutline = blob(SHOE_FRONT, 0.95);
 /** The shoe seen from the front, for the idle stance. */
 export const shoeFront: PathShape[] = [
   fill(shoeFrontOutline, 'shoe'),
-  ...bands(shoeFrontOutline, [[0.64, 1.2]]).map((d) => fill(d, 'sole')),
+  fill(bottomOf(shoeFrontOutline, 0.63), 'sole'),
   fill(ellipse(-0.25, -0.1, 0.35, 0.16), 'shoeHi'),
   stroke(shoeFrontOutline, LW),
 ];

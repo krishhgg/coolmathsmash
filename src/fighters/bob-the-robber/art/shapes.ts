@@ -71,6 +71,18 @@ export function curve(points: readonly P[], t = 1): string {
   return catmull(points, false, t);
 }
 
+export function bottomOf(outline: string, seam: number): string {
+  const edge = flattenPath(outline, 16)[0]!;
+  const points: P[] = [];
+  for (let i = 0, j = edge.length - 2; i < edge.length; j = i, i += 2) {
+    const [x0, y0] = [edge[j]!, edge[j + 1]!];
+    const [x1, y1] = [edge[i]!, edge[i + 1]!];
+    if (y0 < seam !== y1 < seam) points.push([x0 + ((x1 - x0) * (seam - y0)) / (y1 - y0), seam]);
+    if (y1 >= seam) points.push([x1, y1]);
+  }
+  return poly(points);
+}
+
 /** Leftmost and rightmost x where the horizontal line at `y` crosses outline `o`, or null. */
 function span(o: number[], y: number): [number, number] | null {
   let lo = Infinity;
