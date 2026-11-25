@@ -50,12 +50,12 @@ export function pickCostumes(
   return picks;
 }
 
-/** One fighter: its rig posed from the action and frame, plus shield, port tag and debug label. World units, y down. */
 /** Shield bubble radius: shrinks with shield HP to 15% of full size, and never below zero when HP overshoots. */
 export function shieldRadius(def: FighterDef, shieldHp: number): number {
   return Math.max(0, def.stats.shieldSize * ((shieldHp / SHIELD_MAX) * 0.85 + 0.15));
 }
 
+/** One fighter: its rig posed from the action and frame, plus shield and debug label. World units, y down. */
 export class FighterView {
   readonly container = new Container();
   private readonly body = new Container();
@@ -63,16 +63,8 @@ export class FighterView {
   private readonly rig: RigView | null;
   private readonly shield = new Graphics();
   private readonly shieldColor: string;
-  private readonly tag = new Text({
-    text: '',
-    style: {
-      fontFamily: 'Arial',
-      fontSize: 28,
-      fontWeight: 'bold',
-      fill: '#ffffff',
-      stroke: { color: '#111111', width: 5 },
-    },
-  });
+  /** Height of the head above the feet, in world units; the overhead tag points here. */
+  readonly top: number;
   private readonly label = new Text({
     text: '',
     style: { fontFamily: 'monospace', fontSize: 22, fill: '#ffffff' },
@@ -93,19 +85,13 @@ export class FighterView {
           .fill('#ff7a1a')
           .stroke({ color: '#3a1300', width: 0.6 }),
     );
-    const color = PORT_COLORS[port % PORT_COLORS.length]!;
-    this.shieldColor = color;
-    this.tag.text = `P${port + 1}`;
-    this.tag.style.fill = color;
-    for (const t of [this.tag, this.label]) {
-      t.anchor.set(0.5, 1);
-      t.scale.set(0.12);
-    }
-    const top = this.art?.height ?? h;
-    this.tag.position.set(0, -top - 1.5);
-    this.label.position.set(0, -top - 5);
+    this.shieldColor = PORT_COLORS[port % PORT_COLORS.length]!;
+    this.label.anchor.set(0.5, 1);
+    this.label.scale.set(0.12);
+    this.top = this.art?.height ?? h;
+    this.label.position.set(0, -this.top - 5);
     this.label.visible = false;
-    this.container.addChild(this.body, this.shield, this.tag, this.label);
+    this.container.addChild(this.body, this.shield, this.label);
   }
 
   update(f: FighterState, alpha: number, frame: number, debug: boolean): void {

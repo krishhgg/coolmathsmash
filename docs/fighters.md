@@ -43,6 +43,7 @@ Donkey Kong, Bowser, Fox, Jigglypuff) and adjust.
 | `jumpSquat`                                              | frames on the ground before leaving it                                      | 3                | 3                   | 3–6              |
 | `fullHopHeight`, `shortHopHeight`, `doubleJumpHeight`    | apex heights above take-off                                                 | 34, 16, 33       | 36.33, 17.54, 36.33 | 16.5–50.5        |
 | `jumps`                                                  | total jumps including the grounded one                                      | 2                | 2                   | 2–6              |
+| `airJumpHeights`                                         | optional: each midair jump's apex in order (see Air mobility)               |                  |                     |                  |
 | `ledgeJumpHeight`                                        | apex of a ledge jump                                                        | 36               | 38.165              |                  |
 | `softLandingLag`, `hardLandingLag`                       | landing lag after short / long airtime                                      | 1, 3             | 1, 3                |                  |
 | `shieldSize`                                             | shield bubble radius at full health                                         | 9                | 9.7                 | 8–18.5           |
@@ -99,6 +100,18 @@ fsmash: {
 - **Knockback.** `damage`, `angle` (degrees from the attacker's facing; 361 is the Sakurai angle), `kbg`
   and `bkb` follow Ultimate's frame data exactly. Optional fields: `wbkb` (set knockback), `hitlag` (a
   multiplier), `shieldDamage` (extra) and `effect` (`'electric'` gives 1.5x hitlag).
+- **Autolink.** Use these angles on linking hits of a multihit; the last hit usually uses a regular angle.
+  Damage and hitstun still come from the hit's own knockback.
+  - `365` launches at half the attacker's velocity.
+  - `366` keeps the hit's launch speed, steering toward the hitbox for five frames before following the
+    attacker's original movement direction.
+  - `367` launches airborne targets at the attacker's velocity plus 20% of the gap toward the hitbox.
+    Downward launch is limited to 1 unit/frame, and total launch speed is capped at 3 after five frames.
+    Grounded targets launch normally at 80°.
+  - `368` uses `vector: { x, y, frames }` on the box to aim at a point relative to the attacker's feet at
+    contact (forward and up). It pulls the target's middle toward that point over `frames` (rounded up)
+    and then drops its launch speed. Stage collision still applies. A vector works with any angle; without
+    one, `368` falls back to `367`.
 - **Direction.** A hit launches along the attacker's facing unless its box sets `direction`: `'back'` for boxes
   behind him (back aerials, the rear hit of a down smash) and `'away'` for boxes around his body (spins, up
   attacks), which send the target away from his centre.
@@ -120,6 +133,8 @@ fsmash: {
   - Fireboy's `upB` uses all three.
   - `continuesOnLanding` lets an airborne special carry on from the same frame when it lands, instead of
     ending in landing lag.
+  - `glide` glides at the end of the move if Jump is held (see Air mobility).
+  - `action` plays the move in another action with its own physics instead of `attack`/`aerial`: `'hover'`.
   - `drift: false` turns off air drift (and air friction) while an airborne move plays, so a scripted path such
     as a tether zip (Bob the Robber's `upB`) is not bent by the stick.
   - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
@@ -163,6 +178,10 @@ most fighters, and lying (half the height thick, along the width) for a fighter 
 lowers an upright body only. A form that
 changes shape mid-match (Bloxorz block standing up or lying down) is a separate FighterDef with its own size,
 reached by `transform`. `?hitboxes` draws either shape.
+
+For a distinct pose, `FighterDef.hurtbox` can return a world-space capsule from the simulation state. Return
+`undefined` to keep the default capsule. This changes hit and grab contact, not how the fighter collides with the
+stage. The debug overlay uses the same capsule.
 
 `src/sim/combat/`; a fighter only supplies numbers.
 
@@ -219,6 +238,103 @@ bthrow: {
   Ultimate: both go into grab release and take 1% (1.2% in 1v1). Otherwise grabs resolve in port order, so when
   two grabs catch the same fighter the lower port wins.
 - **Shield grabs** use `grab` and come out from 4 frames after shieldstun ends.
+
+### Command grabs
+
+A command grab (Ganondorf's Flame Choke, Incineroar's Alolan Whip) is a special whose grab boxes go straight into a
+throw when they catch. `commandGrab` names that throw move, and the throw can land `holdHits` (chews, slams)
+before its `throw` lets go. Beast Lunge from the roster, in `src/sim/testing/beast.ts` until Balloon Boy & the
+Beast exist:
+
+```ts
+sideB: {
+  kind: 'other',
+  faf: 50,
+  commandGrab: 'beastChew',
+  hits: [
+    {
+      frames: [14, 16],
+      boxes: [{ id: 0, x: 10, y: 7, radius: 5, damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true }],
+    },
+  ],
+},
+beastChew: {
+  kind: 'other',
+  faf: 55,
+  hits: [],
+  holdHits: [
+    { frame: 10, damage: 3 },
+    { frame: 24, damage: 3 },
+  ],
+  throw: { frame: 40, hit: { damage: 6, angle: 55, kbg: 70, bkb: 70 } },
+},
+```
+
+- **Catching.** A command grab's boxes follow the grab rules above (through shields, only in front, attacks beat
+  them, two grabs on each other clank), except that they keep their full size against airborne fighters.
+- **The throw.** On the catch the grabber goes into `grabThrow` playing the named move from frame 1, and the
+  victim into `grabbed`. As with any started throw the victim can't mash out, and the grabber is intangible until
+  the release. A command grab caught in the air plays on in the air and through the landing, then ends in a fall
+  if the grabber is still airborne. In the air the stick drifts it, unless the throw move sets `drift: false`.
+- **`holdHits: [{ frame, damage, hitlag? }]`** land in order like pummels: damage and hitlag, no knockback. Their
+  damage counts towards the release's knockback.
+- **Third parties.** Hits from others break the victim free after 10%, as in any grab.
+
+### Tethers
+
+A move with `tether` fires a line from the hand (`TETHER.handHeight` up the body) that travels out, anchors, and
+reels the fighter in: Fluffy's grapples, the Fisherman's line, Bob's grappling hook. Fluffy's Quick Grapple,
+from the test fixtures in `src/sim/testing/tethers.ts` (Point Grapple and the Line Tether are there too):
+
+```ts
+upB: {
+  kind: 'other',
+  faf: 45,
+  hits: [],
+  tether: {
+    frame: 8,
+    range: 120,
+    travel: 10,
+    angle: 90,
+    stickAdjust: 30,
+    latch: ['ledge', 'surface', 'sky'],
+    pullSpeed: 4,
+    hang: 'jump',
+  },
+},
+```
+
+- **Firing.** On `frame` the line leaves towards `angle` (degrees from forward towards up) at `range` units, bent
+  by up to `stickAdjust` degrees towards the stick's forward or back. Its tip reaches full range evenly over
+  `travel` frames, and each frame the line from the hand to the tip is cast through the stage (`castSegment`).
+- **Aiming.** With `aimed: { speed }` a reticle starts on the fighter and walks with the stick at `speed` units a
+  frame while special is held, clamped to `range`; the move waits on the frame before `frame`, the fighter keeps
+  drifting (aimed tethers don't fast-fall), and releasing special fires at the reticle. With
+  `aimed.quick: { frames }`, releasing special within `frames` of pressing it while the stick points somewhere
+  fires at full range in that 8-way direction instead. A reticle still on the fighter fires nothing.
+- **Anchoring.** The first thing the line touches anchors it if `latch` lists it: `ledge` (any ledge the line
+  passes within `TETHER.ledgeSnap`, 10 units, of from off the stage, if nobody holds it and the fighter still has
+  ledge grabs), `surface` (any solid edge or platform, from either side) or `sky` (empty air at full range).
+  Anything else stops the line and the move plays out. `onAnchor(x, hit)` can veto an anchor by returning false
+  (Fluffy's limited sky anchors).
+- **Reeling.** An anchored fighter goes into `tetherPull`: no gravity or drift, straight at `pullSpeed` towards
+  the anchor. A ledge anchor ends in a ledge grab once he is within `TETHER.ledgeArrive` (6 units) of the hang
+  position, which is tether recovery. Another anchor ends with his hand on it: holding `hang` keeps him there
+  (`tetherHang`) until he lets go of it, else he falls. A jump press lets go at any point, keeping the reel's
+  velocity as momentum. A reel blocked by a wall gives up after range / pullSpeed + `TETHER.pullSlack` frames.
+  Letting go ends in a fall, or helpless for a `helpless` move.
+- **Losing the line.** Getting hit or grabbed, landing, or anything else that ends the move or the reel drops the
+  line. `FighterState.tether` holds the line (`out` with its tip while it travels, then its anchor) and
+  `FighterState.aim` the reticle or target; the hitbox overlay draws both in teal.
+
+`castSegment(m, from, to, { platforms, fighters, ignore?, ledges? })` (`src/sim/cast.ts`) is the line test on its
+own, for projectiles too: it returns the nearest ledge, surface or fighter hurtbox the segment touches, with `t`
+(0 to 1 along it) and the point, or null.
+
+A tether ignores fighters unless it sets `targetsFighters: true`. If the line reaches a fighter before stage
+geometry, `onFighter(ctx, target, event)` can handle the contact in script or return `'pullSelf'` on
+`event.phase === 'hit'` to reel the user in. The same hook receives `'arrive'` on contact, where the move can
+apply its own hit. Grab and yank behavior is left to the move script.
 
 ### Kill percentages
 
@@ -293,6 +409,50 @@ and the top blast zone only KOs at a vertical launch speed of at least 2.4 or 30
 - The harness (`/?harness`, `window.__smash`) steps scripted inputs frame by frame for captures and tests; see
   `docs/architecture.md`.
 
+## Air mobility
+
+Multi-jumps, glides, floats and fuel hovers are opt-in data on the fighter; the engine code is
+`src/sim/mobility.ts` (types, state) and `src/sim/actions/mobility.ts` (the `glide`, `float` and `hover` actions).
+Worked examples with the roster's numbers are the test fighters in `src/sim/testing/mobility.ts`; their tests
+(`src/sim/mobility.test.ts`) show how to drive each one, and `?harness` registers them so you can watch them:
+`__smash.newMatch({ ports: [{ fighter: 'test-glider' }, { fighter: 'fireboy' }] })` (also `test-floater`,
+`test-hover`). With `?hitboxes` the overlay shows jumps left as pips over multi-jumpers, float time (blue) and
+hover fuel (orange) as bars, and a glide's pitch as a green line.
+
+**Multi-jump.** `stats.jumps` counts every jump including the grounded one, so Red Ball's 4 is 3 midair jumps.
+Every midair jump rises `doubleJumpHeight` unless `stats.airJumpHeights` lists them in order for jumps that shrink
+(Kirby, Jigglypuff): `[21, 18, 15]` with `jumps: 6` gives 21, 18, 15, 15, 15. Its first entry must equal
+`doubleJumpHeight`. A script can give a jump back with `regainAirJump(x)` (Red Ball's dair bounce, the Duck's
+seed).
+
+**Glide** (Brawl's glide): `glide: { speed: 1.2, fallSpeed: 0.6 }` is Papa Louie.
+
+- Holding Jump once the last midair jump has peaked starts it; so does a move with `glide: true` ending while
+  Jump is held (an up special that rises into a glide). One glide per airtime; landing gives it back.
+- The glider flies along its pitch. Diving gains speed and climbing trades it for height until it stalls into a
+  fall. Horizontal speed never passes `speed` and the sink never passes `fallSpeed`; at the neutral pitch it
+  settles at exactly `speed` across.
+- Up and down tilt the pitch. Holding back brakes, then turns the glide around. Attack or the C-stick plays
+  `glide.attack` (default `nair`) and Special a special. Releasing Jump falls normally, or helpless when the glide
+  came out of a helpless move (it then lands with that move's `landingLag`).
+- Tuning: `angles` (pitch in degrees at neutral, full down and full up; default `[-20, -60, 40]`), `turnRate`
+  (degrees per frame, 3), `accel` (speed gained per frame in a straight dive, 0.06).
+
+**Float** (Peach in Ultimate): `float: { frames: 120 }` is Balloon Boy. Holding Jump while falling, from the apex of a
+jump on, stops vertical motion for up to `frames` frames while the fighter drifts at air speed. Aerials out of it
+keep floating and return to the float. Releasing Jump, a fast fall, a jump, a dodge or getting hit ends it. One
+float per airtime. A new Jump press is still a midair jump, so multi-jumpers float by holding Jump past an apex.
+
+**Fuel hover** (R.O.B.'s Robo Burner): `hover: { fuel: 120, rise: 1, accel: 0.1 }` plus a move with
+`action: 'hover'` (Snail Bob's up special). While Special stays held and fuel lasts, the fighter accelerates up to
+`rise` and burns one frame of fuel per frame. The move's hitboxes and script play as usual. Once its `faf` has
+passed, letting go falls normally (not helpless) and any air option cancels it, and the move can be used again on
+the fuel left. Fuel refills only on the ground, from empty to full in `refillFrames` (default 90, R.O.B.'s 1.5 s).
+
+**State the HUD can read**: `FighterState.mobility` holds `hoverFuel` (frames of thrust left), `floatFrames` (frames
+floated this airtime; equal to the float's `frames` once spent), `floating`, `glideUsed`, `glideAngle` and
+`glideSpeed`. Midair jumps left are `stats.jumps - jumpsUsed`.
+
 ## Stages
 
 Stages can move (docs/stage-geometry.md): a fighter standing on a moving platform or solid rides it, one hanging from a
@@ -300,6 +460,10 @@ moving ledge moves with it, and a solid that runs into a fighter pushes them out
 it. Nothing in a fighter needs to change for that. A move's `script` that reads the stage (`x.stage`) sees it
 as it stands on the current frame, moved pieces and all, and should skip absent pieces
 (`x.stage.present`).
+
+Stage hazards (damage zones, stage hitboxes) hit fighters through the same strike as moves. A fighter unharmed
+by some damaging terrain lists its elements in `immune` on its FighterDef: Fireboy's is `['lava']` and
+Watergirl's `['water']`; goo hurts everyone.
 
 ## Entities and projectiles
 

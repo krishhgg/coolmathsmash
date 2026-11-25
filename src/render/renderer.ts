@@ -5,14 +5,16 @@ import type { MatchState } from '../sim/match';
 import { getStage } from '../stages/registry';
 import type { StageView } from '../stages/battlefield/view';
 import type { StageGeometry } from '../sim/stage';
+import { tetherOrigin } from '../sim/actions/tether';
 import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
 import { drawEntities, drawEntityBoxes } from './entities';
 import { InputDisplay } from './debug/inputDisplay';
+import { drawMobility } from './debug/mobility';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
-import { MatchHud } from './hud';
-import { drawMovingPieces, isMoving } from './stagePieces';
+import { MatchHud, OverheadTags } from './hud';
+import { drawStagePieces, isMoving } from './stagePieces';
 
 /** Stage art: src/stages/<id>/view.ts exports createStageView (docs/stages.md). Stages without one draw flat. */
 const STAGE_VIEWS = import.meta.glob<{ createStageView: () => StageView }>('../stages/*/view.ts', {
@@ -45,7 +47,8 @@ export class Renderer {
   readonly eventLog = new EventLog();
   readonly camera = new Camera();
   private readonly inputDisplay = new InputDisplay();
-  private readonly matchHud = new MatchHud();
+  readonly matchHud = new MatchHud();
+  private readonly tags = new OverheadTags();
   private readonly stageLayer = new Container();
   private readonly stagePieces = new Graphics();
   private readonly fighterLayer = new Container();
@@ -88,7 +91,7 @@ export class Renderer {
     backdrop.visible = quality === 'full';
     app.stage.addChild(backdrop, this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
-    this.hud.addChild(this.matchHud.hud.container);
+    this.hud.addChild(this.tags.container, this.matchHud.hud.container);
   }
 
   static async create(parent: HTMLElement, quality: RenderQuality = 'full'): Promise<Renderer> {
@@ -154,10 +157,23 @@ export class Renderer {
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
     this.stageView?.update(state.frame, view);
-    drawMovingPieces(this.stagePieces, this.stage!, state.stage, state.frame, alpha);
+    drawStagePieces(this.stagePieces, this.stage!, state, alpha);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
     drawEntities(this.entities, state, alpha);
     this.drawBoxes(state);
+    this.tags.update(
+      state.fighters.map((f, i) => {
+        const v = this.fighters[i];
+        const at = v?.container.position;
+        return {
+          port: f.port,
+          cpu: this.matchHud.cpus.has(f.port),
+          visible: !!v?.container.visible,
+          x: this.world.position.x + (at?.x ?? 0) * view.zoom,
+          y: this.world.position.y + ((at?.y ?? 0) - (v?.top ?? 0) - 1) * view.zoom,
+        };
+      }),
+    );
     this.matchHud.update(
       state,
       state.fighters.map((f) => ({
@@ -181,7 +197,8 @@ export class Renderer {
     if (!this.overlays.hitboxes) return;
     for (const f of state.fighters) {
       if (f.action === 'ko' || f.action === 'out') continue;
-      const h = hurtbox(f, getFighter(f.fighter).stats);
+      const def = getFighter(f.fighter);
+      const h = hurtbox(f, def.stats);
       const hw = h.hw ?? 0;
       g.roundRect(h.x - hw - h.r, -h.y2 - h.r, (hw + h.r) * 2, h.y2 - h.y1 + h.r * 2, h.r).fill({
         color: '#ffe14a',
@@ -189,6 +206,16 @@ export class Renderer {
       });
       for (const b of activeHitboxes(f))
         g.circle(b.x, -b.y, b.box.radius).fill({ color: b.box.grab ? '#a33cff' : '#ff2a2a', alpha: 0.55 });
+      drawMobility(g, f, def);
+      const o = tetherOrigin(f);
+      if (f.tether) {
+        g.moveTo(o.x, -o.y)
+          .lineTo(f.tether.anchor.x, -f.tether.anchor.y)
+          .stroke({ color: '#00c2a8', width: 0.8 });
+        g.circle(f.tether.anchor.x, -f.tether.anchor.y, 1.5).fill('#00c2a8');
+      } else if (f.aim) {
+        g.circle(o.x + f.aim.x, -(o.y + f.aim.y), 3).stroke({ color: '#00c2a8', width: 0.8 });
+      }
     }
     drawEntityBoxes(g, state);
   }

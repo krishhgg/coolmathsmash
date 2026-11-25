@@ -64,6 +64,13 @@ export function rosterTiles(
   return [...tiles, ...fighters.filter((f) => !placed.has(f.id)).map((f) => ({ id: f.id, name: f.name }))];
 }
 
+/** Every fighter a player can pick, in registry order; forms reached only in a match are left out. */
+export function selectableFighterIds(): string[] {
+  return Object.values(FIGHTERS)
+    .filter((f) => f.selectable !== false)
+    .map((f) => f.id);
+}
+
 export function stageIds(): string[] {
   return Object.keys(STAGES);
 }

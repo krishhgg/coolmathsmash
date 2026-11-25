@@ -1,6 +1,7 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import { attacks } from './attacks';
+import { ledge } from './ledge';
 import {
   AIR,
   BACK_ARM_OVER_HEAD,
@@ -687,4 +688,5 @@ export const clips: Record<string, AnimClip> = {
     ],
   },
   ...attacks,
+  ...ledge,
 };

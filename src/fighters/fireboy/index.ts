@@ -12,4 +12,5 @@ export const fighter = defineFighter({
   moves,
   art,
   entities,
+  immune: ['lava'],
 });

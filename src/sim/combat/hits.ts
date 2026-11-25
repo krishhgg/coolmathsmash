@@ -5,18 +5,28 @@ import { findGrabs, grabArmour, resolveGrabs } from '../actions/grab';
 import { inWindow, isIntangible } from '../actions/registry';
 import { LEDGE_HIT_LOCK } from '../constants';
 import { stickX, stickY } from '../control';
-import type { Ctx, FighterState } from '../fighter';
+import type { Ctx, FighterState, LaunchLink } from '../fighter';
 import { emit } from '../events';
 import type { MatchState } from '../match';
 import { destroyEntity, entityDef, entityHitboxes, sweepEntities } from '../entities/entities';
 import type { EntityState } from '../entities/types';
 import { leaveGround } from '../movement';
 import {
+  AUTOLINK,
+  AUTOLINK_GROUND_ANGLE,
+  AUTOLINK_HALF,
+  AUTOLINK_PULL,
+  AUTOLINK_SPEED_CAP_DELAY,
+  AUTOLINK_SPEED_MAX,
+  AUTOLINK_VORTEX_FRAMES,
+  AUTOLINK_VY_MIN,
   hitlagFrames,
   hitstunFrames,
+  isAutolink,
   isTumble,
   knockback,
   launch,
+  LAUNCH_SPEED_PER_KB,
   ONE_V_ONE_DAMAGE,
   rageMultiplier,
   SHIELD_DAMAGE_MULT,
@@ -51,6 +61,8 @@ export interface Hurtbox {
 }
 
 export function hurtbox(f: FighterState, s: FighterStats): Hurtbox {
+  const posed = getFighter(f.fighter).hurtbox?.(f);
+  if (posed) return posed;
   if (s.width > s.height) {
     const r = s.height / 2;
     return { x: f.pos.x, y1: f.pos.y + r, y2: f.pos.y + r, r, hw: s.width / 2 - r };
@@ -106,6 +118,7 @@ interface Connection {
   at: { x: number; y: number };
   /** The attacker's move, kept here because an earlier hit this frame may clear it. */
   move: string | null;
+  link?: LaunchLink;
   /** The victim's armor this frame (MoveDef.armor): hits below both thresholds don't launch. Null without armor. */
   armor: { kb: number; damage: number } | null;
 }
@@ -136,11 +149,12 @@ function connection(
     dir: launchDir(box, a.facing, a.pos.x, v),
     at,
     move,
+    link: isAutolink(box.angle) || box.vector ? linkOf(a, box, at) : undefined,
   };
 }
 
 /** The knockback and damage thresholds of `v`'s armor this frame (MoveDef.armor); unset ones never break. */
-function armorOf(v: FighterState): Connection['armor'] {
+export function armorOf(v: FighterState): Connection['armor'] {
   const armor = moveOf(v)?.armor;
   if (!armor || !inWindow(v.actionFrame, armor.frames)) return null;
   return { kb: armor.threshold ?? Infinity, damage: armor.damageThreshold ?? Infinity };
@@ -226,9 +240,10 @@ export function applyHit(
  * Find every hit this frame from the state before any of them lands, then apply them all, so two fighters
  * whose moves connect on the same frame trade. Each move hits a fighter once (per rehit window), lowest
  * hitbox id first. Grab boxes are found from the same state and resolved after the hits (grab.ts), so an
- * attack beats a grab on the same frame.
+ * attack beats a grab on the same frame. `stage` lands the stage hazards' hits (src/sim/hazards.ts) between the
+ * two, adding its victims to `struck`, so they break grabs like any other hit.
  */
-export function resolveHits(m: MatchState): void {
+export function resolveHits(m: MatchState, stage?: (struck: Set<FighterState>) => void): void {
   const hits: Connection[] = [];
   const grabs = findGrabs(m);
   for (const a of m.fighters) {
@@ -257,6 +272,7 @@ export function resolveHits(m: MatchState): void {
   }
   for (const e of used) destroyEntity(m, e, 'hit');
   sweepEntities(m);
+  stage?.(struck);
   resolveGrabs(m, grabs, struck);
 }
 
@@ -265,30 +281,35 @@ export function addDamage(m: MatchState, v: FighterState, damage: number): void 
   v.damage = Math.min(DAMAGE_MAX, v.damage + damage * (m.players.length === 2 ? ONE_V_ONE_DAMAGE : 1));
 }
 
+/** What a hit does to its victim, whoever or whatever dealt it (a fighter's move, a stage hazard). */
+export interface Strike {
+  box: Pick<HitboxDef, 'damage' | 'angle' | 'kbg' | 'bkb' | 'wbkb' | 'hitlag' | 'effect'>;
+  /** Damage before staleness. */
+  damage: number;
+  stale: number;
+  rage: number;
+  dir: 1 | -1;
+  /** The victim's % before this frame's hits. */
+  percent: number;
+  crouch: boolean;
+  /** The victim's armor (MoveDef.armor): hits below both thresholds don't launch. Null without armor. */
+  armor: { kb: number; damage: number } | null;
+  /** How an autolink or position-vector hit follows its attacker after hitlag; only a fighter's hits have one. */
+  link?: LaunchLink;
+}
+
 /**
- * Damage always adds up. When several fighters hit the same victim on one frame (`again`), the strongest
- * knockback is the launch and the longest hitlag is the victim's freeze.
+ * The victim's side of a hit: damage, hitlag and the launch waiting for hitlag to end. When several hits land
+ * on one victim on the same frame (`again`), the strongest knockback is the launch and the longest hitlag is
+ * the freeze. An armored victim takes hits below both its thresholds without launching, and a held fighter stays
+ * in the grab, the damage counting toward breaking it. Returns the knockback, the hitlag and the % added.
  */
-function hit(
+export function strike(
   m: MatchState,
-  {
-    a,
-    attacker,
-    entity,
-    v,
-    box,
-    damage: base,
-    stale,
-    rage,
-    dir,
-    percent,
-    crouch,
-    at,
-    move,
-    armor,
-  }: Connection,
+  v: FighterState,
+  { box, damage: base, stale, rage, dir, percent, crouch, armor, link }: Strike,
   again: boolean,
-): void {
+): { kb: number; lag: number; added: number } {
   const kb = knockback({
     percent,
     damage: base,
@@ -304,30 +325,37 @@ function hit(
   const before = v.damage;
   addDamage(m, v, damage);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric', crouch });
-  if (a) a.hitlag = lag;
   v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
-  emit(m, {
-    type: 'hit',
-    attacker,
-    ...(entity !== undefined && { entity }),
-    victim: v.port,
-    move,
-    damage: v.damage - before,
-    kb,
-    tumble: isTumble(kb),
-    hitlag: lag,
-    effect: box.effect ?? 'normal',
-    x: at.x,
-    y: at.y,
-  });
-  if (armor && kb < armor.kb && damage < armor.damage) return;
+  const result = { kb, lag, added: v.damage - before };
+  if (armor && kb < armor.kb && damage < armor.damage) return result;
   const held = grabArmour(m, v, damage);
-  if (again && v.launch && v.launch.kb >= kb) return;
-  v.launch = { kb, angle: box.angle, dir, setKnockback: (box.wbkb ?? 0) > 0 };
-  if (held) return;
+  if (again && v.launch && v.launch.kb >= kb) return result;
+  v.launch = { kb, angle: box.angle, dir, setKnockback: (box.wbkb ?? 0) > 0, ...(link && { link }) };
+  if (held) return result;
   v.action = isTumble(kb) ? 'tumble' : 'hitstun';
   v.actionFrame = 0;
   v.move = null;
+  return result;
+}
+
+/** Damage always adds up; a fighter attacker freezes for hitlag, but an entity and its owner do not. */
+function hit(m: MatchState, h: Connection, again: boolean): void {
+  const { kb, lag, added } = strike(m, h.v, h, again);
+  if (h.a) h.a.hitlag = lag;
+  emit(m, {
+    type: 'hit',
+    attacker: h.attacker,
+    ...(h.entity !== undefined && { entity: h.entity }),
+    victim: h.v.port,
+    move: h.move,
+    damage: added,
+    kb,
+    tumble: isTumble(kb),
+    hitlag: lag,
+    effect: h.box.effect ?? 'normal',
+    x: h.at.x,
+    y: h.at.y,
+  });
 }
 
 function shieldHit(
@@ -361,41 +389,121 @@ function shieldHit(
   });
 }
 
+/** The attacker's motion and the hitbox an autolink or position-vector hit needs after hitlag, captured on contact. */
+function linkOf(a: FighterState, box: HitboxDef, at: { x: number; y: number }): LaunchLink {
+  const link: LaunchLink = { vel: { x: a.vel.x + a.kb.x, y: a.vel.y + a.kb.y }, at };
+  if (box.vector) {
+    link.to = { x: a.pos.x + box.vector.x * a.facing, y: a.pos.y + box.vector.y, frames: box.vector.frames };
+  }
+  return link;
+}
+
 /**
  * Hitlag is over: launch. DI comes from the victim's stick now. Grounded fighters hit flat (0 or 180 degrees)
  * or downward without tumble slide along the ground in hitstun; tumble spikes into the ground bounce off it.
+ * Autolink and position-vector hits replace the launch speed (but not the hitstun) with their own (formulas.ts).
  */
 export function applyLaunch(x: Ctx): void {
   const { f, c, s } = x;
   const pending = f.launch!;
   f.launch = null;
+  f.launchMotion = null;
+  const autolink = isAutolink(pending.angle);
+  const grounded367 =
+    autolink && f.ground !== null && pending.angle !== AUTOLINK.half && pending.angle !== AUTOLINK.vortex;
+  const link = pending.link && (pending.link.to || !grounded367) ? pending.link : undefined;
   const l = launch({
     kb: pending.kb,
-    angle: pending.angle,
+    angle: autolink ? AUTOLINK_GROUND_ANGLE : pending.angle,
     aerial: f.ground === null,
     gravity: s.gravity,
     setKnockback: pending.setKnockback,
-    stick: { x: stickX(c) * pending.dir, y: stickY(c) },
+    stick: link ? undefined : { x: stickX(c) * pending.dir, y: stickY(c) },
   });
   f.vel = { x: 0, y: 0 };
-  f.kb = { x: l.vx * pending.dir, y: l.vy };
+  const stun = hitstunFrames(pending.kb);
+  f.hitstun = stun + 1;
+  f.kb = link
+    ? linkedLaunch(x, pending.angle, link, pending.kb * LAUNCH_SPEED_PER_KB)
+    : { x: l.vx * pending.dir, y: l.vy };
   f.ledge = -1;
   f.ledgeLock = LEDGE_HIT_LOCK;
   f.ledgeGrabs = 0;
   f.ledgeFresh = true;
   f.fastFalling = false;
   f.airDodgeUsed = false;
-  const stun = hitstunFrames(pending.kb);
-  f.hitstun = stun + 1;
-  f.speedUpFaf = l.tumble && !pending.setKnockback ? stun + 1 : 0;
-  f.flyTop = l.vertical;
+  // Balloon speed-up runs several movement steps a frame; a launch that follows the attacker's motion keeps its pace.
+  f.speedUpFaf = l.tumble && !pending.setKnockback && !link ? stun + 1 : 0;
+  f.flyTop = l.vertical && !link;
   if (!f.ground) return;
-  const flat = l.angle === 0 || l.angle === 180;
+  const flat = link ? f.kb.y === 0 : l.angle === 0 || l.angle === 180;
   if (!flat && f.kb.y > 0) return leaveGround(x);
-  if (!flat && l.tumble) {
+  if (!link && !flat && l.tumble) {
     f.kb.y = Math.abs(f.kb.y) * 0.8;
     return leaveGround(x);
   }
   f.kb.y = 0;
   if (f.action === 'tumble') f.action = 'hitstun';
+}
+
+/** Launch velocity of an autolink (365-367) or position-vector hit; `speed` is the knockback's own launch speed. */
+function linkedLaunch(x: Ctx, angle: number, link: LaunchLink, speed: number): { x: number; y: number } {
+  const { f, s } = x;
+  if (link.to) {
+    f.launchMotion = { kind: 'vector', at: link.to, frames: Math.max(1, Math.ceil(link.to.frames)) };
+    stepLaunchMotion(x);
+    return f.kb;
+  }
+  const { vel } = link;
+  if (angle === AUTOLINK.half) return { x: vel.x * AUTOLINK_HALF, y: vel.y * AUTOLINK_HALF };
+  if (angle === AUTOLINK.vortex) {
+    const dir = withSpeed(vel, 1);
+    f.launchMotion = { kind: 'vortex', at: link.at, frames: AUTOLINK_VORTEX_FRAMES, dir };
+    f.kb = withSpeed(dir, speed);
+    stepLaunchMotion(x, speed);
+    return f.kb;
+  }
+  const v = {
+    x: vel.x + AUTOLINK_PULL * (link.at.x - f.pos.x),
+    y: Math.max(AUTOLINK_VY_MIN, vel.y + AUTOLINK_PULL * (link.at.y - f.pos.y - s.height / 2)),
+  };
+  if (Math.hypot(v.x, v.y) > AUTOLINK_SPEED_MAX) {
+    f.launchMotion = { kind: 'cap', frames: AUTOLINK_SPEED_CAP_DELAY - 1 };
+  }
+  return v;
+}
+
+function withSpeed(v: { x: number; y: number }, speed: number): { x: number; y: number } {
+  const n = Math.hypot(v.x, v.y);
+  return n > 0 ? { x: (v.x / n) * speed, y: (v.y / n) * speed } : { x: 0, y: 0 };
+}
+
+export function stepLaunchMotion(x: Ctx, speed = Math.hypot(x.f.kb.x, x.f.kb.y)): void {
+  const { f, s } = x;
+  const p = f.launchMotion!;
+  if (f.hitstun <= 0 || (f.action !== 'tumble' && f.action !== 'hitstun')) {
+    f.launchMotion = null;
+    return;
+  }
+  if (p.frames === 0) {
+    f.launchMotion = null;
+    if (p.kind === 'cap') {
+      if (speed > AUTOLINK_SPEED_MAX) f.kb = withSpeed(f.kb, AUTOLINK_SPEED_MAX);
+    } else {
+      f.kb = p.kind === 'vortex' ? withSpeed(p.dir, speed) : { x: 0, y: 0 };
+    }
+    return;
+  }
+  p.frames--;
+  if (p.kind === 'cap') return;
+  const dx = p.at.x - f.pos.x;
+  const dy = p.at.y - f.pos.y - s.height / 2;
+  f.kb =
+    p.kind === 'vector'
+      ? { x: dx / (p.frames + 1) - f.vel.x, y: dy / (p.frames + 1) - f.vel.y }
+      : withSpeed(
+          { x: p.dir.x * speed + dx * AUTOLINK_PULL, y: p.dir.y * speed + dy * AUTOLINK_PULL },
+          speed,
+        );
+  if (f.ground && f.kb.y > 0) leaveGround(x);
 }

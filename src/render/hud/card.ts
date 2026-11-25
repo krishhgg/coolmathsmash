@@ -1,7 +1,7 @@
 import { ColorMatrixFilter, Container, FillGradient, Graphics, Text, TextStyle } from 'pixi.js';
 import { hudFontFamily } from './font';
 import { iconView } from './icon';
-import { brighten, damageColor, formatDamage, hitEffect, portColor } from './style';
+import { brighten, damageColor, formatDamage, hitEffect, slotColor } from './style';
 import type { HudPlayer } from './types';
 
 const INK = 0x15110c;
@@ -83,6 +83,7 @@ export class DamageCard {
   private fonts = '';
   private shown = {
     port: -1,
+    cpu: false,
     icon: '\0',
     name: '\0',
     damage: NaN,
@@ -122,18 +123,19 @@ export class DamageCard {
       s.name = '\0';
       s.damage = NaN;
     }
-    if (p.port !== s.port || (p.icon ?? '') !== s.icon) {
+    const cpu = p.cpu ?? false;
+    if (p.port !== s.port || (p.icon ?? '') !== s.icon || cpu !== s.cpu) {
       this.drawPortrait(p);
-      this.drawEmblem(portColor(p.port));
-      this.drawBar(p.port);
+      this.drawEmblem(slotColor(p.port, cpu));
+      this.drawBar(slotColor(p.port, cpu));
     }
-    if (p.name !== s.name || p.port !== s.port) {
+    if (p.name !== s.name || p.port !== s.port || cpu !== s.cpu) {
       this.nameText.text = p.name.toUpperCase();
       const room = BAR.right - PORT_LABEL_X - 44;
       this.nameText.scale.set(1);
       if (this.nameText.width > room) this.nameText.scale.set(room / this.nameText.width);
-      this.portText.text = `P${p.port + 1}`;
-      this.portText.style.fill = portColor(p.port);
+      this.portText.text = cpu ? 'CPU' : `P${p.port + 1}`;
+      this.portText.style.fill = slotColor(p.port, cpu);
     }
     if (p.damage !== s.damage) {
       const { whole, tenth } = formatDamage(p.damage);
@@ -157,6 +159,7 @@ export class DamageCard {
     }
     Object.assign(s, {
       port: p.port,
+      cpu,
       icon: p.icon ?? '',
       name: p.name,
       damage: p.damage,
@@ -184,7 +187,7 @@ export class DamageCard {
 
   private drawPortrait(p: HudPlayer): void {
     for (const child of this.portrait.removeChildren()) child.destroy({ children: true });
-    const color = portColor(p.port);
+    const color = slotColor(p.port, p.cpu);
     const half = PORTRAIT.size / 2;
     const frame = new Graphics();
     frame.roundRect(-half - 2, -half - 2, PORTRAIT.size + 4, PORTRAIT.size + 4, 12).fill(INK);
@@ -257,16 +260,14 @@ export class DamageCard {
   }
 
   /** Dark slanted name bar with the port stripe along its top edge, as in Ultimate. */
-  private drawBar(port: number): void {
+  private drawBar(color: number): void {
     const g = this.bar.clear();
     const { left, right, top, bottom, slant } = BAR;
     g.poly([left + slant, top, right, top, right - slant, bottom, left, bottom]).fill({
       color: 0x15151c,
       alpha: 0.88,
     });
-    g.poly([left + slant + 1, top - 4, right + 1, top - 4, right, top, left + slant, top]).fill(
-      portColor(port),
-    );
+    g.poly([left + slant + 1, top - 4, right + 1, top - 4, right, top, left + slant, top]).fill(color);
   }
 
   private drawStocks(p: HudPlayer): void {

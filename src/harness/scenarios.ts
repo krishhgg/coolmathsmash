@@ -269,6 +269,47 @@ const CORE: Scenario[] = [
     page: { kind: 'lab', scene: 'menu', params: { screen: 'main' } },
   },
   {
+    name: 'credits',
+    description: 'Credits: the fan-game disclaimer, each character with its rights holder, and the crew.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'credits' } },
+  },
+  {
+    name: 'match-countdown',
+    description: 'Match start: "2" of the 3-2-1 countdown over the stage, clock at 7:00.00.',
+    page: { kind: 'lab', scene: 'match', params: { at: 'countdown' } },
+  },
+  {
+    name: 'match-go',
+    description: 'GO! the moment play starts, clock just started.',
+    page: { kind: 'lab', scene: 'match', params: { at: 'go' } },
+  },
+  {
+    name: 'match-pause',
+    description: 'Pause: PAUSE plate top-left, Resume / Restart / Quit panel on the right, match dimmed.',
+    page: { kind: 'lab', scene: 'match', params: { at: 'pause' } },
+  },
+  {
+    name: 'match-game',
+    description: 'GAME! after the last stock is lost, speed streaks behind it.',
+    page: { kind: 'lab', scene: 'match', params: { at: 'game' } },
+  },
+  {
+    name: 'results-winner',
+    description: 'Results, first page: winner placing, name and art; the runner-up below.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'results', preset: 'winner-2p' } },
+  },
+  {
+    name: 'results-cards-2p',
+    description:
+      'Results, player cards (1v1): placing, out-at time, KOs, falls, SDs, damage; Rematch focused.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'results', preset: 'cards-2p' } },
+  },
+  {
+    name: 'results-cards-4p',
+    description: 'Results, player cards for four players.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'results', preset: 'cards-4p' } },
+  },
+  {
     name: 'css-2p',
     description:
       'Character select, 1v1: P1 (keyboard) has picked Fireboy, a level 9 CPU on Random; Ready to fight shows.',
@@ -291,6 +332,23 @@ const CORE: Scenario[] = [
     description:
       'Stage select with custom rules (2 Stock · 5:00, items on) and Random focused in the preview.',
     page: { kind: 'lab', scene: 'menu', params: { screen: 'stages', preset: 'rules' } },
+  },
+  {
+    name: 'controls',
+    description:
+      'Controls, Keyboard 1 tab: every action with its keys, Up selected and lit on the keyboard picture beside the list.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'controls', preset: 'keyboard1' } },
+  },
+  {
+    name: 'controls-gamepad',
+    description:
+      'Controls, Gamepad tab: the shared pad mapping, with each button tagged on the controller picture.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'controls', preset: 'gamepad' } },
+  },
+  {
+    name: 'options',
+    description: 'Options: volume sliders, mute, tap jump, fullscreen and reset; Master volume selected.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'options' } },
   },
   {
     name: 'stage',

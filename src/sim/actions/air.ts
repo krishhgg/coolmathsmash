@@ -12,6 +12,7 @@ import type { Ctx } from '../fighter';
 import { airAttack } from './attack';
 import { consumeJump, wantsJump } from './common';
 import { techPressed, tumbleLanding } from './knockdown';
+import { airMobility } from './mobility';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
 
 export function fastFallCheck(x: Ctx): void {
@@ -36,6 +37,7 @@ export function airActionable(x: Ctx): boolean {
     setAction(x, 'airDodge');
     return true;
   }
+  if (airMobility(x)) return true;
   fastFallCheck(x);
   return false;
 }
@@ -65,8 +67,8 @@ export const AIR: Record<string, ActionDef> = {
       const { f, s, d, c } = x;
       if (f.actionFrame === 1) {
         emit(x.m, { type: 'jump', port: f.port, kind: 'air' });
+        f.vel.y = d.airJumpV[Math.min(Math.max(f.jumpsUsed - 1, 0), d.airJumpV.length - 1)]!;
         f.jumpsUsed++;
-        f.vel.y = d.doubleJumpV;
         f.vel.x = stickX(c) * s.airSpeed;
         f.fastFalling = false;
         return;

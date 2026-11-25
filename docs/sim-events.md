@@ -36,7 +36,8 @@ feeds back into the simulation.
 | `transform`     | `port`, `from`, `to`                                                                              | a fighter transforms into another (fighter ids)                                                                                                    |
 | `action`        | `port`, `from`, `to`                                                                              | a fighter's action changed this frame                                                                                                              |
 | `grab`          | `attacker`, `victim`, `move`                                                                      | a grab catches someone (`move`: `grab`, `dashGrab` or `pivotGrab`)                                                                                 |
-| `pummel`        | `attacker`, `victim`, `damage`                                                                    | a pummel lands; `damage` is what it added to the held fighter's %                                                                                  |
+| `commandGrab`   | `attacker`, `victim`, `move`                                                                      | a command grab catches someone; its throw starts at once, without a `move` event                                                                   |
+| `pummel`        | `attacker`, `victim`, `damage`                                                                    | a pummel or a throw's hold hit (a command grab's chew) lands; `damage` is what it added to the held fighter's %                                    |
 | `throw`         | `attacker`, `victim`, `move`                                                                      | a throw lets go; the `hit` that launches the victim follows                                                                                        |
 | `grabRelease`   | `holder`, `held`                                                                                  | a grab ends without a throw (held too long, or a hit broke it); `holder` is -1 if already gone                                                     |
 | `grabClank`     | `ports`                                                                                           | two fighters grab each other on the same frame and both bounce off                                                                                 |
@@ -48,10 +49,19 @@ feeds back into the simulation.
 | `reflect`       | `id`, `kind`, `port`, `x`, `y`                                                                    | a reflector sends a projectile back; `port` now owns it                                                                                            |
 | `absorb`        | `id`, `kind`, `port`, `heal`, `x`, `y`                                                            | an absorber eats a projectile and heals `heal` %                                                                                                   |
 | `entityHit`     | `id`, `kind`, `attacker`, `damage`, `hp`, `x`, `y`                                                | a hittable entity takes a hit; `hp` is what it has left                                                                                            |
+| `tetherFire`    | `port`, `x`, `y`                                                                                  | a tether line leaves the hand towards (`x`, `y`), the end of its full range                                                                        |
+| `tetherLatch`   | `port`, `kind` (`ledge`, `surface`, `sky`), `x`, `y`                                              | a tether line anchors at (`x`, `y`) and the reel starts                                                                                            |
+| `tetherRelease` | `port`                                                                                            | a tether line lets go: it whiffed, the fighter let go or grabbed the ledge, or a hit knocked him off                                               |
+| `stageHit`      | `victim`, `source` (`zone`, `hitbox`), `index`, `element` (or null), `damage`, `kb`, `x`, `y`     | a stage hazard hits a fighter; `damage` is what it added                                                                                           |
+| `float`         | `port`, `phase` (`start`, `end`)                                                                  | a float starts or ends (including mid-aerial, landing)                                                                                             |
+| `fuelEmpty`     | `port`                                                                                            | a fuel hover burns its last fuel while thrusting                                                                                                   |
 
 `x` and `y` are world units with y up. `action` events come last in a frame, one per fighter whose action
 differs from the frame before, which also covers states without their own event: `shield`, `spotDodge`,
 `rollForward`, `airDodge`, `ledgeHang`, `techInPlace`, `techRoll`, `downBound`, `tumble` and so on.
+
+`tetherFighterHit` carries the casting `port`, the `target` port and the contact point `x`, `y`. It reports
+line contact, not arrival or damage.
 
 ## Adding an event
 

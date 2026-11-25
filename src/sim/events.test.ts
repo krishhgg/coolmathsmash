@@ -5,8 +5,11 @@ import { spawnEntity } from './entities/entities';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
 import { createMatch, type MatchState } from './match';
+import { lungeTester } from './testing/beast';
 import { gadgets } from './testing/gadgets';
+import { MOBILITY_TEST_FIGHTERS, testFloater, testHover } from './testing/mobility';
 import { marioReference as mario } from './testing/reference';
+import { tetherTester } from './testing/tethers';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from './testing/sim';
 
 registerFighter(gadgets);
@@ -210,6 +213,45 @@ describe('sim events', () => {
     expect(e.y).toBeCloseTo(m.fighters[0]!.pos.y, 9);
   });
 
+  it('command grabs report the catch, each chew as a pummel, then the throw and its hit', () => {
+    const m = testMatch({ fighter: lungeTester.id, players: 2 });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    const at = { x: a.pos.x + 14 * a.facing, y: a.pos.y };
+    Object.assign(v, { pos: { ...at }, prevPos: { ...at }, ground: a.ground, action: 'idle', intangible: 0 });
+    runPorts(m, 1, [{ x: 100 * a.facing, buttons: ['special'] }, {}]);
+    const seen: SimEvent[] = [];
+    for (let i = 0; i < 120 && !seen.some((e) => e.type === 'hit'); i++) {
+      runPorts(m, 1, [{}, {}]);
+      seen.push(
+        ...m.events.filter((e) => ['commandGrab', 'grab', 'move', 'pummel', 'throw', 'hit'].includes(e.type)),
+      );
+    }
+    expect(seen.map((e) => e.type)).toEqual(['commandGrab', 'pummel', 'pummel', 'throw', 'hit']);
+    expect(seen[0]).toEqual({ type: 'commandGrab', attacker: 0, victim: 1, move: 'sideB' });
+    expect(seen[3]).toEqual({ type: 'throw', attacker: 0, victim: 1, move: 'beastChew' });
+  });
+
+  it('tethers report the fire, the latch with what it anchored to, then the release', () => {
+    const m = testMatch({ fighter: tetherTester.id, x: -70 });
+    attack(m, 0, 'upB');
+    const seen: SimEvent[] = [];
+    for (let i = 0; i < 80 && !seen.some((e) => e.type === 'tetherRelease'); i++) {
+      run(m, 1);
+      seen.push(...m.events.filter((e) => e.type.startsWith('tether')));
+    }
+    expect(seen.map((e) => e.type)).toEqual(['tetherFire', 'tetherLatch', 'tetherRelease']);
+    expect(seen[1]).toMatchObject({ type: 'tetherLatch', port: 0, kind: 'sky' });
+    expect(seen[2]).toEqual({ type: 'tetherRelease', port: 0 });
+  });
+
+  it('a stage hazard hit reports the hazard, its element and the % it added (hazard testbed lava)', () => {
+    const m = testMatch({ stage: 'hazard-testbed', x: -48 });
+    const e = next(m, 'stageHit');
+    expect(e).toMatchObject({ victim: 0, source: 'zone', index: 1, element: 'lava', damage: 12, x: -48 });
+    expect(e.kb).toBeGreaterThan(80);
+    expect(m.fighters[0]!.damage).toBe(24);
+  });
+
   it('the event stream is deterministic', () => {
     const stream = () => {
       const { m } = duel();
@@ -223,6 +265,62 @@ describe('sim events', () => {
     const first = stream();
     expect(first.length).toBeGreaterThan(10);
     expect(stream()).toEqual(first);
+  });
+});
+
+describe('air mobility events', () => {
+  for (const def of MOBILITY_TEST_FIGHTERS) registerFighter(def);
+
+  it('a float reports its start, nothing while an aerial carries it on, and its end', () => {
+    const m = testMatch({ fighter: testFloater.id });
+    const float = () => of(m, 'float').map((e) => e.phase);
+    const jump: Hold = { buttons: ['jump'] };
+    expect(next(m, 'float', jump).phase).toBe('start');
+    run(m, 1, { buttons: ['jump', 'attack'] });
+    expect(m.fighters[0]!.action).toBe('aerial');
+    expect(float()).toEqual([]);
+    until(m, () => float().length > 0, jump);
+    expect(float()).toEqual(['end']);
+    expect(m.fighters[0]!.mobility.floatFrames).toBe(testFloater.float.frames);
+  });
+
+  it('a fast fall out of a float reports one end', () => {
+    const m = testMatch({ fighter: testFloater.id });
+    const ends = () => of(m, 'float').filter((e) => e.phase === 'end').length;
+    next(m, 'float', { buttons: ['jump'] });
+    let count = 0;
+    run(m, 1, { y: -100, buttons: ['jump'] });
+    count += ends();
+    for (let i = 0; i < 5; i++) {
+      run(m, 1, { y: -100, buttons: ['jump'] });
+      count += ends();
+    }
+    expect(m.fighters[0]!.action).toBe('fall');
+    expect(count).toBe(1);
+  });
+
+  it('a float pushed onto the ground reports its end', () => {
+    const m = testMatch({ fighter: testFloater.id });
+    const f = placeInAir(m, 0, 1);
+    f.jumpsUsed = testFloater.stats.jumps;
+    run(m, 1, { buttons: ['jump'] });
+    expect(f.action).toBe('float');
+    expect(of(m, 'float')[0]?.phase).toBe('start');
+    f.kb.y = -2;
+    run(m, 1, { buttons: ['jump'] });
+    expect(f.ground).not.toBeNull();
+    expect(next(m, 'float', { buttons: ['jump'] }).phase).toBe('end');
+    expect(f.mobility).toMatchObject({ floating: false, floatFrames: 0 });
+  });
+
+  it('a hover reports the frame its fuel runs out', () => {
+    const m = testMatch({ fighter: testHover.id });
+    const f = m.fighters[0]!;
+    run(m, 1, { y: 50, buttons: ['special'] });
+    next(m, 'fuelEmpty', { buttons: ['special'] });
+    expect(f.mobility.hoverFuel).toBe(0);
+    run(m, 5, { buttons: ['special'] });
+    expect(of(m, 'fuelEmpty')).toEqual([]);
   });
 });
 

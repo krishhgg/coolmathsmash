@@ -20,6 +20,7 @@ import { spawnFromMove } from '../entities/entities';
 import { leaveGround, normalLandingLag } from '../movement';
 import { fastFallCheck } from './air';
 import { groundGrab } from './grab';
+import { glideAfterMove } from './mobility';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
 
 /** Ultimate: a smash attack charges for at most 60 frames, reaching 1.4x damage. */
@@ -46,8 +47,9 @@ export function startMove(x: Ctx, requested: string, action?: string): boolean {
   const move = x.def.moves?.[name];
   if (!move) return false;
   if (x.f.ground && move.leavesGround) leaveGround(x);
-  if (move.helpless) x.f.fastFalling = false;
-  setAction(x, action ?? (x.f.ground ? 'attack' : 'aerial'));
+  // Recoveries own their vertical motion: a fast fall carried into one would snap back once it ends.
+  if (move.helpless || move.action === 'hover') x.f.fastFalling = false;
+  setAction(x, action ?? move.action ?? (x.f.ground ? 'attack' : 'aerial'));
   x.f.move = name;
   emit(x.m, { type: 'move', port: x.f.port, move: name });
   x.f.hitVictims = [];
@@ -226,8 +228,9 @@ export const ATTACK: Record<string, ActionDef> = {
     update(x) {
       const { f } = x;
       const move = playMove(x);
-      if (!move.helpless) fastFallCheck(x);
+      if (!move.helpless && !move.tether?.aimed) fastFallCheck(x);
       if (f.actionFrame < move.faf) return;
+      if (glideAfterMove(x, move)) return;
       if (!move.helpless) return setAction(x, 'fall');
       setAction(x, 'helpless');
       f.landingLag = move.landingLag ?? HELPLESS_LANDING_LAG;

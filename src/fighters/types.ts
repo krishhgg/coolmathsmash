@@ -5,8 +5,14 @@
  */
 
 import type { ActionDef } from '../sim/actions/registry';
+import type { ButtonName } from '../input/types';
+import type { CastHit } from '../sim/cast';
+import type { Hurtbox } from '../sim/combat/hits';
 import type { AbsorberDef, EntityDef, ReflectorDef, SpawnDef } from '../sim/entities/types';
-import type { Ctx } from '../sim/fighter';
+import type { Ctx, FighterState } from '../sim/fighter';
+import type { FloatDef, GlideDef, HoverDef } from '../sim/mobility';
+import type { TerrainElement } from '../sim/stage';
+import type { Vec } from '../sim/vec';
 
 export interface FighterStats {
   /** Ultimate weight (Mario 98). Heavier fighters take less knockback. */
@@ -45,8 +51,14 @@ export interface FighterStats {
   fullHopHeight: number;
   shortHopHeight: number;
   doubleJumpHeight: number;
-  /** Total jumps including the grounded one (2 for most fighters). */
+  /** Total jumps including the grounded one (2 for most fighters; Ultimate's cast has 2 to 6). */
   jumps: number;
+  /**
+   * Apex height of each midair jump in order, for multi-jumpers whose jumps shrink (Kirby, Jigglypuff). The first
+   * entry must equal doubleJumpHeight; jumps past the end of the list repeat its last height. Default: every
+   * midair jump is doubleJumpHeight.
+   */
+  airJumpHeights?: number[];
   ledgeJumpHeight: number;
 
   softLandingLag: number;
@@ -68,7 +80,10 @@ export interface HitboxDef {
   y: number;
   radius: number;
   damage: number;
-  /** Launch angle in degrees from the attacker's facing direction; 361 is the Sakurai angle. */
+  /**
+   * Launch angle in degrees from the attacker's facing direction; 361 is the Sakurai angle and 365-368 are Ultimate's
+   * autolink angles (docs/fighters.md).
+   */
   angle: number;
   /** Knockback growth and base knockback, as in Ultimate's frame data. */
   kbg: number;
@@ -86,6 +101,11 @@ export interface HitboxDef {
    */
   direction?: 'forward' | 'back' | 'away';
   /**
+   * Position vector (Ultimate): instead of launching, pull the target's middle to this point, relative to the
+   * attacker's feet (x forward), over `frames` frames. Ultimate's 368-degree boxes always carry one.
+   */
+  vector?: { x: number; y: number; frames: number };
+  /**
    * A grab box: no damage or knockback (leave those 0). Touching a fighter in front of the grabber puts both in
    * a grab; it ignores shields and is halved in radius against airborne fighters (Ultimate).
    */
@@ -97,6 +117,60 @@ export type ThrowHitDef = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius' | 'grab' |
   /** 'back' launches behind the thrower (back throws). */
   direction?: 'forward' | 'back';
 };
+
+/** A hit on a held fighter (a pummel, a command grab's chew): `damage` and hitlag (x `hitlag`), no knockback. */
+export interface HoldHitDef {
+  frame: number;
+  damage: number;
+  hitlag?: number;
+}
+
+/** What a tether line can anchor to: a ledge, any solid or platform surface, or empty air at full range. */
+export type TetherLatch = 'ledge' | 'surface' | 'sky';
+
+/**
+ * A tether (Fluffy's grapples, the Fisherman's line, Bob's grappling hook): a line fired from the hand that
+ * travels out, anchors, and reels the fighter in. See docs/fighters.md.
+ */
+export interface TetherDef {
+  /** Move frame the line leaves the hand (aimed tethers wait here until special is released). */
+  frame: number;
+  /** Reach in units. */
+  range: number;
+  /** Frames the tip takes to reach full range, travelling at an even speed. */
+  travel: number;
+  /** Direction in degrees from straight forward (0) towards straight up (90). */
+  angle: number;
+  /** The stick's forward/back bends `angle` by up to this many degrees (Fluffy's Quick Grapple: 30). */
+  stickAdjust?: number;
+  /**
+   * Reticle aiming: while special is held the reticle walks from the fighter at `speed` units a frame with the
+   * stick (clamped to `range`), and releasing special fires at it. With `quick`, releasing special within
+   * `quick.frames` of pressing it while the stick points somewhere fires at full range in that 8-way direction.
+   */
+  aimed?: { speed: number; quick?: { frames: number } };
+  /** What the line may anchor to; hitting anything else stops it. */
+  latch: TetherLatch[];
+  /** Reel speed towards the anchor, units per frame. */
+  pullSpeed: number;
+  /** Holding this button when the reel arrives keeps the fighter hanging at the anchor. */
+  hang?: ButtonName;
+  /** Veto a latch (spend a resource, refuse sky anchors): return false and the line whiffs. */
+  onAnchor?: (x: Ctx, hit: TetherHit) => boolean;
+  /** Stop the line at the first hittable opponent in its path. Defaults to false. */
+  targetsFighters?: boolean;
+  /**
+   * Handle fighter contact. At `hit`, return `'pullSelf'` to reel toward the fighter and receive `arrive`
+   * once in contact. Return nothing to retract the line and handle responses such as a grab or yank in script.
+   */
+  onFighter?: (x: Ctx, target: FighterState, event: TetherFighterEvent) => 'pullSelf' | void;
+}
+
+export type TetherFighterEvent =
+  ({ phase: 'hit' } & Extract<CastHit, { kind: 'fighter' }>) | { phase: 'arrive'; point: Vec };
+
+/** Where a tether line stopped: a cast hit, or empty air at full range. */
+export type TetherHit = CastHit | { kind: 'sky'; t: number; point: Vec };
 
 /** A window of frames (inclusive) during which a set of hitboxes is out. */
 export interface HitWindow {
@@ -158,12 +232,29 @@ export interface MoveDef {
   transform?: { frame: number; into: string };
 
   /** Pummels: on `frame` the held fighter takes `damage` and hitlag (x `hitlag`) but no knockback, and stays held. */
-  pummel?: { frame: number; damage: number; hitlag?: number };
+  pummel?: HoldHitDef;
   /**
    * Throws: on `frame` the held fighter is let go and takes `hit` through the normal knockback path (DI,
    * staleness and rage included). Throws have no hitlag unless `hit.hitlag` sets a multiplier, as in Ultimate.
    */
   throw?: { frame: number; hit: ThrowHitDef };
+  /** Throws: hits on the held fighter before the release (a command grab's chews), like pummels, in frame order. */
+  holdHits?: HoldHitDef[];
+  /**
+   * Command grabs (Ganondorf's Flame Choke, Incineroar's Alolan Whip): a catch by this move's grab boxes plays the
+   * move named here at once as the throw, instead of the grab hold, so it can't be mashed out of. Its grab boxes
+   * catch airborne fighters at full size.
+   */
+  commandGrab?: string;
+  /** Tethers: fire a line on `tether.frame` that anchors and reels the fighter in (see TetherDef). */
+  tether?: TetherDef;
+  /**
+   * The action that plays this move instead of 'attack' / 'aerial', for moves with their own physics:
+   * 'hover' (fuel hover, FighterDef.hover).
+   */
+  action?: string;
+  /** Holding Jump when the move ends glides (FighterDef.glide); after a helpless move it ends in helpless fall. */
+  glide?: boolean;
   /**
    * Scripted behaviour (specials): runs every frame of the move before physics, after actionFrame advances.
    * It may set velocity or facing. Keep it deterministic: no Math.random, no clocks.
@@ -189,18 +280,26 @@ export interface FighterDef {
    * The name is also the animation clip name.
    */
   moves?: Record<string, MoveDef>;
+  /** Air mobility, each opt-in (src/sim/mobility.ts): Brawl-style glide, Peach-style float, fuel hover. */
+  glide?: GlideDef;
+  float?: FloatDef;
+  hover?: HoverDef;
   /**
    * This fighter's own versions of shared actions, by action name (`walk`, `dash`, `run`, `crouch`, ...), used
    * instead of the shared ones in `src/sim/actions/`, or new actions only this fighter enters. Bloxorz block tips
    * end over end instead of walking. Keep them deterministic, like move scripts.
    */
   actions?: Record<string, ActionDef>;
+  /** A deterministic world-space capsule for a distinct pose, or undefined to use the normal body. */
+  hurtbox?: (f: Readonly<FighterState>) => Hurtbox | undefined;
   /** Kinds of entity this fighter's moves spawn, by name (the entity kind is "<id>/<name>"). */
   entities?: Record<string, EntityDef>;
   /** Art data for the renderer (src/render/rig). Plain data, no renderer imports. */
   art?: unknown;
   /** False for forms reached only by transforming (Watergirl), so menus list only the fighter that starts. */
   selectable?: boolean;
+  /** Damaging terrain this fighter is unharmed by, e.g. Fireboy's ['lava'] (docs/stage-geometry.md). */
+  immune?: TerrainElement[];
 }
 
 export function defineFighter<T extends FighterDef>(def: T): T {

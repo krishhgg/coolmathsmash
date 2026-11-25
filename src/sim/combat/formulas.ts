@@ -96,6 +96,30 @@ export const DAMAGE_FLY_TOP_GRAVITY = 0.07392;
 export const DI_MAX = 0.17;
 export const LSI_MAX = 1.095;
 export const LSI_MIN = 0.92;
+/**
+ * Ultimate's autolink angles (SmashWiki, "Autolink angle"). A box with one of these launches by linking rather than
+ * by angle: 365 moves the target at half the attacker's speed; 366 sends it at full launch speed the way the attacker
+ * moves, pulled toward the hitbox for 5 frames; 367 sends it at the attacker's speed plus a fifth of the gap to the
+ * hitbox (a grounded target is launched normally at 80 degrees); 368 boxes carry a position vector (HitboxDef.vector)
+ * and act as 367 without one.
+ */
+export const AUTOLINK = { half: 365, vortex: 366, link: 367, vector: 368 } as const;
+export const AUTOLINK_HALF = 0.5;
+export const AUTOLINK_PULL = 0.2;
+export const AUTOLINK_VORTEX_FRAMES = 5;
+export const AUTOLINK_GROUND_ANGLE = 80;
+export const AUTOLINK_SPEED_MAX = 3;
+export const AUTOLINK_SPEED_CAP_DELAY = 5;
+export const AUTOLINK_VY_MIN = -1;
+
+export function isAutolink(angle: number): boolean {
+  return (
+    angle === AUTOLINK.half ||
+    angle === AUTOLINK.vortex ||
+    angle === AUTOLINK.link ||
+    angle === AUTOLINK.vector
+  );
+}
 
 export interface LaunchParams {
   kb: number;

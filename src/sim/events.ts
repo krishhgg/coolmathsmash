@@ -1,6 +1,7 @@
-import type { HitboxDef } from '../fighters/types';
+import type { HitboxDef, TetherLatch } from '../fighters/types';
 import type { DestroyReason } from './entities/types';
 import type { MatchState } from './match';
+import type { TerrainElement } from './stage';
 
 type Side = 'left' | 'right' | 'top' | 'bottom';
 
@@ -54,7 +55,9 @@ export type SimEvent =
   | { type: 'action'; port: number; from: string; to: string }
   /** A grab caught someone; `move` is the grab (grab, dashGrab or pivotGrab). */
   | { type: 'grab'; attacker: number; victim: number; move: string }
-  /** A pummel landed on the held fighter; `damage` is what it added to their %. */
+  /** A command grab caught someone; `move` is the grab. Its throw starts at once, without a `move` event. */
+  | { type: 'commandGrab'; attacker: number; victim: number; move: string }
+  /** A pummel or a throw's hold hit landed on the held fighter; `damage` is what it added to their %. */
   | { type: 'pummel'; attacker: number; victim: number; damage: number }
   /** A throw let go of the held fighter; the `hit` event that launches them follows. */
   | { type: 'throw'; attacker: number; victim: number; move: string }
@@ -62,6 +65,10 @@ export type SimEvent =
   | { type: 'grabRelease'; holder: number; held: number }
   /** Two fighters grabbed each other on the same frame and both bounced off (Ultimate's grab clank). */
   | { type: 'grabClank'; ports: [number, number] }
+  /** A float started or ended (also when it ends during an aerial started from it, or by landing). */
+  | { type: 'float'; port: number; phase: 'start' | 'end' }
+  /** A fuel hover burned its last fuel while thrusting. */
+  | { type: 'fuelEmpty'; port: number }
   /** A scheduled stage piece appeared (`on`) or vanished (docs/stage-geometry.md). */
   | { type: 'stagePiece'; piece: 'solid' | 'platform'; index: number; on: boolean }
   /** A moving solid squeezed a fighter against other geometry and the fighter popped out on top of it. */
@@ -87,6 +94,26 @@ export type SimEvent =
       attacker: number;
       damage: number;
       hp: number;
+      x: number;
+      y: number;
+    }
+  /** A tether line left the hand towards (`x`, `y`), its full-range end. */
+  | { type: 'tetherFire'; port: number; x: number; y: number }
+  /** A fighter-targeting line touched a hurtbox at (`x`, `y`), before the move chooses how to respond. */
+  | { type: 'tetherFighterHit'; port: number; target: number; x: number; y: number }
+  /** A tether line anchored at (`x`, `y`) on a ledge, a surface or empty air (`sky`); the reel starts. */
+  | { type: 'tetherLatch'; port: number; kind: TetherLatch; x: number; y: number }
+  /** A tether line let go: it whiffed, the fighter let go or grabbed the ledge, or something knocked him off it. */
+  | { type: 'tetherRelease'; port: number }
+  /** A stage hazard hit a fighter: a damage zone (with its element) or a stage hitbox, by index. */
+  | {
+      type: 'stageHit';
+      victim: number;
+      source: 'zone' | 'hitbox';
+      index: number;
+      element: TerrainElement | null;
+      damage: number;
+      kb: number;
       x: number;
       y: number;
     };

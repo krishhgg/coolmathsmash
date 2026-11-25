@@ -26,6 +26,7 @@ function describe(e: SimEvent): string {
     case 'transform':
       return `${p(e.port)} transform ${e.from} > ${e.to}`;
     case 'grab':
+    case 'commandGrab':
     case 'throw':
       return `${p(e.attacker)} ${e.move} ${p(e.victim)}`;
     case 'pummel':
@@ -34,6 +35,8 @@ function describe(e: SimEvent): string {
       return `${p(e.held)} grab release`;
     case 'grabClank':
       return `${p(e.ports[0])} ${p(e.ports[1])} grab clank`;
+    case 'stageHit':
+      return `${p(e.victim)} hit by ${e.element ?? 'stage hitbox'} +${n(e.damage)}% kb ${n(e.kb)}`;
     case 'stagePiece':
       return `${e.piece} ${e.index} ${e.on ? 'appears' : 'vanishes'}`;
     case 'entitySpawn':
@@ -46,6 +49,10 @@ function describe(e: SimEvent): string {
       return `${p(e.port)} absorb ${e.kind}#${e.id} -${n(e.heal)}%`;
     case 'entityHit':
       return `${e.kind}#${e.id} hit ${n(e.damage)} (${n(e.hp)} hp left)`;
+    case 'tetherLatch':
+      return `${p(e.port)} tether on ${e.kind}`;
+    case 'tetherFighterHit':
+      return `${p(e.port)} tether hit ${p(e.target)}`;
     default:
       return `${p(e.port)} ${e.type}`;
   }

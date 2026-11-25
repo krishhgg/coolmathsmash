@@ -1,8 +1,11 @@
 import { getFighter } from '../fighters/registry';
 import { getStage } from '../stages/registry';
 import './actions';
+import { tickMobility } from './actions/mobility';
 import { actionDef, runAction } from './actions/registry';
-import { applyLaunch } from './combat/hits';
+import { dropLostTether, rideAnchor } from './actions/tether';
+import { stepTetherMove } from './actions/tetherCast';
+import { applyLaunch, stepLaunchMotion } from './combat/hits';
 import {
   RESPAWN_DELAY,
   SHIELD_MAX,
@@ -47,13 +50,18 @@ export function makeCtx(m: MatchState, f: FighterState, p: PlayerState): Ctx {
 export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): void {
   const x = makeCtx(m, f, p);
   f.prevPos = { x: f.pos.x, y: f.pos.y };
+  dropLostTether(m, f);
+  rideAnchor(m, f);
   if (f.hitlag > 0) {
     f.hitlag--;
     return;
   }
   if (f.launch) applyLaunch(x);
+  else if (f.launchMotion) stepLaunchMotion(x);
   f.actionFrame++;
   runAction(x);
+  tickMobility(x);
+  stepTetherMove(x);
   const physics = actionDef(f).physics;
   if (physics === 'ground' && f.ground) groundMove(x);
   else if (physics === 'air' || (physics === 'ground' && !f.ground)) airMove(x);
@@ -90,6 +98,7 @@ function checkBlastZones(x: Ctx): void {
   f.vel = { x: 0, y: 0 };
   f.kb = { x: 0, y: 0 };
   f.launch = null;
+  f.launchMotion = null;
   f.hitstun = 0;
   f.speedUpFaf = 0;
   f.flyTop = false;
