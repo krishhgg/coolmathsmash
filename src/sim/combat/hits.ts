@@ -350,7 +350,8 @@ export function strike(
 /** Damage always adds up; a fighter attacker freezes for hitlag, but an entity and its owner do not. */
 function hit(m: MatchState, h: Connection, again: boolean): void {
   const { kb, lag, added } = strike(m, h.v, h, again);
-  if (h.a) h.a.hitlag = lag;
+  // One swing can connect several times a frame (a parry among them): the attacker keeps the longest freeze.
+  if (h.a) h.a.hitlag = Math.max(h.a.hitlag, lag);
   emit(m, {
     type: 'hit',
     attacker: h.attacker,
@@ -375,7 +376,7 @@ function shieldHit(
   const damage = base * stale;
   const stun = shieldstunFrames(damage, kind);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric' });
-  if (a) a.hitlag = lag;
+  if (a) a.hitlag = Math.max(a.hitlag, lag);
   v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
   v.shieldHp = Math.max(0, v.shieldHp - damage * SHIELD_DAMAGE_MULT - (box.shieldDamage ?? 0));
   const away = Math.sign(v.pos.x - fromX) || dir;

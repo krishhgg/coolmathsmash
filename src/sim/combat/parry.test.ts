@@ -69,6 +69,26 @@ describe('parry (perfect shield)', () => {
     expect(v.hitlag).toBe(LAG);
   });
 
+  it("keeps the attacker's parry freeze when the same swing also hits someone after the parrying fighter", () => {
+    const m = testMatch({ players: 3 });
+    const [a, v, w] = m.fighters as [FighterState, FighterState, FighterState];
+    for (const [f, x, facing] of [
+      [a, -10, 1],
+      [v, -3, -1],
+      [w, -3, -1],
+    ] as const) {
+      Object.assign(f, { pos: { x, y: 0 }, prevPos: { x, y: 0 }, vel: { x: 0, y: 0 }, kb: { x: 0, y: 0 } });
+      Object.assign(f, { facing, action: 'idle', actionFrame: 1 });
+    }
+    runPorts(m, 5, [{}, { buttons: ['shield'] }, {}]);
+    expect(v.action).toBe('shield');
+    attack(m, 0, 'probe');
+    runPorts(m, 1, [{}, {}, {}]);
+    expect(of(m, 'parry').map((e) => e.victim)).toEqual([1]);
+    expect(of(m, 'hit').map((e) => e.victim)).toEqual([2]);
+    expect(a.hitlag).toBe(LAG + 14);
+  });
+
   it('leaves the defender free to act 3 frames before the attacker', () => {
     const { m, a, v } = hitOnDropFrame(1);
     runPorts(m, v.hitlag, [{}, {}]);
