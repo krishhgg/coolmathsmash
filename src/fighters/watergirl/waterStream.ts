@@ -33,7 +33,7 @@ export const STREAM = {
   heavy: 68,
 };
 
-/** The pump kind for `charge` frames of charge: one tier per tenth of a full charge. */
+/** The pump kind for `charge` frames of charge: one tier per eighth of a full charge (10 frames). */
 export function pumpTier(charge: number): string {
   return `pump${Math.floor((Math.min(charge, STREAM.fullCharge) * PUMP.tiers) / STREAM.fullCharge)}`;
 }
