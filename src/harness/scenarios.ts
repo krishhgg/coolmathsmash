@@ -269,6 +269,11 @@ const CORE: Scenario[] = [
     page: { kind: 'lab', scene: 'menu', params: { screen: 'main' } },
   },
   {
+    name: 'credits',
+    description: 'Credits: the fan-game disclaimer, each character with its rights holder, and the crew.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'credits' } },
+  },
+  {
     name: 'match-countdown',
     description: 'Match start: "2" of the 3-2-1 countdown over the stage, clock at 7:00.00.',
     page: { kind: 'lab', scene: 'match', params: { at: 'countdown' } },
