@@ -74,6 +74,15 @@ describe.each(Object.values(allFighters()).map((f) => [f.id, f] as const))('figh
       expect(move.armor.frames[1]).toBeLessThan(move.faf);
     }
     for (const [a, b] of move.autoCancel ?? []) expect(b).toBeGreaterThanOrEqual(a);
+    if (move.tether) {
+      const t = move.tether;
+      expect(t.frame).toBeGreaterThanOrEqual(1);
+      expect(t.frame).toBeLessThan(move.faf);
+      expect(t.range).toBeGreaterThan(0);
+      expect(t.travel).toBeGreaterThanOrEqual(1);
+      expect(t.pullSpeed).toBeGreaterThan(0);
+      expect(t.latch.length).toBeGreaterThan(0);
+    }
     for (const s of move.spawn ?? []) {
       expect(s.frame).toBeGreaterThanOrEqual(1);
       expect(s.frame).toBeLessThan(move.faf);
