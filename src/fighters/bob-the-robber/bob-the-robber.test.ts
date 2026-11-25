@@ -3,6 +3,7 @@ import ref from '../../sim/reference/physics-constants.json';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch } from '../../sim/match';
+import { koPercent, type KoHit } from '../../sim/testing/ko';
 import { attack, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
 import { moves } from './moves';
 import { stats } from './stats';
@@ -66,19 +67,6 @@ function strike(move: string, percent: number, spot: Spot) {
     if (launched && v.launch === null && v.hitstun <= 0 && a.move === null) break;
   }
   return { dealt: v.damage - percent, ko: v.action === 'ko' && v.pos.y > -100 };
-}
-
-/** The lowest % at which `move` KOs Mario off the side or top (binary search, 0-400). */
-function killPercent(move: string, spot: Spot): number {
-  let lo = 0;
-  let hi = 400;
-  expect(strike(move, hi, spot).ko, move + ' never kills').toBe(true);
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1;
-    if (strike(move, mid, spot).ko) hi = mid;
-    else lo = mid;
-  }
-  return hi;
 }
 
 /** Action frames on which `move` has a hitbox out, from a standing (or airborne) start. */
@@ -214,39 +202,127 @@ describe('Bob the Robber: the baton', () => {
   });
 });
 
+/** One of Bob's hitboxes, by hit window and box id, as koPercent takes it. */
+const hitbox = (move: string, window: number, id: number): KoHit =>
+  moves[move]!.hits[window]!.boxes.find((b) => b.id === id)!;
+
+/** Where `hit` KOs the reference Mario at Battlefield's ledge: fresh, no rage, no DI (koPercent's defaults). */
+function ko(hit: KoHit, air = false): number {
+  const percent = koPercent({ hit, air });
+  expect(percent, 'never KOs').not.toBeNull();
+  return percent!;
+}
+
 /**
- * TODO(COOL-3 KO calibration, CREW.md "Knockback values"): the roster's kill percents are the targets, but the engine
- * currently KOs earlier than Ultimate does at Ultimate-standard knockback, so knockback stays at Ultimate values
- * and these tests only check a wide band below each target plus the orderings that matter (tips beat sourspots).
- * Switch to COOL-3's koPercent helper and tighten them once the calibration lands.
+ * Kill percents against Ultimate (CREW.md "Knockback values and kill percents"). Each kill move takes its angle, BKB
+ * and KBG from an Ultimate move in the same role at Bob's damage (13.0.1 data), so from the same setup it must KO
+ * within 5 points of that move's own numbers.
  */
-describe('Bob the Robber: kill percents (Mario at the Battlefield ledge, fresh, no rage)', () => {
-  it.each([
-    ['fsmash tip', 'fsmash', 85, { dx: 18 }],
-    ['fsmash sourspot', 'fsmash', 112, { dx: 10 }],
-    ['ftilt tip', 'ftilt', 150, { dx: 17 }],
-    ['usmash', 'usmash', 115, { dx: 2 }],
-    ['bair', 'bair', 140, { dx: 12, air: true, back: true }],
-    ['fair tip', 'fair', 132, { dx: 17.5, air: true }],
-  ] as const)('%s KOs in a wide band below the roster target of %i percent', (_, move, target, spot) => {
-    const percent = killPercent(move, spot);
-    expect(percent).toBeGreaterThanOrEqual(target * 0.5);
-    expect(percent).toBeLessThanOrEqual(target * 1.1);
+describe('Bob the Robber: kill percents against Ultimate analogues (Mario at the Battlefield ledge)', () => {
+  it.each(
+    (
+      [
+        [
+          'fsmash tip',
+          hitbox('fsmash', 0, 2),
+          false,
+          "Marth's fsmash tipper",
+          { damage: 18, angle: 361, kbg: 80, bkb: 80 },
+        ],
+        [
+          'fsmash sourspot',
+          hitbox('fsmash', 0, 1),
+          false,
+          "Lucina's fsmash",
+          { damage: 15, angle: 361, kbg: 73, bkb: 65 },
+        ],
+        [
+          'ftilt tip',
+          hitbox('ftilt', 0, 2),
+          false,
+          "Lucina's ftilt",
+          { damage: 11, angle: 361, kbg: 74, bkb: 42 },
+        ],
+        [
+          'usmash finisher',
+          hitbox('usmash', 4, 0),
+          false,
+          "Young Link's usmash finisher (7% box)",
+          { damage: 7, angle: 100, kbg: 108, bkb: 75 },
+        ],
+        [
+          'dsmash front',
+          hitbox('dsmash', 0, 1),
+          false,
+          "Marth's dsmash front tipper",
+          { damage: 12, angle: 361, kbg: 88, bkb: 57 },
+        ],
+        [
+          'dsmash back',
+          hitbox('dsmash', 1, 1),
+          false,
+          "Meta Knight's dsmash back hit",
+          { damage: 13, angle: 35, kbg: 78, bkb: 50, direction: 'back' },
+        ],
+        [
+          'dash attack',
+          hitbox('dashAttack', 0, 0),
+          false,
+          "Marth's dash attack",
+          { damage: 10, angle: 45, kbg: 55, bkb: 70 },
+        ],
+        ['nair', hitbox('nair', 0, 0), true, "Mario's nair", { damage: 8, angle: 361, kbg: 100, bkb: 20 }],
+        [
+          'fair tip',
+          hitbox('fair', 0, 2),
+          true,
+          "Inkling's fair (12% box)",
+          { damage: 12, angle: 361, kbg: 90, bkb: 30 },
+        ],
+        [
+          'fair sourspot',
+          hitbox('fair', 0, 1),
+          true,
+          "Inkling's fair (10% box)",
+          { damage: 10, angle: 361, kbg: 90, bkb: 30 },
+        ],
+        [
+          'bair',
+          hitbox('bair', 0, 1),
+          true,
+          "Lucina's bair",
+          { damage: 11.875, angle: 361, kbg: 90, bkb: 40, direction: 'back' },
+        ],
+        ['uair', hitbox('uair', 0, 0), true, "Roy's uair", { damage: 9, angle: 80, kbg: 105, bkb: 40 }],
+        [
+          'bthrow',
+          moves.bthrow!.throw!.hit,
+          false,
+          "Joker's bthrow",
+          { damage: 10, angle: 49, kbg: 66, bkb: 70, direction: 'back' },
+        ],
+      ] satisfies [string, KoHit, boolean, string, KoHit][]
+    ).map(([move, hit, air, analogue, reference]) => ({ move, hit, air, analogue, reference })),
+  )('$move KOs within 5 points of $analogue', ({ hit, air, reference }) => {
+    expect(Math.abs(ko(hit, air) - ko(reference, air))).toBeLessThanOrEqual(5);
   });
 
-  it('the tips kill earlier than the sourspots, and the fsmash tip earliest of all', () => {
-    const fsmashTip = killPercent('fsmash', { dx: 18 });
-    expect(fsmashTip).toBeLessThan(killPercent('fsmash', { dx: 10 }));
-    expect(killPercent('ftilt', { dx: 17 })).toBeLessThan(killPercent('ftilt', { dx: 10 }));
-    expect(killPercent('fair', { dx: 17.5, air: true })).toBeLessThan(
-      killPercent('fair', { dx: 10, air: true }),
-    );
-    for (const [move, spot] of [
-      ['ftilt', { dx: 17 }],
-      ['usmash', { dx: 2 }],
-      ['bair', { dx: 12, air: true, back: true }],
+  it('tips kill before sourspots, the fsmash tip earliest of all, and back throw is the kill throw', () => {
+    const fsmashTip = ko(hitbox('fsmash', 0, 2));
+    expect(fsmashTip).toBeLessThan(ko(hitbox('fsmash', 0, 1)));
+    expect(ko(hitbox('ftilt', 0, 2))).toBeLessThan(ko(hitbox('ftilt', 0, 1)));
+    expect(ko(hitbox('fair', 0, 2), true)).toBeLessThan(ko(hitbox('fair', 0, 1), true));
+    for (const [hit, air] of [
+      [hitbox('dsmash', 0, 1), false],
+      [hitbox('usmash', 4, 0), false],
+      [hitbox('bair', 0, 1), true],
+      [hitbox('fair', 0, 2), true],
     ] as const)
-      expect(fsmashTip).toBeLessThan(killPercent(move, spot));
+      expect(fsmashTip).toBeLessThan(ko(hit, air));
+    const thrown = (move: string) => koPercent({ hit: moves[move]!.throw!.hit }) ?? Infinity;
+    expect(ko(moves.bthrow!.throw!.hit)).toBeLessThan(
+      Math.min(thrown('fthrow'), thrown('uthrow'), thrown('dthrow')),
+    );
   });
 });
 
@@ -296,22 +372,6 @@ describe('Bob the Robber: pummel and throws', () => {
     runPorts(m, 1, [{ buttons: ['attack'] }, {}]);
     expect(a.move).toBe('pummel');
     expect(v.damage).toBeCloseTo(1.2 * 1.2, 6);
-  });
-
-  it('back throw is the kill throw: from the ledge it KOs (wide band below the roster 155%) where forward throw does not', () => {
-    const ko = (move: 'fthrow' | 'bthrow', percent: number) => {
-      const facing = move === 'bthrow' ? -1 : 1;
-      const { m, a, v } = holding(percent, 68, facing);
-      runPorts(m, 1, [{ x: 100 }, {}]);
-      expect(a.move).toBe(move);
-      for (let i = 0; i < 300 && v.action !== 'ko'; i++) runPorts(m, 1, [{}, {}]);
-      return v.action === 'ko' && v.pos.x > 240;
-    };
-    let percent = 0;
-    while (percent <= 300 && !ko('bthrow', percent)) percent += 2;
-    expect(percent).toBeGreaterThanOrEqual(155 * 0.5);
-    expect(percent).toBeLessThanOrEqual(155 * 1.1);
-    expect(ko('fthrow', percent)).toBe(false);
   });
 
   it('down throw at 0% leaves Bob free to act before Mario: a combo starter', () => {

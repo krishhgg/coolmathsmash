@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test('stage select: preview follows focus, rules change and stick, back and choose', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/');
+  await page.goto('/?debug');
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
   await page.keyboard.press('Enter');
   await expect(page.locator('.main-menu')).toBeVisible();
@@ -17,6 +17,7 @@ test('stage select: preview follows focus, rules change and stick, back and choo
   const tiles = page.locator('.ss-tile');
   await expect(tiles.first()).toHaveAttribute('data-stage', 'random');
   await expect(tiles.nth(1)).toHaveAttribute('data-stage', 'battlefield');
+  await expect(tiles.filter({ hasText: 'Engine testbed' })).toHaveCount(1);
   await expect(page.locator('.ss-slot')).toHaveCount(0);
   const focused = page.locator('.ss-tile.is-focus');
   await expect(focused).toHaveAttribute('data-stage', 'battlefield');
@@ -33,7 +34,16 @@ test('stage select: preview follows focus, rules change and stick, back and choo
 
   const row = (rule: string) => page.locator(`.ss-rule[data-rule="${rule}"]`);
   await expect(row('stocks').locator('.ss-arrow.is-right')).toHaveCSS('opacity', '0');
-  await page.keyboard.press('KeyS');
+  const target = () =>
+    page
+      .locator('.ss-tile.is-focus, .ss-rule.is-focus')
+      .evaluate((el: HTMLElement) => el.dataset.stage ?? el.dataset.rule);
+  for (let i = 0, limit = await tiles.count(); i < limit; i++) {
+    const from = await target();
+    if (from === 'stocks') break;
+    await page.keyboard.press('KeyS');
+    await expect.poll(target).not.toBe(from);
+  }
   await expect(row('stocks')).toHaveClass(/is-focus/);
   await expect(row('stocks').locator('.ss-arrow.is-right')).toHaveCSS('opacity', '1');
   await expect(row('minutes').locator('.ss-arrow.is-right')).toHaveCSS('opacity', '0');

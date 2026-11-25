@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { activeHitboxes, hurtbox } from '../../sim/combat/hits';
-import { TURN_FLIP, TURN_FRAMES } from './actions';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, type MatchState } from '../../sim/match';
+import { koPercent } from '../../sim/testing/ko';
 import { attack, placeInAir, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
 import { moves } from './moves';
-import { stats } from './stats';
+import { stats, TURN_FLIP, TURN_FRAMES } from './stats';
 
 /** Wheely (P1) against the Mario reference (P2) on Battlefield, settled on the ground. */
 function duel(): MatchState {
@@ -17,61 +17,6 @@ function duel(): MatchState {
   });
   runPorts(m, 10, [{}, {}]);
   return m;
-}
-
-/** Steps until P2's launch has carried it past a side or top blast zone (true) or died out (false). */
-function launchKos(m: MatchState, v: FighterState, before: number): boolean {
-  let hit = false;
-  for (let i = 0; i < 500; i++) {
-    runPorts(m, 1, [{}, {}]);
-    if (v.damage > before) hit = true;
-    if (v.action === 'ko') return Math.abs(v.pos.x) > 200 || v.pos.y > 150;
-    if (hit && v.hitlag <= 0 && v.launch === null && Math.hypot(v.kb.x, v.kb.y) < 0.01) return false;
-  }
-  throw new Error('the move never connected');
-}
-
-/**
- * Mario at the right ledge of Battlefield at \`percent\`, hit by \`move\` from Wheely \`gap\` units away: grounded and
- * facing the ledge, or (\`air\`) in the air at the ledge's height facing away for a back aerial.
- */
-function kos(move: string, percent: number, gap: number, air = false): boolean {
-  const m = duel();
-  const [a, v] = m.fighters as [FighterState, FighterState];
-  const y = air ? 8 : a.pos.y;
-  const x = 76 - gap;
-  Object.assign(a, { pos: { x, y }, prevPos: { x, y }, vel: { x: 0, y: 0 } });
-  a.facing = air ? -1 : 1;
-  if (air) Object.assign(a, { ground: null, action: 'fall', jumpsUsed: 1 });
-  Object.assign(v, {
-    pos: { x: 76, y },
-    prevPos: { x: 76, y },
-    vel: { x: 0, y: 0 },
-    ground: air ? null : a.ground,
-    action: air ? 'fall' : 'idle',
-    damage: percent,
-    intangible: 0,
-  });
-  attack(m, 0, move);
-  return launchKos(m, v, percent);
-}
-
-/** Wheely holding Mario at \`percent\` near the right ledge, throwing toward it. */
-function throwKos(move: 'fthrow' | 'bthrow', percent: number): boolean {
-  const m = duel();
-  const [a, v] = m.fighters as [FighterState, FighterState];
-  Object.assign(a, { pos: { x: 64, y: 0.5 }, prevPos: { x: 64, y: 0.5 }, ground: null, action: 'fall' });
-  runPorts(m, 10, [{}, {}]);
-  a.facing = move === 'bthrow' ? -1 : 1;
-  const at = { x: a.pos.x + 13 * a.facing, y: a.pos.y };
-  Object.assign(v, { pos: { ...at }, prevPos: { ...at }, ground: a.ground, action: 'idle', intangible: 0 });
-  v.damage = percent;
-  runPorts(m, 1, [{ buttons: ['grab'] }, {}]);
-  runPorts(m, 10, [{}, {}]);
-  expect(v.action).toBe('grabbed');
-  runPorts(m, 1, [{ x: 100 }, {}]);
-  expect(a.move).toBe(move);
-  return launchKos(m, v, percent);
 }
 
 describe('Wheely: horn jab', () => {
@@ -199,38 +144,42 @@ describe('Wheely: frame data', () => {
   });
 });
 
-/** The lowest percent (in steps of 5) at which \`ko(percent)\` holds. */
-function killPercent(ko: (percent: number) => boolean): number {
-  for (let p = 0; p <= 300; p += 5) if (ko(p)) return p;
-  return Infinity;
-}
-
-/**
- * TODO: these only bound the sheet's kill percents from above and check their order. Tighten them to the sheet's
- * values (fsmash ~95, usmash ~115, bair ~135, bthrow ~150) once the engine's KO calibration and koPercent land.
- */
-describe('Wheely: kill moves (Mario at the Battlefield ledge, fresh, no DI)', () => {
+describe('Wheely: kill percents (Mario at the Battlefield ledge, fresh, no DI)', () => {
   it.each([
-    ['fsmash', 95, 10, false],
-    ['usmash', 115, 3, false],
-    ['bair', 135, 12, true],
-  ] as const)('%s KOs by %s percent', (move, percent, gap, air) => {
-    // TODO(COOL-3 koPercent calibration): vertical kills land about 10-20% later since the engine gained Ultimate's
-    // DamageFlyTop gravity and top-blast-zone rule; retune against koPercent (src/sim/testing/ko.ts).
-    expect(kos(move, percent + (move === 'usmash' ? 15 : 5), gap, air)).toBe(true);
+    ['fsmash', 'Mario fsmash', { damage: 17.8, angle: 361, kbg: 99, bkb: 25 }],
+    ['usmash', 'Mario usmash', { damage: 14, angle: 83, kbg: 94, bkb: 32 }],
+    ['dsmash', 'Little Mac dsmash', { damage: 13, angle: 30, kbg: 94, bkb: 25 }],
+    ['bthrow', 'King K. Rool bthrow', { damage: 11, angle: 35, kbg: 56, bkb: 70, direction: 'back' }],
+    ['fthrow', 'Ridley fthrow', { damage: 9, angle: 42, kbg: 56, bkb: 60 }],
+  ] as const)('%s KOs within 5 points of %s', (move, _analogue, hit) => {
+    const ko = koPercent({ hit: { fighter: 'wheely', move } });
+    const analogue = koPercent({ hit });
+    expect(ko).not.toBeNull();
+    expect(analogue).not.toBeNull();
+    expect(Math.abs(ko! - analogue!)).toBeLessThanOrEqual(5);
   });
 
-  it('forward smash kills earlier than back air', () => {
-    const fsmash = killPercent((p) => kos('fsmash', p, 10));
-    const bair = killPercent((p) => kos('bair', p, 12, true));
-    expect(fsmash).toBeLessThan(bair);
+  it('back aerial uses Wario bair knockback, with 13% damage instead of 12%', () => {
+    const hit = { angle: 361, kbg: 106, bkb: 21, direction: 'back' } as const;
+    const ko = koPercent({ hit: { fighter: 'wheely', move: 'bair' }, air: true });
+    const damageMatched = koPercent({ hit: { ...hit, damage: 13 }, air: true });
+    expect(ko).not.toBeNull();
+    expect(damageMatched).not.toBeNull();
+    expect(Math.abs(ko! - damageMatched!)).toBeLessThanOrEqual(5);
+    expect(ko).toBeLessThan(koPercent({ hit: { ...hit, damage: 12 }, air: true })!);
   });
 
-  it('back throw is the kill throw: it KOs by 150% and well before forward throw', () => {
-    expect(throwKos('bthrow', 155)).toBe(true);
-    const bthrow = killPercent((p) => throwKos('bthrow', p));
-    const fthrow = killPercent((p) => throwKos('fthrow', p));
-    expect(fthrow - bthrow).toBeGreaterThanOrEqual(20);
+  it('forward smash kills earliest, then back aerial, then up smash', () => {
+    const ko = (move: string, air = false) => koPercent({ hit: { fighter: 'wheely', move }, air })!;
+    expect(ko('fsmash')).toBeLessThan(ko('bair', true));
+    expect(ko('bair', true)).toBeLessThan(ko('usmash'));
+    expect(ko('usmash')).toBeLessThan(ko('ftilt'));
+  });
+
+  it('back throw is the kill throw, well ahead of forward and up throw', () => {
+    const ko = (move: string) => koPercent({ hit: { fighter: 'wheely', move } })!;
+    expect(ko('bthrow')).toBeLessThan(ko('fthrow') - 40);
+    expect(ko('fthrow')).toBeLessThan(ko('uthrow'));
   });
 });
 

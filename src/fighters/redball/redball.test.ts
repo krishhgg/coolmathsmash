@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
-import { kills, koPercent, throwKills, versusMario } from './ko';
+import { koPercent, type KoHit } from '../../sim/testing/ko';
+import { versusMario } from './versus';
 import { DAIR_DROP_FRAME, moves } from './moves';
 import { stats } from './stats';
 
@@ -71,6 +72,7 @@ function activeFrames(move: string): number[] {
 }
 
 describe('Red Ball: frame data (roster sheet)', () => {
+  // Dash attack, down smash, back air and back throw deal their Ultimate analogue's damage (KILLS below).
   it.each([
     ['jab', 3, 2],
     ['jab2', 3, 2],
@@ -78,13 +80,13 @@ describe('Red Ball: frame data (roster sheet)', () => {
     ['ftilt', 6, 8],
     ['utilt', 5, 7],
     ['dtilt', 5, 6],
-    ['dashAttack', 6, 11],
+    ['dashAttack', 6, 12],
     ['fsmash', 15, 16],
     ['usmash', 11, 15],
-    ['dsmash', 9, 13],
+    ['dsmash', 9, 12],
     ['nair', 4, 8],
     ['fair', 8, 10],
-    ['bair', 7, 12],
+    ['bair', 7, 13],
     ['uair', 5, 9],
     ['dair', 12, 14],
     ['grab', 10, 0],
@@ -97,7 +99,7 @@ describe('Red Ball: frame data (roster sheet)', () => {
   it.each([
     ['pummel', 1],
     ['fthrow', 8],
-    ['bthrow', 10],
+    ['bthrow', 11],
     ['uthrow', 8],
     ['dthrow', 7],
   ] as const)('%s deals %i%%', (move, damage) => {
@@ -132,31 +134,43 @@ describe('Red Ball: frame data (roster sheet)', () => {
 });
 
 /**
- * The roster sheet's kill percents on Mario at the Battlefield ledge. TODO: once COOL-3's knockback calibration
- * lands, retune against its koPercent helper and assert each within a few % of its target. Until then the engine
- * KOs early across the cast, so these only pin the order and that each one kills.
+ * Kill moves on the Mario reference standing at Battlefield's ledge (CREW.md, "Knockback values and kill percents").
+ * Each copies the hit of an Ultimate analogue (13.0.1, SmashWiki hitbox data): Jigglypuff, whom he plays like, for
+ * the forward and up smash, dash attack and back air; Sonic's two-sided split kick for the down smash; Mario's back
+ * throw for his kill throw. So each must KO within 5% of the analogue's own hit from the same setup.
  */
-const KILL_TARGETS = [
-  ['fsmash', 100, (p: number) => kills('fsmash', p, 12)],
-  ['usmash', 110, (p: number) => kills('usmash', p, 3)],
-  ['bair', 135, (p: number) => kills('bair', p, 7.5, -1, 3)],
-  ['bthrow', 160, (p: number) => throwKills('bthrow', p, { x: 100 })],
-] as const;
+const KILLS: [move: string, analogue: string, hit: KoHit][] = [
+  ['fsmash', "Jigglypuff's forward smash", { damage: 16, angle: 361, bkb: 10, kbg: 110 }],
+  ['bair', "Jigglypuff's back air", { damage: 13, angle: 42, bkb: 30, kbg: 120 }],
+  ['dsmash', "Sonic's down smash", { damage: 12, angle: 30, bkb: 50, kbg: 80 }],
+  ['dashAttack', "Jigglypuff's dash attack", { damage: 12, angle: 43, bkb: 57, kbg: 83 }],
+  ['usmash', "Jigglypuff's up smash", { damage: 15, angle: 87, bkb: 20, kbg: 100 }],
+  ['bthrow', "Mario's back throw", { damage: 11, angle: 45, bkb: 70, kbg: 66 }],
+];
 
-describe('Red Ball: kill moves on Mario at the Battlefield ledge (roster sheet order)', () => {
-  it('fsmash kills first, then usmash, bair and bthrow, all before 200%', () => {
-    const measured = KILL_TARGETS.map(([, , ko]) => koPercent(ko));
-    // TODO(COOL-3 koPercent calibration): vertical kills land about 10-20% later since the engine gained Ultimate's
-    // DamageFlyTop gravity and top-blast-zone rule, so usmash and bair now trade places; retune against koPercent.
-    expect(measured[0]).toBe(Math.min(...measured));
-    expect(measured[3]).toBe(Math.max(...measured));
-    expect(Math.max(...measured)).toBeLessThan(200);
+const ko = (move: string) => koPercent({ hit: { fighter: 'redball', move } }) ?? Infinity;
+
+describe('Red Ball: kill moves on Mario at the Battlefield ledge (Ultimate analogues)', () => {
+  it.each(KILLS)('%s KOs within 5%% of %s', (move, _analogue, hit) => {
+    expect(Math.abs(ko(move) - koPercent({ hit })!)).toBeLessThanOrEqual(5);
+  });
+
+  it('forward smash and back air kill first, then down smash and dash attack, then up smash, back throw last', () => {
+    const [fsmash, bair, dsmash, dashAttack, usmash, bthrow] = KILLS.map(([move]) => ko(move)) as [
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+    ];
+    expect(Math.max(fsmash, bair)).toBeLessThan(Math.min(dsmash, dashAttack));
+    expect(Math.max(dsmash, dashAttack)).toBeLessThan(usmash);
+    expect(usmash).toBeLessThan(bthrow);
   });
 
   it('forward throw and the tilts do not kill before 150%', () => {
-    expect(koPercent((p) => throwKills('fthrow', p, { x: 100 }))).toBeGreaterThan(150);
-    expect(koPercent((p) => kills('ftilt', p, 8))).toBeGreaterThan(150);
-    expect(koPercent((p) => kills('utilt', p, 3))).toBeGreaterThan(150);
+    for (const move of ['fthrow', 'ftilt', 'utilt']) expect(ko(move), move).toBeGreaterThan(150);
   });
 });
 
