@@ -3,19 +3,14 @@ import { REF_CAMERA, type StageCamera } from '../../stages/battlefield/art/paral
 import type { StageView } from '../../stages/battlefield/view';
 import { getStage } from '../../stages/registry';
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../../config';
+import { MAX_ZOOM } from '../../render/camera';
+import { placeholderStage } from '../../render/placeholderStage';
 import type { StageGeometry } from '../../sim/stage';
 import type { LabScene } from '../types';
 
 const views = import.meta.glob<{ createStageView: () => StageView }>('../../stages/*/view.ts', {
   eager: true,
 });
-
-function flatStage(stage: StageGeometry): StageView {
-  const world = new Graphics();
-  for (const solid of stage.solids) world.poly(solid.points.flatMap(([x, y]) => [x, -y])).fill(0x69738c);
-  for (const p of stage.platforms) world.rect(p.x1, -p.y, p.x2 - p.x1, 2).fill(0xa0b4d1);
-  return { background: new Container(), world, update() {} };
-}
 
 /** Lab-only stand-ins (port-coloured, Flash-outlined) to judge readability before real fighters exist. */
 function dummies(stage: StageGeometry): Container {
@@ -51,7 +46,8 @@ let setCollision: (on: boolean) => void = () => {};
 
 /**
  * A registered stage at a given camera: ?scene=stage&stage=battlefield&x=0&y=20&zoom=4.5&frame=0, &collision=1 overlays the
- * collision geometry, ledges, camera bounds and blast zones, &play=1 animates from the ticker.
+ * collision geometry, ledges, camera bounds and blast zones, &play=1 animates from the ticker. Zoom stops at the
+ * game's MAX_ZOOM, the closest the game's camera gets and the resolution stage art caches at.
  */
 export const scene: LabScene = {
   title: 'Stage at a camera',
@@ -61,7 +57,12 @@ export const scene: LabScene = {
       return params.has(key) && Number.isFinite(v) ? v : fallback;
     };
     const stage = getStage(params.get('stage') ?? 'battlefield');
-    const view = views[`../../stages/${stage.id}/view.ts`]?.createStageView() ?? flatStage(stage);
+    // A stage without art is drawn as the game draws it (src/render/renderer.ts).
+    const view: StageView = views[`../../stages/${stage.id}/view.ts`]?.createStageView() ?? {
+      background: new Container(),
+      world: placeholderStage(stage),
+      update() {},
+    };
     const worldRoot = new Container({ label: 'world-root' });
     const foregroundRoot = new Container({ label: 'foreground-root' });
     const overlay = new Graphics({ label: 'collision-overlay' });
@@ -73,7 +74,7 @@ export const scene: LabScene = {
     const camera: StageCamera = {
       x: num('x', REF_CAMERA.x),
       y: num('y', REF_CAMERA.y),
-      zoom: num('zoom', REF_CAMERA.zoom),
+      zoom: Math.min(MAX_ZOOM, num('zoom', REF_CAMERA.zoom)),
     };
     let frame = num('frame', 0);
     let collision = params.get('collision') === '1';
@@ -110,7 +111,7 @@ export const scene: LabScene = {
       drawOverlay();
     };
     setCamera = (x, y, zoom) => {
-      Object.assign(camera, { x, y, zoom });
+      Object.assign(camera, { x, y, zoom: Math.min(MAX_ZOOM, zoom) });
       apply();
     };
     setFrame = (n) => {
