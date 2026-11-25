@@ -71,7 +71,7 @@ export const LOCOMOTION: Record<string, AnimClip> = {
       2,
       { ...ROLL, tilt: 9, face: { x: 0.6, y: 0.1 }, look: [0.45, 0.05] },
       { y: -1.6, sx: 0.94, sy: 1.07 },
-      { y: -0.22, sx: 1.1, sy: 0.88 },
+      { y: -0.44, sx: 1.1, sy: 0.88 },
     ),
     swaps: { fur: 'furRoll' },
   },

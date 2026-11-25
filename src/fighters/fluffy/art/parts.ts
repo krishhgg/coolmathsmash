@@ -76,31 +76,30 @@ interface Tufts {
   /** Jitter table offset and strength (0..1). */
   seed: number;
   wobble: number;
-  /** Centre offset. */
-  at?: Pt;
   /** 0: curly swept tufts, 1: straight spikes. */
   sharp?: number;
 }
 
 /** A closed fuzzy outline: tufts of fur between valleys on a circle, each a pair of quadratic curves. */
 function tufts(o: Tufts): string {
-  const [cx, cy] = o.at ?? [0, 0];
-  const polar = (r: number, a: number): Pt => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  const polar = (r: number, a: number): Pt => [r * Math.cos(a), r * Math.sin(a)];
   const step = TAU / o.count;
   const sharp = o.sharp ?? 0;
   const out: Pt[] = [];
+  const angle = (i: number) =>
+    (i + o.phase + 0.18 * jit((i % o.count) * 5 + o.seed) * o.wobble) * step - Math.PI / 2;
+  const edge = (i: number) => o.r * (1 + 0.018 * jit((i % o.count) * 3 + o.seed + 1) * o.wobble);
   for (let i = 0; i < o.count; i++) {
-    const a0 = (i + o.phase) * step - Math.PI / 2;
-    const a1 = a0 + step;
-    const am = a0 + step * (0.5 + 0.16 * jit(i + o.seed) * o.wobble);
+    const a0 = angle(i);
+    const a1 = angle(i + 1);
+    const am = a0 + (a1 - a0) * (0.57 + 0.18 * jit(i + o.seed) * o.wobble);
     const len = o.len(am) * (1 + 0.45 * jit(i * 7 + o.seed + 3) * o.wobble);
-    const valley = o.r * (1 + 0.025 * jit(i * 3 + o.seed + 1) * o.wobble);
-    const [bx, by] = polar(valley, a0);
-    const [ex, ey] = polar(o.r * (1 + 0.025 * jit((i + 1) * 3 + o.seed + 1) * o.wobble), a1);
+    const [bx, by] = polar(edge(i), a0);
+    const [ex, ey] = polar(edge(i + 1), a1);
     const [tx0, ty0] = polar(o.r + len, am);
     const tip: Pt = [tx0 + o.wind[0] * len, ty0 + o.wind[1] * len];
-    const out0 = polar(o.r + len * (0.62 - 0.3 * sharp), a0 + (am - a0) * (0.35 + 0.4 * sharp));
-    const out1 = polar(o.r + len * (0.3 - 0.15 * sharp), a1 - (a1 - am) * (0.15 + 0.5 * sharp));
+    const out0 = polar(o.r + len * (0.9 - 0.58 * sharp), a0 + (am - a0) * (0.28 + 0.47 * sharp));
+    const out1 = polar(o.r + len * (0.52 - 0.37 * sharp), a1 - (a1 - am) * (0.12 + 0.53 * sharp));
     const c0: Pt = [out0[0] + o.wind[0] * len * 0.45, out0[1] + o.wind[1] * len * 0.45];
     const c1: Pt = [out1[0] + o.wind[0] * len * 0.2, out1[1] + o.wind[1] * len * 0.2];
     if (i === 0) out.push([bx, by]);
@@ -121,7 +120,8 @@ function furLength(scale: number, cowlick: number) {
     const near = (c: number, w: number) =>
       Math.exp(-((Math.atan2(Math.sin(a - c), Math.cos(a - c)) / w) ** 2));
     return (
-      scale * (0.5 + 0.6 * up ** 3 - 0.25 * down ** 2) + cowlick * (near(-1.95, 0.3) + 0.6 * near(-1.3, 0.22))
+      scale * (0.67 + 0.5 * up ** 3 - 0.52 * down ** 2) +
+      cowlick * (near(-1.95, 0.36) + 0.6 * near(-1.3, 0.24))
     );
   };
 }
@@ -140,8 +140,7 @@ export interface FurStyle {
 }
 
 /**
- * The whole ball: a dark rim of fuzz in ink, a mid-tone middle with its own smaller tufts, a rim light up and back,
- * a soft pale glow under the eyes, and strands of fur flicked outwards.
+ * The whole ball: curved tufts over an indigo rim, a pale glow under the eyes and a few strokes by the crown.
  */
 export function fur(style: FurStyle = {}): PathShape[] {
   const length = style.length ?? 1;
@@ -151,27 +150,10 @@ export function fur(style: FurStyle = {}): PathShape[] {
   const seed = v * 11;
   const phase = v * 0.21;
   const strands: PathShape[] = [];
-  for (let i = 0; i < 14; i++) {
-    const a = -Math.PI / 2 + (i / 14) * TAU + 0.2 * jit(i + seed);
-    const r0 = CORE * (0.55 + 0.08 * jit(i * 5 + seed));
-    const r1 = CORE * (0.86 + 0.06 * jit(i * 2 + seed)) + 0.25 * (length - 1);
-    const bend = 0.35 * jit(i * 3 + 1 + seed);
-    const [x0, y0] = [r0 * Math.cos(a), r0 * Math.sin(a)];
-    const [x1, y1] = [
-      r1 * Math.cos(a + bend * 0.2) + wind[0] * 0.8,
-      r1 * Math.sin(a + bend * 0.2) + wind[1] * 0.8,
-    ];
-    const [qx, qy] = [
-      ((r0 + r1) / 2) * Math.cos(a - bend * 0.15),
-      ((r0 + r1) / 2) * Math.sin(a - bend * 0.15),
-    ];
-    const lower = Math.sin(a) > -0.2;
-    strands.push(strand(curve([x0, y0], [qx, qy], [x1, y1]), lower ? 'furDark' : 'fur', 0.16));
-  }
-  for (let i = 0; i < 5; i++) {
-    const a = -2.55 + i * 0.22 + 0.05 * jit(i + seed);
-    const r0 = CORE * 0.42;
-    const r1 = CORE * (0.7 + 0.05 * jit(i + 4 + seed));
+  for (let i = 0; i < 3; i++) {
+    const a = -2.62 + i * 0.21 + 0.05 * jit(i + seed);
+    const r0 = CORE * 0.64;
+    const r1 = CORE * (0.82 + 0.05 * jit(i + 4 + seed));
     strands.push(
       strand(
         curve(
@@ -180,7 +162,7 @@ export function fur(style: FurStyle = {}): PathShape[] {
           [r1 * Math.cos(a), r1 * Math.sin(a)],
         ),
         'furHi',
-        0.13,
+        0.14,
       ),
     );
   }
@@ -188,58 +170,28 @@ export function fur(style: FurStyle = {}): PathShape[] {
     {
       d: tufts({
         r: CORE,
-        count: 46,
-        len: style.round ? () => 0.55 * length : furLength(length, 0.8 * length),
+        count: sharp === 1 ? 25 : 18,
+        len: style.round
+          ? (a) => 0.45 + 0.25 * Math.max(0, -Math.sin(a)) ** 4
+          : furLength(length, 0.55 * length),
         wind,
         phase,
         seed,
         wobble: style.round ? 0.5 : 1,
         sharp,
       }),
-      fill: 'furDark',
-      stroke: ink(),
-    },
-    {
-      d: tufts({
-        r: CORE * 0.8,
-        count: 30,
-        len: furLength(0.55 * length, 0.2),
-        wind,
-        phase: phase + 0.4,
-        seed: seed + 5,
-        wobble: 0.9,
-        sharp,
-        at: [0.18, -0.22],
-      }),
-      fill: 'fur',
-    },
-    {
-      d: tufts({
-        r: CORE * 0.3,
-        count: 12,
-        len: () => 0.3 * Math.sqrt(length),
-        wind,
-        phase: phase + 0.2,
-        seed: seed + 9,
-        wobble: 0.8,
-        sharp,
-        at: [-1.75, -2.2],
-      }),
-      fill: 'furLight',
-    },
-    {
-      d: ellipse(0.45, 1.35, 2.5, 2.5),
       fill: {
         type: 'radial',
-        cx: 0.45,
-        cy: 1.35,
-        r: 2.5,
+        cx: 0.12,
+        cy: 0.72,
+        r: 5.12,
         stops: [
-          { offset: 0, color: 'furGlow', alpha: 0.95 },
-          { offset: 0.5, color: 'furGlow', alpha: 0.58 },
-          { offset: 1, color: 'furGlow', alpha: 0 },
+          { offset: 0, color: 'furGlow' },
+          { offset: 0.5, color: 'fur' },
+          { offset: 1, color: 'furDark' },
         ],
       },
+      stroke: ink(),
     },
     ...strands,
   ];
@@ -487,6 +439,42 @@ export const thrustSmear: PathShape[] = [
   { d: 'M-19 0Q-5 -2.2 0 -1.15Q2.4 0 0 1.15Q-7 1.9 -19 0Z', fill: 'smear' },
   strand('M-24 -1.6L-10 -1.9M-16 2L-4 1.75', 'grabHi', 0.22),
 ];
+
+export const thrustSmearThin: PathShape[] = [
+  { d: 'M-22 0Q-7 -1.65 0 -0.8Q2.7 0 0 0.8Q-9 1.6 -22 0Z', fill: 'smear' },
+  strand('M-19 -1.45L-9 -1.55M-22 1.45L-11 1.4', 'grabHi', 0.21),
+];
+
+export const whipWake: PathShape[] = [
+  { d: 'M-7 -3.2Q1 -4.3 5.5 -0.7Q1 -2.2 -4.7 -1.4Z', fill: 'grabHi' },
+  { d: 'M-5.8 2.1Q0 3.8 5.8 0.85Q0 2.55 -4.55 1.12Z', fill: 'smear' },
+];
+
+export const anchorPad: PathShape[] = [
+  {
+    d: 'M-2.15 0Q-1.97 -0.4 -1.45 -0.59Q-1.12 -1.3 0 -1.45Q1.12 -1.3 1.45 -0.59Q1.97 -0.4 2.15 0Z',
+    fill: 'grabDark',
+    stroke: ink(0.22),
+  },
+  { d: 'M-1.67 -0.2Q-1.31 -0.47 -1.16 -0.73Q0 -1.12 1.16 -0.73Q1.31 -0.47 1.67 -0.2Z', fill: 'grab' },
+  strand('M-1.4 -0.18L1.4 -0.18', 'grabHi', 0.15),
+];
+
+export function armorGleam(strong: boolean): PathShape[] {
+  const color = strong ? 'smear' : 'grabHi';
+  return [
+    strand(curve([-5.12, 1.42], [-5.94, -0.44], [-4.28, -2.85]), color, strong ? 0.44 : 0.22),
+    strand(curve([4.8, -1.52], [5.68, 0.75], [4.27, 2.76]), color, strong ? 0.4 : 0.21),
+    ...(strong
+      ? [
+          {
+            d: 'M-4.8 -3.8L-4.54 -3.19L-3.94 -2.95L-4.54 -2.7L-4.8 -2.09L-5.05 -2.7L-5.65 -2.95L-5.05 -3.19Z',
+            fill: color,
+          },
+        ]
+      : []),
+  ];
+}
 
 export const sweat: PathShape[] = [
   {

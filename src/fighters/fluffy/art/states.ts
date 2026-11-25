@@ -181,10 +181,11 @@ export const STATES: Record<string, AnimClip> = {
     length: 8,
     swaps: { ...SHOCK, mouth: null, ...GRAB },
     keys: [
-      key(0, hang(-0.65, { y: 5.3, sy: 1.18, tilt: -14 }), {
+      key(0, hang(-0.85, { y: 1.2, sy: 1.2, tilt: -16 }), {
         ease: 'out',
       }),
-      key(4, hang(0.25, { y: 3.65, sx: 1.01, sy: 0.98 }), { ease: 'inOut' }),
+      key(4, hang(-0.15, { y: 4.78, sx: 0.92, sy: 1.12 }), { ease: 'out' }),
+      key(6, hang(0.2, { y: 3.75, sx: 1.02, sy: 0.99 }), { ease: 'inOut' }),
       key(8, hang(0)),
     ],
   },
@@ -194,7 +195,7 @@ export const STATES: Record<string, AnimClip> = {
     swaps: { ...GRAB, sweat: 'sweat' },
     keys: [
       key(0, hang(0)),
-      key(15, hang(-0.85, { look: [0.72, -0.52] })),
+      key(15, hang(-1.22, { look: [0.72, -0.52] })),
       key(30, hang(-0.28, { look: [0.24, -0.66] })),
       key(44, undefined, { swaps: { ...GRAB, ...BLINK } }),
       key(45, hang(0.23, { spin: -7 })),
@@ -209,7 +210,7 @@ export const STATES: Record<string, AnimClip> = {
       key(
         6,
         pull(6, CLIMB.end, CLIMB.distance, {
-          x: 0.1,
+          x: -0.48,
           y: 2.6,
           sx: 0.88,
           sy: 1.16,
@@ -223,22 +224,20 @@ export const STATES: Record<string, AnimClip> = {
       key(
         12,
         pull(12, CLIMB.end, CLIMB.distance, {
-          x: -0.15,
-          y: 0.25,
+          x: -2.7,
+          y: 1.18,
           sx: 0.9,
           sy: 1.12,
           tilt: 10,
           look: [0.3, -0.3],
         }),
-        {
-          ease: 'out',
-        },
+        { ease: 'out', z: { tip: 20 } },
       ),
       key(
         16,
         pull(16, CLIMB.end, CLIMB.distance, {
-          x: -0.4,
-          y: -1.55,
+          x: -4.15,
+          y: -1.3,
           sx: 0.92,
           sy: 1.11,
           tilt: 12,
@@ -246,7 +245,7 @@ export const STATES: Record<string, AnimClip> = {
         }),
         { ease: 'out' },
       ),
-      key(19, ball({ y: -1.7, sx: 0.97, sy: 1.04, tilt: 15, look: [0.3, 0.2] }), {
+      key(19, ball({ x: -1.54, y: -1.65, sx: 0.97, sy: 1.04, tilt: 15, look: [0.3, 0.2] }), {
         ease: 'in',
         swaps: { ...HALF, grabLine: null, tip: null },
       }),
@@ -344,9 +343,14 @@ export const STATES: Record<string, AnimClip> = {
     loop: true,
     swaps: { ...SHOCK, ...FALL_FUR },
     keys: [
-      key(0, ball({ float: true, tilt: 0, sx: 1.04, sy: 0.96 }), { ease: 'linear' }),
+      key(0, ball({ float: true, tilt: -55, sx: 0.84, sy: 1.22, look: [-0.53, -0.31], spin: -20 }), {
+        ease: 'out',
+      }),
+      key(4, ball({ float: true, tilt: 16, sx: 1.16, sy: 0.86, look: [-0.1, 0.22], spin: -16 }), {
+        ease: 'linear',
+      }),
       key(16, ball({ float: true, tilt: 180, sx: 0.96, sy: 1.04 }), { ease: 'linear' }),
-      key(32, ball({ float: true, tilt: 360, sx: 1.04, sy: 0.96 }), { ease: 'linear' }),
+      key(32, ball({ float: true, tilt: 305, sx: 0.84, sy: 1.22, look: [-0.53, -0.31], spin: -20 })),
     ],
   },
   helpless: {

@@ -106,4 +106,18 @@ describe('fluffy art', () => {
         expect(samplePose(art, clip, 10, 10, costume).symbols.hat).toBeNull();
     }
   });
+
+  it('draws the Stick Tight armor gleam only during the armor window', () => {
+    const [first, last] = moves.downB!.armor!.frames;
+    for (let f = 0; f <= art.clips.downB!.length; f++) {
+      const pose = samplePose(art, 'downB', f, f);
+      const armored = f >= first && f <= last;
+      expect(pose.symbols.armor !== null, `downB@${f}`).toBe(armored);
+      if (armored) {
+        expect(pose.symbols.prop).toBe('anchorPad');
+        expect(pose.world.fx1!.ty).toBeCloseTo(0, 0);
+        expect(poseBounds(art, pose)[3], `downB@${f}`).toBeLessThan(0.25);
+      }
+    }
+  });
 });

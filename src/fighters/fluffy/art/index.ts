@@ -19,12 +19,16 @@ function iconBox(): [number, number, number, number] {
   return [(x0 + x1 - size) / 2, (y0 + y1 - size) / 2, size, size];
 }
 
-/** The specials also go under docs/art.md's canonical names, which the lab's key-state sheet uses. */
+/** Keep the lab and docs/art.md names alongside the engine's move and action names. */
 const clips: Record<string, AnimClip> = {
   ...LOCOMOTION,
   ...ATTACKS,
   ...STATES,
   ...SPECIALS,
+  jab1: ATTACKS.jab!,
+  knockdown: STATES.down!,
+  getUp: STATES.getupStand!,
+  tech: STATES.techInPlace!,
   neutralSpecial: SPECIALS.neutralB!,
   sideSpecial: SPECIALS.sideB!,
   upSpecial: SPECIALS.upB!,

@@ -55,6 +55,16 @@ const WIND: Ball = { x: -0.6, sx: 0.9, sy: 1.08, tilt: -10, face: { x: 0.2 }, lo
 const LUNGE: Ball = { x: 1.4, sx: 1.14, sy: 0.9, tilt: 10, face: { x: 0.6 }, look: [0.5, 0.05] };
 const SQUAT: Ball = { sx: 1.16, sy: 0.84, face: { y: 0.3 } };
 const THRUST: Ball = { x: 2.1, sx: 1.23, sy: 0.84, tilt: 6, face: { x: 0.38, y: -0.65 }, look: [0.65, 0.15] };
+const WHIP_OUT = along(P(9, 6), P(40.5, 6), 7);
+const WHIP_CRACK: Ball = {
+  x: 1.65,
+  sx: 1.17,
+  sy: 0.89,
+  tilt: 12,
+  face: { x: 0.35, y: -0.6 },
+  look: [0.57, 0.32],
+  fx3: at(22, -6.1, 1),
+};
 
 /** The usual whip: wind up behind, crack forward along the hitbox line, hold, then reel the line back in. */
 function whip(o: {
@@ -248,7 +258,69 @@ export const ATTACKS: Record<string, AnimClip> = {
     ],
   },
   /** Grabber Whip (hits 7-9): the line cracks out to 40.5 units at hip height. */
-  ftilt: whip({ length: 35, active: [7, 9], line: along(P(9, 6), P(40.5, 6), 7) }),
+  ftilt: {
+    length: 35,
+    active: [[7, 9]],
+    swaps: FOCUS,
+    keys: [
+      key(0, ball(STAND), { ease: 'out' }),
+      key(
+        3,
+        ball(
+          with_({ x: -0.85, sx: 0.91, sy: 1.03, tilt: -12 }, { from: P(-1, 4), to: P(-6, 2), near: -180 }),
+        ),
+        {
+          ease: 'in',
+          swaps: { ...FOCUS, ...WHIP, grabLine: 'lineWaveBig' },
+        },
+      ),
+      key(
+        5,
+        ball(with_({ ...WIND, tilt: -21, look: [0.41, -0.45] }, { from: P(-1, 6), to: P(3, 11), near: -70 })),
+        {
+          ease: 'in',
+        },
+      ),
+      key(
+        6,
+        ball(
+          with_(
+            { ...WHIP_CRACK, x: 0.65, fx3: at(19, -8.5, 0.93, 16) },
+            { from: P(2, 7), to: P(27, 9), near: -5 },
+          ),
+        ),
+        {
+          ease: 'out',
+          swaps: { ...FOCUS, ...WHIP, ...RUN_FUR, grabLine: 'lineWaveBig', fxBack: 'whipWake' },
+        },
+      ),
+      key(7, ball(with_(WHIP_CRACK, WHIP_OUT)), {
+        ease: 'inOut',
+        swaps: { ...EFFORT, ...GRAB, ...RUN_FUR, fxBack: 'whipWake' },
+      }),
+      key(9, ball(with_({ ...WHIP_CRACK, x: 1.2, tilt: 3, fx3: at(24, -6.1, 0.41) }, WHIP_OUT)), {
+        ease: 'in',
+      }),
+      key(10, undefined, { swaps: { ...FOCUS, ...WHIP, grabLine: 'lineWaveBig' } }),
+      key(
+        14,
+        ball(
+          with_(
+            { x: -0.5, sx: 0.9, sy: 1.09, tilt: -13, look: [0.44, -0.3] },
+            { from: P(1, 5), to: P(24, 8) },
+          ),
+        ),
+        {
+          ease: 'out',
+        },
+      ),
+      key(24, ball(with_({ sx: 1.07, sy: 0.95, tilt: 6 }, coil(STAND, 0, 3))), {
+        swaps: { ...HALF, ...GRAB },
+      }),
+      key(25, undefined, { swaps: FOCUS }),
+      key(35, ball(STAND), { swaps: {} }),
+    ],
+  },
   /** Grabber Flick (6-7 in front, 8-10 overhead, 11-12 behind): an arc over his head. */
   utilt: {
     length: 29,

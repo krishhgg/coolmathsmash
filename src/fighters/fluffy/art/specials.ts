@@ -1,5 +1,6 @@
 import type { AnimClip } from '../../../render/rig/types';
 import {
+  DUST,
   EFFORT,
   FALL_FUR,
   FIERCE,
@@ -25,6 +26,17 @@ import {
  */
 
 const STAND: Ball = {};
+const ANCHOR_X = 6.2;
+const PLANTED = { ...FIERCE, ...PUFF, grabLine: 'line', tip: null, prop: 'anchorPad', armor: 'armorPulse' };
+
+function brace(b: Ball) {
+  return ball({
+    ...b,
+    y: -0.35,
+    grab: { from: [(b.x ?? 0) + 2.4, -3.45], to: [ANCHOR_X, -0.65], near: 45 },
+    fx1: at(ANCHOR_X, -0.12),
+  });
+}
 
 /** Point Grapple's default target: up and ahead, where the reticle starts. */
 const TARGET: Pt = [22, -19];
@@ -233,42 +245,86 @@ export const SPECIALS: Record<string, AnimClip> = {
   /** Stick Tight: plants the grabber in the ground on 4 and braces, armoured, until 60; then lets go. */
   downB: {
     length: 100,
-    swaps: { ...FIERCE, ...GRAB, ...PUFF },
     keys: [
       key(0, ball({ look: [0.2, 0.3] }), { ease: 'out', swaps: FOCUS }),
-      key(3, ball({ sx: 1.08, sy: 0.92, look: [0.1, 0.5], grab: { from: [0.5, -4], to: [1, 0.5] } }), {
-        ease: 'linear',
-        swaps: { ...FIERCE, ...GRAB, ...PUFF },
-      }),
-      ...[4, 12, 20, 28, 36, 44, 52, 60].map((f, i) =>
-        key(
-          f,
-          ball({
-            sx: i % 2 ? 1.24 : 1.2,
-            sy: i % 2 ? 0.8 : 0.83,
-            puff: i % 2 ? 1.06 : 1.08,
-            face: { y: 0.4 },
-            look: [0.45, 0.1],
-            grab: { from: [0.5, -3], to: [1.5, 1.2] },
-          }),
-          {
-            ease: 'inOut',
-          },
-        ),
-      ),
       key(
-        66,
-        ball({ y: -0.6, sx: 0.94, sy: 1.08, look: [0.3, -0.1], grab: { from: [0.5, -3], to: [1, -1] } }),
+        2,
+        ball({
+          x: -0.9,
+          sx: 0.88,
+          sy: 1.16,
+          tilt: -11,
+          look: [0.48, 0.6],
+          grab: { from: [1, -5], to: [4.6, -7] },
+        }),
         {
-          ease: 'inOut',
-          swaps: { ...HALF, ...WHIP },
+          ease: 'in',
+          swaps: { ...FOCUS, ...GRAB },
         },
       ),
-      key(74, ball({ sx: 1.06, sy: 0.95, grab: { from: [0, -4.5], to: [0.6, -4.5] } }), {
+      key(
+        4,
+        brace({ x: 0.38, sx: 1.24, sy: 0.73, tilt: 6, look: [0.53, 0.65], fx3: at(ANCHOR_X, 0, 0.66) }),
+        {
+          ease: 'out',
+          swaps: { ...PLANTED, ...DUST },
+        },
+      ),
+      key(
+        7,
+        brace({
+          x: -0.65,
+          sx: 1.02,
+          sy: 1.02,
+          tilt: -11,
+          look: [0.47, 0.44],
+          fx3: at(ANCHOR_X, -0.15, 0.28),
+        }),
+        {
+          ease: 'out',
+        },
+      ),
+      key(8, undefined, { swaps: PLANTED }),
+      ...[11, 16, 23, 31, 38, 46, 53, 55, 60].map((f, i) =>
+        key(
+          f,
+          brace({
+            x: i % 2 ? -0.48 : -0.95,
+            sx: i % 2 ? 1.18 : 1.09,
+            sy: i % 2 ? 0.81 : 0.87,
+            tilt: i % 2 ? -6 : -12,
+            puff: i % 2 ? 1.08 : 1.03,
+            face: { y: 0.35, x: 0.08 },
+            look: [0.46, 0.52],
+          }),
+          { ease: 'inOut', ...(f === 55 ? { swaps: { ...PLANTED, armor: 'armorFading' } } : {}) },
+        ),
+      ),
+      key(61, brace({ x: -0.84, sx: 1.13, sy: 0.87, tilt: -11, look: [0.5, 0.45] }), {
         ease: 'out',
-        swaps: { ...HALF, grabLine: null, tip: null },
+        swaps: { ...PLANTED, armor: null },
       }),
-      key(100, ball(STAND), { swaps: { grabLine: null, tip: null, mouth: null, lids: null, fur: 'fur' } }),
+      key(
+        65,
+        ball({
+          x: -0.21,
+          y: -0.42,
+          sx: 0.9,
+          sy: 1.1,
+          tilt: -13,
+          look: [0.36, -0.21],
+          grab: { from: [2.4, -4], to: [4.1, -3.1] },
+          fx3: at(ANCHOR_X, -0.34, 0.55),
+        }),
+        {
+          ease: 'out',
+          swaps: { ...SHOCK, ...WHIP, ...DUST },
+        },
+      ),
+      key(68, undefined, { swaps: HALF }),
+      key(72, ball({ sx: 1.1, sy: 0.92, tilt: 4, look: [0.2, 0.35] }), { ease: 'out' }),
+      key(81, ball(STAND), { swaps: {} }),
+      key(100, ball(STAND)),
     ],
   },
 };

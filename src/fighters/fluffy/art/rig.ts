@@ -2,6 +2,8 @@ import { shapesBounds } from '../../../render/rig/geometry';
 import type { ArtSymbol, PathShape, Rig, SymbolLoop } from '../../../render/rig/types';
 import {
   FACE,
+  anchorPad,
+  armorGleam,
   candy,
   dizzyPupils,
   dust,
@@ -18,8 +20,10 @@ import {
   shut,
   sweat,
   thrustSmear,
+  thrustSmearThin,
   tip,
   wave,
+  whipWake,
   witchHat,
   type FurStyle,
 } from './parts';
@@ -38,12 +42,12 @@ function boil(name: string, count: number, fps: number, style: FurStyle): Record
 /** The fur boils like a hand-redrawn Flash loop: three drawings at 8 fps. */
 const furs = {
   ...boil('fur', 3, 8, {}),
-  /** Even all round, for rolling. */
+  /** A short crown still reads as it rolls under the face. */
   ...boil('furRoll', 2, 8, { round: true, wind: [0, 0] }),
   /** Blown back by speed. */
   ...boil('furRun', 2, 12, { wind: [-0.8, 0.12] }),
   /** Blown up while falling. */
-  ...boil('furFall', 2, 10, { wind: [-0.12, -0.62] }),
+  ...boil('furFall', 2, 10, { length: 0.94, wind: [-0.25, -0.26] }),
   /** Puffed up: a ready, angry ball. */
   ...boil('furPuff', 2, 12, { length: 1.35, sharp: 0.5, wind: [-0.05, 0] }),
   /** Every hair on end (his neutral air), vibrating. */
@@ -82,6 +86,7 @@ export const rig: Rig = {
     { name: 'grabLine', bone: 'grab', symbol: null },
     { name: 'tip', bone: 'tip', symbol: null },
     { name: 'fur', bone: 'fur', symbol: 'fur' },
+    { name: 'armor', bone: 'body', symbol: null, decor: true },
     { name: 'hat', bone: 'body', symbol: null, decor: true },
     { name: 'eyes', bone: 'face', symbol: 'eyes' },
     { name: 'pupils', bone: 'pupils', symbol: 'pupils' },
@@ -121,6 +126,14 @@ export const rig: Rig = {
     santaHat,
     witchHat,
     sweat,
-    thrustSmear,
+    thrustWide: thrustSmear,
+    thrustThin: thrustSmearThin,
+    thrustSmear: { loop: ['thrustWide', 'thrustThin'], fps: 16 },
+    whipWake,
+    anchorPad,
+    armorRim: armorGleam(false),
+    armorFlash: armorGleam(true),
+    armorPulse: { loop: ['armorRim', 'armorRim', 'armorFlash'], fps: 6 },
+    armorFading: { loop: ['armorRim', 'armorFlash'], fps: 14 },
   },
 };
