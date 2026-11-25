@@ -13,6 +13,7 @@ import {
   DOWN,
   FOCUS,
   FRONT,
+  HOLD,
   HURT,
   IDLE_FACE,
   LOW,
@@ -647,10 +648,7 @@ export const authored: Record<string, AnimClip> = {
     length: 30,
     loop: true,
     swaps: { ...ANGRY, ...SCOOP },
-    keys: [
-      key(0, mix(bob(0.15), tilt(1.5, FRONT), { door: { sx: -1.05, sy: 1.04 } })),
-      key(15, mix(bob(0.24), tilt(1, FRONT), { door: { sx: -0.98, sy: 1.04 } })),
-    ],
+    keys: [key(0, HOLD), key(15, mix(HOLD, bob(0.24), tilt(1, FRONT)))],
   },
   /** Lifted off his wheels, which spin uselessly. */
   grabbed: {
@@ -690,6 +688,11 @@ export const authored: Record<string, AnimClip> = {
   },
 };
 
-export const clips: Record<string, AnimClip> = Object.fromEntries(
-  Object.entries(authored).map(([name, clip]) => [name, holdEffects(clip)]),
-);
+const baked = Object.fromEntries(Object.entries(authored).map(([name, clip]) => [name, holdEffects(clip)]));
+export const clips: Record<string, AnimClip> = {
+  ...baked,
+  down: baked.knockdown!,
+  getupStand: baked.getUp!,
+  getupRoll: baked.getUp!,
+  techInPlace: baked.tech!,
+};
