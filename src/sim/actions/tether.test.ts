@@ -7,6 +7,7 @@ import type { MatchState } from '../match';
 import { lineTether, pointGrapple, quickGrapple, tetherTester } from '../testing/tethers';
 import { attack, runPorts, testMatch, type Hold } from '../testing/sim';
 import { tetherOrigin } from './tether';
+import { posedStage } from '../movingStage';
 
 const HAND = tetherTester.stats.height * TETHER.handHeight;
 
@@ -137,6 +138,28 @@ describe('tethers', () => {
     expect(moved).toBeGreaterThan(1);
     expect(Math.abs(a.pos.x - before.x - moved)).toBeLessThan(0.5);
     expect(a.pos.y).toBeCloseTo(a.tether!.anchor.y - HAND, 6);
+  });
+
+  it('a solid anchor rides the solid that owns its edge', () => {
+    const { m, a, step } = onTestbed(0);
+    const elevator = posedStage(m).edges.findIndex((e) => e.solid === 1);
+    expect(m.stage.solids[1]!.y).toBeLessThan(0);
+    expect(elevator).toBeGreaterThan(0);
+    step(70);
+    Object.assign(a, { pos: { x: 120, y: 20 }, prevPos: { x: 120, y: 20 }, ground: null });
+    Object.assign(a, { action: 'attack', actionFrame: 1, move: 'upB' });
+    a.tether = {
+      anchor: { x: 120, y: 0 },
+      kind: 'surface',
+      surface: { kind: 'solid', index: elevator },
+      local: { x: 120, y: 0 },
+      frame: m.frame,
+    };
+    const pieceStart = m.stage.solids[1]!.y;
+    step(20);
+    expect(m.stage.solids[1]!.y - pieceStart).toBeGreaterThan(2);
+    expect(Math.abs(a.tether.anchor.y - m.stage.solids[1]!.y)).toBeLessThan(1);
+    expect(a.tether.surface).toEqual({ kind: 'solid', index: elevator });
   });
 
   it('a platform that goes away drops the line', () => {

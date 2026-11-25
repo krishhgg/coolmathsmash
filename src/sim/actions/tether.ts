@@ -3,9 +3,10 @@ import { Btn, buttonBit } from '../../input/types';
 import { HELPLESS_LANDING_LAG, LEDGE_MAX_GRABS, TETHER } from '../constants';
 import { consume, isHeld, justPressed } from '../control';
 import { emit } from '../events';
-import type { Ctx, FighterState } from '../fighter';
+import type { Ctx, FighterState, GroundRef } from '../fighter';
 import type { MatchState } from '../match';
 import { grabLedge, hangPos } from '../movement';
+import { posedStage, type PieceState } from '../movingStage';
 import { ledgePresent } from '../stage';
 import type { Vec } from '../vec';
 import { moveOf } from './attack';
@@ -41,13 +42,23 @@ export function releaseTether(m: MatchState, f: FighterState): void {
 }
 
 /**
+ * The stage piece a surface anchor is on: a platform, or the solid that owns the edge index a solid hit
+ * carries (GroundRef's index is an edge index for solids).
+ */
+export function anchorPiece(m: MatchState, surface: GroundRef): PieceState | undefined {
+  if (surface.kind === 'platform') return m.stage.platforms[surface.index];
+  const solid = posedStage(m).edges[surface.index]?.solid;
+  return solid === undefined ? undefined : m.stage.solids[solid];
+}
+
+/**
  * Carry a surface anchor with the piece it is on: the anchor is stored as a point within the piece, so a moving
  * platform drags the line (and the hanging fighter) along, and a piece that goes away drops the line.
  */
 export function rideAnchor(m: MatchState, f: FighterState): void {
   const t = f.tether;
   if (!t?.surface || !t.local) return;
-  const piece = (t.surface.kind === 'solid' ? m.stage.solids : m.stage.platforms)[t.surface.index];
+  const piece = anchorPiece(m, t.surface);
   if (!piece || !piece.on) return releaseTether(m, f);
   t.anchor = { x: t.local.x + piece.x, y: t.local.y + piece.y };
 }

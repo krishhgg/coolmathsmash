@@ -8,6 +8,7 @@ import type { Ctx } from '../fighter';
 import { leaveGround } from '../movement';
 import type { Vec } from '../vec';
 import { moveOf } from './attack';
+import { anchorPiece } from './tether';
 import { setAction } from './registry';
 import { ledgeFree, releaseTether, tetherOrigin } from './tether';
 
@@ -120,9 +121,7 @@ function anchor(x: Ctx, t: TetherDef, hit: TetherHit): void {
     t.onAnchor?.(x, hit) !== false;
   if (!ok) return releaseTether(m, f);
   const surface = hit.kind === 'surface' ? hit.surface : undefined;
-  const piece = surface
-    ? m.stage[surface.kind === 'solid' ? 'solids' : 'platforms'][surface.index]
-    : undefined;
+  const piece = surface ? anchorPiece(m, surface) : undefined;
   const local = piece ? { x: hit.point.x - piece.x, y: hit.point.y - piece.y } : undefined;
   f.tether = {
     anchor: hit.point,
