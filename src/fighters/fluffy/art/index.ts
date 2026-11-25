@@ -37,6 +37,7 @@ export const art: FighterArt = {
   rig,
   clips,
   palettes,
+  costumeSwaps: { xmas: { hat: 'santaHat' }, halloween: { hat: 'witchHat' } },
   icon: symbolsToSvg(iconSymbols, ['fur0', 'iconEyes', 'iconPupils'], palettes.default, iconBox()),
   ledgeGrip: LEDGE_GRIP,
   projectiles: {

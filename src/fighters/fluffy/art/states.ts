@@ -1,7 +1,7 @@
 import type { Pose } from '../../../render/rig/author';
 import type { AnimClip } from '../../../render/rig/types';
 import {
-  ANGRY,
+  FOCUS,
   BLINK,
   DIZZY,
   DUST,
@@ -32,6 +32,8 @@ import {
 
 const STAND: Ball = {};
 const FLAT: Ball = { sx: 1.32, sy: 0.6, face: { y: 0.75 } };
+const BRACE: Ball = { x: -0.25, sx: 1.13, sy: 0.84, tilt: -3, face: { y: 0.35 }, look: [0.62, -0.13] };
+const WORRIED = { ...SAD, sweat: 'sweat' };
 
 /**
  * Where the ledge's top corner is while hanging (rig space). The engine hangs a fighter half its width plus 0.5
@@ -53,7 +55,11 @@ function corner(frame: number, moveEnd: number, distance: number): Pt {
 /** The grabber's spiked ball on the corner: the line from the ball's centre to just over the lip. */
 const onCorner = (b: Ball, [x, y]: Pt): Ball => ({
   ...b,
-  grab: { from: centreOf(b), to: [x + 0.4, y - 0.5], near: -60 },
+  grab: {
+    from: [(b.x ?? 0) + 3.6 * (b.sx ?? 1), centreOf(b)[1] - 1.4 * (b.sy ?? 1)],
+    to: [x + 0.2, y - 0.45],
+    near: -90,
+  },
 });
 
 /** Hanging under the corner from his grabber, eyes on the lip. `sway` swings him a little. */
@@ -61,13 +67,14 @@ const hang = (sway = 0, extra: Ball = {}): Pose =>
   ball(
     onCorner(
       {
-        x: -0.4 + sway,
-        y: 1.4,
-        tilt: sway * 6,
-        sx: 0.96,
-        sy: 1.05,
-        face: { x: 0.2, y: -0.2 },
-        look: [0.45, -0.5],
+        x: 0.45 + sway,
+        y: 4.2 - Math.abs(sway) * 0.24,
+        tilt: sway * 9 - 4,
+        sx: 0.91,
+        sy: 1.07,
+        spin: sway * 7,
+        face: { x: 0.16, y: -0.24 },
+        look: [0.55, -0.7],
         ...extra,
       },
       [GX, GY],
@@ -85,17 +92,22 @@ const ATTACK = { end: 20, distance: 7 };
 export const STATES: Record<string, AnimClip> = {
   shield: {
     length: 6,
-    swaps: { ...ANGRY, ...PUFF },
+    swaps: { ...WORRIED, ...FLAT_FUR },
     keys: [
-      key(0, ball(STAND), { ease: 'out' }),
-      key(6, ball({ sx: 1.08, sy: 0.9, puff: 1.04, face: { y: 0.35 }, look: [0.45, 0] })),
+      key(0, ball(STAND), { ease: 'out', swaps: { sweat: null } }),
+      key(3, ball({ ...BRACE, sx: 1.2, sy: 0.78, tilt: -6 }), { ease: 'out', swaps: WORRIED }),
+      key(6, ball(BRACE)),
     ],
   },
   shieldDrop: {
     length: 11,
-    swaps: HALF,
+    swaps: { ...WORRIED, ...FLAT_FUR },
     keys: [
-      key(0, ball({ sx: 1.08, sy: 0.9, puff: 1.04, face: { y: 0.35 } }), { ease: 'out' }),
+      key(0, ball(BRACE), { ease: 'out' }),
+      key(5, ball({ sx: 0.94, sy: 1.07, tilt: 5, face: { y: -0.15 }, look: [0.32, -0.24] }), {
+        swaps: { ...HALF, sweat: null },
+      }),
+      key(8, undefined, { swaps: { fur: 'fur', lids: null, sweat: null } }),
       key(11, ball(STAND)),
     ],
   },
@@ -169,23 +181,23 @@ export const STATES: Record<string, AnimClip> = {
     length: 8,
     swaps: { ...SHOCK, mouth: null, ...GRAB },
     keys: [
-      key(0, ball(onCorner({ x: -1.6, y: 3.2, sx: 0.9, sy: 1.14, tilt: -12, look: [0.5, -0.5] }, [GX, GY])), {
+      key(0, hang(-0.65, { y: 5.3, sy: 1.18, tilt: -14 }), {
         ease: 'out',
       }),
-      key(4, hang(0.6, { sx: 1.06, sy: 0.95 }), { ease: 'inOut' }),
+      key(4, hang(0.25, { y: 3.65, sx: 1.01, sy: 0.98 }), { ease: 'inOut' }),
       key(8, hang(0)),
     ],
   },
   ledgeHang: {
     length: 60,
     loop: true,
-    swaps: GRAB,
+    swaps: { ...GRAB, sweat: 'sweat' },
     keys: [
       key(0, hang(0)),
-      key(15, hang(-0.35)),
-      key(30, hang(0)),
+      key(15, hang(-0.85, { look: [0.72, -0.52] })),
+      key(30, hang(-0.28, { look: [0.24, -0.66] })),
       key(44, undefined, { swaps: { ...GRAB, ...BLINK } }),
-      key(45, hang(0.35)),
+      key(45, hang(0.23, { spin: -7 })),
       key(48, undefined, { swaps: GRAB }),
     ],
   },
@@ -197,8 +209,8 @@ export const STATES: Record<string, AnimClip> = {
       key(
         6,
         pull(6, CLIMB.end, CLIMB.distance, {
-          x: 0.4,
-          y: 0.4,
+          x: 0.1,
+          y: 2.6,
           sx: 0.88,
           sy: 1.16,
           tilt: 14,
@@ -211,8 +223,8 @@ export const STATES: Record<string, AnimClip> = {
       key(
         12,
         pull(12, CLIMB.end, CLIMB.distance, {
-          x: 0.4,
-          y: -0.6,
+          x: -0.15,
+          y: 0.25,
           sx: 0.9,
           sy: 1.12,
           tilt: 10,
@@ -222,9 +234,28 @@ export const STATES: Record<string, AnimClip> = {
           ease: 'out',
         },
       ),
-      key(18, ball({ y: -1.2, sx: 0.96, sy: 1.05, tilt: 6, look: [0.3, 0.2] }), { ease: 'in', swaps: HALF }),
-      key(24, ball({ sx: 1.2, sy: 0.8, face: { y: 0.3 } }), { ease: 'out', swaps: { ...HALF, ...DUST } }),
-      key(33, ball(STAND), { swaps: {} }),
+      key(
+        16,
+        pull(16, CLIMB.end, CLIMB.distance, {
+          x: -0.4,
+          y: -1.55,
+          sx: 0.92,
+          sy: 1.11,
+          tilt: 12,
+          look: [-0.1, 0.1],
+        }),
+        { ease: 'out' },
+      ),
+      key(19, ball({ y: -1.7, sx: 0.97, sy: 1.04, tilt: 15, look: [0.3, 0.2] }), {
+        ease: 'in',
+        swaps: { ...HALF, grabLine: null, tip: null },
+      }),
+      key(26, ball({ sx: 1.2, sy: 0.8, face: { y: 0.3 }, fx3: at(0, 0, 0.85) }), {
+        ease: 'out',
+        swaps: { ...HALF, ...DUST, grabLine: null, tip: null },
+      }),
+      key(31, ball({ fx3: at(0, 0, 0.3) }), { swaps: { grabLine: null, tip: null } }),
+      key(33, ball(STAND)),
     ],
   },
   ledgeRoll: {
@@ -258,7 +289,7 @@ export const STATES: Record<string, AnimClip> = {
         ball({ grab: { from: [-1, -5], to: [-6, -9], near: -150 }, x: -0.6, sx: 0.9, sy: 1.08, tilt: -10 }),
         {
           ease: 'in',
-          swaps: { ...ANGRY, ...GRAB },
+          swaps: { ...FOCUS, ...GRAB },
         },
       ),
       key(
@@ -273,7 +304,7 @@ export const STATES: Record<string, AnimClip> = {
         ball({ grab: { from: [2, -5], to: [16, -5] }, x: 1.4, sx: 1.14, sy: 0.9, tilt: 10, look: [0.5, 0] }),
         {
           ease: 'in',
-          swaps: { ...ANGRY, ...WHIP },
+          swaps: { ...FOCUS, ...WHIP },
         },
       ),
       key(40, ball({ grab: { from: [0, -4.7], to: [2, -4.7] } }), {
@@ -368,8 +399,8 @@ export const STATES: Record<string, AnimClip> = {
     keys: [
       key(0, ball({ sx: 1.3, sy: 0.65 }), { ease: 'out' }),
       key(5, ball({ y: -1.4, sx: 0.9, sy: 1.12, spin: 180 }), { ease: 'inOut' }),
-      key(12, ball({ sx: 1.1, sy: 0.9, spin: 360 }), { ease: 'inOut', swaps: ANGRY }),
-      key(26, ball({ spin: 360 }), { swaps: ANGRY }),
+      key(12, ball({ sx: 1.1, sy: 0.9, spin: 360 }), { ease: 'inOut', swaps: FOCUS }),
+      key(26, ball({ spin: 360 }), { swaps: FOCUS }),
     ],
   },
   techRoll: {

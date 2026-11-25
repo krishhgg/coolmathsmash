@@ -9,14 +9,18 @@ import {
   fur,
   lids,
   line,
-  mouthGrit,
+  mouthEffort,
   mouthO,
   mouthSmile,
   pupils,
   reticle,
+  santaHat,
   shut,
+  sweat,
+  thrustSmear,
   tip,
   wave,
+  witchHat,
   type FurStyle,
 } from './parts';
 
@@ -48,9 +52,11 @@ const furs = {
   ...boil('furFlat', 2, 6, { length: 0.62, wind: [-0.1, 0.35] }),
 };
 
-/** Height of the ball's centre: the lowest tuft of any resting drawing touches the floor. */
-export const CENTRE =
-  Math.round(Math.max(...range(3).map((i) => shapesBounds(furs[`fur${i}`] as PathShape[])[3])) * 1000) / 1000;
+/**
+ * Height of the ball's centre: the lowest tuft of the first resting drawing touches the floor (the boil's other
+ * drawings land within a tenth of a unit of it).
+ */
+export const CENTRE = Math.round(shapesBounds(furs.fur0 as PathShape[])[3] * 1000) / 1000;
 
 /**
  * Fluffy's skeleton (rest pose: sitting on the floor, facing right). `body` is the ball (squash and stretch,
@@ -76,6 +82,7 @@ export const rig: Rig = {
     { name: 'grabLine', bone: 'grab', symbol: null },
     { name: 'tip', bone: 'tip', symbol: null },
     { name: 'fur', bone: 'fur', symbol: 'fur' },
+    { name: 'hat', bone: 'body', symbol: null, decor: true },
     { name: 'eyes', bone: 'face', symbol: 'eyes' },
     { name: 'pupils', bone: 'pupils', symbol: 'pupils' },
     { name: 'lids', bone: 'face', symbol: null },
@@ -83,12 +90,14 @@ export const rig: Rig = {
     { name: 'prop', bone: 'fx1', symbol: null },
     { name: 'reticle', bone: 'fx2', symbol: null, decor: true },
     { name: 'fx', bone: 'fx3', symbol: null, decor: true },
+    { name: 'sweat', bone: 'face', symbol: null, decor: true },
   ],
   symbols: {
     ...furs,
     eyes: eyes(),
     pupils: pupils(),
     pupilsSmall: pupils([0, 0], 0.62),
+    pupilsFocus: pupils([0.15, 0], 0.78),
     pupilsDizzy: dizzyPupils,
     lidsHalf: lids(0.45, 0.45),
     lidsAngry: lids(0.12, 0.55),
@@ -96,7 +105,7 @@ export const rig: Rig = {
     blink: shut(false),
     squeeze: shut(true),
     mouthO,
-    mouthGrit,
+    mouthEffort,
     mouthSmile,
     line,
     lineWave: wave(0.9),
@@ -109,5 +118,9 @@ export const rig: Rig = {
     candy: { loop: range(4).map((i) => `candy${i}`), fps: 24 },
     reticle,
     dust,
+    santaHat,
+    witchHat,
+    sweat,
+    thrustSmear,
   },
 };

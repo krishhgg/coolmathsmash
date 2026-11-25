@@ -5,6 +5,7 @@
  */
 
 import type { ActionDef } from '../sim/actions/registry';
+import type { AbsorberDef, EntityDef, ReflectorDef, SpawnDef } from '../sim/entities/types';
 import type { Ctx } from '../sim/fighter';
 
 export interface FighterStats {
@@ -168,6 +169,12 @@ export interface MoveDef {
    * It may set velocity or facing. Keep it deterministic: no Math.random, no clocks.
    */
   script?: (x: Ctx) => void;
+  /** Entities (projectiles, minions, objects) the move puts out on its frames, from the fighter's `entities`. */
+  spawn?: SpawnDef[];
+  /** Reflector bubbles: projectiles touching one turn around and become this fighter's. */
+  reflectors?: ReflectorDef[];
+  /** Absorber bubbles: absorbable projectiles touching one vanish and heal this fighter. */
+  absorbers?: AbsorberDef[];
 }
 
 export interface FighterDef {
@@ -188,6 +195,8 @@ export interface FighterDef {
    * end over end instead of walking. Keep them deterministic, like move scripts.
    */
   actions?: Record<string, ActionDef>;
+  /** Kinds of entity this fighter's moves spawn, by name (the entity kind is "<id>/<name>"). */
+  entities?: Record<string, EntityDef>;
   /** Art data for the renderer (src/render/rig). Plain data, no renderer imports. */
   art?: unknown;
   /** False for forms reached only by transforming (Watergirl), so menus list only the fighter that starts. */
