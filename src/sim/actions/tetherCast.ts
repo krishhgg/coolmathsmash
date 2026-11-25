@@ -154,11 +154,13 @@ function anchor(x: Ctx, t: TetherDef, hit: TetherHit): void {
   startPull(x);
 }
 
+/** Into the reel, keeping the move (and the move frame the line anchored on, for its clip). */
 function startPull(x: Ctx): void {
   const { f } = x;
   f.aim = null;
   if (f.ground) leaveGround(x);
   const move = f.move;
+  f.tether!.moveFrame = f.actionFrame;
   setAction(x, 'tetherPull');
   f.move = move;
 }

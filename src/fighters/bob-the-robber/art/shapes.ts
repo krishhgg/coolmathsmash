@@ -71,6 +71,22 @@ export function curve(points: readonly P[], t = 1): string {
   return catmull(points, false, t);
 }
 
+/** Annular sector around the origin from angle a0 to a1 (degrees, 0 = +x, positive clockwise on screen). */
+export function sector(a0: number, a1: number, r0: number, r1: number, steps = 18): string {
+  const at = (r: number, a: number): P => [
+    r * Math.cos((a * Math.PI) / 180),
+    r * Math.sin((a * Math.PI) / 180),
+  ];
+  const outer: P[] = [];
+  const inner: P[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const a = a0 + ((a1 - a0) * i) / steps;
+    outer.push(at(r1, a));
+    inner.push(at(r0, a));
+  }
+  return poly([...outer, ...inner.reverse()]);
+}
+
 export function bottomOf(outline: string, seam: number): string {
   const edge = flattenPath(outline, 16)[0]!;
   const points: P[] = [];
