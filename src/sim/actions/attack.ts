@@ -226,7 +226,7 @@ export const ATTACK: Record<string, ActionDef> = {
     update(x) {
       const { f } = x;
       const move = playMove(x);
-      if (!move.helpless) fastFallCheck(x);
+      if (!move.helpless && !move.tether?.aimed) fastFallCheck(x);
       if (f.actionFrame < move.faf) return;
       if (!move.helpless) return setAction(x, 'fall');
       setAction(x, 'helpless');
