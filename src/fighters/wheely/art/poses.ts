@@ -94,6 +94,7 @@ export function frontView(face: string, view: 'front' | 'quarter' = 'front'): Re
     shineB: null,
     shineF: null,
     eyes: null,
+    lashes: null,
     front: view,
     eyesFront: face,
   };

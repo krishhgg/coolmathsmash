@@ -76,17 +76,32 @@ function scoop(
   hold: number,
   lunge: number,
   start: Pose = PARK,
+  pivot = false,
 ): Key[] {
+  const swing = (sx: number, rot: number, drive: number, arc: number) =>
+    mix(bob(0.25), tilt(drive, FRONT, lunge), door(sx, 1.035), {
+      door: { rot },
+      fx2: at(3.1 + lunge, -5.0, arc, 6, 2.95),
+    });
   return [
-    key(0, start, { ease: 'out' }),
+    key(0, start, { ease: pivot ? 'step' : 'out' }),
+    ...(pivot
+      ? [
+          key(3, mix(tilt(-7, BODY, 0.4, -0.39), squash(0.93)), {
+            ease: 'out',
+            swaps: frontView('quarterEyesAngry', 'quarter'),
+          }),
+        ]
+      : []),
     key(from - 5, mix(bob(0.1), door(0.45)), { ease: 'in', swaps: { ...FOCUS, ...OPEN_DOOR } }),
     key(from - 3, mix(bob(0.15), door(0.08)), { ease: 'step' }),
-    key(from - 2, mix(bob(0.15), door(-0.2, 1.02), tilt(1, FRONT, lunge * 0.5)), {
-      ease: 'out',
-      swaps: { ...ANGRY, ...SCOOP },
+    key(from - 2, swing(reach * 0.73, -7, pivot ? -4 : 5, 6.1 + lunge), {
+      ease: 'in',
+      swaps: { ...ANGRY, ...SCOOP, fx2: 'fxSwipe' },
     }),
-    key(from - 1, mix(bob(0.2), door(reach, 1.05), tilt(2, FRONT, lunge)), { ease: 'linear' }),
-    key(hold, mix(bob(0.2), door(reach, 1.05), tilt(2, FRONT, lunge)), { ease: 'inOut' }),
+    key(from - 1, swing(reach, -4, pivot ? -6 : 7, 6.25 + lunge), { ease: 'linear' }),
+    key(hold, swing(reach, 2, pivot ? -2 : 4, 6.55 + lunge), { ease: 'inOut' }),
+    key(hold + 1, undefined, { swaps: { ...FOCUS, ...SCOOP } }),
     key(hold + 8, mix(bob(0.1), door(-0.25)), { ease: 'in' }),
     key(hold + 11, mix(bob(0.1), door(-0.05)), { ease: 'step' }),
     key(hold + 12, mix(bob(0.05), door(0.2)), { ease: 'out', swaps: { ...FOCUS, ...OPEN_DOOR } }),
@@ -546,24 +561,48 @@ export const attacks: Record<string, AnimClip> = {
         swaps: { ...SHOUT, fx3: 'fxSwoosh' },
       }),
       key(11, mix(flip(320), spin(540), { fx3: trail(0, -5.2, 8, 67) }), { ease: 'linear' }),
-      key(13, mix(flip(360), SQUAT, spin(640)), { ease: 'out', swaps: ANGRY }),
-      key(16, mix(tilt(366, FRONT, 1.65), squash(0.9, 1.09), spin(700), { fx1: at(10.2, -3.1, 1.1, 4) }), {
-        ease: 'linear',
-        swaps: { ...SHOUT, fx1: 'fxBumperPop' },
-      }),
-      key(18, mix(tilt(364, FRONT, 1.45), spin(720), { fx1: at(10.15, -3.07, 0.8, 0) }), { ease: 'inOut' }),
+      key(13, mix(flip(334, 0.45), SQUAT, spin(640)), { ease: 'in', swaps: ANGRY }),
+      key(
+        16,
+        mix(tilt(372, FRONT, 2.78), squash(0.88, 1.12), spin(700), {
+          fx1: at(10.2, -3.1, 1.1, 4),
+          fx3: at(3.4, -3.14, 7.65, 4, 4.55),
+        }),
+        {
+          ease: 'linear',
+          swaps: { ...SHOUT, ...BLUR, fx1: 'fxBumperPop', fx3: 'fxSwipe' },
+        },
+      ),
+      key(
+        18,
+        mix(tilt(367, FRONT, 2.28), squash(0.93, 1.06), spin(720), {
+          fx1: at(10.15, -3.07, 0.8, 0),
+          fx3: at(3.9, -3.3, 7.2, 9, 3.9),
+        }),
+        { ease: 'inOut' },
+      ),
       key(20, mix(tilt(360, BODY, 0.2), spin(720)), { ease: 'inOut', swaps: ANGRY }),
       key(
         24,
-        mix(tilt(351, REAR, -1.68), squash(0.9, 1.1), spin(640), { fx2: at(-10.2, -3.1, -1.1, -5, 1.07) }),
+        mix(tilt(345, REAR, -2.72), squash(0.88, 1.1), bob(0.33), spin(640), {
+          fx2: at(-10.2, -3.1, -1.1, -5, 1.07),
+          fx3: at(-3.4, -3.26, -7.55, -5, 4.55),
+        }),
         {
           ease: 'linear',
-          swaps: { ...SHOUT, fx2: 'fxBumperPop' },
+          swaps: { ...SHOUT, ...BLUR, fx2: 'fxBumperPop', fx3: 'fxSwipe' },
         },
       ),
-      key(26, mix(tilt(355, REAR, -1.5), spin(620), { fx2: at(-10.15, -3.08, -0.81, -3, 0.77) }), {
-        ease: 'inOut',
-      }),
+      key(
+        26,
+        mix(tilt(352, REAR, -2.08), spin(620), {
+          fx2: at(-10.15, -3.08, -0.81, -3, 0.77),
+          fx3: at(-3.7, -3.16, -7.2, -10, 3.9),
+        }),
+        {
+          ease: 'inOut',
+        },
+      ),
       key(28, mix(tilt(360, BODY), spin(620)), { ease: 'inOut', swaps: ANGRY }),
       key(36, mix(tilt(360, BODY), spin(620)), { swaps: FOCUS }),
       key(45, mix(tilt(360, BODY), spin(620))),
@@ -718,13 +757,13 @@ export const attacks: Record<string, AnimClip> = {
   dashGrab: {
     length: 45,
     swaps: FOCUS,
-    keys: scoop(45, 11, -1.4, 12, 0.9, mix(tilt(4, FRONT, 0.6), bob(0.2))),
+    keys: scoop(45, 11, -1.4, 12, 1.55, mix(tilt(4, FRONT, 0.6), bob(0.2))),
   },
   /** Pivot grab: turns round out of the run (the engine faces him back on frame 1) and scoops. */
   pivotGrab: {
     length: 41,
     swaps: FOCUS,
-    keys: scoop(41, 12, -1.55, 13, 0.6, { body: { sx: -1 } }),
+    keys: scoop(41, 12, -1.55, 13, 0.6, { body: { sx: -1 } }, true),
   },
   /** Door Slam. */
   pummel: {

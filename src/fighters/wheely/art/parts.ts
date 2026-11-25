@@ -401,69 +401,7 @@ const MIRROR: PathShape[] = [
   fill(ellipse(1.86, -7.33, 0.16, 0.1, -30), 'shine'),
 ];
 
-const HEADLIGHT_LAMP: PathShape[] = [
-  fill(
-    ellipse(HEADLIGHT[0], HEADLIGHT[1], 0.4, 0.68, -18),
-    vgrad(-5.9, -4.5, [0, 'chromeHi'], [1, 'chrome']),
-    'line',
-    SEAM,
-  ),
-  ink(
-    poly(
-      [
-        [7.2, -5.42],
-        [7.72, -5.6],
-      ],
-      false,
-    ),
-    'chromeLo',
-    FINE,
-  ),
-  ink(
-    poly(
-      [
-        [7.2, -5.0],
-        [7.72, -5.18],
-      ],
-      false,
-    ),
-    'chromeLo',
-    FINE,
-  ),
-  ink(
-    poly(
-      [
-        [7.28, -4.72],
-        [7.62, -4.84],
-      ],
-      false,
-    ),
-    'chromeLo',
-    FINE,
-  ),
-  ink(
-    poly(
-      [
-        [7.32, -5.8],
-        [7.5, -4.6],
-      ],
-      false,
-    ),
-    'chromeLo',
-    FINE,
-  ),
-  ink(
-    poly(
-      [
-        [7.55, -5.86],
-        [7.68, -4.72],
-      ],
-      false,
-    ),
-    'chromeLo',
-    FINE,
-  ),
-];
+const HEADLIGHT_LAMP = faceLamp(...HEADLIGHT, 0.4, 0.68, -18);
 
 const TAIL_LIGHT: PathShape[] = [
   fill(ellipse(-8.0, -5.0, 0.42, 0.55, 15), 'lamp', 'line', SEAM),
@@ -619,7 +557,22 @@ export const body = toBody(bodyShapes());
 
 /** The open door's hole: dark cabin, a seat back and the steering wheel. */
 export const doorGap = toBody([
-  fill(curve(DOOR_SHAPE), 'cabin', 'line', SEAM),
+  fill(
+    curve([
+      [-2.07, -2.43],
+      [-2.21, -5.93],
+      [-1.88, -8.7],
+      [-0.09, -9.17],
+      [1.61, -8.99],
+      [2.32, -7.43],
+      [2.34, -5.38],
+      [1.62, -3.35],
+      [0.2, -2.54],
+    ]),
+    'cabin',
+    'line',
+    SEAM,
+  ),
   fill(
     curve([
       C(-1.9, -3.2),
@@ -685,17 +638,47 @@ export const hoodBay = toBody([
 /** The door's inside, seen when it swings open past square (door bone space): trim panel, armrest, window. */
 export const doorInside = shift(
   [
-    fill(curve(DOOR_SHAPE), vgrad(-9.6, -2.0, [0, 'paint'], [1, 'paintLo']), 'line', LINE),
-    ...doorGlass(),
     fill(
       curve([
-        C(-1.75, -6.4),
-        [0.4, -6.5],
-        C(2.3, -6.35),
-        [2.2, -4.9],
-        C(1.3, -3.55),
-        C(-1.05, -3.55),
-        [-1.8, -4.8],
+        [-2.55, -3.05],
+        [-2.45, -6.4],
+        [-2.1, -8.48],
+        [-1.04, -8.9],
+        [0.2, -8.62],
+        [1.71, -7.7],
+        [2.52, -6.35],
+        [2.55, -4.77],
+        [1.38, -4.2],
+        [-0.52, -3.83],
+      ]),
+      vgrad(-8.91, -3.05, [0, 'paintHi'], [0.48, 'paint'], [1, 'paintLo']),
+      'line',
+      LINE,
+    ),
+    fill(
+      curve([
+        [-1.96, -6.39],
+        [-1.74, -8.16],
+        [-0.99, -8.44],
+        [0.49, -8.03],
+        [1.57, -7.19],
+        [1.89, -6.45],
+        [0.24, -6.16],
+      ]),
+      vgrad(-8.45, -6.13, [0, 'glassHi'], [0.56, 'glass'], [1, 'glassLo']),
+      'line',
+      SEAM,
+    ),
+    fill(curve([C(-1.57, -8.1), [-0.35, -7.89], C(1.02, -6.53), [-0.58, -7.04]]), faded('glassHi', 0.62)),
+    fill(
+      curve([
+        [-1.99, -5.94],
+        [0.4, -6.03],
+        [2.2, -6.19],
+        [2.11, -4.93],
+        [1.22, -4.55],
+        [-1.59, -4.03],
+        [-1.97, -4.84],
       ]),
       'seat',
       'cabinLine',
@@ -704,7 +687,7 @@ export const doorInside = shift(
     ink(
       curve(
         [
-          [-1.45, -5.55],
+          [-1.66, -5.52],
           [0.3, -5.7],
           [2.0, -5.6],
         ],
@@ -713,7 +696,7 @@ export const doorInside = shift(
       'cabinLine',
       0.26,
     ),
-    fill(ellipse(1.6, -6.0, 0.3, 0.12), 'chrome', 'pipeLine', FINE),
+    fill(ellipse(1.6, -5.9, 0.3, 0.12), 'chrome', 'pipeLine', FINE),
   ],
   -DOOR[0],
   -DOOR[1],
@@ -883,6 +866,12 @@ function brow(cx: number, cy: number, len: number, rot: number, thick = 0.3): st
   );
   return curve(pts);
 }
+
+export const jolieLashes: PathShape[] = [
+  fill(curve([C(-1.41, -0.63), [-1.61, -0.82], C(-1.85, -1.17), [-1.48, -0.98], [-1.28, -0.83]]), 'brow'),
+  fill(curve([C(-1.28, -0.97), [-1.49, -1.14], C(-1.59, -1.48), [-1.38, -1.34], [-1.1, -1.16]]), 'brow'),
+  fill(curve([C(-1.1, -1.24), [-1.23, -1.47], C(-1.23, -1.73), [-0.99, -1.46], [-0.87, -1.36]]), 'brow'),
+];
 
 function oneEye(e: EyeShape, look: Look, near: boolean): PathShape[] {
   const outline = eyeOutline(e);
@@ -1084,54 +1073,52 @@ function tread(x: number, w: number): PathShape[] {
   ];
 }
 
-function faceLamp(x: number, y: number, rx = 0.88, ry = 0.94): PathShape[] {
+function faceLamp(x: number, y: number, rx = 0.88, ry = 0.94, angle = 0): PathShape[] {
+  const r = (angle * Math.PI) / 180;
+  const cos = Math.cos(r);
+  const sin = Math.sin(r);
+  const pt = (u: number, v: number): Pt => [x + u * rx * cos - v * ry * sin, y + u * rx * sin + v * ry * cos];
   const grid: PathShape[] = [];
-  for (const t of [-0.5, 0, 0.5]) {
-    const e = Math.sqrt(0.74 - t * t);
+  for (const t of [-0.55, -0.27, 0, 0.27, 0.55]) {
+    const e = Math.sqrt(0.77 - t * t);
     grid.push(
-      ink(
-        poly(
-          [
-            [x + rx * t, y - ry * e],
-            [x + rx * t, y + ry * e],
-          ],
-          false,
-        ),
-        'chrome',
-        0.075,
-      ),
-      ink(
-        poly(
-          [
-            [x - rx * e, y + ry * t],
-            [x + rx * e, y + ry * t],
-          ],
-          false,
-        ),
-        'chrome',
-        0.075,
-      ),
+      ink(curve([pt(t, -e), pt(t * 1.14, 0), pt(t, e)], false), 'chrome', 0.065),
+      ink(curve([pt(-e, t), pt(0, t * 1.16 + 0.035), pt(e, t)], false), 'chrome', 0.065),
     );
   }
+  const [shineX, shineY] = pt(-0.26, -0.36);
   return [
     fill(
-      ellipse(x, y, rx, ry),
+      ellipse(x, y, rx, ry, angle),
       vgrad(y - ry, y + ry, [0, 'chromeHi'], [0.5, 'rim'], [1, 'rimLo']),
       'line',
       SEAM,
     ),
     ...grid,
-    fill(ellipse(x - rx * 0.26, y - ry * 0.36, rx * 0.24, ry * 0.21, -24), 'glint'),
+    fill(ellipse(shineX, shineY, rx * 0.24, ry * 0.2, angle - 24), 'glint'),
   ];
 }
 
 function grille(x: number, y: number, w: number, lean = 0): PathShape[] {
-  return [0, 0.5, 0.98].map((dy) =>
-    fill(
-      curve([C(x - w, y + dy - lean), [x, y + dy - 0.18], C(x + w, y + dy + lean), [x, y + dy + 0.22]]),
-      vgrad(y + dy - 0.18, y + dy + 0.22, [0, 'line'], [1, 'paintLo']),
-    ),
-  );
+  return [0, 0.51, 1.0].map((dy, i) => {
+    const h = y + dy;
+    const span = w * (1 - i * 0.065);
+    return fill(
+      curve([
+        [x - span, h - lean],
+        [x - span * 0.8, h - lean - 0.12],
+        [x, h - 0.17],
+        [x + span * 0.8, h + lean - 0.12],
+        [x + span, h + lean],
+        [x + span * 0.81, h + lean + 0.15],
+        [x, h + 0.16],
+        [x - span * 0.79, h - lean + 0.15],
+      ]),
+      vgrad(h - 0.19, h + 0.2, [0, 'badgeLine'], [0.64, 'line'], [1, 'paintLo']),
+      'paintLo',
+      0.09,
+    );
+  });
 }
 
 function headBumper(x: number, y: number, w: number, lean = 0): PathShape[] {
@@ -1238,6 +1225,21 @@ function frontShapes(): PathShape[] {
       [2.18, -10.33],
       [2.31, -9.89],
     ]),
+    ...[-2.37, 2.37].map((x) => fill(ellipse(x, -9.93, 0.34, 0.22, x * 6), 'rack', 'rackLine', 0.095)),
+    ink(
+      curve(
+        [
+          [-3.06, -5.76],
+          [-2.18, -5.61],
+          [0, -5.56],
+          [2.18, -5.61],
+          [3.06, -5.76],
+        ],
+        false,
+      ),
+      'line',
+      0.12,
+    ),
     ...faceLamp(-3.59, -4.76),
     ...faceLamp(3.59, -4.76),
     ...grille(0, -4.74, 1.98),

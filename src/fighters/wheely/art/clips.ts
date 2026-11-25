@@ -42,6 +42,7 @@ import {
   spin,
   squash,
   tilt,
+  trail,
   type Pose,
 } from './poses';
 
@@ -135,9 +136,13 @@ function ledgeRollKeys(): Key[] {
   for (let f = up + 2; f <= land; f += 2) {
     const s = (f - up) / (land - up);
     const x = lerp(from.x!, dist, s);
-    const y = lerp(from.y!, 0, s) - 8.5 * Math.sin(Math.PI * s);
+    const y = lerp(from.y!, 0, s) - 9.4 * Math.sin(Math.PI * s);
+    const turnAhead = Math.min(1, s * 1.21);
+    const rot = lerp(from.rot!, 360, turnAhead);
+    const c = corner(f, moveEnd, dist);
+    const ribbon: Pose = f < land ? { fx3: trail(c[0] + x, c[1] + y - 5.2, 6.2, -rot + 70) } : {};
     keys.push(
-      key(f, nearCorner(corner(f, moveEnd, dist), x, y, lerp(from.rot!, 360, s), spin(turn + 420 * s)), {
+      key(f, nearCorner(c, x, y, rot, mix(spin(turn + 420 * s), ribbon)), {
         ease: 'linear',
       }),
     );
@@ -604,6 +609,7 @@ export const authored: Record<string, AnimClip> = {
     keys: [
       ...ledgeRollKeys(),
       key(12, undefined, { swaps: CLOSED }),
+      key(14, undefined, { swaps: { ...CLOSED, fx3: 'fxSwoosh' } }),
       key(34, undefined, { swaps: FOCUS }),
       key(42, undefined, { swaps: {} }),
     ].sort((a, b) => a.frame - b.frame),
@@ -623,12 +629,13 @@ export const authored: Record<string, AnimClip> = {
       key(
         27,
         mix(tilt(7, FRONT, 2.42), squash(0.92, 1.08), spin(roll(WHEEL_X + GETUP + 3)), {
-          fx1: at(-WHEEL_X - 0.5, 0, -0.9, 0, 0.9),
-          fx2: at(11.8, -3.72, 1.07, -7, 1.12),
+          fx1: at(-WHEEL_X - 0.5, -0.17, -1.14, 0, 0.8),
+          fx2: at(11.3, -3.72, 1.19, -7, 1.32),
+          fx3: at(5.2, -4.8, 6.92, 4, 4.42),
         }),
         {
           ease: 'out',
-          swaps: { ...SHOUT, ...BLUR, fx1: 'fxGravel', fx2: 'fxBumperPop' },
+          swaps: { ...SHOUT, ...BLUR, fx1: 'fxGravel', fx2: 'fxBumperPop', fx3: 'fxSwipe' },
         },
       ),
       key(
@@ -636,6 +643,7 @@ export const authored: Record<string, AnimClip> = {
         mix(tilt(4, FRONT, 1.65), spin(roll(WHEEL_X + GETUP + 4)), {
           fx1: at(-WHEEL_X - 1.3, -0.24, -1.2, 0, 0.71),
           fx2: at(12.57, -3.65, 0.74, -9, 0.8),
+          fx3: at(6.25, -4.76, 6.35, 9, 3.72),
         }),
         { ease: 'out' },
       ),

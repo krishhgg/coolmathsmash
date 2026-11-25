@@ -34,6 +34,7 @@ export const art: FighterArt = {
   rig,
   clips,
   palettes,
+  costumeSwaps: { jolie: { lashes: 'jolieLashes' } },
   icon: icon(),
   ledgeGrip: LEDGE_GRIP,
 };

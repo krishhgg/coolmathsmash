@@ -285,4 +285,12 @@ describe('wheely art', () => {
     expect(art.icon).toMatch(/^<svg [^>]*viewBox="[-\d. ]+"/);
     expect(art.icon.length).toBeGreaterThan(1000);
   });
+
+  it('shows Jolie’s side lashes only on her palette and only from the side', () => {
+    for (const palette of Object.keys(art.palettes)) {
+      const pose = samplePose(art, 'idle', 0, 0, palette);
+      expect(pose.symbols.lashes).toBe(palette === 'jolie' ? 'jolieLashes' : null);
+    }
+    expect(samplePose(art, 'turn', TURN_FLIP, TURN_FLIP, 'jolie').symbols.lashes).toBeNull();
+  });
 });
