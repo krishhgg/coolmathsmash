@@ -91,6 +91,8 @@ export const GRAVITY_BONUS_BASE = 0.075;
 /** Tumble launches between these angles (inclusive) use the vertical-launch rules instead of the gravity bonus. */
 export const VERTICAL_LAUNCH = [70, 110] as const;
 export const VERTICAL_LAUNCH_FALL_SPEED = 1.8;
+/** Default DamageFlyTopGravity: the median of Ultimate's 89 fighters (calculator data, commit 233590e). */
+export const DAMAGE_FLY_TOP_GRAVITY = 0.07392;
 export const DI_MAX = 0.17;
 export const LSI_MAX = 1.095;
 export const LSI_MIN = 0.92;

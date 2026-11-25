@@ -1,4 +1,7 @@
+import { emit } from '../../sim/events';
+import type { Ctx } from '../../sim/fighter';
 import type { HitboxDef, MoveDef } from '../types';
+import { isLying, setShape, STANDING, tipFrame } from './tip';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -19,8 +22,10 @@ const box = (
 const grabBox = (id: number, x: number, y: number, radius: number) =>
   box(id, x, y, radius, { damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true });
 
-/** One tip of the block moves its centre 18 units: half a cube plus a cube. */
-export const TIP_DISTANCE = 18;
+/** A heavy slam shakes the screen harder than a tip, on the frame it lands. */
+const slam = (frame: number, amplitude: number, frames: number) => (x: Ctx) => {
+  if (x.f.actionFrame === frame) emit(x.m, { type: 'shake', port: x.f.port, amplitude, frames });
+};
 
 /**
  * Where a tip lands: the block's footprint, 12 units either side of its centre. The first two slams of the dash
@@ -66,7 +71,7 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Tip Over: topples forward onto them like a felled tree; the far end hits hardest. */
+  /** Tip Over (Standing): topples forward onto them like a felled tree, then rocks back up; the far end hits hardest. */
   ftilt: {
     kind: 'other',
     faf: 44,
@@ -80,10 +85,13 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Stand Up: rears onto its end; the rising end swats anything above. Anti-air. */
+  /** Stand Up: rears onto its end; the rising end swats anything above. Anti-air. A lying block ends up standing. */
   utilt: {
     kind: 'other',
     faf: 36,
+    script(x) {
+      if (x.f.actionFrame === 12 && isLying(x.f)) setShape(x, STANDING);
+    },
     hits: [
       {
         frames: [9, 12],
@@ -128,12 +136,10 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
     script(x) {
-      const { f } = x;
-      const t = f.actionFrame - 1;
+      const t = x.f.actionFrame - 1;
       if (t >= 30) return;
-      const phase = (t % 10) + 0.5;
-      f.vel.x =
-        ((f.facing * TIP_DISTANCE * Math.PI) / 20) * Math.sin((Math.PI * phase) / 10) + f.facing * 0.11;
+      tipFrame(x, t % 10, 10);
+      x.f.vel.x += x.f.facing * x.s.groundFriction;
     },
   },
   /** Monolith Slam: rears up to its full height and falls flat forward across 30 units of floor. */
@@ -141,6 +147,7 @@ export const moves: Record<string, MoveDef> = {
     kind: 'smash',
     faf: 66,
     charge: 12,
+    script: slam(20, 3, 10),
     hits: [
       {
         frames: [20, 22],
@@ -172,6 +179,7 @@ export const moves: Record<string, MoveDef> = {
     kind: 'smash',
     faf: 56,
     charge: 7,
+    script: slam(13, 4, 12),
     hits: [
       {
         frames: [13, 15],
@@ -330,5 +338,26 @@ export const moves: Record<string, MoveDef> = {
     faf: 44,
     hits: [],
     throw: { frame: 22, hit: { damage: 7, angle: 75, kbg: 45, bkb: 60 } },
+  },
+};
+
+/**
+ * Lying, the block keeps its kit except Tip Over: it lifts its far end and drops it, quicker and weaker than
+ * toppling from Standing.
+ */
+export const lyingMoves: Record<string, MoveDef> = {
+  ...moves,
+  ftilt: {
+    kind: 'other',
+    faf: 30,
+    hits: [
+      {
+        frames: [8, 10],
+        boxes: [
+          box(0, 17, 5, 6, { damage: 8, angle: 361, kbg: 90, bkb: 30 }),
+          box(1, 9, 9, 5, { damage: 8, angle: 361, kbg: 90, bkb: 30 }),
+        ],
+      },
+    ],
   },
 };

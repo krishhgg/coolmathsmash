@@ -9,9 +9,59 @@ interface ArtSummary {
 
 const art = (id: string) => getFighter(id).art as ArtSummary | undefined;
 
-/** Every selectable fighter id, in registry order. */
-export function fighterIds(): string[] {
-  return Object.keys(FIGHTERS);
+/** The planned roster (handoffs/research/roster.md) in select-screen order, built or not. */
+export const PLANNED_ROSTER: readonly string[] = [
+  'Papa Louie',
+  'Fireboy & Watergirl',
+  'Runner',
+  'Bob the Robber',
+  'Snail Bob',
+  'Red Ball',
+  'The Duck',
+  'Fluffy',
+  'Raft Wars kids',
+  'Bloxorz block',
+  'Johnny Upgrade',
+  'Wheely',
+];
+
+/** A portrait on the select grid: a registered fighter, or a planned one nobody has built yet (`id` null). */
+export interface RosterTile {
+  id: string | null;
+  name: string;
+}
+
+const nameKey = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/^\s*the\s+/, '')
+    .replace(/[^a-z0-9]/g, '');
+
+/**
+ * The select grid: each planned character in order, as the registered fighters that play it (a fighter plays an
+ * entry, or one of its "&" names, when its name or id starts that name: Fireboy and Watergirl both sit under theirs,
+ * "Bloxorz" plays "Bloxorz block"), a locked tile where none does yet, then registered fighters outside the plan.
+ * Forms reached only in a match (`selectable: false`, like Watergirl from Fireboy's down special) get no tile.
+ */
+export function rosterTiles(
+  registered: readonly { id: string; name: string; selectable?: boolean }[] = Object.values(FIGHTERS),
+): RosterTile[] {
+  const fighters = registered.filter((f) => f.selectable !== false);
+  const placed = new Set<string>();
+  const tiles: RosterTile[] = [];
+  for (const entry of PLANNED_ROSTER) {
+    const before = tiles.length;
+    for (const part of entry.split('&').map(nameKey)) {
+      for (const f of fighters) {
+        if (placed.has(f.id) || ![f.name, f.id].some((n) => nameKey(n) !== '' && part.startsWith(nameKey(n))))
+          continue;
+        placed.add(f.id);
+        tiles.push({ id: f.id, name: f.name });
+      }
+    }
+    if (tiles.length === before) tiles.push({ id: null, name: entry });
+  }
+  return [...tiles, ...fighters.filter((f) => !placed.has(f.id)).map((f) => ({ id: f.id, name: f.name }))];
 }
 
 export function stageIds(): string[] {
