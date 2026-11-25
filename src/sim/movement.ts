@@ -108,7 +108,8 @@ export function groundMove(x: Ctx): void {
   f.pos.x = nx;
   if (f.grabPartner >= 0) breakGrab(x.m, f);
   leaveGround(x);
-  if (action.edge !== 'keep') enterAction(x, 'fall', 0);
+  // As when the stage takes the surface away (movingStage.ts loseGround), hitstun carries on in the air.
+  if (action.edge !== 'keep' && f.action !== 'hitstun') enterAction(x, 'fall', 0);
 }
 
 export function leaveGround(x: Ctx): void {
