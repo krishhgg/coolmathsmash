@@ -14,6 +14,7 @@ import {
   FRONT_BLINK,
   FRONT_DAZED,
   FRONT_WIDE,
+  HURT,
   READY,
   SACK,
   SIDE,
@@ -23,12 +24,14 @@ import {
   aim,
   feet,
   floor,
+  fx,
   hands,
   key,
   mix,
   worldRot,
   type Pt,
 } from './poses';
+import { attacks, ledgeSweep } from './attacks';
 import { FORE_ARM, SHIN, THIGH, UPPER_ARM, shoe } from './parts';
 import { rig } from './rig';
 
@@ -414,6 +417,63 @@ function climbKeys(moveEnd: number, inward: number, lastFrame: number, phaseScal
   ];
 }
 
+/** Knocked off balance: head snapped back, arms and legs flung, beanie lifted off his head. */
+const HIT: Pose = mix(AIR, {
+  body: { rot: -20, x: -0.4 },
+  neck: { rot: -14 },
+  hat: { y: -0.7, rot: -12 },
+  armF: { rot: -130 },
+  foreF: { rot: -40 },
+  armB: { rot: 130 },
+  foreB: { rot: 40 },
+  thighF: { rot: -45 },
+  shinF: { rot: 35 },
+  thighB: { rot: 25 },
+  shinB: { rot: 25 },
+});
+
+/** Launched: spread-eagled, beanie half off. */
+const TUMBLE: Pose = mix(AIR, {
+  hat: { y: -0.8, rot: -18, x: -0.3 },
+  armF: { rot: -150 },
+  foreF: { rot: -20 },
+  armB: { rot: 140 },
+  foreB: { rot: 30 },
+  thighF: { rot: -70 },
+  shinF: { rot: 80 },
+  thighB: { rot: 45 },
+  shinB: { rot: 10 },
+});
+
+/** Flat on his back, head behind him, beanie askew, knees up. */
+const DOWN: Pose = grounded({
+  body: { rot: -90, x: 0.9 },
+  neck: { rot: 4 },
+  hat: { rot: 16, x: -0.2 },
+  armF: { rot: 20 },
+  foreF: { rot: 20 },
+  armB: { rot: -10 },
+  foreB: { rot: 10 },
+  thighF: { rot: -5 },
+  shinF: { rot: 45 },
+  thighB: { rot: 10 },
+  shinB: { rot: 35 },
+});
+
+/** Dazed on his feet, swaying side to side under a ring of stars. */
+const sway = (side: 1 | -1): Pose =>
+  mix(
+    feet(
+      { body: { rot: 8 * side }, hip: { y: 0.3 }, neck: { rot: 10 * side } },
+      floor(-1.2),
+      floor(1.2),
+      true,
+    ),
+    {
+      fx2: fx(0.6 * side, -15.4, 6 * side, -side, 1),
+    },
+  );
+
 export const clips: Record<string, AnimClip> = {
   idle: {
     length: 96,
@@ -752,4 +812,113 @@ export const clips: Record<string, AnimClip> = {
       key(20, mix(AIR, { body: { sy: 1.02 } })),
     ]),
   },
+  ledgeAttack: {
+    length: 55,
+    swaps: GRIP,
+    keys: continuous([...climbKeys(20, LEDGE_INWARD, 12, 1.5), ...ledgeSweep(13)]),
+  },
+  shieldBreak: {
+    length: 40,
+    swaps: FRONT_DAZED,
+    keys: [
+      key(0, mix(HIT, { body: { rot: -30 } }), { ease: 'out' }),
+      key(20, mix(TUCK, { body: { rot: -200 } }), { ease: 'linear' }),
+      key(40, mix(HIT, { body: { rot: -360 } })),
+    ],
+  },
+  dizzy: {
+    length: 60,
+    loop: true,
+    swaps: { ...FRONT_DAZED, fx2: 'stars' },
+    keys: [key(0, sway(-1)), key(30, sway(1)), key(60, sway(-1))],
+  },
+  hitstun: {
+    length: 20,
+    swaps: HURT,
+    keys: [
+      key(0, HIT, { ease: 'out' }),
+      key(6, mix(HIT, { body: { rot: -28 } })),
+      key(20, mix(HIT, { body: { rot: -12 }, hat: {}, armF: { rot: -80 }, armB: { rot: 80 } })),
+    ],
+  },
+  tumble: {
+    length: 32,
+    loop: true,
+    swaps: { ...HURT, face: 'face3qHurt' },
+    keys: [
+      key(0, TUMBLE, { ease: 'linear' }),
+      key(16, mix(TUMBLE, { body: { rot: 180 }, armF: { rot: -120 }, thighF: { rot: -95 } }), {
+        ease: 'linear',
+      }),
+      key(32, mix(TUMBLE, { body: { rot: 360 } })),
+    ],
+  },
+  down: {
+    length: 40,
+    loop: true,
+    swaps: HURT,
+    keys: [key(0, DOWN), key(20, mix(DOWN, { armF: { rot: 0 }, hat: { rot: 20, x: -0.3 } })), key(40, DOWN)],
+  },
+  getupStand: floorContact({
+    length: 29,
+    swaps: HURT,
+    keys: [
+      key(0, DOWN, { ease: 'in' }),
+      key(10, feet({ body: { rot: -40, y: 1.1 }, armB: { rot: 90 } }, floor(0.8), floor(2.0)), {
+        ease: 'out',
+        swaps: SIDE,
+      }),
+      key(20, CROUCH, { ease: 'out' }),
+      key(29, READY),
+    ],
+  }),
+  techInPlace: floorContact({
+    length: 26,
+    swaps: BLINK,
+    keys: [
+      key(0, mix(CROUCH, { body: { rot: -20 } }), { ease: 'out' }),
+      key(6, mix(CROUCH, { body: { sx: 1.05, sy: 0.92 } }), { ease: 'inOut' }),
+      key(14, undefined, { swaps: ANGRY }),
+      key(26, READY),
+    ],
+  }),
+  techRoll: floorContact({
+    length: 40,
+    swaps: SIDE,
+    keys: continuous([
+      key(0, grounded(mix(CROUCH, { body: { rot: -20 } })), { ease: 'out' }),
+      ...rollKeys(4, 26, 1),
+      key(31, mix(grounded(CROUCH), { body: { rot: 360 } }), { ease: 'out' }),
+      key(40, mix(READY, { body: { rot: 360 } })),
+    ]),
+  }),
+  grabbed: {
+    length: 20,
+    loop: true,
+    swaps: HURT,
+    keys: [
+      key(0, mix(HIT, { body: { rot: -8, y: -0.6 }, hat: {} })),
+      key(10, mix(HIT, { body: { rot: -2, y: -0.7 }, hat: {}, thighF: { rot: -20 }, thighB: { rot: 35 } })),
+      key(20, mix(HIT, { body: { rot: -8, y: -0.6 }, hat: {} })),
+    ],
+  },
+  grabRelease: {
+    length: 29,
+    swaps: WIDE,
+    keys: [
+      key(0, mix(HIT, { body: { rot: -14 }, hat: {} }), { ease: 'out' }),
+      key(10, feet({ body: { rot: -12 }, hip: { y: 0.4 } }, floor(-2.2), floor(1.0)), {
+        ease: 'inOut',
+        swaps: SIDE,
+      }),
+      key(29, READY),
+    ],
+  },
+  respawn: {
+    length: 60,
+    loop: true,
+    swaps: FRONT,
+    keys: [key(0, STAND), key(30, BREATHE), key(60, STAND)],
+  },
+  ...attacks,
 };
