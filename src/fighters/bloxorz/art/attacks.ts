@@ -239,6 +239,47 @@ export function moveClips(form: Form): Record<string, AnimClip> {
     };
   };
 
+  /**
+   * Switch Bridge (up special): the block sinks onto the switch for 33 frames, springs up as the stone bridge tile
+   * behind it flips up on its hinge (frame 34), and flies up stretched along its length over speed lines. The
+   * simulation lifts the fighter 3 units a frame, so the tile, kept on the floor, is drawn that far below.
+   */
+  const sUpB = (f: number): Frame => {
+    const v = tl(f, [
+      [0, 1],
+      [8, 0.9, 'out'],
+      [29, 0.85],
+      [33, 1.16, 'out'],
+      [36, 1.2],
+      [57, 1.14],
+      [62, 1],
+    ]);
+    const below = Math.max(0, f - 33) * 3;
+    const flip = tl(f, [
+      [30, 0],
+      [34, 1, 'out'],
+      [40, 1, 'in'],
+      [50, 0],
+    ]);
+    const hinge = -9;
+    const deg = -100 * flip;
+    const r = (deg * Math.PI) / 180;
+    const tileShown = f >= 4 && f <= 50;
+    const shudder = f >= 22 && f <= 32 ? (f % 2 ? 0.25 : -0.25) : 0;
+    return {
+      block: rest(STAND, { ...squash(STAND, 1 + (1 - v) * 0.7, v), x: shudder }),
+      fx: {
+        back: tileShown
+          ? { sym: 'tile', x: hinge + 9 * Math.cos(r), y: below + 9 * Math.sin(r), rot: deg }
+          : undefined,
+        hitB: f >= 33 && f <= 57 ? { sym: 'lines', x: 0, y: 0, sx: 1.4, sy: 1 + Math.min(f - 33, 6) * 0.15 } : undefined,
+        dustA: puff(STAND.hw + 2, below, f - 34, 1, 1.25, 14),
+        dustB: puff(-STAND.hw - 2, below, f - 34, -1, 1.25, 14),
+        starA: f >= 34 && f <= 38 ? { sym: 'ring', x: 0, y: below, sx: 0.8 + (f - 34) * 0.3, sy: 0.32 } : undefined,
+      },
+    };
+  };
+
   const clips: Record<string, AnimClip> = {
     jab: bake(23, false, (f) => {
       if (S) {
@@ -1194,6 +1235,23 @@ export function moveClips(form: Form): Record<string, AnimClip> {
       };
     }),
     sideB: bake(58, false, (a) => tumbling(F, a, ROLL)),
+    upB: bake(62, false, (f) => {
+      if (S || f >= 4) return sUpB(f);
+      return {
+        block: turnIn(
+          F,
+          tl(f, [
+            [0, 0, 'in'],
+            [3, -90],
+          ]),
+          1,
+          tl(f, [
+            [0, 1],
+            [3, 1.05],
+          ]),
+        ),
+      };
+    }),
     downB: bake(47, false, (f) => {
       if (S || f >= 4) return sDownB(f);
       return {
@@ -1212,5 +1270,5 @@ export function moveClips(form: Form): Record<string, AnimClip> {
       };
     }),
   };
-  return { ...clips, sideSpecial: clips.sideB!, downSpecial: clips.downB! };
+  return { ...clips, sideSpecial: clips.sideB!, upSpecial: clips.upB!, downSpecial: clips.downB! };
 }

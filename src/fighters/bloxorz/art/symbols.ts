@@ -498,6 +498,8 @@ export const symbols: Record<string, ArtSymbol> = {
     ),
     stroke: { color: 'spark', width: 0.45 },
   })),
+  /** Switch Bridge's stone bridge tile, the icon's slab, flipping up on its hinge. */
+  tile,
   star: [{ d: poly(star(5, 1.7, 0.75)), fill: 'star', stroke: { color: 'line', width: 0.22 } }],
   spark: [{ d: poly(star(4, 1.6, 0.45, 0)), fill: 'spark', stroke: { color: 'line', width: 0.18 } }],
 };
