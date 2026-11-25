@@ -171,6 +171,22 @@ describe("Fireboy's Fireball (the worked example)", () => {
 });
 
 describe('reflectors', () => {
+  it('reflects projectiles during respawn intangibility', () => {
+    const { m, v } = duel('test-gadgets', 'test-gadgets', -40, 0);
+    v.intangible = 20;
+    attack(m, 1, 'reflect');
+    const bolt = spawnEntity(m, {
+      kind: 'test-gadgets/bolt',
+      owner: 0,
+      pos: { x: -10, y: 8 },
+      vel: { x: 2, y: 0 },
+    });
+    step(m, 4);
+    expect(v.intangible).toBeGreaterThan(0);
+    expect(bolt.owner).toBe(1);
+    expect(v.damage).toBe(0);
+  });
+
   it("Temple Mirror turns the fireball around with the Cape's multipliers and it hits its old owner", () => {
     const { m, a, v } = duel('fireboy', 'fireboy', -30, 0);
     step(m, 1, [{ buttons: ['special'] }]);
