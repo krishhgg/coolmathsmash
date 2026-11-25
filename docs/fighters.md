@@ -236,6 +236,47 @@ bthrow: {
   two grabs catch the same fighter the lower port wins.
 - **Shield grabs** use `grab` and come out from 4 frames after shieldstun ends.
 
+### Command grabs
+
+A command grab (Ganondorf's Flame Choke, Incineroar's Alolan Whip) is a special whose grab boxes go straight into a
+throw when they catch. `commandGrab` names that throw move, and the throw can land `holdHits` (chews, slams)
+before its `throw` lets go. Beast Lunge from the roster, in `src/sim/testing/beast.ts` until Balloon Boy & the
+Beast exist:
+
+```ts
+sideB: {
+  kind: 'other',
+  faf: 50,
+  commandGrab: 'beastChew',
+  hits: [
+    {
+      frames: [14, 16],
+      boxes: [{ id: 0, x: 10, y: 7, radius: 5, damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true }],
+    },
+  ],
+},
+beastChew: {
+  kind: 'other',
+  faf: 55,
+  hits: [],
+  holdHits: [
+    { frame: 10, damage: 3 },
+    { frame: 24, damage: 3 },
+  ],
+  throw: { frame: 40, hit: { damage: 6, angle: 55, kbg: 70, bkb: 70 } },
+},
+```
+
+- **Catching.** A command grab's boxes follow the grab rules above (through shields, only in front, attacks beat
+  them, two grabs on each other clank), except that they keep their full size against airborne fighters.
+- **The throw.** On the catch the grabber goes into `grabThrow` playing the named move from frame 1, and the
+  victim into `grabbed`. As with any started throw the victim can't mash out, and the grabber is intangible until
+  the release. A command grab caught in the air plays on in the air and through the landing, then ends in a fall
+  if the grabber is still airborne. In the air the stick drifts it, unless the throw move sets `drift: false`.
+- **`holdHits: [{ frame, damage, hitlag? }]`** land in order like pummels: damage and hitlag, no knockback. Their
+  damage counts towards the release's knockback.
+- **Third parties.** Hits from others break the victim free after 10%, as in any grab.
+
 ### Tethers
 
 A move with `tether` fires a line from the hand (`TETHER.handHeight` up the body) that travels out, anchors, and

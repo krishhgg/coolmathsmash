@@ -55,7 +55,9 @@ export type SimEvent =
   | { type: 'action'; port: number; from: string; to: string }
   /** A grab caught someone; `move` is the grab (grab, dashGrab or pivotGrab). */
   | { type: 'grab'; attacker: number; victim: number; move: string }
-  /** A pummel landed on the held fighter; `damage` is what it added to their %. */
+  /** A command grab caught someone; `move` is the grab. Its throw starts at once, without a `move` event. */
+  | { type: 'commandGrab'; attacker: number; victim: number; move: string }
+  /** A pummel or a throw's hold hit landed on the held fighter; `damage` is what it added to their %. */
   | { type: 'pummel'; attacker: number; victim: number; damage: number }
   /** A throw let go of the held fighter; the `hit` event that launches them follows. */
   | { type: 'throw'; attacker: number; victim: number; move: string }

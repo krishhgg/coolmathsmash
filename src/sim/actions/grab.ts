@@ -103,13 +103,18 @@ export const GRAB_ACTIONS: Record<string, ActionDef> = {
     },
   },
 
-  /** A throw: invincible until it lets go on its release frame (resolveGrabs), as in Ultimate. */
+  /**
+   * A throw: invincible until it lets go on its release frame (resolveGrabs), as in Ultimate. A command grab
+   * caught in the air plays its throw in the air, and landing doesn't end it.
+   */
   grabThrow: {
     physics: 'ground',
+    drift: (x) => moveOf(x.f)?.drift ?? true,
     intangible: (f) => f.grabPartner >= 0,
     update(x) {
-      if (x.f.actionFrame >= playMove(x).faf) setAction(x, 'idle');
+      if (x.f.actionFrame >= playMove(x).faf) setAction(x, x.f.ground ? 'idle' : 'fall');
     },
+    land() {},
   },
 
   /** Held: no control. Each new stick direction and each button press cuts the hold time. */
@@ -158,8 +163,8 @@ function grabbable(m: MatchState, v: FighterState): boolean {
 
 /**
  * Every active grab box's catch this frame, from the state before any hit lands: the nearest grabbable fighter in
- * front of the grabber that a box touches (boxes are half size against airborne fighters; ties go to the lower
- * port).
+ * front of the grabber that a box touches (boxes are half size against airborne fighters, except a command grab's;
+ * ties go to the lower port).
  */
 export function findGrabs(m: MatchState): GrabContact[] {
   const contacts: GrabContact[] = [];
@@ -167,11 +172,12 @@ export function findGrabs(m: MatchState): GrabContact[] {
     if (a.hitlag > 0) continue;
     const boxes = activeHitboxes(a).filter((h) => h.box.grab);
     if (boxes.length === 0) continue;
+    const command = moveOf(a)?.commandGrab !== undefined;
     let best: FighterState | null = null;
     for (const v of m.fighters) {
       if (v === a || !grabbable(m, v) || (v.pos.x - a.pos.x) * a.facing < 0) continue;
       const body = hurtbox(v, getFighter(v.fighter).stats);
-      const scale = v.ground ? 1 : GRAB.airborneRadius;
+      const scale = v.ground || command ? 1 : GRAB.airborneRadius;
       if (!boxes.some((h) => touches({ ...h, box: { ...h.box, radius: h.box.radius * scale } }, body)))
         continue;
       if (!best || Math.abs(v.pos.x - a.pos.x) < Math.abs(best.pos.x - a.pos.x)) best = v;
@@ -206,16 +212,22 @@ export function resolveGrabs(m: MatchState, contacts: GrabContact[], struck: Set
   }
 }
 
-/** A pummel or throw on its frame: pummels deal damage and hitlag only; throws let go and launch. */
+/**
+ * A pummel, a throw's hold hit or a throw on its frame: pummels and hold hits deal damage and hitlag only (each
+ * lands once, counted in hitVictims, though hitlag holds its frame); throws let go and launch.
+ */
 function heldHit(m: MatchState, a: FighterState, again: boolean): void {
   const v = m.fighters[a.grabPartner];
   const move = moveOf(a);
   if (!v || !move || v.grabPartner !== a.port || v.action !== 'grabbed') return;
-  if (a.action === 'grabPummel' && move.pummel?.frame === a.actionFrame && !a.hitVictims.includes(v.port)) {
+  const holdHits =
+    a.action === 'grabPummel' ? [move.pummel] : a.action === 'grabThrow' ? (move.holdHits ?? []) : [];
+  const h = holdHits[a.hitVictims.length];
+  if (h?.frame === a.actionFrame) {
     a.hitVictims.push(v.port);
     const before = v.damage;
-    addDamage(m, v, move.pummel.damage);
-    a.hitlag = v.hitlag = hitlagFrames(move.pummel.damage, { mult: move.pummel.hitlag });
+    addDamage(m, v, h.damage);
+    a.hitlag = v.hitlag = hitlagFrames(h.damage, { mult: h.hitlag });
     emit(m, { type: 'pummel', attacker: a.port, victim: v.port, damage: v.damage - before });
   }
   if (a.action === 'grabThrow' && move.throw?.frame === a.actionFrame) {
@@ -298,9 +310,18 @@ function grabStruck(m: MatchState, v: FighterState, struck: Set<FighterState>): 
   if (breaks || struck.has(a)) endGrab(m, a, v);
 }
 
+/** A catch: into the grab hold, or for a command grab straight into its throw. */
 function grab(m: MatchState, a: FighterState, v: FighterState): void {
-  emit(m, { type: 'grab', attacker: a.port, victim: v.port, move: a.move! });
-  Object.assign(a, { action: 'grabHold', actionFrame: 0, move: null, grabPartner: v.port });
+  const command = moveOf(a)?.commandGrab;
+  emit(m, { type: command ? 'commandGrab' : 'grab', attacker: a.port, victim: v.port, move: a.move! });
+  Object.assign(a, {
+    action: command ? 'grabThrow' : 'grabHold',
+    actionFrame: 0,
+    move: command ?? null,
+    grabPartner: v.port,
+    hitVictims: [],
+    moveStale: 0,
+  });
   Object.assign(v, {
     action: 'grabbed',
     actionFrame: 0,

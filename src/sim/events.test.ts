@@ -5,6 +5,7 @@ import { spawnEntity } from './entities/entities';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
 import { createMatch, type MatchState } from './match';
+import { lungeTester } from './testing/beast';
 import { gadgets } from './testing/gadgets';
 import { marioReference as mario } from './testing/reference';
 import { tetherTester } from './testing/tethers';
@@ -209,6 +210,24 @@ describe('sim events', () => {
     const e = next(m, 'squeeze');
     expect(e).toMatchObject({ port: 0, solid: 2, x: -50 });
     expect(e.y).toBeCloseTo(m.fighters[0]!.pos.y, 9);
+  });
+
+  it('command grabs report the catch, each chew as a pummel, then the throw and its hit', () => {
+    const m = testMatch({ fighter: lungeTester.id, players: 2 });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    const at = { x: a.pos.x + 14 * a.facing, y: a.pos.y };
+    Object.assign(v, { pos: { ...at }, prevPos: { ...at }, ground: a.ground, action: 'idle', intangible: 0 });
+    runPorts(m, 1, [{ x: 100 * a.facing, buttons: ['special'] }, {}]);
+    const seen: SimEvent[] = [];
+    for (let i = 0; i < 120 && !seen.some((e) => e.type === 'hit'); i++) {
+      runPorts(m, 1, [{}, {}]);
+      seen.push(
+        ...m.events.filter((e) => ['commandGrab', 'grab', 'move', 'pummel', 'throw', 'hit'].includes(e.type)),
+      );
+    }
+    expect(seen.map((e) => e.type)).toEqual(['commandGrab', 'pummel', 'pummel', 'throw', 'hit']);
+    expect(seen[0]).toEqual({ type: 'commandGrab', attacker: 0, victim: 1, move: 'sideB' });
+    expect(seen[3]).toEqual({ type: 'throw', attacker: 0, victim: 1, move: 'beastChew' });
   });
 
   it('tethers report the fire, the latch with what it anchored to, then the release', () => {

@@ -26,6 +26,7 @@ function describe(e: SimEvent): string {
     case 'transform':
       return `${p(e.port)} transform ${e.from} > ${e.to}`;
     case 'grab':
+    case 'commandGrab':
     case 'throw':
       return `${p(e.attacker)} ${e.move} ${p(e.victim)}`;
     case 'pummel':

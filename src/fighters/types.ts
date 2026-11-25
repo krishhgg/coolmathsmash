@@ -111,6 +111,13 @@ export type ThrowHitDef = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius' | 'grab' |
   direction?: 'forward' | 'back';
 };
 
+/** A hit on a held fighter (a pummel, a command grab's chew): `damage` and hitlag (x `hitlag`), no knockback. */
+export interface HoldHitDef {
+  frame: number;
+  damage: number;
+  hitlag?: number;
+}
+
 /** What a tether line can anchor to: a ledge, any solid or platform surface, or empty air at full range. */
 export type TetherLatch = 'ledge' | 'surface' | 'sky';
 
@@ -218,12 +225,20 @@ export interface MoveDef {
   transform?: { frame: number; into: string };
 
   /** Pummels: on `frame` the held fighter takes `damage` and hitlag (x `hitlag`) but no knockback, and stays held. */
-  pummel?: { frame: number; damage: number; hitlag?: number };
+  pummel?: HoldHitDef;
   /**
    * Throws: on `frame` the held fighter is let go and takes `hit` through the normal knockback path (DI,
    * staleness and rage included). Throws have no hitlag unless `hit.hitlag` sets a multiplier, as in Ultimate.
    */
   throw?: { frame: number; hit: ThrowHitDef };
+  /** Throws: hits on the held fighter before the release (a command grab's chews), like pummels, in frame order. */
+  holdHits?: HoldHitDef[];
+  /**
+   * Command grabs (Ganondorf's Flame Choke, Incineroar's Alolan Whip): a catch by this move's grab boxes plays the
+   * move named here at once as the throw, instead of the grab hold, so it can't be mashed out of. Its grab boxes
+   * catch airborne fighters at full size.
+   */
+  commandGrab?: string;
   /** Tethers: fire a line on `tether.frame` that anchors and reels the fighter in (see TetherDef). */
   tether?: TetherDef;
   /**
