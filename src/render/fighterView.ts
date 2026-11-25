@@ -27,13 +27,30 @@ export function fighterArt(def: FighterDef): FighterArt | undefined {
   return def.art as FighterArt | undefined;
 }
 
-/** The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. */
+/**
+ * The move frame `f` is drawn on. A tether's reel keeps the move but restarts the action frame, so tetherPull
+ * counts on from the move frame the line anchored on, and tetherHang holds the move frame the reel arrived on.
+ */
+function moveFrame(f: FighterState): number {
+  const from = f.tether?.moveFrame;
+  if (from === undefined) return f.actionFrame;
+  if (f.action === 'tetherPull') return from + f.actionFrame - 1;
+  if (f.action === 'tetherHang') return from;
+  return f.actionFrame;
+}
+
+/**
+ * The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. A tether move's clip
+ * plays on through the reel, held on the clip's `reel` frame (AnimClip.reel) until the fighter arrives.
+ */
 export function clipFor(def: FighterDef, art: FighterArt, f: FighterState): [string, number] {
   const own = f.move ?? f.action;
   const name = art.clips[own] ? own : (STAND_INS[own] ?? 'idle');
   const clip = art.clips[name];
   if (!clip || !f.move || name !== f.move) return [name, f.actionFrame];
-  return [name, moveClipFrame(clip, f.actionFrame, def.moves?.[f.move])];
+  const frame = moveClipFrame(clip, moveFrame(f), def.moves?.[f.move]);
+  const reeling = f.action === 'tetherPull' || f.action === 'tetherHang';
+  return [name, reeling && clip.reel !== undefined ? Math.min(frame, clip.reel) : frame];
 }
 
 /**

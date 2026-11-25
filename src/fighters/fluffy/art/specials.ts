@@ -158,9 +158,13 @@ export const SPECIALS: Record<string, AnimClip> = {
       key(45, ball(STAND), { swaps: { prop: null } }),
     ],
   },
-  /** Quick Grapple: fires the grabber straight up on 8 and zips up the line after it. */
+  /**
+   * Quick Grapple: fires the grabber straight up on 8 and zips up the line after it. A long reel holds on 24, the
+   * last frame the line still reaches well above him, until he arrives.
+   */
   upB: {
     length: 40,
+    reel: 24,
     swaps: FOCUS,
     keys: [
       key(0, ball({ float: true, look: [0.2, -0.5] }), { ease: 'out' }),

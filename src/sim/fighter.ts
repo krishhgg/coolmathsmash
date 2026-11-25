@@ -99,6 +99,8 @@ export interface FighterState {
    * The fighter's tether line (null = none): `out` while it travels, with `anchor` at its tip, then where it
    * anchored. `frame` is the match frame it fired or anchored; `ledge` the ledge index of a ledge anchor; a
    * surface anchor also keeps that surface and the anchor within it, so a moving piece carries the line along.
+   * `moveFrame` is the move's frame on the first frame of tetherPull (the frame the line anchored) or tetherHang
+   * (the frame the reel arrived), so the renderer plays the move's clip on through the reel instead of restarting it.
    */
   tether: {
     anchor: Vec;
@@ -108,6 +110,7 @@ export interface FighterState {
     frame: number;
     surface?: GroundRef;
     local?: Vec;
+    moveFrame?: number;
   } | null;
   /** A tether's target as an offset from the fighter: the reticle while aiming, then where the line is going. */
   aim: Vec | null;
