@@ -39,6 +39,10 @@ export interface CpuLevel {
   whiff: number;
   /** Chance to fast fall when coming down. */
   fastFall: number;
+  /** Mash inputs per second while held in a grab (a new stick direction each, a button every other one). */
+  mash: number;
+  /** Pummels before a throw, at most. */
+  pummels: number;
 }
 
 export const MIN_LEVEL = 1;
@@ -67,6 +71,8 @@ const TABLE: Row[] = [
     aimless: 0.6,
     whiff: 0.35,
     fastFall: 0,
+    mash: 0,
+    pummels: 0,
   },
   // 2
   {
@@ -87,6 +93,8 @@ const TABLE: Row[] = [
     aimless: 0.45,
     whiff: 0.3,
     fastFall: 0.05,
+    mash: 1,
+    pummels: 0,
   },
   // 3
   {
@@ -107,6 +115,8 @@ const TABLE: Row[] = [
     aimless: 0.32,
     whiff: 0.25,
     fastFall: 0.1,
+    mash: 2,
+    pummels: 0,
   },
   // 4
   {
@@ -127,6 +137,8 @@ const TABLE: Row[] = [
     aimless: 0.22,
     whiff: 0.18,
     fastFall: 0.2,
+    mash: 4,
+    pummels: 1,
   },
   // 5
   {
@@ -147,6 +159,8 @@ const TABLE: Row[] = [
     aimless: 0.14,
     whiff: 0.12,
     fastFall: 0.35,
+    mash: 6,
+    pummels: 1,
   },
   // 6
   {
@@ -167,6 +181,8 @@ const TABLE: Row[] = [
     aimless: 0.08,
     whiff: 0.08,
     fastFall: 0.5,
+    mash: 8,
+    pummels: 2,
   },
   // 7
   {
@@ -187,6 +203,8 @@ const TABLE: Row[] = [
     aimless: 0.04,
     whiff: 0.05,
     fastFall: 0.65,
+    mash: 10,
+    pummels: 2,
   },
   // 8
   {
@@ -207,6 +225,8 @@ const TABLE: Row[] = [
     aimless: 0.02,
     whiff: 0.03,
     fastFall: 0.8,
+    mash: 11,
+    pummels: 3,
   },
   // 9
   {
@@ -227,6 +247,8 @@ const TABLE: Row[] = [
     aimless: 0,
     whiff: 0.01,
     fastFall: 0.92,
+    mash: 12,
+    pummels: 3,
   },
 ];
 

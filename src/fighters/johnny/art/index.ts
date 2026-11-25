@@ -15,7 +15,7 @@ function iconBox(): [number, number, number, number] {
 
 /** Johnny Upgrade (Gameshot, 2012), drawn by hand in the game's Flash style. Plain data: no Pixi imports. */
 export const art: FighterArt = {
-  height: 17,
+  height: 17.5,
   rig,
   clips,
   palettes,

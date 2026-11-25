@@ -1,4 +1,11 @@
 {
+  "battlefield": {
+    "file": "music/battlefield.mp3",
+    "title": "Battlefield",
+    "evokes": "a Smash-style Battlefield stage theme",
+    "loopStart": 0,
+    "loopEnd": 45.714286
+  },
   "bloxorz-platform": {
     "file": "music/bloxorz-platform.mp3",
     "title": "Bloxorz Board",

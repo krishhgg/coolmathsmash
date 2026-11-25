@@ -55,7 +55,7 @@ for (const name of readdirSync(songsDir)
     '-codec:a',
     'libmp3lame',
     '-q:a',
-    '6',
+    String(song.quality ?? 6),
     '-map_metadata',
     '-1',
     '-fflags',

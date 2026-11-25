@@ -39,6 +39,13 @@ export const GROUND_INPUTS: Record<string, Press> = {
   sideB: { x: STICK.special, buttons: Btn.Special },
   upB: { y: STICK.special, buttons: Btn.Special },
   downB: { y: -STICK.special, buttons: Btn.Special },
+  grab: { buttons: Btn.Grab },
+};
+
+/** Moves started out of a dash or run, by the button that starts them there. */
+export const DASH_INPUTS: Record<string, Press> = {
+  dashAttack: { buttons: Btn.Attack },
+  dashGrab: { buttons: Btn.Grab },
 };
 
 /** Airborne inputs for each move name. */
@@ -70,5 +77,6 @@ export const GROUND_MOVES = [
   'sideB',
   'upB',
   'downB',
+  'grab',
 ] as const;
 export const SPECIALS = ['neutralB', 'sideB', 'upB', 'downB'] as const;

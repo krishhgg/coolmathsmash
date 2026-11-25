@@ -3,6 +3,7 @@ import ref from '../../sim/reference/physics-constants.json';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, type MatchState } from '../../sim/match';
+import { koPercent, type KoHit } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
 import { DAIR_PLUNGE_FROM, SPIN_ROLL, moves } from './moves';
@@ -32,47 +33,6 @@ function vsMario(): { m: MatchState; a: FighterState; v: FighterState } {
 }
 
 const place = (f: FighterState, x: number, y = 0) => Object.assign(f, { pos: { x, y }, prevPos: { x, y } });
-
-/** Steps until Mario is KO'd; true when the launch carries him through a side or the top blast zone. */
-function koed(m: MatchState, v: FighterState): boolean {
-  for (let i = 0; i < 400; i++) {
-    runPorts(m, 1, [{}, {}]);
-    const ko = m.events.find((e) => e.type === 'ko' && e.port === v.port);
-    if (ko?.type === 'ko') return ko.side !== 'bottom';
-  }
-  return false;
-}
-
-/**
- * The roster's kill convention: a fresh, uncharged `move` KOs Mario standing at the Battlefield ledge, no rage,
- * no DI. Grounded moves face the ledge with the sweetspot on Mario; bair is done just above the floor with
- * Bob's back to the ledge; bthrow throws from a grab with his back to the ledge.
- */
-function kos(move: string, percent: number): boolean {
-  const { m, a, v } = vsMario();
-  const vx = 76;
-  place(v, vx);
-  Object.assign(v, { ground: a.ground, action: 'idle', vel: { x: 0, y: 0 }, intangible: 0, facing: -1 });
-  if (move === 'bthrow') {
-    place(a, vx).facing = -1;
-    place(v, vx - 11).facing = 1;
-    runPorts(m, 1, [{ buttons: ['grab'] }, {}]);
-    runPorts(m, moves.grab!.hits[0]!.frames[1], [{}, {}]);
-    expect(v.action).toBe('grabbed');
-    v.damage = percent;
-    runPorts(m, 1, [{ x: 100 }, {}]);
-    expect(a.move).toBe('bthrow');
-    return koed(m, v);
-  }
-  v.damage = percent;
-  const sweet = moves[move]!.hits[0]!.boxes[0]!;
-  if (move === 'bair') {
-    place(a, vx + sweet.x, 9);
-    Object.assign(a, { vel: { x: 0, y: 0 }, ground: null, action: 'fall', facing: -1 });
-  } else place(a, vx - sweet.x).facing = 1;
-  attack(m, 0, move);
-  return koed(m, v);
-}
 
 describe('Snail Bob: stats', () => {
   it('match the roster: heavy, Jigglypuff-slow on the ground, Olimar gravity, Kirby jumps', () => {
@@ -139,21 +99,25 @@ describe('Snail Bob: attack inputs', () => {
 });
 
 describe('Snail Bob: frame data', () => {
-  /** The roster's damage and first active frame for every normal (sweetspot damage, before the 1v1 multiplier). */
+  /**
+   * Each normal's sweetspot damage (before the 1v1 multiplier) and first active frame, from the roster. The kill
+   * moves take their Ultimate analogue's damage with its knockback (CREW.md, "Knockback values"), within 2% of the
+   * roster's.
+   */
   const ROSTER: [string, number, number][] = [
     ['jab', 2, 4],
-    ['ftilt', 9, 8],
+    ['ftilt', 10, 8],
     ['utilt', 6, 6],
     ['dtilt', 5, 7],
     ['dashAttack', 10, 9],
-    ['fsmash', 16, 16],
-    ['usmash', 15, 12],
+    ['fsmash', 15, 16],
+    ['usmash', 14, 12],
     ['dsmash', 13, 10],
     ['nair', 9, 6],
-    ['fair', 11, 10],
-    ['bair', 12, 9],
+    ['fair', 12, 10],
+    ['bair', 13, 9],
     ['uair', 8, 6],
-    ['dair', 14, 16],
+    ['dair', 16, 16],
     ['grab', 0, 9],
   ];
 
@@ -177,13 +141,13 @@ describe('Snail Bob: frame data', () => {
     expect(Math.max(...move.hits.flatMap((w) => w.boxes.map((b) => b.damage)))).toBe(damage);
   });
 
-  it('pummel and throws deal the roster damage', () => {
+  it('pummel, throws and the Shell Pound landing deal their damage', () => {
     expect(moves.pummel!.pummel!.damage).toBe(1.2);
     expect(moves.fthrow!.throw!.hit.damage).toBe(8);
-    expect(moves.bthrow!.throw!.hit.damage).toBe(10);
+    expect(moves.bthrow!.throw!.hit.damage).toBe(11);
     expect(moves.uthrow!.throw!.hit.damage).toBe(9);
     expect(moves.dthrow!.throw!.hit.damage).toBe(6);
-    expect(moves.dairLand!.hits[0]!.boxes[0]!.damage).toBe(4);
+    expect(moves.dairLand!.hits[0]!.boxes[0]!.damage).toBe(5);
   });
 
   it('fsmash is out on frames 16-18 exactly, then he is actionable on its faf', () => {
@@ -284,21 +248,55 @@ describe('Snail Bob: Shell Pound (dair)', () => {
   });
 });
 
-describe('Snail Bob: kill percents (Mario at the Battlefield ledge, fresh, no rage, no DI)', () => {
+describe('Snail Bob: kill percents (koPercent: Mario at the Battlefield ledge, fresh, no rage, no DI)', () => {
+  const ko = (move: string) => koPercent({ hit: { fighter: 'snailbob', move } })!;
+  /** Shell Pound's late plunge, the hit that KOs off the side; it shares its box id with the meteor, so pass it raw. */
+  const dairLate = () => koPercent({ hit: moves.dair!.hits[1]!.boxes[0]!, air: true })!;
+
   /**
-   * Loose on purpose (CREW.md, "Knockback values"): the moves keep Ultimate-style knockback and KO earlier than the
-   * roster's targets in this engine for now. TODO: tighten to the roster's % (±8) with COOL-3's koPercent helper
-   * once its KO calibration lands.
+   * Each kill move against its Ultimate analogue's hitbox from the same setup (CREW.md, "Knockback values and kill
+   * percents"): the move takes the analogue's damage, angle, BKB and KBG, so it KOs within a few points of it.
    */
   it.each([
-    ['fsmash', 100],
-    ['usmash', 115],
-    ['bair', 140],
-    ['bthrow', 165],
-    ['ftilt', 170],
-  ] as const)('%s KOs by its roster target of %s%%, and not at half of it', (move, target) => {
-    expect(kos(move, target / 2)).toBe(false);
-    expect(kos(move, target + 8)).toBe(true);
+    ['ftilt', "R.O.B.'s forward tilt, fingertip", { damage: 10, angle: 361, kbg: 77, bkb: 48 }],
+    ['fsmash', "R.O.B.'s forward smash, sweetspot", { damage: 15, angle: 41, kbg: 105, bkb: 32 }],
+    ['usmash', "R.O.B.'s up smash, strong exhaust", { damage: 14, angle: 80, kbg: 98, bkb: 40 }],
+    ['dsmash', "Squirtle's down smash", { damage: 13, angle: 28, kbg: 74, bkb: 50 }],
+    ['fair', "Bowser's forward aerial, arm", { damage: 12, angle: 361, kbg: 80, bkb: 40 }, true],
+    [
+      'bair',
+      "R.O.B.'s back aerial, clean",
+      { damage: 13, angle: 35, kbg: 83, bkb: 35, direction: 'back' },
+      true,
+    ],
+    ['dair', "Toon Link's down aerial, late hit", { damage: 14, angle: 50, kbg: 98, bkb: 40 }, true],
+    ['bthrow', "King K. Rool's back throw", { damage: 11, angle: 35, kbg: 56, bkb: 70, direction: 'back' }],
+    ['sideB', "Sonic's Spin Dash, ground roll", { damage: 10, angle: 70, kbg: 70, bkb: 80 }],
+  ] as [string, string, KoHit, boolean?][])('%s KOs within 5 points of %s', (move, _analogue, hit, air) => {
+    const bob = move === 'dair' ? dairLate() : koPercent({ hit: { fighter: 'snailbob', move }, air })!;
+    expect(Math.abs(bob - koPercent({ hit, air })!)).toBeLessThanOrEqual(5);
+  });
+
+  it('Lever Punch is his strongest smash, then Shell Spin, then Shell Pop', () => {
+    expect(ko('fsmash')).toBeLessThan(ko('dsmash'));
+    expect(ko('dsmash')).toBeLessThan(ko('usmash'));
+  });
+
+  it('every smash out-kills Shell Bump, and Shell Bump out-kills Shell Slide and Antenna Whip', () => {
+    const ftilt = ko('ftilt');
+    for (const smash of ['fsmash', 'usmash', 'dsmash']) expect(ko(smash)).toBeLessThan(ftilt);
+    expect(ftilt).toBeLessThan(ko('dashAttack'));
+    expect(ftilt).toBeLessThan(ko('utilt'));
+  });
+
+  it('Shell Bash is his aerial kill move: it out-kills Shell Punch, which out-kills Shell Tuck', () => {
+    const air = (move: string) => koPercent({ hit: { fighter: 'snailbob', move }, air: true })!;
+    expect(air('bair')).toBeLessThan(air('fair'));
+    expect(air('fair')).toBeLessThan(air('nair'));
+  });
+
+  it('Roll Over is his kill throw', () => {
+    for (const thr of ['fthrow', 'uthrow', 'dthrow']) expect(ko('bthrow')).toBeLessThan(ko(thr));
   });
 
   it('down throw at 0% lets him act before Mario can: a combo starter', () => {

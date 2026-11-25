@@ -6,11 +6,13 @@
  *
  *   npm run capture:ai -- [--levels 9,3] [--seed 1] [--fighters fireboy,fireboy] [--stocks 3]
  *                         [--from <frame>] [--frames 480] [--every 2] [--out captures/ai] [--name cpu-9-vs-3] [--build]
+ *                         [--replay <file.json>] [--labels 'P1 · you,P2 · CPU Lv 9']
  *
- * Without --from the clip ends a second after the first KO.
+ * Without --from the clip ends a second after the first KO. --replay records a saved replay (any match, a person's
+ * included) instead of playing one, from frame 0 unless --from says otherwise; --labels replaces the caption names.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { build, preview } from 'vite';
@@ -34,6 +36,8 @@ const { values: args } = parseArgs({
     out: { type: 'string', default: 'captures/ai' },
     name: { type: 'string' },
     build: { type: 'boolean', default: false },
+    replay: { type: 'string' },
+    labels: { type: 'string' },
   },
 });
 
@@ -46,24 +50,29 @@ mkdirSync(out, { recursive: true });
 
 const { mod: bench, close } = await loadSource<Bench>('/src/ai/bench.ts');
 const { mod: replays, close: closeReplays } = await loadSource<Replays>('/src/sim/replay.ts');
-const result = bench.runCpuMatch({
-  seed,
-  levels,
-  fighters: args.fighters.split(','),
-  stocks: Number(args.stocks),
-  record: true,
-});
+const result = args.replay
+  ? null
+  : bench.runCpuMatch({
+      seed,
+      levels,
+      fighters: args.fighters.split(','),
+      stocks: Number(args.stocks),
+      record: true,
+    });
+const replay = result ? result.replay! : replays.decodeReplay(readFileSync(resolve(args.replay!), 'utf8'));
 await Promise.all([close(), closeReplays()]);
-const replay = result.replay!;
 const length = Number(args.frames);
-const firstKo = result.kos[0]?.frame ?? replay.frames.length;
-const from = args.from !== undefined ? Number(args.from) : Math.max(0, firstKo + 60 - length);
+const firstKo = result?.kos[0]?.frame ?? replay.frames.length;
+const from = args.from !== undefined ? Number(args.from) : result ? Math.max(0, firstKo + 60 - length) : 0;
 const to = Math.min(replay.frames.length, from + length);
+const labels = args.labels?.split(',') ?? levels.map((l, i) => `P${i + 1} · CPU Lv ${l}`);
 writeFileSync(join(out, `${name}.json`), replays.encodeReplay(replay));
-console.log(
-  `${name}: winner P${(result.winner ?? -1) + 1}, ${(result.frames / 60).toFixed(0)} s, KOs at ` +
-    `${result.kos.map((k) => `P${k.port + 1}@${k.frame}${k.selfDestruct ? ' (SD)' : ''}`).join(', ')}; clip ${from}-${to}`,
-);
+if (result) {
+  console.log(
+    `${name}: winner P${(result.winner ?? -1) + 1}, ${(result.frames / 60).toFixed(0)} s, KOs at ` +
+      `${result.kos.map((k) => `P${k.port + 1}@${k.frame}${k.selfDestruct ? ' (SD)' : ''}`).join(', ')}; clip ${from}-${to}`,
+  );
+}
 
 if (args.build || !existsSync(join(root, 'dist', 'index.html'))) await build({ root, logLevel: 'warn' });
 const server = await preview({ root, preview: { port: 0, open: false }, logLevel: 'warn' });
@@ -88,7 +97,7 @@ try {
       cap.dataset.labels = JSON.stringify(labels);
       document.body.appendChild(cap);
     },
-    { config: replay.config, labels: levels.map((l, i) => `P${i + 1} · CPU Lv ${l}`) },
+    { config: replay.config, labels },
   );
   const chunk = 600;
   for (let f = 0; f < from; f += chunk) {

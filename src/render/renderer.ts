@@ -19,6 +19,12 @@ const STAGE_VIEWS = import.meta.glob<{ createStageView: () => StageView }>('../s
   eager: true,
 });
 
+/**
+ * `full` draws a stage's painted backdrop; `lite` leaves it flat (the clear colour) so tests and captures on software
+ * GPUs stay fast. Everything in the world (stage, fighters, effects) and the HUD draw the same in both.
+ */
+export type RenderQuality = 'full' | 'lite';
+
 export interface Overlays {
   inputs: boolean;
   /** Action names over fighters. */
@@ -65,7 +71,10 @@ export class Renderer {
   private stage: StageGeometry | null = null;
   private matchKey: unknown = null;
 
-  private constructor(readonly app: Application) {
+  private constructor(
+    readonly app: Application,
+    readonly quality: RenderQuality,
+  ) {
     this.world.addChild(
       this.stageLayer,
       this.stagePieces,
@@ -73,12 +82,14 @@ export class Renderer {
       this.foregroundLayer,
       this.boxes,
     );
-    app.stage.addChild(new Sprite(this.backdrop), this.world, this.hud, this.debug);
+    const backdrop = new Sprite(this.backdrop);
+    backdrop.visible = quality === 'full';
+    app.stage.addChild(backdrop, this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
     this.hud.addChild(this.matchHud.hud.container);
   }
 
-  static async create(parent: HTMLElement): Promise<Renderer> {
+  static async create(parent: HTMLElement, quality: RenderQuality = 'full'): Promise<Renderer> {
     const app = new Application();
     await app.init({
       width: VIEW_WIDTH,
@@ -90,7 +101,7 @@ export class Renderer {
       autoStart: false,
     });
     parent.appendChild(app.canvas);
-    return new Renderer(app);
+    return new Renderer(app, quality);
   }
 
   private sync(state: MatchState): void {
@@ -155,7 +166,8 @@ export class Renderer {
     if (this.overlays.inputs) this.inputDisplay.update(state.players);
     this.eventLog.container.visible = this.overlays.events;
     if (this.overlays.events) this.eventLog.update();
-    this.app.renderer.render({ container: this.background, target: this.backdrop, clear: true });
+    if (this.quality === 'full')
+      this.app.renderer.render({ container: this.background, target: this.backdrop, clear: true });
     this.app.render();
   }
 

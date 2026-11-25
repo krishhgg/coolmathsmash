@@ -1,8 +1,9 @@
 import type { Bus } from './settings';
 
 /**
- * Every sound the game can play, by id. Files live under public/audio/ and are rendered by
- * scripts/audio/build-sfx.ts (peak-normalised to about -1 dBFS), so `gain` is the mix level.
+ * Every sound the game can play, by id. Files live under public/audio/: effects are rendered by
+ * scripts/audio/build-sfx.ts (peak-normalised to about -1 dBFS), announcer lines by
+ * scripts/audio/voice/build-voice.py (all at the same loudness), so `gain` is the mix level.
  */
 export interface SoundDef {
   /** Variants under public/audio/; each play picks one at random, never the same one twice in a row. */
@@ -19,6 +20,49 @@ export interface SoundDef {
 
 const sfx = (name: string, ...variants: number[]) =>
   (variants.length ? variants : [1]).map((n) => `sfx/${name}-${n}.mp3`);
+
+/** What the announcer says during a match and in menus; 'title' is "Coolmath Smash!". */
+export const ANNOUNCER_LINES = [
+  'ready',
+  'three',
+  'two',
+  'one',
+  'go',
+  'fight',
+  'game',
+  'time',
+  'sudden-death',
+  'no-contest',
+  'winner-is',
+  'choose-your-character',
+  'title',
+] as const;
+
+/** Fighters the announcer can name, by fighter id. */
+export const ANNOUNCED_FIGHTERS = [
+  'papa-louie',
+  'fireboy',
+  'watergirl',
+  'runner',
+  'bob-the-robber',
+  'snailbob',
+  'redball',
+  'duck',
+  'fluffy',
+  'raftwars',
+  'bloxorz',
+  'johnny',
+  'wheely',
+] as const;
+
+/** One announcer sound per name: `voice-<name>` plays public/audio/voice/<name>.mp3. */
+const voice = <N extends string>(names: readonly N[]) =>
+  Object.fromEntries(
+    names.map((n): [string, SoundDef] => [
+      `voice-${n}`,
+      { files: [`voice/${n}.mp3`], bus: 'voice', gain: -2, max: 1 },
+    ]),
+  ) as Record<`voice-${N}`, SoundDef>;
 
 export const SOUNDS = {
   // Hits, by strength. The KO hit replaces the heavy one when the launch will KO.
@@ -61,6 +105,9 @@ export const SOUNDS = {
   'menu-error': { files: sfx('menu-error'), bus: 'sfx', gain: -10 },
   'menu-toggle': { files: sfx('menu-toggle'), bus: 'sfx', gain: -9 },
   'menu-start': { files: sfx('menu-start'), bus: 'sfx', gain: -5.5, max: 1 },
+
+  ...voice(ANNOUNCER_LINES),
+  ...voice(ANNOUNCED_FIGHTERS.map((id) => `fighter-${id}` as const)),
 } satisfies Record<string, SoundDef>;
 
 export type SoundId = keyof typeof SOUNDS;

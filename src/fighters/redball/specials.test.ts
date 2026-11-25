@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FighterState } from '../../sim/fighter';
 import { placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
-import { versusMario } from './ko';
+import { versusMario } from './versus';
 import { BOUNCE_SPEED, REV_FROM, REV_MAX, ROLLS } from './specials';
 import { stats } from './stats';
 

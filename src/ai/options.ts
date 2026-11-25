@@ -41,6 +41,8 @@ export interface Target {
   path: Sample[];
   /** Spacing misjudgement added to the target's x. */
   errX: number;
+  /** Frames from now until grabs can catch it again (regrab immunity after escaping a grab). */
+  grabbableIn: number;
 }
 
 export interface Self {
@@ -50,11 +52,15 @@ export interface Self {
   /** Frames before a grounded move can start (shield drop), and before a jump can start. */
   groundDelay: number;
   jumpDelay: number;
+  /** Frames before a grab can start, when it differs from groundDelay (a shield grab skips the shield drop). */
+  grabDelay?: number;
 }
 
 const MARGIN = -0.5;
-/** Moves the Attack button starts; out of a dash or run it gives a dash attack instead. */
-const ATTACK_BUTTON_MOVES = new Set(['jab', 'ftilt', 'utilt', 'dtilt']);
+/** Moves whose button gives a dash attack or a dash grab instead out of a dash or run. */
+const DASH_REPLACED = new Set(['jab', 'ftilt', 'utilt', 'dtilt', 'grab']);
+/** Grabs can't pick up a fighter lying down, hanging on a ledge or in the air (half-size boxes there: not counted). */
+const UNGRABBABLE = new Set(['down', 'downBound', 'grabbed', 'grabHold', 'grabPummel', 'grabThrow']);
 
 /** First frame and hitbox of `frames` that touches the target, with the fighter at `at(frame)` facing `facing`. */
 function firstHit(
@@ -72,8 +78,15 @@ function firstHit(
     const p = at(pf, t);
     if (!p) return null;
     const hurt = { ...s.hurt, x: s.hurt.x + target.errX };
+    const grabbable =
+      t >= target.grabbableIn &&
+      s.grounded &&
+      s.ledge < 0 &&
+      !UNGRABBABLE.has(s.action) &&
+      (s.x - p.x) * facing >= 0;
     let best: HitboxDef | null = null;
     for (const b of pf.boxes) {
+      if (b.box.grab && !grabbable) continue;
       if (!overlaps(p.x + b.x * facing, p.y + b.y, b.r, hurt, MARGIN)) continue;
       if (!best || b.box.id < best.id) best = b.box;
     }
@@ -108,14 +121,15 @@ function groundAttacks(me: Self, target: Target, out: Attack[]): void {
   const dashing = f.action === 'dash' || f.action === 'run';
   for (const p of Object.values(k.ground)) {
     if (p.first < 0) continue;
-    if (p.start === 'dash' && (!dashing || me.groundDelay > 0)) continue;
-    if (dashing && ATTACK_BUTTON_MOVES.has(p.move)) continue;
+    const delay = p.move === 'grab' ? (me.grabDelay ?? me.groundDelay) : me.groundDelay;
+    if (p.start === 'dash' && (!dashing || delay > 0)) continue;
+    if (dashing && DASH_REPLACED.has(p.move)) continue;
     const facings: (1 | -1)[] = TURNING_MOVES.has(p.move) ? [f.facing, -f.facing as 1 | -1] : [f.facing];
     for (const facing of facings) {
       const v = p.start === 'dash' ? 0 : f.vel.x + f.kb.x;
       const hit = firstHit(
         p.active,
-        me.groundDelay,
+        delay,
         (pf, t) => ({
           x: f.pos.x + pf.dx * facing + carry(v, k.stats.groundFriction, t),
           y: f.pos.y + pf.dy,
@@ -133,7 +147,7 @@ function groundAttacks(me: Self, target: Target, out: Attack[]): void {
         late: 0,
         tHit: hit.t,
         box: hit.box,
-        busy: me.groundDelay + p.busy,
+        busy: delay + p.busy,
         endX: f.pos.x + p.endDx * facing,
         endY: f.pos.y + p.endDy,
         score: 0,

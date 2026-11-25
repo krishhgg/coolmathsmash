@@ -2,14 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, type MatchState } from '../../sim/match';
+import { koPercent, kos } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
 import { FIGHTERS } from '../registry';
 import { GRAVITY_SWITCH, HOP, moves, RAPID_JAB, TREADMILL } from './moves';
 import { stats } from './stats';
-
-/** Where Mario stands at Battlefield's right ledge (x = 80) in the kill-% tests. */
-const LEDGE_STAND = 77;
 
 /** Runner (P1) against the Mario reference (P2) on Battlefield, settled on the ground. */
 function vsMario(): { m: MatchState; a: FighterState; v: FighterState } {
@@ -37,16 +35,6 @@ function put(f: FighterState, x: number, facing: 1 | -1, ground: FighterState['g
   });
 }
 
-/** True when the launch carries the victim out through the side or top blast zone (not just off the bottom). */
-function launchedOut(m: MatchState, v: FighterState): boolean {
-  for (let i = 0; i < 400; i++) {
-    runPorts(m, 1, [{}, {}]);
-    const ko = m.events.find((e) => e.type === 'ko' && e.port === v.port);
-    if (ko?.type === 'ko') return ko.side !== 'bottom';
-  }
-  return false;
-}
-
 const THROW_INPUT: Record<string, (facing: number) => Hold> = {
   fthrow: (s) => ({ x: 100 * s }),
   bthrow: (s) => ({ x: -100 * s }),
@@ -64,45 +52,6 @@ function holding(percent: number, x = 0, facing: 1 | -1 = 1) {
   runPorts(m, 6, [{}, {}]);
   expect(v.action).toBe('grabbed');
   return { m, a, v };
-}
-
-/**
- * Does `move` KO Mario standing at Battlefield's right ledge at `percent`? Fresh, no rage, no DI: the roster's
- * kill-% convention. Ground moves land their sweetspot on him; back air comes from a short hop with her back to
- * the ledge; throws are aimed at the ledge.
- */
-function kosAt(move: string, percent: number): boolean {
-  const def = moves[move]!;
-  if (def.throw) {
-    const facing = def.throw.hit.direction === 'back' ? -1 : 1;
-    const { m, a, v } = holding(percent, LEDGE_STAND - 12, facing);
-    runPorts(m, 1, [THROW_INPUT[move]!(facing), {}]);
-    expect(a.move).toBe(move);
-    return launchedOut(m, v);
-  }
-  const { m, a, v } = vsMario();
-  const sweet = def.hits[0]!.boxes[0]!;
-  put(v, LEDGE_STAND, -1, v.ground);
-  v.damage = percent;
-  if (def.kind === 'aerial') {
-    const facing = sweet.x < 0 ? -1 : 1;
-    placeInAir(m, LEDGE_STAND - sweet.x * facing, 6, facing);
-  } else put(a, LEDGE_STAND - Math.max(sweet.x, 5), 1, v.ground);
-  attack(m, 0, move);
-  return launchedOut(m, v);
-}
-
-/** The lowest whole % at which `move` KOs Mario at the ledge. */
-function killPercent(move: string): number {
-  let lo = 0;
-  let hi = 300;
-  expect(kosAt(move, hi), `${move} kills by ${hi}%`).toBe(true);
-  while (hi - lo > 1) {
-    const mid = Math.floor((lo + hi) / 2);
-    if (kosAt(move, mid)) hi = mid;
-    else lo = mid;
-  }
-  return hi;
 }
 
 /** The action frames on which `move` has boxes out, started standing (or high in the air for aerials). */
@@ -148,8 +97,8 @@ describe('Runner: frame data (roster.md)', () => {
     ['dtilt', 5, 6],
     ['dashAttack', 7, 9],
     ['fsmash', 12, 15],
-    ['usmash', 10, 14],
-    ['dsmash', 6, 13],
+    ['usmash', 10, 15],
+    ['dsmash', 6, 14],
     ['nair', 6, 9],
     ['fair', 7, 4],
     ['bair', 6, 13],
@@ -176,7 +125,7 @@ describe('Runner: frame data (roster.md)', () => {
 
   it.each([
     ['fthrow', 0, 8],
-    ['bthrow', 0, 10],
+    ['bthrow', 0, 8],
     ['uthrow', 0, 10],
     ['dthrow', TREADMILL.frames.length * TREADMILL.damage, 2],
   ] as const)('%s deals %s (treadmill steps) + %s (throw), x1.2 in 1v1', (move, steps, hit) => {
@@ -196,33 +145,53 @@ describe('Runner: frame data (roster.md)', () => {
 });
 
 /**
- * The roster's kill-% targets (Mario at the Battlefield ledge, fresh, no rage, no DI). Her knockback is Kirby's
- * Ultimate values, and the engine currently KOs well before Ultimate does, so these only check that each move is
- * a real finisher in the right range.
- * TODO(COOL-3 koPercent): tighten to the target +-5 once the engine's KO calibration lands.
+ * Kirby's Ultimate sweetspots and throw releases (damage, angle, BKB, KBG):
+ * https://dragdown.wiki/wiki/SSBU/Kirby/Data. Back throw's 130° toward the back is 50° in the launch direction.
  */
-const KILL_TARGETS = [
-  ['ftilt', 175],
-  ['fsmash', 105],
-  ['usmash', 110],
-  ['dsmash', 125],
-  ['bair', 130],
-  ['bthrow', 160],
-  ['uthrow', 150],
-  ['neutralB', 170],
+const ANALOGUES = [
+  ['fsmash', 'forward smash', [15, 361, 32, 109], false],
+  ['dsmash', 'down smash', [14, 29, 25, 94], false],
+  ['usmash', 'up smash', [15, 75, 36, 104], false],
+  ['bair', 'back air', [13, 361, 15, 100], true],
+  ['bthrow', 'back throw', [8, 50, 30, 120], false],
+  ['ftilt', 'forward tilt', [8, 361, 40, 100], false],
+  ['uthrow', 'up throw', [10, 78, 75, 74], false],
+  ['uair', 'up air', [9, 70, 20, 108], true],
 ] as const;
 
 describe('Runner: kill % against Mario at the Battlefield ledge (fresh, no rage, no DI)', () => {
-  it.each(KILL_TARGETS)('%s KOs by its roster target of %i (and not absurdly early)', (move, target) => {
-    const kill = killPercent(move);
-    expect(kill).toBeGreaterThanOrEqual(40);
-    // TODO(COOL-3 koPercent calibration): vertical kills land about 10-20% later since the engine gained Ultimate's
-    // DamageFlyTop gravity and top-blast-zone rule; retune against koPercent (src/sim/testing/ko.ts).
-    expect(kill).toBeLessThanOrEqual(target + (['usmash', 'uthrow', 'neutralB'].includes(move) ? 35 : 15));
+  const from = { x: 79.9, y: 0 };
+
+  it.each(ANALOGUES)(
+    "%s kills within 5%% of Kirby's Ultimate %s",
+    (move, _analogue, [damage, angle, bkb, kbg], air) => {
+      const ours = koPercent({ hit: { fighter: 'runner', move }, from, air });
+      const analogue = koPercent({ hit: { damage, angle, bkb, kbg }, from, air });
+      expect(ours).not.toBeNull();
+      expect(analogue).not.toBeNull();
+      expect(Math.abs(ours! - analogue!)).toBeLessThanOrEqual(5);
+    },
+  );
+
+  it('gives her smashes and back air stronger launch than her tilts, and back throw an edge over forward throw', () => {
+    const kill = (move: string, air = false) => {
+      const percent = koPercent({ hit: { fighter: 'runner', move }, from, air });
+      expect(percent, move).not.toBeNull();
+      return percent!;
+    };
+    const fsmash = kill('fsmash');
+    const ftilt = kill('ftilt');
+    for (const move of ['dsmash', 'usmash', 'bair']) {
+      const percent = kill(move, move === 'bair');
+      expect(percent, move).toBeGreaterThan(fsmash);
+      expect(percent, move).toBeLessThan(ftilt);
+    }
+    expect(kill('bthrow')).toBeLessThan(kill('fthrow'));
+    expect(kill('usmash')).toBeLessThan(kill('neutralB'));
   });
 
   it('forward throw is not a kill throw: Mario survives it at the ledge at 150%', () => {
-    expect(kosAt('fthrow', 150)).toBe(false);
+    expect(kos({ hit: { fighter: 'runner', move: 'fthrow' }, from }, 150)).toBe(false);
   });
 });
 
