@@ -1,36 +1,18 @@
 name: Captures
 
 on:
-  pull_request:
-    paths:
-      - 'src/**'
-      - '!src/fighters/*/**'
-      - 'src/fighters/*/index.ts'
-      - 'src/fighters/*/art/**'
-      - 'src/fighters/fireboy/**'
-      - 'src/fighters/watergirl/**'
-      - '!src/stages/*/**'
-      - 'src/stages/battlefield/**'
-      - '!src/**/*.test.ts'
-      - 'index.html'
-      - 'lab.html'
-      - 'public/**'
-      - '!public/audio/**'
-      - 'scripts/capture.ts'
-      - 'scripts/lib/**'
-      - 'e2e/capture.spec.ts'
-      - 'playwright.config.ts'
-      - 'vite.config.ts'
-      - 'tsconfig.json'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.nvmrc'
-      - '.github/workflows/captures.yml'
+  schedule:
+    - cron: '23 10 * * 1-6'
+    - cron: '23 10 * * 0'
   workflow_dispatch:
 
+permissions:
+  actions: read
+  contents: read
+
 concurrency:
-  group: captures-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: captures-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   capture:
@@ -38,26 +20,65 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Find changes since the last successful nightly capture
+        id: changes
+        if: github.event_name == 'schedule' && github.event.schedule == '23 10 * * 1-6'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          paths="$RUNNER_TEMP/capture-paths"
+          base=$(gh run list --workflow captures.yml --branch "$GITHUB_REF_NAME" --event schedule \
+            --status success --limit 1 --json headSha --jq '.[0].headSha // empty') || exit 0
+          if [[ "$base" =~ ^[a-f0-9]{40}$ ]] &&
+             git merge-base --is-ancestor "$base" HEAD &&
+             git diff --no-renames --name-only -z "$base" HEAD -- > "$paths"; then
+            if [[ ! -s "$paths" ]]; then
+              echo "unchanged=true" >> "$GITHUB_OUTPUT"
+              echo "No changes since the last successful nightly capture."
+            fi
+          else
+            rm -f "$paths"
+          fi
       - uses: actions/setup-node@v4
+        if: steps.changes.outputs.unchanged != 'true'
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+        if: steps.changes.outputs.unchanged != 'true'
       - id: playwright
+        if: steps.changes.outputs.unchanged != 'true'
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@v4
+        if: steps.changes.outputs.unchanged != 'true'
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-shell
       - run: npx playwright install --with-deps --only-shell chromium
+        if: steps.changes.outputs.unchanged != 'true'
       - run: sudo apt-get install -y --no-install-recommends ffmpeg
-      - run: npm run capture -- --build --out captures/ci
+        if: steps.changes.outputs.unchanged != 'true'
+      - name: Capture the affected scenarios
+        if: steps.changes.outputs.unchanged != 'true'
+        run: |
+          args=()
+          if [[ -s "$RUNNER_TEMP/capture-paths" ]]; then
+            args+=(--changed-files "$RUNNER_TEMP/capture-paths")
+          fi
+          npm run capture -- --build --out captures/ci "${args[@]}"
       - name: Captures are byte-identical across runs (e2e/capture.spec.ts)
-        run: npx playwright test e2e/capture.spec.ts --grep "byte-identical PNGs"
+        if: steps.changes.outputs.unchanged != 'true'
+        run: |
+          check=$(jq '(.scoped != true) or any(.scenarios[]; .name == "idle" or .name == "jump-apex" or .name == "hud")' captures/ci/manifest.json)
+          if [[ "$check" == true ]]; then
+            npx playwright test e2e/capture.spec.ts --grep "byte-identical PNGs"
+          fi
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.changes.outputs.unchanged != 'true'
         with:
-          name: captures-${{ github.event.pull_request.head.sha || github.sha }}
+          name: captures-${{ github.sha }}
           path: captures/ci
           retention-days: 14
       - uses: actions/upload-artifact@v4

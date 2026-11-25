@@ -83,6 +83,27 @@ describe('autolink angles (SmashWiki, "Autolink angle")', () => {
     expect(v.launchMotion).toBeNull();
   });
 
+  it('365 moves the target the same distance at any %: a launch that follows the attacker gets no balloon speed-up', () => {
+    const firstFrame = (percent: number) => {
+      const { m, a, v } = duel();
+      airborne(a, -10, 10);
+      airborne(v, a.pos.x + 8, 6);
+      v.damage = percent;
+      a.vel = { x: 2, y: 0 };
+      attack(m, 0, 'half');
+      run(m, 1);
+      const kb = v.launch!.kb;
+      run(m, v.hitlag + 1);
+      return { kb, dx: v.pos.x - v.prevPos.x, speedUp: v.speedUpFaf };
+    };
+    const low = firstFrame(0);
+    const high = firstFrame(150);
+    expect(low.kb).toBeLessThan(80);
+    expect(high.kb).toBeGreaterThan(80);
+    expect(high.speedUp).toBe(0);
+    expect(high.dx).toBeCloseTo(low.dx, 6);
+  });
+
   it('366 sends the target at full launch speed the way the attacker moves, pulled toward the hitbox for 5 frames', () => {
     const { m, a, v } = duel();
     airborne(a, -10, 10);

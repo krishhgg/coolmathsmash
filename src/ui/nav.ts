@@ -82,9 +82,12 @@ export class Focus {
     return next !== null;
   }
 
-  /** Focus follows the mouse over navigable elements. */
+  /**
+   * Focus follows the mouse over navigable elements, but only once the mouse actually moves: an element that
+   * appears under a resting pointer (a new screen) does not take focus away from the keyboard.
+   */
   hover(): void {
-    this.root.addEventListener('pointerover', (e) => {
+    this.root.addEventListener('pointermove', (e) => {
       const el = (e.target as HTMLElement).closest<HTMLElement>('[data-nav]');
       if (!el || el === this.current || !this.root.contains(el) || el.hasAttribute('disabled')) return;
       this.set(el);

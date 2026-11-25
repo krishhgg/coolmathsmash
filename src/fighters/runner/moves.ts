@@ -92,8 +92,10 @@ function gravitySwitch(x: Ctx): void {
     consume(c, Btn.Special);
     return endSwitch(f);
   }
+  const steer = stickX(c);
+  if (frame <= g.cling[1] && steer !== 0) f.facing = steer < 0 ? -1 : 1;
   if (frame <= g.rise[1]) {
-    f.vel.x = stickX(c) * s.airSpeed;
+    f.vel.x = steer * s.airSpeed;
     f.vel.y = Math.min(g.riseSpeed, (frame - g.rise[0] + 1) * g.riseAccel);
     const ceiling = ceilingAt(x, f.pos.x + f.vel.x, top - 0.01, head + f.vel.y);
     if (ceiling !== null) {
@@ -103,9 +105,7 @@ function gravitySwitch(x: Ctx): void {
     return;
   }
   if (frame <= g.cling[1]) {
-    const dir = Math.sign(stickX(c));
-    if (dir !== 0) f.facing = dir as 1 | -1;
-    f.vel.x = stickX(c) * g.clingSpeed;
+    f.vel.x = steer * g.clingSpeed;
     const ceiling = ceilingAt(x, f.pos.x + f.vel.x, head - 3, head + 3);
     if (ceiling === null) {
       f.actionFrame = g.pop[0];
@@ -226,13 +226,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [10, 12],
         boxes: [
-          box(0, 0, 14, 5.5, { damage: 14, angle: 85, kbg: 104, bkb: 36, direction: 'away' }),
-          box(1, 5, 6, 4, { damage: 14, angle: 85, kbg: 104, bkb: 36 }),
+          box(0, 0, 14, 5.5, { damage: 15, angle: 75, kbg: 104, bkb: 36, direction: 'away' }),
+          box(1, 5, 6, 4, { damage: 15, angle: 75, kbg: 104, bkb: 36 }),
         ],
       },
       {
         frames: [13, 15],
-        boxes: [box(0, 0, 14, 5, { damage: 10, angle: 88, kbg: 98, bkb: 20, direction: 'away' })],
+        boxes: [box(0, 0, 14, 5, { damage: 14, angle: 88, kbg: 98, bkb: 20, direction: 'away' })],
       },
     ],
   },
@@ -245,15 +245,15 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [6, 8],
         boxes: [
-          box(0, 8.5, 2, 4.2, { damage: 13, angle: 29, kbg: 89, bkb: 25 }),
-          box(1, -8.5, 2, 4.2, { damage: 13, angle: 29, kbg: 89, bkb: 25, direction: 'back' }),
+          box(0, 8.5, 2, 4.2, { damage: 14, angle: 29, kbg: 94, bkb: 25 }),
+          box(1, -8.5, 2, 4.2, { damage: 14, angle: 29, kbg: 94, bkb: 25, direction: 'back' }),
         ],
       },
       {
         frames: [9, 12],
         boxes: [
-          box(0, 8, 2, 3.8, { damage: 9, angle: 29, kbg: 89, bkb: 25 }),
-          box(1, -8, 2, 3.8, { damage: 9, angle: 29, kbg: 89, bkb: 25, direction: 'back' }),
+          box(0, 8, 2, 3.8, { damage: 10, angle: 29, kbg: 89, bkb: 25 }),
+          box(1, -8, 2, 3.8, { damage: 10, angle: 29, kbg: 89, bkb: 25, direction: 'back' }),
         ],
       },
     ],
@@ -421,7 +421,7 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 44,
     hits: [],
-    throw: { frame: 30, hit: { damage: 10, angle: 50, kbg: 120, bkb: 30, direction: 'back' } },
+    throw: { frame: 30, hit: { damage: 8, angle: 50, kbg: 120, bkb: 30, direction: 'back' } },
   },
   /**
    * Gravity Piledriver: flips gravity, falls up with them, and slams them down (Kirby's up throw role): her

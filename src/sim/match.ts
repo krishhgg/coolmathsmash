@@ -3,8 +3,12 @@ import { getStage } from '../stages/registry';
 import { createControl, feedControl, type ControlState } from './control';
 import { createFighter, type FighterState } from './fighter';
 import { resolveHits } from './combat/hits';
+import { resolveEntityContacts } from './entities/contacts';
+import { stepEntities } from './entities/step';
+import type { EntityState } from './entities/types';
 import { emit, type SimEvent } from './events';
 import { pushApart } from './movement';
+import { stageHits } from './hazards';
 import { advanceStage, posedStage, stageStateAt, type StageState } from './movingStage';
 import { stepFighter } from './step';
 
@@ -21,6 +25,8 @@ export interface MatchConfig {
   stage: string;
   stocks: number;
   ports: PortConfig[];
+  /** Stage hazards (damage zones, stage hitboxes, conveyors, pieces flagged `hazard`); off for legal play. Default on. */
+  hazards?: boolean;
 }
 
 export interface PlayerState {
@@ -36,6 +42,9 @@ export interface MatchState {
   config: MatchConfig;
   players: PlayerState[];
   fighters: FighterState[];
+  /** Projectiles, minions, objects and items, in spawn order. */
+  entities: EntityState[];
+  nextEntityId: number;
   /** What happened during the last frame (see SimEvent). */
   events: SimEvent[];
   /** Where each solid and platform is on this frame (moving and vanishing pieces, src/sim/movingStage.ts). */
@@ -59,8 +68,10 @@ export function createMatch(config: MatchConfig = DEFAULT_MATCH): MatchState {
     fighters: config.ports.map((p, port) =>
       createFighter(port, p.fighter, stage.spawns[port % stage.spawns.length]!, config.stocks),
     ),
+    entities: [],
+    nextEntityId: 1,
     events: [],
-    stage: stageStateAt(stage, 0),
+    stage: stageStateAt(stage, 0, undefined, config.hazards !== false),
   };
 }
 
@@ -72,7 +83,10 @@ export function stepMatch(state: MatchState, inputs: readonly InputFrame[]): voi
   for (const f of state.fighters) stepFighter(state, f, state.players[f.port]!);
   pushApart(state, posedStage(state));
   advanceStage(state);
-  resolveHits(state);
+  stepEntities(state);
+  const owed = resolveEntityContacts(state);
+  resolveHits(state, (struck) => stageHits(state, struck));
+  state.fighters.forEach((f, i) => (f.hitlag = Math.max(f.hitlag, owed[i]!)));
   state.fighters.forEach((f, i) => {
     if (f.action !== before[i]) emit(state, { type: 'action', port: f.port, from: before[i]!, to: f.action });
   });

@@ -8,6 +8,8 @@ import { stickX, stickY } from '../control';
 import type { Ctx, FighterState, LaunchLink } from '../fighter';
 import { emit } from '../events';
 import type { MatchState } from '../match';
+import { destroyEntity, entityDef, entityHitboxes, sweepEntities } from '../entities/entities';
+import type { EntityState } from '../entities/types';
 import { leaveGround } from '../movement';
 import {
   AUTOLINK,
@@ -59,6 +61,8 @@ export interface Hurtbox {
 }
 
 export function hurtbox(f: FighterState, s: FighterStats): Hurtbox {
+  const posed = getFighter(f.fighter).hurtbox?.(f);
+  if (posed) return posed;
   if (s.width > s.height) {
     const r = s.height / 2;
     return { x: f.pos.x, y1: f.pos.y + r, y2: f.pos.y + r, r, hw: s.width / 2 - r };
@@ -88,9 +92,16 @@ export function hittable(f: FighterState): boolean {
   return f.action !== 'ko' && f.action !== 'out' && !isIntangible(f);
 }
 
-/** One connection, with everything about both fighters captured before any of this frame's hits land. */
+/** One connection, with everything about both sides captured before any of this frame's hits land. */
 interface Connection {
-  a: FighterState;
+  /** The attacking fighter, who shares the hitlag and is pushed back by a shield; null for an entity's hit. */
+  a: FighterState | null;
+  /** Port credited with the hit: the attacker, or the entity's owner (-1 for nobody). */
+  attacker: number;
+  /** Id of the entity whose hit this is. */
+  entity?: number;
+  /** Where the hit came from (the attacker's or the entity's x), for shield pushback. */
+  fromX: number;
   v: FighterState;
   box: HitboxDef;
   kind: MoveKind;
@@ -124,36 +135,90 @@ function connection(
   at: { x: number; y: number },
 ): Connection {
   const move = a.move!;
-  if (a.moveStale === 0) {
-    a.moveStale = staleMultiplier(a.staleQueue.flatMap((name, i) => (name === move ? [i + 1] : [])));
-    a.staleQueue = [move, ...a.staleQueue].slice(0, STALE_QUEUE_LENGTH);
-  }
+  if (a.moveStale === 0) a.moveStale = stale(a, move);
   return {
+    ...victim(v),
     a,
-    v,
+    attacker: a.port,
+    fromX: a.pos.x,
     box,
     kind: moveOf(a)?.kind ?? 'other',
     damage: box.damage * chargeMultiplier(a),
     stale: a.moveStale,
     rage: rageMultiplier(a.damage),
-    dir: { forward: a.facing, back: -a.facing, away: Math.sign(v.pos.x - a.pos.x) || a.facing }[
-      box.direction ?? 'forward'
-    ] as 1 | -1,
-    percent: v.damage,
-    crouch: v.action === 'crouch' && v.ground !== null,
-    shielding: v.action === 'shield' || v.action === 'shieldStun',
+    dir: launchDir(box, a.facing, a.pos.x, v),
     at,
     move,
     link: isAutolink(box.angle) || box.vector ? linkOf(a, box, at) : undefined,
-    armor: armorOf(v),
   };
 }
 
 /** The knockback and damage thresholds of `v`'s armor this frame (MoveDef.armor); unset ones never break. */
-function armorOf(v: FighterState): Connection['armor'] {
+export function armorOf(v: FighterState): Connection['armor'] {
   const armor = moveOf(v)?.armor;
   if (!armor || !inWindow(v.actionFrame, armor.frames)) return null;
   return { kb: armor.threshold ?? Infinity, damage: armor.damageThreshold ?? Infinity };
+}
+
+/**
+ * An entity's hits go down the same path as a fighter's, as a projectile: staled by the owner's move, scaled by the
+ * owner's rage and by reflections, and DI'd and shielded like any hit. Only the victim freezes. It hits each fighter
+ * once (per rehit window) and, unless it pierces, is used up by its first victim: true when it was.
+ */
+function entityHits(e: EntityState, fighters: FighterState[], hits: Connection[]): boolean {
+  const boxes = entityHitboxes(e);
+  if (boxes.length === 0) return false;
+  const def = entityDef(e.kind);
+  const owner = fighters.find((f) => f.port === e.owner) ?? null;
+  for (const v of fighters) {
+    if (v.port === e.owner || e.hitVictims.includes(v.port) || !hittable(v)) continue;
+    const body = hurtbox(v, getFighter(v.fighter).stats);
+    const hit = boxes.filter((h) => touches(h, body)).sort((p, q) => p.box.id - q.box.id)[0];
+    if (!hit) continue;
+    e.hitVictims.push(v.port);
+    if (e.stale === 0) e.stale = owner && e.move ? stale(owner, e.move) : 1;
+    hits.push({
+      ...victim(v),
+      a: null,
+      attacker: e.owner,
+      entity: e.id,
+      fromX: e.pos.x,
+      box: hit.box,
+      kind: def.kind ?? 'projectile',
+      damage: hit.box.damage * e.damageMul,
+      stale: e.stale,
+      rage: owner ? rageMultiplier(owner.damage) : 1,
+      dir: launchDir(hit.box, e.facing, e.pos.x, v),
+      at: { x: hit.x, y: hit.y },
+      move: e.move,
+    });
+    if (!def.pierce) return true;
+  }
+  return false;
+}
+
+/** The stale multiplier for one activation of `move`, which then enters the stale queue. */
+function stale(a: FighterState, move: string): number {
+  const mult = staleMultiplier(a.staleQueue.flatMap((name, i) => (name === move ? [i + 1] : [])));
+  a.staleQueue = [move, ...a.staleQueue].slice(0, STALE_QUEUE_LENGTH);
+  return mult;
+}
+
+/** The victim's state before any of this frame's hits land. */
+function victim(v: FighterState): Pick<Connection, 'v' | 'percent' | 'crouch' | 'shielding' | 'armor'> {
+  return {
+    v,
+    percent: v.damage,
+    crouch: v.action === 'crouch' && v.ground !== null,
+    shielding: v.action === 'shield' || v.action === 'shieldStun',
+    armor: armorOf(v),
+  };
+}
+
+/** Ultimate's LR check: the side a hit launches toward, from the source's facing and position. */
+function launchDir(box: HitboxDef, facing: 1 | -1, fromX: number, v: FighterState): 1 | -1 {
+  const away = (Math.sign(v.pos.x - fromX) || facing) as 1 | -1;
+  return { forward: facing, back: -facing as 1 | -1, away }[box.direction ?? 'forward'];
 }
 
 /**
@@ -175,9 +240,10 @@ export function applyHit(
  * Find every hit this frame from the state before any of them lands, then apply them all, so two fighters
  * whose moves connect on the same frame trade. Each move hits a fighter once (per rehit window), lowest
  * hitbox id first. Grab boxes are found from the same state and resolved after the hits (grab.ts), so an
- * attack beats a grab on the same frame.
+ * attack beats a grab on the same frame. `stage` lands the stage hazards' hits (src/sim/hazards.ts) between the
+ * two, adding its victims to `struck`, so they break grabs like any other hit.
  */
-export function resolveHits(m: MatchState): void {
+export function resolveHits(m: MatchState, stage?: (struck: Set<FighterState>) => void): void {
   const hits: Connection[] = [];
   const grabs = findGrabs(m);
   for (const a of m.fighters) {
@@ -196,6 +262,7 @@ export function resolveHits(m: MatchState): void {
       hits.push(connection(a, v, box, at));
     }
   }
+  const used = m.entities.filter((e) => entityHits(e, m.fighters, hits));
   const struck = new Set<FighterState>();
   for (const h of hits) {
     const again = struck.has(h.v);
@@ -203,6 +270,9 @@ export function resolveHits(m: MatchState): void {
     if (h.shielding) shieldHit(m, h, again);
     else hit(m, h, again);
   }
+  for (const e of used) destroyEntity(m, e, 'hit');
+  sweepEntities(m);
+  stage?.(struck);
   resolveGrabs(m, grabs, struck);
 }
 
@@ -211,15 +281,35 @@ export function addDamage(m: MatchState, v: FighterState, damage: number): void 
   v.damage = Math.min(DAMAGE_MAX, v.damage + damage * (m.players.length === 2 ? ONE_V_ONE_DAMAGE : 1));
 }
 
+/** What a hit does to its victim, whoever or whatever dealt it (a fighter's move, a stage hazard). */
+export interface Strike {
+  box: Pick<HitboxDef, 'damage' | 'angle' | 'kbg' | 'bkb' | 'wbkb' | 'hitlag' | 'effect'>;
+  /** Damage before staleness. */
+  damage: number;
+  stale: number;
+  rage: number;
+  dir: 1 | -1;
+  /** The victim's % before this frame's hits. */
+  percent: number;
+  crouch: boolean;
+  /** The victim's armor (MoveDef.armor): hits below both thresholds don't launch. Null without armor. */
+  armor: { kb: number; damage: number } | null;
+  /** How an autolink or position-vector hit follows its attacker after hitlag; only a fighter's hits have one. */
+  link?: LaunchLink;
+}
+
 /**
- * Damage always adds up. When several fighters hit the same victim on one frame (`again`), the strongest
- * knockback is the launch and the longest hitlag is the victim's freeze.
+ * The victim's side of a hit: damage, hitlag and the launch waiting for hitlag to end. When several hits land
+ * on one victim on the same frame (`again`), the strongest knockback is the launch and the longest hitlag is
+ * the freeze. An armored victim takes hits below both its thresholds without launching, and a held fighter stays
+ * in the grab, the damage counting toward breaking it. Returns the knockback, the hitlag and the % added.
  */
-function hit(
+export function strike(
   m: MatchState,
-  { a, v, box, damage: base, stale, rage, dir, percent, crouch, at, move, link, armor }: Connection,
+  v: FighterState,
+  { box, damage: base, stale, rage, dir, percent, crouch, armor, link }: Strike,
   again: boolean,
-): void {
+): { kb: number; lag: number; added: number } {
   const kb = knockback({
     percent,
     damage: base,
@@ -235,52 +325,61 @@ function hit(
   const before = v.damage;
   addDamage(m, v, damage);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric', crouch });
-  a.hitlag = lag;
   v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
-  emit(m, {
-    type: 'hit',
-    attacker: a.port,
-    victim: v.port,
-    move,
-    damage: v.damage - before,
-    kb,
-    tumble: isTumble(kb),
-    hitlag: lag,
-    effect: box.effect ?? 'normal',
-    x: at.x,
-    y: at.y,
-  });
-  if (armor && kb < armor.kb && damage < armor.damage) return;
+  const result = { kb, lag, added: v.damage - before };
+  if (armor && kb < armor.kb && damage < armor.damage) return result;
   const held = grabArmour(m, v, damage);
-  if (again && v.launch && v.launch.kb >= kb) return;
+  if (again && v.launch && v.launch.kb >= kb) return result;
   v.launch = { kb, angle: box.angle, dir, setKnockback: (box.wbkb ?? 0) > 0, ...(link && { link }) };
-  if (held) return;
+  if (held) return result;
   v.action = isTumble(kb) ? 'tumble' : 'hitstun';
   v.actionFrame = 0;
   v.move = null;
+  return result;
+}
+
+/** Damage always adds up; a fighter attacker freezes for hitlag, but an entity and its owner do not. */
+function hit(m: MatchState, h: Connection, again: boolean): void {
+  const { kb, lag, added } = strike(m, h.v, h, again);
+  if (h.a) h.a.hitlag = lag;
+  emit(m, {
+    type: 'hit',
+    attacker: h.attacker,
+    ...(h.entity !== undefined && { entity: h.entity }),
+    victim: h.v.port,
+    move: h.move,
+    damage: added,
+    kb,
+    tumble: isTumble(kb),
+    hitlag: lag,
+    effect: h.box.effect ?? 'normal',
+    x: h.at.x,
+    y: h.at.y,
+  });
 }
 
 function shieldHit(
   m: MatchState,
-  { a, v, box, kind, damage: base, stale, dir, at, move }: Connection,
+  { a, attacker, entity, fromX, v, box, kind, damage: base, stale, dir, at, move }: Connection,
   again: boolean,
 ): void {
   const damage = base * stale;
   const stun = shieldstunFrames(damage, kind);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric' });
-  a.hitlag = lag;
+  if (a) a.hitlag = lag;
   v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
   v.shieldHp = Math.max(0, v.shieldHp - damage * SHIELD_DAMAGE_MULT - (box.shieldDamage ?? 0));
-  const away = Math.sign(v.pos.x - a.pos.x) || dir;
+  const away = Math.sign(v.pos.x - fromX) || dir;
   const push = shieldPushback(damage, stun);
   v.kb.x = away * push.defender;
-  if (a.ground) a.kb.x = -away * push.attacker;
+  if (a?.ground) a.kb.x = -away * push.attacker;
   v.hitstun = again ? Math.max(v.hitstun, stun) : stun;
   v.action = 'shieldStun';
   v.actionFrame = 0;
   emit(m, {
     type: 'shieldHit',
-    attacker: a.port,
+    attacker,
+    ...(entity !== undefined && { entity }),
     victim: v.port,
     move,
     damage,
@@ -333,7 +432,8 @@ export function applyLaunch(x: Ctx): void {
   f.ledgeFresh = true;
   f.fastFalling = false;
   f.airDodgeUsed = false;
-  f.speedUpFaf = l.tumble && !pending.setKnockback && !link?.to ? stun + 1 : 0;
+  // Balloon speed-up runs several movement steps a frame; a launch that follows the attacker's motion keeps its pace.
+  f.speedUpFaf = l.tumble && !pending.setKnockback && !link ? stun + 1 : 0;
   f.flyTop = l.vertical && !link;
   if (!f.ground) return;
   const flat = link ? f.kb.y === 0 : l.angle === 0 || l.angle === 180;
