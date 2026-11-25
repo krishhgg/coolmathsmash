@@ -113,5 +113,52 @@ export const scenarios: FighterScenarios = {
       requires: ['move:downB'],
       refs: [`${BX}/ability-switch-types-*`, `${BX}/ingame-idle-*`, 'smash/attack-active-*'],
     },
+    {
+      name: 'bloxorz-switch-bridge',
+      description:
+        'Bloxorz block uses Switch Bridge (up special) beside Fireboy; capture the bridge flinging it up into him.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'bloxorz' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -10, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: -2, y: 0 }, facing: -1 } },
+      ],
+      script: [{ port: 0, from: 10, y: 100, buttons: ['special'] }],
+      capture: {
+        label: "P2's damage rises",
+        when: (s, prev) => s.fighters[1]!.damage > prev.fighters[1]!.damage,
+      },
+      motion: { before: 40, after: 30 },
+      requires: ['move:upB'],
+      refs: [`${BX}/ingame-fall-*`, `${BX}/ingame-idle-*`, 'smash/attack-active-*'],
+    },
+    {
+      name: 'bloxorz-switch-bridge-recovery',
+      description:
+        'Bloxorz block falls past the right ledge, uses Switch Bridge from below it and grabs the ledge on the way up.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'bloxorz' }, { fighter: 'fireboy' }] },
+      patches: [
+        {
+          port: 0,
+          state: {
+            pos: { x: 88, y: -40 },
+            vel: { x: 0, y: 0 },
+            ground: null,
+            action: 'fall',
+            facing: -1,
+            jumpsUsed: 2,
+          },
+        },
+      ],
+      script: [{ port: 0, from: 10, y: 100, buttons: ['special'] }],
+      capture: {
+        label: "P1 action 'ledgeHang', frame >= 10",
+        when: (s) => s.fighters[0]!.action === 'ledgeHang' && s.fighters[0]!.actionFrame >= 10,
+      },
+      motion: { before: 60, after: 20 },
+      requires: ['move:upB'],
+      refs: ['smash/ledge-hang-*', `${BX}/ingame-fall-*`],
+    },
   ],
 };

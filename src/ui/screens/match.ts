@@ -11,10 +11,21 @@ import { isDirection, type MenuEvent } from '../input';
 import { Focus } from '../nav';
 import './match.css';
 
+/**
+ * The seed Restart hands to the next match screen. Restart replays the same battle, like retrying in Ultimate: the
+ * seed resolves Random fighters, costumes and stage exactly as before. Rematch and a new start draw a fresh seed, as
+ * Ultimate re-rolls Random for every new battle.
+ */
+let restartSeed: number | null = null;
+
 export const screen: ScreenDef = {
   route: 'match',
   needsGame: true,
-  create: (flow) => matchScreen(flow, flow.game!),
+  create: (flow) => {
+    const seed = restartSeed ?? newSeed();
+    restartSeed = null;
+    return matchScreen(flow, flow.game!, seed);
+  },
 };
 
 /** Frames the match keeps running after the deciding KO, before it freezes under GAME!. */
@@ -105,8 +116,10 @@ export function matchScreen(flow: Flow, game: Game, seed = newSeed()): Screen {
 
   function pauseAction(act: PauseAction): void {
     if (act === 'resume') resume();
-    else if (act === 'restart') flow.go('match');
-    else flow.go('css');
+    else if (act === 'restart') {
+      restartSeed = seed;
+      flow.go('match');
+    } else flow.go('css');
   }
 
   function toResults(): void {
