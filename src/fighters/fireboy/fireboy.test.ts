@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import ref from '../../sim/reference/physics-constants.json';
+import { knockback } from '../../sim/combat/formulas';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
 import { koPercent, type KoHit, type KoSetup } from '../../sim/testing/ko';
+import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
+import { entities } from './entities';
 import { moves } from './moves';
 
 const fireboy = () => testMatch({ fighter: 'fireboy' });
@@ -443,5 +446,27 @@ describe('Fireboy: kill percents (koPercent: Mario at the Battlefield ledge, fre
     expect(ko('fsmash')).toBeLessThan(bair);
     expect(bair).toBeLessThan(usmash);
     expect(usmash).toBeLessThan(ko('bthrow'));
+  });
+});
+
+describe("Fireboy: Fireball knockback (Mario's Fire Ball clean hit in Ultimate)", () => {
+  const box = entities.fireball!.hits[0]!.boxes[0]!;
+  const { damage, angle, kbg, bkb } = box;
+
+  it("uses SmashWiki's clean hit (Mario (SSBU)/Neutral special): base 35, growth 20, angle 361, radius 2.4", () => {
+    expect({ bkb, kbg, angle, radius: box.radius }).toEqual({ bkb: 35, kbg: 20, angle: 361, radius: 2.4 });
+    expect(damage).toBe(5.5);
+  });
+
+  it('launches Mario mostly on base knockback: 39.18 at 0%, 49.79 at 100%', () => {
+    const on = (percent: number) =>
+      knockback({ percent, damage, kbg, bkb, weight: marioReference.stats.weight });
+    expect(on(0)).toBeCloseTo(39.1833, 4);
+    expect(on(100)).toBeCloseTo(49.7894, 4);
+  });
+
+  it('never KOs Mario from the Battlefield ledge by 999%, where the swapped values (base 20, growth 35) did', () => {
+    expect(koPercent({ hit: { damage, angle, kbg, bkb } })).toBeNull();
+    expect(koPercent({ hit: { damage, angle, kbg: bkb, bkb: kbg } })).not.toBeNull();
   });
 });
