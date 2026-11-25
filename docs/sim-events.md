@@ -51,6 +51,9 @@ feeds back into the simulation.
 differs from the frame before, which also covers states without their own event: `shield`, `spotDodge`,
 `rollForward`, `airDodge`, `ledgeHang`, `techInPlace`, `techRoll`, `downBound`, `tumble` and so on.
 
+`tetherFighterHit` carries the casting `port`, the `target` port and the contact point `x`, `y`. It reports
+line contact, not arrival or damage.
+
 ## Adding an event
 
 Add a member to `SimEvent` with a one-line comment, call `emit(x.m, {...})` where it happens in `src/sim`,

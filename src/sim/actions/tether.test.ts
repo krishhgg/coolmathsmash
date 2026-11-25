@@ -4,7 +4,7 @@ import { TETHER } from '../constants';
 import type { SimEvent } from '../events';
 import type { FighterState } from '../fighter';
 import type { MatchState } from '../match';
-import { lineTether, pointGrapple, quickGrapple, tetherTester } from '../testing/tethers';
+import { fighterGrapple, lineTether, pointGrapple, quickGrapple, tetherTester } from '../testing/tethers';
 import { attack, runPorts, testMatch, type Hold } from '../testing/sim';
 import { tetherOrigin } from './tether';
 import { posedStage } from '../movingStage';
@@ -80,6 +80,91 @@ function onTestbed(x: number) {
 }
 
 describe('tethers', () => {
+  const fighterTester = {
+    ...tetherTester,
+    id: 'test-tether-fighter',
+    moves: { ...tetherTester.moves, neutralB: fighterGrapple },
+  };
+  registerFighter(fighterTester);
+
+  function fighterShot(fighter = fighterTester.id) {
+    const s = setup(-65, 5, 25);
+    s.a.fighter = fighter;
+    s.step(1, [{ buttons: ['special'] }]);
+    s.step(2, [{ x: 100, buttons: ['special'] }]);
+    s.step(3, [{ x: 100 }]);
+    return s;
+  }
+
+  it('opts in to the nearest fighter, reels toward the moving target, and hits exactly once on arrival', () => {
+    const { a, b, m, events, step } = fighterShot();
+    until(step, () => a.action === 'tetherPull');
+    expect(events.map((e) => e.type)).toEqual(['tetherFire', 'tetherFighterHit']);
+    expect(first(events, 'tetherFighterHit')).toMatchObject({ port: 0, target: 1 });
+    expect(a.tether).toMatchObject({ kind: 'fighter', port: 1 });
+    expect(JSON.parse(JSON.stringify(a.tether))).toEqual(a.tether);
+    expect(b!.damage).toBe(0);
+    const before = a.tether!.anchor.x;
+    b!.pos.x += 8;
+    step(1);
+    expect(a.tether!.anchor.x).toBeCloseTo(before + 8);
+    until(
+      (n) => {
+        b!.pos.x += 0.4;
+        step(n);
+      },
+      () => a.tether === null,
+    );
+    expect(b!.damage).toBeCloseTo(10 * 1.05);
+    expect(m.fighters[2]!.damage).toBe(0);
+    expect(events.at(-1)).toEqual({ type: 'tetherRelease', port: 0 });
+    step(30);
+    expect(b!.damage).toBeCloseTo(10 * 1.05);
+  });
+
+  it('ignores fighters by default and still reaches the sky anchor on the same shot', () => {
+    const { a, b, events, step } = fighterShot(tetherTester.id);
+    until(step, () => a.action === 'tetherPull');
+    expect(events.map((e) => e.type)).toEqual(['tetherFire', 'tetherLatch']);
+    expect(a.tether?.kind).toBe('sky');
+    expect(b!.damage).toBe(0);
+  });
+
+  it('lets the move handle a fighter hit without starting a reel', () => {
+    const handle = {
+      ...fighterTester,
+      id: 'test-tether-handle',
+      moves: {
+        ...fighterTester.moves,
+        neutralB: {
+          ...fighterGrapple,
+          tether: {
+            ...fighterGrapple.tether!,
+            onFighter(_x, target, event) {
+              expect(event).toMatchObject({ phase: 'hit', kind: 'fighter', port: target.port });
+              target.facing = 1;
+            },
+          },
+        },
+      },
+    } satisfies typeof fighterTester;
+    registerFighter(handle);
+    const { a, b, events, step } = fighterShot(handle.id);
+    until(step, () => events.some((event) => event.type === 'tetherRelease'));
+    expect(events.map((event) => event.type)).toEqual(['tetherFire', 'tetherFighterHit', 'tetherRelease']);
+    expect([a.action, a.tether, b!.facing, b!.damage]).toEqual(['attack', null, 1, 0]);
+  });
+
+  it('releases without calling arrival when the target becomes intangible mid-reel', () => {
+    const { a, b, events, step } = fighterShot();
+    until(step, () => a.action === 'tetherPull');
+    b!.intangible = 30;
+    step(1);
+    expect(a.tether).toBeNull();
+    expect(b!.damage).toBe(0);
+    expect(events.at(-1)).toEqual({ type: 'tetherRelease', port: 0 });
+  });
+
   it('Quick Grapple fires straight up on frame 8, anchors under a platform and reels in at 4 units a frame', () => {
     const { m, a, events, step } = setup(0);
     attack(m, 0, 'upB');

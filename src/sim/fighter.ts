@@ -91,8 +91,9 @@ export interface FighterState {
    */
   tether: {
     anchor: Vec;
-    kind: 'out' | TetherLatch;
+    kind: 'out' | TetherLatch | 'fighter';
     ledge?: number;
+    port?: number;
     frame: number;
     surface?: GroundRef;
     local?: Vec;
