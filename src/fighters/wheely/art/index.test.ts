@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
-import { samplePose } from '../../../render/rig/sample';
+import { poseBounds, shapesBounds, shapesContain, slotsCovering } from '../../../render/rig/geometry';
+import { samplePose, toLocal, type RigPose } from '../../../render/rig/sample';
 import { TURN_FLIP, TURN_FRAMES } from '../actions';
 import { LEDGE_ATTACK, LEDGE_CLIMB, LEDGE_JUMP, LEDGE_ROLL } from '../../../sim/constants';
 import { moves } from '../moves';
@@ -73,6 +73,27 @@ const GROUNDED = [
   'grabHold',
   'taunt',
 ];
+
+const solidSlots = art.rig.slots.filter((s) => !s.decor && !s.bone.startsWith('fx') && s.bone !== 'prop');
+const symbolBounds = new Map(
+  Object.entries(art.rig.symbols).flatMap(([name, shapes]) =>
+    Array.isArray(shapes) ? [[name, shapesBounds(shapes)] as const] : [],
+  ),
+);
+
+function carProbe(pose: RigPose) {
+  const visible = solidSlots.flatMap(({ name, bone }) => {
+    const symbol = pose.symbols[name];
+    const shapes = symbol && art.rig.symbols[symbol];
+    if (!symbol || !Array.isArray(shapes)) return [];
+    return [{ matrix: pose.world[bone]!, shapes, bounds: symbolBounds.get(symbol)! }];
+  });
+  return (x: number, y: number) =>
+    visible.some(({ matrix, shapes, bounds: [x1, y1, x2, y2] }) => {
+      const [lx, ly] = toLocal(matrix, x, y);
+      return lx >= x1 && lx <= x2 && ly >= y1 && ly <= y2 && shapesContain(shapes, lx, ly);
+    });
+}
 
 describe('wheely art', () => {
   it('has every canonical clip with its length', () => {
@@ -203,10 +224,11 @@ describe('wheely art', () => {
     ] as const) {
       const pose = samplePose(art, name, f, f);
       expect(slotsCovering(art, pose, gx - 0.3, gy - 0.3), `${name}@${f}`).toContain('wheelF');
+      const occupied = carProbe(pose);
       const inside: string[] = [];
       for (let y = gy + 0.8; y < gy + 14; y += 0.4)
         for (let x = gx + 0.6; x < gx + 8; x += 0.4)
-          if (slotsCovering(art, pose, x, y).length) inside.push(`(${x.toFixed(1)}, ${y.toFixed(1)})`);
+          if (occupied(x, y)) inside.push(`(${x.toFixed(1)}, ${y.toFixed(1)})`);
       expect(inside, `${name}@${f}`).toEqual([]);
     }
   });
@@ -233,20 +255,16 @@ describe('wheely art', () => {
       ['ledgeRoll', LEDGE_ROLL.moveEnd, getup(LEDGE_ROLL.moveEnd, LEDGE_ROLL.distance)],
       ['ledgeJump', LEDGE_JUMP.rise, rise],
     ];
-    const car = new Set(
-      art.rig.slots.filter((s) => !s.bone.startsWith('fx') && s.bone !== 'prop').map((s) => s.name),
-    );
     const inside: string[] = [];
     const floating: string[] = [];
     for (const [name, end, corner] of clips) {
       for (let f = 0; f <= end; f += 2) {
         const [cx = 0, cy = 0] = corner(f);
-        const pose = samplePose(art, name, f, f);
+        const occupied = carProbe(samplePose(art, name, f, f));
         const block: [number, number][] = [];
         for (let d = 0; d < 10; d += 0.5)
           block.push([cx + 1.2 + d, cy + 1.2], [cx + 1.2 + d, cy + 3], [cx + 1.2, cy + 1.2 + d]);
-        if (block.some(([x, y]) => slotsCovering(art, pose, x, y).some((s) => car.has(s))))
-          inside.push(name + '@' + f);
+        if (block.some(([x, y]) => occupied(x, y))) inside.push(name + '@' + f);
       }
       const y1 = poseBounds(art, samplePose(art, name, end, end))[3];
       const top = corner(end)[1]!;

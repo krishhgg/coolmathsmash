@@ -90,9 +90,14 @@ function hooked(w: Pt, rot: number, extra: Pose = {}): Pose {
  * the wall, so the car comes level at `LEVEL` and drives on from there.
  */
 function crawl(c: Pt, u: number, extra: Pose = {}): Pose {
-  const cos = Math.min(1, (u + WHEEL_R + 0.05) / (2 * WHEEL_X));
+  const cos = Math.min(Math.cos(6 * DEG), (u + WHEEL_R + 0.05) / (2 * WHEEL_X));
+  const rollOnto = smooth(Math.min(1, Math.max(0, (u - LEVEL) / (WHEEL_R + 0.5))));
   const lift = lerp(HOOK[1], -WHEEL_R, Math.min(1, Math.max(0, (u - HOOK[0]) / 2)));
-  return hooked([c[0] + u, c[1] + lift], -Math.acos(cos) / DEG, mix(spin(roll(u - HOOK[0])), extra));
+  return hooked(
+    [c[0] + u, c[1] + lift],
+    (-Math.acos(cos) / DEG) * (1 - rollOnto),
+    mix(spin(roll(u - HOOK[0])), extra),
+  );
 }
 
 const HANG = crawl([GX, GY], HOOK[0]);
@@ -107,8 +112,10 @@ function climb(moveEnd: number, dist: number, start: number, levelAt: number, st
         ? lerp(HOOK[0], LEVEL, smooth((f - start) / (levelAt - start)))
         : lerp(LEVEL, end, 1 - (1 - (f - levelAt) / (moveEnd - levelAt)) ** 2);
   const keys: Key[] = [];
-  for (let f = 0; f <= moveEnd; f += step)
-    keys.push(key(f, crawl(corner(f, moveEnd, dist), u(f)), { ease: 'linear' }));
+  for (let f = 0; f <= moveEnd; f += step) {
+    const settle = f > levelAt ? 0.31 * Math.sin((Math.PI * (f - levelAt)) / (moveEnd - levelAt)) : 0;
+    keys.push(key(f, crawl(corner(f, moveEnd, dist), u(f), bob(settle)), { ease: 'linear' }));
+  }
   return keys;
 }
 
@@ -377,21 +384,21 @@ export const authored: Record<string, AnimClip> = {
     length: 30,
     swaps: SHOUT,
     keys: [
-      key(0, mix(AIR, squash(1.1, 0.93), { fx4: at(0, 0.6, 0.7) }), {
+      key(0, mix(AIR, squash(1.1, 0.93), { fx4: at(-4.3, 0.5, 0.68) }), {
         ease: 'out',
         swaps: { fxBack: 'fxPuff1' },
       }),
-      key(3, mix(AIR, tilt(-40, BODY), { fx4: at(0, 1.2, 1) }), {
+      key(3, mix(AIR, tilt(-40, BODY, 0, -1.4), { fx4: at(-4.95, 1.15, 0.9) }), {
         ease: 'linear',
         swaps: { fxBack: 'fxPuff2' },
       }),
-      key(8, mix(AIR, tilt(-160, BODY), { fx4: at(0, 1.8, 1.15) }), {
+      key(8, mix(AIR, tilt(-160, BODY, 0, -2.9), { fx4: at(-5.45, 2.35, 0.9) }), {
         ease: 'linear',
         swaps: { fxBack: 'fxPuff3' },
       }),
-      key(13, mix(AIR, tilt(-280, BODY), { fx4: at(0, 2.3, 1.2) }), {
+      key(13, mix(AIR, tilt(-280, BODY, 0, -2.28)), {
         ease: 'out',
-        swaps: { fxBack: 'fxPuff4' },
+        swaps: UP,
       }),
       key(16, undefined, { swaps: { ...IDLE_FACE, fxBack: null } }),
       key(20, mix(AIR, tilt(-360, BODY))),
@@ -474,6 +481,13 @@ export const authored: Record<string, AnimClip> = {
         ease: 'linear',
       }),
       key(
+        11,
+        mix(tilt(3, BODY, 0.42, -0.42), squash(0.92), {
+          fx1: at(-4.6, -0.47, -0.98, 0, 0.79),
+        }),
+        { ease: 'linear', swaps: { ...frontView('quarterEyesAngry', 'quarter'), fx1: 'fxGravel' } },
+      ),
+      key(
         13,
         mix(tilt(6, BODY, 0.4, -0.64), squash(0.94), {
           fx1: at(-3.5, -0.32, -0.95, 0, 0.8),
@@ -490,7 +504,7 @@ export const authored: Record<string, AnimClip> = {
         }),
         {
           ease: 'out',
-          swaps: { ...frontView('frontEyesFocus'), fx1: 'fxGravel' },
+          swaps: { ...frontView('quarterEyesAngry', 'quarter'), fx1: 'fxGravel' },
         },
       ),
       key(21, mix(squash(0.94), bob(0.15), spin(roll(27)), { fx1: at(2.2, 0, 1.2) }), {
@@ -606,18 +620,28 @@ export const authored: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       ...climb(20, GETUP, 1, 10),
-      key(24, mix(SQUAT, tilt(-4, REAR), spin(roll(WHEEL_X + GETUP + 0.3))), { ease: 'in' }),
+      key(24, mix(SQUAT, tilt(-7, REAR, -0.75), spin(roll(WHEEL_X + GETUP + 0.3))), { ease: 'in' }),
       key(
         27,
-        mix(tilt(4, FRONT, 1.6), bob(0.1), spin(roll(WHEEL_X + GETUP + 3)), {
+        mix(tilt(7, FRONT, 2.42), squash(0.92, 1.08), spin(roll(WHEEL_X + GETUP + 3)), {
           fx1: at(-WHEEL_X - 0.5, 0, -0.9, 0, 0.9),
+          fx2: at(11.8, -3.72, 1.07, -7, 1.12),
         }),
         {
           ease: 'out',
-          swaps: { ...SHOUT, ...BLUR, fx1: 'fxGravel' },
+          swaps: { ...SHOUT, ...BLUR, fx1: 'fxGravel', fx2: 'fxBumperPop' },
         },
       ),
-      key(33, mix(tilt(1, FRONT, 1.2), spin(roll(WHEEL_X + GETUP + 4))), { ease: 'inOut', swaps: ANGRY }),
+      key(
+        29,
+        mix(tilt(4, FRONT, 1.65), spin(roll(WHEEL_X + GETUP + 4)), {
+          fx1: at(-WHEEL_X - 1.3, -0.24, -1.2, 0, 0.71),
+          fx2: at(12.57, -3.65, 0.74, -9, 0.8),
+        }),
+        { ease: 'out' },
+      ),
+      key(30, undefined, { swaps: ANGRY }),
+      key(33, mix(tilt(1, FRONT, 0.85), spin(roll(WHEEL_X + GETUP + 4))), { ease: 'inOut' }),
       key(55, spin(roll(WHEEL_X + GETUP + 4))),
     ].sort((a, b) => a.frame - b.frame),
   },

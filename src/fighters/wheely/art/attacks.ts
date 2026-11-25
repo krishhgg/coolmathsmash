@@ -198,13 +198,27 @@ export const attacks: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, PARK, { ease: 'out' }),
-      key(4, mix(tilt(-3, REAR, -0.45), bob(0.2)), { ease: 'in' }),
-      key(6, mix(tilt(2, FRONT, 1.7), spin(roll(1.7)), { shell: { x: 0.9, sx: 1.03 } }), {
-        ease: 'linear',
-        swaps: SHOUT,
-      }),
-      key(9, mix(tilt(2, FRONT, 1.65), spin(roll(2)), { shell: { x: 0.87, sx: 1.03 } }), { ease: 'out' }),
-      key(13, mix(bob(0.18), spin(roll(2))), { ease: 'out', swaps: FOCUS }),
+      key(4, mix(tilt(-7, REAR, -0.68), bob(0.28), squash(0.94)), { ease: 'in' }),
+      key(
+        6,
+        mix(tilt(6, FRONT, 1.8), spin(roll(1.8)), {
+          shell: { x: 1.12, sx: 1.025 },
+          wheelB: { y: 0.55 },
+          fx1: at(11.25, -4.1, 0.94, -7, 1.03),
+        }),
+        { ease: 'linear', swaps: { ...SHOUT, fx1: 'fxBumperPop' } },
+      ),
+      key(
+        9,
+        mix(tilt(5, FRONT, 1.47), spin(roll(2)), {
+          shell: { x: 0.99, sx: 1.025 },
+          wheelB: { y: 0.45 },
+          fx1: at(11.2, -4.1, 0.63, -8, 0.71),
+        }),
+        { ease: 'out' },
+      ),
+      key(10, undefined, { swaps: FOCUS }),
+      key(13, mix(bob(0.24), squash(0.965), spin(roll(2))), { ease: 'out' }),
       key(29, spin(roll(2))),
     ],
   },
@@ -258,23 +272,29 @@ export const attacks: Record<string, AnimClip> = {
       key(5, smoke(mix(tilt(3, FRONT, 0.8), bob(0.2), spin(roll(4))), 0.8), { ease: 'out' }),
       key(
         7,
-        mix(tilt(4, FRONT, 1.1), bob(0.25), spin(roll(5)), {
-          body: { sx: 0.84 },
-          fx1: at(3, 0, 1.2),
+        mix(tilt(5, FRONT, 1.1, -0.1), squash(0.94, 1.03), {
+          fx1: at(1.6, -0.05, 1.35),
           fx2: at(9.6, -1.1, 1),
+          fx3: at(5.4, -4.6, 5.1, 4, 3.15),
           fx4: at(-8.5, -1.6, 1.1),
         }),
         {
           ease: 'linear',
-          swaps: { ...SHOUT, brake: 'brakeGlow', fx1: 'fxSkid', fxBack: 'fxSmoke', fx2: 'fxPuff3' },
+          swaps: {
+            ...frontView('quarterEyesAngry', 'quarter'),
+            fx1: 'fxSkid',
+            fx2: 'fxPuff3',
+            fx3: 'fxSwipe',
+            fxBack: 'fxSmoke',
+          },
         },
       ),
       key(
         12,
-        mix(tilt(3.5, FRONT, 1.3), bob(0.2), spin(roll(5)), {
-          body: { sx: 0.82 },
-          fx1: at(3, 0, 1.6),
+        mix(tilt(8, FRONT, 1.55, -0.14), squash(0.95, 1.055), {
+          fx1: at(1.2, -0.05, 1.6),
           fx2: at(10.2, -1.6, 1.25),
+          fx3: at(5.6, -4.45, 3.35, -11, 2.82),
           fx4: at(-9, -1.8, 1.3),
         }),
         {
@@ -435,20 +455,20 @@ export const attacks: Record<string, AnimClip> = {
       key(
         10,
         mix(tilt(2, FRONT, 1.2), bob(0.2), spin(1000), {
-          fx1: at(2, 0, 1),
+          fx1: at(0, -1.06, 9.6, 0, 1.32),
           fx2: at(10, -2.6, 1.2),
           fx4: at(-9, -1.6, 1.2),
         }),
         {
           ease: 'linear',
-          swaps: { ...SHOUT, ...BLUR, fx2: 'fxPuff3', fxBack: 'fxSmoke', fx1: 'fxSkid' },
+          swaps: { ...SHOUT, ...BLUR, fx2: 'fxPuff3', fxBack: 'fxSmoke', fx1: 'fxDonutDust' },
         },
       ),
       key(
         12,
         mix(tilt(2, FRONT, 1.3), bob(0.2), spin(1200), {
           car: { sy: 0.97 },
-          fx1: at(2, 0, 1.4),
+          fx1: at(0, -1.07, 10.4, -2, 1.42),
           fx2: at(10.2, -2.8, 1.4),
           fx4: at(-6, -1.6, 1.2),
         }),
@@ -459,42 +479,59 @@ export const attacks: Record<string, AnimClip> = {
       key(
         13,
         mix(tilt(-12, [-4.1, 0]), squash(0.96, 1.03), {
-          fx1: at(-3.7, -0.03, 1.35),
+          fx1: at(0, -1.12, 10.7, -3, 1.55),
           fx2: at(-3.5, -0.1, -1.28, 0, 0.62),
         }),
-        { ease: 'step', swaps: { ...frontView('frontEyesShout'), fx1: 'fxSkid', fx2: 'fxGravel' } },
+        { ease: 'step', swaps: { ...frontView('frontEyesShout'), fx1: 'fxDonutDust', fx2: 'fxGravel' } },
       ),
       key(
         14,
-        mix(bob(0.25), spin(1400), {
-          car: { sy: 0.95 },
-          fx1: at(-2, 0, -1.4, 0, 1),
+        mix(tilt(6, BODY, -0.7, -0.5), squash(0.94, 1.03), {
+          body: { sx: -1 },
+          fx1: at(0, -1.22, 10.9, 3, 1.43),
           fx3: at(-10, -2.6, 1.3),
           fx4: at(4, -1.8, 1.4),
         }),
         {
           ease: 'linear',
-          swaps: { ...SHOUT, ...BLUR, fx1: 'fxSkid', fx3: 'fxPuff3', fxBack: 'fxSmoke' },
+          swaps: {
+            ...frontView('quarterEyesAngry', 'quarter'),
+            fx1: 'fxDonutDust',
+            fx3: 'fxPuff3',
+            fxBack: 'fxSmoke',
+          },
         },
       ),
       key(
         16,
         mix(bob(0.2), spin(1600), {
-          fx1: at(-2, 0, -1.6, 0, 1),
+          body: { sx: -1 },
+          fx1: at(0, -1.19, 11.2, 1, 1.31),
           fx3: at(-10.3, -2.8, 1.5),
           fx4: at(8, -1.8, 1.3),
         }),
         {
           ease: 'inOut',
+          swaps: { ...SHOUT, ...BLUR, fx1: 'fxDonutDust', fx3: 'fxPuff3', fxBack: 'fxSmoke' },
         },
       ),
-      key(18, undefined, { swaps: { ...ANGRY, ...BLUR, fx1: 'fxSkid' } }),
-      key(22, mix(bob(0.15), spin(1800), { fx1: at(0, 0, 1.5) }), {
-        ease: 'step',
-      }),
-      key(23, mix(bob(0.15), spin(1850), { fx1: at(0, 0, 1.5) }), {
+      key(18, undefined, { swaps: { ...ANGRY, ...BLUR, fx1: 'fxDonutDust' } }),
+      key(
+        22,
+        mix(tilt(4, BODY, 0, -0.38), squash(0.95), {
+          body: { sx: -1 },
+          fx1: at(0, -0.95, 11.8, 1, 1.05),
+        }),
+        {
+          ease: 'step',
+          swaps: { ...frontView('frontEyesBack'), fx1: 'fxDonutDust' },
+        },
+      ),
+      key(23, mix(bob(0.15), spin(1850), { fx1: at(0, -0.85, 12.1, 1, 0.85) }), {
         ease: 'out',
+        swaps: { ...ANGRY, ...BLUR, fx1: 'fxDonutDust' },
       }),
+      key(26, undefined, { swaps: FOCUS }),
       key(28, mix(bob(0.1), spin(1950)), { ease: 'inOut', swaps: { ...FOCUS } }),
       key(49, spin(1980)),
     ],
@@ -506,20 +543,29 @@ export const attacks: Record<string, AnimClip> = {
     keys: [
       key(0, UPSIDE_DOWN, { ease: 'in' }),
       key(4, mix(UPSIDE_DOWN, tilt(172, BODY, -0.4, -0.3), spin(90)), { ease: 'in' }),
-      key(8, mix(flip(250), spin(360)), { ease: 'linear', swaps: SHOUT }),
-      key(11, mix(flip(320), spin(540)), { ease: 'linear' }),
+      key(8, mix(flip(250), spin(360), { fx3: trail(0, -6.6, 8.7, 170) }), {
+        ease: 'linear',
+        swaps: { ...SHOUT, fx3: 'fxSwoosh' },
+      }),
+      key(11, mix(flip(320), spin(540), { fx3: trail(0, -5.2, 8, 67) }), { ease: 'linear' }),
       key(13, mix(flip(360), SQUAT, spin(640)), { ease: 'out', swaps: ANGRY }),
-      key(16, mix(tilt(362, FRONT, 1.3), spin(700), { fx1: at(10.2, -2.8, 1.25) }), {
+      key(16, mix(tilt(366, FRONT, 1.65), squash(0.9, 1.09), spin(700), { fx1: at(10.2, -3.1, 1.1, 4) }), {
         ease: 'linear',
-        swaps: { ...SHOUT, fx1: 'fxPuff3' },
+        swaps: { ...SHOUT, fx1: 'fxBumperPop' },
       }),
-      key(18, mix(tilt(362, FRONT, 1.4), spin(720), { fx1: at(10.6, -3, 1.4) }), { ease: 'inOut' }),
+      key(18, mix(tilt(364, FRONT, 1.45), spin(720), { fx1: at(10.15, -3.07, 0.8, 0) }), { ease: 'inOut' }),
       key(20, mix(tilt(360, BODY, 0.2), spin(720)), { ease: 'inOut', swaps: ANGRY }),
-      key(24, mix(tilt(358, REAR, -1.4), spin(640), { fx2: at(-10.2, -2.8, 1.25) }), {
-        ease: 'linear',
-        swaps: { ...SHOUT, fx2: 'fxPuff3' },
+      key(
+        24,
+        mix(tilt(351, REAR, -1.68), squash(0.9, 1.1), spin(640), { fx2: at(-10.2, -3.1, -1.1, -5, 1.07) }),
+        {
+          ease: 'linear',
+          swaps: { ...SHOUT, fx2: 'fxBumperPop' },
+        },
+      ),
+      key(26, mix(tilt(355, REAR, -1.5), spin(620), { fx2: at(-10.15, -3.08, -0.81, -3, 0.77) }), {
+        ease: 'inOut',
       }),
-      key(26, mix(tilt(358, REAR, -1.5), spin(620), { fx2: at(-10.6, -3, 1.4) }), { ease: 'inOut' }),
       key(28, mix(tilt(360, BODY), spin(620)), { ease: 'inOut', swaps: ANGRY }),
       key(36, mix(tilt(360, BODY), spin(620)), { swaps: FOCUS }),
       key(45, mix(tilt(360, BODY), spin(620))),
@@ -590,25 +636,25 @@ export const attacks: Record<string, AnimClip> = {
       key(3, mix(tilt(9, BODY, -0.4, 0.55), squash(0.87, 1.08), bob(0.28, -0.35)), { ease: 'in' }),
       key(
         6,
-        mix(tilt(-9, BODY, 0.2, -3.9), squash(1.07, 0.93), bob(-0.16, 0.58), {
-          fx4: at(-0.6, -8.5, 7.8, -72, 8.5),
+        mix(tilt(-13, BODY, 0.2, -3.7), squash(1.19, 0.89), bob(-0.21, 0.58), {
+          fx4: at(-0.55, -15.7, 1.02, -8, 1.24),
         }),
         {
           ease: 'out',
-          swaps: { ...UP, fxBack: 'fxSwipe' },
+          swaps: { ...UP, fxBack: 'fxRoofFlash' },
         },
       ),
       key(
         9,
-        mix(tilt(-13, BODY, 0.45, -4.05), squash(1.1, 0.91), bob(-0.12, 0.64), {
-          fx4: at(-0.35, -9.15, 7.8, -70, 8.9),
+        mix(tilt(-17, BODY, 0.39, -3.9), squash(1.22, 0.88), bob(-0.18, 0.64), {
+          fx4: at(-0.68, -16.3, 1.05, -11, 1.3),
         }),
         { ease: 'inOut' },
       ),
       key(
         11,
-        mix(tilt(-8, BODY, 0.35, -3.4), squash(1.08, 0.93), bob(-0.1, 0.48), {
-          fx4: at(0, -9.6, 7.75, -68, 9.05),
+        mix(tilt(-11, BODY, 0.35, -3.22), squash(1.16, 0.91), bob(-0.13, 0.48), {
+          fx4: at(-0.2, -15.74, 1.11, -8, 1.12),
         }),
         { ease: 'in' },
       ),
@@ -635,24 +681,26 @@ export const attacks: Record<string, AnimClip> = {
       ),
       key(
         12,
-        mix(tilt(3, BODY, 0, 0.92), bob(0.54, 0.86), squash(1.04, 0.98), {
+        mix(tilt(5, BODY, 0, 1.03), bob(0.44, 1.07), squash(0.92, 1.025), {
           wheelB: { sy: 1.09 },
           wheelF: { sy: 1.09 },
-          fx4: at(0, 1.04, 2.37, 0, 0.96),
+          fx4: at(0, 0.73, 2.07, 0, 0.83),
           fx1: at(-12.05, -0.65, 0.9, 90, 0.32),
           fx3: at(8.15, -0.44, 0.8, 90, 0.28),
+          fx2: at(0, 0.83, 1, 0, 1),
         }),
         {
           ease: 'out',
-          swaps: { ...SHOUT, fxBack: 'fxPuff2', fx1: 'fxSpeed', fx3: 'fxSpeed' },
+          swaps: { ...SHOUT, fxBack: 'fxPuff2', fx2: 'fxTreadStamp', fx1: 'fxSpeed', fx3: 'fxSpeed' },
         },
       ),
       key(
         16,
-        mix(tilt(1.2, BODY, 0, 0.62), bob(0.53, 0.82), squash(0.98, 1.04), {
+        mix(tilt(1.2, BODY, 0, 0.62), bob(0.48, 0.88), squash(0.93, 1.045), {
           fx4: at(0, 0.8, 2.65, 0, 0.92),
           fx1: at(-10.4, -0.25, 0.22, 90, 0.21),
           fx3: at(8.35, -0.18, 0.22, 90, 0.2),
+          fx2: at(0, 0.68, 1.17, 0, 0.55),
         }),
         { ease: 'linear' },
       ),
@@ -828,34 +876,46 @@ export const attacks: Record<string, AnimClip> = {
     swaps: { ...ANGRY, ...BLUR },
     keys: [
       key(0, PARK, { ease: 'out' }),
-      key(4, smoke(mix(tilt(1, FRONT, -0.12), bob(0.38), squash(0.95), spin(500), spray(0.8)), 0.8), {
+      key(4, smoke(mix(tilt(-4, REAR, -0.27), bob(0.4), squash(0.88), spin(500), spray(0.8)), 0.8), {
         ease: 'inOut',
         swaps: { ...ANGRY, ...BLUR, fxBack: 'fxSmoke', fx1: 'fxGravel' },
       }),
-      key(9, smoke(mix(tilt(1.5, FRONT, -0.15), bob(0.43), squash(0.94), spin(1100), spray(1.2)), 1), {
+      key(9, smoke(mix(tilt(-5, REAR, -0.4), bob(0.51), squash(0.84), spin(1100), spray(1.2)), 1), {
         ease: 'inOut',
       }),
-      key(13, smoke(mix(tilt(2.5, FRONT, 0.1), bob(0.46), squash(0.94), spin(1550), spray(1.3)), 1.1), {
+      key(13, smoke(mix(tilt(-6.4, REAR, -0.42), bob(0.58), squash(0.81), spin(1550), spray(1.3)), 1.1), {
         ease: 'in',
       }),
       key(
         14,
         smoke(
-          mix(tilt(3.5, FRONT, 0.9), bob(0.24), squash(0.97, 1.02), spin(1700), {
-            wheelB: { y: 0.36 },
+          mix(tilt(5.2, FRONT, 1.12), bob(0.33), squash(0.86, 1.14), spin(1700), {
+            wheelB: { y: 0.6 },
             fx1: at(-4.5, -0.03, -1.37, 0, 0.75),
+            fx2: at(9.15, -5.1, 1.2, 4, 1.83),
             fx3: at(-7.1, -0.12, 1.2, 0, 0.9),
           }),
           0.8,
         ),
-        { ease: 'linear', swaps: { ...SHOUT, ...BLUR, fx1: 'fxGravel', fx3: 'fxSpeed', fxBack: 'fxSmoke' } },
+        {
+          ease: 'linear',
+          swaps: {
+            ...SHOUT,
+            ...BLUR,
+            fx1: 'fxGravel',
+            fx2: 'fxChargeWind',
+            fx3: 'fxSpeed',
+            fxBack: 'fxSmoke',
+          },
+        },
       ),
       key(
         21,
         smoke(
-          mix(tilt(4.8, FRONT, 1.2), bob(0.29), squash(0.96, 1.045), spin(2500), {
-            wheelB: { y: 0.51 },
+          mix(tilt(5.8, FRONT, 1.27), bob(0.38), squash(0.85, 1.155), spin(2500), {
+            wheelB: { y: 0.64 },
             fx1: at(-4.55, -0.07, -1.49, 0, 0.8),
+            fx2: at(9.25, -5.1, 1.36, 6, 2.08),
             fx3: at(-6.9, 0, 1.3, 0, 0.96),
           }),
           1,
@@ -865,9 +925,10 @@ export const attacks: Record<string, AnimClip> = {
       key(
         28,
         smoke(
-          mix(tilt(3.6, FRONT, 0.9), bob(0.22), squash(0.97, 1.03), spin(3300), {
-            wheelB: { y: 0.35 },
+          mix(tilt(4.4, FRONT, 1.05), bob(0.32), squash(0.875, 1.125), spin(3300), {
+            wheelB: { y: 0.53 },
             fx1: at(-4.55, -0.04, -1.27, 0, 0.72),
+            fx2: at(9.16, -4.98, 1.23, 3, 1.7),
             fx3: at(-7, 0, 1.16, 0, 0.91),
           }),
           0.9,

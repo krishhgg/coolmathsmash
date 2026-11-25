@@ -853,13 +853,16 @@ interface EyeShape {
   rx: number;
   ry: number;
   rot: number;
+  taper?: number;
 }
 
-const NEAR: EyeShape = { c: [-0.44, 0.07], rx: 1.05, ry: 1.64, rot: -8 };
-const FAR: EyeShape = { c: [0.55, -0.08], rx: 0.72, ry: 1.48, rot: -9 };
+const NEAR: EyeShape = { c: [-0.45, 0.07], rx: 1.06, ry: 1.66, rot: -11, taper: 0.18 };
+const FAR: EyeShape = { c: [0.49, -0.12], rx: 0.75, ry: 1.49, rot: -7, taper: 0.15 };
 
 function eyeOutline(e: EyeShape): Pt[] {
-  return ellipsePts(e.c[0], e.c[1], e.rx, e.ry, e.rot, 0, 360, 12).slice(0, -1);
+  return ellipsePts(e.c[0], e.c[1], e.rx, e.ry, e.rot, 0, 360, 12)
+    .slice(0, -1)
+    .map(([x, y]) => [e.c[0] + (x - e.c[0]) * (1 + ((e.taper ?? 0) * (y - e.c[1])) / e.ry), y]);
 }
 
 /** A brow: a thick tapered stroke of ink, `len` long, centred at (cx, cy), rotated by `rot`. */
@@ -1800,6 +1803,155 @@ export const throwStreak: PathShape[] = [
   fill(curve([C(0, 0.1), [1.0, -0.15], C(3.8, -0.35), [1.75, 0.18], C(0.45, 0.34)]), 'glint'),
   fill(curve([C(0.55, -0.05), [1.4, -0.66], C(3.08, -1.33), [1.62, -0.42]]), faded('beam', 0.82)),
   fill(curve([C(0.7, 0.51), [1.65, 0.46], C(3.2, 0.88), [1.32, 0.75]]), faded('beam', 0.65)),
+];
+
+export const bumperPop: PathShape[] = [
+  fill(
+    poly([
+      [-0.9, 0.16],
+      [0.2, -0.29],
+      [1.57, -1.04],
+      [0.82, -0.13],
+      [2.17, -0.08],
+      [0.86, 0.4],
+      [1.46, 0.99],
+      [0.25, 0.5],
+    ]),
+    'beam',
+    'beamLine',
+    0.07,
+  ),
+  fill(
+    poly([
+      [-0.53, 0.11],
+      [0.54, -0.25],
+      [0.32, 0.08],
+      [1.09, 0.1],
+      [0.3, 0.36],
+    ]),
+    'glint',
+  ),
+];
+
+export const roofFlash: PathShape[] = [
+  fill(
+    curve([
+      C(-5.8, 1.75),
+      [-3.6, -0.8],
+      [-0.7, -1.23],
+      [2.83, -0.97],
+      C(5.75, 0.79),
+      [1.88, -0.18],
+      [-1.24, -0.28],
+      [-3.47, 0.34],
+    ]),
+    faded('chromeHi', 0.83),
+  ),
+  fill(
+    poly([
+      [-2.35, 0.05],
+      [-1.43, -1.13],
+      [-2.09, -2.53],
+      [-0.94, -1.59],
+      [-0.37, -3.18],
+      [-0.31, -1.45],
+      [1.06, -2.38],
+      [0.76, -0.91],
+      [1.76, -0.2],
+      [0.22, 0.2],
+    ]),
+    'glint',
+  ),
+  ...[-1, 1].map((side) =>
+    fill(
+      poly([
+        [side * 3.23, 0.16],
+        [side * 4.5, -1.7],
+        [side * 3.88, -0.09],
+      ]),
+      faded('chrome', 0.66),
+    ),
+  ),
+];
+
+export const treadStamp: PathShape[] = [
+  fill(
+    curve([
+      C(-6.56, -0.18),
+      [-3.28, -0.18],
+      [0, 0.66],
+      [3.28, -0.18],
+      C(6.56, -0.18),
+      [3.21, 0.68],
+      [0, 1.43],
+      [-3.21, 0.68],
+    ]),
+    'glint',
+  ),
+  ...[-1, 1].flatMap((s) => [
+    fill(
+      poly([
+        [s * 4.56, -0.1],
+        [s * 6.15, -0.23],
+        [s * 4.62, 3.52],
+        [s * 4.89, 1.38],
+        [s * 3.37, 2.02],
+      ]),
+      faded('chromeHi', 0.96),
+    ),
+    fill(
+      poly([
+        [s * 5.92, -1.1],
+        [s * 6.91, -1.68],
+        [s * 5.83, 1.99],
+      ]),
+      faded('chrome', 0.73),
+    ),
+  ]),
+];
+
+export const chargeWind: PathShape[] = [
+  fill(
+    curve([C(-4.4, -1.41), [-0.31, -1.59], [1.4, -0.54], C(1.92, 0.29), [0.63, -0.48], [-0.5, -1.17]]),
+    faded('chromeHi', 0.62),
+  ),
+  fill(
+    curve([C(-4.85, 0.97), [-1.04, 0.8], [1.34, 0.47], C(1.92, 0.29), [0.94, 0.94], [-1.0, 1.08]]),
+    faded('chromeHi', 0.64),
+  ),
+];
+
+export const donutDust: PathShape[] = [
+  fill(
+    curve([
+      C(-0.98, 0.03),
+      [-0.61, 0.55],
+      [0, 0.66],
+      [0.61, 0.58],
+      C(0.98, 0.08),
+      [0.57, 0.44],
+      [0, 0.5],
+      [-0.59, 0.37],
+    ]),
+    faded('smokeHi', 0.73),
+  ),
+  fill(
+    curve([
+      C(0.98, -0.13),
+      [0.63, -0.57],
+      [0, -0.68],
+      [-0.6, -0.61],
+      C(-0.98, -0.19),
+      [-0.55, -0.42],
+      [0, -0.46],
+      [0.57, -0.41],
+    ]),
+    faded('smoke', 0.7),
+  ),
+  fill(
+    curve([C(-0.72, 0.69), [-0.29, 0.87], [0.29, 0.87], C(0.66, 0.66), [0.2, 0.79], [-0.24, 0.77]]),
+    faded('smoke', 0.42),
+  ),
 ];
 
 function star(cx: number, cy: number, r: number): string {
