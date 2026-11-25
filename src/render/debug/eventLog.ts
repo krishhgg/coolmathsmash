@@ -13,6 +13,8 @@ function describe(e: SimEvent): string {
       return `${p(e.attacker)} hit ${p(e.victim)} ${e.move ?? ''} +${n(e.damage)}% kb ${n(e.kb)}${e.tumble ? ' tumble' : ''}`;
     case 'shieldHit':
       return `${p(e.attacker)} hit ${p(e.victim)}'s shield ${e.move ?? ''} (${n(e.shieldHp)} left)`;
+    case 'parry':
+      return `${p(e.victim)} parried ${p(e.attacker)} ${e.move ?? ''}`;
     case 'ko':
       return `${p(e.port)} KO ${e.side}, ${e.stocks} left`;
     case 'jump':

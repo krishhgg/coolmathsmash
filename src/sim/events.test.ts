@@ -91,6 +91,17 @@ describe('sim events', () => {
     expect(of(m, 'hit')).toEqual([]);
   });
 
+  it('a hit on the first frame of a shield drop reports a parry, not a shield hit', () => {
+    const { m, v } = duel();
+    runPorts(m, 5, [{}, { buttons: ['shield'] }]);
+    attack(m, 0, 'probe');
+    runPorts(m, 1, [{}, {}]);
+    expect(of(m, 'parry')).toMatchObject([{ attacker: 0, victim: 1, move: 'probe', y: 8 }]);
+    expect(of(m, 'shieldHit')).toEqual([]);
+    expect(of(m, 'hit')).toEqual([]);
+    expect(v.action).toBe('idle');
+  });
+
   it('jumps report full hops, short hops and air jumps', () => {
     const m = testMatch();
     expect(next(m, 'jump', { buttons: ['jump'] }).kind).toBe('full');

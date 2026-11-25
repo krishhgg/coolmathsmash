@@ -1,5 +1,6 @@
 import { createCpu, type CpuPlayer } from '../ai';
 import { neutralInput, type InputFrame } from '../input/types';
+import { INFINITE_STOCKS } from '../sim/constants';
 import type { MatchState } from '../sim/match';
 import type { DeviceId } from './devices';
 import type { MatchSetup, ResolvedMatch, Rules } from './setup';
@@ -212,15 +213,18 @@ export class MatchSession {
 
   /**
    * Placings: players still in beat those who are out; among the out, whoever lasted longer places higher. When time
-   * runs out, more stocks win, then lower damage. Equal players share a place.
+   * runs out, more stocks win, then lower damage. Under Infinite stock nobody loses a stock, so the clock ranks by
+   * Ultimate's Time battle score instead: +1 per KO, -1 per fall (self-destructs included). Equal players share a place.
    */
   private snapshot(state: MatchState): MatchResult {
+    const infinite = this.match.config.stocks >= INFINITE_STOCKS;
     const score = (port: number): number[] => {
       const f = state.fighters[port]!;
-      const out = this.stats[port]!.outFrame;
+      const s = this.stats[port]!;
+      const points = infinite ? s.kos - s.falls : f.stocks;
       return f.stocks > 0
-        ? [1, this.reason === 'time' ? f.stocks : 0, this.reason === 'time' ? -f.damage : 0]
-        : [0, out, 0];
+        ? [1, this.reason === 'time' ? points : 0, this.reason === 'time' ? -f.damage : 0]
+        : [0, s.outFrame, 0];
     };
     const better = (a: number[], b: number[]) => {
       for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i]! > b[i]!;
