@@ -3,6 +3,7 @@ import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
 import { moves } from '../moves';
+import { REV_FROM, REV_MAX, ROLLS } from '../specials';
 import { stats } from '../stats';
 import { art } from '.';
 import type { MoveClip } from './attacks';
@@ -145,6 +146,38 @@ describe('red ball art', () => {
       }
     }
     expect(samplePose(art, 'dair', clip.length, 0).symbols.ballFill).toBe('ballFill');
+  });
+
+  it('keeps the ink of grounded rolling clips planted at the floor', () => {
+    for (const name of ['walk', 'dash', 'run', ...ROLLS.map(({ move }) => move)]) {
+      for (let frame = 0; frame < art.clips[name]!.length; frame++) {
+        const pose = samplePose(art, name, frame, frame);
+        const x = pose.world.core!.tx;
+        expect(slotsCovering(art, pose, x, -0.1), `${name}@${frame}`).toContain('ballLine');
+        expect(slotsCovering(art, pose, x, 0.1), `${name}@${frame}`).not.toContain('ballLine');
+      }
+    }
+  });
+
+  it('shows charge pulses and the full-charge flash before the rev is released', () => {
+    for (const tier of ROLLS.slice(1)) {
+      const frame = REV_FROM + tier.rev - 1;
+      expect(samplePose(art, 'neutralB', frame, frame).symbols.fx4).toBe('pop');
+    }
+    const full = REV_FROM + REV_MAX - 1;
+    expect(samplePose(art, 'neutralB', full, full).symbols.fx2).toBe('flash');
+    const released = samplePose(art, 'chargeRoll3', 10, full + 10);
+    expect(released.symbols.fx2).toBe('after');
+    expect(released.z.fx2!).toBeLessThan(released.z.ballLine!);
+  });
+
+  it('keeps the evil costume’s box and fangs through expression swaps', () => {
+    for (const name of ['idle', 'run', 'taunt', 'fsmash', 'shield']) {
+      const evil = samplePose(art, name, 14, 14, 'evil');
+      expect(evil.symbols.ballFill).toBe('cubeFill');
+      expect(evil.symbols.costumeMouth).toBe('evilGrin');
+      expect(samplePose(art, name, 14, 14).symbols.costumeMouth).toBeNull();
+    }
   });
 
   it('bites the ledge corner where the engine hangs him', () => {

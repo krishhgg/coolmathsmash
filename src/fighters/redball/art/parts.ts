@@ -113,6 +113,51 @@ export const evilShade: PathShape[] = [
     'bodyLo',
   ),
 ];
+
+export const evilGrin: PathShape[] = [
+  fill(
+    blob([
+      [-3.72, 1.6],
+      [-2.5, 0.85],
+      [-0.5, 1.04],
+      [1.78, 0.78],
+      [4.27, -0.7],
+      [4.58, 0.94],
+      [4.38, 2.95],
+      [2.68, 3.72],
+      [0.3, 3.95],
+      [-2.5, 4.06],
+      [-3.7, 3.45],
+    ]),
+    'line',
+  ),
+  fill(
+    blob([
+      [-3.4, 1.61],
+      [-2.47, 1.13],
+      [-0.5, 1.3],
+      [1.85, 1.02],
+      [4.02, -0.16],
+      [4.25, 1.03],
+      [4.03, 2.76],
+      [2.56, 3.43],
+      [0.15, 3.68],
+      [-2.48, 3.8],
+      [-3.38, 3.22],
+    ]),
+    'mouthIn',
+  ),
+  ...[
+    'M -2.95 1.3 Q -2.35 1.15 -1.62 1.28 Q -1.93 2.52 -2.34 2.62 Q -2.68 2.41 -2.95 1.3 Z',
+    'M -1.28 1.31 L 0.15 1.29 Q -0.13 2.85 -0.66 2.72 Q -1 2.5 -1.28 1.31 Z',
+    'M 0.57 1.27 L 2.06 0.95 Q 1.99 2.39 1.43 2.48 Q 1.07 2.37 0.57 1.27 Z',
+    'M 2.48 0.81 Q 3.31 0.44 3.98 -0.12 Q 4 1.49 3.51 1.63 Q 3.13 1.56 2.48 0.81 Z',
+    'M -2.92 3.63 Q -2.66 3.02 -2.37 2.94 Q -2.16 3.23 -2.01 3.77 Z',
+    'M -1.57 3.77 Q -1.42 3.09 -1.13 2.99 Q -0.83 3.21 -0.61 3.74 Z',
+    'M 1.62 3.59 Q 1.85 2.79 2.19 2.66 Q 2.51 2.85 2.79 3.42 Z',
+    'M 3.14 3.28 Q 3.16 2.49 3.5 2.19 Q 3.79 2.31 4.03 2.67 Z',
+  ].map((d) => fill(d, 'teeth')),
+];
 /* Eyes: two tall ovals pressed together at the bridge, the far (back) one a little lower, looking the way he faces. */
 type Eye = [cx: number, cy: number, rx: number, ry: number];
 const EYE_B: Eye = [-1.15, -0.85, 1.5, 1.62];
@@ -150,14 +195,14 @@ function pupils(back: Pt, front: Pt, r = 0.66): PathShape[] {
 
 /** The brow line of the determined face: one heavy lid stroke over both eyes, a touch lower over the front one. */
 const BROW: Pt[] = [
-  [-2.85, -2.3],
-  [-1.15, -2.42],
-  [0.3, -2.24],
+  [-2.85, -2.52],
+  [-1.15, -2.48],
+  [0.3, -2.17],
   [1.8, -2.6],
   [3.3, -2.95],
 ];
 /** Half the brow stroke: the ink sits above the lid, so the white keeps the eye's full height underneath it. */
-const BROW_W = 0.9;
+const BROW_W = 0.84;
 const LID_DROP = BROW_W / 2 - 0.02;
 
 /** The bottom edge of the brow at x: the lid the eye whites are cut along. */
@@ -216,7 +261,7 @@ function spiral(cx: number, cy: number, r: number, turns = 2.2): Pt[] {
 
 export const eyes: Record<string, ArtSymbol> = {
   /** The signature look: tall whites cut by the brow, pupils big and up under it towards the opponent. */
-  eyesDetermined: [...whites(lidY), ...pupils([-0.4, -0.85], [2.3, -1.05])],
+  eyesDetermined: [...whites(lidY), ...pupils([-0.62, -1.36], [1.89, -1.57])],
   /** Wide open, looking ahead and a little up (neutral smile). */
   eyesOpen: [...whites(), ...pupils([-0.65, -1.5], [2.3, -1.7])],
   /** Looking up (happy, jumping, hanging). */
