@@ -67,6 +67,16 @@ const HANG = mix(
 const HANG_SWAY = mix(HANG, body(0.94, 1.08), roll(-24), fx('fx4', -4.3, -7.9, 0.75));
 const HANG_SWAY_B = mix(HANG, body(0.96, 1.05), roll(-31), fx('fx4', -3.4, -9.2, 0.72));
 
+/** Tongue Lash's reel: stretched up towards the ledge, the tongue's tip on its corner, far from it and near. */
+const REEL_FAR = mix(
+  lickAt(mix(body(1.14, 0.9, 0.5), roll(-12)), [23.2, -13.3]),
+  fx('fx3', -4.2, -3.6, 1, -24),
+);
+const REEL_NEAR = mix(
+  lickAt(mix(body(1.1, 0.92, 0.8), roll(-18)), [8.6, -10]),
+  fx('fx3', -3.8, -3.8, 0.9, -28),
+);
+
 /** Lying flat after a missed tech: squashed, rolled onto his back. */
 const DOWN = mix(ground(1.32, 0.7), roll(-75));
 
@@ -381,29 +391,14 @@ export const clips: Record<string, AnimClip> = {
 
   /**
    * Reeling in on Tongue Lash (the tetherPull action): stretched towards the ledge his tongue is stuck to and
-   * looking up at it, with speed lines behind. The tongue shortens as the reel closes in, 3 units a frame, from a
-   * ledge about 24 units ahead and 13 up (the usual catch from below) to the ledge catch, about 9 ahead and 10 up.
+   * looking up at it, with speed lines behind. The tip stays on the ledge's corner through the usual catch from
+   * below: the reel starts with the corner about 23 units ahead and 13 up and closes 3 units a frame (frame 1 is
+   * the reel's first frame), so by frame 6 it is about 9 ahead and 10 up, where the ledge catch takes over.
    */
   tetherPull: {
     length: 20,
     swaps: { ...LICK_AIM, eyes: 'eyesDeterminedUp', fxBack: 'speed' },
-    keys: [
-      key(
-        0,
-        mix(lickAt(mix(body(1.14, 0.9, 0.5), roll(-12)), [22.5, -12.8]), fx('fx3', -4.2, -3.6, 1, -24)),
-        {
-          ease: 'linear',
-        },
-      ),
-      key(
-        6,
-        mix(lickAt(mix(body(1.1, 0.92, 0.8), roll(-18)), [8.8, -10.2]), fx('fx3', -3.8, -3.8, 0.9, -28)),
-      ),
-      key(
-        20,
-        mix(lickAt(mix(body(1.08, 0.94, 0.8), roll(-20)), [8.8, -10.2]), fx('fx3', -3.8, -3.8, 0.9, -28)),
-      ),
-    ],
+    keys: [key(0, REEL_FAR), key(1, REEL_FAR, { ease: 'linear' }), key(6, REEL_NEAR), key(20, REEL_NEAR)],
   },
 
   ledgeCatch: {
