@@ -251,10 +251,10 @@ export function applyHit(
 /**
  * Find every hit this frame from the state before any of them lands, then apply them all, so two fighters
  * whose moves connect on the same frame trade. Each move hits a fighter once (per rehit window), lowest
- * hitbox id first. Hits on an open counter are caught instead (counters). Grab boxes are found from the same state
- * and resolved after the hits (grab.ts), so an attack beats a grab on the same frame. `posed` is the stage as it
- * stands this frame (a counter can reappear on a floor). `stage` lands the stage hazards' hits (src/sim/hazards.ts) between the
- * two, adding its victims to `struck`, so they break grabs like any other hit.
+ * hitbox id first. Hits on an open counter are caught instead (counterattack). Grab boxes are found from the same
+ * state and resolved after the hits (grab.ts), so an attack beats a grab on the same frame. `posed` is the stage as
+ * it stands this frame, for a counter that reappears on a floor. `stage` lands the stage hazards' hits
+ * (src/sim/hazards.ts) between the two, adding its victims to `struck`, so they break grabs like any other hit.
  */
 export function resolveHits(
   m: MatchState,
