@@ -7,7 +7,9 @@ import {
   boots,
   head,
   impact,
+  laserBolt,
   mouths,
+  muzzleFlash,
   parts,
   smear,
   swoosh,
@@ -88,6 +90,9 @@ export const rig: Rig = {
     impact,
     smear,
     swoosh,
+    muzzleFlash,
+    ...laserBolt,
+    laserBolt: { loop: ['laserBolt0', 'laserBolt1'], fps: 30 },
   },
 };
 

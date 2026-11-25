@@ -135,6 +135,12 @@ export interface AnimClip {
    * its FAF (`src/render/rig/timing.ts`), so frame data can change without re-keying the art.
    */
   active?: [number, number][];
+  /**
+   * Tether move clips: the clip frame the reel holds on. While the fighter reels in (tetherPull), the move's clip
+   * plays on from the frame the line anchored up to this frame and holds it until he arrives. Put it after the
+   * latest frame the line can anchor. Without it the clip plays on to its end.
+   */
+  reel?: number;
 }
 
 /** Palette key -> '#rrggbb'. */
@@ -146,6 +152,21 @@ export interface PropArt {
   symbol: string;
   /** Uniform scale applied to the symbol. */
   scale: number;
+  /**
+   * Where the lab's fighter scene draws it over the clips that fire it (in a match the engine spawns and moves it),
+   * keyed by clip name.
+   */
+  preview?: Record<string, PropPreview>;
+}
+
+/** A projectile in the lab: from clip frame `frame` on, at (x, y) from the feet (x forward, y up), then moving. */
+export interface PropPreview {
+  frame: number;
+  x: number;
+  y: number;
+  /** Units it moves each frame after `frame`. */
+  vx?: number;
+  vy?: number;
 }
 
 export interface FighterArt {

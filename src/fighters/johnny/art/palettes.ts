@@ -42,6 +42,13 @@ const original: Palette = {
   smear: '#ffffff',
   smearHi: '#fff3a6',
   smearLine: '#ffd34a',
+  gun: '#d3dae4',
+  gunHi: '#ffffff',
+  gunLo: '#8d97a8',
+  gunLine: '#1c2230',
+  laser: '#36e8ff',
+  laserHi: '#efffff',
+  laserLine: '#0a4fa8',
 };
 
 /**

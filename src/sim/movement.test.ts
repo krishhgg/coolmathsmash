@@ -441,11 +441,11 @@ describe('dodges', () => {
   });
 
   it.each([
-    ['rollForward', 100, ROLL_FORWARD, -1],
-    ['rollBack', -100, ROLL_BACK, 1],
+    ['rollForward', 100, ROLL_FORWARD, -1, S.rollDistance],
+    ['rollBack', -100, ROLL_BACK, 1, S.backRollDistance],
   ] as const)(
-    '%s: travels the roll distance on its own intangible frames and FAF',
-    (name, x, spec, facing) => {
+    '%s: travels its own distance on its own intangible frames and FAF',
+    (name, x, spec, facing, distance) => {
       const m = testMatch();
       const f = fighter(m);
       run(m, 5, { buttons: ['shield'] });
@@ -459,7 +459,7 @@ describe('dodges', () => {
         if (isIntangible(f)) intangible.push(f.actionFrame);
         run(m, 1);
       }
-      expect(Math.abs(f.pos.x - x0)).toBeCloseTo(S.rollDistance, 1);
+      expect(Math.abs(f.pos.x - x0)).toBeCloseTo(distance, 1);
       expect([intangible[0], intangible.at(-1)]).toEqual(spec.intangible);
       expect(last + 1).toBe(spec.faf);
       expect(f.facing).toBe(facing);

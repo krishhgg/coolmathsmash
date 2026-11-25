@@ -52,6 +52,25 @@ export const scenarios: FighterScenarios = {
     ],
   },
   extra: [
+    {
+      name: 'johnny-laser-hit',
+      description:
+        'Johnny fires Laser Gun across Battlefield at Fireboy; capture the frame the laser hits and Fireboy flinches.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'johnny' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -40, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: 20, y: 0 }, facing: -1 } },
+      ],
+      script: [{ port: 0, from: 10, to: 12, buttons: ['special'] }],
+      capture: {
+        label: "P2's damage goes up",
+        when: (s, prev) => s.fighters[1]!.damage > prev.fighters[1]!.damage,
+      },
+      motion: { before: 25, after: 25 },
+      requires: ['move:neutralB'],
+      refs: ['smash/attack-active-*', `${JU}/official-art-02*`],
+    },
     sheet(
       'movement',
       'Run, walk, dash, run brake, turnaround, crouch, landing key poses and the dash push-off.',
@@ -138,6 +157,26 @@ export const scenarios: FighterScenarios = {
         'sideB@17',
         'upB@9',
         'upB@15',
+      ],
+      ['smash/attack-active-*', `${JU}/official-art-02*`, `${JU}/sprite-sheet-01*`],
+    ),
+    sheet(
+      'laser',
+      'Laser Gun standing and in the air: the draw, the aim, the shot with its muzzle flash, the recoil, the bolt in flight and the holster.',
+      7.5,
+      [
+        'neutralB@1',
+        'neutralB@3',
+        'neutralB@8',
+        'neutralB@9',
+        'neutralB@10',
+        'neutralB@20',
+        'neutralB@34',
+        'neutralB@37',
+        'neutralBAir@3',
+        'neutralBAir@7',
+        'neutralBAir@8',
+        'neutralBAir@20',
       ],
       ['smash/attack-active-*', `${JU}/official-art-02*`, `${JU}/sprite-sheet-01*`],
     ),

@@ -106,7 +106,8 @@ solid and `stageHit` a stage hazard hitting a fighter (docs/sim-events.md), for 
 
 The placeholder renderer draws static pieces once and moving ones every frame from `MatchState.stage`,
 interpolated between frames (`src/render/stagePieces.ts`). Absent pieces show as faint ghosts and pieces
-about to vanish blink for 45 frames, so a stage's art should telegraph a vanish at least that early. With
+about to vanish blink for 45 frames, so a stage's art should telegraph a vanish at least that early. A stage
+view with `pieces` (docs/stages.md) draws its own moving pieces instead. With
 hazards on, damage zones are tinted by element and stage hitboxes are grey discs, faint while they are not out.
 
 ## Stage hazards

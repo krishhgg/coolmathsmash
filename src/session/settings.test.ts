@@ -58,6 +58,46 @@ describe('settings', () => {
     expect(saved({ ...d, jump: [2], start: [3] })).toEqual({ ...d, jump: [2], start: [3] });
   });
 
+  it('loads a keyboard half with a menu key on the wrong action as its defaults', () => {
+    const saved = (keyboard: unknown) =>
+      loadSettings(memory({ [SETTINGS_KEY]: JSON.stringify({ keyboard }) })).keyboard;
+    const d = defaultSettings().keyboard;
+
+    // Escape on Keyboard 1's Attack: in a match every attack would also pause. Keyboard 2 keeps its own keys but
+    // gives up F, which goes back to Keyboard 1's Attack.
+    const kb1 = structuredClone(d);
+    kb1[0]!.buttons.attack = ['Escape'];
+    kb1[0]!.buttons.start = [];
+    kb1[1]!.buttons.special = ['KeyF', 'Numpad2'];
+    kb1[1]!.buttons.jump = ['KeyM'];
+    const loaded1 = saved(kb1);
+    expect(loaded1[0]).toEqual(d[0]);
+    expect(loaded1[1]!.buttons.special).toEqual(['Numpad2']);
+    expect(loaded1[1]!.buttons.jump).toEqual(['KeyM']);
+
+    // Escape on Keyboard 2's Attack resets Keyboard 2 only.
+    const kb2 = structuredClone(d);
+    kb2[0]!.buttons.start = ['KeyP'];
+    kb2[1]!.buttons.attack = ['Escape', 'Numpad1'];
+    const loaded2 = saved(kb2);
+    expect(loaded2[1]).toEqual(d[1]);
+    expect(loaded2[0]!.buttons.start).toEqual(['KeyP']);
+
+    // The other menu keys follow the same rule: Space can only be Attack, Enter and Backspace only Pause.
+    const space = structuredClone(d);
+    space[0]!.buttons.jump = ['Space'];
+    expect(saved(space)[0]).toEqual(d[0]);
+    const enter = structuredClone(d);
+    enter[1]!.down = ['Enter'];
+    expect(saved(enter)[1]).toEqual(d[1]);
+
+    // Menu keys on their own action load as saved.
+    const fine = structuredClone(d);
+    fine[0]!.buttons.attack = ['Space'];
+    fine[0]!.buttons.start = ['Escape', 'Backspace'];
+    expect(saved(fine)).toEqual(fine);
+  });
+
   it('survives storage that throws', () => {
     const blocked = {
       getItem: (): string | null => {
