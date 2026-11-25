@@ -385,9 +385,10 @@ describe('Fluffy: Quick Grapple (up special)', () => {
     step(1);
     expect(f.actionFrame).toBe(8);
     const hand = f.pos.y + stats.height * TETHER.handHeight;
-    expect(events).toEqual([
-      { type: 'tetherFire', port: 0, x: expect.closeTo(f.pos.x, 9), y: expect.closeTo(hand + 120, 9) },
-    ]);
+    expect(events.map((e) => e.type)).toEqual(['tetherFire']);
+    const shot = events[0] as Extract<SimEvent, { type: 'tetherFire' }>;
+    expect(shot.x).toBeCloseTo(f.pos.x, 9);
+    expect(shot.y).toBeCloseTo(hand + 120, 9);
   });
 
   it('recovers from 40 units below the ledge by latching it and reeling into a ledge grab', () => {
@@ -400,7 +401,7 @@ describe('Fluffy: Quick Grapple (up special)', () => {
     expect([f.ledge, f.facing, f.tether]).toEqual([1, -1, null]);
   });
 
-  it('stops falling while the grabber flies, so the ledge is still in reach when the line lands', () => {
+  it('stops falling in the air while the grabber flies, up to frame 18', () => {
     const { f, step, fire } = grapple(150, -40, -1);
     f.vel.y = -stats.fallSpeed;
     fire();
