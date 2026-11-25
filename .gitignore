@@ -10,3 +10,4 @@ blob-report/
 captures/
 .env
 .env.*
+__pycache__/

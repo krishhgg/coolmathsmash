@@ -1037,30 +1037,87 @@ export const EXPRESSIONS: Record<string, Look> = {
 
 // ---------------------------------------------------------------- effects (fx bone space)
 
-/** Horn sound waves: three nested arcs opening forward from the horn. */
+/** A band of ring around the origin, `thick` wide at radius `r`, from angle `from` to `to` (degrees). */
+function band(r: number, thick: number, from: number, to: number): string {
+  const outer = arc(0, 0, r + thick / 2, from, to, 10);
+  const inner = arc(0, 0, r - thick / 2, to, from, 10);
+  return curve([
+    C(...outer[0]!),
+    ...outer.slice(1, -1),
+    C(...outer[outer.length - 1]!),
+    C(...inner[0]!),
+    ...inner.slice(1, -1),
+    C(...inner[inner.length - 1]!),
+  ]);
+}
+
+/** Horn sound waves: nested arcs opening forward from the horn. */
 export function waves(count: number, thick = 0.26): PathShape[] {
-  const out: PathShape[] = [];
-  for (let i = 0; i < count; i++) {
-    const r = 0.9 + i * 0.75;
-    const outer = arc(0, 0, r + thick / 2, -50, 50, 10);
-    const inner = arc(0, 0, r - thick / 2, 50, -50, 10);
-    out.push(
-      fill(
-        curve([
-          C(...outer[0]!),
-          ...outer.slice(1, -1),
-          C(...outer[outer.length - 1]!),
-          C(...inner[0]!),
-          ...inner.slice(1, -1),
-          C(...inner[inner.length - 1]!),
-        ]),
-        'wave',
-        'waveLine',
-        0.08,
-      ),
-    );
+  return Array.from({ length: count }, (_, i) =>
+    fill(band(0.9 + i * 0.75, thick, -50, 50), 'wave', 'waveLine', 0.08),
+  );
+}
+
+/** A horn blast where it hits: a soft disc of sound (radius 1, centred) with ringing arcs on its leading side. */
+export function beep(rings: number): PathShape[] {
+  return [
+    {
+      d: circle(0, 0, 1),
+      fill: {
+        type: 'radial',
+        cx: 0,
+        cy: 0,
+        r: 1,
+        stops: [
+          { offset: 0, color: 'wave', alpha: 0.12 },
+          { offset: 0.72, color: 'wave', alpha: 0.5 },
+          { offset: 1, color: 'wave', alpha: 0 },
+        ],
+      },
+    },
+    ...Array.from({ length: rings }, (_, i) =>
+      fill(band(0.4 + i * 0.2, 0.08, -55, 55), 'wave', 'waveLine', 0.035),
+    ),
+  ];
+}
+
+/**
+ * A motion smear: a crescent of radius 1 that sweeps clockwise through `span` degrees to end at -20 degrees,
+ * growing from nothing at its tail to a third of the radius at its head.
+ */
+export function swoosh(span: number): PathShape[] {
+  const outer: Pt[] = [];
+  const inner: Pt[] = [];
+  for (let i = 0; i <= 18; i++) {
+    const s = i / 18;
+    const a = ((span - 20 - span * s) * Math.PI) / 180;
+    const r = 1 - 0.36 * s ** 0.8;
+    outer.push([Math.cos(a), -Math.sin(a)]);
+    inner.push([r * Math.cos(a), -r * Math.sin(a)]);
   }
-  return out;
+  const [tail, head] = [outer[0]!, outer[outer.length - 1]!];
+  return [
+    fill(
+      curve([
+        C(...tail),
+        ...outer.slice(1, -1),
+        C(...head),
+        C(...inner[inner.length - 1]!),
+        ...inner.slice(1, -1).reverse(),
+      ]),
+      {
+        type: 'linear',
+        x0: tail[0],
+        y0: tail[1],
+        x1: head[0],
+        y1: head[1],
+        stops: [
+          { offset: 0, color: 'speed', alpha: 0 },
+          { offset: 1, color: 'speed', alpha: 0.85 },
+        ],
+      },
+    ),
+  ];
 }
 
 /** Gravel flung forward low off a spinning tyre, from the contact point. */

@@ -13,6 +13,13 @@ export function portColor(port: number): number {
   return PORT_COLORS[((port % 4) + 4) % 4]!;
 }
 
+/** CPU players are grey wherever a human would show their port colour. */
+export const CPU_COLOR = 0x8e949c;
+
+export function slotColor(port: number, cpu = false): number {
+  return cpu ? CPU_COLOR : portColor(port);
+}
+
 /** Damage (percent) to colour stops, after Ultimate: white, yellow, orange, red, then a deepening dark red. */
 export const DAMAGE_RAMP: readonly (readonly [number, number])[] = [
   [0, 0xffffff],

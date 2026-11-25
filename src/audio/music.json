@@ -1,10 +1,24 @@
 {
+  "battlefield": {
+    "file": "music/battlefield.mp3",
+    "title": "Battlefield",
+    "evokes": "a Smash-style Battlefield stage theme",
+    "loopStart": 0,
+    "loopEnd": 45.714286
+  },
   "bloxorz-platform": {
     "file": "music/bloxorz-platform.mp3",
     "title": "Bloxorz Board",
     "evokes": "an original theme in the spirit of Bloxorz's calm, cerebral puzzle music",
     "loopStart": 0,
     "loopEnd": 37.5
+  },
+  "bob-the-robber-level-1": {
+    "file": "music/bob-the-robber-level-1.mp3",
+    "title": "Bob's First Heist",
+    "evokes": "Bob the Robber (Flazm): an original sneaky heist-jazz theme in the spirit of the game",
+    "loopStart": 0,
+    "loopEnd": 40
   },
   "coolmath-planet": {
     "file": "music/coolmath-planet.mp3",
@@ -13,12 +27,26 @@
     "loopStart": 0,
     "loopEnd": 38.4
   },
+  "duck-life-world": {
+    "file": "music/duck-life-world.mp3",
+    "title": "Duck Life",
+    "evokes": "Duck Life (Wix Games): an original sunny countryside training two-step",
+    "loopStart": 0,
+    "loopEnd": 43.636372
+  },
   "forest-temple": {
     "file": "music/forest-temple.mp3",
     "title": "Forest Temple",
     "evokes": "an original theme in the spirit of Fireboy and Watergirl in the Forest Temple",
     "loopStart": 0,
     "loopEnd": 41.142857
+  },
+  "johnny-upgrade-boss": {
+    "file": "music/johnny-upgrade-boss.mp3",
+    "title": "Johnny's Level: Boss",
+    "evokes": "Johnny Upgrade (Gameshot): an original driving action-rock boss theme in the spirit of the game",
+    "loopStart": 0,
+    "loopEnd": 38.181814
   },
   "menu": {
     "file": "music/menu.mp3",
@@ -27,11 +55,46 @@
     "loopStart": 0,
     "loopEnd": 51.2
   },
+  "papas-pizzeria": {
+    "file": "music/papas-pizzeria.mp3",
+    "title": "Papa's Pizzeria",
+    "evokes": "Papa's Pizzeria (Flipline Studios): an original café swing and tarantella",
+    "loopStart": 0,
+    "loopEnd": 43.636372
+  },
+  "raft-wars-water": {
+    "file": "music/raft-wars-water.mp3",
+    "title": "Raft War Lagoon",
+    "evokes": "Raft Wars (Martijn Kunst): an original sunny calypso-ska water fight in the spirit of the game's music",
+    "loopStart": 0,
+    "loopEnd": 36.455692
+  },
   "run-tunnel": {
     "file": "music/run-tunnel.mp3",
     "title": "Run Tunnel",
     "evokes": "an original theme in the spirit of Run and Run 3's spacey electronica",
     "loopStart": 0,
     "loopEnd": 37.5
+  },
+  "snail-bob-construction": {
+    "file": "music/snail-bob-construction.mp3",
+    "title": "Snail Bob",
+    "evokes": "Snail Bob's construction site (Hunter Hamster): an original tiptoeing cartoon caper",
+    "loopStart": 0,
+    "loopEnd": 45
+  },
+  "wheely-trucks": {
+    "file": "music/wheely-trucks.mp3",
+    "title": "Wheely",
+    "evokes": "Wheely (Pegas Games): an original feel-good funk-pop drive",
+    "loopStart": 0,
+    "loopEnd": 42.857143
+  },
+  "worlds-hardest-game": {
+    "file": "music/worlds-hardest-game.mp3",
+    "title": "World's Hardest Stage",
+    "evokes": "The World's Hardest Game (Snubby Land): an original tense electro-house loop in the spirit of its Flash soundtrack",
+    "loopStart": 0,
+    "loopEnd": 40.563379
   }
 }

@@ -7,14 +7,22 @@ import { startUi } from './ui';
 
 /**
  * Boots the renderer and game. Normally the menus come up first; `?harness` (the capture harness and Playwright) and
- * `?match` go straight into the default match.
+ * `?match` go straight into the default match. `?quality=full|lite` picks the render quality; without it the build's
+ * `VITE_RENDER_QUALITY` decides, else the harness draws `lite` and the game `full`.
  */
 async function boot(): Promise<void> {
   const root = document.getElementById('app');
   if (!root) throw new Error('#app missing');
   const params = new URLSearchParams(location.search);
-  const [renderer] = await Promise.all([Renderer.create(root), loadHudFont()]);
   const harness = params.has('harness');
+  const quality =
+    params.get('quality') ??
+    (import.meta.env.VITE_RENDER_QUALITY as string | undefined) ??
+    (harness ? 'lite' : 'full');
+  const [renderer] = await Promise.all([
+    Renderer.create(root, quality === 'lite' ? 'lite' : 'full'),
+    loadHudFont(),
+  ]);
   const game = new Game(renderer, harness);
   renderer.overlays.inputs = params.has('inputs');
   renderer.overlays.actions = params.has('actions');

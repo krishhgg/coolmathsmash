@@ -12,7 +12,12 @@ first, looks second. The intent and the rubric's origin are in the Captain drive
 | Capture runner | `npm run capture` (`scripts/capture.ts`)                 | Headless Chromium at 1280x720: PNG per state, filmstrip + GIF + MP4 for motion, `manifest.json`                                                  |
 | Judge pack     | `npm run judge:pack` (`scripts/judge-pack.ts`)           | Contact sheets (ours left, references right), `rubric.md`, `schema.json`, `prompt.md`                                                            |
 | Aggregator     | `npm run judge:aggregate` (`scripts/judge-aggregate.ts`) | Validates the judges' JSON, writes `scoreboard.md`/`.json`, appends a history row                                                                |
-| CI             | `.github/workflows/captures.yml`                         | Captures every PR and uploads `captures/ci` as the `captures-<sha>` artifact                                                                     |
+| CI             | `.github/workflows/captures.yml`                         | Captures nightly and on demand; uploads `captures/ci` as the `captures-<sha>` artifact                                                           |
+
+Captures runs nightly on main (10:23 UTC) and on manual dispatch, not on PRs. On Monday through Saturday it compares
+against the last successful scheduled run. If main only changed fighter or stage folders, it captures their named
+states, matches that use them, and the affected select screens. Shared changes or missing history use the full suite;
+an unchanged tree skips rendering. Sunday and manual runs capture the full suite. A scoped manifest has `"scoped": true`.
 
 ## Run one round
 
@@ -30,6 +35,10 @@ in a fresh page and prints one line per scenario. Options: `--only idle,run` run
 one fighter's states), `--url <base>` uses a
 running server instead (`npm run dev`, or the GitHub Pages build), `--keep-frames` keeps every frame of the motion
 windows under `frames/<name>/`.
+
+Game scenarios render at `lite` quality: everything but the stage's painted backdrop, which stays a flat sky, so a
+round stays fast on a software GPU. `--quality full` captures the full look, for judging stage art. The `stage`
+scenario (a lab page) always draws the full stage.
 
 Outputs, per scenario:
 
@@ -144,8 +153,8 @@ const still = await tools.pr.uploadAsset({ path: '/home/user/.capy/work/round-1/
 const clip = await tools.pr.uploadAsset({ path: '/home/user/.capy/work/round-1/captures/jump-apex.mp4' });
 ```
 
-Contact sheets make good before/after images too. CI also attaches the whole `captures/ci` folder to every PR run as
-a workflow artifact.
+Contact sheets make good before/after images too. Nightly and manual Captures runs upload `captures/ci` as a workflow
+artifact; PRs use the locally captured images attached to the PR body.
 
 ## The harness API
 

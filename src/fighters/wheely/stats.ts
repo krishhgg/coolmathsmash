@@ -1,5 +1,8 @@
 import type { FighterStats } from '../types';
 
+export const TURN_FRAMES = 20;
+export const TURN_FLIP = 12;
+
 /**
  * Wheely: a little red car (Wheely, Pegas Games, 2012). Heavy and slow off the line, very fast at top speed: the
  * initial dash is near the cast's slowest and the run then ramps up to Little Mac's top speed over 40 frames.

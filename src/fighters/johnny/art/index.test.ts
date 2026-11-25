@@ -105,12 +105,12 @@ describe('johnny art', () => {
     }
   });
 
-  it('stands about 17 units tall in his wide stance, boots on the ground', () => {
-    expect(art.height).toBe(17);
+  it('stands about 17.5 units tall to the top of his quiff in his wide stance, boots on the ground', () => {
+    expect(art.height).toBe(17.5);
     const [x0, y0, x1, y1] = poseBounds(art, samplePose(art, 'idle', 0, 0));
     expect(y1).toBeCloseTo(0, 1);
-    expect(-y0).toBeGreaterThan(16.5);
-    expect(-y0).toBeLessThan(17.5);
+    expect(-y0).toBeGreaterThan(17);
+    expect(-y0).toBeLessThan(18);
     expect(x1 - x0).toBeGreaterThan(9);
     expect(x1 - x0).toBeLessThan(13.5);
   });
@@ -119,6 +119,12 @@ describe('johnny art', () => {
     for (const name of ['idle', 'walk'])
       for (let f = 0; f < art.clips[name]!.length; f += 2)
         expect(poseBounds(art, samplePose(art, name, f, f))[3], `${name}@${f}`).toBeCloseTo(0, 0);
+  });
+
+  it('keeps his boots above the rig root in every airborne clip', () => {
+    for (const name of ['jump', 'doubleJump', 'fall', 'helpless', 'hitstun', 'tumble'])
+      for (let f = 0; f <= art.clips[name]!.length; f++)
+        expect(poseBounds(art, samplePose(art, name, f, f))[3], `${name}@${f}`).toBeLessThanOrEqual(0.4);
   });
 
   it('has costumes with the same colour keys, default first, and an icon', () => {

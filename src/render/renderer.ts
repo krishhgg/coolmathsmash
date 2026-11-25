@@ -1,16 +1,29 @@
-import { Application, Container, Graphics } from 'pixi.js';
+import { Application, Container, Graphics, RenderTexture, Sprite } from 'pixi.js';
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../config';
 import { getFighter } from '../fighters/registry';
 import type { MatchState } from '../sim/match';
 import { getStage } from '../stages/registry';
+import type { StageView } from '../stages/battlefield/view';
 import type { StageGeometry } from '../sim/stage';
 import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
+import { drawEntities, drawEntityBoxes } from './entities';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud, OverheadTags } from './hud';
 import { drawMovingPieces, isMoving } from './stagePieces';
+
+/** Stage art: src/stages/<id>/view.ts exports createStageView (docs/stages.md). Stages without one draw flat. */
+const STAGE_VIEWS = import.meta.glob<{ createStageView: () => StageView }>('../stages/*/view.ts', {
+  eager: true,
+});
+
+/**
+ * `full` draws a stage's painted backdrop; `lite` leaves it flat (the clear colour) so tests and captures on software
+ * GPUs stay fast. Everything in the world (stage, fighters, effects) and the HUD draw the same in both.
+ */
+export type RenderQuality = 'full' | 'lite';
 
 export interface Overlays {
   inputs: boolean;
@@ -23,6 +36,8 @@ export interface Overlays {
 }
 
 export class Renderer {
+  /** Screen-space stage backdrop, drawn into `backdrop` rather than straight to the screen. */
+  readonly background = new Container();
   readonly world = new Container();
   readonly hud = new Container();
   readonly debug = new Container();
@@ -30,14 +45,25 @@ export class Renderer {
   readonly eventLog = new EventLog();
   readonly camera = new Camera();
   private readonly inputDisplay = new InputDisplay();
-  private readonly matchHud = new MatchHud();
+  readonly matchHud = new MatchHud();
   private readonly tags = new OverheadTags();
-  /** Ports a CPU plays; their overhead tags are grey and read "CPU". */
-  readonly cpus = new Set<number>();
   private readonly stageLayer = new Container();
   private readonly stagePieces = new Graphics();
   private readonly fighterLayer = new Container();
+  private readonly foregroundLayer = new Container();
+  private stageView: StageView | null = null;
+  /**
+   * The backdrop renders at half resolution: its layers are soft parallax scenery, and drawn at full size they
+   * cost a software renderer (CI's SwiftShader, low-end Chromebooks) four times the fill for no visible gain.
+   */
+  private readonly backdrop = RenderTexture.create({
+    width: VIEW_WIDTH,
+    height: VIEW_HEIGHT,
+    resolution: 0.5,
+    antialias: true,
+  });
   private readonly boxes = new Graphics();
+  private readonly entities = new Graphics();
   private fighters: FighterView[] = [];
   /** Fighter id each view was built for; a transform swaps the view. */
   private fighterIds: string[] = [];
@@ -47,14 +73,26 @@ export class Renderer {
   private stage: StageGeometry | null = null;
   private matchKey: unknown = null;
 
-  private constructor(readonly app: Application) {
-    this.world.addChild(this.stageLayer, this.stagePieces, this.fighterLayer, this.boxes);
-    app.stage.addChild(this.world, this.hud, this.debug);
+  private constructor(
+    readonly app: Application,
+    readonly quality: RenderQuality,
+  ) {
+    this.world.addChild(
+      this.stageLayer,
+      this.stagePieces,
+      this.fighterLayer,
+      this.entities,
+      this.foregroundLayer,
+      this.boxes,
+    );
+    const backdrop = new Sprite(this.backdrop);
+    backdrop.visible = quality === 'full';
+    app.stage.addChild(backdrop, this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
     this.hud.addChild(this.tags.container, this.matchHud.hud.container);
   }
 
-  static async create(parent: HTMLElement): Promise<Renderer> {
+  static async create(parent: HTMLElement, quality: RenderQuality = 'full'): Promise<Renderer> {
     const app = new Application();
     await app.init({
       width: VIEW_WIDTH,
@@ -66,15 +104,22 @@ export class Renderer {
       autoStart: false,
     });
     parent.appendChild(app.canvas);
-    return new Renderer(app);
+    return new Renderer(app, quality);
   }
 
   private sync(state: MatchState): void {
     if (this.stageId !== state.config.stage) {
       this.stageId = state.config.stage;
       this.stage = getStage(state.config.stage);
-      this.stageLayer.removeChildren();
-      this.stageLayer.addChild(placeholderStage(this.stage));
+      for (const layer of [this.background, this.stageLayer, this.foregroundLayer])
+        layer.removeChildren().forEach((c) => c.destroy({ children: true }));
+      const create = STAGE_VIEWS[`../stages/${state.config.stage}/view.ts`]?.createStageView;
+      this.stageView = create ? create() : null;
+      if (this.stageView) {
+        this.background.addChild(this.stageView.background);
+        this.stageLayer.addChild(this.stageView.world);
+        if (this.stageView.foreground) this.foregroundLayer.addChild(this.stageView.foreground);
+      } else this.stageLayer.addChild(placeholderStage(this.stage));
     }
     if (this.matchKey !== state.config) {
       this.matchKey = state.config;
@@ -109,8 +154,10 @@ export class Renderer {
     const view = this.camera.viewFor(state, this.stage!);
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
+    this.stageView?.update(state.frame, view);
     drawMovingPieces(this.stagePieces, this.stage!, state.stage, state.frame, alpha);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
+    drawEntities(this.entities, state, alpha);
     this.drawBoxes(state);
     this.tags.update(
       state.fighters.map((f, i) => {
@@ -118,7 +165,7 @@ export class Renderer {
         const at = v?.container.position;
         return {
           port: f.port,
-          cpu: this.cpus.has(f.port),
+          cpu: this.matchHud.cpus.has(f.port),
           visible: !!v?.container.visible,
           x: this.world.position.x + (at?.x ?? 0) * view.zoom,
           y: this.world.position.y + ((at?.y ?? 0) - (v?.top ?? 0) - 1) * view.zoom,
@@ -136,6 +183,8 @@ export class Renderer {
     if (this.overlays.inputs) this.inputDisplay.update(state.players);
     this.eventLog.container.visible = this.overlays.events;
     if (this.overlays.events) this.eventLog.update();
+    if (this.quality === 'full')
+      this.app.renderer.render({ container: this.background, target: this.backdrop, clear: true });
     this.app.render();
   }
 
@@ -155,10 +204,11 @@ export class Renderer {
       for (const b of activeHitboxes(f))
         g.circle(b.x, -b.y, b.box.radius).fill({ color: b.box.grab ? '#a33cff' : '#ff2a2a', alpha: 0.55 });
     }
+    drawEntityBoxes(g, state);
   }
 }
 
-/** Collision geometry drawn flat, until the stage art lands. */
+/** Collision geometry drawn flat, for stages without art. */
 function placeholderStage(stage: StageGeometry): Graphics {
   const g = new Graphics();
   for (const solid of stage.solids) {

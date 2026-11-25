@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import ref from '../reference/physics-constants.json';
+import { SMASH_CHARGE_FRAMES } from '../actions/attack';
 import { SHIELD_DEPLETION } from '../constants';
 import type { FighterState } from '../fighter';
 import type { MatchState } from '../match';
@@ -313,6 +314,26 @@ describe('shield hits', () => {
     runPorts(m, 1, [{}, { buttons: ['shield'] }]);
     runPorts(m, v.hitlag + 1, [{}, { buttons: ['shield'] }]);
     expect(v.action).toBe('shieldBreak');
+  });
+
+  it('a full-power forward smash on a nearly empty shield empties it to 0, never below, then breaks it', () => {
+    const m = testMatch({ players: 2, fighter: 'johnny' });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    Object.assign(a, { pos: { x: -10, y: 0 }, prevPos: { x: -10, y: 0 }, facing: 1 });
+    Object.assign(v, { pos: { x: 2, y: 0 }, prevPos: { x: 2, y: 0 }, facing: -1 });
+    runPorts(m, 5, [{}, { buttons: ['shield'] }]);
+    expect(v.action).toBe('shield');
+    v.shieldHp = 5;
+    attack(m, 0, 'fsmash');
+    a.charge = SMASH_CHARGE_FRAMES;
+    const hp: number[] = [];
+    for (let i = 0; i < 60 && v.action !== 'shieldBreak'; i++) {
+      runPorts(m, 1, [{}, { buttons: ['shield'] }]);
+      hp.push(v.shieldHp);
+      for (const e of m.events) if (e.type === 'shieldHit') expect(e.shieldHp).toBe(0);
+    }
+    expect(m.events.some((e) => e.type === 'shieldBreak')).toBe(true);
+    expect(Math.min(...hp)).toBe(0);
   });
 });
 
