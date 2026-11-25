@@ -126,15 +126,12 @@ describe('Raft Wars kids: the launcher (jab, tilts, aerials)', () => {
   });
 
   it('back air shoves them forward past their air speed, forward air nudges them back', () => {
-    for (const [hold, sign] of [
-      [{ x: -100, buttons: ['attack'] }, 1],
-      [{ x: 100, buttons: ['attack'] }, -1],
-    ] as const) {
+    for (const x of [-100, 100]) {
       const { m, a } = setup(60);
-      start(m, hold);
-      runPorts(m, sign > 0 ? 10 : 9, [{}, {}]);
-      expect(Math.sign(a.vel.x)).toBe(sign);
-      if (sign > 0) expect(a.vel.x).toBeGreaterThan(stats.airSpeed);
+      start(m, { x, buttons: ['attack'] });
+      runPorts(m, x < 0 ? 10 : 9, [{}, {}]);
+      expect(Math.sign(a.vel.x)).toBe(-Math.sign(x));
+      if (x < 0) expect(a.vel.x).toBeGreaterThan(stats.airSpeed);
     }
   });
 
