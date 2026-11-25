@@ -22,7 +22,7 @@ export const DEPTH: Pt = [2.2, -2.6];
 export const ANGLE_STEP = 3;
 export const ANGLES = 360 / ANGLE_STEP;
 
-const OUTLINE = 0.9;
+const OUTLINE = 0.74;
 const INNER = 0.28;
 /** Light from the upper left (y down), for shading the bevel faces. */
 const LIGHT: Pt = [-0.37, -0.93];
@@ -115,25 +115,25 @@ function seeded(seed: number): () => number {
 type Stain = Blob & { color: ColorRef };
 
 const CLOUDS: Stain[] = [
-  { x: -2.6, y: -8.0, rx: 4.2, ry: 2.6, seed: 5, rot: -0.5, color: 'steelDark' },
-  { x: 2.8, y: -3.6, rx: 3.6, ry: 2.8, seed: 10, rot: 0.4, color: 'steelDark' },
-  { x: 2.6, y: -9.9, rx: 3.5, ry: 2.2, seed: 3, rot: 0.7, color: 'rust' },
-  { x: -3.8, y: -3.4, rx: 2.4, ry: 2, seed: 6, rot: -0.4, color: 'rust' },
-  { x: 1.4, y: -1.4, rx: 2.1, ry: 1.4, seed: 1, rot: 0.2, color: 'rust' },
-  { x: 1.9, y: -10.6, rx: 1.35, ry: 0.58, seed: 11, rot: 0.42, color: 'rust2' },
+  { x: -2.7, y: -8.4, rx: 3.5, ry: 3.7, seed: 5, rot: -0.5, color: 'steelDark' },
+  { x: 2.3, y: -3.6, rx: 3.5, ry: 3.2, seed: 10, rot: 0.4, color: 'steelDark' },
+  { x: 2.2, y: -9.1, rx: 3.9, ry: 3.2, seed: 3, rot: 0.7, color: 'rust' },
+  { x: -3.2, y: -4.6, rx: 3.1, ry: 2.7, seed: 6, rot: -0.4, color: 'rust' },
+  { x: -2.5, y: -1, rx: 2.3, ry: 2.1, seed: 1, rot: 0.2, color: 'rust' },
+  { x: 3.3, y: -9.9, rx: 1.4, ry: 1.1, seed: 11, rot: 0.42, color: 'rust2' },
 ];
 
 const PITS: Stain[] = (() => {
   const rnd = seeded(23);
-  return Array.from({ length: 15 }, (_, i) => {
-    const r = 0.12 + rnd() * 0.28;
+  return Array.from({ length: 28 }, (_, i) => {
+    const r = 0.08 + rnd() * 0.18;
     return {
       x: (rnd() - 0.5) * 11,
       y: -0.5 - rnd() * 11,
       rx: r,
       ry: r * 0.8,
       seed: rnd() * 60,
-      n: 10,
+      n: 7,
       color: i % 4 === 0 ? 'rust2' : 'steelDark',
     };
   });
@@ -151,14 +151,39 @@ function face(hw: number, hh: number, simple = false): PathShape[] {
   const stains = simple ? CLOUDS.filter((c) => c.rx > 2.4) : [...CLOUDS, ...PITS];
   return [
     { d: outline, fill: 'steel' },
-    ...stains.flatMap((s) => {
-      const pts = clipBox(blob(s), -hw + 0.08, -hh + 0.08, hw - 0.08, 0);
-      if (pts.length < 3) return [];
+    ...stains.flatMap((s): PathShape[] => {
+      const painted = !simple && s.rx > 1;
+      const pts = blob(s, painted ? 1.35 : 1);
       // Matching opposite ends keep this stateless rig continuous when a two-tip cycle returns to idle.
-      return [
-        { d: poly(pts), fill: s.color },
-        { d: poly(pts.map(([x, y]) => [-x, -y])), fill: s.color },
-      ];
+      return ([1, -1] as const).flatMap((dir): PathShape[] => {
+        const clipped = clipBox(
+          dir === 1 ? pts : pts.map(([x, y]) => [-x, -y]),
+          -hw + 0.08,
+          -hh + 0.08,
+          hw - 0.08,
+          hh - 0.08,
+        );
+        if (clipped.length < 3) return [];
+        return [
+          {
+            d: poly(clipped),
+            fill: painted
+              ? {
+                  type: 'radial',
+                  cx: dir * s.x,
+                  cy: dir * s.y,
+                  r: Math.max(s.rx, s.ry) * 1.11,
+                  stops: [
+                    { color: s.color, offset: 0, alpha: 0.64 },
+                    { color: s.color, offset: 0.32, alpha: 0.62 },
+                    { color: s.color, offset: 0.67, alpha: 0.32 },
+                    { color: s.color, offset: 1, alpha: 0 },
+                  ],
+                }
+              : s.color,
+          },
+        ];
+      });
     }),
     ...(simple ? [] : ([-1, 1] as const)).flatMap((dir): PathShape[] => [
       {

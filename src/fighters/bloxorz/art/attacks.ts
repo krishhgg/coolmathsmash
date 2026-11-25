@@ -73,42 +73,42 @@ const wave = (x: number, s: number, dir: 1 | -1): Fx | undefined =>
  */
 function tumbling(form: Form, a: number, { start, frames, count }: typeof TUMBLE): Frame {
   const t = a - start;
+  const rolling = start === ROLL.start;
   if (t < 0) {
-    const v =
-      1 -
-      0.08 *
-        tl(a, [
-          [0, 0],
-          [start, 1, 'out'],
-        ]);
-    return { block: rock(form, -3 * (a / Math.max(1, start)), sq(form, v)) };
+    const brace = a / start;
+    return {
+      block: ground(form, -15 * brace, sq(form, 1 - 0.13 * brace)),
+      fx: rolling ? { hitB: { sym: 'skid', x: -form.hw, y: 0, sx: 0.7 + brace * 0.8 } } : undefined,
+    };
   }
   const total = count * frames;
   const u = t % frames;
   const done = t >= total;
-  const block = done ? settle(form, t - total, {}, 1.3) : tipFrame(form, u, frames);
+  const block = done ? settle(form, t - total, {}, rolling ? 2.3 : 1.6) : tipFrame(form, u, frames);
   const age = done ? t - total + 1 : u >= frames - 2 ? u - frames + 1 : t >= frames && u < 2 ? u + 1 : -9;
   const moved = done ? 0 : u >= frames - 2 ? tipOffset(u, frames) - 18 : tipOffset(u, frames);
-  const rolling = start === ROLL.start;
+  const finishing = done || t >= total - frames;
+  const [cx, cy] = centre(block);
   const skid = !rolling && age >= -1 && age <= 2 ? { sym: 'skid', x: form.hw + 1 - moved, y: 0 } : undefined;
   const speed =
-    !done && (rolling || (u >= 2 && u <= 7))
-      ? {
-          sym: 'streak',
-          x: -form.hw - 1,
-          y: -form.hh,
-          sx: rolling ? 1.25 : 0.7,
-          sy: rolling ? 1.2 : 0.8,
-        }
-      : undefined;
+    done || u < 2 || u > 8
+      ? undefined
+      : rolling
+        ? { sym: 'sweep', x: cx + 1, y: cy, rot: -26 + u * 6, sx: finishing ? 1.35 : 1.15, sy: 1.05 }
+        : { sym: 'streak', x: -form.hw + 2, y: -1.5, sx: 1, sy: 0.62 };
   if (age < -1 || age > 2) return { block, fx: { back: speed } };
+  const strikeX = form.hw + 2.2 - moved;
   return {
     block,
     fx: {
-      ...landing(-moved, form.hw, age, 0.8, 4),
+      ...landing(-moved, form.hw, age, rolling && finishing ? 1.45 : 0.8, 4),
       back: speed,
-      hitB: skid,
-      hitA: { sym: 'slam', x: form.hw + 2.2 - moved, y: 0, sx: 0.95, sy: age < 0 ? 0.8 : 1 },
+      hitB: rolling && age >= 0 ? wave(strikeX + age * 2.1, finishing ? 1.4 : 0.8, 1) : skid,
+      hitA: { sym: 'slam', x: strikeX, y: 0, sx: 0.95, sy: age < 0 ? 0.8 : 1 },
+      starA:
+        rolling && age >= 0
+          ? { sym: 'ring', x: strikeX, y: 0, sx: (finishing ? 0.95 : 0.6) + 0.35 * age, sy: 0.32 }
+          : undefined,
     },
   };
 }
