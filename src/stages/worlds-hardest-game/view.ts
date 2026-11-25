@@ -1,14 +1,8 @@
 import { Container, Graphics } from 'pixi.js';
-import type { StageState } from '../../sim/movingStage';
 import { type StageCamera, VIEW_H, VIEW_W } from '../battlefield/art/parallax';
+import type { StageView, StageViewFrame } from '../battlefield/view';
 import { createHazards } from './art/hazards';
 import { createPlayfield } from './art/playfield';
-
-interface StageFrame {
-  pieces: StageState;
-  hazards: boolean;
-  alpha: number;
-}
 
 export function createStageView() {
   const background = new Graphics({ label: 'worlds-hardest-game-lavender' })
@@ -21,11 +15,11 @@ export function createStageView() {
   return {
     background,
     world,
-    drawsStagePieces: true as const,
-    update(frame: number, _camera: StageCamera, stageFrame?: StageFrame) {
+    drawsStagePieces: true,
+    update(frame: number, _camera: StageCamera, stageFrame?: StageViewFrame) {
       for (const [index, platform] of platforms.entries())
         platform.visible = stageFrame?.pieces.platforms[index]?.on ?? true;
       hazards.update(frame, stageFrame?.alpha ?? 1, stageFrame?.hazards ?? false);
     },
-  };
+  } satisfies StageView;
 }
