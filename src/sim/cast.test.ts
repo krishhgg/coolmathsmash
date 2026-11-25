@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { getFighter } from '../fighters/registry';
 import { castSegment } from './cast';
 import type { FighterState } from './fighter';
 import { testMatch } from './testing/sim';
@@ -62,6 +63,20 @@ describe('castSegment', () => {
     expect(hit!.point.x).toBeCloseTo(b.pos.x - 4, 6);
     expect(castSegment(m, { x: 0, y: 7 }, { x: 40, y: 7 }, { ...fighters, ignore: 1 })).toBeNull();
     expect(castSegment(m, { x: 0, y: 7 }, { x: 40, y: 7 }, none)).toBeNull();
+  });
+
+  it('hits the horizontal core of a body wider than it is tall', () => {
+    const { m, b } = match();
+    Object.assign(b, { fighter: 'wheely' });
+    const fighters = { platforms: false, fighters: true };
+    const stats = getFighter('wheely').stats;
+    const hw = stats.width / 2 - stats.height / 2;
+    // A vertical cast beside the centre, through the right end of the car body only.
+    const x = b.pos.x + hw + stats.height / 2 - 1;
+    expect(hw).toBeGreaterThan(1);
+    const hit = castSegment(m, { x, y: 20 }, { x, y: 1 }, fighters);
+    expect(hit).toMatchObject({ kind: 'fighter', port: 1 });
+    expect(hit!.point.y).toBeGreaterThan(stats.height / 2);
   });
 
   it('returns the nearest of everything it touches', () => {

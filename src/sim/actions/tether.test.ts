@@ -61,6 +61,23 @@ function until(
   expect(pred()).toBe(true);
 }
 
+/** The tether tester on the testbed stage, at (`x`, 1) on the floor. */
+function onTestbed(x: number) {
+  const m = testMatch({ fighter: tetherTester.id, stage: 'testbed' });
+  const a = m.fighters[0]!;
+  Object.assign(a, { pos: { x, y: 1 }, prevPos: { x, y: 1 }, vel: { x: 0, y: 0 }, ground: null });
+  Object.assign(a, { action: 'fall', actionFrame: 1, jumpsUsed: 1, facing: 1, intangible: 0 });
+  runPorts(m, 20, []);
+  const events: SimEvent[] = [];
+  const step = (frames: number, holds: Hold[] = []) => {
+    for (let i = 0; i < frames; i++) {
+      runPorts(m, 1, holds);
+      events.push(...m.events.filter((e) => e.type.startsWith('tether')));
+    }
+  };
+  return { m, a, events, step };
+}
+
 describe('tethers', () => {
   it('Quick Grapple fires straight up on frame 8, anchors under a platform and reels in at 4 units a frame', () => {
     const { m, a, events, step } = setup(0);
@@ -106,6 +123,32 @@ describe('tethers', () => {
     expect([a.action, a.tether]).toEqual(['fall', null]);
     expect(a.vel.x).toBeCloseTo(0, 9);
     expect(a.vel.y).toBeCloseTo(-tetherTester.stats.gravity, 9);
+  });
+
+  it('an anchor on a moving platform rides it', () => {
+    const { m, a, step } = onTestbed(0);
+    attack(m, 0, 'upB');
+    const jump: Hold[] = [{ buttons: ['jump'] }];
+    until(step, () => a.action === 'tetherHang', jump);
+    expect(a.tether!.surface).toEqual({ kind: 'platform', index: 0 });
+    const before = { x: a.pos.x, offset: m.stage.platforms[0]!.x };
+    step(60, jump);
+    const moved = m.stage.platforms[0]!.x - before.offset;
+    expect(moved).toBeGreaterThan(1);
+    expect(Math.abs(a.pos.x - before.x - moved)).toBeLessThan(0.5);
+    expect(a.pos.y).toBeCloseTo(a.tether!.anchor.y - HAND, 6);
+  });
+
+  it('a platform that goes away drops the line', () => {
+    const { m, a, events, step } = onTestbed(0);
+    while (m.frame < 160) step(1);
+    attack(m, 0, 'upB');
+    const jump: Hold[] = [{ buttons: ['jump'] }];
+    until(step, () => a.action === 'tetherHang', jump);
+    expect(a.tether!.surface).toEqual({ kind: 'platform', index: 1 });
+    while (m.frame < 202) step(1, jump);
+    expect(a.tether).toBeNull();
+    expect(events.at(-1)).toEqual({ type: 'tetherRelease', port: 0 });
   });
 
   it('the stick bends Quick Grapple by up to 30 degrees towards where it points', () => {

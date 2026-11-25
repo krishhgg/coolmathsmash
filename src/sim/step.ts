@@ -2,7 +2,7 @@ import { getFighter } from '../fighters/registry';
 import { getStage } from '../stages/registry';
 import './actions';
 import { actionDef, runAction } from './actions/registry';
-import { dropLostTether } from './actions/tether';
+import { dropLostTether, rideAnchor } from './actions/tether';
 import { stepTetherMove } from './actions/tetherCast';
 import { applyLaunch } from './combat/hits';
 import {
@@ -50,6 +50,7 @@ export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): voi
   const x = makeCtx(m, f, p);
   f.prevPos = { x: f.pos.x, y: f.pos.y };
   dropLostTether(m, f);
+  rideAnchor(m, f);
   if (f.hitlag > 0) {
     f.hitlag--;
     return;

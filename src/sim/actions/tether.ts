@@ -41,6 +41,18 @@ export function releaseTether(m: MatchState, f: FighterState): void {
 }
 
 /**
+ * Carry a surface anchor with the piece it is on: the anchor is stored as a point within the piece, so a moving
+ * platform drags the line (and the hanging fighter) along, and a piece that goes away drops the line.
+ */
+export function rideAnchor(m: MatchState, f: FighterState): void {
+  const t = f.tether;
+  if (!t?.surface || !t.local) return;
+  const piece = (t.surface.kind === 'solid' ? m.stage.solids : m.stage.platforms)[t.surface.index];
+  if (!piece || !piece.on) return releaseTether(m, f);
+  t.anchor = { x: t.local.x + piece.x, y: t.local.y + piece.y };
+}
+
+/**
  * Before each fighter steps: drop a tether whose fighter left the tether (hit, grabbed, landed, KO'd), so the line
  * only exists while its move or the reel is running.
  */
@@ -120,9 +132,11 @@ export const TETHER_ACTIONS: Record<string, ActionDef> = {
     drift: false,
     gravity: false,
     update(x) {
-      const { f, c } = x;
+      const { f, c, s } = x;
       const t = moveOf(f)?.tether;
       f.vel = { x: 0, y: 0 };
+      if (f.tether?.surface)
+        f.pos = { x: f.tether.anchor.x, y: f.tether.anchor.y - s.height * TETHER.handHeight };
       if (justPressed(c, Btn.Jump)) consume(c, Btn.Jump);
       else if (t?.hang && f.tether && isHeld(c, buttonBit(t.hang))) return;
       letGo(x, false);

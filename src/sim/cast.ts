@@ -108,10 +108,12 @@ function circleEntry(from: Vec, d: Vec, c: Vec, r: number): number | null {
 
 /** First t at which `from + t·d` touches the hurtbox capsule, or null. */
 function capsuleEntry(from: Vec, d: Vec, h: Hurtbox): number | null {
+  const hw = h.hw ?? 0;
   const dist = (t: number) => {
     const p = { x: from.x + d.x * t, y: from.y + d.y * t };
+    const x = Math.min(Math.max(p.x, h.x - hw), h.x + hw);
     const y = Math.min(Math.max(p.y, h.y1), h.y2);
-    return Math.hypot(p.x - h.x, p.y - y);
+    return Math.hypot(p.x - x, p.y - y);
   };
   if (dist(0) <= h.r) return 0;
   let lo = 0;
