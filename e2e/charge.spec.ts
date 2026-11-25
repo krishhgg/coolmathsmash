@@ -28,3 +28,26 @@ test('the harness registers the charge test fighter, and a stored charge glows',
   });
   expect(glowing.equals(await canvas.screenshot())).toBe(false);
 });
+
+test('a charging move glows', async ({ page }) => {
+  await page.goto('/?harness');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.evaluate(async () => {
+    const s = window.__smash!;
+    s.newMatch({ ports: [{ fighter: 'test-charger' }, { fighter: 'fireboy' }] });
+    s.step(10);
+    const start = s.frame();
+    s.runScript([{ port: 0, from: start, to: start + 60, buttons: ['special'] }], start + 40);
+    await s.render();
+  });
+  const canvas = page.locator('#app canvas');
+  const glowing = await canvas.screenshot();
+  const charge = await page.evaluate(async () => {
+    const charge = window.__smash!.getState().fighters[0]!.charge;
+    window.__smash!.patch(0, { charge: 0 });
+    await window.__smash!.render();
+    return charge;
+  });
+  expect(charge).toBeGreaterThan(20);
+  expect(glowing.equals(await canvas.screenshot())).toBe(false);
+});
