@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { createCpu } from '../../ai';
+import { neutralInput } from '../../input/types';
 import ref from '../../sim/reference/physics-constants.json';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
-import { createMatch, type MatchState } from '../../sim/match';
+import { createMatch, stepMatch, type MatchState } from '../../sim/match';
 import { koPercent, type KoHit } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
@@ -633,4 +635,30 @@ describe('Snail Bob: Rocket Hover (up special)', () => {
     expect(a.ground !== null || a.action.startsWith('ledge')).toBe(true);
     expect(Math.abs(a.pos.x)).toBeLessThanOrEqual(80);
   });
+
+  it.each([4, 7, 9])(
+    'a level %d CPU holds the hover from below the ledge after Mario launches him, back to the stage',
+    (level) => {
+      const { m, a, v } = vsMario();
+      Object.assign(place(a, 72), { facing: -1, damage: 20 });
+      Object.assign(place(v, 64), { facing: 1 });
+      runPorts(m, 2, [{}, {}]);
+      attack(m, 1, 'probe');
+      for (let i = 0; i < 300 && (a.ground || a.pos.y > -30); i++) runPorts(m, 1, [{}, {}]);
+      expect(a.pos.y).toBeLessThan(-30);
+      a.jumpsUsed = stats.jumps;
+      const cpu = createCpu({ port: 0, level, seed: 5 });
+      let fuel = a.mobility.hoverFuel;
+      let safe = false;
+      for (let i = 0; i < 600 && !safe; i++) {
+        stepMatch(m, [cpu.input(m), neutralInput()]);
+        fuel = Math.min(fuel, a.mobility.hoverFuel);
+        safe = a.ground !== null || a.action === 'ledgeHang';
+      }
+      expect(a.stocks).toBe(3);
+      expect(safe).toBe(true);
+      // Rode the tank up instead of tapping it: a tap burns one frame of fuel and falls.
+      expect(fighter.hover.fuel - fuel).toBeGreaterThan(30);
+    },
+  );
 });
