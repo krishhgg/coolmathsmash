@@ -108,6 +108,8 @@ export interface FighterState {
   aim: Vec | null;
   /** Frames before stage hazards (damage zones, stage hitboxes) can hit this fighter again. */
   stageHitLock: number;
+  /** Holds a Final Smash charge: broke the Coolmath Planet (src/sim/items/planet.ts) and has not lost it yet. */
+  finalReady: boolean;
 }
 
 export function createFighter(
@@ -166,6 +168,7 @@ export function createFighter(
     tether: null,
     aim: null,
     stageHitLock: 0,
+    finalReady: false,
   };
 }
 
