@@ -14,6 +14,8 @@ export interface CpuMatchOptions {
   levels: number[];
   fighters?: string[];
   stage?: string;
+  /** Stage hazards (MatchConfig.hazards); on by default. */
+  hazards?: boolean;
   stocks?: number;
   /** Time limit in frames (default 8 minutes). */
   maxFrames?: number;
@@ -48,6 +50,7 @@ export function runCpuMatch(o: CpuMatchOptions): CpuMatchResult {
   const config: MatchConfig = {
     seed: o.seed,
     stage: o.stage ?? 'battlefield',
+    ...(o.hazards === undefined ? {} : { hazards: o.hazards }),
     stocks: o.stocks ?? 3,
     ports: Array.from({ length: n }, (_, i) => ({ fighter: o.fighters?.[i] ?? 'fireboy' })),
   };

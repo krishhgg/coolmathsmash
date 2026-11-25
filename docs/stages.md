@@ -25,13 +25,20 @@ export interface StageView {
   background: Container; // screen space, 1280x720, drawn first; parallaxes from the camera
   world: Container; // game units at (x, -y); the renderer puts it inside its world container, under fighters
   foreground?: Container; // game units, drawn over fighters (keep it sparse: it hides fighters)
-  update(frame: number, camera: StageCamera): void; // called every rendered frame
+  drawsPieces?: boolean; // the view draws its own moving pieces, so the renderer skips its placeholders
+  update(frame: number, camera: StageCamera, match?: StageMatch): void; // called every rendered frame
 }
 export function createStageView(): StageView;
 ```
 
-`StageView` and `StageCamera` are exported from `src/stages/battlefield/view.ts`; a new stage exports its own
-`createStageView` with the same shape.
+`StageView`, `StageMatch` and `StageCamera` are exported from `src/stages/battlefield/view.ts`; a new stage exports
+its own `createStageView` with the same shape.
+
+The renderer passes `match`: `{ pieces, hazards, alpha }`, the match's `StageState` (every solid and platform's
+offset this frame and whether it is there), the hazards switch and the interpolation between the last two simulated
+frames. A stage with moving pieces sets `drawsPieces` and draws each piece at `x - dx * (1 - alpha)`; without it the
+renderer draws them as flat placeholder shapes over the art (docs/stage-geometry.md). The stage lab calls `update`
+without `match`, so a view should fall back to `stageStateAt(stage, frame)`, the hazards-on layout.
 
 ## Layers and parallax
 
@@ -111,3 +118,18 @@ Games planet. The main platform is a sandstone cap carved with a math frieze ove
 medallion and a red and a blue gem; the soft platforms are thin slabs whose hanging gems are red (left),
 green (top) and blue (right). The background (sky, sun rays, ringed planet, mountains, floating ruins with a pi arch
 and a small temple front, a cloud sea, waterfalls) sits in screen space with the depths above.
+
+## Truck Convoy
+
+`src/stages/wheely-trucks/`: Wheely's stage. The fight is on the roof of a car carrier driving right along a
+viaduct: the 160-unit deck runs over the trailer and the cab-over cab, which has Wheely-style eyes on its windscreen.
+The two soft platforms are the upper decks of two car haulers in the far lane (`HAULERS` in `geometry.ts`). With
+hazards on they are traffic: level with the carrier for 4 s, falling back 36 units together, level again, then
+pulling ahead 36, on a 24 s loop (`HAULER_MOTION`) that is never faster than 0.45 units a frame. Their brake lights
+come on 45 frames before they fall back. At the far end of each move one deck hangs 17 units past a ledge, as a
+recovery spot or an edge-guard perch, and its inner end is always over the carrier. With hazards off they stay
+level with the carrier, 26 above the deck from 23 to 61 out each side (close to Battlefield's side platforms). The view draws the haulers itself (`drawsPieces`) from the match.
+
+The road, the viaduct's side and its piers are world art that slides left at `ROAD_SPEED` (2 units a frame), and
+the backdrop's clouds, mountains and valley slide by their depth times that speed, so the parallax reads as speed
+while the trucks hold still. The stage plays the `wheely-trucks` music track because its id matches.
