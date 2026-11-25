@@ -209,6 +209,43 @@ export const SCENARIOS: Scenario[] = [
     requires: ['hud'],
   },
   {
+    name: 'hud-hit',
+    description:
+      "P2 at 48% takes P1's forward smash; capture the frame P2's damage goes up, when the HUD number pops and flashes.",
+    page: { kind: 'game' },
+    patches: faceOff({ damage: 48 }),
+    script: FSMASH,
+    capture: {
+      label: "P2's damage rises",
+      when: (s, prev) => P2(s).damage > P2(prev).damage,
+    },
+    motion: { before: 10, after: 30 },
+    requires: ['hud', 'move:fsmash'],
+  },
+  {
+    name: 'title',
+    description: 'Title screen: the Coolmath Smash logo on the Coolmath planet, "Press Start".',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'title' } },
+  },
+  {
+    name: 'main-menu',
+    description:
+      'Main menu: the big Smash tile focused, Controls and Options beside it, description bar below.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'main' } },
+  },
+  {
+    name: 'css-2p',
+    description:
+      'Character select, 1v1: P1 (keyboard) has picked Fireboy, a level 9 CPU on Random; Ready to fight shows.',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'css', preset: '2p' } },
+  },
+  {
+    name: 'css-4p',
+    description:
+      'Character select, four panels: P1 picked, P2 on a gamepad still choosing, two CPUs (Lv 5, Lv 9).',
+    page: { kind: 'lab', scene: 'menu', params: { screen: 'css', preset: '4p' } },
+  },
+  {
     name: 'stage',
     description: 'Coolmath Battlefield on its own at the reference camera (centre 0,20, zoom 4.5).',
     page: { kind: 'lab', scene: 'stage' },

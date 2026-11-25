@@ -4,6 +4,7 @@
  * (game units, units/frame, frames at 60 Hz) so reference data can be used as-is. See docs/fighters.md.
  */
 
+import type { ActionDef } from '../sim/actions/registry';
 import type { Ctx } from '../sim/fighter';
 
 export interface FighterStats {
@@ -78,7 +79,18 @@ export interface HitboxDef {
    * behind him, or away from his centre for hits that surround him.
    */
   direction?: 'forward' | 'back' | 'away';
+  /**
+   * A grab box: no damage or knockback (leave those 0). Touching a fighter in front of the grabber puts both in
+   * a grab; it ignores shields and is halved in radius against airborne fighters (Ultimate).
+   */
+  grab?: boolean;
 }
+
+/** A throw's release hit: a hitbox without a position, since it lands on the held fighter wherever they are. */
+export type ThrowHitDef = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius' | 'grab' | 'direction'> & {
+  /** 'back' launches behind the thrower (back throws). */
+  direction?: 'forward' | 'back';
+};
 
 /** A window of frames (inclusive) during which a set of hitboxes is out. */
 export interface HitWindow {
@@ -104,22 +116,48 @@ export interface MoveDef {
   autoCancel?: [number, number][];
   /** Smash attacks: holding the input pauses the move on this frame for up to 60 frames, for up to 1.4x damage. */
   charge?: number;
+  /**
+   * Jab combos: Attack (pressed, buffered or held) with no stick direction during `window` (inclusive) cancels this
+   * grounded move into `move`, the next hit of the combo (jab -> jab2 -> jab3).
+   */
+  next?: { window: [number, number]; move: string };
   /** Specials that take off (recoveries): a grounded start leaves the ground and plays as an aerial. */
   leavesGround?: boolean;
   /** Frames (inclusive) on which the fighter is intangible, as on a getup attack. */
   intangible?: [number, number];
+  /**
+   * Armor (Ultimate): on `frames` (inclusive) hits still add damage and hitlag, but they don't launch, cause
+   * hitstun or interrupt the move. A hit breaks through when its knockback reaches `threshold` or its damage
+   * reaches `damageThreshold`; with neither set it is heavy armor and nothing breaks through.
+   */
+  armor?: { frames: [number, number]; threshold?: number; damageThreshold?: number };
   /** Recoveries: the move ends in helpless fall instead of a normal fall. */
   helpless?: boolean;
   /** Airborne moves that may grab a ledge from this frame. */
   ledgeFrom?: number;
   /** Landing doesn't end the move: it carries on from the same frame on the ground, with no landing lag. */
   continuesOnLanding?: boolean;
+  /** Airborne moves: false turns off the stick's air drift (and air friction) while the move plays, for scripted paths. */
+  drift?: boolean;
+  /**
+   * Ground/air variants (Ultimate's SpecialN and SpecialAirN): started in the air, this move plays the move named
+   * `air` instead, which is also the clip and the name in the `move` event.
+   */
+  air?: string;
   /**
    * Transform (Zelda/Sheik style): on `frame` the fighter becomes fighter `into`, keeping its %, stocks, position
    * and everything else in FighterState; stats, moves and art switch. `into` must have a move of the same name,
    * which plays the rest of the move.
    */
   transform?: { frame: number; into: string };
+
+  /** Pummels: on `frame` the held fighter takes `damage` and hitlag (x `hitlag`) but no knockback, and stays held. */
+  pummel?: { frame: number; damage: number; hitlag?: number };
+  /**
+   * Throws: on `frame` the held fighter is let go and takes `hit` through the normal knockback path (DI,
+   * staleness and rage included). Throws have no hitlag unless `hit.hitlag` sets a multiplier, as in Ultimate.
+   */
+  throw?: { frame: number; hit: ThrowHitDef };
   /**
    * Scripted behaviour (specials): runs every frame of the move before physics, after actionFrame advances.
    * It may set velocity or facing. Keep it deterministic: no Math.random, no clocks.
@@ -135,9 +173,16 @@ export interface FighterDef {
   stats: FighterStats;
   /**
    * Moves by name. Normals use Smash's names: jab, ftilt, utilt, dtilt, dashAttack, fsmash, usmash, dsmash,
-   * nair, fair, bair, uair, dair. The name is also the animation clip name.
+   * nair, fair, bair, uair, dair; grabs are grab, dashGrab, pivotGrab, pummel, fthrow, bthrow, uthrow, dthrow.
+   * The name is also the animation clip name.
    */
   moves?: Record<string, MoveDef>;
+  /**
+   * This fighter's own versions of shared actions, by action name (`walk`, `dash`, `run`, `crouch`, ...), used
+   * instead of the shared ones in `src/sim/actions/`, or new actions only this fighter enters. Bloxorz block tips
+   * end over end instead of walking. Keep them deterministic, like move scripts.
+   */
+  actions?: Record<string, ActionDef>;
   /** Art data for the renderer (src/render/rig). Plain data, no renderer imports. */
   art?: unknown;
   /** False for forms reached only by transforming (Watergirl), so menus list only the fighter that starts. */

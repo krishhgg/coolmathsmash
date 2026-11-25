@@ -327,6 +327,32 @@ export function rms(x: Float32Array): number {
   return Math.sqrt(s / Math.max(1, x.length));
 }
 
+/**
+ * Integrated loudness in LUFS (ITU-R BS.1770: K-weighting, 400 ms blocks every 100 ms, absolute gate at
+ * -70 LUFS and relative gate 10 LU below), summed over the channels.
+ */
+export function loudness(channels: readonly Float32Array[]): number {
+  const k = channels.map((x) =>
+    filter(filter(x, 'highshelf', 1681.97, 0.7072, 4), 'highpass', 38.135, 0.5003),
+  );
+  const n = Math.min(...k.map((c) => c.length));
+  const sums = new Float64Array(n + 1);
+  for (let i = 0; i < n; i++) {
+    let s = 0;
+    for (const c of k) s += c[i]! * c[i]!;
+    sums[i + 1] = sums[i]! + s;
+  }
+  const block = samples(0.4);
+  const blocks: number[] = [];
+  for (let s = 0; s + block <= n; s += samples(0.1)) blocks.push((sums[s + block]! - sums[s]!) / block);
+  const lufs = (ms: number) => -0.691 + 10 * Math.log10(ms);
+  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const loud = blocks.filter((ms) => lufs(ms) > -70);
+  if (loud.length === 0) return -Infinity;
+  const gate = lufs(mean(loud)) - 10;
+  return lufs(mean(loud.filter((ms) => lufs(ms) > gate)));
+}
+
 export function normalize(x: Float32Array, target = 0.9): Float32Array {
   const p = peak(x);
   return p > 0 ? mul(x, target / p) : x;

@@ -1,10 +1,38 @@
 {
+  "battlefield": {
+    "file": "music/battlefield.mp3",
+    "title": "Battlefield",
+    "evokes": "a Smash-style Battlefield stage theme",
+    "loopStart": 0,
+    "loopEnd": 45.714286
+  },
+  "bloxorz-platform": {
+    "file": "music/bloxorz-platform.mp3",
+    "title": "Bloxorz Board",
+    "evokes": "an original theme in the spirit of Bloxorz's calm, cerebral puzzle music",
+    "loopStart": 0,
+    "loopEnd": 37.5
+  },
   "bob-the-robber-level-1": {
     "file": "music/bob-the-robber-level-1.mp3",
     "title": "Bob's First Heist",
     "evokes": "Bob the Robber (Flazm): an original sneaky heist-jazz theme in the spirit of the game",
     "loopStart": 0,
     "loopEnd": 40
+  },
+  "coolmath-planet": {
+    "file": "music/coolmath-planet.mp3",
+    "title": "Coolmath Planet",
+    "evokes": "an original Final Destination theme with a nod to the main menu's motif",
+    "loopStart": 0,
+    "loopEnd": 38.4
+  },
+  "forest-temple": {
+    "file": "music/forest-temple.mp3",
+    "title": "Forest Temple",
+    "evokes": "an original theme in the spirit of Fireboy and Watergirl in the Forest Temple",
+    "loopStart": 0,
+    "loopEnd": 41.142857
   },
   "johnny-upgrade-boss": {
     "file": "music/johnny-upgrade-boss.mp3",
@@ -26,6 +54,13 @@
     "evokes": "Raft Wars (Martijn Kunst): an original sunny calypso-ska water fight in the spirit of the game's music",
     "loopStart": 0,
     "loopEnd": 36.455692
+  },
+  "run-tunnel": {
+    "file": "music/run-tunnel.mp3",
+    "title": "Run Tunnel",
+    "evokes": "an original theme in the spirit of Run and Run 3's spacey electronica",
+    "loopStart": 0,
+    "loopEnd": 37.5
   },
   "worlds-hardest-game": {
     "file": "music/worlds-hardest-game.mp3",
