@@ -2,6 +2,7 @@ import type { HitboxDef, MoveDef } from '../types';
 import { Btn } from '../../input/types';
 import { isHeld, stickX } from '../../sim/control';
 import type { Ctx } from '../../sim/fighter';
+import { grenade } from './grenade';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -316,6 +317,7 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 20, hit: { damage: 6, angle: 80, kbg: 50, bkb: 70 } },
   },
+  sideB: grenade,
   /**
    * Rocket Ride (up special): Simon's brother rides a rocket about 110 units up and forward, steerable 30 degrees
    * either side of vertical, and it explodes at the end. The ride clips whoever it touches; the explosion is the
