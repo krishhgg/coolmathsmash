@@ -146,6 +146,7 @@ export const TETHER_ACTIONS: Record<string, ActionDef> = {
         }
         if (!t.hang || !isHeld(c, buttonBit(t.hang))) return letGo(x, false);
         const move = f.move;
+        tether.moveFrame = (tether.moveFrame ?? 1) + f.actionFrame - 1;
         setAction(x, 'tetherHang');
         f.move = move;
         return;

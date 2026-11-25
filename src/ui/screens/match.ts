@@ -1,7 +1,8 @@
 import { audio } from '../../audio';
 import type { Game } from '../../game';
 import { padSlots } from '../../input/gamepad';
-import { readDevice } from '../../session/devices';
+import { pausePrompts } from '../../session/controls';
+import { padIndex, readDevice } from '../../session/devices';
 import { MatchSession, countdownCallout, formatClock } from '../../session/match';
 import { resolveMatch } from '../../session/setup';
 import type { Flow, Screen, ScreenDef } from '../app';
@@ -11,10 +12,21 @@ import { isDirection, type MenuEvent } from '../input';
 import { Focus } from '../nav';
 import './match.css';
 
+/**
+ * The seed Restart hands to the next match screen. Restart replays the same battle, like retrying in Ultimate: the
+ * seed resolves Random fighters, costumes and stage exactly as before. Rematch and a new start draw a fresh seed, as
+ * Ultimate re-rolls Random for every new battle.
+ */
+let restartSeed: number | null = null;
+
 export const screen: ScreenDef = {
   route: 'match',
   needsGame: true,
-  create: (flow) => matchScreen(flow, flow.game!),
+  create: (flow) => {
+    const seed = restartSeed ?? newSeed();
+    restartSeed = null;
+    return matchScreen(flow, flow.game!, seed);
+  },
 };
 
 /** Frames the match keeps running after the deciding KO, before it freezes under GAME!. */
@@ -58,18 +70,8 @@ export function matchScreen(flow: Flow, game: Game, seed = newSeed()): Screen {
       h('span', null, { resume: 'Resume', restart: 'Restart', quit: 'Quit' }[act]),
     ),
   );
-  const panel = h(
-    'div',
-    { class: 'pause-panel' },
-    items,
-    h(
-      'div',
-      { class: 'pause-tip' },
-      h('span', null, h('b', null, '↑↓'), ' Move'),
-      h('span', null, h('b', null, 'F · A'), ' Select'),
-      h('span', null, h('b', null, 'Esc · Start'), ' Resume'),
-    ),
-  );
+  const tip = h('div', { class: 'pause-tip' });
+  const panel = h('div', { class: 'pause-panel' }, items, tip);
   const pauseLayer = h(
     'div',
     { class: 'pause-layer', hidden: true },
@@ -86,10 +88,24 @@ export function matchScreen(flow: Flow, game: Game, seed = newSeed()): Screen {
   let finaleAt = -1;
   let unsubscribe = () => {};
 
+  /** The tip from the saved bindings, with the gamepad's buttons only while a pad is plugged in or playing. */
+  function showTip(): void {
+    const pad =
+      padSlots().some((p) => p !== null) ||
+      match.controllers.some((c) => c.kind === 'human' && c.device !== null && padIndex(c.device) >= 0);
+    const prompts = pausePrompts(flow.settings.keyboard[0], pad ? flow.settings.gamepad : null);
+    tip.replaceChildren(
+      h('span', null, h('b', null, '↑↓'), ' Move'),
+      h('span', null, h('b', null, prompts.select), ' Select'),
+      h('span', null, h('b', null, prompts.resume), ' Resume'),
+    );
+  }
+
   function pause(): void {
     if (paused || session.phase === 'over') return;
     paused = true;
     game.loop.stop();
+    showTip();
     pauseLayer.hidden = false;
     focus.set(items[0]!);
     audio.ui('select');
@@ -105,8 +121,10 @@ export function matchScreen(flow: Flow, game: Game, seed = newSeed()): Screen {
 
   function pauseAction(act: PauseAction): void {
     if (act === 'resume') resume();
-    else if (act === 'restart') flow.go('match');
-    else flow.go('css');
+    else if (act === 'restart') {
+      restartSeed = seed;
+      flow.go('match');
+    } else flow.go('css');
   }
 
   function toResults(): void {

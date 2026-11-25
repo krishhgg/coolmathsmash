@@ -1,6 +1,7 @@
 import { symbolsToSvg } from '../../../render/rig/svg';
 import type { FighterArt } from '../../../render/rig/types';
 import { attacks } from './attacks';
+import { boxDropClips } from './box-drop';
 import { LEDGE_GRIP, clips } from './clips';
 import { costumeSwaps, palettes } from './palettes';
 import { iconAntennae } from './parts';
@@ -10,7 +11,7 @@ import { rig } from './rig';
 export const art: FighterArt = {
   height: 13,
   rig,
-  clips: { ...clips, ...attacks },
+  clips: { ...clips, ...attacks, ...boxDropClips },
   palettes,
   costumeSwaps,
   ledgeGrip: LEDGE_GRIP,
