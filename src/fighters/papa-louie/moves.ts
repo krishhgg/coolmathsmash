@@ -375,6 +375,16 @@ export const moves: Record<string, MoveDef> = {
     throw: { frame: 22, hit: { damage: 6, angle: 68, kbg: 90, bkb: 40 } },
   },
   /**
+   * Pepper Bomb (neutral special): lobs a pepper up and forward on frame 14. It bounces twice, then bursts on the next
+   * landing, on a fighter or when its fuse runs out (entities.ts). He can have two out at once.
+   */
+  neutralB: {
+    kind: 'projectile',
+    faf: 40,
+    hits: [],
+    spawn: [{ frame: 14, entity: 'pepperBomb', x: 6, y: 9, vx: 1.25, vy: 1.55, max: 2 }],
+  },
+  /**
    * Paddle Propeller (up special): spins the paddle overhead like a rotor and rises about 60 units, five 1% hits
    * carrying the opponent up and a 4% finisher at the top. Steers with the stick and can grab the ledge on the way.
    * TODO(COOL-3): end in his glide (hold jump) instead of helpless once the glide system lands.
