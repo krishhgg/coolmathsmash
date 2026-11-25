@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { entityHitboxes, spawnEntity } from '../../sim/entities/entities';
 import type { FighterState } from '../../sim/fighter';
-import type { MatchState } from '../../sim/match';
+import { createMatch, type MatchState } from '../../sim/match';
 import { koPercent } from '../../sim/testing/ko';
 import { attack, placeInAir, runPorts } from '../../sim/testing/sim';
 import { PEPPER_HIT, entities } from './entities';
@@ -94,6 +94,26 @@ describe('Papa Louie: Pepper Bomb (neutral special)', () => {
     runPorts(m, 14, [{}, {}]);
     expect(m.entities.map((e) => e.id)).toEqual([1, 2]);
     expect(m.nextEntityId).toBe(3);
+  });
+
+  it('the burst hits every opponent it overlaps, each once', () => {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'papa-louie' }, { fighter: 'reference-mario' }, { fighter: 'reference-mario' }],
+    });
+    runPorts(m, 10, [{}, {}, {}]);
+    const [, v, w] = m.fighters as [FighterState, FighterState, FighterState];
+    for (const [f, x] of [
+      [v, -61],
+      [w, -59],
+    ] as const)
+      Object.assign(f, { pos: { x, y: 0 }, prevPos: { x, y: 0 }, intangible: 0 });
+    spawnEntity(m, { kind: BURST, owner: 0, pos: { x: -60, y: 4 }, move: 'neutralB' });
+    runPorts(m, 3, [{}, {}, {}]);
+    expect(v.damage).toBeCloseTo(9 * 1.05, 6);
+    expect(w.damage).toBeCloseTo(9 * 1.05, 6);
   });
 
   it('bursts on a fighter for a fresh 9% projectile hit and is used up', () => {

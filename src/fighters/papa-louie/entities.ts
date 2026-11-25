@@ -81,6 +81,8 @@ export const entities: Record<string, EntityDef> = {
     reflectable: false,
     absorbable: false,
     transcendent: true,
+    // An area blast: it hits every opponent and hittable entity it overlaps, each once, like the grenade's explosion.
+    pierce: true,
     hits: [
       { frames: [1, 1], boxes: [{ ...PEPPER_HIT, radius: BURST_RADIUS }] },
       { frames: [2, 2], boxes: [{ ...PEPPER_HIT, radius: BURST_RADIUS * BURST_GROWTH }] },
