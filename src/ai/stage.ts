@@ -1,8 +1,9 @@
 import { getFighter } from '../fighters/registry';
+import { compiledStage, posedStage } from '../sim/context';
 import type { FighterState } from '../sim/fighter';
 import { zoneAt } from '../sim/hazards';
 import type { MatchState } from '../sim/match';
-import { hazardsOn, posedStage, scheduledOn } from '../sim/movingStage';
+import { hazardsOn, scheduledOn } from '../sim/movingStage';
 import {
   edgeMaxX,
   edgeMinX,
@@ -11,7 +12,6 @@ import {
   type PieceOptions,
   type TerrainElement,
 } from '../sim/stage';
-import { compiledStage } from '../sim/step';
 import { arc } from './look';
 
 /**
