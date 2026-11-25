@@ -53,6 +53,15 @@ describe('Bloxorz Board geometry', () => {
     expect(f.pos.x).toBeLessThan(0);
   });
 
+  it('lands P1 safely after the respawn platform times out with no input', () => {
+    const m = testMatch({ stage: stage.id });
+    const f = placeInAir(m, 0, stage.blastZones.bottom - 1);
+    until(m, (g) => g.action === 'respawn');
+    until(m, (g) => g.ground !== null);
+    expect(f.ground?.kind).toBe('solid');
+    expect(f.stocks).toBe(2);
+  });
+
   it('drops through each bridge and lands on the board below it', () => {
     for (const x of [-50, 50]) {
       const m = testMatch({ stage: stage.id });
