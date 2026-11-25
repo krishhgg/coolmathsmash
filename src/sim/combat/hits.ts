@@ -1,9 +1,10 @@
 import { getFighter } from '../../fighters/registry';
 import type { FighterStats, HitboxDef, MoveKind } from '../../fighters/types';
 import { chargeMultiplier, moveOf } from '../actions/attack';
+import { parries } from '../actions/defense';
 import { findGrabs, grabArmour, resolveGrabs } from '../actions/grab';
 import { inWindow, isIntangible } from '../actions/registry';
-import { LEDGE_HIT_LOCK } from '../constants';
+import { LEDGE_HIT_LOCK, PARRY } from '../constants';
 import { stickX, stickY } from '../control';
 import type { Ctx, FighterState, LaunchLink } from '../fighter';
 import { emit } from '../events';
@@ -114,6 +115,8 @@ interface Connection {
   percent: number;
   crouch: boolean;
   shielding: boolean;
+  /** The victim is in its shield drop's parry window (PARRY). */
+  parry: boolean;
   /** World position of the hitbox that connected. */
   at: { x: number; y: number };
   /** The attacker's move, kept here because an earlier hit this frame may clear it. */
@@ -133,11 +136,12 @@ function connection(
   v: FighterState,
   box: HitboxDef,
   at: { x: number; y: number },
+  frame: number,
 ): Connection {
   const move = a.move!;
   if (a.moveStale === 0) a.moveStale = stale(a, move);
   return {
-    ...victim(v),
+    ...victim(v, frame),
     a,
     attacker: a.port,
     fromX: a.pos.x,
@@ -165,7 +169,7 @@ export function armorOf(v: FighterState): Connection['armor'] {
  * owner's rage and by reflections, and DI'd and shielded like any hit. Only the victim freezes. It hits each fighter
  * once (per rehit window) and, unless it pierces, is used up by its first victim: true when it was.
  */
-function entityHits(e: EntityState, fighters: FighterState[], hits: Connection[]): boolean {
+function entityHits(e: EntityState, fighters: FighterState[], hits: Connection[], frame: number): boolean {
   const boxes = entityHitboxes(e);
   if (boxes.length === 0) return false;
   const def = entityDef(e.kind);
@@ -178,7 +182,7 @@ function entityHits(e: EntityState, fighters: FighterState[], hits: Connection[]
     e.hitVictims.push(v.port);
     if (e.stale === 0) e.stale = owner && e.move ? stale(owner, e.move) : 1;
     hits.push({
-      ...victim(v),
+      ...victim(v, frame),
       a: null,
       attacker: e.owner,
       entity: e.id,
@@ -204,13 +208,17 @@ function stale(a: FighterState, move: string): number {
   return mult;
 }
 
-/** The victim's state before any of this frame's hits land. */
-function victim(v: FighterState): Pick<Connection, 'v' | 'percent' | 'crouch' | 'shielding' | 'armor'> {
+/** The victim's state before any of this frame's hits land (on match frame `frame`). */
+function victim(
+  v: FighterState,
+  frame: number,
+): Pick<Connection, 'v' | 'percent' | 'crouch' | 'shielding' | 'parry' | 'armor'> {
   return {
     v,
     percent: v.damage,
     crouch: v.action === 'crouch' && v.ground !== null,
     shielding: v.action === 'shield' || v.action === 'shieldStun',
+    parry: parries(v, frame),
     armor: armorOf(v),
   };
 }
@@ -233,7 +241,7 @@ export function applyHit(
   again = false,
 ): void {
   const at = { x: v.pos.x, y: v.pos.y + getFighter(v.fighter).stats.height / 2 };
-  hit(m, connection(a, v, box, at), again);
+  hit(m, connection(a, v, box, at, m.frame), again);
 }
 
 /**
@@ -259,15 +267,16 @@ export function resolveHits(m: MatchState, stage?: (struck: Set<FighterState>) =
     }
     for (const { v, box, at } of found) {
       a.hitVictims.push(v.port);
-      hits.push(connection(a, v, box, at));
+      hits.push(connection(a, v, box, at, m.frame));
     }
   }
-  const used = m.entities.filter((e) => entityHits(e, m.fighters, hits));
+  const used = m.entities.filter((e) => entityHits(e, m.fighters, hits, m.frame));
   const struck = new Set<FighterState>();
   for (const h of hits) {
     const again = struck.has(h.v);
     struck.add(h.v);
-    if (h.shielding) shieldHit(m, h, again);
+    if (h.parry) parry(m, h, again);
+    else if (h.shielding) shieldHit(m, h, again);
     else hit(m, h, again);
   }
   for (const e of used) destroyEntity(m, e, 'hit');
@@ -341,7 +350,8 @@ export function strike(
 /** Damage always adds up; a fighter attacker freezes for hitlag, but an entity and its owner do not. */
 function hit(m: MatchState, h: Connection, again: boolean): void {
   const { kb, lag, added } = strike(m, h.v, h, again);
-  if (h.a) h.a.hitlag = lag;
+  // One swing can connect several times a frame (a parry among them): the attacker keeps the longest freeze.
+  if (h.a) h.a.hitlag = Math.max(h.a.hitlag, lag);
   emit(m, {
     type: 'hit',
     attacker: h.attacker,
@@ -366,7 +376,7 @@ function shieldHit(
   const damage = base * stale;
   const stun = shieldstunFrames(damage, kind);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric' });
-  if (a) a.hitlag = lag;
+  if (a) a.hitlag = Math.max(a.hitlag, lag);
   v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
   v.shieldHp = Math.max(0, v.shieldHp - damage * SHIELD_DAMAGE_MULT - (box.shieldDamage ?? 0));
   const away = Math.sign(v.pos.x - fromX) || dir;
@@ -384,6 +394,40 @@ function shieldHit(
     move,
     damage,
     shieldHp: v.shieldHp,
+    x: at.x,
+    y: at.y,
+  });
+}
+
+/**
+ * A hit on the first frames of a shield drop is parried (PARRY): no damage, no shield damage and no shieldstun, and
+ * the defender can act as soon as its hitlag ends, which on a fighter's hit is 3 frames before the attacker can.
+ * Pushback is the shield formula with no shieldstun; SmashWiki "Shield" only says a parry's pushback is reduced.
+ */
+function parry(
+  m: MatchState,
+  { a, attacker, entity, fromX, v, box, damage: base, stale, dir, at, move }: Connection,
+  again: boolean,
+): void {
+  const damage = base * stale;
+  const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric' });
+  const defender = a
+    ? Math.min(lag + PARRY.defenderHitlag, PARRY.maxHitlag)
+    : Math.max(0, lag + PARRY.projectileDefenderHitlag);
+  if (a) a.hitlag = Math.max(a.hitlag, Math.min(lag + PARRY.attackerHitlag, PARRY.maxHitlag));
+  v.hitlag = again ? Math.max(v.hitlag, defender) : defender;
+  const away = Math.sign(v.pos.x - fromX) || dir;
+  const push = shieldPushback(damage, 0);
+  v.kb.x = away * push.defender;
+  if (a?.ground) a.kb.x = -away * push.attacker;
+  v.action = v.ground ? 'idle' : 'fall';
+  v.actionFrame = 0;
+  emit(m, {
+    type: 'parry',
+    attacker,
+    ...(entity !== undefined && { entity }),
+    victim: v.port,
+    move,
     x: at.x,
     y: at.y,
   });

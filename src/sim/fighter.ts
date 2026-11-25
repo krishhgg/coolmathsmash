@@ -93,6 +93,8 @@ export interface FighterState {
   grabbableFrom: number;
   /** First match frame a shield grab can come out (GRAB.shieldGrabLock frames after shieldstun). */
   shieldGrabFrom: number;
+  /** First match frame a shield drop can start and still parry (PARRY.lockout frames after shieldstun ends). */
+  parryFrom: number;
   /** Glide, float and hover state (src/sim/mobility.ts). */
   mobility: MobilityState;
   /**
@@ -168,6 +170,7 @@ export function createFighter(
     grabDamage: 0,
     grabbableFrom: 0,
     shieldGrabFrom: 0,
+    parryFrom: 0,
     mobility: createMobility(getFighter(fighterId)),
     tether: null,
     aim: null,
