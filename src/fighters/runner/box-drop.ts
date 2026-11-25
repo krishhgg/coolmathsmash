@@ -11,9 +11,9 @@ const PLUNGE_SPEED = 6;
 
 /**
  * Box Drop, Runner's down special: Kirby's Stone in Ultimate (SmashWiki's Kirby (SSBU)/Down special hitbox table,
- * after patch 8.0.0 raised the shockwave's KBG from 24 to 30). On the ground she turns into a crate that armors through hits under 25% (Stone HP 25), can open
- * with Special after 18 frames, opens by itself after 150, and takes 31 frames to climb out. In the air she
- * stalls, then drops straight down into the same grounded crate.
+ * after patch 8.0.0 raised the shockwave's KBG from 24 to 30). On the ground she turns into a crate that armors
+ * through hits under 25% (Stone HP 25), can open with Special after 18 frames, opens by itself after 150, and takes
+ * 31 frames to climb out. In the air she stalls, then drops straight down into the same grounded crate.
  *
  * Kirby's: the grounded shockwave (14%, 25°, BKB 86, KBG 30, radius 6 at ±6 forward and 4 up), the falling box's
  * BKB 69, KBG 76, radius 6.5 at 2 up and 0.7x hitlag, the 25% damage threshold and the 18/150/31 frame timings.
