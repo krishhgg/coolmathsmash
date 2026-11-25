@@ -39,9 +39,16 @@ export function koAnchor(ko: KoBlast, view: CameraView): { x: number; y: number;
  * Ultimate's KO blast in screen pixels: a translucent port-coloured cone of light, widest where it bursts in at the
  * screen edge and tapering to a point across the screen, with a white core, speed streaks, twinkling sparkles and a
  * starburst at the edge. It shoots across in 4 frames, holds until frame 12, then pinches thin and fades by 34. The
- * renderer draws it behind the fighters, so the survivors and their tags stay in view.
+ * renderer draws it behind the fighters, so the survivors and their tags stay in view. `lite` drops the wide outer
+ * cone (the beam's largest translucent fill) and half the streaks and sparkles, for software renderers.
  */
-export function koBlastShapes(ko: KoBlast, color: number, frame: number, view: CameraView): Shape[] {
+export function koBlastShapes(
+  ko: KoBlast,
+  color: number,
+  frame: number,
+  view: CameraView,
+  lite = false,
+): Shape[] {
   const age = frame - ko.frame;
   if (age < 0 || age >= KO_LIFE) return [];
   const { x: ax, y: ay, ux, uy } = koAnchor(ko, view);
@@ -58,11 +65,12 @@ export function koBlastShapes(ko: KoBlast, color: number, frame: number, view: C
   const out: Shape[] = [];
   if (width > 1) {
     const sway = signed(ko.seed, Math.floor(age / 2)) * 0.012;
-    out.push({
-      type: 'poly',
-      points: blade(ox, oy, a + sway, len, width, 1.05),
-      fill: { color, alpha: 0.35 * fade },
-    });
+    if (!lite)
+      out.push({
+        type: 'poly',
+        points: blade(ox, oy, a + sway, len, width, 1.05),
+        fill: { color, alpha: 0.35 * fade },
+      });
     out.push({
       type: 'poly',
       points: blade(ox, oy, a - sway, len * 0.9, width * 0.62, 1.05),
@@ -74,7 +82,8 @@ export function koBlastShapes(ko: KoBlast, color: number, frame: number, view: C
       fill: { color: 0xffffff, alpha: 0.85 * fade },
     });
   }
-  for (let i = 0; i < 12; i++) {
+  const count = lite ? 6 : 12;
+  for (let i = 0; i < count; i++) {
     const off = signed(ko.seed, 10 + i) * width * 0.42;
     const speed = 50 + 40 * rand(ko.seed, 20 + i);
     const start = 60 + ((age * speed + rand(ko.seed, 30 + i) * BEAM_LENGTH) % (BEAM_LENGTH * 0.85));
@@ -88,7 +97,7 @@ export function koBlastShapes(ko: KoBlast, color: number, frame: number, view: C
       fill: { color: i % 3 === 0 ? light : 0xffffff, alpha: 0.95 },
     });
   }
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < count; i++) {
     const cycle = 10 + Math.floor(rand(ko.seed, 60 + i) * 6);
     const phase = (age + Math.floor(rand(ko.seed, 70 + i) * cycle)) % cycle;
     const twk = Math.sin((Math.PI * phase) / cycle);

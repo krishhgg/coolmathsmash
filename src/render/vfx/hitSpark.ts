@@ -1,5 +1,5 @@
 import type { SimEvent } from '../../sim/events';
-import { rand, seedOf, signed } from './random';
+import { rand, signed } from './random';
 import { blade, clamp01, easeOut, lerp, star, TAU, twinkle, type Shape } from './shapes';
 
 type HitEvent = Extract<SimEvent, { type: 'hit' }>;
@@ -43,10 +43,15 @@ export function hitPower(kb: number, damage: number): number {
   return clamp01(Math.max((kb - 30) / 170, (damage - 2) / 30));
 }
 
+/**
+ * A spark at the contact point of a hit (a fighter's, a projectile's, a stage hazard's, or one on a hittable entity).
+ * `seed` comes from integers of the event (seedOf), so two sparks on one frame never look alike.
+ */
 export function spawnHitSpark(
-  e: Pick<HitEvent, 'x' | 'y' | 'kb' | 'damage' | 'effect' | 'attacker' | 'victim'>,
+  e: Pick<HitEvent, 'x' | 'y' | 'kb' | 'damage' | 'effect'>,
   frame: number,
   lean: number,
+  seed: number,
   style: SparkStyle = e.effect,
 ): HitSpark {
   const power = hitPower(e.kb, e.damage);
@@ -59,7 +64,7 @@ export function spawnHitSpark(
     life: Math.round(lerp(10, 22, power)),
     style,
     lean,
-    seed: seedOf(frame, e.attacker * 8 + e.victim, 1),
+    seed,
   };
 }
 

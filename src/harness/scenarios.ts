@@ -489,6 +489,23 @@ const CORE: Scenario[] = [
     },
     motion: { before: 20, after: 20 },
   },
+  {
+    name: 'projectile-spark',
+    description:
+      "P1's fireball hits P2 at 0%: the spark at the contact point 2 frames in; only P2 shakes, since the sim freezes neither the fireball nor P1.",
+    page: { kind: 'game' },
+    patches: [
+      { port: 0, state: { pos: { x: -30, y: 0 }, facing: 1 } },
+      { port: 1, state: { pos: { x: 10, y: 0 }, facing: -1 } },
+    ],
+    script: [{ port: 0, from: 10, to: 11, buttons: ['special'] }],
+    capture: {
+      label: 'P2 hit by the fireball, hitlag down to 7',
+      when: (s) => P2(s).damage > 0 && P2(s).hitlag === 7,
+    },
+    motion: { before: 6, after: 16 },
+    requires: ['move:neutralB'],
+  },
 ];
 
 /** One fighter's copies of the standard states, then its extra scenarios. */

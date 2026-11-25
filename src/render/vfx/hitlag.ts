@@ -35,7 +35,15 @@ export function knockbackAxis(victim: FighterState): { x: number; y: number } {
   return { x: l.dir * Math.cos(rad), y: Math.sin(rad) };
 }
 
-/** The victim's and the attacker's freeze from a `hit` event on `frame`. */
+/**
+ * The fighter that dealt a hit and froze with it: none for a projectile's hit (the sim freezes neither it nor its
+ * owner) or a hit nobody is credited with.
+ */
+function striker(e: { attacker: number; entity?: number }, m: MatchState): FighterState | undefined {
+  return e.entity === undefined ? m.fighters[e.attacker] : undefined;
+}
+
+/** The victim's freeze from a `hit` event on `frame`, and the attacker's when a fighter's own move landed. */
 export function freezesFrom(e: Extract<SimEvent, { type: 'hit' }>, m: MatchState, frame: number): Freeze[] {
   const axis = knockbackAxis(m.fighters[e.victim]!);
   const freeze = (port: number, amplitude: number): Freeze => ({
@@ -46,16 +54,21 @@ export function freezesFrom(e: Extract<SimEvent, { type: 'hit' }>, m: MatchState
     ax: axis.x,
     ay: axis.y,
   });
-  return [freeze(e.victim, VICTIM_JITTER), freeze(e.attacker, ATTACKER_JITTER)];
+  const a = striker(e, m);
+  return [freeze(e.victim, VICTIM_JITTER), ...(a ? [freeze(a.port, ATTACKER_JITTER)] : [])];
 }
 
-/** The shielding fighter's and the attacker's freeze from a `shieldHit` event: sideways, away from the attacker. */
+/**
+ * The shielding fighter's freeze from a `shieldHit` event, sideways away from the attacker (from the contact point
+ * for a projectile), and the attacker's when a fighter's own move landed.
+ */
 export function shieldFreezes(
   e: Extract<SimEvent, { type: 'shieldHit' }>,
   m: MatchState,
   frame: number,
 ): Freeze[] {
-  const ax = m.fighters[e.victim]!.pos.x >= m.fighters[e.attacker]!.pos.x ? 1 : -1;
+  const a = striker(e, m);
+  const ax = m.fighters[e.victim]!.pos.x >= (a ? a.pos.x : e.x) ? 1 : -1;
   const freeze = (port: number, amplitude: number): Freeze => ({
     frame,
     port,
@@ -64,7 +77,25 @@ export function shieldFreezes(
     ax,
     ay: 0,
   });
-  return [freeze(e.victim, SHIELD_JITTER), freeze(e.attacker, SHIELD_JITTER / 2)];
+  return [freeze(e.victim, SHIELD_JITTER), ...(a ? [freeze(a.port, SHIELD_JITTER / 2)] : [])];
+}
+
+/** The victim's freeze from a stage hazard's hit (`stageHit`), along its knockback axis. */
+export function stageFreeze(
+  e: Extract<SimEvent, { type: 'stageHit' }>,
+  m: MatchState,
+  frame: number,
+): Freeze {
+  const v = m.fighters[e.victim]!;
+  const axis = knockbackAxis(v);
+  return {
+    frame,
+    port: e.victim,
+    lag: Math.max(1, v.hitlag),
+    amplitude: VICTIM_JITTER,
+    ax: axis.x,
+    ay: axis.y,
+  };
 }
 
 /**

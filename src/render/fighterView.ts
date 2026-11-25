@@ -67,7 +67,9 @@ export class FighterView {
   private readonly rig: RigView | null;
   private readonly shield = new Graphics();
   private readonly shieldColor: string;
-  private readonly flash = new ColorMatrixFilter();
+  /** The colour flash (smash charge, respawn invincibility); never made in `lite`, where it is the blink instead. */
+  private flash: ColorMatrixFilter | null = null;
+  private flashing = false;
   /** Height of the head above the feet, in world units; the overhead tag points here. */
   readonly top: number;
   private readonly label = new Text({
@@ -75,10 +77,12 @@ export class FighterView {
     style: { fontFamily: 'monospace', fontSize: 22, fill: '#ffffff' },
   });
 
+  /** `lite` (RenderQuality): no filters, so a software renderer never draws the fighter twice. */
   constructor(
     private readonly def: FighterDef,
     port: number,
     costume = 'default',
+    private readonly lite = false,
   ) {
     const { height: h, width: w } = def.stats;
     this.art = fighterArt(def);
@@ -113,10 +117,12 @@ export class FighterView {
     this.shield.position.set(jx, jy);
     this.body.scale.x = f.facing;
     if (this.rig && this.art) this.rig.pose(...clipFor(this.def, this.art, f), frame);
-    this.body.alpha = !fx.flash && isIntangible(f) && frame % 8 < 4 ? 0.55 : 1;
-    const k = fx.flash?.amount ?? 0;
-    if (k > 0) {
-      const c = fx.flash!.color;
+    const flash = this.lite ? undefined : fx.flash;
+    this.body.alpha = !flash && isIntangible(f) && frame % 8 < 4 ? 0.55 : 1;
+    const k = flash?.amount ?? 0;
+    if (flash && k > 0) {
+      this.flash ??= new ColorMatrixFilter();
+      const c = flash.color;
       const row = (shift: number, i: 0 | 1 | 2): [number, number, number, number, number] => {
         const w = (2 * k * ((c >> shift) & 255)) / 255;
         const r: [number, number, number, number, number] = [w * 0.3, w * 0.59, w * 0.11, 0, 0];
@@ -125,7 +131,8 @@ export class FighterView {
       };
       this.flash.matrix = [...row(16, 0), ...row(8, 1), ...row(0, 2), 0, 0, 0, 1, 0];
     }
-    this.body.filters = k > 0 ? [this.flash] : [];
+    if (this.flashing !== k > 0) this.body.filters = k > 0 ? [this.flash!] : [];
+    this.flashing = k > 0;
     this.shield.clear();
     if (f.action === 'shield' || f.action === 'shieldStun') {
       const cracked = f.shieldHp <= 0;

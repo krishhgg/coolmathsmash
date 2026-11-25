@@ -25,7 +25,8 @@ const STAGE_VIEWS = import.meta.glob<{ createStageView: () => StageView }>('../s
 
 /**
  * `full` draws a stage's painted backdrop; `lite` leaves it flat (the clear colour) so tests and captures on software
- * GPUs stay fast. Everything in the world (stage, fighters, effects) and the HUD draw the same in both.
+ * GPUs stay fast. `lite` also draws the effects without filters and with less fill (docs/vfx.md); everything else in
+ * the world (stage, fighters) and the HUD draw the same in both.
  */
 export type RenderQuality = 'full' | 'lite';
 
@@ -49,7 +50,7 @@ export class Renderer {
   readonly eventLog = new EventLog();
   readonly camera = new Camera();
   readonly vfx = new Vfx();
-  private readonly vfxView = new VfxView();
+  private readonly vfxView: VfxView;
   private readonly inputDisplay = new InputDisplay();
   readonly matchHud = new MatchHud();
   private readonly tags = new OverheadTags();
@@ -83,6 +84,7 @@ export class Renderer {
     readonly app: Application,
     readonly quality: RenderQuality,
   ) {
+    this.vfxView = new VfxView(quality === 'lite');
     this.world.addChild(
       this.stageLayer,
       this.stagePieces,
@@ -139,7 +141,12 @@ export class Renderer {
     }
     state.fighters.forEach((f, i) => {
       if (this.fighterIds[i] === f.fighter) return;
-      const view = new FighterView(getFighter(f.fighter), f.port, this.costumes[f.port]);
+      const view = new FighterView(
+        getFighter(f.fighter),
+        f.port,
+        this.costumes[f.port],
+        this.quality === 'lite',
+      );
       const old = this.fighters[i];
       if (old) this.fighterLayer.replaceChild(old.container, view.container);
       else this.fighterLayer.addChild(view.container);

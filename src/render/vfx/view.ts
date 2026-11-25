@@ -25,6 +25,9 @@ export class VfxView {
   readonly front = new Graphics();
   readonly screen = new Graphics();
 
+  /** `lite`: the cheaper KO blast and smoke for software renderers (RenderQuality). */
+  constructor(private readonly lite = false) {}
+
   /** Draw `v` (null: nothing) with `state`'s fighters at interpolation `alpha`, through camera `view`. */
   draw(v: VfxState | null, state: MatchState, view: CameraView, alpha: number): void {
     for (const g of [this.behind, this.front, this.screen]) g.clear();
@@ -56,14 +59,14 @@ export class VfxView {
           ),
         );
     }
-    behind.push(...puffShapes(v.puffs, frame), ...lines);
+    behind.push(...puffShapes(v.puffs, frame, this.lite), ...lines);
     for (const b of v.shields) front.push(...shieldBreakShapes(b, portColor(b.port), frame));
     for (const s of v.sparks) front.push(...hitSparkShapes(s, frame));
     paint(this.behind, behind);
     paint(this.front, front);
     paint(
       this.screen,
-      v.kos.flatMap((k) => koBlastShapes(k, portColor(k.port), frame, view)),
+      v.kos.flatMap((k) => koBlastShapes(k, portColor(k.port), frame, view, this.lite)),
     );
   }
 }

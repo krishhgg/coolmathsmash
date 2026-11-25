@@ -2,7 +2,8 @@ import { getFighter } from '../../fighters/registry';
 import type { FighterState } from '../../sim/fighter';
 import type { MatchState } from '../../sim/match';
 import { HALO_FADE_LIFE, type HaloFade } from './extras';
-import { freezesFrom, hitlagOffset, shieldFreezes, type Freeze } from './hitlag';
+import { freezesFrom, hitlagOffset, shieldFreezes, stageFreeze, type Freeze } from './hitlag';
+import { seedOf } from './random';
 import { spawnHitSpark, type HitSpark } from './hitSpark';
 import { KO_LIFE, spawnKoBlast, type KoBlast } from './koBlast';
 import { shieldLife, spawnShieldBreak, spawnShieldHit, type ShieldBurst } from './shield';
@@ -35,6 +36,13 @@ export const emptyVfx = (): VfxState => ({
 
 const height = (f: FighterState): number => getFighter(f.fighter).stats.height;
 
+/**
+ * A spark's seed from integers of its event: the frame, who was hit (-1 for an entity), who hit (-1 for nobody or a
+ * stage hazard) and the entity or hazard behind it, so sparks landing on one frame never share a look.
+ */
+const sparkSeed = (frame: number, victim: number, attacker: number, source = -1): number =>
+  seedOf(frame, (attacker + 1) * 8 + victim + 1, 1 + source + 1);
+
 /** Is `f` holding a smash attack's charge (charged some frames and not yet past the move's charge frame)? */
 export function charging(f: FighterState): boolean {
   if (!f.move || f.charge <= 0) return false;
@@ -51,8 +59,9 @@ export function chargeReleased(f: FighterState): number | undefined {
 
 /**
  * Advance `v` to the frame `m` just simulated: drop effects past their lifetime, then spawn this frame's from its
- * events (hits, shield hits and breaks, KOs, jumps, landings, leaving the respawn platform) and from launched
- * fighters (smoke along the stretch of path they covered this frame).
+ * events (hits by fighters, projectiles and stage hazards, hits on hittable entities, shield hits and breaks, KOs,
+ * jumps, landings, leaving the respawn platform) and from launched fighters (smoke along the stretch of path they
+ * covered this frame).
  */
 export function stepVfx(v: VfxState, m: MatchState): void {
   const frame = m.frame;
@@ -71,7 +80,8 @@ export function stepVfx(v: VfxState, m: MatchState): void {
       case 'hit': {
         const freezes = freezesFrom(e, m, frame);
         v.freezes.push(...freezes);
-        v.sparks.push(spawnHitSpark(e, frame, Math.atan2(-freezes[0]!.ay, freezes[0]!.ax)));
+        const lean = Math.atan2(-freezes[0]!.ay, freezes[0]!.ax);
+        v.sparks.push(spawnHitSpark(e, frame, lean, sparkSeed(frame, e.victim, e.attacker, e.entity)));
         break;
       }
       case 'shieldHit': {
@@ -82,10 +92,25 @@ export function stepVfx(v: VfxState, m: MatchState): void {
             { ...e, kb: 0, damage: e.damage * 0.5, effect: 'normal' },
             frame,
             freezes[0]!.ax > 0 ? 0 : Math.PI,
+            sparkSeed(frame, e.victim, e.attacker, e.entity),
             'shield',
           ),
         );
         v.shields.push(spawnShieldHit(e.victim, frame, e.damage));
+        break;
+      }
+      case 'stageHit': {
+        const freeze = stageFreeze(e, m, frame);
+        v.freezes.push(freeze);
+        const effect = e.element === 'lava' ? 'fire' : 'normal';
+        const lean = Math.atan2(-freeze.ay, freeze.ax);
+        v.sparks.push(spawnHitSpark({ ...e, effect }, frame, lean, sparkSeed(frame, e.victim, -1, e.index)));
+        break;
+      }
+      case 'entityHit': {
+        const lean = m.fighters[e.attacker]?.facing === -1 ? Math.PI : 0;
+        const spark = { ...e, kb: 0, effect: 'normal' as const };
+        v.sparks.push(spawnHitSpark(spark, frame, lean, sparkSeed(frame, -1, e.attacker, e.id)));
         break;
       }
       case 'shieldBreak': {

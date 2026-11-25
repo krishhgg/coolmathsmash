@@ -7,9 +7,10 @@ import {
   startScenario,
   type GameScenario,
 } from '../../harness/scenarios';
-import { createMatch, stepMatch, type MatchState } from '../../sim/match';
+import type { SimEvent } from '../../sim/events';
+import { DEFAULT_MATCH, createMatch, stepMatch, type MatchState } from '../../sim/match';
 import { ATTACKER_JITTER, hitlagOffset, SHIELD_JITTER, VICTIM_JITTER } from './hitlag';
-import { hitPower, hitSparkShapes, spawnHitSpark } from './hitSpark';
+import { hitPower, hitSparkShapes, spawnHitSpark, type HitSpark } from './hitSpark';
 import { KO_LIFE, koAnchor, koBlastShapes } from './koBlast';
 import { rand, seedOf } from './random';
 import { SHIELD_HIT_LIFE, shieldBubbleShapes } from './shield';
@@ -36,7 +37,19 @@ function play(
   return { m, vfx, log };
 }
 
-const hit = { x: 0, y: 8, attacker: 0, victim: 1, effect: 'normal' as const };
+const hit = { x: 0, y: 8, effect: 'normal' as const };
+const spark = (e: Parameters<typeof spawnHitSpark>[0], frame: number, lean: number): HitSpark =>
+  spawnHitSpark(e, frame, lean, seedOf(frame, 1, 1));
+
+/** Step fresh effects over one frame of the default match carrying exactly `events`. */
+function stepEvents(events: SimEvent[]): { m: MatchState; v: VfxState } {
+  const m = createMatch(DEFAULT_MATCH);
+  m.frame = 100;
+  m.events = events;
+  const v = emptyVfx();
+  stepVfx(v, m);
+  return { m, v };
+}
 
 describe('effect seeds', () => {
   it('are fixed integer hashes of the spawn record', () => {
@@ -52,8 +65,8 @@ describe('effect seeds', () => {
 
 describe('hit sparks', () => {
   it('grow (to under 0.9x fighter height across), last longer and add layers, streaks and debris with knockback', () => {
-    const weak = spawnHitSpark({ ...hit, kb: 35, damage: 3.8 }, 10, 1);
-    const strong = spawnHitSpark({ ...hit, kb: 311, damage: 22 }, 10, 1);
+    const weak = spark({ ...hit, kb: 35, damage: 3.8 }, 10, 1);
+    const strong = spark({ ...hit, kb: 311, damage: 22 }, 10, 1);
     expect(hitPower(35, 3.8)).toBeLessThan(0.15);
     expect(strong.power).toBe(1);
     expect(strong.size).toBeGreaterThan(weak.size * 1.8);
@@ -64,14 +77,14 @@ describe('hit sparks', () => {
   });
 
   it('use the flame variant for fire hits', () => {
-    const fire = spawnHitSpark({ ...hit, kb: 171, damage: 22, effect: 'fire' }, 10, 1);
+    const fire = spark({ ...hit, kb: 171, damage: 22, effect: 'fire' }, 10, 1);
     expect(fire.style).toBe('fire');
     const colors = new Set(hitSparkShapes(fire, 13).map((s) => s.fill?.color));
     expect(colors).toContain(0xe5321b);
   });
 
   it('draw nothing before they spawn or once their life is over', () => {
-    const s = spawnHitSpark({ ...hit, kb: 120, damage: 12 }, 10, -1);
+    const s = spark({ ...hit, kb: 120, damage: 12 }, 10, -1);
     expect(hitSparkShapes(s, 9)).toEqual([]);
     expect(hitSparkShapes(s, 10).length).toBeGreaterThan(0);
     expect(hitSparkShapes(s, 10 + s.life - 1).length).toBeGreaterThan(0);
@@ -168,6 +181,124 @@ describe('stepping effects from the simulation', () => {
     const { log } = play('land-dust', 56);
     expect(log[13]!.puffs.filter((p) => p.tone === 'dust' && p.born === 14).length).toBeGreaterThan(0);
     expect(log[50]!.puffs.filter((p) => p.tone === 'dust' && p.born === 51).length).toBeGreaterThan(0);
+  });
+});
+
+describe('hits that no fighter swung', () => {
+  it("sparks a fireball's hit at the contact point and shakes only P2: the sim freezes neither the fireball nor P1", () => {
+    const { log } = play('projectile-spark', 70);
+    const at = log.findIndex((v) => v.sparks.length > 0);
+    expect(at).toBeGreaterThan(0);
+    const v = log[at]!;
+    expect(v.sparks).toHaveLength(1);
+    expect(v.sparks[0]!.style).toBe('fire');
+    expect(v.freezes).toEqual([expect.objectContaining({ port: 1, amplitude: VICTIM_JITTER })]);
+    expect(freezeOf(v, 0)).toBeUndefined();
+  });
+
+  it('shakes the shield sideways away from a projectile, owned or not, without freezing its owner', () => {
+    const shieldHit = (attacker: number, x: number): SimEvent => ({
+      type: 'shieldHit',
+      attacker,
+      entity: 4,
+      victim: 1,
+      move: null,
+      damage: 6,
+      shieldHp: 40,
+      x,
+      y: 8,
+    });
+    const { m, v } = stepEvents([shieldHit(-1, 20)]);
+    const victim = m.fighters[1]!;
+    expect(v.freezes).toEqual([expect.objectContaining({ port: 1, amplitude: SHIELD_JITTER })]);
+    expect(v.freezes[0]!.ax).toBe(victim.pos.x >= 20 ? 1 : -1);
+    expect(v.sparks).toEqual([expect.objectContaining({ style: 'shield' })]);
+    expect(shieldPulse(v, 1)).toEqual({ age: 0, power: expect.any(Number) as number });
+    const owned = stepEvents([shieldHit(0, victim.pos.x - 3)]).v;
+    expect(owned.freezes.map((z) => z.port)).toEqual([1]);
+    expect(owned.freezes[0]!.ax).toBe(1);
+  });
+
+  it('sparks a stage hazard hit (flames for lava) and shakes the fighter it hit', () => {
+    const stageHit = (element: 'lava' | 'water' | null): SimEvent => ({
+      type: 'stageHit',
+      victim: 0,
+      source: element ? 'zone' : 'hitbox',
+      index: 2,
+      element,
+      damage: 12,
+      kb: 90,
+      x: 5,
+      y: 1,
+    });
+    const lava = stepEvents([stageHit('lava')]).v;
+    expect(lava.sparks).toEqual([expect.objectContaining({ x: 5, y: 1, style: 'fire' })]);
+    expect(lava.freezes).toEqual([expect.objectContaining({ port: 0, amplitude: VICTIM_JITTER })]);
+    expect(stepEvents([stageHit('water')]).v.sparks[0]!.style).toBe('normal');
+    expect(stepEvents([stageHit(null)]).v.sparks[0]!.style).toBe('normal');
+  });
+
+  it('sparks a hit on a hittable entity without freezing anyone', () => {
+    const { v } = stepEvents([
+      { type: 'entityHit', id: 7, kind: 'x/box', attacker: 0, damage: 9, hp: 11, x: 30, y: 6 },
+    ]);
+    expect(v.sparks).toEqual([expect.objectContaining({ x: 30, y: 6, style: 'normal' })]);
+    expect(v.freezes).toEqual([]);
+  });
+
+  it('gives sparks landing on the same frame different seeds', () => {
+    const { v } = stepEvents([
+      {
+        ...hit,
+        type: 'hit',
+        attacker: 0,
+        victim: 1,
+        move: 'jab',
+        damage: 3,
+        kb: 30,
+        tumble: false,
+        hitlag: 6,
+      },
+      {
+        ...hit,
+        type: 'hit',
+        attacker: 0,
+        entity: 3,
+        victim: 1,
+        move: null,
+        damage: 5,
+        kb: 40,
+        tumble: false,
+        hitlag: 8,
+      },
+      { type: 'entityHit', id: 3, kind: 'x/box', attacker: 0, damage: 9, hp: 11, x: 30, y: 6 },
+    ]);
+    expect(new Set(v.sparks.map((s) => s.seed)).size).toBe(3);
+  });
+});
+
+describe('lite quality', () => {
+  it("drops the KO beam's wide outer cone and half its streaks and sparkles", () => {
+    const ko = { frame: 0, port: 1, x: 259, y: 160, seed: 1 };
+    const view = { x: 10, y: 30, zoom: 4 };
+    const full = koBlastShapes(ko, 0x3d8bff, 5, view);
+    const lite = koBlastShapes(ko, 0x3d8bff, 5, view, true);
+    const cone = (s: (typeof full)[number]) => s.fill?.color === 0x3d8bff;
+    expect(full.filter(cone)).toHaveLength(1);
+    expect(lite.filter(cone)).toHaveLength(0);
+    expect(lite.length).toBeLessThan(full.length * 0.7);
+    expect(koBlastShapes(ko, 0x3d8bff, KO_LIFE, view, true)).toEqual([]);
+  });
+
+  it('draws launch smoke as rims and bodies only, one shape fewer per puff, in the same places', () => {
+    const { log } = play('launch-smoke', 60);
+    const puffs = log[59]!.puffs;
+    const full = puffShapes(puffs, 60);
+    const lite = puffShapes(puffs, 60, true);
+    expect(full.length).toBeGreaterThan(30);
+    const bodies = full.filter((s) => s.fill?.color === 0xc0c6d3 || s.fill?.color === 0xe6e0d4);
+    expect(lite).toEqual(full.slice(0, lite.length));
+    expect(full.length - lite.length).toBe(bodies.length);
   });
 });
 

@@ -17,6 +17,21 @@ effect draws a character.
 | `shapes.ts`           | The `Shape` list every effect returns, and geometry helpers (star, twinkle, blade, arc band)    |
 | `paint.ts`, `view.ts` | The only Pixi code: `paint` draws shapes, `VfxView` fills the three layers each render          |
 
+## What spawns them
+
+| Sim event                 | Effect                                                                                               |
+| ------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `hit`                     | Spark at the contact point; the victim shakes, and the attacker too when it was a fighter's own move |
+| `hit` with `entity`       | Spark; only the victim shakes, since the sim freezes neither the projectile nor its owner            |
+| `shieldHit`               | Blue-white clang spark, bubble flash and ripple; the shield shakes away from the attacker            |
+| `stageHit`                | Spark (flames for lava) at the hazard's contact point; the fighter it hit shakes                     |
+| `entityHit`               | Spark where a hittable entity was struck; nobody shakes                                              |
+| `shieldBreak`             | Shatter from the cracked bubble                                                                      |
+| `ko`                      | KO blast; the KO'd fighter's launch smoke shrinks away                                               |
+| `jump`, `land`            | Dust at the feet (more for a full hop or a laggy landing)                                            |
+| `action` from `respawn`   | The respawn platform shrinks away                                                                    |
+| a fighter in tumble, fast | Launch smoke along the frame's path, and speed lines past 5.5 units per frame                        |
+
 ## Determinism
 
 `Game.step` calls `Renderer.stepCamera` after every simulated frame, which also steps the effects
@@ -36,6 +51,13 @@ behind the fighters and their tags. `FighterView` draws what sits on a fighter, 
 invincibility) through a `ColorMatrixFilter`. Screen shake is the camera's (`SHAKE` and `shakesFrom` in
 `src/render/camera.ts`); the effects add none of their own.
 
+## Quality
+
+`lite` (the harness default, and CI's software WebGL) keeps every effect but cuts its cost: fighters never get a
+filter, so the smash-charge and respawn flash fall back to the plain intangibility blink; the KO blast drops its
+wide outer cone (its largest translucent fill) and half its streaks and sparkles; launch smoke and dust skip the
+light lobe on each puff. `full` draws everything.
+
 ## Tuning
 
 | Effect        | Driven by                                                                                        |
@@ -46,5 +68,6 @@ invincibility) through a `ColorMatrixFilter`. Screen shake is the camera's (`SHA
 | KO blast      | 34 frames: shoots across in 4, holds until 12, fades by 34; the KO'd trail shrinks over 6        |
 | Smash charge  | flash toward #FFF4B0 for 2 of every 8 frames, down to 1 of 4 at full charge; ±0.15 units shake   |
 
-Capture scenarios for each effect: `hit-spark`, `hit-spark-weak`, `launch-smoke`, `ko-blast`, `shield-hit`,
-`shield-break`, `smash-charge`, `respawn-halo` and `land-dust` (`npm run capture -- --only <names>`).
+Capture scenarios for each effect: `hit-spark`, `hit-spark-weak`, `projectile-spark`, `launch-smoke`, `ko-blast`,
+`shield-hit`, `shield-break`, `smash-charge`, `respawn-halo` and `land-dust` (`npm run capture -- --only <names>`,
+with `--quality full` for the full look).

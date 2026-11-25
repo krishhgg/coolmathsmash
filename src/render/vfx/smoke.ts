@@ -134,9 +134,10 @@ function puffRadius(p: Puff, age: number): number {
 /**
  * Every live puff at `frame` in three passes (rims, bodies, light lobes), so overlapping puffs merge into one cloud
  * with a single outline around the whole silhouette. A puff's outline thins away from 4 frames old, before its body
- * shrinks, so an ageing trail breaks into soft separate clouds.
+ * shrinks, so an ageing trail breaks into soft separate clouds. `lite` leaves out the light lobes (a third of the
+ * shapes), for software renderers.
  */
-export function puffShapes(puffs: readonly Puff[], frame: number): Shape[] {
+export function puffShapes(puffs: readonly Puff[], frame: number, lite = false): Shape[] {
   const live: { x: number; y: number; r: number; rim: number; flat: number; tone: PuffTone }[] = [];
   for (const p of puffs) {
     const age = frame - p.born;
@@ -164,7 +165,8 @@ export function puffShapes(puffs: readonly Puff[], frame: number): Shape[] {
   });
   for (const q of live) if (q.rim > 0) out.push(blob(q, 0, 0, q.r + q.rim, TONES[q.tone].rim));
   for (const q of live) out.push(blob(q, 0, 0, q.r, TONES[q.tone].body));
-  for (const q of live) out.push(blob(q, -q.r * 0.2, -q.r * 0.26, q.r * 0.68, TONES[q.tone].light));
+  if (!lite)
+    for (const q of live) out.push(blob(q, -q.r * 0.2, -q.r * 0.26, q.r * 0.68, TONES[q.tone].light));
   return out;
 }
 

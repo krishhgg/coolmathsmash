@@ -78,6 +78,7 @@
     "shield-break": ["smash/shield-0*", "smash/shield-perfect-shield-flash-*"],
     "smash-charge": ["smash/attack-active-hit-effect-*"],
     "respawn-halo": ["smash/battle-4-player-*"],
-    "land-dust": ["smash/run-*"]
+    "land-dust": ["smash/run-*"],
+    "projectile-spark": ["smash/attack-active-hit-effect-*", "brawlhalla/*attack-hit*"]
   }
 }
