@@ -34,7 +34,7 @@ function windmill(): Container {
     .quadraticCurveTo(49, -164, 57, -150)
     .quadraticCurveTo(-4, -134, -64, -146)
     .closePath()
-    .fill(0xd6a553);
+    .fill(0xe7b221);
   g.moveTo(-62, -147)
     .quadraticCurveTo(-49, -158, -41, -181)
     .quadraticCurveTo(-32, -203, -5, -204)
@@ -42,8 +42,8 @@ function windmill(): Container {
     .quadraticCurveTo(-17, -195, -21, -178)
     .quadraticCurveTo(-28, -155, -42, -145)
     .closePath()
-    .fill(0xefd38c);
-  g.moveTo(-62, -146).quadraticCurveTo(-2, -134, 57, -150).stroke({ width: 4, color: 0xb38d58 });
+    .fill(0xf6d359);
+  g.moveTo(-62, -146).quadraticCurveTo(-2, -134, 57, -150).stroke({ width: 4, color: 0xb28848 });
   windowArch(g, -29, -86, 16, 25, 0xa47f5f);
   windowArch(g, 12, -86, 16, 25, 0xa47f5f);
   windowArch(g, -20, 5.5, 37, 59, 0xa88664);
@@ -78,46 +78,83 @@ function windmill(): Container {
     .stroke({ color: 0x976f56, width: 2.8 })
     .circle(-3, -168, 4.1)
     .fill(0x966e58);
-  root.addChild(g, sails, axle);
+  const race = new Graphics({ label: 'windmill-race-sign', x: 78, y: -68, rotation: -0.14 });
+  race.moveTo(-38, -5).lineTo(-13, -4).stroke({ width: 4.2, color: 0x96794b });
+  race
+    .moveTo(-16, -6)
+    .quadraticCurveTo(-15, -22, 4, -21)
+    .quadraticCurveTo(23, -20, 23, -2)
+    .quadraticCurveTo(22, 17, 4, 19)
+    .quadraticCurveTo(-11, 20, -16, 8)
+    .lineTo(-24, 1)
+    .closePath()
+    .fill(0xf6da69)
+    .stroke({ width: 2.4, color: 0xa48448, join: 'round' });
+  race.moveTo(-6, 12).lineTo(-1, -11).stroke({ width: 2.2, color: 0x775f45 });
+  for (let row = 0; row < 2; row++)
+    for (let col = 0; col < 3; col++) {
+      const x = -1 + 5.6 * col - 1.3 * row;
+      const y = -11 + 5.6 * row + col * 1.1;
+      race
+        .poly([x, y, x + 5.6, y + 1.1, x + 4.3, y + 6.7, x - 1.3, y + 5.6])
+        .fill((row + col) % 2 === 0 ? 0x775f45 : 0xffefb1);
+    }
+  root.addChild(g, sails, axle, race);
   return root;
 }
 
-function barn(): Graphics {
-  const g = new Graphics({ label: 'red-barn', x: 1118, y: 512 });
-  g.scale.set(0.94);
+function barn(): Container {
+  const root = new Container({ label: 'barn-shop', x: 1143, y: 557 });
+  root.scale.set(0.88);
+  const g = new Graphics();
   g.ellipse(21, 5, 157, 17).fill(0x90b56a);
-  g.poly([-113, -104, 75, -101, 75, 7, -112, 8]).fill(0xc86555);
-  g.poly([75, -101, 158, -120, 154, -16, 75, 7]).fill(0xae584c);
-  g.poly([-120, -102, -68, -163, 4, -187, 83, -103, 75, -98, -111, -98]).fill(0xd36a56);
-  for (let x = -102; x < 74; x += 21) g.moveTo(x, -100).lineTo(x, 5).stroke({ width: 1.8, color: 0xbb5d51 });
+  g.poly([-113, -104, 75, -101, 75, 7, -112, 8]).fill(0xc84436);
+  g.poly([75, -101, 158, -120, 154, -16, 75, 7]).fill(0xa63831);
+  g.poly([-120, -102, -68, -163, 4, -187, 83, -103, 75, -98, -111, -98]).fill(0xd54d3b);
+  for (let x = -102; x < 74; x += 21) g.moveTo(x, -100).lineTo(x, 5).stroke({ width: 1.8, color: 0xb84336 });
   for (let x = 90; x < 155; x += 19)
     g.moveTo(x, -105)
       .lineTo(x, 7 - (x - 75) * 0.29)
-      .stroke({ width: 1.7, color: 0xa25348 });
-  g.poly([3, -187, 94, -200, 134, -166, 167, -116, 83, -97, 51, -145]).fill(0x7a8373);
-  g.poly([51, -145, 134, -166, 167, -116, 83, -97]).fill(0x68786d);
+      .stroke({ width: 1.7, color: 0x91332e });
+  g.poly([3, -187, 94, -200, 134, -166, 167, -116, 83, -97, 51, -145]).fill(0x826d59);
+  g.poly([51, -145, 134, -166, 167, -116, 83, -97]).fill(0x695c55);
   g.moveTo(-123, -100)
     .lineTo(-68, -163)
     .lineTo(4, -187)
     .lineTo(52, -144)
     .lineTo(83, -101)
-    .stroke({ width: 5.7, color: 0xdbca9f, join: 'round' });
-  g.moveTo(83, -101).lineTo(167, -119).stroke({ width: 4.4, color: 0x999a81 });
-  g.poly([54, -190, 54, -221, 77, -224, 79, -195]).fill(0xc5826e);
-  g.poly([77, -224, 95, -214, 95, -194, 79, -195]).fill(0xaf7566);
-  g.poly([49, -218, 71, -243, 101, -217, 78, -226]).fill(0x6f7e72);
-  g.rect(-36, -137, 31, 28).fill(0x806957).stroke({ width: 4, color: 0xe6d3ad });
-  g.moveTo(-20.5, -137).lineTo(-20.5, -109).stroke({ width: 2.6, color: 0xe6d3ad });
-  g.rect(-66, -77, 99, 84).fill(0xa56759).stroke({ width: 5.4, color: 0xe5d1ac });
+    .stroke({ width: 6.9, color: 0xfff3da, join: 'round' });
+  g.moveTo(83, -101).lineTo(167, -119).stroke({ width: 4.4, color: 0xc4ae91 });
+  g.poly([54, -190, 54, -221, 77, -224, 79, -195]).fill(0xc64c3f);
+  g.poly([77, -224, 95, -214, 95, -194, 79, -195]).fill(0xa34236);
+  g.poly([49, -218, 71, -243, 101, -217, 78, -226]).fill(0x6d6257);
+  g.rect(-66, -77, 99, 84).fill(0x893b32).stroke({ width: 5.6, color: 0xf6e7d1 });
   g.moveTo(-66, -74)
     .lineTo(-17, -10)
     .lineTo(33, -74)
     .moveTo(-17, -77)
     .lineTo(-17, 7)
-    .stroke({ width: 4.4, color: 0xe5d1ac });
-  g.rect(-111, -101, 5, 109).fill(0xe4c9a5);
-  g.rect(70, -103, 5, 110).fill(0xe4c9a5);
-  return g;
+    .stroke({ width: 4.4, color: 0xf6e7d1 });
+  g.rect(-112, -105, 7, 113).fill(0xfff3da);
+  g.rect(68, -106, 7, 113).fill(0xfff3da);
+  g.poly([151, -116, 157, -121, 154, -16, 148, -14]).fill(0xe7cfb0);
+
+  const sign = new Container({ label: 'shop-sign', x: -20, y: -143, rotation: -0.1 });
+  sign.scale.set(0.94);
+  const board = new Graphics()
+    .poly([-42, -16, 39, -19, 43, 16, -41, 18])
+    .fill(0xb58b71)
+    .poly([-44, -18, 39, -20, 40, -4, 32, -1, 41, 2, 41, 14, -42, 16])
+    .fill(0xfff2d6);
+  const label = new Text({
+    text: 'SHOP',
+    style: { fontFamily: 'Arial, sans-serif', fontSize: 23, fontWeight: '900', fill: 0x912e28 },
+  });
+  label.anchor.set(0.5);
+  label.position.set(-2, -1);
+  sign.addChild(board, label);
+  root.addChild(g, sign);
+  return root;
 }
 
 function fence(g: Graphics, x: number, y: number, count: number, rise: number): void {
@@ -147,7 +184,7 @@ export function createFarm(): Container {
   const root = new Container({ label: 'valley-farm' });
   const details = new Graphics({ label: 'fences-and-training-sign' });
   fence(details, -81, 520, 6, -4);
-  fence(details, 1135, 533, 8, -3.3);
+  fence(details, 1218, 573, 7, -3.3);
   details.poly([166, 580, 174, 580, 181, 507, 171, 507]).fill(0x9c7c59);
   details.poly([122, 504, 209, 505, 228, 525, 209, 545, 120, 542]).fill(0xbd9c71);
   details.poly([127, 507, 209, 508, 224, 525, 208, 541, 124, 538]).fill(0xe6cd98);

@@ -43,7 +43,7 @@ function hills(): Graphics {
     .lineTo(right, bottom)
     .lineTo(left, bottom)
     .closePath()
-    .fill(0xb6df6d);
+    .fill(0xb1e052);
   g.moveTo(left, 542)
     .bezierCurveTo(-725, 602, -248, 400, -78, 440)
     .bezierCurveTo(68, 474, 152, 515, 311, 477)
@@ -54,7 +54,7 @@ function hills(): Graphics {
     .lineTo(right, bottom)
     .lineTo(left, bottom)
     .closePath()
-    .fill(0x9dcc64);
+    .fill(0x97ce4b);
   g.moveTo(left, 594)
     .bezierCurveTo(-573, 658, -213, 475, 20, 515)
     .bezierCurveTo(245, 556, 321, 516, 449, 557)
@@ -64,7 +64,7 @@ function hills(): Graphics {
     .lineTo(right, bottom)
     .lineTo(left, bottom)
     .closePath()
-    .fill(0x8abe52);
+    .fill(0x89be46);
   return g;
 }
 
@@ -78,7 +78,7 @@ function meadow(): Graphics {
     .lineTo(2280, 1230)
     .lineTo(-1000, 1230)
     .closePath()
-    .fill(0x86b656);
+    .fill(0x80b44b);
   g.moveTo(-640, 758)
     .bezierCurveTo(-325, 733, -127, 639, 119, 639)
     .bezierCurveTo(290, 639, 422, 720, 637, 702)
@@ -116,9 +116,9 @@ export function createBackground(): { container: Container; update(camera: Stage
     .rect(SKY.left, SKY.top, SKY.right - SKY.left, SKY.bottom - SKY.top)
     .fill(
       vGradient([
-        [0, 0x76a5e9],
-        [0.66, 0xb9e0e9],
-        [1, 0xe2ebbf],
+        [0, 0x58c5cd],
+        [0.55, 0xa1dae3],
+        [1, 0xe0edcc],
       ]),
     );
   sky.poly([-150, -15, 89, -15, 627, 303, 553, 286]).fill({ color: 0xe4f6ed, alpha: 0.08 });
