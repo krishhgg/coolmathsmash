@@ -3,6 +3,7 @@ import { isIntangible } from '../sim/actions/registry';
 import { SHIELD_MAX } from '../sim/constants';
 import type { FighterState } from '../sim/fighter';
 import type { MatchConfig } from '../sim/match';
+import { statusDef } from '../sim/statuses';
 import type { FighterDef } from '../fighters/types';
 import { PORT_COLORS } from './debug/inputDisplay';
 import { moveClipFrame } from './rig/timing';
@@ -55,6 +56,19 @@ export function shieldRadius(def: FighterDef, shieldHp: number): number {
   return Math.max(0, def.stats.shieldSize * ((shieldHp / SHIELD_MAX) * 0.85 + 0.15));
 }
 
+/** Badges blink for the last second of a status. */
+export const BADGE_BLINK_FRAMES = 60;
+const BADGE = 3.2;
+
+/** The badge colours to draw this frame: one per status with a `color`, oldest first, blinking near their end. */
+export function statusBadges(f: FighterState, frame: number): string[] {
+  return f.statuses.flatMap((s) => {
+    const color = statusDef(s.kind).color;
+    if (!color || (s.frames <= BADGE_BLINK_FRAMES && frame % 8 >= 4)) return [];
+    return [color];
+  });
+}
+
 /** One fighter: its rig posed from the action and frame, plus shield and debug label. World units, y down. */
 export class FighterView {
   readonly container = new Container();
@@ -62,6 +76,8 @@ export class FighterView {
   private readonly art: FighterArt | undefined;
   private readonly rig: RigView | null;
   private readonly shield = new Graphics();
+  /** Status badges beside the head (the overhead tag takes the space above it). */
+  private readonly badges = new Graphics();
   private readonly shieldColor: string;
   /** Height of the head above the feet, in world units; the overhead tag points here. */
   readonly top: number;
@@ -91,7 +107,7 @@ export class FighterView {
     this.top = this.art?.height ?? h;
     this.label.position.set(0, -this.top - 5);
     this.label.visible = false;
-    this.container.addChild(this.body, this.shield, this.label);
+    this.container.addChild(this.body, this.shield, this.badges, this.label);
   }
 
   update(f: FighterState, alpha: number, frame: number, debug: boolean): void {
@@ -111,6 +127,15 @@ export class FighterView {
       if (r > 0)
         this.shield.circle(0, -this.def.stats.height / 2, r).fill({ color: this.shieldColor, alpha: 0.45 });
     }
+    this.badges.clear();
+    const bx = this.def.stats.width / 2 + 1.2;
+    statusBadges(f, frame).forEach((color, i) => {
+      const y = -this.top + 0.6 + i * (BADGE + 0.8);
+      this.badges
+        .roundRect(bx, y, BADGE, BADGE, 0.5)
+        .fill(color)
+        .stroke({ color: '#ffffff', width: 0.45, alpha: 0.9 });
+    });
     this.label.visible = debug;
     if (debug) this.label.text = `${f.move ?? f.action} ${f.actionFrame}`;
   }
