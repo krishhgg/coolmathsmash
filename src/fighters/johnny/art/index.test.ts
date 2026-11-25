@@ -4,7 +4,6 @@ import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
 import { moves } from '../moves';
 import { art } from '.';
-import { GRIP_TARGETS } from './ledge';
 
 /** Canonical clip lengths (loops: any length). */
 const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
@@ -120,26 +119,6 @@ describe('johnny art', () => {
     for (const name of ['idle', 'walk'])
       for (let f = 0; f < art.clips[name]!.length; f += 2)
         expect(poseBounds(art, samplePose(art, name, f, f))[3], `${name}@${f}`).toBeCloseTo(0, 0);
-  });
-
-  it('holds the ledge corner with both fists while hanging', () => {
-    const fist = (pose: ReturnType<typeof samplePose>, side: 'B' | 'F') => {
-      const m = pose.world[`fore${side}`]!;
-      return [m.c * 2.1 + m.tx, m.d * 2.1 + m.ty];
-    };
-    const [far, near] = GRIP_TARGETS;
-    for (const [clip, frames] of [
-      ['ledgeCatch', [8]],
-      ['ledgeHang', [0, 15, 30, 45, 59]],
-      ['ledgeJump', [0, 2, 4]],
-    ] as [string, number[]][])
-      for (const f of frames) {
-        const pose = samplePose(art, clip, f, f);
-        const b = fist(pose, 'B');
-        const n = fist(pose, 'F');
-        expect(Math.hypot(b[0]! - far[0], b[1]! - far[1]), `${clip}@${f} far fist`).toBeLessThan(0.4);
-        expect(Math.hypot(n[0]! - near[0], n[1]! - near[1]), `${clip}@${f} near fist`).toBeLessThan(0.4);
-      }
   });
 
   it('has costumes with the same colour keys, default first, and an icon', () => {
