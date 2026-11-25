@@ -2,6 +2,8 @@ import { Polygon, type Graphics } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import { layerRectOnScreen, REF_CAMERA, VIEW_H, VIEW_W } from '../../battlefield/art/parallax';
 import { stage } from '../geometry';
+import { motionOffset, stageStateAt } from '../../../sim/movingStage';
+import { ONION_ENTRY, ONION_WARNING, rollingOnion } from '../hazards';
 import { createStageView } from '../view';
 import { ROOM_LAYER } from './background';
 
@@ -40,7 +42,7 @@ describe("Papa's Pizzeria art", () => {
 
   it('draws the wood-and-steel hull on the collision polygon all the way out to the ledges', () => {
     const { world } = createStageView();
-    const conveyor = world.getChildByLabel('pizza-peel-conveyor') as Graphics;
+    const conveyor = world.getChildByLabel('pizza-peel-conveyor', true) as Graphics;
     const points = conveyor.context.instructions.flatMap((instruction) => {
       if (instruction.action !== 'stroke') return [];
       return instruction.data.path.shapePath.shapePrimitives.flatMap(({ shape }) => {
@@ -85,5 +87,35 @@ describe("Papa's Pizzeria art", () => {
     expect(pose()).not.toEqual(first);
     view.update(33, REF_CAMERA);
     expect(pose()).toEqual(first);
+  });
+
+  it('starts the warning before the onion and hides both with hazards off', () => {
+    const view = createStageView();
+    const warning = view.world.getChildByLabel('onion-entry-warning', true)!;
+    const onion = view.world.getChildByLabel('rolling-onion', true)!;
+    const belt = view.world.getChildByLabel('conveyor-tread', true)!;
+    const pose = (frame: number, hazards: boolean) =>
+      view.update(frame, REF_CAMERA, {
+        pieces: stageStateAt(stage, frame, undefined, hazards),
+        hazards,
+        alpha: 1,
+      });
+    pose(ONION_WARNING, true);
+    expect(warning.visible).toBe(true);
+    expect(onion.visible).toBe(false);
+    const movingAt = ONION_ENTRY + 23;
+    pose(movingAt, true);
+    const [dx, dy] = motionOffset(rollingOnion.motion, movingAt);
+    expect(warning.visible).toBe(false);
+    expect(onion.visible).toBe(true);
+    expect(onion.x).toBeCloseTo(rollingOnion.x + dx);
+    expect(onion.y).toBeCloseTo(-(rollingOnion.y + dy));
+    expect(belt.x).not.toBe(0);
+    for (const frame of [movingAt, ONION_WARNING]) {
+      pose(frame, false);
+      expect(warning.visible).toBe(false);
+      expect(onion.visible).toBe(false);
+      expect(belt.x).toBe(0);
+    }
   });
 });

@@ -5,6 +5,7 @@ export const ONION_PERIOD = 1320;
 export const ONION_ENTRY = 1200;
 export const ONION_WARNING = ONION_ENTRY - 45;
 
+// TODO: Add the pickup-and-throw pizza box and cheese-stun monster when the engine supports stage actors.
 export const rollingOnion: StageHitbox = {
   x: -82,
   y: 4.1,

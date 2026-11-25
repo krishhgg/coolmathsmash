@@ -130,7 +130,10 @@ export function drawBank({ points }: StageGeometry['solids'][number]): Graphics 
   const g = new Graphics({ label: `bank-${left}` });
   g.poly(flipY(points)).fill(INK);
 
-  const project = projector(left, top);
+  const ledge = stage.ledges.find(({ x }) => x === left || x === right);
+  const project: Project = ledge
+    ? projector(left, top)
+    : (x, depth) => [x - depth * 0.75 * (1 - (x - left) / (right - left)), top - depth];
 
   for (let a = left; a < right; a += TILE) {
     const b = Math.min(a + TILE, right);
@@ -166,7 +169,6 @@ export function drawBank({ points }: StageGeometry['solids'][number]): Graphics 
     }
   }
 
-  const ledge = stage.ledges.find(({ x }) => x === left || x === right);
   if (ledge) {
     const { x, side } = ledge;
     const inner = x - side * 3;

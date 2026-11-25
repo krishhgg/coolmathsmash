@@ -31,6 +31,7 @@ export const stage: StageGeometry = {
       schedule: () => false,
     },
   ],
+  // TODO: Trigger the fragile tiles by dwell/weight and the bridges by switch contact when stage pieces support it.
   platforms: [
     { x1: -66, x2: -34, y: 26 },
     { x1: 34, x2: 66, y: 26 },

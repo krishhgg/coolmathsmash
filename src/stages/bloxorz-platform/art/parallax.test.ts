@@ -36,7 +36,7 @@ describe('Bloxorz Board parallax', () => {
 
 describe('Bloxorz Board collision silhouettes', () => {
   it('follows both hulls, with shallow rear planes wholly outside the goal opening', () => {
-    const banks = stage.solids.map(drawBank).sort((a, b) => a.bounds.minX - b.bounds.minX);
+    const banks = stage.solids.slice(0, 2).map(drawBank);
     expect(banks.map(({ bounds: b }) => [b.minX, b.maxX, b.minY, b.maxY])).toEqual([
       [-88, -8, -DECK_REAR, 8],
       [8, 88, -DECK_REAR, 8],

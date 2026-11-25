@@ -1,12 +1,13 @@
 import { Container, Graphics } from 'pixi.js';
 import { flipY, hash01 } from '../../battlefield/art/util';
 import { stage } from '../geometry';
+import { BELT_SPEED } from '../hazards';
 
 const INK = 0x382e29;
 const EDGE = { width: 0.52, color: INK, join: 'round' } as const;
 const BOLT = { width: 0.28, color: 0x554439 } as const;
 
-export function createConveyor(): Graphics {
+export function createConveyor() {
   const points = stage.solids[0]!.points;
   const top = Math.max(...points.map(([, y]) => y));
   const [left, right] = stage.ledges.map(({ x }) => x).sort((a, b) => a - b);
@@ -57,8 +58,14 @@ export function createConveyor(): Graphics {
     .closePath()
     .fill(0x827d72);
   g.rect(-belt + 5.9, 7.1, (belt - 5.9) * 2, 4.65).fill(0x4a4a44);
-  for (let x = -belt + 8; x < belt - 8; x += 4.55) {
-    g.poly([x, 2.15, x + 0.85, 2.15, x + 3.0, 7.0, x + 2.2, 7.0]).fill(0x58564f);
+  const tread = new Graphics({ label: 'conveyor-tread' });
+  const spacing = 4.55;
+  const edge = belt - 8;
+  for (let x = -edge - spacing * 2; x < edge + spacing; x += spacing)
+    tread.poly([x, 2.15, x + 0.85, 2.15, x + 3, 5.84, x + 2.2, 5.84]).fill(0x58564f);
+  const mask = new Graphics().rect(-edge, 2.15, edge * 2, 3.69).fill(0xffffff);
+  tread.mask = mask;
+  for (let x = -edge; x < edge; x += spacing) {
     g.moveTo(x + 3, 7.2)
       .lineTo(x + 2.25, 11.65)
       .stroke({ width: 0.32, color: 0x353530 });
@@ -94,7 +101,17 @@ export function createConveyor(): Graphics {
   g.moveTo(-half + 1, 0.66)
     .lineTo(half - 1, 0.66)
     .stroke({ width: 0.34, color: 0xf2c286, cap: 'round' });
-  return g;
+  const shape = new Container({ label: 'conveyor' });
+  const treadLayer = new Container();
+  treadLayer.position.copyFrom(g.position);
+  treadLayer.addChild(mask, tread);
+  shape.addChild(g, treadLayer);
+  return {
+    shape,
+    update(frame: number, hazards: boolean) {
+      tread.x = hazards ? (frame * BELT_SPEED) % spacing : 0;
+    },
+  };
 }
 
 function drawPepperoni(g: Graphics, w: number, seed: number) {
