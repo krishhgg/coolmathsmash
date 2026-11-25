@@ -367,14 +367,14 @@ export const clips: Record<string, AnimClip> = {
   },
   /** A quick tuck and spin. */
   airDodge: {
-    length: 46,
+    length: 52,
     swaps: FLINCH,
     keys: [
       key(0, body()),
       key(3, mix(body(1.12, 0.9), roll(-15)), { ease: 'out' }),
       key(12, mix(body(0.96, 1.04), roll(345))),
       key(16, mix(body(), roll(360)), { swaps: DETERMINED }),
-      key(46, mix(body(), roll(360))),
+      key(52, mix(body(), roll(360))),
     ],
   },
 
