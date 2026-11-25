@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import { moves } from '../moves';
+import { authored } from './clips';
 import { art } from '.';
 
 /** Canonical clip lengths (loops: any length). */
@@ -99,6 +101,41 @@ describe('wheely art', () => {
       for (let f = 0; f <= clip.length; f++)
         expect(() => samplePose(art, name, f, f), `${name}@${f}`).not.toThrow();
     }
+  });
+
+  it('times every move clip to moves.ts and covers each hitbox centre while it is active', () => {
+    const misses: string[] = [];
+    for (const [name, move] of Object.entries(moves)) {
+      expect(art.clips[name]?.length, name).toBe(move.faf - 1);
+      for (const hit of move.hits)
+        for (let f = hit.frames[0] - 1; f <= hit.frames[1]; f++) {
+          const pose = samplePose(art, name, f, f);
+          for (const box of hit.boxes)
+            if (!slotsCovering(art, pose, box.x, -box.y).length)
+              misses.push(`${name}@${f} (${box.x}, ${box.y})`);
+        }
+    }
+    expect(misses).toEqual([]);
+  });
+
+  it('shows an effect from a key that places it until the posed key after its last placement', () => {
+    const fx = art.rig.slots.filter((s) => s.bone.startsWith('fx') || s.bone === 'prop');
+    const stray: string[] = [];
+    for (const [name, clip] of Object.entries(art.clips)) {
+      const posed = (authored[name] ?? clip).keys.filter((k) => k.pose);
+      const wrap = (f: number) => (clip.loop ? (f + clip.length) % clip.length : f);
+      const shown = (slot: string, f: number) =>
+        wrap(f) >= 0 && wrap(f) < clip.length && !!samplePose(art, name, wrap(f), wrap(f)).symbols[slot];
+      for (const slot of fx) {
+        for (let f = 0; f < clip.length; f++) {
+          if (!shown(slot.name, f) || (shown(slot.name, f - 1) && shown(slot.name, f + 1))) continue;
+          const from =
+            [...posed].reverse().find((k) => k.frame <= f) ?? (clip.loop ? posed.at(-1) : posed[0]);
+          if (!from?.pose?.[slot.bone]) stray.push(name + '@' + f + ' ' + slot.name);
+        }
+      }
+    }
+    expect(stray).toEqual([]);
   });
 
   it('is about 18 long and 11 tall, tyres on the ground', () => {

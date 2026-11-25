@@ -1,73 +1,50 @@
-import { pointOf } from '../../../render/rig/author';
 import type { AnimClip, Key } from '../../../render/rig/types';
-import { BODY, EXHAUST, HORN, WHEEL_R, WHEEL_X, WHEEL_Y, type Pt } from './parts';
+import { attacks } from './attacks';
+import { BODY, EXHAUST, WHEEL_R, WHEEL_X, type Pt } from './parts';
 import {
+  AIR,
   ANGRY,
   BACK,
   BLUR,
   CLOSED,
+  DEG,
   DIZZY,
   DOWN,
   FOCUS,
+  FRONT,
   HURT,
   IDLE_FACE,
+  LOW,
+  PARK,
+  REAR,
   SCARED,
   SCOOP,
   SHOUT,
+  SQUAT,
   SURPRISED,
   UP,
+  UPSIDE_DOWN,
+  WHEEL,
   at,
   bob,
+  flip,
+  fxOn,
+  holdEffects,
+  honk,
   key,
   mix,
+  roll,
   rolling,
+  smoke,
   spin,
   squash,
   tilt,
   type Pose,
 } from './poses';
-import { rig } from './rig';
 
-const DEG = Math.PI / 180;
-/** Tyre contact patches: wheelies pivot on the rear one, nose dives on the front one. */
-const REAR: Pt = [-WHEEL_X, 0];
-const FRONT: Pt = [WHEEL_X, 0];
-const WHEEL: Pt = [WHEEL_X, WHEEL_Y];
-
-/** Degrees a tyre turns rolling `d` units. */
-const roll = (d: number) => d / WHEEL_R / DEG;
-
-const PARK: Pose = {};
-/** Airborne: the shell rides up and the wheels hang on their springs. */
-const AIR = bob(-0.12, 0.45);
-const LOW = mix(squash(0.88), bob(0.5));
-const SQUAT = mix(squash(0.8), bob(0.55));
 const SHIELD = mix(squash(0.9), bob(0.45), tilt(-2, REAR));
 const HIT = mix(tilt(-22, REAR), bob(-0.1, 0.3), squash(1.04, 0.97));
 const HONK = { ...SHOUT, fx1: 'fxHonk' };
-
-/** Rotated `rot` degrees about the middle and lifted just clear of the ground, for flips near the floor. */
-function flip(rot: number, extra = 0): Pose {
-  const r = rot * DEG;
-  const up = Math.cos(r) >= 0 ? 5.2 : 5.45;
-  const lift = Math.max(0, 9.3 * Math.abs(Math.sin(r)) + up * Math.abs(Math.cos(r)) - 5.2);
-  return tilt(rot, BODY, 0, -lift - extra);
-}
-
-/** On his roof, rocking on the rack, with the eyes turned back upright. */
-const UPSIDE_DOWN = mix(tilt(180, BODY, 0, -0.25), { eyes: { rot: 180, y: 0.6 } });
-
-/** `pose` plus effect bone `fx` pinned to rig point `p` of the car and turned with it. */
-function fxOn(pose: Pose, fx: string, p: Pt, s = 1, rot = 0, sy = Math.abs(s)): Pose {
-  const [x, y] = pointOf(rig, pose, 'shell', p[0] - BODY[0], p[1] - BODY[1]);
-  return mix(pose, { [fx]: at(x, y, s, rot + (pose.body?.rot ?? 0), sy) });
-}
-
-/** Exhaust smoke (fxBack) just behind the pipe. */
-const smoke = (pose: Pose, s = 0.5) => fxOn(pose, 'fx4', [EXHAUST[0] - 0.8 * s, EXHAUST[1] - 0.15], s);
-
-/** Horn waves (fx1) opening forward from the horn. */
-const honk = (pose: Pose, s: number) => fxOn(pose, 'fx1', [HORN[0] + 0.5, HORN[1]], s);
 
 // ---------------------------------------------------------------- ledges
 
@@ -229,7 +206,8 @@ const walk: AnimClip = {
 const RUN_A = smoke(mix(tilt(-1.5, REAR), bob(0.06), { fx3: at(-8.9, 0) }), 0.45);
 const RUN_B = smoke(mix(tilt(-1, REAR), bob(-0.04), { fx3: at(-9.1, 0.1) }), 0.6);
 
-export const clips: Record<string, AnimClip> = {
+/** The clips as written, before effects are held between keys (index.test.ts checks their effect lifetimes). */
+export const authored: Record<string, AnimClip> = {
   idle,
   walk,
   dash: {
@@ -655,6 +633,7 @@ export const clips: Record<string, AnimClip> = {
       key(60, spin(0, 720)),
     ],
   },
+  ...attacks,
   respawn: {
     length: 60,
     loop: true,
@@ -662,3 +641,7 @@ export const clips: Record<string, AnimClip> = {
     keys: [key(0, bob(0)), key(30, bob(0.07))],
   },
 };
+
+export const clips: Record<string, AnimClip> = Object.fromEntries(
+  Object.entries(authored).map(([name, clip]) => [name, holdEffects(clip)]),
+);
