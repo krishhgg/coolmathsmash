@@ -48,7 +48,7 @@ Ultimate's zoom on a decisive 1v1 hit lives in `src/render/zoom.ts`, with the KO
 
 SmashWiki gives no length, and Ultimate's slowdown would stretch sim frames. So the zoom plays over the victim's
 hitlag, the frames the sim already holds both fighters still: the camera pushes in on the contact point over 4
-frames (to 120 units across, twice the camera's closest), holds, and pulls back over the 4 frames after the launch.
+frames (to 120 units across, twice the camera's closest), holds, and cuts back to the normal camera on the launch frame.
 The flash tints everything behind the fighters and draws streaks pointing at the impact, in screen pixels like the
 KO blast. `Camera.viewFor` takes the zoom as a `Focus`, so screen shake still applies on top.
 

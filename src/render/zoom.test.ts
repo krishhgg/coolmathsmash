@@ -16,7 +16,6 @@ import { getStage } from '../stages/registry';
 import { Camera } from './camera';
 import { easeOut } from './vfx/shapes';
 import {
-  flashLevel,
   SPECIAL_ZOOM_KB,
   stepZoom,
   Zoom,
@@ -151,25 +150,22 @@ describe('zoom timing', () => {
     expect(z.until - z.frame).toBe(18);
   });
 
-  it('holds while the sim holds the victim still and lets go on the launch frame', () => {
+  it('holds exactly while the sim holds the victim still, and cuts back on the launch frame', () => {
     for (let f = z.frame; f <= z.until; f++) {
       expect(at(f).victim).toEqual(hit.victim);
       expect(at(f).zoom).toBe(z);
-      expect(flashLevel(z, f)).toBe(1);
     }
     expect(at(z.until + 1).victim.x).toBeGreaterThan(hit.victim.x);
+    expect(at(z.until + 1).zoom).toBeNull();
+    expect(zoomFocus(z, z.until + 1)).toBeNull();
+    expect(at(z.frame - 1).zoom).toBeNull();
   });
 
-  it(`pushes in over ${ZOOM.in} frames from the hit and pulls out over ${ZOOM.out} from the launch`, () => {
+  it(`pushes in over ${ZOOM.in} frames from the hit and holds to the launch`, () => {
     expect(zoomWeight(z, z.frame - 1)).toBe(0);
     for (let i = 0; i < ZOOM.in; i++) expect(zoomWeight(z, z.frame + i)).toBe(easeOut((i + 1) / ZOOM.in));
-    expect(zoomWeight(z, z.until)).toBe(1);
-    for (let i = 1; i <= ZOOM.out; i++) {
-      expect(zoomWeight(z, z.until + i)).toBe(1 - easeOut(i / ZOOM.out));
-      expect(at(z.until + i).zoom).toBe(i < ZOOM.out ? z : null);
-    }
-    expect(zoomFocus(z, z.until + ZOOM.out)).toBeNull();
-    expect(at(z.frame - 1).zoom).toBeNull();
+    for (let f = z.frame + ZOOM.in - 1; f <= z.until; f++) expect(zoomWeight(z, f)).toBe(1);
+    expect(zoomWeight(z, z.until + 1)).toBe(0);
   });
 
   it('centres the drawn view on the contact point at twice the closest camera zoom', () => {
@@ -200,11 +196,9 @@ describe('the flash', () => {
     expect(zoomFlashShapes(finish, finish.frame, view, true).length).toBe(15);
   });
 
-  it('fades out with the zoom and draws nothing after', () => {
-    const fading = zoomFlashShapes(finish, finish.until + 2, view)[0]!.fill!.alpha!;
-    expect(fading).toBeGreaterThan(0);
-    expect(fading).toBeLessThan(0.78);
-    expect(zoomFlashShapes(finish, finish.until + ZOOM.out, view)).toEqual([]);
+  it('lasts from the hit through the freeze and draws nothing on either side', () => {
+    expect(zoomFlashShapes(finish, finish.until, view)[0]!.fill!.alpha).toBe(0.78);
+    expect(zoomFlashShapes(finish, finish.until + 1, view)).toEqual([]);
     expect(zoomFlashShapes(finish, finish.frame - 1, view)).toEqual([]);
   });
 
@@ -249,6 +243,6 @@ describe('determinism', () => {
       if (zoom.at(zoomed)) zoomedFrames++;
       expect(hashState(zoomed)).toBe(hashState(plain));
     }
-    expect(zoomedFrames).toBe(18 + ZOOM.out);
+    expect(zoomedFrames).toBe(18 + 1);
   });
 });

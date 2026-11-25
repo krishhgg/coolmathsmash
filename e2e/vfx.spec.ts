@@ -52,8 +52,8 @@ test('a 1v1 KO forward smash flashes red through its hitlag, a strong non-KO hit
     for (const name of ['finish-zoom', 'special-zoom']) {
       await s.runScenario(name);
       const during = corner();
-      // The capture frame has 10 frames of hitlag left; the zoom lets go 4 frames after the launch.
-      s.step(16);
+      // The capture frame has 10 frames of hitlag left; the zoom cuts back on the launch frame.
+      s.step(12);
       void s.render();
       out[name] = { during, after: corner() };
     }

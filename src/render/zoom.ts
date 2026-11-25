@@ -25,16 +25,15 @@ import { blade, easeOut, lerp, TAU, type Shape } from './vfx/shapes';
  * SmashWiki gives no length for either zoom, and Ultimate's slowdown would stretch sim frames, which the renderer
  * cannot do. So the zoom plays over the victim's hitlag (SmashWiki's Hitlag article: floor(damage * 0.65 + 6) frames,
  * up to 30), the frames the sim already holds both fighters still: the drawn frame is frozen on the hit for exactly as
- * long as the sim is, and the picture resumes on the launch frame with nothing skipped. A zoom is a pure function of
- * the hit's event, the state on its frame and the frame drawn, so captures and replays draw it the same every time.
+ * long as the sim is, and the picture cuts back to the normal camera on the launch frame with nothing skipped. A zoom
+ * is a pure function of the hit's event, the state on its frame and the frame drawn, so captures and replays draw it
+ * the same every time.
  */
 export const SPECIAL_ZOOM_KB = SHAKE.severe.kb;
 
 export const ZOOM = {
   /** Frames from the hit to full zoom (the hit frame counts as the first). */
   in: 4,
-  /** Frames from the launch back to the normal camera. */
-  out: 4,
   /** World units across the screen at full zoom: twice as close as the camera's closest. */
   width: 120,
 };
@@ -97,19 +96,15 @@ export function zoomFrom(m: MatchState): SpecialZoom | null {
   return best;
 }
 
+/** Is `frame` one of the zoom's frames: the hit's frame through the victim's last frozen one? */
+export const zoomed = (z: SpecialZoom, frame: number): boolean => frame >= z.frame && frame <= z.until;
+
 /** How far the view has pushed in on the contact point at `frame`, 0 to 1. */
 export function zoomWeight(z: SpecialZoom, frame: number): number {
-  if (frame < z.frame) return 0;
-  return Math.min(easeOut((frame - z.frame + 1) / ZOOM.in), flashLevel(z, frame));
+  return zoomed(z, frame) ? easeOut((frame - z.frame + 1) / ZOOM.in) : 0;
 }
 
-/** The flash's strength at `frame`, 0 to 1: full from the hit through the freeze, fading as the victim launches. */
-export function flashLevel(z: SpecialZoom, frame: number): number {
-  if (frame < z.frame) return 0;
-  return frame <= z.until ? 1 : 1 - easeOut((frame - z.until) / ZOOM.out);
-}
-
-/** Where the camera leans at `frame` (see Camera.viewFor), or null once the zoom is over. */
+/** Where the camera leans at `frame` (see Camera.viewFor), or null outside the zoom. */
 export function zoomFocus(z: SpecialZoom, frame: number): Focus | null {
   const weight = zoomWeight(z, frame);
   return weight > 0 ? { x: z.x, y: z.y, zoom: VIEW_WIDTH / ZOOM.width, weight } : null;
@@ -123,13 +118,13 @@ export interface ZoomState {
 
 /**
  * Advance `s` to the frame `m` just simulated: drop a finished zoom, then start this frame's. A new zoom waits for the
- * running one to reach its launch unless it outranks it (a Finish Zoom over a Special Zoom).
+ * running one to end unless it outranks it (a Finish Zoom over a Special Zoom).
  */
 export function stepZoom(s: ZoomState, m: MatchState): void {
   s.frame = m.frame;
-  if (s.zoom && m.frame - s.zoom.until >= ZOOM.out) s.zoom = null;
+  if (s.zoom && !zoomed(s.zoom, m.frame)) s.zoom = null;
   const next = zoomFrom(m);
-  if (next && (!s.zoom || m.frame > s.zoom.until || RANK[next.kind] > RANK[s.zoom.kind])) s.zoom = next;
+  if (next && (!s.zoom || RANK[next.kind] > RANK[s.zoom.kind])) s.zoom = next;
 }
 
 /**
@@ -163,8 +158,7 @@ const STREAK_REACH = Math.hypot(VIEW_WIDTH, VIEW_HEIGHT) + 80;
  * they and the hit spark stand out on it. `lite` draws half the streaks.
  */
 export function zoomFlashShapes(z: SpecialZoom, frame: number, view: CameraView, lite = false): Shape[] {
-  const level = flashLevel(z, frame);
-  if (level <= 0) return [];
+  if (!zoomed(z, frame)) return [];
   const c = ZOOM_FLASH[z.kind];
   const cx = VIEW_WIDTH / 2 + (z.x - view.x) * view.zoom;
   const cy = VIEW_HEIGHT / 2 - (z.y - view.y) * view.zoom;
@@ -172,7 +166,7 @@ export function zoomFlashShapes(z: SpecialZoom, frame: number, view: CameraView,
     {
       type: 'poly',
       points: [0, 0, VIEW_WIDTH, 0, VIEW_WIDTH, VIEW_HEIGHT, 0, VIEW_HEIGHT],
-      fill: { color: c.base, alpha: FLASH_ALPHA * level },
+      fill: { color: c.base, alpha: FLASH_ALPHA },
     },
   ];
   const count = lite ? 14 : 28;
@@ -191,7 +185,7 @@ export function zoomFlashShapes(z: SpecialZoom, frame: number, view: CameraView,
         STREAK_REACH - gap,
         width,
       ),
-      fill: { color: i % 3 === 0 ? c.dark : c.light, alpha: (i % 3 === 0 ? 0.5 : 0.7) * level },
+      fill: { color: i % 3 === 0 ? c.dark : c.light, alpha: i % 3 === 0 ? 0.5 : 0.7 },
     });
   }
   return out;
