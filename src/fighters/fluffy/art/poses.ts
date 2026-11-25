@@ -98,9 +98,12 @@ export const GRAB = { grabLine: 'line', tip: 'tip' };
 export const WHIP = { grabLine: 'lineWave', tip: 'tip' };
 export const BLINK = { lids: 'blink' };
 export const HALF = { lids: 'lidsHalf' };
-export const ANGRY = { lids: 'lidsAngry' };
+/** Wide-eyed and intent, pupils narrowed on the target: his look for most attacks. */
+export const FOCUS = { pupils: 'pupilsFocus' };
 export const SAD = { lids: 'lidsSad' };
-export const EFFORT = { lids: 'lidsAngry', mouth: 'mouthGrit' };
+export const EFFORT = { pupils: 'pupilsFocus', mouth: 'mouthEffort' };
+/** Brows down: kept for the forward smash charge and Stick Tight. */
+export const FIERCE = { lids: 'lidsAngry', mouth: 'mouthEffort' };
 export const SHOCK = { pupils: 'pupilsSmall', mouth: 'mouthO' };
 export const HURT = { lids: 'squeeze', mouth: 'mouthO' };
 export const DIZZY = { pupils: 'pupilsDizzy', lids: 'lidsHalf', fur: 'furFlat' };

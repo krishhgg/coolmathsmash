@@ -1,8 +1,10 @@
 import type { AnimClip } from '../../../render/rig/types';
 import {
-  ANGRY,
   BRISTLE,
   EFFORT,
+  FIERCE,
+  FLAT_FUR,
+  FOCUS,
   GRAB,
   HALF,
   HAPPY,
@@ -52,6 +54,7 @@ const STAND: Ball = {};
 const WIND: Ball = { x: -0.6, sx: 0.9, sy: 1.08, tilt: -10, face: { x: 0.2 }, look: [0.45, 0] };
 const LUNGE: Ball = { x: 1.4, sx: 1.14, sy: 0.9, tilt: 10, face: { x: 0.6 }, look: [0.5, 0.05] };
 const SQUAT: Ball = { sx: 1.16, sy: 0.84, face: { y: 0.3 } };
+const THRUST: Ball = { x: 2.1, sx: 1.23, sy: 0.84, tilt: 6, face: { x: 0.38, y: -0.65 }, look: [0.65, 0.15] };
 
 /** The usual whip: wind up behind, crack forward along the hitbox line, hold, then reel the line back in. */
 function whip(o: {
@@ -73,16 +76,16 @@ function whip(o: {
   const mid: Aim = { from: o.line.from, to: [fx + (tx - fx) * 0.5, fy + (ty - fy) * 0.5], near: o.line.near };
   return {
     length: o.length,
-    swaps: ANGRY,
+    swaps: FOCUS,
     keys: [
       key(0, ball(STAND), { ease: 'out' }),
-      key(Math.max(1, a0 - 4), ball(with_(windup, back)), { ease: 'in', swaps: { ...ANGRY, ...GRAB } }),
+      key(Math.max(1, a0 - 4), ball(with_(windup, back)), { ease: 'in', swaps: { ...FOCUS, ...GRAB } }),
       key(a0 - 1, ball(with_(strike, mid)), { ease: 'out' }),
       key(a0, ball(with_(strike, o.line)), { ease: 'linear' }),
       key(a1, ball(with_(strike, o.line)), { ease: 'inOut' }),
       key(a1 + 3, ball(with_({ ...strike, x: (strike.x ?? 0) * 0.6 }, o.line)), {
         ease: 'in',
-        swaps: { ...ANGRY, ...WHIP },
+        swaps: { ...FOCUS, ...WHIP },
       }),
       key(reel, ball(with_({ sx: 1.04, sy: 0.97 }, coil(STAND, -30, 2.5))), {
         ease: 'out',
@@ -103,12 +106,12 @@ function tether(o: { length: number; out: [number, Pt][]; hold: number; turnFrom
   const startBall: Ball = o.turnFrom === undefined ? WIND : { ...WIND, face: LOOK_BACK };
   return {
     length: o.length,
-    swaps: ANGRY,
+    swaps: FOCUS,
     keys: [
       key(0, ball(o.turnFrom === undefined ? STAND : { face: LOOK_BACK }), { ease: 'out' }),
       key(first - 5, ball(with_(startBall, coil(startBall, -160, 4))), {
         ease: 'in',
-        swaps: { ...ANGRY, ...GRAB },
+        swaps: { ...FOCUS, ...GRAB },
       }),
       key(first - 1, ball(with_(LUNGE, { from, to: P(9, 6) })), { ease: 'linear' }),
       ...o.out.map(([f, tip]) => key(f, ball(with_(LUNGE, { from, to: tip })), { ease: 'linear' })),
@@ -151,24 +154,24 @@ export const ATTACKS: Record<string, AnimClip> = {
   /** Fuzz Bump: a shove with the puffed-up fur (hits 3-4). */
   jab: {
     length: 19,
-    swaps: ANGRY,
+    swaps: FOCUS,
     keys: [
       key(0, ball(STAND), { ease: 'out' }),
-      key(2, ball({ x: -0.5, sx: 0.9, sy: 1.08, tilt: -6 }), { ease: 'out', swaps: { ...ANGRY, ...PUFF } }),
+      key(2, ball({ x: -0.5, sx: 0.9, sy: 1.08, tilt: -6 }), { ease: 'out', swaps: { ...FOCUS, ...PUFF } }),
       key(3, ball({ x: 2.3, sx: 1.16, sy: 0.9, tilt: 10, puff: 1.08, face: { x: 0.6 }, look: [0.5, 0] }), {
         ease: 'linear',
       }),
       key(5, ball({ x: 2.4, sx: 1.12, sy: 0.92, tilt: 9, puff: 1.06, face: { x: 0.6 }, look: [0.5, 0] }), {
         ease: 'inOut',
       }),
-      key(12, ball({ x: 0.4, sx: 0.98, sy: 1.02 }), { swaps: ANGRY }),
+      key(12, ball({ x: 0.4, sx: 0.98, sy: 1.02 }), { swaps: FOCUS }),
       key(19, ball(STAND)),
     ],
   },
   /** Fuzz Bump 2 (hits 3-4): a second shove, low and bouncing. */
   jab2: {
     length: 20,
-    swaps: { ...ANGRY, ...PUFF },
+    swaps: { ...FOCUS, ...PUFF },
     keys: [
       key(0, ball({ x: 0.6, sx: 1.02, sy: 0.98 }), { ease: 'out' }),
       key(2, ball({ x: -0.2, sx: 1.12, sy: 0.86, tilt: 4 }), { ease: 'out' }),
@@ -201,7 +204,7 @@ export const ATTACKS: Record<string, AnimClip> = {
           look: [0.5, 0.1],
         }),
       ),
-      key(12, ball({ x: 0.5, sx: 0.98, sy: 1.03 }), { swaps: ANGRY }),
+      key(12, ball({ x: 0.5, sx: 0.98, sy: 1.03 }), { swaps: FOCUS }),
       key(20, ball(STAND)),
     ],
   },
@@ -235,7 +238,7 @@ export const ATTACKS: Record<string, AnimClip> = {
       key(6, ball(with_({ ...LUNGE, x: 1.2 }, { from: P(2, 6), to: P(11, 4.5), near: 0 })), {
         ease: 'inOut',
       }),
-      key(8, undefined, { swaps: { ...ANGRY, ...WHIP } }),
+      key(8, undefined, { swaps: { ...FOCUS, ...WHIP } }),
       key(20, ball(with_({ sx: 1.04, sy: 0.97 }, coil(STAND, 0, 2))), {
         ease: 'out',
         swaps: { ...HALF, ...GRAB },
@@ -249,10 +252,10 @@ export const ATTACKS: Record<string, AnimClip> = {
   /** Grabber Flick (6-7 in front, 8-10 overhead, 11-12 behind): an arc over his head. */
   utilt: {
     length: 29,
-    swaps: { ...ANGRY, ...GRAB },
+    swaps: { ...FOCUS, ...GRAB },
     keys: [
-      key(0, ball(STAND), { ease: 'out', swaps: ANGRY }),
-      key(3, ball(with_(SQUAT, coil(SQUAT, -10, 3))), { ease: 'in', swaps: { ...ANGRY, ...GRAB } }),
+      key(0, ball(STAND), { ease: 'out', swaps: FOCUS }),
+      key(3, ball(with_(SQUAT, coil(SQUAT, -10, 3))), { ease: 'in', swaps: { ...FOCUS, ...GRAB } }),
       key(5, ball(with_({ sx: 0.94, sy: 1.08, look: [0.4, -0.4] }, along(P(3, 8), P(7, 13), 4.5, -55))), {
         ease: 'linear',
       }),
@@ -279,7 +282,7 @@ export const ATTACKS: Record<string, AnimClip> = {
           ease: 'out',
         },
       ),
-      key(13, undefined, { swaps: { ...ANGRY, ...WHIP } }),
+      key(13, undefined, { swaps: { ...FOCUS, ...WHIP } }),
       key(20, ball(with_(STAND, coil(STAND, -150, 2.5))), { ease: 'inOut', swaps: { ...HALF, ...GRAB } }),
       key(21, undefined, { swaps: HALF }),
       key(29, ball(STAND)),
@@ -300,8 +303,8 @@ export const ATTACKS: Record<string, AnimClip> = {
     length: 41,
     swaps: { ...HURT, mouth: null, fur: 'furRoll' },
     keys: [
-      key(0, ball({ sx: 1.1, sy: 0.9, tilt: 8 }), { ease: 'out', swaps: ANGRY }),
-      key(4, ball({ x: -0.4, sx: 0.88, sy: 1.1, tilt: -10, y: -0.3 }), { ease: 'in', swaps: ANGRY }),
+      key(0, ball({ sx: 1.1, sy: 0.9, tilt: 8 }), { ease: 'out', swaps: FOCUS }),
+      key(4, ball({ x: -0.4, sx: 0.88, sy: 1.1, tilt: -10, y: -0.3 }), { ease: 'in', swaps: FOCUS }),
       key(7, ball({ x: 1.6, y: -0.4, tilt: 120 }), {
         ease: 'linear',
         swaps: { ...HURT, mouth: null, fur: 'furRoll' },
@@ -319,49 +322,80 @@ export const ATTACKS: Record<string, AnimClip> = {
   /** Spiked Ball (charge on 13, hits 16-18): the spiked ball thrust out to 64 units. */
   fsmash: {
     length: 61,
-    swaps: { ...EFFORT, ...GRAB },
+    active: [[16, 18]],
+    swaps: { ...FOCUS, ...GRAB },
     keys: [
-      key(0, ball(STAND), { ease: 'out', swaps: EFFORT }),
+      key(0, ball(STAND), { ease: 'out', swaps: FOCUS }),
       key(
-        5,
+        6,
         ball(
           with_(
-            { x: -0.8, sx: 0.86, sy: 1.12, tilt: -14, look: [0.5, -0.1] },
-            coil({ x: -0.8, sy: 1.12 }, -140, 5),
+            { x: -1.1, sx: 0.85, sy: 1.07, tilt: -7, look: [0.45, 0.05] },
+            { from: P(-2, 6), to: P(-7, 6), near: -180 },
           ),
         ),
         {
           ease: 'inOut',
-          swaps: { ...EFFORT, grabLine: 'line', tip: 'tipSpin', fur: 'furPuff' },
+          swaps: { ...FIERCE, ...WHIP, ...FLAT_FUR },
         },
       ),
       key(
         13,
         ball(
           with_(
-            { x: -1.1, sx: 0.84, sy: 1.14, tilt: -16, look: [0.5, -0.1] },
-            coil({ x: -1.1, sy: 1.14 }, -120, 6),
+            { x: -2, sx: 0.79, sy: 0.96, puff: 0.96, tilt: -10, look: [0.55, 0.1] },
+            { from: P(-2, 5.5), to: P(-10, 5.5), near: -180 },
           ),
         ),
         {
           ease: 'in',
         },
       ),
-      key(15, ball(with_(LUNGE, { from: P(2, 6.5), to: P(36, 6.5) })), {
+      key(
+        14,
+        ball(
+          with_({ x: -0.85, sx: 0.98, sy: 0.93, tilt: 1, look: [0.6, 0.1] }, { from: P(-2, 6), to: P(3, 6) }),
+        ),
+        {
+          ease: 'in',
+          swaps: { ...FOCUS, ...RUN_FUR },
+        },
+      ),
+      key(
+        15,
+        ball(with_({ ...THRUST, x: 1.4, fx3: at(33, -6.5, 0.9) }, { from: P(2, 6.5), to: P(35, 6.5) })),
+        {
+          ease: 'linear',
+          swaps: { ...EFFORT, ...GRAB, ...RUN_FUR, fxBack: 'thrustSmear' },
+        },
+      ),
+      key(16, ball(with_({ ...THRUST, fx3: at(63, -6.5, 1.45) }, along(P(12, 6.5), P(64, 6.5), 10))), {
         ease: 'linear',
-        swaps: { ...EFFORT, ...GRAB, ...RUN_FUR },
       }),
-      key(16, ball(with_({ ...LUNGE, x: 1.8 }, along(P(12, 6.5), P(64, 6.5), 10))), { ease: 'linear' }),
-      key(18, ball(with_({ ...LUNGE, x: 1.8 }, along(P(12, 6.5), P(64, 6.5), 10))), { ease: 'inOut' }),
-      key(24, ball(with_({ ...LUNGE, x: 1.2 }, along(P(12, 6.0), P(62, 5), 10))), {
+      key(17, undefined, { swaps: { ...EFFORT, ...GRAB, ...RUN_FUR } }),
+      key(18, ball(with_({ ...THRUST, x: 1.85, sx: 1.15, sy: 0.9 }, along(P(12, 6.5), P(64, 6.5), 10))), {
         ease: 'in',
-        swaps: { ...ANGRY, ...WHIP },
       }),
-      key(44, ball(with_({ x: 0.4, sx: 1.04, sy: 0.97 }, coil(STAND, 0, 3))), {
+      key(
+        22,
+        ball(
+          with_({ x: -1.15, sx: 0.88, sy: 1.1, tilt: -16, look: [0.55, 0] }, { from: P(0, 5), to: P(54, 7) }),
+        ),
+        {
+          ease: 'out',
+          swaps: { ...SHOCK, ...WHIP, grabLine: 'lineWaveBig' },
+        },
+      ),
+      key(34, ball(with_({ x: 0.45, sx: 1.12, sy: 0.88, tilt: 4 }, { from: P(2, 5), to: P(12, 4) })), {
+        ease: 'inOut',
+        swaps: { ...FOCUS, ...WHIP },
+      }),
+      key(43, ball(with_({ x: -0.2, sx: 0.98, sy: 1.03 }, coil(STAND, 0, 2))), {
         ease: 'out',
         swaps: { ...HALF, ...GRAB },
       }),
-      key(46, undefined, { swaps: HALF }),
+      key(44, undefined, { swaps: { ...HALF, grabLine: null, tip: null } }),
+      key(52, ball(STAND), { swaps: { grabLine: null, tip: null } }),
       key(61, ball(STAND)),
     ],
   },
@@ -413,7 +447,7 @@ export const ATTACKS: Record<string, AnimClip> = {
           ease: 'out',
         },
       ),
-      key(19, undefined, { swaps: { ...ANGRY, ...WHIP } }),
+      key(19, undefined, { swaps: { ...FOCUS, ...WHIP } }),
       key(26, ball(with_({ sx: 1.06, sy: 0.95 }, { from: P(0, 5), to: P(-12, 2), near: -190 })), {
         ease: 'inOut',
       }),
@@ -488,7 +522,7 @@ export const ATTACKS: Record<string, AnimClip> = {
           ease: 'inOut',
         },
       ),
-      key(17, undefined, { swaps: { ...ANGRY, ...WHIP } }),
+      key(17, undefined, { swaps: { ...FOCUS, ...WHIP } }),
       key(
         30,
         ball(
@@ -510,12 +544,12 @@ export const ATTACKS: Record<string, AnimClip> = {
   /** Getup attack (17-18 in front, 25-26 behind; intangible to 26): from lying flat, the line spun both ways. */
   getupAttack: {
     length: 45,
-    swaps: { ...ANGRY, fur: 'furFlat' },
+    swaps: { ...FOCUS, fur: 'furFlat' },
     keys: [
       key(0, ball({ sx: 1.3, sy: 0.62, face: { y: 0.6 } }), { ease: 'inOut' }),
       key(12, ball(with_({ sx: 1.18, sy: 0.8, face: { y: 0.3 } }, coil({ sx: 1.18, sy: 0.8 }, 170, 3))), {
         ease: 'in',
-        swaps: { ...ANGRY, ...GRAB },
+        swaps: { ...FOCUS, ...GRAB },
       }),
       key(16, ball(with_({ sx: 1.15, sy: 0.85, tilt: 6 }, { from: P(1, 3), to: P(7, 3) })), {
         ease: 'linear',
@@ -581,7 +615,7 @@ export const ATTACKS: Record<string, AnimClip> = {
   /** Bristle (5-7 strong, 8-24 lingering): every hair stands on end. */
   nair: {
     length: 39,
-    swaps: ANGRY,
+    swaps: FOCUS,
     keys: [
       key(0, ball({ float: true }), { ease: 'out' }),
       key(3, ball({ sx: 0.86, sy: 0.86, float: true, look: [0.2, 0] }), {
@@ -594,7 +628,7 @@ export const ATTACKS: Record<string, AnimClip> = {
       }),
       key(8, ball({ sx: 1.06, sy: 1.06, float: true, puff: 1.06 }), {
         ease: 'inOut',
-        swaps: { ...ANGRY, ...BRISTLE },
+        swaps: { ...FOCUS, ...BRISTLE },
       }),
       key(24, ball({ sx: 1.04, sy: 1.04, float: true, puff: 1.02 }), { ease: 'inOut' }),
       key(25, undefined, { swaps: { ...HALF, fur: 'furPuff' } }),
@@ -627,7 +661,7 @@ export const ATTACKS: Record<string, AnimClip> = {
   /** Whirl (6-10): the line twirls straight up over his head, the spiked ball spinning at 17 units. */
   uair: {
     length: 33,
-    swaps: ANGRY,
+    swaps: FOCUS,
     keys: [
       key(0, ball({ float: true }), { ease: 'out' }),
       key(
@@ -635,7 +669,7 @@ export const ATTACKS: Record<string, AnimClip> = {
         ball(with_({ float: true, sx: 1.08, sy: 0.92, look: [0.2, -0.4] }, coil({ float: true }, -60, 3))),
         {
           ease: 'linear',
-          swaps: { ...ANGRY, grabLine: 'line', tip: 'tipSpin' },
+          swaps: { ...FOCUS, grabLine: 'line', tip: 'tipSpin' },
         },
       ),
       key(
@@ -681,7 +715,7 @@ export const ATTACKS: Record<string, AnimClip> = {
         ),
         {
           ease: 'inOut',
-          swaps: { ...ANGRY, ...WHIP },
+          swaps: { ...FOCUS, ...WHIP },
         },
       ),
       key(24, ball(with_({ float: true, spin: 360 }, coil({ float: true }, -120, 2))), {
@@ -761,7 +795,7 @@ export const ATTACKS: Record<string, AnimClip> = {
   grabHold: {
     length: 40,
     loop: true,
-    swaps: { ...ANGRY, ...GRAB },
+    swaps: { ...FOCUS, ...GRAB },
     keys: [
       key(0, ball(with_({ sx: 1.02, sy: 0.98, look: [0.5, 0.1] }, HOLD))),
       key(

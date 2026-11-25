@@ -97,4 +97,13 @@ describe('fluffy art', () => {
     expect(art.icon.length).toBeGreaterThan(1000);
     expect(art.projectiles?.candy).toBeDefined();
   });
+
+  it('keeps each holiday hat exclusive to its costume', () => {
+    for (const clip of ['idle', 'run', 'fsmash', 'ledgeHang']) {
+      expect(samplePose(art, clip, 10, 10, 'xmas').symbols.hat).toBe('santaHat');
+      expect(samplePose(art, clip, 10, 10, 'halloween').symbols.hat).toBe('witchHat');
+      for (const costume of ['default', 'candy', 'lime'])
+        expect(samplePose(art, clip, 10, 10, costume).symbols.hat).toBeNull();
+    }
+  });
 });
