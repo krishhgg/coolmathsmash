@@ -322,7 +322,8 @@ upB: {
   position, which is tether recovery. Another anchor ends with his hand on it: holding `hang` keeps him there
   (`tetherHang`) until he lets go of it, else he falls. A jump press lets go at any point, keeping the reel's
   velocity as momentum. A reel blocked by a wall gives up after range / pullSpeed + `TETHER.pullSlack` frames.
-  Letting go ends in a fall, or helpless for a `helpless` move.
+  Letting go ends in a fall, or helpless for a `helpless` move. The reel keeps the move, and `tether.moveFrame`
+  keeps the move frame it anchored or arrived on, so the move's clip plays on through it (docs/art.md).
 - **Losing the line.** Getting hit or grabbed, landing, or anything else that ends the move or the reel drops the
   line. `FighterState.tether` holds the line (`out` with its tip while it travels, then its anchor) and
   `FighterState.aim` the reticle or target; the hitbox overlay draws both in teal.
