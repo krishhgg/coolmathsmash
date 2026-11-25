@@ -1,4 +1,4 @@
-import { Container, Graphics, Text } from 'pixi.js';
+import { ColorMatrixFilter, Container, Graphics, Text } from 'pixi.js';
 import { isIntangible } from '../sim/actions/registry';
 import { SHIELD_MAX } from '../sim/constants';
 import type { FighterState } from '../sim/fighter';
@@ -9,6 +9,10 @@ import { PORT_COLORS } from './debug/inputDisplay';
 import { moveClipFrame } from './rig/timing';
 import type { FighterArt } from './rig/types';
 import { createRigView, type RigView } from './rig/view';
+import { paint } from './vfx/paint';
+import { hex } from './vfx/shapes';
+import { CRACKED_SHIELD, shieldBubbleShapes } from './vfx/shield';
+import type { FighterFx } from './vfx/system';
 
 /**
  * Engine actions drawn with another canonical clip. Everything else plays the clip named after the move while one
@@ -79,6 +83,9 @@ export class FighterView {
   /** Status badges beside the head (the overhead tag takes the space above it). */
   private readonly badges = new Graphics();
   private readonly shieldColor: string;
+  /** The colour flash (smash charge, respawn invincibility); never made in `lite`, where it is the blink instead. */
+  private flash: ColorMatrixFilter | null = null;
+  private flashing = false;
   /** Height of the head above the feet, in world units; the overhead tag points here. */
   readonly top: number;
   private readonly label = new Text({
@@ -86,10 +93,12 @@ export class FighterView {
     style: { fontFamily: 'monospace', fontSize: 22, fill: '#ffffff' },
   });
 
+  /** `lite` (RenderQuality): no filters, so a software renderer never draws the fighter twice. */
   constructor(
     private readonly def: FighterDef,
     port: number,
     costume = 'default',
+    private readonly lite = false,
   ) {
     const { height: h, width: w } = def.stats;
     this.art = fighterArt(def);
@@ -110,22 +119,53 @@ export class FighterView {
     this.container.addChild(this.body, this.shield, this.badges, this.label);
   }
 
-  update(f: FighterState, alpha: number, frame: number, debug: boolean): void {
+  /** `fx`: the jitter, flash and latest shield hit the effects put on this fighter (src/render/vfx). */
+  update(f: FighterState, alpha: number, frame: number, debug: boolean, fx: FighterFx = {}): void {
     const out = f.action === 'ko' || f.action === 'out';
     this.container.visible = !out;
     if (out) return;
     const x = f.prevPos.x + (f.pos.x - f.prevPos.x) * alpha;
     const y = f.prevPos.y + (f.pos.y - f.prevPos.y) * alpha;
     this.container.position.set(x, -y);
-    this.body.position.x = f.hitlag > 0 && f.launch ? (frame % 2 ? 0.5 : -0.5) : 0;
+    const jx = fx.jitter?.x ?? 0;
+    const jy = -(fx.jitter?.y ?? 0);
+    this.body.position.set(jx, jy);
+    this.shield.position.set(jx, jy);
     this.body.scale.x = f.facing;
     if (this.rig && this.art) this.rig.pose(...clipFor(this.def, this.art, f), frame);
-    this.body.alpha = isIntangible(f) && frame % 8 < 4 ? 0.55 : 1;
+    const flash = this.lite ? undefined : fx.flash;
+    this.body.alpha = !flash && isIntangible(f) && frame % 8 < 4 ? 0.55 : 1;
+    const k = flash?.amount ?? 0;
+    if (flash && k > 0) {
+      this.flash ??= new ColorMatrixFilter();
+      const c = flash.color;
+      const row = (shift: number, i: 0 | 1 | 2): [number, number, number, number, number] => {
+        const w = (2 * k * ((c >> shift) & 255)) / 255;
+        const r: [number, number, number, number, number] = [w * 0.3, w * 0.59, w * 0.11, 0, 0];
+        r[i] += 1 - k;
+        return r;
+      };
+      this.flash.matrix = [...row(16, 0), ...row(8, 1), ...row(0, 2), 0, 0, 0, 1, 0];
+    }
+    if (this.flashing !== k > 0) this.body.filters = k > 0 ? [this.flash!] : [];
+    this.flashing = k > 0;
     this.shield.clear();
     if (f.action === 'shield' || f.action === 'shieldStun') {
-      const r = shieldRadius(this.def, f.shieldHp);
+      const cracked = f.shieldHp <= 0;
+      const r = cracked ? this.def.stats.shieldSize * CRACKED_SHIELD : shieldRadius(this.def, f.shieldHp);
       if (r > 0)
-        this.shield.circle(0, -this.def.stats.height / 2, r).fill({ color: this.shieldColor, alpha: 0.45 });
+        paint(
+          this.shield,
+          shieldBubbleShapes(
+            0,
+            -this.def.stats.height / 2,
+            r,
+            hex(this.shieldColor),
+            frame,
+            fx.shieldHit,
+            cracked,
+          ),
+        );
     }
     this.badges.clear();
     const bx = this.def.stats.width / 2 + 1.2;
