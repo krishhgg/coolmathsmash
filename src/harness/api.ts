@@ -5,6 +5,7 @@ import type { FighterState } from '../sim/fighter';
 import { DEFAULT_MATCH, type MatchConfig, type MatchState } from '../sim/match';
 import { decodeReplay } from '../sim/replay';
 import { registerStage } from '../stages/registry';
+import { hazardTestbed } from '../stages/hazardTestbed';
 import { testbed } from '../stages/testbed';
 import {
   SCENARIOS,
@@ -67,6 +68,7 @@ declare global {
 
 export function installHarness(game: Game): HarnessApi {
   registerStage(testbed);
+  registerStage(hazardTestbed);
   const ports = () => game.state.players.length;
   let active: GameScenario | null = null;
   const advance = (s: GameScenario) => game.step(scenarioInputs(s, game.state));

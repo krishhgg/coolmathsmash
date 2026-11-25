@@ -92,8 +92,10 @@ function gravitySwitch(x: Ctx): void {
     consume(c, Btn.Special);
     return endSwitch(f);
   }
+  const steer = stickX(c);
+  if (frame <= g.cling[1] && steer !== 0) f.facing = steer < 0 ? -1 : 1;
   if (frame <= g.rise[1]) {
-    f.vel.x = stickX(c) * s.airSpeed;
+    f.vel.x = steer * s.airSpeed;
     f.vel.y = Math.min(g.riseSpeed, (frame - g.rise[0] + 1) * g.riseAccel);
     const ceiling = ceilingAt(x, f.pos.x + f.vel.x, top - 0.01, head + f.vel.y);
     if (ceiling !== null) {
@@ -103,9 +105,7 @@ function gravitySwitch(x: Ctx): void {
     return;
   }
   if (frame <= g.cling[1]) {
-    const dir = Math.sign(stickX(c));
-    if (dir !== 0) f.facing = dir as 1 | -1;
-    f.vel.x = stickX(c) * g.clingSpeed;
+    f.vel.x = steer * g.clingSpeed;
     const ceiling = ceilingAt(x, f.pos.x + f.vel.x, head - 3, head + 3);
     if (ceiling === null) {
       f.actionFrame = g.pop[0];

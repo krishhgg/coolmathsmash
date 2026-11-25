@@ -101,6 +101,8 @@ export interface FighterState {
   } | null;
   /** A tether's target as an offset from the fighter: the reticle while aiming, then where the line is going. */
   aim: Vec | null;
+  /** Frames before stage hazards (damage zones, stage hitboxes) can hit this fighter again. */
+  stageHitLock: number;
 }
 
 export function createFighter(
@@ -156,6 +158,7 @@ export function createFighter(
     shieldGrabFrom: 0,
     tether: null,
     aim: null,
+    stageHitLock: 0,
   };
 }
 

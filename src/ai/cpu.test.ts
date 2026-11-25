@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { hashState } from '../engine/hash';
+import { getFighter } from '../fighters/registry';
 import { Btn, neutralInput, type InputFrame } from '../input/types';
 import { DOWN_AUTO_GETUP } from '../sim/constants';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
@@ -88,7 +89,8 @@ describe('CPU levels', () => {
 describe('fighter knowledge', () => {
   it("reads Fireboy's frame data by trying his moves", () => {
     const k = knowledge('fireboy', 'battlefield');
-    expect(k.ground.jab!.first).toBe(2);
+    const jab = getFighter('fireboy').moves!.jab!;
+    expect(k.ground.jab!.first).toBe(jab.hits[0]!.frames[0] - 1);
     expect(k.ground.fsmash!.first).toBe(14);
     expect(k.ground.fsmash!.reach.x2).toBeCloseTo(17.5);
     expect(k.ground.dashAttack!.start).toBe('dash');

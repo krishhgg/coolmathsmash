@@ -309,6 +309,14 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 24, hit: { damage: 8, angle: 90, kbg: 72, bkb: 70 } },
   },
+  /** Seeds (neutral special): spits three short-range pellets, with the flinch of Mega Man's Mega Buster. */
+  neutralB: {
+    kind: 'other',
+    faf: 33,
+    continuesOnLanding: true,
+    hits: [],
+    spawn: [10, 15, 20].map((frame) => ({ frame, entity: 'seed', x: 6.4, y: 6.6, vx: 2.1 })),
+  },
   /**
    * Flight Training (up special): the flying-training mini-game as a recovery. A rapid flapping climb of about 100
    * units from frame 4, steered left and right with the stick (Pit's Power of Flight). No hitbox; it leaves him

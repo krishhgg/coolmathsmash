@@ -7,7 +7,7 @@
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import type { Browser, Page } from '@playwright/test';
@@ -19,6 +19,7 @@ import type {
   ScenarioInfo,
 } from '../src/harness/scenarios.ts';
 import { VIEWPORT, dataUrl, escapeHtml, htmlToPng, launchBrowser } from './lib/browser.ts';
+import { matchesScenario, scopeCaptures } from './lib/capture-scope.ts';
 import { fighterLine, type CaptureRecord, type Manifest } from './lib/manifest.ts';
 
 const FPS = 60;
@@ -29,6 +30,7 @@ const STRIP_COLUMNS = 6;
 const { values: args } = parseArgs({
   options: {
     only: { type: 'string' },
+    'changed-files': { type: 'string' },
     out: { type: 'string' },
     url: { type: 'string' },
     build: { type: 'boolean', default: false },
@@ -228,13 +230,19 @@ async function main(): Promise<number> {
     page.on('pageerror', (e) => errors.push(e.message));
     await open(page, `${base}${gameQuery}`);
     const all = await page.evaluate(() => window.__smash!.scenarios());
+    const changedFiles = args['changed-files'];
+    const scoped = changedFiles
+      ? scopeCaptures(
+          all,
+          readFileSync(changedFiles, 'utf8').split('\0').filter(Boolean),
+          await page.evaluate(() => window.__smash!.getState().config),
+        )
+      : undefined;
     const only = args.only
       ?.split(',')
       .map((n) => n.trim())
       .filter(Boolean);
-    const picked = (name: string, pattern: string) =>
-      pattern.endsWith('*') ? name.startsWith(pattern.slice(0, -1)) : name === pattern;
-    const unknown = only?.filter((n) => !all.some((s) => picked(s.name, n))) ?? [];
+    const unknown = only?.filter((n) => !all.some((s) => matchesScenario(s.name, n))) ?? [];
     if (unknown.length)
       throw new Error(
         `unknown scenario(s) ${unknown.join(', ')} (have: ${all.map((s) => s.name).join(', ')})`,
@@ -242,7 +250,9 @@ async function main(): Promise<number> {
     rmSync(out, { recursive: true, force: true });
     mkdirSync(out, { recursive: true });
     const records: CaptureRecord[] = [];
-    for (const s of all.filter((x) => !only || only.some((n) => picked(x.name, n)))) {
+    const selected = (scoped ?? all).filter((x) => !only || only.some((n) => matchesScenario(x.name, n)));
+    console.log(`capturing ${selected.length} of ${all.length} scenarios`);
+    for (const s of selected) {
       errors.length = 0;
       let rec: CaptureRecord;
       try {
@@ -269,6 +279,7 @@ async function main(): Promise<number> {
     }
     const manifest: Manifest = {
       version: 1,
+      ...(scoped && { scoped: true }),
       createdAt: new Date().toISOString(),
       git,
       baseUrl: base,
