@@ -45,11 +45,13 @@ test('a full match: select, countdown, pause, the last KO, GAME!, results and a 
   await page.locator('.ss-tile[data-stage="battlefield"]').click();
 
   await expect(page.locator('.match-screen')).toBeVisible();
+  // Hold the countdown on "3" until the screen draws it; see holdAtGo.
+  await setManual(page, true);
   expect(await page.evaluate(() => window.__smash!.getState().config.ports.map((p) => p.fighter))).toEqual([
     'johnny',
     'fireboy',
   ]);
-  await expect(page.locator('.callout-slot[data-label="3"] svg')).toBeVisible();
+  await expect(page.locator('.callout-slot[data-label="3"] svg')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('.match-clock')).toContainText('7:00');
   await holdAtGo(page);
   await expect(page.locator('.callout-slot[data-label="GO!"]')).toBeAttached({ timeout: 30_000 });

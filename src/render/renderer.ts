@@ -12,7 +12,7 @@ import { EventLog } from './debug/eventLog';
 import { drawEntities, drawEntityBoxes } from './entities';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
-import { MatchHud } from './hud';
+import { MatchHud, OverheadTags } from './hud';
 import { drawStagePieces, isMoving } from './stagePieces';
 
 /** Stage art: src/stages/<id>/view.ts exports createStageView (docs/stages.md). Stages without one draw flat. */
@@ -47,6 +47,7 @@ export class Renderer {
   readonly camera = new Camera();
   private readonly inputDisplay = new InputDisplay();
   readonly matchHud = new MatchHud();
+  private readonly tags = new OverheadTags();
   private readonly stageLayer = new Container();
   private readonly stagePieces = new Graphics();
   private readonly fighterLayer = new Container();
@@ -89,7 +90,7 @@ export class Renderer {
     backdrop.visible = quality === 'full';
     app.stage.addChild(backdrop, this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
-    this.hud.addChild(this.matchHud.hud.container);
+    this.hud.addChild(this.tags.container, this.matchHud.hud.container);
   }
 
   static async create(parent: HTMLElement, quality: RenderQuality = 'full'): Promise<Renderer> {
@@ -159,6 +160,19 @@ export class Renderer {
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
     drawEntities(this.entities, state, alpha);
     this.drawBoxes(state);
+    this.tags.update(
+      state.fighters.map((f, i) => {
+        const v = this.fighters[i];
+        const at = v?.container.position;
+        return {
+          port: f.port,
+          cpu: this.matchHud.cpus.has(f.port),
+          visible: !!v?.container.visible,
+          x: this.world.position.x + (at?.x ?? 0) * view.zoom,
+          y: this.world.position.y + ((at?.y ?? 0) - (v?.top ?? 0) - 1) * view.zoom,
+        };
+      }),
+    );
     this.matchHud.update(
       state,
       state.fighters.map((f) => ({
