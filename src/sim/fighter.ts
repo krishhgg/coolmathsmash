@@ -63,6 +63,11 @@ export interface FighterState {
   launchMotion: LaunchMotion | null;
   /** Ports the current move has already hit. */
   hitVictims: number[];
+  /**
+   * Hold hits (a pummel, a throw's chews) the current move has landed, kept apart from hitVictims so the move's
+   * own hitboxes and rehit windows can't skip or repeat one.
+   */
+  holdHitsLanded: number;
   /** Ids of entities the current move has already hit. */
   hitEntities: number[];
   /** Stale multiplier of the current move activation, fixed when it first connects (0 = not connected yet). */
@@ -153,6 +158,7 @@ export function createFighter(
     launch: null,
     launchMotion: null,
     hitVictims: [],
+    holdHitsLanded: 0,
     hitEntities: [],
     moveStale: 0,
     charge: 0,
