@@ -2,10 +2,10 @@ import { audio } from '../../audio';
 import type { Game } from '../../game';
 import { padSlots } from '../../input/gamepad';
 import { readDevice } from '../../session/devices';
-import { MatchSession, countdownLabel, formatClock } from '../../session/match';
+import { MatchSession, countdownCallout, formatClock } from '../../session/match';
 import { resolveMatch } from '../../session/setup';
 import type { Flow, Screen, ScreenDef } from '../app';
-import { calloutSvg } from '../art/callouts';
+import { calloutPose, calloutSvg } from '../art/callouts';
 import { h, svg } from '../dom';
 import { isDirection, type MenuEvent } from '../input';
 import { Focus } from '../nav';
@@ -44,7 +44,7 @@ export function matchScreen(flow: Flow, game: Game, seed = newSeed()): Screen {
   const match = resolveMatch(setup, seed, flow.settings.tapJump);
   const session = new MatchSession(match, setup.rules);
 
-  const countdown = h('div', { class: 'callout-slot' });
+  const countdown = h('div', { class: 'callout-slot is-countdown' });
   const finale = h('div', { class: 'callout-slot is-finale' });
   const clockMain = h('span', { class: 'clock-main' });
   const clockCs = h('span', { class: 'clock-cs' });
@@ -154,7 +154,8 @@ export function matchScreen(flow: Flow, game: Game, seed = newSeed()): Screen {
     },
     update(now) {
       const state = game.state;
-      const label = session.phase === 'over' ? null : countdownLabel(state.frame);
+      const callout = session.phase === 'over' ? null : countdownCallout(state.frame);
+      const label = callout?.label ?? null;
       if (label !== shown) {
         shown = label;
         countdown.replaceChildren(
@@ -162,6 +163,12 @@ export function matchScreen(flow: Flow, game: Game, seed = newSeed()): Screen {
         );
         countdown.dataset.label = label ?? '';
         if (label) audio.announce(ANNOUNCE[label]);
+      }
+      const art = countdown.firstElementChild as SVGSVGElement | null;
+      if (callout && art) {
+        const pose = calloutPose(callout);
+        art.style.transform = pose.transform;
+        art.style.opacity = String(pose.opacity);
       }
       const left = session.timeLeft(state);
       if (left !== null) {

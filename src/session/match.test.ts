@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { neutralInput } from '../input/types';
 import type { SimEvent } from '../sim/events';
 import { createMatch } from '../sim/match';
-import { COUNTDOWN_FRAMES, MatchSession, countdownLabel, formatClock } from './match';
+import {
+  COUNTDOWN_FRAMES,
+  GO_FRAMES,
+  MatchSession,
+  countdownCallout,
+  countdownLabel,
+  formatClock,
+} from './match';
 import { defaultSetup, pickFighter, resolveMatch } from './setup';
 
 const hit: SimEvent = {
@@ -96,5 +103,49 @@ describe('match session', () => {
     expect(session.timeLeft(state)).toBe(0);
     expect(session.result?.reason).toBe('time');
     expect(session.result?.players.map((p) => p.place)).toEqual([2, 1]);
+  });
+});
+
+describe('countdown callouts (Ultimate timing, see match.ts)', () => {
+  it('brings up 3, 2, 1 and GO! 60 frames apart, on the frames the announcer calls them', () => {
+    const calls: [number, string][] = [];
+    let shown: string | null = null;
+    for (let frame = 0; frame < COUNTDOWN_FRAMES + GO_FRAMES + 30; frame++) {
+      const label = countdownLabel(frame);
+      if (label && label !== shown) calls.push([frame, label]);
+      shown = label;
+    }
+    expect(calls).toEqual([
+      [0, '3'],
+      [60, '2'],
+      [120, '1'],
+      [180, 'GO!'],
+    ]);
+  });
+
+  it('unfolds each number over 6 frames, fades it over frames 51 to 56 and leaves 3 empty frames', () => {
+    for (const start of [0, 60, 120]) {
+      expect(countdownCallout(start)).toMatchObject({ age: 0, enter: 0, leave: 0 });
+      expect(countdownCallout(start + 5)!.enter).toBeLessThan(1);
+      for (let age = 6; age <= 51; age++)
+        expect(countdownCallout(start + age)).toMatchObject({ enter: 1, leave: 0 });
+      expect(countdownCallout(start + 56)!.leave).toBeGreaterThan(0.8);
+      for (const age of [57, 58, 59]) expect(countdownCallout(start + age)!.leave).toBe(1);
+    }
+  });
+
+  it('holds GO! fully up from frame 6 to 49 of play, then fades it out and clears it on frame 66', () => {
+    expect(countdownCallout(COUNTDOWN_FRAMES)).toEqual({ label: 'GO!', age: 0, enter: 0, leave: 0 });
+    for (let age = 6; age < 50; age++)
+      expect(countdownCallout(COUNTDOWN_FRAMES + age)).toMatchObject({ enter: 1, leave: 0 });
+    let leave = 0;
+    for (let age = 51; age < 66; age++) {
+      const next = countdownCallout(COUNTDOWN_FRAMES + age)!.leave;
+      expect(next).toBeGreaterThan(leave);
+      leave = next;
+    }
+    expect(leave).toBeGreaterThan(0.9);
+    expect(countdownLabel(COUNTDOWN_FRAMES + 65)).toBe('GO!');
+    expect(countdownCallout(COUNTDOWN_FRAMES + 66)).toBeNull();
   });
 });

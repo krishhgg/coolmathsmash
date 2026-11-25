@@ -4,22 +4,73 @@ import type { MatchState } from '../sim/match';
 import type { DeviceId } from './devices';
 import type { MatchSetup, ResolvedMatch, Rules } from './setup';
 
+/*
+ * The 3-2-1-GO! timeline in frames, counted off a 60 fps capture of Ultimate's own countdown keyed onto green
+ * (https://www.youtube.com/watch?v=C8SFHfhmgDk). "3", "2" and "1" come up 60 frames apart. Each one unfolds upward
+ * over 6 frames, holds, fades over frames 51 to 56 and is gone for the 3 frames before the next. GO! comes up 60
+ * frames after "1". It slides in from the right over 6 frames and holds fully visible through frame 49. On frame 50 it
+ * bursts, and by frame 66 it has faded away.
+ */
+
 /** "3, 2, 1" lasts this many frames; GO! comes on the frame after, and only then do inputs reach the fighters. */
 export const COUNTDOWN_FRAMES = 180;
 export const FRAMES_PER_SECOND = 60;
 
-/** How long GO! stays up once play starts. */
-export const GO_FRAMES = 50;
+const COUNTDOWN_NUMBERS = ['3', '2', '1'] as const;
+/** Each number's slot; the announcer calls it on the slot's first frame. */
+export const NUMBER_FRAMES = COUNTDOWN_FRAMES / COUNTDOWN_NUMBERS.length;
+/** Frames a callout takes to come in: a number unfolds, GO! slides in. */
+export const CALLOUT_IN_FRAMES = 6;
+/** A number starts to fade on this frame of its slot and is gone from this one. */
+export const NUMBER_FADE_AT = 51;
+export const NUMBER_GONE_AT = 57;
+/** GO! starts to burst on this frame of play, and is gone, its slot empty, from GO_FRAMES. */
+export const GO_FADE_AT = 50;
+export const GO_FRAMES = 66;
 
 export type Phase = 'countdown' | 'play' | 'over';
 
-const COUNTDOWN_NUMBERS = ['3', '2', '1'] as const;
+export type CountdownLabel = (typeof COUNTDOWN_NUMBERS)[number] | 'GO!';
+
+/** The countdown callout on one frame, for the match screen to draw. */
+export interface CountdownCallout {
+  label: CountdownLabel;
+  /** Frames since this callout came up. */
+  age: number;
+  /** How far it has come in: 0 on its first frame, 1 once it is in place. */
+  enter: number;
+  /** How far it has gone: 0 until it starts to leave, 1 once nothing of it shows. */
+  leave: number;
+}
+
+const ramp = (x: number, from: number, to: number) => Math.min(1, Math.max(0, (x - from) / (to - from)));
+
+/** The callout up on `frame`: "3", "2" or "1" for a third of the countdown each, then GO!, then nothing. */
+export function countdownCallout(frame: number): CountdownCallout | null {
+  if (frame < COUNTDOWN_FRAMES) {
+    const f = Math.max(0, frame);
+    const slot = Math.floor(f / NUMBER_FRAMES);
+    const age = f - slot * NUMBER_FRAMES;
+    return {
+      label: COUNTDOWN_NUMBERS[slot]!,
+      age,
+      enter: ramp(age, 0, CALLOUT_IN_FRAMES),
+      leave: ramp(age, NUMBER_FADE_AT, NUMBER_GONE_AT),
+    };
+  }
+  const age = frame - COUNTDOWN_FRAMES;
+  if (age >= GO_FRAMES) return null;
+  return {
+    label: 'GO!',
+    age,
+    enter: ramp(age, 0, CALLOUT_IN_FRAMES),
+    leave: ramp(age, GO_FADE_AT, GO_FRAMES),
+  };
+}
 
 /** "3", "2", "1", then "GO!" for a moment after the countdown, then nothing. */
-export function countdownLabel(frame: number): (typeof COUNTDOWN_NUMBERS)[number] | 'GO!' | null {
-  if (frame < COUNTDOWN_FRAMES)
-    return COUNTDOWN_NUMBERS[Math.floor((Math.max(0, frame) * COUNTDOWN_NUMBERS.length) / COUNTDOWN_FRAMES)]!;
-  return frame < COUNTDOWN_FRAMES + GO_FRAMES ? 'GO!' : null;
+export function countdownLabel(frame: number): CountdownLabel | null {
+  return countdownCallout(frame)?.label ?? null;
 }
 
 /** A match clock reading, Ultimate-style: "6:59" and ".50" (hundredths, drawn smaller). Rounds up, so 0:00.00 is the end. */
