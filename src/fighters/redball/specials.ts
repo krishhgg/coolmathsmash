@@ -2,9 +2,11 @@ import { Btn } from '../../input/types';
 import { startMove } from '../../sim/actions/attack';
 import { consumeJump, wantsJump } from '../../sim/actions/common';
 import { setAction } from '../../sim/actions/registry';
-import { isHeld, stickX } from '../../sim/control';
+import { LEDGE_MAX_GRABS } from '../../sim/constants';
+import { isHeld, stickX, stickY } from '../../sim/control';
 import type { Ctx } from '../../sim/fighter';
 import { leaveGround } from '../../sim/movement';
+import { ledgePresent } from '../../sim/stage';
 import type { HitboxDef, MoveDef } from '../types';
 
 const box = (
@@ -29,6 +31,34 @@ export const ROLLS = [
 /** Mega Bounce: frames spent squashing, then the spring's speed (about 80 units of rise). */
 export const BOUNCE_FRAME = 8;
 export const BOUNCE_SPEED = 3.55;
+
+const LASH_FRAME = 12;
+const LASH_REACH = 28;
+const LASH_REEL_SPEED = 3.6;
+
+function reelToLedge({ f, s, c, stage }: Ctx): void {
+  if (f.ledgeLock > 0 || f.ledgeGrabs >= LEDGE_MAX_GRABS || stickY(c) <= -0.5) return;
+  let nearest = LASH_REACH;
+  let target: (typeof stage.geo.ledges)[number] | undefined;
+  for (const [i, ledge] of stage.geo.ledges.entries()) {
+    const dx = ledge.x - f.pos.x;
+    const dy = ledge.y - f.pos.y;
+    if (!ledgePresent(stage, i) || dx * f.facing < 0 || dx * ledge.side > 0 || dy < s.height * 0.4) {
+      continue;
+    }
+    const distance = Math.hypot(dx, dy - s.height * 0.5);
+    if (distance > nearest) continue;
+    target = ledge;
+    nearest = distance;
+  }
+  if (!target) return;
+  const dx = target.x + target.side * (s.width / 2 + 0.5) - f.pos.x;
+  const dy = target.y - s.height * 0.85 - f.pos.y;
+  const scale = LASH_REEL_SPEED / Math.max(LASH_REEL_SPEED, Math.hypot(dx, dy));
+  f.vel.x = dx * scale;
+  f.vel.y = dy * scale;
+  f.fastFalling = false;
+}
 
 /** A connected roll bounces him back off the target, like a ball off a wall, and he can act on the way down. */
 function bounceOff(x: Ctx): void {
@@ -87,6 +117,32 @@ export const specials: Record<string, MoveDef> = {
     },
   },
   ...Object.fromEntries(ROLLS.map((r) => [r.move, roll(r)])),
+  sideB: {
+    kind: 'other',
+    faf: 44,
+    commandGrab: 'tongueLashPull',
+    continuesOnLanding: true,
+    ledgeFrom: LASH_FRAME,
+    hits: [
+      {
+        frames: [LASH_FRAME, LASH_FRAME + 2],
+        boxes: [10, 17, 24].map((x, i) =>
+          box(i, x, 5.5, 4, { grab: true, damage: 0, angle: 0, kbg: 0, bkb: 0 }),
+        ),
+      },
+    ],
+    script(x) {
+      const { f } = x;
+      if (f.ground) f.vel.x *= 0.75;
+      else if (f.actionFrame >= LASH_FRAME && f.actionFrame <= LASH_FRAME + 7) reelToLedge(x);
+    },
+  },
+  tongueLashPull: {
+    kind: 'other',
+    faf: 32,
+    hits: [],
+    throw: { frame: 14, hit: { damage: 6, angle: 35, kbg: 56, bkb: 38 } },
+  },
   upB: {
     kind: 'other',
     faf: 46,
