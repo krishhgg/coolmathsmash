@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { createMatch } from '../../sim/match';
+import { posedStage } from '../../sim/movingStage';
 import { compileStage, edgeMaxX, edgeMinX } from '../../sim/stage';
+import { marioReference } from '../../sim/testing/reference';
 import { placeInAir, run, testMatch, until } from '../../sim/testing/sim';
 import { stage } from './geometry';
 
@@ -7,8 +10,8 @@ describe('Bloxorz Board geometry', () => {
   const compiled = compileStage(stage);
 
   it('is a 176-wide board in two solids with the 16-wide goal hole between x = -8 and 8', () => {
-    expect(stage.solids).toHaveLength(2);
-    const floors = compiled.edges.filter((e) => e.kind === 'floor');
+    const current = posedStage(testMatch({ stage: stage.id }));
+    const floors = current.edges.filter((e) => e.kind === 'floor' && current.present.solids[e.solid]);
     expect(floors.map((e) => [edgeMinX(e), edgeMaxX(e), e.a.y, e.b.y])).toEqual([
       [-88, -8, 0, 0],
       [8, 88, 0, 0],
@@ -51,6 +54,26 @@ describe('Bloxorz Board geometry', () => {
     until(m, (g) => g.ground === null, { x: 100 });
     expect(f.pos.x).toBeGreaterThan(-12);
     expect(f.pos.x).toBeLessThan(0);
+  });
+
+  it('fills the hole and lets a fighter land and cross it with hazards off', () => {
+    const m = createMatch({
+      seed: 1,
+      stage: stage.id,
+      stocks: 3,
+      hazards: false,
+      ports: [{ fighter: marioReference.id }],
+    });
+    const f = placeInAir(m, 0, 30);
+    until(m, (g) => g.action === 'idle');
+    expect(f.ground?.kind).toBe('solid');
+    expect(f.pos).toEqual({ x: 0, y: 0 });
+    for (let i = 0; i < 17; i++) {
+      run(m, 1, { x: 100 });
+      expect(f.ground?.kind).toBe('solid');
+    }
+    expect(f.pos.x).toBeGreaterThan(8);
+    expect(m.stage.platforms.every((p) => p.on)).toBe(true);
   });
 
   it('lands P1 safely after the respawn platform times out with no input', () => {

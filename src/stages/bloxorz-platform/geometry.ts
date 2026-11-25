@@ -20,6 +20,16 @@ export const stage: StageGeometry = {
         [8, -8],
       ],
     },
+    {
+      points: [
+        [-8, 0],
+        [8, 0],
+        [8, -8],
+        [-8, -8],
+      ],
+      hazard: true,
+      schedule: () => false,
+    },
   ],
   platforms: [
     { x1: -66, x2: -34, y: 26 },

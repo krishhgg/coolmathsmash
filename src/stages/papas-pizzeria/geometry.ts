@@ -1,10 +1,12 @@
 import type { StageGeometry } from '../../sim/stage';
+import { BELT_SPEED, rollingOnion } from './hazards';
 
 export const stage: StageGeometry = {
   id: 'papas-pizzeria',
   name: "Papa's Pizzeria",
   solids: [
     {
+      conveyor: BELT_SPEED,
       points: [
         [-75, 0],
         [75, 0],
@@ -17,6 +19,7 @@ export const stage: StageGeometry = {
       ],
     },
   ],
+  hitboxes: [rollingOnion],
   platforms: [
     { x1: -63, x2: -27, y: 26 },
     { x1: -15, x2: 15, y: 50 },
