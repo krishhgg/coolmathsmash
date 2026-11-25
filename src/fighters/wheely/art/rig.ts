@@ -5,6 +5,9 @@ import {
   EXHAUST,
   EXPRESSIONS,
   EYES,
+  FRONT_EYES,
+  FRONT_EXPRESSIONS,
+  front,
   HOOD,
   WHEEL_X,
   WHEEL_Y,
@@ -36,15 +39,15 @@ import {
 
 /** The original blinks every few seconds; Flash ran at 35 fps. */
 const BLINK_FPS = 35;
-const blink = (open: string, hold = 110) => ({
+const blink = (open: string, hold = 110, set = 'eyes') => ({
   loop: [
     ...Array<string>(hold).fill(open),
-    'eyesBlink1',
-    'eyesBlink2',
-    'eyesClosed',
-    'eyesClosed',
-    'eyesBlink2',
-    'eyesBlink1',
+    set + 'Blink1',
+    set + 'Blink2',
+    set + 'Closed',
+    set + 'Closed',
+    set + 'Blink2',
+    set + 'Blink1',
   ],
   fps: BLINK_FPS,
 });
@@ -78,6 +81,7 @@ export const rig: Rig = {
     child('wheelF', 'body', [WHEEL_X, WHEEL_Y], BODY),
     { name: 'spinF', parent: 'wheelF', x: 0, y: 0 },
     child('eyes', 'shell', EYES, BODY),
+    child('eyesFront', 'shell', FRONT_EYES, BODY),
     child('hood', 'shell', HOOD, BODY),
     child('door', 'shell', DOOR, BODY),
     child('exhaust', 'shell', EXHAUST, BODY),
@@ -92,6 +96,7 @@ export const rig: Rig = {
     { name: 'prop', bone: 'prop', symbol: null },
     { name: 'pipe', bone: 'exhaust', symbol: 'pipe' },
     { name: 'body', bone: 'shell', symbol: 'body' },
+    { name: 'front', bone: 'shell', symbol: null },
     { name: 'hoodBay', bone: 'shell', symbol: null },
     { name: 'doorGap', bone: 'shell', symbol: null },
     { name: 'brake', bone: 'shell', symbol: null, decor: true },
@@ -102,6 +107,7 @@ export const rig: Rig = {
     { name: 'door', bone: 'door', symbol: null },
     { name: 'hood', bone: 'hood', symbol: null },
     { name: 'eyes', bone: 'eyes', symbol: 'eyesIdle' },
+    { name: 'eyesFront', bone: 'eyesFront', symbol: 'frontEyesIdle' },
     { name: 'fx1', bone: 'fx1', symbol: null },
     { name: 'fx2', bone: 'fx2', symbol: null },
     { name: 'fx3', bone: 'fx3', symbol: null },
@@ -121,6 +127,10 @@ export const rig: Rig = {
     ...Object.fromEntries(Object.entries(EXPRESSIONS).map(([name, look]) => [name, eyes(look)])),
     eyesIdle: blink('eyes'),
     eyesFocusIdle: blink('eyesFocus', 90),
+    frontEyesIdle: blink('frontEyes', 110, 'frontEyes'),
+    frontEyesFocusIdle: blink('frontEyesFocus', 90, 'frontEyes'),
+    front,
+    ...FRONT_EXPRESSIONS,
     fxWaves: waves(3),
     fxHonk: waves(4, 0.4),
     fxBeep: beep(2),

@@ -161,11 +161,25 @@ describe('wheely art', () => {
     expect(sunk).toEqual([]);
   });
 
-  it('swings round in the turn on the frame the engine faces him the new way', () => {
-    for (const f of [TURN_FLIP - 1, TURN_FLIP])
-      expect(samplePose(art, 'turn', f, f).local.body!.sx).toBeLessThan(0.5);
-    for (const f of [TURN_FLIP - 5, TURN_FLIP + 3])
-      expect(samplePose(art, 'turn', f, f).local.body!.sx).toBeGreaterThan(0.75);
+  it('swings round through the head-on view in the turn, on the frame the engine faces him the new way', () => {
+    const shown = (f: number) => samplePose(art, 'turn', f, f).symbols;
+    for (const f of [TURN_FLIP - 2, TURN_FLIP, TURN_FLIP + 1]) {
+      expect(shown(f).front, `turn@${f}`).toBe('front');
+      expect(shown(f).body, `turn@${f}`).toBeNull();
+    }
+    for (const f of [0, TURN_FLIP - 3, TURN_FLIP + 3, TURN_FRAMES - 1]) {
+      expect(shown(f).front, `turn@${f}`).toBeNull();
+      expect(shown(f).body, `turn@${f}`).toBe('body');
+    }
+  });
+
+  it('draws him head-on from the front when he is swung across the camera, with both eyes showing', () => {
+    const pose = samplePose(art, 'turn', TURN_FLIP, TURN_FLIP);
+    expect(pose.symbols.front).toBe('front');
+    expect(pose.symbols.eyesFront).toBe('frontEyesBack');
+    const [x0, , x1] = poseBounds(art, pose);
+    expect(x1 - x0).toBeGreaterThan(7);
+    expect(x1 - x0).toBeLessThan(13);
   });
 
   it('hangs by the front tyre with the car clear of the ledge block', () => {

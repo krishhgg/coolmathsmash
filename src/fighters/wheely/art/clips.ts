@@ -37,6 +37,7 @@ import {
   mix,
   roll,
   rolling,
+  frontView,
   smoke,
   spin,
   squash,
@@ -295,32 +296,25 @@ export const authored: Record<string, AnimClip> = {
         ease: 'inOut',
         swaps: { ...FOCUS, brake: 'brakeGlow', fx1: 'fxSkid', fx2: 'fxPuff3' },
       }),
+      key(8, mix(tilt(-2, REAR), bob(-0.05), { body: { sx: 0.78 }, eyes: { x: -0.6 } }), {
+        ease: 'in',
+        swaps: { ...BACK, fx1: null },
+      }),
+      key(9, mix({ body: { sx: 0.62 }, eyes: { x: -0.8 } }), { ease: 'in' }),
+      key(TURN_FLIP - 2, undefined, { ease: 'step', swaps: frontView('frontEyesBack') }),
+      key(TURN_FLIP, mix({ car: { sy: 0.96 } }), { ease: 'out', swaps: frontView('frontEyesBack') }),
       key(
-        8,
-        mix(tilt(-2, REAR), bob(-0.05), {
-          body: { sx: 0.8 },
-          eyes: { x: -0.6 },
-          fx2: at(WHEEL_X + 3.4, -1.8, 0.95),
+        TURN_FLIP + 1,
+        mix({
+          car: { sy: 0.94 },
+          fx1: at(-WHEEL_X - 1.4, -0.9, -0.65, 0, 0.6),
+          fx2: at(WHEEL_X + 1.4, -0.9, 0.65, 0, 0.6),
         }),
-        { ease: 'in', swaps: { ...BACK, fx2: 'fxPuff3' } },
+        { ease: 'out', swaps: { ...frontView('frontEyesAngry'), fx1: 'fxGravel', fx2: 'fxPuff2' } },
       ),
-      key(TURN_FLIP - 1, mix(bob(-0.3), spin(-60), { body: { sx: 0.4, sy: 1.04 }, eyes: { x: -1 } }), {
-        ease: 'linear',
-        swaps: { ...BACK, ...BLUR },
-      }),
-      key(TURN_FLIP, mix(bob(-0.3), spin(-60), { body: { sx: 0.4, sy: 1.04 }, eyes: { x: 1 } }), {
-        ease: 'out',
-        swaps: { ...ANGRY, ...BLUR },
-      }),
       key(
         TURN_FLIP + 2,
-        smoke(
-          mix(SQUAT, tilt(-4, REAR), spin(240), {
-            body: { sx: 1.04 },
-            fx1: at(-WHEEL_X - 0.4, 0, -0.6, 0, 0.6),
-          }),
-          0.5,
-        ),
+        smoke(mix(SQUAT, tilt(-4, REAR), spin(240), { fx1: at(-WHEEL_X - 0.4, 0, -0.6, 0, 0.6) }), 0.5),
         { ease: 'inOut', swaps: { ...ANGRY, ...BLUR, fx1: 'fxGravel', fxBack: 'fxSmoke' } },
       ),
       key(

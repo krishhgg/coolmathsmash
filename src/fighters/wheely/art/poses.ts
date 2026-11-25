@@ -75,6 +75,28 @@ export const SCARED = face('eyesScared');
 export const CLOSED = face('eyesClosed');
 
 export const BLUR = { wheelB: 'wheelBlur', wheelF: 'wheelBlur' };
+
+/**
+ * The head-on view in place of the side one, for the frames a turn or a roll swings through the camera: the front
+ * body and its own pair of eyes in for the side body and face, everything else about him hidden.
+ */
+export function frontView(face: string): Record<string, string | null> {
+  return {
+    body: null,
+    door: null,
+    doorGap: null,
+    hood: null,
+    hoodBay: null,
+    brake: null,
+    pipe: null,
+    wheelB: null,
+    wheelF: null,
+    shineB: null,
+    shineF: null,
+    front: 'front',
+    eyesFront: face,
+  };
+}
 export const OPEN_DOOR = { door: 'door', doorGap: 'doorGap' };
 /** The door swung open past square, so its inside shows (scale the door bone's x below zero). */
 export const SCOOP = { door: 'doorInside', doorGap: 'doorGap' };

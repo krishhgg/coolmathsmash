@@ -205,6 +205,8 @@ export const EYES: Pt = [4.05, -8.05];
 /** Hood hinge at the bottom of the windscreen, door hinge at the door's front edge, exhaust tip. */
 export const HOOD: Pt = [4.45, -6.6];
 export const DOOR: Pt = [2.7, -6.0];
+/** Where the eyes sit in the head-on view: the middle of the windscreen. */
+export const FRONT_EYES: Pt = [0, -7.05];
 export const EXHAUST: Pt = [-9.1, -2.2];
 /** The horn, behind the front bumper: jab sound waves start here. */
 export const HORN: Pt = [8.6, -3.6];
@@ -1035,6 +1037,316 @@ export const EXPRESSIONS: Record<string, Look> = {
   eyesScared: { brows: true, x: 0.1, y: 0.2, iris: 0.85, pupil: 0.55, lift: -0.3, near: -30, far: -32 },
 };
 
+/** A vertical gradient through palette keys, with typed stops for the front view's literals. */
+const grad = (y0: number, y1: number, stops: [number, string][]): Paint => vgrad(y0, y1, ...stops);
+
+// ---------------------------------------------------------------- front view (head-on, for turns and rolls)
+
+/**
+ * The car head-on: for the frames where he swings through the camera, so a turn never collapses to a sliver. Drawn
+ * on the same ground and in the same space as the side view, and swapped in for the side body.
+ */
+const FRONT_SILHOUETTE: Node[] = [
+  C(-4.35, -2.15),
+  [-4.72, -3.3],
+  [-4.86, -5.4],
+  [-4.7, -7.45],
+  [-4.22, -8.8],
+  [-3.28, -9.62],
+  [-1.9, -9.94],
+  C(0, -10),
+  [1.9, -9.94],
+  [3.28, -9.62],
+  [4.22, -8.8],
+  [4.7, -7.45],
+  [4.86, -5.4],
+  [4.72, -3.3],
+  C(4.35, -2.15),
+  [2.6, -1.9],
+  C(0, -1.8),
+  [-2.6, -1.9],
+];
+
+const FRONT_GLASS: Node[] = [
+  [-2.5, -8.9],
+  [-2.86, -7.6],
+  [-2.86, -6.15],
+  [-2.4, -5.5],
+  [2.4, -5.5],
+  [2.86, -6.15],
+  [2.86, -7.6],
+  [2.5, -8.9],
+];
+
+/** A tyre seen head-on: a slab of tread behind the body, its outer edge catching the light. */
+function frontTyre(side: 1 | -1): PathShape[] {
+  const x = side * 3.62;
+  const outer = side * 0.72;
+  return [
+    fill(
+      curve([
+        C(x - 1.05, 0),
+        [x - 1.05, -2.2],
+        [x - 0.85, -3.7],
+        C(x, -4.15),
+        [x + 0.85, -3.7],
+        [x + 1.05, -2.2],
+        C(x + 1.05, 0),
+      ]),
+      'tyre',
+      'tyreLine',
+      0.14,
+    ),
+    fill(
+      poly([
+        [x - 1.05, -0.5],
+        [x + 1.05, -0.5],
+        [x + 1.05, -1],
+        [x - 1.05, -1],
+      ]),
+      'tyreTread',
+    ),
+    fill(
+      poly([
+        [x - 0.95, -2.3],
+        [x + 0.95, -2.3],
+        [x + 0.95, -2.7],
+        [x - 0.95, -2.7],
+      ]),
+      'tyreTread',
+    ),
+    ink(
+      poly(
+        [
+          [x + outer, -3.6],
+          [x + outer * 1.12, -2.4],
+        ],
+        false,
+      ),
+      'tyreShine',
+      0.14,
+    ),
+  ];
+}
+
+const FRONT_LAMP = (side: 1 | -1): PathShape[] => {
+  const x = side * 3.15;
+  const lamp: Paint = grad(-6.1, -4.6, [
+    [0, 'chromeHi'],
+    [1, 'chromeLo'],
+  ]);
+  return [
+    fill(circle(x, -5.35, 0.92), 'chrome', 'line', SEAM),
+    fill(circle(x, -5.35, 0.74), lamp, 'line', FINE),
+    fill(ellipse(x - side * 0.16, -5.6, 0.32, 0.2, side * -20), 'shine'),
+  ];
+};
+
+const FRONT_MIRROR = (side: 1 | -1): PathShape[] => {
+  const paint: Paint = {
+    type: 'radial',
+    cx: side * 4.55,
+    cy: -7.05,
+    r: 0.62,
+    stops: [
+      { offset: 0, color: 'paintHi' },
+      { offset: 0.6, color: 'paint' },
+      { offset: 1, color: 'paintLo' },
+    ],
+  };
+  return [
+    ink(
+      poly(
+        [
+          [side * 4.3, -6.45],
+          [side * 4.62, -6.75],
+        ],
+        false,
+      ),
+      'line',
+      0.24,
+    ),
+    fill(circle(side * 4.68, -6.9, 0.5), paint, 'line', SEAM),
+  ];
+};
+
+function frontShapes(): PathShape[] {
+  return [
+    ...frontTyre(-1),
+    ...frontTyre(1),
+    fill(
+      curve(FRONT_SILHOUETTE),
+      grad(-10, -1.8, [
+        [0, 'paintHi'],
+        [0.28, 'paint'],
+        [0.82, 'paint'],
+        [1, 'paintLo'],
+      ]),
+      'line',
+      LINE,
+    ),
+    fill(
+      curve([
+        [-4.2, -8.9],
+        [-2.4, -9.75],
+        [2.4, -9.75],
+        [4.2, -8.9],
+        [4.05, -9.55],
+        [0, -10.02],
+        [-4.05, -9.55],
+      ]),
+      faded('paintHi', 0.55),
+    ),
+    fill(
+      curve([
+        [3.1, -2.6],
+        [4.4, -3.5],
+        [4.62, -5.6],
+        [4.4, -7.4],
+        [4.0, -8.6],
+        [3.5, -8.1],
+        [3.6, -5.6],
+        [3.35, -3.2],
+      ]),
+      faded('paintLo', 0.5),
+    ),
+    fill(
+      curve(FRONT_GLASS),
+      grad(-9.2, -5.4, [
+        [0, 'glassHi'],
+        [0.35, 'glass'],
+        [1, 'glassLo'],
+      ]),
+      'line',
+      SEAM,
+    ),
+    ink(
+      curve(
+        [
+          [-2.2, -8.55],
+          [0, -8.85],
+          [2.2, -8.55],
+        ],
+        false,
+      ),
+      'shine',
+      0.12,
+    ),
+    ink(
+      curve(
+        [
+          [-2.55, -6],
+          [-2.2, -5.72],
+          [2.2, -5.72],
+          [2.55, -6],
+        ],
+        false,
+      ),
+      'glassHi',
+      0.16,
+    ),
+    fill(
+      curve([
+        [-1.62, -4.85],
+        [-1.55, -3.95],
+        [1.55, -3.95],
+        [1.62, -4.85],
+      ]),
+      'well',
+      'line',
+      SEAM,
+    ),
+    ...[0, -1.1, 1.1].map((x) =>
+      ink(
+        poly(
+          [
+            [x, -4.75],
+            [x, -4.05],
+          ],
+          false,
+        ),
+        'chrome',
+        0.14,
+      ),
+    ),
+    fill(
+      curve([
+        [-4.3, -3.5],
+        [-1.9, -3.72],
+        [1.9, -3.72],
+        [4.3, -3.5],
+        [4.24, -2.3],
+        [1.9, -2.14],
+        [-1.9, -2.14],
+        [-4.24, -2.3],
+      ]),
+      grad(-3.6, -2.1, [
+        [0, 'bumperHi'],
+        [0.5, 'bumper'],
+        [1, 'bumperLo'],
+      ]),
+      'bumperLine',
+      0.16,
+    ),
+    ink(
+      curve(
+        [
+          [-3.35, -3.32],
+          [-1.6, -3.46],
+          [1.6, -3.46],
+          [3.35, -3.32],
+        ],
+        false,
+      ),
+      'bumperShine',
+      0.14,
+    ),
+    ...FRONT_LAMP(-1),
+    ...FRONT_LAMP(1),
+    fill(
+      curve([
+        C(-3.3, -10.32),
+        [-3.2, -10.62],
+        [-1, -10.68],
+        [0, -10.62],
+        [1, -10.68],
+        [3.2, -10.62],
+        C(3.3, -10.32),
+      ]),
+      'rack',
+      'rackLine',
+      0.12,
+    ),
+    ink(
+      curve(
+        [
+          [-2.9, -10.52],
+          [0, -10.56],
+          [2.9, -10.52],
+        ],
+        false,
+      ),
+      'paintHi',
+      0.1,
+    ),
+    ...FRONT_MIRROR(-1),
+    ...FRONT_MIRROR(1),
+  ];
+}
+
+/** The eyes head-on: two big lobes side by side on the windscreen, both seen squarely. */
+const FRONT_LEFT: EyeShape = { c: [-1.05, 0.12], rx: 0.95, ry: 1.34, rot: 6 };
+const FRONT_RIGHT: EyeShape = { c: [1.05, 0.12], rx: 0.95, ry: 1.34, rot: -6 };
+
+export function frontEyes(look: Look): PathShape[] {
+  const shapes = [...oneEye(FRONT_LEFT, look, true), ...oneEye(FRONT_RIGHT, look, true)];
+  if (look.brows) {
+    shapes.push(fill(brow(-1, -1.72 + (look.lift ?? 0), 1.2, -18 + (look.near ?? 0), 0.36), 'brow'));
+    shapes.push(fill(brow(1, -1.72 + (look.lift ?? 0), 1.2, 18 - (look.far ?? 0), 0.36), 'brow'));
+  }
+  return shapes;
+}
+
 // ---------------------------------------------------------------- effects (fx bone space)
 
 /** A band of ring around the origin, `thick` wide at radius `r`, from angle `from` to `to` (degrees). */
@@ -1386,3 +1698,11 @@ export const spring: PathShape[] = (() => {
   pts.push([0, -1]);
   return [ink(poly(pts, false), 'pipeLine', 0.16), ink(poly(pts, false), 'chrome', 0.07)];
 })();
+
+/** Every expression again for the front view, under the same names with a `front` prefix. */
+export const FRONT_EXPRESSIONS: Record<string, PathShape[]> = Object.fromEntries(
+  Object.entries(EXPRESSIONS).map(([name, look]) => [name.replace('eyes', 'frontEyes'), frontEyes(look)]),
+);
+
+/** The front body, shifted onto the body bone like the side `body`. */
+export const front = toBody(frontShapes());
