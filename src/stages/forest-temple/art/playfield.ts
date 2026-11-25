@@ -21,7 +21,7 @@ function ivy(g: Graphics, x: number, y: number, size: number, seed: number): voi
       .lineTo(sx + dx * 0.84 - s * 0.27, sy + dy * 0.86)
       .quadraticCurveTo(sx + dx * 0.29 - s * 0.85, sy + dy * 0.42, sx - s * 0.28, sy - 0.36)
       .closePath()
-      .fill(IVY[(i + seed) % IVY.length]!)
+      .fill(IVY[(i + seed) % IVY.length])
       .stroke({ width: 0.23, color: INK, alpha: 0.78 });
     g.moveTo(sx, sy + 0.1)
       .lineTo(sx + dx * 0.71, sy + dy * 0.7)
