@@ -1,6 +1,6 @@
 import type { Pose } from '../../../render/rig/author';
 import type { AnimClip } from '../../../render/rig/types';
-import { AIR, GRIT, GUARD, HEAD_IN_FRONT, SHOUT, hands, key, mix, sole, type Pt } from './poses';
+import { AIR, FISTS, GRIT, HEAD_IN_FRONT, SHOUT, hands, key, mix, sole, type Pt } from './poses';
 
 /**
  * Where the hands hold the ledge (rig space): the ledge's top corner while hanging. It matches the engine's hang
@@ -25,7 +25,7 @@ function hang(extra: Pose = {}): Pose {
       extra,
     ),
     [GX, GY],
-    [GX - 1.1, GY + 0.4],
+    [GX - 0.7, GY + 0.15],
     -1,
     1,
   );
@@ -70,7 +70,7 @@ const RELEASE: Pose = mix(AIR, {
 export const ledge: Record<string, AnimClip> = {
   ledgeCatch: {
     length: 8,
-    swaps: { ...GRIT, ...GUARD },
+    swaps: { ...GRIT, ...FISTS },
     keys: [
       key(
         0,
@@ -93,13 +93,13 @@ export const ledge: Record<string, AnimClip> = {
   ledgeHang: {
     length: 60,
     loop: true,
-    swaps: { ...SHOUT, ...GUARD },
+    swaps: { ...SHOUT, ...FISTS },
     keys: [key(0, HANG, { z: HEAD_IN_FRONT }), key(30, HANG_SAG), key(60, HANG)],
   },
 
   ledgeJump: {
     length: 20,
-    swaps: { ...GRIT, ...GUARD },
+    swaps: { ...GRIT, ...FISTS },
     keys: [
       key(0, HANG, { ease: 'in', z: HEAD_IN_FRONT }),
       key(
@@ -114,7 +114,7 @@ export const ledge: Record<string, AnimClip> = {
         }),
         {
           ease: 'out',
-          swaps: { ...GRIT, ...GUARD },
+          swaps: { ...GRIT, ...FISTS },
         },
       ),
       key(8, RELEASE, { ease: 'out', z: {} }),
@@ -126,5 +126,5 @@ export const ledge: Record<string, AnimClip> = {
 /** Hands and the grip, for the tests and the levels. */
 export const GRIP_TARGETS: [Pt, Pt] = [
   [GX, GY],
-  [GX - 1.1, GY + 0.4],
+  [GX - 0.7, GY + 0.15],
 ];
