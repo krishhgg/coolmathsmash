@@ -284,3 +284,134 @@ describe('Fluffy: Stick Tight (down special)', () => {
     expect(moves.downB!.faf).toBe(61 + 40);
   });
 });
+
+describe('Fluffy: Point Grapple (neutral special)', () => {
+  /** Fluffy alone, with helpers to put him in the air and to run one shot to its end. */
+  function field() {
+    const m = testMatch({ fighter: 'fluffy' });
+    const a = m.fighters[0]!;
+    const put = (x: number, y: number, jumpsUsed = 1) =>
+      Object.assign(a, {
+        pos: { x, y },
+        prevPos: { x, y },
+        vel: { x: 0, y: 0 },
+        ground: null,
+        action: 'fall',
+        actionFrame: 1,
+        jumpsUsed,
+        facing: 1,
+        intangible: 0,
+        tether: null,
+        aim: null,
+      });
+    /** What the line latched, if anything, over the given frames. */
+    const latches = (frames: number) => {
+      const kinds: string[] = [];
+      for (let i = 0; i < frames; i++) {
+        runPorts(m, 1, []);
+        for (const e of m.events) if (e.type === 'tetherLatch') kinds.push(e.kind);
+      }
+      return kinds;
+    };
+    /** Aim with the stick for aimFrames, then release special to fire. */
+    const shoot = (sx: number, sy: number, aimFrames = 27) => {
+      attack(m, 0, 'neutralB');
+      for (let i = 0; i < aimFrames; i++) runPorts(m, 1, [{ x: sx, y: sy, buttons: ['special'] }]);
+      runPorts(m, 1, []);
+      return latches(60);
+    };
+    return { m, a, put, latches, shoot };
+  }
+
+  it('the reticle walks out with the stick, clamped to 160, and the grabber fires at it', () => {
+    const { m, a, put } = field();
+    put(0, 100);
+    runPorts(m, 2, []);
+    attack(m, 0, 'neutralB');
+    for (let i = 0; i < 27; i++) runPorts(m, 1, [{ x: -100, buttons: ['special'] }]);
+    expect(a.aim!.x).toBeCloseTo(-160, 6);
+    expect(a.actionFrame).toBe(moves.neutralB!.tether!.frame - 1);
+    runPorts(m, 1, []);
+    expect(a.tether?.kind).toBe('out');
+  });
+
+  it('anchors on empty sky and reels him in at 4 units a frame', () => {
+    const { m, a, put, latches } = field();
+    put(0, 100);
+    runPorts(m, 2, []);
+    attack(m, 0, 'neutralB');
+    for (let i = 0; i < 27; i++) runPorts(m, 1, [{ x: -100, buttons: ['special'] }]);
+    runPorts(m, 1, []);
+    expect(latches(30)).toEqual(['sky']);
+    expect(a.action).toBe('tetherPull');
+    const x = a.pos.x;
+    runPorts(m, 1, []);
+    expect(x - a.pos.x).toBeGreaterThan(3.99);
+    expect(x - a.pos.x).toBeLessThanOrEqual(4);
+  });
+
+  it('allows three sky anchors an airtime, then whiffs, and a fresh airtime brings them back', () => {
+    const { put, shoot } = field();
+    for (let i = 0; i < 3; i++) {
+      put(0, 100);
+      expect(shoot(-100, 0)).toEqual(['sky']);
+    }
+    put(0, 100);
+    expect(shoot(-100, 0)).toEqual([]);
+    put(0, 100, 0);
+    expect(shoot(-100, 0)).toEqual(['sky']);
+  });
+
+  it('a tap with a direction fires at full range that way', () => {
+    const { put, shoot } = field();
+    put(0, 100);
+    expect(shoot(-100, 0, 2)).toEqual(['sky']);
+  });
+});
+
+describe('Fluffy: Quick Grapple (up special)', () => {
+  /** Fluffy alone and placed in the air at (x, y). */
+  function put(m: MatchState, f: FighterState, x: number, y: number): void {
+    place(f, x, y, 1, null);
+    f.jumpsUsed = 1;
+    f.tether = null;
+    f.aim = null;
+    runPorts(m, 2, []);
+  }
+
+  it('fires straight up on frame 8 and reels him onto the platform above', () => {
+    const m = testMatch({ fighter: 'fluffy' });
+    const a = m.fighters[0]!;
+    put(m, a, 0, 10);
+    attack(m, 0, 'upB');
+    runPorts(m, 7, []);
+    expect(a.tether).toBeNull();
+    runPorts(m, 1, []);
+    expect(a.tether?.kind).toBe('out');
+    const kinds: string[] = [];
+    let top = a.pos.y;
+    for (let i = 0; i < 60; i++) {
+      runPorts(m, 1, []);
+      top = Math.max(top, a.pos.y);
+      for (const e of m.events) if (e.type === 'tetherLatch') kinds.push(e.kind);
+    }
+    expect(kinds).toEqual(['surface']);
+    expect(top).toBeGreaterThan(40);
+  });
+
+  it('recovers from below the ledge by latching it', () => {
+    const m = testMatch({ fighter: 'fluffy' });
+    const a = m.fighters[0]!;
+    put(m, a, 80, -10);
+    attack(m, 0, 'upB');
+    const kinds: string[] = [];
+    const actions: string[] = [];
+    for (let i = 0; i < 90; i++) {
+      runPorts(m, 1, [{ x: -100 }]);
+      for (const e of m.events) if (e.type === 'tetherLatch') kinds.push(e.kind);
+      actions.push(a.action);
+    }
+    expect(kinds).toEqual(['ledge']);
+    expect(actions).toContain('ledgeCatch');
+  });
+});

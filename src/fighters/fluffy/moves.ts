@@ -1,4 +1,5 @@
 import type { HitboxDef, MoveDef } from '../types';
+import { skyAnchor } from './anchors';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -420,6 +421,50 @@ export const moves: Record<string, MoveDef> = {
     faf: 42,
     hits: [],
     throw: { frame: 18, hit: { damage: 9, angle: 90, kbg: 72, bkb: 70 } },
+  },
+  /**
+   * Point Grapple (neutral special, roster 8): hold special and the reticle walks out with the stick at 6 units a
+   * frame up to 160; release and the grabber travels to it in 12 frames. It latches stage geometry, platforms and
+   * ledges, reels him in at 4 units a frame, and holding jump keeps him stuck at the anchor. A tap with a direction
+   * fires at full range that way. Empty sky takes one of his three sky anchors.
+   */
+  neutralB: {
+    kind: 'other',
+    faf: 50,
+    hits: [],
+    tether: {
+      frame: 6,
+      range: 160,
+      travel: 12,
+      angle: 0,
+      aimed: { speed: 6, quick: { frames: 6 } },
+      latch: ['ledge', 'surface', 'sky'],
+      pullSpeed: 4,
+      hang: 'jump',
+      onAnchor: skyAnchor,
+    },
+  },
+  /**
+   * Quick Grapple (up special, roster 8): straight up 120 units in 10 frames, bent up to 30 degrees towards the
+   * stick. His recovery, so a line that finds nothing leaves him helpless.
+   */
+  upB: {
+    kind: 'other',
+    faf: 45,
+    helpless: true,
+    leavesGround: true,
+    hits: [],
+    tether: {
+      frame: 8,
+      range: 120,
+      travel: 10,
+      angle: 90,
+      stickAdjust: 30,
+      latch: ['ledge', 'surface', 'sky'],
+      pullSpeed: 4,
+      hang: 'jump',
+      onAnchor: skyAnchor,
+    },
   },
   /** Bounce: hops onto them and bounces off; low knockback for follow-ups. Knockback: Jigglypuff's dthrow. */
   dthrow: {
