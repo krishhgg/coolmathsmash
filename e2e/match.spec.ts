@@ -14,13 +14,23 @@ test('a full match: select, countdown, pause, the last KO, GAME!, results and a 
   await expect(page.locator('.main-menu')).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(page.locator('.css-screen')).toBeVisible();
-  await page.keyboard.press('KeyF');
+  await page.locator('[data-key="tile:johnny"]').click();
+  await page.locator('[data-key="panel:1:token"]').click();
+  await page.locator('[data-key="tile:fireboy"]').click();
+  for (let level = 4; level <= 9; level++) {
+    await page.locator('[data-key="panel:1:up"]').click();
+  }
+  await expect(page.locator('.css-level-value')).toHaveText('9');
   await expect(page.locator('.css-ready')).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(page.locator('.ss-screen')).toBeVisible();
   await page.keyboard.press('Enter');
 
   await expect(page.locator('.match-screen')).toBeVisible();
+  expect(await page.evaluate(() => window.__smash!.getState().config.ports.map((p) => p.fighter))).toEqual([
+    'johnny',
+    'fireboy',
+  ]);
   await expect(page.locator('.callout-slot[data-label="3"] svg')).toBeVisible();
   await expect(page.locator('.match-clock')).toContainText('7:00');
   await expect(page.locator('.callout-slot[data-label="GO!"]')).toBeAttached({ timeout: 10_000 });
@@ -49,6 +59,7 @@ test('a full match: select, countdown, pause, the last KO, GAME!, results and a 
   await page.keyboard.press('Enter');
   await expect(page.locator('.results-screen[data-phase="cards"]')).toBeVisible();
   await expect(page.locator('.result-card')).toHaveCount(2);
+  await expect(page.locator('.result-card').nth(1).locator('.card-who')).toContainText('Level 9');
   await expect(page.locator('.result-card').nth(1).locator('.card-out b')).toHaveText(/\d:\d\d/);
   await expect(page.locator('.results-button.is-focus')).toHaveText('Rematch');
 

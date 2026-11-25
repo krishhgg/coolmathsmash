@@ -1,7 +1,7 @@
 import { audio } from '../../audio';
 import { getFighter } from '../../fighters/registry';
 import { COUNTDOWN_FRAMES, formatClock, type FinishedMatch, type PlayerResult } from '../../session/match';
-import { fighterIcon, selectableFighterIds } from '../../session/roster';
+import { fighterIcon } from '../../session/roster';
 import { defaultSetup, cpuSlot, humanSlot } from '../../session/setup';
 import type { Flow, Screen, ScreenDef } from '../app';
 import { SILHOUETTE_SVG } from '../art/icons';
@@ -19,7 +19,7 @@ let openOn: Phase = 'winner';
 
 /** A made-up finished match for the lab and captures. */
 export function sampleMatch(players: number): FinishedMatch {
-  const ids = selectableFighterIds();
+  const ids = ['johnny', 'fluffy', 'fireboy', 'wheely'];
   const setup = defaultSetup();
   setup.slots = Array.from({ length: players }, (_, i) =>
     i % 2 === 0 ? humanSlot(i === 0 ? 'kb1' : 'pad1') : cpuSlot(i === 1 ? 7 : 3),
@@ -103,7 +103,7 @@ export function resultsScreen(flow: Flow): Screen {
       'div',
       {
         class: 'winner-name',
-        style: `font-size:${Math.min(170, Math.floor(1150 / (tie ? 5 : name(winner).length)))}px`,
+        style: `font-size:${Math.min(170, Math.floor(1450 / (tie ? 5 : name(winner).length)))}px`,
       },
       tie ? 'Draw!' : name(winner),
     ),

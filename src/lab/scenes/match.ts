@@ -1,7 +1,7 @@
 import { Game } from '../../game';
 import { loadHudFont } from '../../render/hud';
 import { Renderer } from '../../render/renderer';
-import { selectableFighterIds, stageIds } from '../../session/roster';
+import { stageIds } from '../../session/roster';
 import { defaultSettings } from '../../session/settings';
 import { cpuSlot, defaultSetup, humanSlot } from '../../session/setup';
 import type { Flow } from '../../ui/app';
@@ -33,8 +33,8 @@ export const scene: LabScene = {
     app.canvas.remove();
     const [renderer] = await Promise.all([Renderer.create(root), loadHudFont(), loadUiFonts()]);
     const game = new Game(renderer, true);
-    const ids = selectableFighterIds();
-    const players = Number(params.get('players') ?? 2);
+    const ids = ['johnny', 'fluffy', 'fireboy', 'wheely'];
+    const players = params.get('players') === '4' ? 4 : 2;
     const setup = defaultSetup();
     setup.stage = stageIds()[0]!;
     setup.slots = Array.from({ length: players }, (_, i) => ({
