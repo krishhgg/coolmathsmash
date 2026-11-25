@@ -1,14 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import { isIntangible } from '../../sim/actions/registry';
+import { createMatch } from '../../sim/match';
 import { compileStage } from '../../sim/stage';
-import { placeInAir, run, testMatch, until } from '../../sim/testing/sim';
+import { marioReference } from '../../sim/testing/reference';
+import { placeInAir, run, until } from '../../sim/testing/sim';
 import { DECK, stage } from './geometry';
+
+function legalMatch({
+  fighter = marioReference.id,
+  players = 1,
+  x,
+}: { fighter?: string; players?: number; x?: number } = {}) {
+  const m = createMatch({
+    seed: 1,
+    stage: stage.id,
+    stocks: 3,
+    hazards: false,
+    ports: Array.from({ length: players }, () => ({ fighter })),
+  });
+  if (x !== undefined) m.fighters[0]!.pos.x = x;
+  run(m, 10);
+  return m;
+}
 
 describe("World's Hardest Stage collision", () => {
   it('has one 180-unit floor, two Battlefield side platforms and Final Destination blast zones', () => {
     const floors = compileStage(stage).edges.filter((e) => e.kind === 'floor');
     expect(floors).toMatchObject([{ a: { x: -90, y: 0 }, b: { x: 90, y: 0 } }]);
-    expect(stage.platforms).toEqual([
+    expect(stage.platforms).toMatchObject([
       { x1: -59.42, x2: -24.79, y: 24.12 },
       { x1: 24.79, x2: 59.42, y: 24.12 },
     ]);
@@ -17,7 +36,7 @@ describe("World's Hardest Stage collision", () => {
 
   it('settles four spawns on the green ends, facing inward without overlapping', () => {
     expect(stage.spawns).toHaveLength(4);
-    const m = testMatch({ stage: stage.id, players: 4, fighter: 'wheely' });
+    const m = legalMatch({ players: 4, fighter: 'wheely' });
     for (const [port, f] of m.fighters.entries()) {
       const [x, y, facing] = stage.spawns[port]!;
       expect(f.pos).toEqual({ x, y });
@@ -32,7 +51,7 @@ describe("World's Hardest Stage collision", () => {
 
   it('KOs and respawns all four ports at distinct points above the deck', () => {
     expect(stage.respawns).toHaveLength(4);
-    const m = testMatch({ stage: stage.id, players: 4 });
+    const m = legalMatch({ players: 4 });
     for (const f of m.fighters) {
       f.pos.y = stage.blastZones.bottom - 1;
       f.ground = null;
@@ -60,7 +79,7 @@ describe("World's Hardest Stage collision", () => {
   it.each(stage.platforms.map((p, i) => [i, p] as const))(
     'jumps through, lands on and drops through soft platform %i',
     (index, { x1, x2, y }) => {
-      const m = testMatch({ stage: stage.id, x: (x1 + x2) / 2 });
+      const m = legalMatch({ x: (x1 + x2) / 2 });
       const f = m.fighters[0]!;
       expect(f.ground).toEqual({ kind: 'solid', index: 0 });
       run(m, 30, { buttons: ['jump'] });
@@ -80,7 +99,7 @@ describe("World's Hardest Stage collision", () => {
   it.each(stage.ledges.map((ledge, i) => [i, ledge] as const))(
     'catches and climbs ledge %i from outside the hull',
     (index, { x, y, side }) => {
-      const m = testMatch({ stage: stage.id });
+      const m = legalMatch();
       const f = placeInAir(m, x + side * 4, y + 4, side);
       until(m, (g) => g.action === 'ledgeHang', {}, 60);
       expect(f.ledge).toBe(index);

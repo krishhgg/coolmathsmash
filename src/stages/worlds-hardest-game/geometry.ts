@@ -1,4 +1,5 @@
 import type { StageGeometry } from '../../sim/stage';
+import { PATROLS } from './hazards';
 
 export const DECK = {
   left: -90,
@@ -10,6 +11,7 @@ export const DECK = {
 } as const;
 
 const { left, right, top, laneDepth, safeDepth, safeWidth } = DECK;
+const legalOnly = { hazard: true, schedule: () => false };
 
 export const stage: StageGeometry = {
   id: 'worlds-hardest-game',
@@ -29,8 +31,8 @@ export const stage: StageGeometry = {
     },
   ],
   platforms: [
-    { x1: -59.42, x2: -24.79, y: 24.12 },
-    { x1: 24.79, x2: 59.42, y: 24.12 },
+    { x1: -59.42, x2: -24.79, y: 24.12, ...legalOnly },
+    { x1: 24.79, x2: 59.42, y: 24.12, ...legalOnly },
   ],
   ledges: [
     { x: left, y: top, side: -1 },
@@ -50,4 +52,6 @@ export const stage: StageGeometry = {
     [-54, 68],
     [54, 68],
   ],
+  // TODO: Add the giant ball after contact KOs land, and healing coins after stage pickups land.
+  hitboxes: PATROLS,
 };
