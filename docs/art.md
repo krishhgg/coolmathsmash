@@ -45,8 +45,8 @@ rig point `(6, -6)`.
   layer: `swaps` (slot -> symbol, or `null` to hide) and `z` (slot -> draw order; slot _i_ draws at _i_, so
   2.5 sits between slots 2 and 3) hold until a later key changes them, and `swaps: {}` returns to the clip's
   own swaps. A key without `pose` only changes symbols, like a keyframe on the symbol layer.
-- **Palettes** map keys to colours. `default` is the fighter's main look; alternates (the mannequin's `ash`,
-  `walnut` and `cherry`) dress other ports.
+- **Palettes** map keys to colours. `default` is the fighter's main look; alternates (the mannequin's `light`,
+  `ice`, `crystal` and `twin`) dress other ports.
 - **Costume swaps** (`costumeSwaps`: palette name -> slot -> symbol, or `null`) replace slot defaults for one
   costume, below clip and key swaps, so a costume can wear a hat the others don't (The Duck's `crown`).
 - `icon` is a standalone SVG string for stock icons and portraits, `projectiles` holds props such as the
