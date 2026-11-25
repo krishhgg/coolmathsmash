@@ -102,4 +102,5 @@ function checkBlastZones(x: Ctx): void {
   f.hitstun = 0;
   f.speedUpFaf = 0;
   f.flyTop = false;
+  f.storedCharge = null;
 }

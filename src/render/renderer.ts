@@ -8,6 +8,7 @@ import type { StageGeometry } from '../sim/stage';
 import { tetherOrigin } from '../sim/actions/tether';
 import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
+import { drawChargeGlows } from './chargeGlow';
 import { EventLog } from './debug/eventLog';
 import { drawEntities, drawEntityBoxes } from './entities';
 import { InputDisplay } from './debug/inputDisplay';
@@ -66,6 +67,7 @@ export class Renderer {
   });
   private readonly boxes = new Graphics();
   private readonly entities = new Graphics();
+  private readonly glows = new Graphics();
   private fighters: FighterView[] = [];
   /** Fighter id each view was built for; a transform swaps the view. */
   private fighterIds: string[] = [];
@@ -82,6 +84,7 @@ export class Renderer {
     this.world.addChild(
       this.stageLayer,
       this.stagePieces,
+      this.glows,
       this.fighterLayer,
       this.entities,
       this.foregroundLayer,
@@ -158,6 +161,7 @@ export class Renderer {
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
     this.stageView?.update(state.frame, view);
     drawStagePieces(this.stagePieces, this.stage!, state, alpha);
+    drawChargeGlows(this.glows, state, alpha);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
     drawEntities(this.entities, state, alpha);
     this.drawBoxes(state);

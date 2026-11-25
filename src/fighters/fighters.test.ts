@@ -6,6 +6,8 @@ import type { FighterStats } from './types';
 
 const range = ref.cast_ranges;
 
+const SPECIALS = ['neutralB', 'sideB', 'upB', 'downB'];
+
 /** Each stat checked against the span of Ultimate's 89-fighter cast (research: physics-constants.json cast_ranges). */
 const CAST: [keyof FighterStats, { min: number; max: number }][] = [
   ['weight', range.weight],
@@ -59,8 +61,16 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
       }
     }
     if (move.charge !== undefined) {
-      expect(move.kind).toBe('smash');
+      expect(
+        move.kind === 'smash' || SPECIALS.includes(name),
+        `${name}: only smashes and specials charge`,
+      ).toBe(true);
       expect(move.charge).toBeLessThan(Math.min(...move.hits.map((w) => w.frames[0])));
+    }
+    if (move.chargeFrames !== undefined || move.chargeDamage !== undefined || move.storeCharge) {
+      expect(move.charge, `${name} has a charge frame`).toBeDefined();
+      expect(move.chargeFrames ?? 1).toBeGreaterThan(0);
+      expect(move.chargeDamage ?? 1).toBeGreaterThanOrEqual(1);
     }
     if (move.kind === 'aerial') expect(move.landingLag).toBeGreaterThan(0);
     if (move.next) {
