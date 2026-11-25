@@ -52,20 +52,23 @@ function reachB(pose: Pose, wrist: Pt): Pose {
   return mix(pose, { armB: { sy: k }, foreB: { sy: k } });
 }
 
-/** A swing smear on the `fxS` bone: pivot, leading edge angle, radius; `back` mirrors it for upward swings. */
-const smearAt = (pivot: Pt, deg: number, radius: number, back = false) => ({
-  fxS: fx(pivot[0], pivot[1], deg, radius, back ? -radius : radius),
+/**
+ * A swing smear on the `fxS` bone: pivot, leading edge angle, radius; `back` mirrors it for upward swings, and
+ * `squash` flattens it across the swing for a sweep round the body along the floor.
+ */
+const smearAt = (pivot: Pt, deg: number, radius: number, back = false, squash = 1) => ({
+  fxS: fx(pivot[0], pivot[1], deg, radius, (back ? -radius : radius) * squash),
 });
 
 /**
  * A smear from the grip's shoulder that reaches the baton's tip in `pose`: the arc a Flash animator draws behind
  * a swing, trailing back from the leading edge.
  */
-function trail(pose: Pose, back = false, extra = 0.3): Pose {
+function trail(pose: Pose, back = false, extra = 0.3, squash = 1): Pose {
   const pivot = pointOf(rig, pose, 'armF');
   const [tx, ty] = pointOf(rig, pose, 'baton', 7.5, 0);
   const deg = (Math.atan2(ty - pivot[1], tx - pivot[0]) * 180) / Math.PI;
-  return mix(pose, smearAt(pivot, deg, Math.hypot(tx - pivot[0], ty - pivot[1]) + extra, back));
+  return mix(pose, smearAt(pivot, deg, Math.hypot(tx - pivot[0], ty - pivot[1]) + extra, back, squash));
 }
 
 const STANCE = feet({ body: { rot: 6 }, hip: { y: 0.45 }, neck: { rot: -4 } }, floor(-1.8), floor(1.8));
@@ -120,7 +123,10 @@ const UTILT_UP = (deg: number) =>
 const UTILT_FINISH = reachF(swing(mix(STANCE, { body: { rot: -8 } }), [2.2, -11.2], -80), [2.2, -11.2]);
 
 const DTILT_BACK = swing(LOW, [1.0, -3.0], 160, -1);
+/** Halfway round the sweep the baton points at the viewer, so it is drawn short instead of through the floor. */
+const DTILT_MID = mix(swing(LOW, [2.4, -2.6], 90, -1), { baton: { sx: 0.3 } });
 const DTILT_HIT = swing(LOW, [3.6, -2.5], 6, -1);
+const DTILT_SWEEP = trail(DTILT_HIT, true, 0.3, 0.35);
 
 // Dash attack: the loot sack swung forward out of the run -----------------------------------------------------
 
@@ -238,8 +244,9 @@ const TWIRL_POSE = (deg: number) =>
 export const ledgeSweep = (from: number): Key[] => [
   key(from, swing(LOW, [2.2, -3.6], -30, -1), { ease: 'out', swaps: { ...ANGRY, ...BATON } }),
   key(18, DTILT_BACK, { ease: 'in' }),
-  strikeKey(22, trail(DTILT_HIT, true), { ...SHOUT, ...BATON, smear: 'smear90' }),
-  key(25, trail(DTILT_HIT, true), { ease: 'out' }),
+  key(21, DTILT_MID, { ease: 'linear' }),
+  strikeKey(22, DTILT_SWEEP, { ...SHOUT, ...BATON, smear: 'smear90' }),
+  key(25, DTILT_SWEEP, { ease: 'out' }),
   key(31, swing(LOW, [3.0, -2.8], 30, -1), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
   key(55, READY, { swaps: SIDE }),
 ];
@@ -334,9 +341,10 @@ export const attacks: Record<string, AnimClip> = {
     swaps: { ...ANGRY, ...BATON },
     keys: [
       key(0, BATON_READY, { ease: 'out' }),
-      key(4, DTILT_BACK, { ease: 'in' }),
-      strikeKey(6, trail(DTILT_HIT, true), { ...SHOUT, ...BATON, smear: 'smear90' }),
-      key(7, trail(DTILT_HIT, true), { ease: 'out' }),
+      key(4, DTILT_BACK, { ease: 'linear' }),
+      key(5, DTILT_MID, { ease: 'linear' }),
+      strikeKey(6, DTILT_SWEEP, { ...SHOUT, ...BATON, smear: 'smear90' }),
+      key(7, DTILT_SWEEP, { ease: 'out' }),
       key(11, swing(LOW, [3.0, -2.8], 30, -1), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
       key(23, BATON_READY),
     ],
@@ -417,12 +425,12 @@ export const attacks: Record<string, AnimClip> = {
     keys: [
       key(0, BATON_READY, { ease: 'out' }),
       key(4, DSMASH_WIND, { ease: 'in' }),
-      strikeKey(7, trail(DSMASH_HIT, true), { ...SHOUT, ...BATON, smear: 'smear90' }),
-      key(8, trail(DSMASH_HIT, true), { ease: 'inOut' }),
+      strikeKey(7, trail(DSMASH_HIT), { ...SHOUT, ...BATON, smear: 'smear90' }),
+      key(8, trail(DSMASH_HIT), { ease: 'inOut' }),
       key(10, DSMASH_HIT, { ease: 'in', swaps: { ...ANGRY, ...BATON } }),
       key(13, mix(DSMASH_WIND, { body: { sx: -0.2 } }), { ease: 'out' }),
-      strikeKey(15, turned(trail(DSMASH_HIT, true)), { ...SHOUT, ...BATON, smear: 'smear90' }),
-      key(16, turned(trail(DSMASH_HIT, true)), { ease: 'inOut' }),
+      strikeKey(15, turned(trail(DSMASH_HIT)), { ...SHOUT, ...BATON, smear: 'smear90' }),
+      key(16, turned(trail(DSMASH_HIT)), { ease: 'inOut' }),
       key(20, turned(DSMASH_HIT), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
       key(30, mix(BATON_READY, { body: { sx: -0.2 } }), { ease: 'out' }),
       key(36, BATON_READY),
@@ -439,15 +447,15 @@ export const attacks: Record<string, AnimClip> = {
     keys: [
       key(0, mix(LOW, { body: { rot: -70, y: 2.0 } }), { ease: 'out' }),
       key(10, DSMASH_WIND, { ease: 'in', swaps: { ...ANGRY, ...BATON } }),
-      strikeKey(17, trail(swing(LOW, [4.0, -3.2], 10, -1), true), { ...SHOUT, ...BATON, smear: 'smear90' }),
-      key(18, trail(swing(LOW, [4.0, -3.2], 10, -1), true), { ease: 'inOut' }),
+      strikeKey(17, trail(swing(LOW, [4.0, -3.2], 10, -1)), { ...SHOUT, ...BATON, smear: 'smear90' }),
+      key(18, trail(swing(LOW, [4.0, -3.2], 10, -1)), { ease: 'inOut' }),
       key(21, mix(DSMASH_WIND, { body: { sx: -0.2 } }), { ease: 'out', swaps: { ...ANGRY, ...BATON } }),
-      strikeKey(25, turned(trail(swing(LOW, [4.0, -3.2], 10, -1), true)), {
+      strikeKey(25, turned(trail(swing(LOW, [4.0, -3.2], 10, -1))), {
         ...SHOUT,
         ...BATON,
         smear: 'smear90',
       }),
-      key(26, turned(trail(swing(LOW, [4.0, -3.2], 10, -1), true)), { ease: 'inOut' }),
+      key(26, turned(trail(swing(LOW, [4.0, -3.2], 10, -1))), { ease: 'inOut' }),
       key(32, turned(BATON_READY), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
       key(38, mix(BATON_READY, { body: { sx: -0.2 } }), { ease: 'out' }),
       key(45, READY, { swaps: SIDE }),
