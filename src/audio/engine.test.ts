@@ -47,6 +47,7 @@ describe('AudioEngine', () => {
     expect(panner).toBeInstanceOf(FakePanner);
     expect((panner as FakePanner).pan.value).toBe(-0.5);
     expect(bus2).toBe(engine.bus('sfx'));
+    expect(engine.play('menu-select', { at: 2 })!.end).toBeCloseTo(3);
   });
 
   it('returns null for a sound still loading and plays it once the file has decoded', async () => {
@@ -84,6 +85,7 @@ describe('AudioEngine', () => {
     const { ctx, engine } = await setup();
     const v = engine.play('dizzy')!;
     expect(ctx.sources[0]!.loop).toBe(true);
+    expect(v.end).toBe(Infinity);
     ctx.currentTime = 2;
     v.stop(0.1);
     expect(ctx.sources[0]!.stopped).toBeCloseTo(2.11);

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
+import { koPercent } from '../../sim/testing/ko';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
 import type { HitWindow } from '../types';
 import { moves } from './moves';
 import { stats } from './stats';
-import { kos } from './testing';
 
 const johnny = () => testMatch({ fighter: 'johnny' });
 
@@ -106,7 +106,10 @@ describe('Johnny Upgrade: attack inputs', () => {
   });
 });
 
-/** The roster's sheet (handoffs/research/roster.md, Johnny Upgrade): first active frame and damage of each hit. */
+/**
+ * The roster's sheet (handoffs/research/roster.md, Johnny Upgrade): first active frame and damage of each hit. The
+ * up smash, neutral, forward and up airs carry Captain Falcon's damage instead (see the kill percents below).
+ */
 const ROSTER: [move: string, startup: number, damage: number[]][] = [
   ['jab', 3, [1.5]],
   ['jab2', 4, [1]],
@@ -116,12 +119,12 @@ const ROSTER: [move: string, startup: number, damage: number[]][] = [
   ['dtilt', 10, [10]],
   ['dashAttack', 7, [10]],
   ['fsmash', 18, [19]],
-  ['usmash', 14, [6, 11]],
+  ['usmash', 14, [7, 14]],
   ['dsmash', 16, [15]],
-  ['nair', 7, [7, 8]],
-  ['fair', 14, [20]],
+  ['nair', 7, [4, 6]],
+  ['fair', 14, [22]],
   ['bair', 10, [13]],
-  ['uair', 6, [8]],
+  ['uair', 6, [10]],
   ['dair', 16, [14]],
   ['grab', 7, [0]],
 ];
@@ -139,18 +142,42 @@ describe('Johnny Upgrade: frame data', () => {
     expect(ended).toBe(def.faf);
   });
 
-  it("throws deal the roster's damage and the pummel 1.3%", () => {
-    const dmg = (move: string) => moves[move]!.throw!.hit.damage;
-    expect([dmg('fthrow'), dmg('bthrow'), dmg('uthrow'), dmg('dthrow')]).toEqual([8, 10, 7, 7]);
+  it("throws deal the roster's damage, a hit on the held opponent before the release, and the pummel 1.3%", () => {
+    const thrown = (stick: Hold) => {
+      const m = testMatch({ fighter: 'johnny', players: 2 });
+      const [a, v] = m.fighters as [FighterState, FighterState];
+      const at = { x: a.pos.x + 9 * a.facing, y: a.pos.y };
+      Object.assign(v, {
+        pos: { ...at },
+        prevPos: { ...at },
+        ground: a.ground,
+        action: 'idle',
+        intangible: 0,
+      });
+      runPorts(m, 1, [{ buttons: ['grab'] }, {}]);
+      runPorts(m, 8, []);
+      expect(v.action).toBe('grabbed');
+      const events: string[] = [];
+      for (let i = 0; i < 60; i++) {
+        runPorts(m, 1, [i === 0 ? { x: (stick.x ?? 0) * a.facing, y: stick.y } : {}, {}]);
+        for (const e of m.events) if (e.type === 'pummel' || e.type === 'throw') events.push(e.type);
+      }
+      expect(events).toEqual(['pummel', 'throw']);
+      return v.damage / 1.2;
+    };
+    expect(thrown({ x: 100 })).toBeCloseTo(8, 0);
+    expect(thrown({ x: -100 })).toBeCloseTo(10, 0);
+    expect(thrown({ y: 100 })).toBeCloseTo(7, 0);
+    expect(thrown({ y: -100 })).toBeCloseTo(7, 0);
     expect(moves.pummel!.pummel!.damage).toBe(1.3);
   });
 
-  it("the knee's sweetspot is its first active frame only, with heavy hitlag; the rest is a weak 6%", () => {
+  it("the knee's sweetspot is its first active frame only, with heavy hitlag; the thigh is 6% and the late knee 3%", () => {
     const [sweet, late] = moves.fair!.hits as [HitWindow, HitWindow];
     expect(sweet.frames).toEqual([14, 14]);
-    expect(sweet.boxes[0]).toMatchObject({ id: 0, damage: 20, hitlag: 1.5 });
+    expect(sweet.boxes[0]).toMatchObject({ id: 0, damage: 22, hitlag: 1.5 });
     expect(sweet.boxes[1]!.damage).toBe(6);
-    expect(late.boxes.every((b) => b.damage === 6)).toBe(true);
+    expect(late.boxes.every((b) => b.damage === 3)).toBe(true);
   });
 
   it('dair meteors: its sole sends straight down', () => {
@@ -159,30 +186,77 @@ describe('Johnny Upgrade: frame data', () => {
 });
 
 /**
- * The roster's "kill ~N%": the move KOs the Mario reference (98) from Battlefield's ledge, fresh, without rage or
- * DI. Knockback stays at Ultimate's values while the engine's KO percents are being calibrated against Ultimate's,
- * so for now each move only has to KO by N + 10%.
- * TODO: once COOL-3's koPercent calibration lands, tighten to "KOs at N + 5% and not at N - 5%" and retune.
+ * Kill percents (CREW.md, "Knockback values and kill percents"), with koPercent: the Mario reference (98) at
+ * Battlefield's ledge, fresh, no rage or DI. Each hit carries the angle, BKB and KBG of Captain Falcon's matching hit
+ * in Ultimate (SmashWiki's SSBU hitbox tables), so it has to KO within 5 points of Falcon's hit from the same setup.
+ * Falcon's numbers are koPercent of his raw hits, which reproduces SSBU-Calculator within about 2%. A throw's hit on
+ * the held opponent lands first (x1.2 in 1v1), so it comes off the release's percent, Falcon's as well.
  */
-const KILLS: [move: string, percent: number][] = [
-  ['fsmash', 80],
-  ['fair', 90],
-  ['dsmash', 105],
-  ['usmash', 110],
-  ['bair', 125],
-  ['bthrow', 165],
+const FALCON: [move: string, analogue: string, ko: number, setup: { air?: boolean; held?: number }][] = [
+  ['fair', 'knee sweetspot (22%, 32°, BKB 30, KBG 81)', 55, { air: true }],
+  ['fsmash', 'forward smash, unangled (19%, 43°, BKB 36, KBG 94)', 59, {}],
+  ['dair', 'down aerial body (14%, 361°, BKB 40, KBG 100)', 74, { air: true }],
+  ['dsmash', 'down smash back kick (18%, 28°, BKB 20, KBG 84)', 77, {}],
+  ['bair', 'back aerial, clean (13%, 361°, BKB 27, KBG 97)', 97, { air: true }],
+  ['usmash', 'up smash final hit (14%, 83°, BKB 70, KBG 80)', 112, {}],
+  ['dtilt', 'down tilt (10%, 25°, BKB 38, KBG 86)', 118, {}],
+  ['nair', 'neutral aerial second kick (6%, 361°, BKB 45, KBG 120)', 129, { air: true }],
+  ['bthrow', 'back throw (3.5% hit, then 4%, 135°, BKB 60, KBG 130)', 144, { held: 6 }],
+  ['dashAttack', 'dash attack, clean (10%, 65°, BKB 90, KBG 67)', 170, {}],
+  ['fthrow', 'forward throw (3.5% hit, then 4%, 45°, BKB 55, KBG 120)', 170, { held: 4 }],
+  ['ftilt', 'forward tilt (9%, 361°, BKB 60, KBG 58)', 185, {}],
+  ['uair', 'up aerial, clean (10%, 66°, BKB 20, KBG 96)', 193, { air: true }],
+  ['uthrow', 'up throw (4% hit, then 5%, 84°, BKB 68, KBG 100)', 218, { held: 2 }],
+  ['dthrow', 'down throw (6%, 68°, BKB 65, KBG 70)', 306, { held: 1 }],
 ];
 
+/** Johnny's kill percent for `move` from the kill-percent setup, after any hit on the held opponent. */
+function ko(move: string, { air, held = 0 }: { air?: boolean; held?: number } = {}): number {
+  return koPercent({ hit: { fighter: 'johnny', move }, air })! - held * 1.2;
+}
+
 describe('Johnny Upgrade: kill percents', () => {
-  it.each(KILLS)('%s KOs from the ledge by about %i%%', (move, percent) => {
-    // TODO(COOL-3 koPercent calibration): vertical kills land about 10-20% later since the engine gained Ultimate's
-    // DamageFlyTop gravity and top-blast-zone rule; retune against koPercent (src/sim/testing/ko.ts).
-    expect(kos(move, percent + (move === 'usmash' ? 25 : 10))).toBe(true);
+  it.each(FALCON)("%s KOs within 5 points of Falcon's %s at %i%%", (move, _analogue, percent, setup) => {
+    expect(Math.abs(ko(move, setup) - percent)).toBeLessThanOrEqual(5);
   });
 
-  it('the jab, forward tilt, dash attack and combo throws are not kill moves at 120%', () => {
-    for (const move of ['jab', 'ftilt', 'dashAttack', 'uthrow', 'dthrow'])
-      expect(kos(move, 120), move).toBe(false);
+  it('the knee kills first, then the forward smash, stomp, down smash, back air, up smash and down tilt; back throw is the kill throw', () => {
+    const air = { air: true };
+    const kills = [
+      ko('fair', air),
+      ko('fsmash'),
+      ko('dair', air),
+      ko('dsmash'),
+      ko('bair', air),
+      ko('usmash'),
+      ko('dtilt'),
+    ];
+    expect(kills).toEqual([...kills].sort((p, q) => p - q));
+    const throws = [
+      ko('bthrow', { held: 6 }),
+      ko('fthrow', { held: 4 }),
+      ko('uthrow', { held: 2 }),
+      ko('dthrow', { held: 1 }),
+    ];
+    expect(throws).toEqual([...throws].sort((p, q) => p - q));
+  });
+
+  it('the jabs, the Rush, tilts, dash attack, combo throws and the recovery specials do not KO before 150%', () => {
+    for (const move of [
+      'jab',
+      'jab2',
+      'jab3',
+      'ftilt',
+      'utilt',
+      'dashAttack',
+      'uthrow',
+      'dthrow',
+      'sideB',
+      'upB',
+    ]) {
+      const percent = koPercent({ hit: { fighter: 'johnny', move } });
+      expect(percent === null || percent > 150, move).toBe(true);
+    }
   });
 });
 
