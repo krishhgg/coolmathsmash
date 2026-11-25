@@ -212,6 +212,20 @@ describe('conveyors', () => {
     expect(f.action).toBe('fall');
   });
 
+  it('keep a fighter carried off the end in hitstun, so it cannot act before the hitstun ends', () => {
+    const m = hazardMatch([mario.id], [[-38, 30.001]]);
+    run(m, 5);
+    const f = m.fighters[0]!;
+    expect(f.ground).toEqual({ kind: 'platform', index: 0 });
+    Object.assign(f, { action: 'hitstun', actionFrame: 1, hitstun: 40, move: null });
+    until(m, () => f.ground === null);
+    expect(f.action).toBe('hitstun');
+    expect(f.hitstun).toBeGreaterThan(20);
+    run(m, 1, { buttons: ['jump'] });
+    expect(f.action).toBe('hitstun');
+    expect(f.jumpsUsed).toBe(1);
+  });
+
   it('end a grab whose holder they carry off the end, as when the stage takes the ground away', () => {
     const m = hazardMatch(['fireboy', 'watergirl', mario.id], [[-55, 30.001], [-45, 30.001], 80]);
     run(m, 5);
