@@ -17,6 +17,8 @@ export function fighterIcon(id: string): string | undefined {
  */
 export class MatchHud {
   readonly hud = new Hud();
+  /** Ports driven by a CPU; the match screen sets it so their cards turn grey. */
+  cpus: ReadonlySet<number> = new Set();
   private config: unknown = null;
   private damage: number[] = [];
   private hitFrames: number[] = [];
@@ -44,6 +46,7 @@ export class MatchHud {
       maxStocks: state.config.stocks,
       icon: fighterIcon(f.fighter),
       eliminated: f.action === 'out',
+      cpu: this.cpus.has(i),
       hitFrame: fresh ? -1 : (this.hitFrames[i] ?? -1),
     }));
   }

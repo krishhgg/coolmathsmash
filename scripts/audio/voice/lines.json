@@ -1,0 +1,157 @@
+{
+  "voice": "bm_lewis,bm_lewis,bm_lewis,am_michael,am_michael,am_santa,am_santa,am_santa",
+  "lang": "a",
+  "lines": {
+    "ready": {
+      "text": "Ready?",
+      "style": "call",
+      "delivery": {
+        "rise": 1.5
+      }
+    },
+    "three": {
+      "text": "Three!",
+      "style": "count",
+      "delivery": {
+        "pitch": 1.18
+      }
+    },
+    "two": {
+      "text": "Two!",
+      "style": "count",
+      "delivery": {
+        "pitch": 1.24,
+        "hold": 1.0,
+        "speed": 1.18
+      }
+    },
+    "one": {
+      "text": "One!",
+      "style": "count",
+      "delivery": {
+        "pitch": 1.3
+      }
+    },
+    "go": {
+      "text": "Go!",
+      "style": "count",
+      "delivery": {
+        "pitch": 1.36,
+        "hold": 1.7,
+        "drive": 2.0,
+        "rise": 1.05
+      }
+    },
+    "fight": {
+      "text": "Fight!",
+      "style": "count"
+    },
+    "game": {
+      "text": "Game!",
+      "style": "call"
+    },
+    "time": {
+      "text": "Time!",
+      "style": "call",
+      "delivery": {
+        "pitch": 1.26
+      }
+    },
+    "sudden-death": {
+      "text": "Sudden death!",
+      "style": "call"
+    },
+    "no-contest": {
+      "text": "No contest!",
+      "style": "call"
+    },
+    "winner-is": {
+      "text": "The winner is...",
+      "style": "build",
+      "delivery": {
+        "tail": 1.2,
+        "hold": 1.9
+      }
+    },
+    "choose-your-character": {
+      "text": "Choose your character!",
+      "style": "call"
+    },
+    "title": {
+      "text": "Cool Math... Smash!",
+      "style": "title",
+      "delivery": {
+        "pitch": 1.26,
+        "hold": 1.75
+      }
+    },
+    "fighter-papa-louie": {
+      "text": "Papa Louie!",
+      "style": "name"
+    },
+    "fighter-fireboy": {
+      "text": "Fire boy!",
+      "style": "name"
+    },
+    "fighter-watergirl": {
+      "text": "Water girl!",
+      "style": "name",
+      "delivery": {
+        "rise": 1.05
+      }
+    },
+    "fighter-runner": {
+      "text": "Runner!",
+      "style": "name",
+      "delivery": {
+        "pitch": 1.22
+      }
+    },
+    "fighter-bob-the-robber": {
+      "text": "Bob the Robber!",
+      "style": "name"
+    },
+    "fighter-snailbob": {
+      "text": "Snail Bob!",
+      "style": "name"
+    },
+    "fighter-redball": {
+      "text": "Red Ball!",
+      "style": "name"
+    },
+    "fighter-duck": {
+      "text": "Duck!",
+      "style": "name",
+      "delivery": {
+        "hold": 1.4
+      }
+    },
+    "fighter-fluffy": {
+      "text": "Fluffy!",
+      "style": "name",
+      "delivery": {
+        "pitch": 1.22,
+        "lufs": -13
+      }
+    },
+    "fighter-raftwars": {
+      "text": "Raft Wars!",
+      "style": "name"
+    },
+    "fighter-bloxorz": {
+      "text": "[Bloxorz](/bl\u02c8\u0251ks\u0254\u0279z/)!",
+      "style": "name"
+    },
+    "fighter-johnny": {
+      "text": "Johnny Upgrade!",
+      "style": "name"
+    },
+    "fighter-wheely": {
+      "text": "Wheely!",
+      "style": "name",
+      "delivery": {
+        "pitch": 1.22
+      }
+    }
+  }
+}

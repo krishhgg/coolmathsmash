@@ -2,6 +2,7 @@ import { audio } from '../audio';
 import type { Game } from '../game';
 import { padSlots } from '../input/gamepad';
 import { loadSettings, saveSettings, type Settings } from '../session/settings';
+import type { FinishedMatch } from '../session/match';
 import { defaultSetup, type MatchSetup } from '../session/setup';
 import { MenuInput, type MenuEvent } from './input';
 import type { UiLayer } from './layer';
@@ -35,6 +36,8 @@ export interface Flow {
   readonly settings: Settings;
   /** Players, stage and rules, kept across screens and rematches. */
   readonly setup: MatchSetup;
+  /** The match that just ended, for the results screen. */
+  lastMatch: FinishedMatch | null;
   saveSettings(): void;
   go(route: Route): void;
   /** Whether that screen exists yet. */
@@ -72,7 +75,11 @@ export function screensByRoute(
 export class App implements Flow {
   readonly settings: Settings = loadSettings();
   readonly setup: MatchSetup = defaultSetup();
-  readonly input = new MenuInput(() => this.settings.keyboard);
+  lastMatch: FinishedMatch | null = null;
+  readonly input = new MenuInput(
+    () => this.settings.keyboard,
+    () => (this.route === 'match' ? this.settings.gamepad.start : null),
+  );
   private screen: Screen | null = null;
   route: Route | null = null;
 

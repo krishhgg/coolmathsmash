@@ -1,4 +1,5 @@
 import type { HitboxDef, MoveDef } from '../types';
+import { CANDY_SPEED } from './entities';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -44,7 +45,8 @@ const tether = (near: number) => [
 /**
  * Fluffy's normals (roster sheet 8). His game is a grabber fired across the screen, so his tilts, smashes and grab
  * reach far (forward tilt 45 units, forward smash and grab 70, Min Min range) and recover slowly, while the
- * close-range moves use his fuzzy body. Damage and first active frames are the roster's. Angle, growth and base
+ * close-range moves use his fuzzy body. Damage and first active frames are the roster's, except that the two kill moves within about 2% of their
+ * analogue take its damage (forward smash 16%, back air 10.5%). Angle, growth and base
  * knockback come from each move's Ultimate analogue (CREW.md, "Knockback values and kill percents"), named on each
  * move: Min Min's moves for his grabber, Jigglypuff's for his body, and Mario's where the damage matches better (back
  * air, forward, back and up throw). The values are from SSBU-Calculator's hitbox data. Frame windows are inclusive;
@@ -187,7 +189,7 @@ export const moves: Record<string, MoveDef> = {
           (i) => (i === 0 ? 6 : 3.5),
           (i): Hit =>
             i === 0
-              ? { damage: 15, angle: 361, kbg: 78, bkb: 40 }
+              ? { damage: 16, angle: 361, kbg: 78, bkb: 40 }
               : { damage: 11, angle: 361, kbg: 87, bkb: 40 },
         ),
       },
@@ -326,7 +328,7 @@ export const moves: Record<string, MoveDef> = {
           5,
           2,
           (i) => (i === 0 ? 5 : 4.5),
-          (i) => ({ damage: i === 0 ? 11 : 9, angle: 361, kbg: 106, bkb: 12, direction: 'back' }),
+          (i) => ({ damage: i === 0 ? 10.5 : 9, angle: 361, kbg: 106, bkb: 12, direction: 'back' }),
         ),
       },
     ],
@@ -438,5 +440,15 @@ export const moves: Record<string, MoveDef> = {
     armor: { frames: [4, 60] },
     continuesOnLanding: true,
     hits: [],
+  },
+  /**
+   * Candy Frisbee (side special): flings the candy forward on frame 14; it boomerangs back to him (entities.ts). One
+   * candy at a time: while it is out, the throw comes out empty.
+   */
+  sideB: {
+    kind: 'other',
+    faf: 46,
+    hits: [],
+    spawn: [{ frame: 14, entity: 'candy', x: 8.5, y: 5.5, vx: CANDY_SPEED, max: 1 }],
   },
 };

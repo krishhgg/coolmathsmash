@@ -86,6 +86,7 @@ export function attack(m: MatchState, port: number, move: string): FighterState 
     actionFrame: 0,
     move,
     hitVictims: [],
+    hitEntities: [],
     moveStale: 0,
   });
   return f;

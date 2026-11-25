@@ -74,4 +74,27 @@ describe('MenuInput', () => {
     ]);
     expect(m.poll(2000, [pad()])).toEqual([]);
   });
+
+  it('uses the saved pause bindings during a match but keeps standard menu controls outside it', () => {
+    const keys = structuredClone(KEYBOARD_BINDINGS);
+    keys[0]!.buttons.start = ['KeyP'];
+    let start: number[] | null = null;
+    const m = new MenuInput(
+      () => keys,
+      () => start,
+    );
+    m.keyDown('KeyP', 0);
+    m.keyUp('KeyP');
+    expect(m.poll(0, [pad([0])])).toEqual([{ device: 'pad1', action: 'confirm' }]);
+    start = [0];
+    expect(m.poll(10, [pad([0, 9])])).toEqual([]);
+    expect(m.poll(20, [pad()])).toEqual([]);
+    m.keyDown('KeyP', 30);
+    m.keyDown('Escape', 30);
+    expect(m.poll(30, [pad([0])])).toEqual([
+      { device: 'kb1', action: 'start' },
+      { device: 'keys', action: 'back' },
+      { device: 'pad1', action: 'start' },
+    ]);
+  });
 });

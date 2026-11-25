@@ -2,6 +2,7 @@ import { shapesBounds } from '../../../render/rig/geometry';
 import { symbolsToSvg } from '../../../render/rig/svg';
 import type { FighterArt } from '../../../render/rig/types';
 import { clips } from './clips';
+import { LEDGE_GRIP } from './ledge';
 import { head } from './parts';
 import { palettes } from './palettes';
 import { rig } from './rig';
@@ -15,9 +16,10 @@ function iconBox(): [number, number, number, number] {
 
 /** Johnny Upgrade (Gameshot, 2012), drawn by hand in the game's Flash style. Plain data: no Pixi imports. */
 export const art: FighterArt = {
-  height: 17,
+  height: 17.5,
   rig,
   clips,
   palettes,
+  ledgeGrip: LEDGE_GRIP,
   icon: symbolsToSvg(rig.symbols, ['head', 'grit'], palettes.default, iconBox()),
 };

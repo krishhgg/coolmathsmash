@@ -12,38 +12,51 @@ const wood: Palette = {
   fxLine: '#8a2a0a',
 };
 
-/** Costumes: the same mannequin in other woods, so mirror matches stay readable. */
+/**
+ * Costumes, named for the roster's temple palettes (Light, Ice and Crystal Temple) plus `twin`, Fireboy in his
+ * twin's colours. Watergirl's palettes use the same names, so a port keeps its costume through the swap.
+ */
 export const palettes = {
   default: wood,
-  ash: {
+  light: {
     ...wood,
-    skin: '#c9c4ba',
-    skinHi: '#ebe7df',
-    skinLo: '#948e83',
-    fx: '#3a8cff',
-    fxHot: '#7cc0ff',
-    fxCore: '#e6f6ff',
-    fxLine: '#123a7a',
-  },
-  walnut: {
-    ...wood,
-    skin: '#8a5a36',
-    skinHi: '#b07c50',
-    skinLo: '#5c3a20',
-    line: '#1a120c',
-    fx: '#ffcc1a',
-    fxHot: '#ffe36a',
-    fxCore: '#fffbe0',
+    skin: '#ecdcb4',
+    skinHi: '#fcf4de',
+    skinLo: '#bba377',
+    fx: '#ffc21a',
+    fxHot: '#ffe27a',
+    fxCore: '#fffbe6',
     fxLine: '#7a5200',
   },
-  cherry: {
+  ice: {
     ...wood,
-    skin: '#c46a5a',
-    skinHi: '#e39a88',
-    skinLo: '#8a3e32',
+    skin: '#dfe6ea',
+    skinHi: '#f8fbfc',
+    skinLo: '#a3b2bb',
+    fx: '#4fc3ff',
+    fxHot: '#a8e6ff',
+    fxCore: '#f0fbff',
+    fxLine: '#0f4a7a',
+  },
+  crystal: {
+    ...wood,
+    skin: '#c9b3d9',
+    skinHi: '#e9dcf3',
+    skinLo: '#8f76a6',
     fx: '#b04cff',
     fxHot: '#d494ff',
     fxCore: '#f6e8ff',
     fxLine: '#4a1080',
+  },
+  twin: {
+    ...wood,
+    line: '#232a33',
+    skin: '#bccad8',
+    skinHi: '#e4ecf4',
+    skinLo: '#8394a8',
+    fx: '#2f8cff',
+    fxHot: '#7cc4ff',
+    fxCore: '#eef8ff',
+    fxLine: '#0d3570',
   },
 } satisfies Record<string, Palette>;
