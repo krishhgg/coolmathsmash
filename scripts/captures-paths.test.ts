@@ -13,8 +13,7 @@ describe('captures.yml path filter', () => {
   it('covers every fighter folder generically, naming none and excluding none', () => {
     for (const line of workflow.split('\n')) {
       const rule = line.trim();
-      expect(rule, `${rule} lists fighters by name`).not.toMatch(/^-s*'src\/fighters\/[a-z0-9-]+\//);
-      expect(rule, `${rule} excludes fighter changes`).not.toBe("- '!src/fighters/*/**'");
+      expect(rule, `${rule} restricts fighter changes`).not.toMatch(/^-\s*'!?src\/fighters\//);
     }
   });
 
