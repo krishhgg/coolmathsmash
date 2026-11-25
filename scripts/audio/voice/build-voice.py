@@ -5,9 +5,9 @@ Render the announcer (lines.json) to public/audio/voice/<line>.mp3.
     python scripts/audio/voice/build-voice.py [--only three,go] [--wav DIR] [--voice am_onyx]
 
 Each line is spoken by Kokoro (a local neural TTS, see requirements.txt), then processed like an arena
-announcer: trimmed, pitched down a touch, EQ'd (chest warmth, presence), compressed and saturated, sent
+announcer: trimmed, shaped for delivery, EQ'd (chest warmth, presence), compressed and saturated, sent
 through a big synthetic hall, loudness-normalised to the same LUFS with a peak ceiling, and encoded to mono
-MP3 with LAME VBR. ffmpeg must be built with librubberband and libmp3lame (the Ubuntu package is).
+MP3 with LAME VBR. ffmpeg must be built with libsoxr and libmp3lame (the Ubuntu package is).
 
 Pronunciation fixes go in lines.json as Kokoro phoneme links: [Bloxorz](/blˈɑksˌɔɹz/).
 """
@@ -49,8 +49,6 @@ class Style:
     range: float = 1.0
     hold: float = 1.0
     rise: float | None = None
-    #: Scales Kokoro's predicted energy curve: above 1 pushes the voice harder (more vocal effort).
-    effort: float = 1.0
     #: Seconds of reverb kept after the voice stops (the file ends there).
     tail: float = 1.2
     #: Hall level against the dry voice.
@@ -77,9 +75,6 @@ STYLES = {
 class Chain:
     """The processing shared by every line."""
 
-    #: Rubber Band pitch ratio (1 skips it); formant 'shifted' lowers the vocal tract too (bigger, darker).
-    pitch: float = 1.0
-    formant: str = 'preserved'
     highpass: float = 75
     warmth_db: float = 3.5
     mud_db: float = -3.0
@@ -143,6 +138,7 @@ def tts(text: str, voice: str, style: Style, lang: str | None = None) -> np.ndar
     model = pipe.model
     ps = pipe.g2p(text)[0]
     kept = [i for i, p in enumerate(ps) if model.vocab.get(p) is not None]
+    last_phoneme = max(j for j, i in enumerate(kept, start=1) if ps[i] not in ' !?.,…')
     ids = torch.LongTensor([[0, *(model.vocab[ps[i]] for i in kept), 0]])
     ref = pipe.load_voice(voice)[len(ps) - 1]
     s = ref[:, 128:]
@@ -158,6 +154,8 @@ def tts(text: str, voice: str, style: Style, lang: str | None = None) -> np.ndar
         if hold in kept:
             dur[0, kept.index(hold) + 1] *= style.hold
         dur = torch.round(dur).clamp(min=1).long().squeeze()
+        dur_total = int(dur.sum())
+        spoken_end = int(dur[:last_phoneme + 1].sum())
         idx = torch.repeat_interleave(torch.arange(n), dur)
         aln = torch.zeros(n, idx.shape[0])
         aln[idx, torch.arange(idx.shape[0])] = 1
@@ -170,10 +168,8 @@ def tts(text: str, voice: str, style: Style, lang: str | None = None) -> np.ndar
         filled = np.interp(frames, frames[v], f0[0].numpy()[v]) if v.any() else f0[0].numpy()
         contour = torch.from_numpy(ndimage.uniform_filter1d(filled, 9)).float()[None]
         jitter = f0 - contour
-        if style.rise is not None:
-            spoken = [kept.index(i) + 1 for i, p in enumerate(ps) if i in kept and p not in ' !?.,…']
-            ends = torch.cumsum(dur, 0).numpy() * f0.shape[-1] / int(dur.sum())
-            words = frames[v & (frames < ends[spoken[-1]])]
+        words = frames[v & (frames < spoken_end * f0.shape[-1] / dur_total)]
+        if style.rise is not None and len(words) > 1:
             first, last = words[0], words[-1]
             pivot = int(first + 0.6 * (last - first))
             u = torch.from_numpy(np.clip((frames - pivot) / max(1, last - pivot), 0, 1)).float()[None]
@@ -182,10 +178,9 @@ def tts(text: str, voice: str, style: Style, lang: str | None = None) -> np.ndar
         shaped = mean + (contour - mean) * style.range + jitter
         f0 = torch.where(voiced, shaped * style.pitch, f0)
         asr = model.text_encoder(ids, lengths, mask) @ aln
-        audio = model.decoder(asr, f0, energy * style.effort, ref[:, :128]).squeeze().numpy().astype(np.float64)
+        audio = model.decoder(asr, f0, energy, ref[:, :128]).squeeze().numpy().astype(np.float64)
     # End 70 ms after the last phoneme: Kokoro voices the pause it leaves for "!" or "..." with a stray "-uh".
-    spoken = [kept.index(i) + 1 for i, p in enumerate(ps) if i in kept and p not in ' !?.,…']
-    end = int(torch.cumsum(dur, 0)[spoken[-1]]) * len(audio) // int(dur.sum()) + int(0.07 * TTS_SR)
+    end = spoken_end * len(audio) // dur_total + int(0.07 * TTS_SR)
     audio = audio[:end]
     fade = int(0.05 * TTS_SR)
     audio[-fade:] *= np.linspace(1, 0, fade)
@@ -210,12 +205,10 @@ def trim(x: np.ndarray, sr: int, floor_db: float = -42) -> np.ndarray:
 
 
 def ffmpeg_filter(x: np.ndarray, sr_in: int, chain: Chain) -> np.ndarray:
-    """Resample to 44.1 kHz, pitch down, EQ and compress in one ffmpeg pass."""
-    pitch = [f'rubberband=pitch={chain.pitch}:formant={chain.formant}:pitchq=quality:transients=mixed']
+    """Resample to 44.1 kHz, EQ and compress in one ffmpeg pass."""
     graph = ','.join(
         [
             f'aresample={SR}:resampler=soxr',
-            *(pitch if chain.pitch != 1 else []),
             f'highpass=f={chain.highpass}:p=2',
             f'equalizer=f=160:t=q:w=0.9:g={chain.warmth_db}',
             f'equalizer=f=320:t=q:w=1.2:g={chain.mud_db}',

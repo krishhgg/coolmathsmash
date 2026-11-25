@@ -58,7 +58,7 @@ export const ANNOUNCED_FIGHTERS = [
   'moby',
 ] as const;
 
-/** One announcer sound per name: `voice-<name>` plays public/audio/voice/<name>.mp3, never cut by itself. */
+/** One announcer sound per name: `voice-<name>` plays public/audio/voice/<name>.mp3. */
 const voice = <N extends string>(names: readonly N[]) =>
   Object.fromEntries(
     names.map((n): [string, SoundDef] => [
