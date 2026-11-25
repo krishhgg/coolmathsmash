@@ -196,3 +196,32 @@ test('controls: rebind keys and pad buttons, resolve conflicts, cancel, reset', 
   await expect(page.locator('.main-menu')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('controls: a saved layout with Escape on Attack loads Keyboard 1 as its defaults', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    localStorage.setItem(
+      'coolmathsmash.settings.v1',
+      JSON.stringify({
+        keyboard: [
+          { buttons: { attack: ['Escape'], start: [] } },
+          { buttons: { special: ['KeyF', 'Numpad2'] } },
+        ],
+      }),
+    );
+  });
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.main-menu')).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.tile-controls')).toHaveClass(/is-focus/);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.controls-screen')).toBeVisible();
+  await expect(chips(page, 'attack')).toHaveText(['F']);
+  await expect(chips(page, 'start')).toHaveText(['Esc']);
+  await page.keyboard.press('KeyT');
+  await expect(page.locator('.ctl-tab.is-active')).toContainText('Keyboard 2');
+  await expect(chips(page, 'special')).toHaveText(['Num 2']);
+});

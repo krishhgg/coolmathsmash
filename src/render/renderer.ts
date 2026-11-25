@@ -215,7 +215,7 @@ export class Renderer {
     this.inputDisplay.container.visible = this.overlays.inputs;
     if (this.overlays.inputs) this.inputDisplay.update(state.players);
     this.eventLog.container.visible = this.overlays.events;
-    if (this.overlays.events) this.eventLog.update();
+    if (this.overlays.events) this.eventLog.update(state);
     if (this.quality === 'full')
       this.app.renderer.render({ container: this.background, target: this.backdrop, clear: true });
     this.app.render();
