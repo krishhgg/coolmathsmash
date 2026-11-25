@@ -44,6 +44,7 @@ const lash = (dx: number, to: readonly [number, number], sx = 1.06, sy = 0.96): 
 /** Swirl arcs around the ball and speed lines behind it. */
 const swirl = (x: number, y = -R, s = 1): Pose => fx('fx4', x, y, s);
 const speed = (x: number, y = -R, s = 1, rot = 0): Pose => fx('fx3', x, y, s, rot);
+const CUBE = { ballLine: 'cubeLine', ballFill: 'cubeFill', ballShade: 'cubeShade' };
 
 /**
  * The Charge Roll rev from frame `from` to `length`: keys every `step` frames, the spin speeding up from `rate0`
@@ -411,7 +412,7 @@ export const attacks = {
       key(31, body()),
     ],
   },
-  /** Cube Squash: hovers winding up, then drops on them stretched like a falling ball. */
+  /** Cube Squash: hovers winding up, then drops as a rounded cube and flattens into the hit. */
   dair: {
     length: 41,
     active: [
@@ -424,9 +425,11 @@ export const attacks = {
       key(3, mix(body(1.12, 0.9, 0, -0.5), roll(-8))),
       key(9, mix(body(1.18, 0.84, 0, -0.8), roll(-4)), {
         ease: 'out',
-        swaps: { ...GRIT_DOWN, ballLine: 'cubeLine', ballFill: 'cubeFill', ballShade: 'cubeShade' },
+        swaps: CUBE,
       }),
-      key(11, mix(body(0.9, 1.18, 0, 0.6), speed(0, -12.5, 1.1, 90)), { swaps: { fxBack: 'speed' } }),
+      key(11, mix(body(0.9, 1.18, 0, 0.6), speed(0, -12.5, 1.1, 90)), {
+        swaps: { ...CUBE, fxBack: 'speed' },
+      }),
       key(14, mix(body(1.28, 0.8, 0, 0.9), speed(0, -12.5, 1.1, 90))),
       key(16, mix(body(1.3, 0.76, 0, 1.1), speed(0, -12.5, 1.1, 90))),
       key(24, mix(body(1.2, 0.84, 0, 1.0), speed(0, -12.5, 1.1, 90))),
