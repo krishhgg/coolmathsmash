@@ -1,5 +1,5 @@
 import { getFighter } from '../../fighters/registry';
-import type { FighterStats, HitboxDef, MoveKind } from '../../fighters/types';
+import type { CounterDef, FighterStats, HitboxDef, MoveKind } from '../../fighters/types';
 import { chargeMultiplier, moveOf } from '../actions/attack';
 import { findGrabs, grabArmour, resolveGrabs } from '../actions/grab';
 import { inWindow, isIntangible } from '../actions/registry';
@@ -99,6 +99,8 @@ interface Connection {
   move: string | null;
   /** The victim's armor this frame (MoveDef.armor): hits below both thresholds don't launch. Null without armor. */
   armor: { kb: number; damage: number } | null;
+  /** The victim's counter this frame (MoveDef.counter): this hit is cancelled and answered instead. Null without. */
+  counter: CounterDef | null;
 }
 
 /**
@@ -134,6 +136,7 @@ function connection(
     at,
     move,
     armor: armorOf(v),
+    counter: counterOf(v),
   };
 }
 
@@ -142,6 +145,13 @@ function armorOf(v: FighterState): Connection['armor'] {
   const armor = moveOf(v)?.armor;
   if (!armor || !inWindow(v.actionFrame, armor.frames)) return null;
   return { kb: armor.threshold ?? Infinity, damage: armor.damageThreshold ?? Infinity };
+}
+
+/** `v`'s counter this frame (MoveDef.counter), or null when it has none or its window is shut. */
+function counterOf(v: FighterState): CounterDef | null {
+  const counter = moveOf(v)?.counter;
+  if (!counter || !inWindow(v.actionFrame, counter.window)) return null;
+  return counter;
 }
 
 /**
@@ -185,7 +195,13 @@ export function resolveHits(m: MatchState): void {
     }
   }
   const struck = new Set<FighterState>();
+  const countered = new Set<FighterState>();
   for (const h of hits) {
+    if (h.counter && !countered.has(h.v)) {
+      countered.add(h.v);
+      landCounter(m, h);
+      continue;
+    }
     const again = struck.has(h.v);
     struck.add(h.v);
     if (h.shielding) shieldHit(m, h, again);
@@ -246,6 +262,43 @@ function hit(
   v.action = isTumble(kb) ? 'tumble' : 'hitstun';
   v.actionFrame = 0;
   v.move = null;
+}
+
+/**
+ * A counter caught `h`: the hit is cancelled, and the counterer answers it from where he reappeared. The answer
+ * deals the caught hit's damage scaled and clamped, and lands through the normal knockback path.
+ */
+function landCounter(m: MatchState, { a, v, damage: base, at }: Connection): void {
+  const c = moveOf(v)!.counter!;
+  const answer = Math.min(c.max ?? Infinity, Math.max(c.min ?? 0, base * (c.multiplier ?? 1)));
+  if (c.behind) {
+    v.pos.x = a.pos.x - a.facing * c.behind;
+    v.pos.y = a.pos.y;
+    v.prevPos = { x: v.pos.x, y: v.pos.y };
+    v.vel = { x: 0, y: 0 };
+    v.facing = a.facing;
+  }
+  v.actionFrame = Math.max(v.actionFrame, c.window[1]);
+  emit(m, {
+    type: 'counter',
+    attacker: v.port,
+    victim: a.port,
+    move: v.move,
+    damage: answer,
+    x: v.pos.x,
+    y: v.pos.y,
+  });
+  const hitbox: HitboxDef = {
+    id: 0,
+    x: 0,
+    y: 0,
+    radius: 0,
+    damage: answer,
+    angle: c.angle,
+    kbg: c.kbg,
+    bkb: c.bkb,
+  };
+  hit(m, { ...connection(v, a, hitbox, at), stale: 1 }, false);
 }
 
 function shieldHit(

@@ -97,6 +97,25 @@ export type ThrowHitDef = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius' | 'grab' |
   direction?: 'forward' | 'back';
 };
 
+/**
+ * A counter (Bob's Shadow Step): a hit caught while `window` is open is cancelled instead of landing, and the
+ * counterer answers it. With `behind` he reappears that far behind the attacker, facing their back, first.
+ */
+export interface CounterDef {
+  /** Frames (inclusive) the counter is open. */
+  window: [number, number];
+  /** The answer deals the caught hit's damage times this (default 1), clamped to `min` and `max`. */
+  multiplier?: number;
+  min?: number;
+  max?: number;
+  /** Units behind the attacker to reappear, facing their back. 0 (the default) counters in place. */
+  behind?: number;
+  /** The answer's launch angle, knockback growth and base knockback. */
+  angle: number;
+  kbg: number;
+  bkb: number;
+}
+
 /** A window of frames (inclusive) during which a set of hitboxes is out. */
 export interface HitWindow {
   frames: [number, number];
@@ -163,6 +182,8 @@ export interface MoveDef {
    * staleness and rage included). Throws have no hitlag unless `hit.hitlag` sets a multiplier, as in Ultimate.
    */
   throw?: { frame: number; hit: ThrowHitDef };
+  /** Counters: a hit caught inside the window is cancelled and answered (see CounterDef). */
+  counter?: CounterDef;
   /**
    * Scripted behaviour (specials): runs every frame of the move before physics, after actionFrame advances.
    * It may set velocity or facing. Keep it deterministic: no Math.random, no clocks.

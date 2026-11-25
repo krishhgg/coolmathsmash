@@ -45,6 +45,19 @@ export type SimEvent =
   | { type: 'move'; port: number; move: string }
   /** A fighter transformed into another fighter (Fireboy and Watergirl's swap). */
   | { type: 'transform'; port: number; from: string; to: string }
+  /**
+   * A counter caught `victim`'s hit and answered it: `attacker` is the counterer, and `damage` is what his answer
+   * will deal before staleness and rage.
+   */
+  | {
+      type: 'counter';
+      attacker: number;
+      victim: number;
+      move: string | null;
+      damage: number;
+      x: number;
+      y: number;
+    }
   | { type: 'action'; port: number; from: string; to: string }
   /** A grab caught someone; `move` is the grab (grab, dashGrab or pivotGrab). */
   | { type: 'grab'; attacker: number; victim: number; move: string }

@@ -219,6 +219,31 @@ bthrow: {
   two grabs catch the same fighter the lower port wins.
 - **Shield grabs** use `grab` and come out from 4 frames after shieldstun ends.
 
+### Counters
+
+A move with `counter` catches an incoming hit while its window is open and answers it. Bob's Shadow Step from the
+roster, from the test fixture in `src/sim/testing/counter.ts` until Bob exists:
+
+```ts
+downB: {
+  kind: 'other',
+  faf: 50,
+  hits: [],
+  counter: { window: [6, 25], multiplier: 1.2, min: 8, max: 20, behind: 20, angle: 45, kbg: 60, bkb: 40 },
+},
+```
+
+- **The catch.** Any hit whose hitbox touches the counterer on frames `window` (inclusive) is cancelled: no damage,
+  no hitlag, no knockback. One hit is caught a frame, so when two attackers connect on the same frame the second
+  one lands as normal. Grabs and pummels are not hits and go through.
+- **The answer.** It deals the caught hit's damage times `multiplier` (default 1), clamped to `min` and `max`,
+  and lands through the normal knockback path with the `angle`, `kbg` and `bkb` given, so DI, weight and rage all
+  apply as usual. It is not scaled by staleness, and the counter move enters the stale queue.
+- **Where it answers from.** With `behind` the counterer reappears that many units behind the attacker, facing
+  their back, before the answer lands; without it he answers from where he stood.
+- **Once caught, the window is spent:** the counterer's move jumps to the window's last frame, so the rest of the
+  move plays as recovery and cannot catch a second hit.
+
 ### Kill percentages
 
 Test kill power with `koPercent` from `src/sim/testing/ko.ts` instead of writing your own launch loop:

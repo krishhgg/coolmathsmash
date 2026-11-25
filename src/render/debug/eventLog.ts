@@ -28,6 +28,8 @@ function describe(e: SimEvent): string {
     case 'grab':
     case 'throw':
       return `${p(e.attacker)} ${e.move} ${p(e.victim)}`;
+    case 'counter':
+      return `${p(e.attacker)} counter ${p(e.victim)} ${e.move ?? ''} +${n(e.damage)}%`;
     case 'pummel':
       return `${p(e.attacker)} pummel ${p(e.victim)} +${n(e.damage)}%`;
     case 'grabRelease':

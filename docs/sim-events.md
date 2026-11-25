@@ -36,6 +36,7 @@ feeds back into the simulation.
 | `transform`   | `port`, `from`, `to`                                                                 | a fighter transforms into another (fighter ids)                                                |
 | `action`      | `port`, `from`, `to`                                                                 | a fighter's action changed this frame                                                          |
 | `grab`        | `attacker`, `victim`, `move`                                                         | a grab catches someone (`move`: `grab`, `dashGrab` or `pivotGrab`)                             |
+| `counter`     | `attacker`, `victim`, `move`, `damage`, `x`, `y`                                     | a counter caught `victim`'s hit; `attacker` is the counterer and `damage` is his answer        |
 | `pummel`      | `attacker`, `victim`, `damage`                                                       | a pummel lands; `damage` is what it added to the held fighter's %                              |
 | `throw`       | `attacker`, `victim`, `move`                                                         | a throw lets go; the `hit` that launches the victim follows                                    |
 | `grabRelease` | `holder`, `held`                                                                     | a grab ends without a throw (held too long, or a hit broke it); `holder` is -1 if already gone |

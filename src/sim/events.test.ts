@@ -5,6 +5,12 @@ import type { FighterState } from './fighter';
 import type { MatchState } from './match';
 import { marioReference as mario } from './testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from './testing/sim';
+import { registerFighter } from '../fighters/registry';
+import { counterTester } from './testing/counter';
+
+registerFighter(counterTester('test-counter'));
+
+type ExtSim = Extract<SimEvent, { type: 'counter' }> | null;
 
 function of<T extends SimEvent['type']>(m: MatchState, type: T): Extract<SimEvent, { type: T }>[] {
   return m.events.filter((e): e is Extract<SimEvent, { type: T }> => e.type === type);
@@ -203,6 +209,24 @@ describe('sim events', () => {
     const e = next(m, 'squeeze');
     expect(e).toMatchObject({ port: 0, solid: 2, x: -50 });
     expect(e.y).toBeCloseTo(m.fighters[0]!.pos.y, 9);
+  });
+
+  it('a counter reports the catch and what it says the answer deals', () => {
+    const m = testMatch({ players: 2 });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    Object.assign(v, { fighter: 'test-counter' });
+    Object.assign(a, { pos: { x: -10, y: 0 }, prevPos: { x: -10, y: 0 }, facing: 1, action: 'idle' });
+    Object.assign(v, { pos: { x: -2, y: 0 }, prevPos: { x: -2, y: 0 }, facing: -1, action: 'idle' });
+    runPorts(m, 1, [{}, { y: -100, buttons: ['special'] }]);
+    expect([v.action, v.move]).toEqual(['attack', 'downB']);
+    runPorts(m, 8, [{}, {}]);
+    let caught: ExtSim = null;
+    for (let i = 0; i < 20 && !caught; i++) {
+      runPorts(m, 1, [{ buttons: ['attack'] }, {}]);
+      caught = of(m, 'counter')[0] ?? null;
+    }
+    expect(caught).toMatchObject({ type: 'counter', attacker: 1, victim: 0, move: 'downB', damage: 8 });
+    expect(of(m, 'hit').filter((e) => e.victim === 1)).toEqual([]);
   });
 
   it('the event stream is deterministic', () => {
