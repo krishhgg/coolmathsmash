@@ -32,7 +32,8 @@ const sheet = (
 /**
  * The Runner's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
  * Fireboy, plus Gravity Switch on the underside of a platform, Tile Flip, the Jog Flurry, Box Drop, and lab contact
- * sheets of her key poses, every move on its first active frame, and Box Drop's exit. References live in the Captain drive's refs/.
+ * sheets of her key poses, every move on its first active frame, and Box Drop's exit. References live in the Captain
+ * drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'runner',
