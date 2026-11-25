@@ -146,7 +146,7 @@ export function controlsScreen(flow: Flow): Screen {
   let notice = '';
   /** Listening for a key or button for `action`; `pads` is which pad buttons were already down when it began. */
   let capture: { action: ControlAction; until: number; pads: boolean[][] } | null = null;
-  /** A pad button just bound or refused: menu input waits for its release, so the same press never also works the menu. */
+  /** A pad button just bound or refused: menu input waits for its release, so one press never also works the menu. */
   let held: { slot: number; button: number } | null = null;
   let padStatus = '';
 
