@@ -19,13 +19,13 @@ function hang(extra: Pose = {}): Pose {
       {
         body: { x: -0.5, y: -0.2 },
         neck: { rot: 5 },
-        armF: { x: 3.8, y: 0.4, sy: 1.2 },
+        armF: { x: 4.6, y: 0.5, sy: 1.2 },
         armB: { x: 1.8, y: 0.6, sy: 1.2 },
       },
       extra,
     ),
     [GX, GY],
-    [GX - 0.7, GY + 0.15],
+    [GX - 0.3, GY - 0.1],
     -1,
     1,
   );
@@ -126,5 +126,5 @@ export const ledge: Record<string, AnimClip> = {
 /** Hands and the grip, for the tests and the levels. */
 export const GRIP_TARGETS: [Pt, Pt] = [
   [GX, GY],
-  [GX - 0.7, GY + 0.15],
+  [GX - 0.3, GY - 0.1],
 ];
