@@ -153,8 +153,8 @@ const still = await tools.pr.uploadAsset({ path: '/home/user/.capy/work/round-1/
 const clip = await tools.pr.uploadAsset({ path: '/home/user/.capy/work/round-1/captures/jump-apex.mp4' });
 ```
 
-Contact sheets make good before/after images too. CI also attaches the whole `captures/ci` folder to every PR run as
-a workflow artifact.
+Contact sheets make good before/after images too. Nightly and manual Captures runs upload `captures/ci` as a workflow
+artifact; PRs use the locally captured images attached to the PR body.
 
 ## The harness API
 
