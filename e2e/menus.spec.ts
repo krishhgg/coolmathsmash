@@ -34,8 +34,9 @@ test('credits: reachable from the main menu, names every rights holder, back ret
   await expect(page.locator('.main-menu')).toBeVisible();
   await page.keyboard.press('KeyW');
   await expect(page.locator('.menu-credits')).toHaveClass(/is-focus/);
+  // Credits sits above Controls, so Down lands there.
   await page.keyboard.press('KeyS');
-  await expect(page.locator('.menu-tile.is-focus')).toContainText('Smash');
+  await expect(page.locator('.menu-tile.is-focus')).toContainText('Controls');
   await page.locator('.menu-credits').click();
   await expect(page.locator('.credits-screen')).toBeVisible();
   await expect(page.locator('.credits-disclaimer')).toContainText('unofficial, non-commercial fan game');

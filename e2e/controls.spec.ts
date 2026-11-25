@@ -32,7 +32,6 @@ test('controls: rebind keys and pad buttons, resolve conflicts, cancel, reset', 
   await page.keyboard.press('Enter');
   await expect(page.locator('.main-menu')).toBeVisible();
   await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('ArrowUp');
   await expect(page.locator('.tile-controls')).toHaveClass(/is-focus/);
   await page.keyboard.press('Enter');
   await expect(page.locator('.controls-screen')).toBeVisible();
