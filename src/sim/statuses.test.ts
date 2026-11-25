@@ -281,7 +281,7 @@ describe('meters', () => {
     expect(meter(a, 'hop')).toBe(1);
   });
 
-  it('a KO resets meters to their start values, except those with onKo keep', () => {
+  it('a KO resets meters to their start values, except those with onKo keep, and pauses them until respawn', () => {
     const { m, a } = versus(3);
     setMeter(a, 'ammo', 1);
     setMeter(a, 'coins', 7);
@@ -289,5 +289,9 @@ describe('meters', () => {
     runPorts(m, 1, []);
     expect(a.action).toBe('ko');
     expect(a.meters).toMatchObject({ ammo: 3, coins: 7 });
+    setMeter(a, 'heat', 10);
+    runPorts(m, 30, []);
+    expect(a.action).toBe('ko');
+    expect(meter(a, 'heat')).toBe(10); // no regen or drain while off screen
   });
 });

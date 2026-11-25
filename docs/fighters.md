@@ -503,7 +503,7 @@ meters: {
 - `FighterState.meters` holds the values by name, starting at `start` (default 0). `meter`, `setMeter`, `addMeter`
   and `spendMeter` read and change them, clamped to 0..`max`. `spendMeter` takes `cost` only when the meter holds
   that much, and returns whether it did. An unknown meter name throws.
-- `regen` changes the value every frame the fighter acts, negative to drain. With `grounded` it only regenerates on
+- `regen` changes the value every frame the fighter acts (not while KO'd), negative to drain. With `grounded` it only regenerates on
   the ground.
 - A KO puts a meter back to `start` unless it has `onKo: 'keep'`.
 - Meters have no events. The HUD reads the values from state.

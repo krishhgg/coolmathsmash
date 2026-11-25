@@ -58,9 +58,10 @@ export function spendMeter(f: FighterState, name: string, cost: number): boolean
   return true;
 }
 
-/** One frame of regen for every meter, in the order the fighter declares them. */
+/** One frame of regen for every meter, in the order the fighter declares them; none while KO'd off screen. */
 export function tickMeters(x: Ctx): void {
   const { f, def } = x;
+  if (f.action === 'ko' || f.action === 'out') return;
   for (const [name, m] of Object.entries(def.meters ?? {})) {
     if (!m.regen || (m.grounded && !f.ground)) continue;
     addMeter(f, name, m.regen);
