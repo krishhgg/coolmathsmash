@@ -593,7 +593,7 @@ export const authored: Record<string, AnimClip> = {
     ],
   },
   /** On his roof, wheels turning in the air. */
-  knockdown: {
+  down: {
     length: 40,
     loop: true,
     swaps: DIZZY,
@@ -604,7 +604,7 @@ export const authored: Record<string, AnimClip> = {
     ],
   },
   /** Rocks back, then flips over onto his wheels. */
-  getUp: {
+  getupStand: {
     length: 30,
     swaps: HURT,
     keys: [
@@ -618,7 +618,7 @@ export const authored: Record<string, AnimClip> = {
     ],
   },
   /** Hits the floor and bounces straight back onto his wheels. */
-  tech: {
+  techInPlace: {
     length: 26,
     swaps: CLOSED,
     keys: [
@@ -691,8 +691,5 @@ export const authored: Record<string, AnimClip> = {
 const baked = Object.fromEntries(Object.entries(authored).map(([name, clip]) => [name, holdEffects(clip)]));
 export const clips: Record<string, AnimClip> = {
   ...baked,
-  down: baked.knockdown!,
-  getupStand: baked.getUp!,
-  getupRoll: baked.getUp!,
-  techInPlace: baked.tech!,
+  getupRoll: baked.getupStand!,
 };

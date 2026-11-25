@@ -595,13 +595,13 @@ export const clips: Record<string, AnimClip> = {
       key(30, tumble(-360)),
     ],
   },
-  knockdown: {
+  down: {
     length: 40,
     loop: true,
     swaps: { ...DIZZY, ...WINGS },
     keys: [key(0, DOWN), key(20, mix(DOWN, { body: { sy: 1.03, sx: 0.98 }, head: { rot: -14 } }))],
   },
-  getUp: {
+  getupStand: {
     length: 30,
     swaps: { ...BLINK, ...WINGS },
     keys: [
@@ -614,7 +614,7 @@ export const clips: Record<string, AnimClip> = {
       key(30, STAND),
     ],
   },
-  tech: {
+  techInPlace: {
     length: 26,
     swaps: BLINK,
     keys: [
@@ -686,10 +686,3 @@ export const clips: Record<string, AnimClip> = {
   },
   ...attacks,
 };
-
-/** The engine's newer action names for the knockdown states draw the same clips. */
-clips.down = clips.knockdown!;
-clips.getupStand = clips.getUp!;
-clips.techInPlace = clips.tech!;
-/** `jab1` is the canonical name of the first jab hit; the Duck's move is `jab`. */
-clips.jab1 = clips.jab!;

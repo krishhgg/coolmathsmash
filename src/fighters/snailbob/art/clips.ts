@@ -652,10 +652,7 @@ const taunt: AnimClip = {
 void pointOf;
 void rig;
 
-/**
- * Every clip: the engine's action names and the canonical names in docs/art.md that differ from them (knockdown,
- * getUp, tech), then every move's clip (attacks.ts).
- */
+/** Every clip: the engine's action names, then every move's clip (attacks.ts). */
 export const clips: Record<string, AnimClip> = {
   idle,
   walk,
@@ -688,12 +685,9 @@ export const clips: Record<string, AnimClip> = {
   hitstun,
   tumble,
   down,
-  knockdown: down,
   downBound,
   getupStand,
-  getUp: getupStand,
   techInPlace,
-  tech: techInPlace,
   techRoll,
   getupRoll,
   respawn,

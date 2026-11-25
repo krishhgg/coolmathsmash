@@ -6,9 +6,6 @@ import { R } from './parts';
 import { palettes } from './palettes';
 import { rig } from './rig';
 
-/** Move clips under the names docs/art.md uses too. */
-const aliases = { jab1: attacks.jab, neutralSpecial: attacks.neutralB, upSpecial: attacks.upB };
-
 /**
  * Red Ball's art: a hand-drawn ball rig (no limbs: squash, stretch, roll and a tongue) with every canonical clip
  * and one clip per move. Plain data: no Pixi imports.
@@ -16,7 +13,7 @@ const aliases = { jab1: attacks.jab, neutralSpecial: attacks.neutralB, upSpecial
 export const art: FighterArt = {
   height: 11,
   rig,
-  clips: { ...clips, ...attacks, ...aliases },
+  clips: { ...clips, ...attacks },
   palettes,
   /** The Evil Box wears the box body and its mottled shade, in any clip that does not swap the body itself. */
   costumeSwaps: {
