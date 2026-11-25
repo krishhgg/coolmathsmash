@@ -331,6 +331,10 @@ upB: {
 own, for projectiles too: it returns the nearest ledge, surface or fighter hurtbox the segment touches, with `t`
 (0 to 1 along it) and the point, or null.
 
+A tether that also hits gives its move ordinary `hits` beside the `tether`: Red Ball's Tongue Lash
+(`src/fighters/redball/specials.ts`) lashes with Ivysaur's Vine Whip boxes along the tongue and tethers to ledges
+only. The line passes through fighters, so the hit and the ledge pull stay independent.
+
 A tether ignores fighters unless it sets `targetsFighters: true`. If the line reaches a fighter before stage
 geometry, `onFighter(ctx, target, event)` can handle the contact in script or return `'pullSelf'` on
 `event.phase === 'hit'` to reel the user in. The same hook receives `'arrive'` on contact, where the move can

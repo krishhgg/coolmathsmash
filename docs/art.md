@@ -59,8 +59,10 @@ frame-capture harness always draw the same picture.
 ## Clips and timing
 
 Name each clip after its engine action or the exact key in the fighter's move table. The renderer picks
-`f.move` when one is running, otherwise `f.action`. An unknown name falls back to `idle`, except for the
-shared stand-ins listed below. Use `loop: true` for cycles; other clips hold their last key.
+`f.move` when one is running, otherwise `f.action`. A tether's reel and hang keep the move's name but play
+`tetherPull` and `tetherHang` from their own first frame when the art has those clips (Red Ball's tongue reel).
+An unknown name falls back to `idle`, except for the shared stand-ins listed below. Use `loop: true` for cycles;
+other clips hold their last key.
 
 For a move authored at simulation speed, frame 1 is the move's first frame, and the clip ends at `FAF - 1`.
 Record the clip's impact windows in `AnimClip.active`. To play a clip authored on a different timeline, the
