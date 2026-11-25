@@ -88,9 +88,17 @@ export interface FighterState {
   shieldGrabFrom: number;
   /**
    * The fighter's tether line (null = none): `out` while it travels, with `anchor` at its tip, then where it
-   * anchored. `frame` is the match frame it fired or anchored; `ledge` the ledge index of a ledge anchor.
+   * anchored. `frame` is the match frame it fired or anchored; `ledge` the ledge index of a ledge anchor; a
+   * surface anchor also keeps that surface and the anchor within it, so a moving piece carries the line along.
    */
-  tether: { anchor: Vec; kind: 'out' | TetherLatch; ledge?: number; frame: number } | null;
+  tether: {
+    anchor: Vec;
+    kind: 'out' | TetherLatch;
+    ledge?: number;
+    frame: number;
+    surface?: GroundRef;
+    local?: Vec;
+  } | null;
   /** A tether's target as an offset from the fighter: the reticle while aiming, then where the line is going. */
   aim: Vec | null;
 }

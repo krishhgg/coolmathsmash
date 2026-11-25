@@ -119,7 +119,18 @@ function anchor(x: Ctx, t: TetherDef, hit: TetherHit): void {
     (kind !== 'ledge' || ledgeFree(x, hit.ledge!)) &&
     t.onAnchor?.(x, hit) !== false;
   if (!ok) return releaseTether(m, f);
-  f.tether = { anchor: hit.point, kind, ...(kind === 'ledge' ? { ledge: hit.ledge! } : {}), frame: m.frame };
+  const surface = hit.kind === 'surface' ? hit.surface : undefined;
+  const piece = surface
+    ? m.stage[surface.kind === 'solid' ? 'solids' : 'platforms'][surface.index]
+    : undefined;
+  const local = piece ? { x: hit.point.x - piece.x, y: hit.point.y - piece.y } : undefined;
+  f.tether = {
+    anchor: hit.point,
+    kind,
+    ...(kind === 'ledge' ? { ledge: hit.ledge! } : {}),
+    ...(surface && local ? { surface, local } : {}),
+    frame: m.frame,
+  };
   f.aim = null;
   emit(m, { type: 'tetherLatch', port: f.port, kind, x: hit.point.x, y: hit.point.y });
   if (f.ground) leaveGround(x);
