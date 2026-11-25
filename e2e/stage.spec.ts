@@ -17,8 +17,8 @@ test('stage scene renders at a camera and toggles the collision overlay', async 
 test('the game paints the stage backdrop at full quality and leaves the sky flat at lite', async ({
   page,
 }) => {
-  const corner = async (quality: string) => {
-    await page.goto(`/?harness&quality=${quality}`);
+  const corner = async (url: string) => {
+    await page.goto(url);
     await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
     return page.evaluate(async () => {
       const s = window.__smash!;
@@ -31,6 +31,6 @@ test('the game paints the stage backdrop at full quality and leaves the sky flat
     });
   };
   const flatSky = [0x4f, 0xb3, 0xff, 255];
-  expect(await corner('lite')).toEqual(flatSky);
-  expect(await corner('full')).not.toEqual(flatSky);
+  expect(await corner('/?harness')).toEqual(flatSky);
+  expect(await corner('/?harness&quality=full')).not.toEqual(flatSky);
 });

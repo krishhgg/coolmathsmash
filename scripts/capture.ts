@@ -3,7 +3,7 @@
  * `<name>.png` at the capture frame, and for scenarios with a motion window a filmstrip (`<name>.strip.png`,
  * for judges), a GIF (Drive) and an H.264 MP4 (PR uploads), plus `manifest.json`. See docs/hill-climb.md.
  *
- *   npm run capture -- [--only idle,run,redball-*] [--out captures/<run>] [--url <base>] [--build] [--keep-frames]
+ *   npm run capture -- [--only idle,run,redball-*] [--out captures/<run>] [--url <base>] [--build] [--keep-frames] [--quality full|lite]
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -37,8 +37,9 @@ const { values: args } = parseArgs({
   },
 });
 
-/** Game pages draw `lite` (no painted backdrop) unless `--quality full` asks for the stage's full look. */
-const gameQuery = args.quality ? `?harness&quality=${args.quality}` : '?harness';
+if (args.quality !== undefined && args.quality !== 'full' && args.quality !== 'lite')
+  throw new Error('--quality must be full or lite');
+const gameQuery = `?harness&quality=${args.quality ?? 'lite'}`;
 
 const root = resolve(import.meta.dirname, '..');
 const git = gitInfo();
