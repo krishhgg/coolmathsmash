@@ -339,6 +339,20 @@ export function pushOffCorner(f: FighterState, prev: { x: number; y: number }, e
   // The corner relative to the fighter now and at `prev`.
   const now = { x: e.a.x - f.pos.x, y: e.a.y - f.pos.y };
   const was = { x: e.a.x - prev.x, y: e.a.y - prev.y };
+  // Most corners are nowhere near: skip them unless the corner's path overlaps the box's bounds.
+  let [left, right, bottom, top] = [Infinity, -Infinity, Infinity, -Infinity];
+  for (const v of box) {
+    left = Math.min(left, v.x);
+    right = Math.max(right, v.x);
+    bottom = Math.min(bottom, v.y);
+    top = Math.max(top, v.y);
+  }
+  const far =
+    Math.max(now.x, was.x) < left ||
+    Math.min(now.x, was.x) > right ||
+    Math.max(now.y, was.y) < bottom ||
+    Math.min(now.y, was.y) > top;
+  if (far) return false;
   const dNow: number[] = [];
   const dPrev: number[] = [];
   const normals: Vec[] = [];
