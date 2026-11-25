@@ -8,7 +8,7 @@ import { leaveGround, normalLandingLag } from '../movement';
 import { emit } from '../events';
 import { approach, clamp } from '../vec';
 import { airActionable } from './air';
-import { airAttack, playMove, startMove } from './attack';
+import { airAttack, moveOf, playMove, startMove } from './attack';
 import { enterAction, setAction, type ActionDef } from './registry';
 
 const DEG = Math.PI / 180;
@@ -107,7 +107,9 @@ export function tickMobility(x: Ctx): void {
     m.hoverFuel = Math.min(def.hover.fuel, m.hoverFuel + per);
   }
   if (!m.floating) return;
-  if ((f.action === 'float' || f.action === 'aerial') && floatHolds(x)) {
+  // As with Peach in Ultimate, only aerial attacks float on; a special (a recovery's rise) ends the float.
+  const floats = f.action === 'float' || (f.action === 'aerial' && moveOf(f)?.kind === 'aerial');
+  if (floats && floatHolds(x)) {
     m.floatFrames++;
     f.vel.y = 0;
     return;
