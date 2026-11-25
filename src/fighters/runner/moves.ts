@@ -6,6 +6,7 @@ import { emit } from '../../sim/events';
 import type { Ctx } from '../../sim/fighter';
 import { ecb } from '../../sim/movement';
 import { edgeMaxX, edgeMinX, floorY } from '../../sim/stage';
+import { boxDropMoves } from './box-drop';
 import { RAPID_JAB } from './timing';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -397,6 +398,7 @@ export const moves: Record<string, MoveDef> = {
     ],
     script: gravitySwitch,
   },
+  ...boxDropMoves,
   /** Grabs, on Kirby's frame data; her arms are short, so the standing grab reaches 10.5 units. */
   grab: { kind: 'other', faf: 34, hits: [{ frames: [6, 7], boxes: [grabBox(0, 6.5, 6, 4)] }] },
   dashGrab: { kind: 'other', faf: 42, hits: [{ frames: [9, 10], boxes: [grabBox(0, 7.5, 6, 4.5)] }] },

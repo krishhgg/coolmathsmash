@@ -2,6 +2,7 @@ import { breakGrab } from './actions/grab';
 import { dropLedge } from './actions/ledge';
 import { actionDef, enterAction } from './actions/registry';
 import { DOWN_FLICK_THRESHOLD } from './constants';
+import { compiledStage, makeCtx } from './context';
 import { stickY } from './control';
 import { emit } from './events';
 import type { Ctx, GroundRef } from './fighter';
@@ -18,8 +19,9 @@ import {
   type Schedule,
   type StageGeometry,
 } from './stage';
-import { compiledStage, makeCtx } from './step';
 import { clamp, type Vec } from './vec';
+
+export { posedStage } from './context';
 
 /**
  * Moving platforms and solids (docs/stage-geometry.md). A piece's position and presence are pure functions of the match
@@ -106,50 +108,6 @@ export function stageStateAt(
   return {
     solids: geo.solids.map((s, i) => pieceAt(s, frame, prev?.solids[i], hazards)),
     platforms: geo.platforms.map((p, i) => pieceAt(p, frame, prev?.platforms[i], hazards)),
-  };
-}
-
-const posed = new WeakMap<StageState, CompiledStage>();
-
-/**
- * The stage as it stands on the match's current frame: every piece at its offset, absent pieces flagged. Every
- * Ctx carries it, so collision, ledges and getups all see the moved geometry. Cached per StageState object,
- * which advanceStage replaces (never mutates) each frame.
- */
-export function posedStage(m: MatchState): CompiledStage {
-  let c = posed.get(m.stage);
-  if (!c) {
-    c = pose(compiledStage(m.config.stage), m.stage);
-    posed.set(m.stage, c);
-  }
-  return c;
-}
-
-function pose(base: CompiledStage, st: StageState): CompiledStage {
-  const still = (p: PieceState) => p.x === 0 && p.y === 0 && p.on;
-  if (st.solids.every(still) && st.platforms.every(still)) return base;
-  const g = base.geo;
-  const at = (s: number) => st.solids[s]!;
-  const move = (v: Vec, o: PieceState): Vec => ({ x: v.x + o.x, y: v.y + o.y });
-  return {
-    geo: {
-      ...g,
-      solids: g.solids.map((s, i) => ({
-        ...s,
-        points: s.points.map(([x, y]): [number, number] => [x + at(i).x, y + at(i).y]),
-      })),
-      platforms: g.platforms.map((p, i) => {
-        const o = st.platforms[i]!;
-        return { ...p, x1: p.x1 + o.x, x2: p.x2 + o.x, y: p.y + o.y };
-      }),
-      ledges: g.ledges.map((l, i) => {
-        const s = base.ledgeSolid[i]!;
-        return s < 0 ? l : { ...l, ...move(l, at(s)) };
-      }),
-    },
-    edges: base.edges.map((e) => ({ ...e, a: move(e.a, at(e.solid)), b: move(e.b, at(e.solid)) })),
-    ledgeSolid: base.ledgeSolid,
-    present: { solids: st.solids.map((p) => p.on), platforms: st.platforms.map((p) => p.on) },
   };
 }
 
