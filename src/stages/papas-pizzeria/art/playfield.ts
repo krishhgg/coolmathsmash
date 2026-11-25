@@ -174,7 +174,10 @@ export function createToppingPlatforms(): Container {
     const w = x2 - x1;
     g.position.set(x1, -y);
     if (isMushroom) drawMushroom(g, w);
-    else drawPepperoni(g, w, x1);
+    else {
+      drawPepperoni(g, w, x1);
+      g.scale.y = 0.68;
+    }
     container.addChild(g);
   }
   return container;
