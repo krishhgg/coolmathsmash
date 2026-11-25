@@ -54,9 +54,10 @@ invincibility) through a `ColorMatrixFilter`. Screen shake is the camera's (`SHA
 ## Quality
 
 `lite` (the harness default, and CI's software WebGL) keeps every effect but cuts its cost: fighters never get a
-filter, so the smash-charge and respawn flash fall back to the plain intangibility blink; the KO blast drops its
-wide outer cone (its largest translucent fill) and half its streaks and sparkles; launch smoke and dust skip the
-light lobe on each puff. `full` draws everything.
+filter, so the smash-charge and respawn flash fall back to the plain intangibility blink; the KO blast blends two
+beam layers instead of three (the cone deepens to make up for the missing middle tint) and draws half its streaks
+and sparkles; launch smoke and dust skip the light lobe on each puff and fill their bodies with the light tone.
+`full` draws everything.
 
 ## Tuning
 

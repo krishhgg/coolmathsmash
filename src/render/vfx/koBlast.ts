@@ -39,8 +39,9 @@ export function koAnchor(ko: KoBlast, view: CameraView): { x: number; y: number;
  * Ultimate's KO blast in screen pixels: a translucent port-coloured cone of light, widest where it bursts in at the
  * screen edge and tapering to a point across the screen, with a white core, speed streaks, twinkling sparkles and a
  * starburst at the edge. It shoots across in 4 frames, holds until frame 12, then pinches thin and fades by 34. The
- * renderer draws it behind the fighters, so the survivors and their tags stay in view. `lite` drops the wide outer
- * cone (the beam's largest translucent fill) and half the streaks and sparkles, for software renderers.
+ * renderer draws it behind the fighters, so the survivors and their tags stay in view. `lite`, for software
+ * renderers, blends two beam layers instead of three (the middle tint goes, the cone deepens to make up for it) and
+ * draws half the streaks and sparkles.
  */
 export function koBlastShapes(
   ko: KoBlast,
@@ -65,17 +66,17 @@ export function koBlastShapes(
   const out: Shape[] = [];
   if (width > 1) {
     const sway = signed(ko.seed, Math.floor(age / 2)) * 0.012;
+    out.push({
+      type: 'poly',
+      points: blade(ox, oy, a + sway, len, width, 1.05),
+      fill: { color, alpha: (lite ? 0.5 : 0.35) * fade },
+    });
     if (!lite)
       out.push({
         type: 'poly',
-        points: blade(ox, oy, a + sway, len, width, 1.05),
-        fill: { color, alpha: 0.35 * fade },
+        points: blade(ox, oy, a - sway, len * 0.9, width * 0.62, 1.05),
+        fill: { color: light, alpha: 0.55 * fade },
       });
-    out.push({
-      type: 'poly',
-      points: blade(ox, oy, a - sway, len * 0.9, width * 0.62, 1.05),
-      fill: { color: light, alpha: 0.55 * fade },
-    });
     out.push({
       type: 'poly',
       points: blade(ox, oy, a, len * 0.78, width * 0.3, 1.05),

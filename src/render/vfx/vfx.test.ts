@@ -13,6 +13,7 @@ import { ATTACKER_JITTER, hitlagOffset, SHIELD_JITTER, VICTIM_JITTER } from './h
 import { hitPower, hitSparkShapes, spawnHitSpark, type HitSpark } from './hitSpark';
 import { KO_LIFE, koAnchor, koBlastShapes } from './koBlast';
 import { rand, seedOf } from './random';
+import { mix, type Shape } from './shapes';
 import { SHIELD_HIT_LIFE, shieldBubbleShapes } from './shield';
 import { puffShapes, TRAIL_CUT, trailPuffs } from './smoke';
 import { emptyVfx, fighterFx, freezeOf, shieldPulse, stepVfx, Vfx, type VfxState } from './system';
@@ -278,27 +279,31 @@ describe('hits that no fighter swung', () => {
 });
 
 describe('lite quality', () => {
-  it("drops the KO beam's wide outer cone and half its streaks and sparkles", () => {
+  it('blends two KO beam layers instead of three, and draws half the streaks and sparkles', () => {
     const ko = { frame: 0, port: 1, x: 259, y: 160, seed: 1 };
     const view = { x: 10, y: 30, zoom: 4 };
-    const full = koBlastShapes(ko, 0x3d8bff, 5, view);
-    const lite = koBlastShapes(ko, 0x3d8bff, 5, view, true);
-    const cone = (s: (typeof full)[number]) => s.fill?.color === 0x3d8bff;
-    expect(full.filter(cone)).toHaveLength(1);
-    expect(lite.filter(cone)).toHaveLength(0);
+    const color = 0x3d8bff;
+    const full = koBlastShapes(ko, color, 5, view);
+    const lite = koBlastShapes(ko, color, 5, view, true);
+    const tint = (s: Shape) => s.fill?.color === mix(color, 0xffffff, 0.5) && s.fill.alpha === 0.55;
+    expect(full.filter(tint)).toHaveLength(1);
+    expect(lite.filter(tint)).toHaveLength(0);
+    expect(lite.filter((s) => s.fill?.color === color)).toHaveLength(1);
     expect(lite.length).toBeLessThan(full.length * 0.7);
-    expect(koBlastShapes(ko, 0x3d8bff, KO_LIFE, view, true)).toEqual([]);
+    expect(koBlastShapes(ko, color, KO_LIFE, view, true)).toEqual([]);
   });
 
-  it('draws launch smoke as rims and bodies only, one shape fewer per puff, in the same places', () => {
+  it('draws smoke without light lobes, one shape fewer per puff, its bodies in the light tone', () => {
     const { log } = play('launch-smoke', 60);
     const puffs = log[59]!.puffs;
     const full = puffShapes(puffs, 60);
     const lite = puffShapes(puffs, 60, true);
-    expect(full.length).toBeGreaterThan(30);
-    const bodies = full.filter((s) => s.fill?.color === 0xc0c6d3 || s.fill?.color === 0xe6e0d4);
-    expect(lite).toEqual(full.slice(0, lite.length));
+    const bodies = full.filter((s) => s.fill?.color === 0xc0c6d3);
+    expect(bodies.length).toBeGreaterThan(10);
     expect(full.length - lite.length).toBe(bodies.length);
+    const place = (s: Shape) => (s.type === 'ellipse' ? [s.x, s.y, s.rx, s.ry] : []);
+    expect(lite.map(place)).toEqual(full.slice(0, lite.length).map(place));
+    expect(lite.slice(-bodies.length).every((s) => s.fill?.color === 0xf8f9fc)).toBe(true);
   });
 });
 
