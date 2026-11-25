@@ -14,7 +14,10 @@ import { InputDisplay } from './debug/inputDisplay';
 import { drawMobility } from './debug/mobility';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud, OverheadTags } from './hud';
-import { drawStagePieces, isMoving } from './stagePieces';
+import { placeholderStage } from './placeholderStage';
+import { drawStagePieces } from './stagePieces';
+import { fighterFx, Vfx } from './vfx/system';
+import { VfxView } from './vfx/view';
 
 /** Stage art: src/stages/<id>/view.ts exports createStageView (docs/stages.md). Stages without one draw flat. */
 const STAGE_VIEWS = import.meta.glob<{ createStageView: () => StageView }>('../stages/*/view.ts', {
@@ -23,7 +26,8 @@ const STAGE_VIEWS = import.meta.glob<{ createStageView: () => StageView }>('../s
 
 /**
  * `full` draws a stage's painted backdrop; `lite` leaves it flat (the clear colour) so tests and captures on software
- * GPUs stay fast. Everything in the world (stage, fighters, effects) and the HUD draw the same in both.
+ * GPUs stay fast. `lite` also draws the effects without filters and with less fill (docs/vfx.md); everything else in
+ * the world (stage, fighters) and the HUD draw the same in both.
  */
 export type RenderQuality = 'full' | 'lite';
 
@@ -46,6 +50,8 @@ export class Renderer {
   readonly overlays: Overlays = { inputs: false, actions: false, hitboxes: false, events: false };
   readonly eventLog = new EventLog();
   readonly camera = new Camera();
+  readonly vfx = new Vfx();
+  private readonly vfxView: VfxView;
   private readonly inputDisplay = new InputDisplay();
   readonly matchHud = new MatchHud();
   private readonly tags = new OverheadTags();
@@ -79,11 +85,15 @@ export class Renderer {
     readonly app: Application,
     readonly quality: RenderQuality,
   ) {
+    this.vfxView = new VfxView(quality === 'lite');
     this.world.addChild(
       this.stageLayer,
       this.stagePieces,
+      this.vfxView.screen,
+      this.vfxView.behind,
       this.fighterLayer,
       this.entities,
+      this.vfxView.front,
       this.foregroundLayer,
       this.boxes,
     );
@@ -132,7 +142,12 @@ export class Renderer {
     }
     state.fighters.forEach((f, i) => {
       if (this.fighterIds[i] === f.fighter) return;
-      const view = new FighterView(getFighter(f.fighter), f.port, this.costumes[f.port]);
+      const view = new FighterView(
+        getFighter(f.fighter),
+        f.port,
+        this.costumes[f.port],
+        this.quality === 'lite',
+      );
       const old = this.fighters[i];
       if (old) this.fighterLayer.replaceChild(old.container, view.container);
       else this.fighterLayer.addChild(view.container);
@@ -142,24 +157,40 @@ export class Renderer {
   }
 
   /**
-   * Advance the camera, and the HUD's hit timing, by the frame just simulated; Game.step calls this after every
-   * frame.
+   * Advance the camera and the HUD and VFX timing by the frame just simulated; Game.step calls this after every frame.
    */
   stepCamera(state: MatchState): void {
     this.camera.step(state, getStage(state.config.stage));
     this.matchHud.step(state);
+    this.vfx.step(state);
+    for (const e of state.events) {
+      if (e.type === 'parry')
+        this.fighters[state.fighters.findIndex((f) => f.port === e.victim)]?.parried(state.frame);
+    }
   }
 
   /** Draw `state`; `alpha` interpolates between the previous and current simulated frame. */
   render(state: MatchState, alpha: number): void {
     this.sync(state);
+    const fx = this.vfx.at(state);
     const view = this.camera.viewFor(state, this.stage!);
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
+    this.vfxView.screen.scale.set(1 / view.zoom);
+    this.vfxView.screen.position.set(-this.world.x / view.zoom, -this.world.y / view.zoom);
     this.stageView?.update(state.frame, view);
     drawStagePieces(this.stagePieces, this.stage!, state, alpha);
-    state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
+    state.fighters.forEach((f, i) =>
+      this.fighters[i]?.update(
+        f,
+        alpha,
+        state.frame,
+        this.overlays.actions,
+        fx ? fighterFx(fx, f, state.frame) : {},
+      ),
+    );
     drawEntities(this.entities, state, alpha);
+    this.vfxView.draw(fx, state, view, alpha);
     this.drawBoxes(state);
     this.tags.update(
       state.fighters.map((f, i) => {
@@ -184,7 +215,7 @@ export class Renderer {
     this.inputDisplay.container.visible = this.overlays.inputs;
     if (this.overlays.inputs) this.inputDisplay.update(state.players);
     this.eventLog.container.visible = this.overlays.events;
-    if (this.overlays.events) this.eventLog.update();
+    if (this.overlays.events) this.eventLog.update(state);
     if (this.quality === 'full')
       this.app.renderer.render({ container: this.background, target: this.backdrop, clear: true });
     this.app.render();
@@ -219,24 +250,4 @@ export class Renderer {
     }
     drawEntityBoxes(g, state);
   }
-}
-
-/** Collision geometry drawn flat, for stages without art. */
-function placeholderStage(stage: StageGeometry): Graphics {
-  const g = new Graphics();
-  for (const solid of stage.solids) {
-    if (isMoving(solid)) continue;
-    g.poly(solid.points.flatMap(([x, y]) => [x, -y])).fill('#7a5230');
-    const top = solid.points.filter(([, y]) => y === Math.max(...solid.points.map((p) => p[1])));
-    const xs = top.map(([x]) => x);
-    g.rect(
-      Math.min(...xs),
-      -Math.max(...solid.points.map((p) => p[1])),
-      Math.max(...xs) - Math.min(...xs),
-      3,
-    ).fill('#3d8f3a');
-  }
-  for (const p of stage.platforms)
-    if (!isMoving(p)) g.roundRect(p.x1, -p.y, p.x2 - p.x1, 2.2, 1.1).fill('#d9d2c0');
-  return g;
 }

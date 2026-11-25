@@ -1,5 +1,5 @@
 import type { PathShape } from '../../../render/rig/types';
-import { bands, blob, bottomOf, curve, ellipse, line, n, poly, tube, type P } from './shapes';
+import { bands, blob, bottomOf, curve, ellipse, line, n, poly, sector, tube, type P } from './shapes';
 
 /**
  * Bob the Robber's parts, drawn from scratch in the Coolmath port's style: flat fills, one shade and one
@@ -1125,4 +1125,172 @@ export const spark: PathShape[] = [
     0.12,
   ),
   fill(ellipse(0, 0, 0.35, 0.35), 'eye'),
+];
+
+// ---------------------------------------------------------------------------------------------------------
+// Attack props: night-stick and grappling hook (grip at the origin, pointing along +x)
+
+/** The night-stick runs from its knob at -1.05 to its tip at BATON_TIP. */
+export const BATON_TIP = 7.5;
+export const baton: PathShape[] = [
+  ink(ellipse(-1.05, 0, 0.38, 0.42), 'baton', 0.18),
+  ink(capsule(-0.95, 0, BATON_TIP - 0.3, 0, 0.33, 0.3), 'baton', 0.18),
+  ...[-0.72, -0.4, -0.08, 0.24].map((x) =>
+    fill(
+      poly([
+        [x, -0.3],
+        [x + 0.12, -0.3],
+        [x + 0.12, 0.3],
+        [x, 0.3],
+      ]),
+      'batonGrip',
+    ),
+  ),
+  ink(ellipse(0.72, 0, 0.17, 0.46), 'baton', 0.14),
+  fill(capsule(1.3, -0.13, BATON_TIP - 0.7, -0.13, 0.07, 0.06), 'batonHi'),
+  fill(ellipse(-1.15, -0.15, 0.13, 0.1), 'batonHi'),
+];
+
+/** Grappling hook: a ring at the back, a shank and three curved prongs. */
+export const hook: PathShape[] = [
+  stroke(
+    curve([
+      [0.45, 0],
+      [1.05, -0.35],
+      [1.1, -1.0],
+      [0.75, -1.25],
+    ]),
+    0.58,
+  ),
+  stroke(
+    curve([
+      [0.45, 0],
+      [1.05, 0.35],
+      [1.1, 1.0],
+      [0.75, 1.25],
+    ]),
+    0.58,
+  ),
+  stroke(
+    curve([
+      [0.45, 0],
+      [1.05, -0.35],
+      [1.1, -1.0],
+      [0.75, -1.25],
+    ]),
+    0.3,
+    'metal',
+  ),
+  stroke(
+    curve([
+      [0.45, 0],
+      [1.05, 0.35],
+      [1.1, 1.0],
+      [0.75, 1.25],
+    ]),
+    0.3,
+    'metal',
+  ),
+  ink(capsule(-0.7, 0, 1.25, 0, 0.2, 0.15), 'metal', 0.16),
+  ink(
+    poly([
+      [1.25, -0.3],
+      [1.8, 0],
+      [1.25, 0.3],
+    ]),
+    'metal',
+    0.14,
+  ),
+  fill(capsule(-0.5, -0.07, 1.0, -0.07, 0.05, 0.05), 'metalHi'),
+  ink(ellipse(-0.95, 0, 0.32, 0.32), 'metalLo', 0.14),
+  fill(ellipse(-0.95, 0, 0.14, 0.14), 'line'),
+];
+
+/** One unit of rope along +x; its bone stretches it to length. */
+export const rope: PathShape[] = [
+  fill(
+    poly([
+      [0, -0.19],
+      [1, -0.19],
+      [1, 0.19],
+      [0, 0.19],
+    ]),
+    'line',
+  ),
+  fill(
+    poly([
+      [0, -0.1],
+      [1, -0.1],
+      [1, 0.1],
+      [0, 0.1],
+    ]),
+    'rope',
+  ),
+];
+
+/** Stars circling a dazed head (fx space: the ring is centred on the origin). */
+function star(x: number, y: number, r: number): string {
+  return poly(
+    Array.from({ length: 10 }, (_, i): P => {
+      const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      const k = i % 2 ? r * 0.45 : r;
+      return [x + k * Math.cos(a), y + k * Math.sin(a)];
+    }),
+  );
+}
+export const stars: PathShape[] = [
+  stroke(ellipse(0, 0, 2.6, 0.7), 0.08, 'goldLo'),
+  ink(star(-2.4, 0.1, 0.55), 'gold', 0.12),
+  ink(star(1.2, 0.62, 0.48), 'gold', 0.12),
+  ink(star(1.6, -0.5, 0.4), 'gold', 0.12),
+];
+
+// ---------------------------------------------------------------------------------------------------------
+// Effects: swing smears and the baton's twirl disc
+
+/**
+ * A Flash swing smear: a crescent swept by the baton's far end, trailing `sweep` degrees behind the leading
+ * edge (angle 0), thickest and most opaque at the front and fading out towards its tail.
+ */
+function smear(sweep: number): PathShape[] {
+  const steps = 8;
+  return Array.from({ length: steps }, (_, i) => {
+    const t0 = i / steps;
+    const t1 = (i + 1) / steps;
+    const alpha = 0.12 + 0.8 * t1 * t1;
+    return fill(sector(-sweep * (1 - t0), -sweep * (1 - t1) + 0.5, 0.86 - 0.2 * t1, 1.03, 6), {
+      type: 'radial' as const,
+      cx: 0,
+      cy: 0,
+      r: 1.03,
+      stops: [
+        { offset: 0.6, color: 'smear', alpha: 0 },
+        { offset: 0.88, color: 'smear', alpha: alpha * 0.7 },
+        { offset: 1, color: 'smear', alpha },
+      ],
+    });
+  });
+}
+
+export const smears: Record<string, PathShape[]> = {
+  smear90: smear(90),
+  smear150: smear(150),
+  smear220: smear(220),
+};
+
+/** The baton twirled too fast to see: a pale disc with streaks. */
+export const twirl: PathShape[] = [
+  fill(ellipse(0, 0, 1, 1), {
+    type: 'radial',
+    cx: 0,
+    cy: 0,
+    r: 1,
+    stops: [
+      { offset: 0, color: 'smear', alpha: 0.1 },
+      { offset: 0.7, color: 'smear', alpha: 0.4 },
+      { offset: 1, color: 'smear', alpha: 0.7 },
+    ],
+  }),
+  ...[0, 120, 240].map((a) => fill(sector(a, a + 55, 0.86, 1.0, 10), 'smearEdge')),
+  ...[60, 180, 300].map((a) => fill(sector(a, a + 35, 0.6, 0.68, 8), 'smearEdge')),
 ];

@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
+import { MUZZLE_LEAD } from '../entities';
 import { moves } from '../moves';
+import { GUN_MUZZLE } from './parts';
+import { HAND } from './rig';
 import { art } from '.';
 
 /** Canonical clip lengths (loops: any length). */
@@ -125,6 +128,18 @@ describe('johnny art', () => {
     for (const name of ['jump', 'doubleJump', 'fall', 'helpless', 'hitstun', 'tumble'])
       for (let f = 0; f <= art.clips[name]!.length; f++)
         expect(poseBounds(art, samplePose(art, name, f, f))[3], `${name}@${f}`).toBeLessThanOrEqual(0.4);
+  });
+
+  it('holds the Laser Gun muzzle just behind the laser on the frame it spawns', () => {
+    // Gun space (x along the barrel, y down) to forearm space: the barrel runs down the forearm past the hand.
+    const [lx, ly] = [-GUN_MUZZLE[1], HAND + GUN_MUZZLE[0]];
+    for (const name of ['neutralB', 'neutralBAir']) {
+      const move = moves[name]!;
+      const { frame, x, y } = move.spawn![0]!;
+      const m = samplePose(art, name, moveClipFrame(art.clips[name]!, frame, move), frame).world.foreF!;
+      expect(m.a * lx + m.c * ly + m.tx, `${name} x`).toBeCloseTo(x - MUZZLE_LEAD, 1);
+      expect(m.b * lx + m.d * ly + m.ty, `${name} y`).toBeCloseTo(-y, 1);
+    }
   });
 
   it('has costumes with the same colour keys, default first, and an icon', () => {

@@ -25,6 +25,11 @@ export const art: FighterArt = {
   ledgeGrip: LEDGE_GRIP,
   projectiles: {
     /** Radius-2.5 fireball (the ball is 3.6 units at scale 1), trailing flames behind it. */
-    fireball: { symbols: rig.symbols, symbol: 'fxBall', scale: 0.7 },
+    fireball: {
+      symbols: rig.symbols,
+      symbol: 'fxBall',
+      scale: 0.7,
+      preview: { neutralB: { frame: 14, x: 8.5, y: 4.6, vx: 1.4 } },
+    },
   },
 };

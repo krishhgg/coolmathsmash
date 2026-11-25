@@ -1,7 +1,9 @@
 import { Btn } from '../../input/types';
 import {
   DASH_THRESHOLD,
-  ROLL,
+  PARRY,
+  ROLL_BACK,
+  ROLL_FORWARD,
   SHIELD_BREAK_DIZZY,
   SHIELD_DEPLETION,
   SHIELD_DROP_FRAMES,
@@ -11,10 +13,11 @@ import {
 } from '../constants';
 import { flickDown, flickX, isHeld } from '../control';
 import { emit } from '../events';
-import type { Ctx } from '../fighter';
+import type { Ctx, FighterState } from '../fighter';
 import { leaveGround } from '../movement';
+import { groundAttack } from './attack';
 import { consumeJump, wantsJump } from './common';
-import { shieldGrab } from './grab';
+import { grabInput, shieldGrab } from './grab';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
 
 /** Share of a roll's distance covered on each frame of its movement window: a smooth ease-in/ease-out. */
@@ -25,7 +28,15 @@ export function rollWeights([from, to]: [number, number]): number[] {
   return raw.map((w) => w / sum);
 }
 
-const ROLL_WEIGHTS = rollWeights(ROLL.move);
+/**
+ * A hit landing on `f` during match frame `frame` is parried: `f` is on frames 1 to PARRY.window of a shield drop
+ * that started on or after `parryFrom`, PARRY.lockout frames after its last shieldstun.
+ */
+export function parries(f: FighterState, frame: number): boolean {
+  return (
+    f.action === 'shieldDrop' && f.actionFrame <= PARRY.window && frame - f.actionFrame + 1 >= f.parryFrom
+  );
+}
 
 export function breakShield(x: Ctx): void {
   const { f, d } = x;
@@ -38,15 +49,18 @@ export function breakShield(x: Ctx): void {
 }
 
 function roll(name: 'rollForward' | 'rollBack'): ActionDef {
+  const spec = name === 'rollForward' ? ROLL_FORWARD : ROLL_BACK;
+  const weights = rollWeights(spec.move);
   return {
     physics: 'ground',
     friction: false,
-    intangible: (f) => inWindow(f.actionFrame, ROLL.intangible),
+    intangible: (f) => inWindow(f.actionFrame, spec.intangible),
     update(x) {
       const { f, s } = x;
-      const k = f.actionFrame - ROLL.move[0];
-      f.vel.x = k >= 0 && k < ROLL_WEIGHTS.length ? f.dodgeDir.x * s.rollDistance * ROLL_WEIGHTS[k]! : 0;
-      if (f.actionFrame >= ROLL.faf) {
+      const k = f.actionFrame - spec.move[0];
+      const distance = name === 'rollBack' ? (s.backRollDistance ?? s.rollDistance) : s.rollDistance;
+      f.vel.x = k >= 0 && k < weights.length ? f.dodgeDir.x * distance * weights[k]! : 0;
+      if (f.actionFrame >= spec.faf) {
         if (name === 'rollForward') f.facing = -f.facing as 1 | -1;
         setAction(x, 'idle');
       }
@@ -80,7 +94,7 @@ export const DEFENSE: Record<string, ActionDef> = {
     },
   },
 
-  /** Shield release lag; its first frames are the parry window. */
+  /** Shield release lag; its first PARRY.window frames are the parry window (`parries`). */
   shieldDrop: {
     physics: 'ground',
     update(x) {
@@ -88,11 +102,13 @@ export const DEFENSE: Record<string, ActionDef> = {
     },
   },
 
+  /** Spot dodge: from SPOT_DODGE.attackCancel a ground attack or special comes out early; a grab waits for the FAF. */
   spotDodge: {
     physics: 'ground',
     intangible: (f) => inWindow(f.actionFrame, SPOT_DODGE.intangible),
     update(x) {
-      if (x.f.actionFrame >= SPOT_DODGE.faf) setAction(x, 'idle');
+      if (x.f.actionFrame >= SPOT_DODGE.faf) return setAction(x, 'idle');
+      if (x.f.actionFrame >= SPOT_DODGE.attackCancel && !grabInput(x.c)) groundAttack(x);
     },
   },
 
