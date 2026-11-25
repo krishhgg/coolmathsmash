@@ -38,7 +38,7 @@ export class Renderer {
   readonly eventLog = new EventLog();
   readonly camera = new Camera();
   private readonly inputDisplay = new InputDisplay();
-  private readonly matchHud = new MatchHud();
+  readonly matchHud = new MatchHud();
   private readonly stageLayer = new Container();
   private readonly stagePieces = new Graphics();
   private readonly fighterLayer = new Container();
