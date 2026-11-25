@@ -4,7 +4,11 @@ import { Btn, neutralInput, type InputFrame } from '../input/types';
 import { DOWN_AUTO_GETUP } from '../sim/constants';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { CPU_LEVELS, cpuLevel, createCpu } from './index';
+import { press } from './inputs';
 import { knowledge } from './knowledge';
+import { run, soloMatch } from './look';
+import { findAttacks } from './options';
+import { stageInfo } from './stage';
 
 const ALL_BUTTONS = Object.values(Btn).reduce((a, b) => a | b, 0);
 
@@ -134,6 +138,94 @@ describe('CPU knockdowns', () => {
       expect(seen[3]).toMatch(/^getup|attack/);
       expect(down).toBeLessThan(DOWN_AUTO_GETUP / 2);
     }
+  });
+});
+
+describe('CPU grabs', () => {
+  it('grab a held shield and throw at level 9', () => {
+    for (const seed of [1, 2, 3]) {
+      const m = match();
+      const cpu = createCpu({ port: 1, level: 9, seed });
+      const seen = new Set<string>();
+      for (let i = 0; i < 300 && !seen.has('grabThrow'); i++) {
+        stepMatch(m, [{ ...neutralInput(), buttons: Btn.Shield }, cpu.input(m)]);
+        seen.add(m.fighters[1]!.action);
+      }
+      expect(seen.has('grabHold')).toBe(true);
+      expect(seen.has('grabThrow')).toBe(true);
+    }
+  });
+
+  it("don't plan a grab that lands during regrab immunity", () => {
+    const m = match();
+    for (let i = 0; i < 120; i++) stepMatch(m, [{ ...neutralInput(), buttons: Btn.Shield }, neutralInput()]);
+    const [opp, me] = m.fighters;
+    Object.assign(me!, { pos: { x: opp!.pos.x + 10, y: opp!.pos.y }, facing: -1 });
+    const path = run(soloMatch(m, opp!), 45, () => press({ buttons: Btn.Shield }));
+    const self = {
+      f: me!,
+      k: knowledge('fireboy', 'battlefield'),
+      info: stageInfo('battlefield'),
+      groundDelay: 0,
+      jumpDelay: 0,
+    };
+    const grabs = (grabbableIn: number) =>
+      findAttacks(self, { path, errX: 0, grabbableIn }).filter((a) => a.box.grab);
+    expect(grabs(0).length).toBeGreaterThan(0);
+    expect(grabs(60)).toEqual([]);
+  });
+
+  it('throw a mashing opponent before it escapes', () => {
+    for (const seed of [1, 2, 3, 4]) {
+      const m = match();
+      for (let i = 0; i < 120; i++) stepMatch(m, [neutralInput(), neutralInput()]);
+      Object.assign(m.fighters[0]!, { pos: { x: 0, y: 0 }, facing: 1 });
+      Object.assign(m.fighters[1]!, { pos: { x: 9, y: 0 }, facing: -1, damage: 10 });
+      const [holder, victim] = [
+        createCpu({ port: 0, level: 9, seed }),
+        createCpu({ port: 1, level: 9, seed }),
+      ];
+      const actions = new Set<string>();
+      let shortened = false;
+      for (let i = 0; i < 300 && !actions.has('grabThrow') && !actions.has('grabRelease'); i++) {
+        if (m.fighters[1]!.action === 'grabbed' && !shortened) {
+          m.fighters[1]!.grabTimer = 60;
+          shortened = true;
+        }
+        const own = [holder.input(m), victim.input(m)];
+        const caught = m.fighters[1]!.action === 'grabbed';
+        stepMatch(m, [
+          i === 0 ? { ...neutralInput(), buttons: Btn.Grab } : caught ? own[0]! : neutralInput(),
+          caught ? own[1]! : neutralInput(),
+        ]);
+        actions.add(m.fighters[0]!.action);
+      }
+      expect(actions.has('grabThrow')).toBe(true);
+    }
+  });
+
+  it('mash out of a grab faster as the level rises', () => {
+    const held = (level: number) => {
+      const m = match();
+      for (let i = 0; i < 120; i++) stepMatch(m, [neutralInput(), neutralInput()]);
+      const [a, v] = m.fighters;
+      Object.assign(a!, { pos: { x: 0, y: 0 }, facing: 1, damage: 0 });
+      Object.assign(v!, { pos: { x: 9, y: 0 }, facing: -1, damage: 60 });
+      const cpu = createCpu({ port: 1, level, seed: 4 });
+      let frames = 0;
+      for (let i = 0; i < 400; i++) {
+        const own = cpu.input(m);
+        const grab = i === 0 ? { ...neutralInput(), buttons: Btn.Grab } : neutralInput();
+        stepMatch(m, [grab, v!.action === 'grabbed' ? own : neutralInput()]);
+        if (v!.action === 'grabbed') frames++;
+        else if (frames > 0) break;
+      }
+      return frames;
+    };
+    const [l1, l5, l9] = [held(1), held(5), held(9)];
+    expect(l1).toBeGreaterThan(0);
+    expect(l5).toBeLessThan(l1);
+    expect(l9).toBeLessThan(l5);
   });
 });
 
