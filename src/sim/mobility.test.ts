@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { registerFighter } from '../fighters/registry';
-import { defineFighter, type FighterStats } from '../fighters/types';
+import { defineFighter, type FighterStats, type MoveDef } from '../fighters/types';
 import { activeHitboxes } from './combat/hits';
 import { marioReference } from './testing/reference';
 import { MOBILITY_TEST_FIGHTERS, testFloater, testGlider, testHover } from './testing/mobility';
@@ -215,6 +215,34 @@ describe('float (Balloon Boy: 120 frames per airtime)', () => {
     }
     expect(f.action).toBe('float');
     expect(f.mobility.floatFrames).toBeGreaterThan(50);
+  });
+
+  it('a special out of the float ends it, so a rising recovery still rises', () => {
+    const rise: MoveDef = {
+      kind: 'other',
+      faf: 40,
+      helpless: true,
+      landingLag: 20,
+      hits: [],
+      script: (x) => {
+        if (x.f.actionFrame === 1) x.f.vel.y = 3;
+      },
+    };
+    const riser = defineFighter({
+      ...testFloater,
+      id: 'test-floater-riser',
+      moves: { ...testFloater.moves, upB: rise },
+    });
+    registerFighter(riser);
+    const m = testMatch({ fighter: riser.id });
+    const f = m.fighters[0]!;
+    until(m, (g) => g.action === 'float', JUMP, 120);
+    const y = f.pos.y;
+    run(m, 1, { y: 100, buttons: ['jump', 'special'] });
+    expect(f.move).toBe('upB');
+    run(m, 10, JUMP);
+    expect(f.mobility.floating).toBe(false);
+    expect(f.pos.y).toBeGreaterThan(y + 10);
   });
 
   it('drifts sideways at air speed while floating', () => {
