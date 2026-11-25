@@ -5,24 +5,67 @@ const DL = 'characters/duck-life';
 /** Key poses of the costume shots: standing, running, jump apex, the fsmash hit and the taunt's flap. */
 const COSTUME_STATES = ['idle@0', 'run@6', 'jump@40', 'fsmash@15', 'taunt@12'];
 
-/**
- * The Duck's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus his four midair flaps, Flight Training (up special), Dive Ram (down special) and the crown and evil
- * costumes. References live in the Captain drive's refs/.
- */
+export const refs: FighterScenarios['refs'] = {
+  idle: ['smash/battlefield-idle-1v1-*', `${DL}/ingame-idle-*`, `${DL}/official-art-01*`],
+  run: ['smash/run-*', `${DL}/ingame-run-*`],
+  'jump-apex': ['smash/jump-apex-*', `${DL}/ingame-jump-*`],
+  'attack-active': ['smash/attack-active-*', `${DL}/video-roster-art-*`, `${DL}/official-art-01*`],
+  'launch-high-percent': ['smash/launch-high-percent-*', `${DL}/official-art-02-*`],
+  shield: ['smash/shield-0*', `${DL}/ingame-idle-*`],
+  'ledge-hang': ['smash/ledge-hang-*', `${DL}/ingame-climb-*`],
+  sheet: [`${DL}/official-art-*`, `${DL}/ingame-*`, `${DL}/video-roster-art-*`],
+};
+
 export const scenarios: FighterScenarios = {
   fighter: 'duck',
-  refs: {
-    idle: ['smash/battlefield-idle-1v1-*', `${DL}/ingame-idle-*`, `${DL}/official-art-01*`],
-    run: ['smash/run-*', `${DL}/ingame-run-*`],
-    'jump-apex': ['smash/jump-apex-*', `${DL}/ingame-jump-*`],
-    'attack-active': ['smash/attack-active-*', `${DL}/video-roster-art-*`, `${DL}/official-art-01*`],
-    'launch-high-percent': ['smash/launch-high-percent-*', `${DL}/official-art-02-*`],
-    shield: ['smash/shield-0*', `${DL}/ingame-idle-*`],
-    'ledge-hang': ['smash/ledge-hang-*', `${DL}/ingame-climb-*`],
-    sheet: [`${DL}/official-art-*`, `${DL}/ingame-*`, `${DL}/video-roster-art-*`],
-  },
+  refs,
   extra: [
+    {
+      name: 'duck-launch',
+      description: 'Fireboy launches the Duck at 150%; capture the first tumble pose.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'fireboy' }, { fighter: 'duck' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -12, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: 6, y: 0 }, facing: -1, damage: 150 } },
+      ],
+      script: [{ port: 0, from: 10, to: 12, cx: 100 }],
+      capture: {
+        label: "P2 action 'tumble', frame >= 1",
+        when: (s) => s.fighters[1]!.action === 'tumble' && s.fighters[1]!.actionFrame >= 1,
+      },
+      motion: { before: 22, after: 20 },
+      requires: ['move:fsmash', 'action:tumble'],
+      refs: refs['launch-high-percent'],
+    },
+    {
+      name: 'duck-ledge-climb',
+      description:
+        'The Duck grabs the left ledge and climbs onto the stage; capture midway through the climb.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'duck' }, { fighter: 'fireboy' }] },
+      patches: [
+        {
+          port: 0,
+          state: {
+            pos: { x: -86, y: 6 },
+            vel: { x: 0, y: 0 },
+            ground: null,
+            action: 'fall',
+            facing: 1,
+            jumpsUsed: 1,
+          },
+        },
+      ],
+      script: [{ port: 0, from: 38, x: 100 }],
+      capture: {
+        label: "P1 action 'ledgeClimb', frame >= 17",
+        when: (s) => s.fighters[0]!.action === 'ledgeClimb' && s.fighters[0]!.actionFrame >= 17,
+      },
+      motion: { before: 32, after: 24 },
+      requires: ['action:ledgeClimb'],
+      refs: refs['ledge-hang'],
+    },
     {
       name: 'duck-flaps',
       description: 'The Duck full hops, then flaps all four midair jumps; capture the apex of the last one.',
@@ -40,7 +83,7 @@ export const scenarios: FighterScenarios = {
         when: (s, prev) =>
           s.fighters[0]!.jumpsUsed === 5 && prev.fighters[0]!.vel.y > 0 && s.fighters[0]!.vel.y <= 0,
       },
-      motion: { before: 80, after: 20 },
+      motion: { before: 100, after: 20 },
       refs: ['smash/jump-apex-*', `${DL}/ingame-fly-*`, `${DL}/ingame-jump-*`],
     },
     {

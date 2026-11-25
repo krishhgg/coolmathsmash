@@ -141,6 +141,22 @@ const FLAP_DOWN = air(
 const flap = (front: number, back: number, extra: Pose = {}) =>
   wing(wing(air(extra, 70, 55), 'F', front, 1.3, 1.15), 'B', back, 1.25, 1.1);
 
+/**
+ * Taunt flap beat `i`: on the up-beat both wings come out and up behind the head, tips breaking the outline so the
+ * eye stays clear; on the down-beat they sweep below the body. He hops higher on the up-beats.
+ */
+function beat(up: boolean, i: number): Pose {
+  const lift = up ? 3.2 + (i % 3) * 0.2 : 1.0;
+  const pose = air({
+    base: { y: -lift },
+    body: { sy: up ? 1.06 : 0.95, sx: up ? 0.96 : 1.04 },
+    head: { rot: up ? -14 : 6 },
+  });
+  return up
+    ? wing(wing(pose, 'F', 230 - i * 4, 1.15), 'B', 262 + i * 4, 1.1)
+    : wing(wing(pose, 'F', 60, 1.1), 'B', 25, 1.05);
+}
+
 /** Lying on his back after a knockdown, feet in the air. */
 const DOWN: Pose = (() => {
   const pose: Pose = { base: { rot: -88, x: 3.2, y: -3.3 }, head: { rot: -8, y: 0.3 } };
@@ -282,25 +298,23 @@ export const clips: Record<string, AnimClip> = {
     length: 30,
     swaps: { wingF: 'wingA', fx1: 'fxFeathers' },
     keys: [
-      key(0, mix(FLAP_UP, { fx1: fx(-0.3, -3.5, 0.2) }), { ease: 'out' }),
-      ...[
-        'wingAs',
-        'wingFlat',
-        'wingVs',
-        'wingV',
-        'wingVs',
-        'wingFlat',
-        'wingAs',
-        'wingA',
-        'wingAs',
-        'wingFlat',
-        'wingVs',
-        'wingV',
-      ].map((drawing, i) => key(i * 2 + 2, undefined, { swaps: { wingF: drawing, fx1: 'fxFeathers' } })),
-      key(6, mix(FLAP_DOWN, { fx1: fx(-0.3, -1.4, 0.45, 40) }), { ease: 'inOut' }),
-      key(14, mix(FLAP_UP, { fx1: fx(-0.3, 0.2, 0.6, 80) }), { ease: 'inOut' }),
-      key(22, mix(FLAP_DOWN, { fx1: fx(-0.3, 1.2, 0.25, 110) }), { ease: 'out' }),
-      key(26, undefined, { swaps: { wingF: 'wingVs' } }),
+      key(0, mix(air({ body: { sy: 0.92, sx: 1.06 } }, 40, 30), { wingF: { sx: 1.1, sy: 1.1 } }), {
+        ease: 'out',
+      }),
+      key(2, mix(FLAP_DOWN, { fx1: fx(-0.3, 1.4, 0.55, 20) }), {
+        ease: 'linear',
+        swaps: { wingF: 'wingV', fx1: 'fxFeathers' },
+      }),
+      ...['wingVs', 'wingFlat', 'wingAs', 'wingA', 'wingAs', 'wingFlat', 'wingVs', 'wingV'].map(
+        (drawing, i) => key(i * 2 + 4, undefined, { swaps: { wingF: drawing, fx1: 'fxFeathers' } }),
+      ),
+      key(7, mix(FLAP_UP, { body: { sy: 1.12, sx: 0.9 }, fx1: fx(-0.3, 2.6, 0.9, 60) }), {
+        ease: 'inOut',
+        swaps: { wingF: 'wingA', fx1: 'fxFeathers' },
+      }),
+      key(16, mix(FLAP_DOWN, { body: { sx: 1.06, sy: 0.94 } }), { ease: 'inOut' }),
+      key(22, mix(FLAP_UP, { fx1: fx(-0.3, 3.6, 0.5, 140) }), { ease: 'out' }),
+      key(24, undefined, { swaps: { wingF: 'wingVs', fx1: null } }),
       key(30, APEX),
     ].sort((a, b) => a.frame - b.frame),
   },
@@ -484,9 +498,33 @@ export const clips: Record<string, AnimClip> = {
     keys: [
       key(0, HANG, { ease: 'linear' }),
       key(6, pull(6, 30, 0.45), { ease: 'linear' }),
-      key(12, pull(12, 30, 1), { ease: 'out' }),
-      key(16, undefined, { swaps: {} }),
-      key(18, mix(CROUCH, { body: { rot: 8 } }), { ease: 'inOut' }),
+      key(12, pull(12, 30, 1), { ease: 'linear' }),
+      key(
+        16,
+        mix(tucked({ base: { y: 1.2, x: 0.6 }, body: { rot: 30 } }), {
+          wingF: { rot: 170 },
+          wingB: { rot: 150 },
+        }),
+        {
+          ease: 'out',
+          swaps: WINGS,
+        },
+      ),
+      key(18, undefined, { swaps: {} }),
+      key(
+        20,
+        mix(CROUCH, {
+          base: { y: -0.8 },
+          body: { rot: 12, sy: 0.8, sx: 1.14 },
+          wingF: { rot: 110 },
+          wingB: { rot: 85 },
+        }),
+        {
+          ease: 'out',
+          swaps: BLINK,
+        },
+      ),
+      key(26, mix(CROUCH, { body: { rot: 8, sy: 0.86, sx: 1.1 } }), { ease: 'inOut', swaps: {} }),
       key(34, STAND),
     ],
   },
@@ -603,31 +641,13 @@ export const clips: Record<string, AnimClip> = {
     keys: [
       key(0, STAND, { ease: 'out' }),
       key(6, mix(CROUCH, { body: { rot: 10 } }), { ease: 'out', swaps: { face: 'faceHappy' } }),
-      key(
-        12,
-        wing(
-          wing(air({ base: { y: -2.2 }, body: { sy: 1.08, sx: 0.94 }, head: { rot: -16 } }), 'F', -125, 1.05),
-          'B',
-          -152,
-        ),
-        {
-          ease: 'inOut',
+      ...Array.from({ length: 6 }, (_, i) => {
+        const up = i % 2 === 0;
+        return key(12 + i * 6, up ? beat(true, i) : beat(false, i), {
+          ease: up ? 'out' : 'in',
           swaps: { face: 'faceHappy', ...WINGS },
-          z: { wingF: 8.5 },
-        },
-      ),
-      key(18, wing(wing(air({ base: { y: -3.0 } }), 'F', 120, 1.0), 'B', 70), { ease: 'inOut' }),
-      key(24, wing(wing(air({ base: { y: -2.6 }, head: { rot: -12 } }), 'F', -128, 1.05), 'B', -154), {
-        ease: 'inOut',
-      }),
-      key(30, wing(wing(air({ base: { y: -1.4 } }), 'F', 110, 1.0), 'B', 70), { ease: 'in' }),
-      key(36, mix(CROUCH, { body: { sy: 0.76, y: 1.1 } }), {
-        ease: 'out',
-        swaps: { face: 'faceHappy', ...WINGS },
-      }),
-      key(42, wing(wing(feet({ head: { rot: -20 } }, -0.55, -0.55), 'F', -118, 1.05), 'B', -150), {
-        ease: 'inOut',
-        swaps: { face: 'faceHappy', ...WINGS },
+          z: up ? { wingF: 8.5 } : {},
+        });
       }),
       key(52, undefined, { swaps: {}, z: {} }),
       key(60, STAND),
