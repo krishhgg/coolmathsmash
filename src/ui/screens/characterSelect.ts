@@ -9,7 +9,9 @@ import {
   cpuSlot,
   cycleCostume,
   humanSlot,
+  humansFirst,
   isReady,
+  joinHuman,
   pickFighter,
   type MatchSetup,
   type SlotSetup,
@@ -31,8 +33,11 @@ interface Hand {
 
 const slotLabel = (s: SlotSetup, i: number) => (s.kind === 'cpu' ? 'CPU' : `P${i + 1}`);
 
-/** The portrait grid's band (Ultimate's top half; .css-grid places it at y 60-430), 4 px between tiles. */
-const GRID = { width: 1248, height: 370, gap: 4 };
+/**
+ * The portrait grid's band (Ultimate's top half; .css-grid places it at y 60-408, and .css-ready takes the lane below
+ * it so the banner never covers a name), 4 px between tiles.
+ */
+const GRID = { width: 1248, height: 348, gap: 4 };
 /** Where a placed token sits inside its tile, by slot: a 2x2 block from the top-left of the portrait. */
 const TOKEN_INSET = 6;
 const TOKEN_STEP = 33;
@@ -169,20 +174,31 @@ export function characterSelectScreen(flow: Flow): Screen {
       if (hand.carrying !== null && setup.slots[hand.carrying]?.kind !== 'cpu') hand.carrying = null;
   }
 
-  /** Remove a slot and shift every hand and carried token pointing past it. */
-  function removeSlot(i: number): void {
-    setup.slots.splice(i, 1);
+  /**
+   * The slots were rearranged (`from[n]` is the old index of the slot now at `n`): move every hand, carried token and
+   * panel a hand points at along with its slot. A hand whose slot left goes too; one pointing at a panel that left
+   * keeps the index, which is now the panel that took its place.
+   */
+  function followSlots(from: number[]): void {
+    const to = new Map(from.map((old, n) => [old, n]));
+    const follow = (hand: Hand) => {
+      if (hand.carrying !== null) hand.carrying = to.get(hand.carrying) ?? null;
+      hand.key = hand.key.replace(/^panel:(\d+)/, (_, n: string) => `panel:${to.get(Number(n)) ?? n}`);
+    };
     const moved = [...hands.entries()];
     hands.clear();
     for (const [slot, hand] of moved) {
-      if (slot === i) continue;
-      if (hand.carrying !== null)
-        hand.carrying = hand.carrying === i ? null : hand.carrying - +(hand.carrying > i);
-      hand.key = hand.key.replace(/^panel:(\d+)/, (_, n: string) => `panel:${Number(n) - +(Number(n) > i)}`);
-      hands.set(slot - +(slot > i), hand);
+      follow(hand);
+      const now = to.get(slot);
+      if (now !== undefined) hands.set(now, hand);
     }
-    if (mouse.carrying !== null)
-      mouse.carrying = mouse.carrying === i ? null : mouse.carrying - +(mouse.carrying > i);
+    follow(mouse);
+  }
+
+  function removeSlot(i: number): void {
+    const from = setup.slots.flatMap((_, n) => (n === i ? [] : [n]));
+    setup.slots.splice(i, 1);
+    followSlots(from);
   }
 
   function start(): void {
@@ -190,13 +206,11 @@ export function characterSelectScreen(flow: Flow): Screen {
     else audio.ui('error');
   }
 
+  /** A new controller takes the next human port; the CPUs shift up a slot and keep their settings. */
   function join(device: DeviceId): void {
-    if (setup.slots.length < MAX_PLAYERS) setup.slots.push(humanSlot(device));
-    else {
-      const cpu = setup.slots.findIndex((s) => s.kind === 'cpu');
-      if (cpu < 0) return audio.ui('error');
-      setup.slots[cpu] = humanSlot(device);
-    }
+    const from = joinHuman(setup, device);
+    if (!from) return audio.ui('error');
+    followSlots(from);
     audio.ui('select');
     render();
   }
@@ -238,6 +252,7 @@ export function characterSelectScreen(flow: Flow): Screen {
             costume: s.costume,
           };
         }
+        followSlots(humansFirst(setup));
         break;
       case 'remove':
         removeSlot(slot);

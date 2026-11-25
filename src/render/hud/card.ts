@@ -13,6 +13,9 @@ const PORT_LABEL_X = 102;
 const STOCK_Y = 139;
 const STOCK_SIZE = 24;
 
+/** The squares `iconView` fits a fighter's icon into on the card: the portrait and each stock. */
+export const ICON_SIZES = { portrait: PORTRAIT.size * 0.94, stock: STOCK_SIZE } as const;
+
 function mixColor(a: number, b: number, t: number): number {
   let out = 0;
   for (const shift of [16, 8, 0]) {
@@ -217,7 +220,7 @@ export class DamageCard {
       });
     }
     rays.position.set(0, 10);
-    const head = iconView(p.icon, PORTRAIT.size * 0.94);
+    const head = iconView(p.icon, ICON_SIZES.portrait);
     head.position.set(0, 5);
     const gloss = new Graphics()
       .ellipse(-8, -half + 9, half * 0.95, 18)
@@ -278,7 +281,7 @@ export class DamageCard {
     const left = PORT_LABEL_X - 2 + STOCK_SIZE / 2;
     const remaining = p.eliminated ? 0 : Math.max(0, p.stocks);
     if (p.maxStocks > 5) {
-      const icon = iconView(p.icon, STOCK_SIZE);
+      const icon = iconView(p.icon, ICON_SIZES.stock);
       icon.position.set(left, STOCK_Y);
       const count = new Text({ text: `× ${remaining}`, style: labelStyle(17, 3), anchor: { x: 0, y: 0.5 } });
       count.position.set(left + STOCK_SIZE / 2 + 4, STOCK_Y);
@@ -286,7 +289,7 @@ export class DamageCard {
       return;
     }
     for (let i = 0; i < Math.max(p.maxStocks, remaining); i++) {
-      const icon = iconView(p.icon, STOCK_SIZE);
+      const icon = iconView(p.icon, ICON_SIZES.stock);
       icon.position.set(left + i * (STOCK_SIZE + 2), STOCK_Y);
       if (i >= remaining) {
         icon.alpha = 0.2;

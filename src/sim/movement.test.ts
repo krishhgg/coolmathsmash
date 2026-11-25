@@ -6,7 +6,8 @@ import {
   LEDGE_MAX_GRABS,
   LEDGE_GETUP_INTANGIBILITY_SCALE,
   RESPAWN_INVINCIBILITY,
-  ROLL,
+  ROLL_BACK,
+  ROLL_FORWARD,
   SHIELD_DEPLETION,
   SHIELD_DROP_FRAMES,
   SHIELD_MAX,
@@ -403,36 +404,67 @@ describe('shield (Ultimate: 50 HP, -0.15/frame held, +0.08/frame down, 11-frame 
 });
 
 describe('dodges', () => {
-  it('spot dodge: intangible on frames 3-17, actionable on frame 27', () => {
+  it('spot dodge: intangible on frames 3-17, actionable on frame 26', () => {
     const m = testMatch();
     const f = fighter(m);
     run(m, 5, { buttons: ['shield'] });
     run(m, 1, { buttons: ['shield'], y: -100 });
     const intangible: number[] = [];
+    let last = 0;
     while (f.action === 'spotDodge') {
+      last = f.actionFrame;
       if (isIntangible(f)) intangible.push(f.actionFrame);
       run(m, 1);
     }
     expect(intangible[0]).toBe(SPOT_DODGE.intangible[0]);
     expect(intangible.at(-1)).toBe(SPOT_DODGE.intangible[1]);
+    expect(last + 1).toBe(SPOT_DODGE.faf);
   });
 
-  it('roll: travels the roll distance, intangible 4-15, forward roll turns around', () => {
-    const m = testMatch();
-    const f = fighter(m);
-    run(m, 5, { buttons: ['shield'] });
-    const x0 = f.pos.x;
-    run(m, 1, { buttons: ['shield'], x: 100 });
-    expect(f.action).toBe('rollForward');
-    const intangible: number[] = [];
-    while (f.action === 'rollForward') {
-      if (isIntangible(f)) intangible.push(f.actionFrame);
-      run(m, 1);
-    }
-    expect(f.pos.x - x0).toBeCloseTo(S.rollDistance, 1);
-    expect([intangible[0], intangible.at(-1)]).toEqual(ROLL.intangible);
-    expect(f.facing).toBe(-1);
+  it('spot dodge: an attack held from frame 15 comes out on the cancel frame, a grab on the FAF', () => {
+    const exit = (buttons: Hold['buttons']) => {
+      const m = testMatch({ fighter: 'fireboy' });
+      const f = fighter(m);
+      run(m, 5, { buttons: ['shield'] });
+      run(m, 1, { buttons: ['shield'], y: -100 });
+      until(m, (g) => g.actionFrame === 14);
+      let last = 0;
+      while (f.action === 'spotDodge') {
+        last = f.actionFrame;
+        run(m, 1, { buttons });
+      }
+      return [last + 1, f.move];
+    };
+    expect(exit(['attack'])).toEqual([SPOT_DODGE.attackCancel, 'jab']);
+    expect(exit(['special'])).toEqual([SPOT_DODGE.attackCancel, 'neutralB']);
+    expect(exit(['shield', 'attack'])).toEqual([SPOT_DODGE.faf, 'grab']);
   });
+
+  it.each([
+    ['rollForward', 100, ROLL_FORWARD, -1],
+    ['rollBack', -100, ROLL_BACK, 1],
+  ] as const)(
+    '%s: travels the roll distance on its own intangible frames and FAF',
+    (name, x, spec, facing) => {
+      const m = testMatch();
+      const f = fighter(m);
+      run(m, 5, { buttons: ['shield'] });
+      const x0 = f.pos.x;
+      run(m, 1, { buttons: ['shield'], x });
+      expect(f.action).toBe(name);
+      const intangible: number[] = [];
+      let last = 0;
+      while (f.action === name) {
+        last = f.actionFrame;
+        if (isIntangible(f)) intangible.push(f.actionFrame);
+        run(m, 1);
+      }
+      expect(Math.abs(f.pos.x - x0)).toBeCloseTo(S.rollDistance, 1);
+      expect([intangible[0], intangible.at(-1)]).toEqual(spec.intangible);
+      expect(last + 1).toBe(spec.faf);
+      expect(f.facing).toBe(facing);
+    },
+  );
 
   it('air dodge: once per airtime; neutral is intangible 3-29 and lands with 10 frames of lag', () => {
     const m = testMatch();

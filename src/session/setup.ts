@@ -10,7 +10,10 @@ export const CPU_LEVELS = 9;
 
 export type SlotKind = 'human' | 'cpu';
 
-/** One player panel on the character select. Panels are kept in order; P-numbers come from their position. */
+/**
+ * One player panel on the character select. Panels are kept in order, humans first (see `humansFirst`); P-numbers
+ * and match ports come from their position.
+ */
 export interface SlotSetup {
   kind: SlotKind;
   /** The controller of a human slot. */
@@ -55,6 +58,39 @@ export function defaultSetup(): MatchSetup {
     stage: stageIds()[0] ?? RANDOM,
     rules: { stocks: 3, minutes: 7, items: false },
   };
+}
+
+/**
+ * Put the humans in the lowest slots, keeping their order, with the CPUs after them in theirs, so the humans are
+ * P1, P2... and their match ports follow. Slots move whole, so a CPU keeps its level, pick and costume. Returns the old
+ * index of each slot in its new place.
+ */
+export function humansFirst(setup: MatchSetup): number[] {
+  const order = setup.slots.map((_, i) => i);
+  const from = [
+    ...order.filter((i) => setup.slots[i]!.kind === 'human'),
+    ...order.filter((i) => setup.slots[i]!.kind === 'cpu'),
+  ];
+  setup.slots = from.map((i) => setup.slots[i]!);
+  return from;
+}
+
+/**
+ * Seat a controller that pressed a button: it becomes the next human port, ahead of every CPU. When all slots are
+ * taken, the CPU in the last slot leaves to make room. Returns the old index of each slot in its new place (-1 for the
+ * newcomer), or null when the slots are all humans.
+ */
+export function joinHuman(setup: MatchSetup, device: DeviceId): number[] | null {
+  const from = humansFirst(setup);
+  if (setup.slots.length >= MAX_PLAYERS) {
+    if (setup.slots.at(-1)?.kind !== 'cpu') return null;
+    setup.slots.pop();
+    from.pop();
+  }
+  const at = setup.slots.filter((s) => s.kind === 'human').length;
+  setup.slots.splice(at, 0, humanSlot(device));
+  from.splice(at, 0, -1);
+  return from;
 }
 
 /** Two or more players and every human has picked (CPUs without a pick play a random fighter). */
