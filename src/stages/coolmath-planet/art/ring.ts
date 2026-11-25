@@ -1,5 +1,5 @@
 import { Graphics } from 'pixi.js';
-import { flipY, vGradient } from '../../battlefield/art/util';
+import { flipY } from '../../battlefield/art/util';
 import { stage } from '../geometry';
 
 const INK = 0x1e335c;
@@ -17,13 +17,10 @@ export function createRing(): Graphics {
     .quadraticCurveTo(right - 19, y - 1.3, right, y)
     .closePath()
     .fill(0x7fadd1);
-  ring.poly(shape).fill(
-    vGradient([
-      [0, 0x57a5e4],
-      [0.42, 0x3f84c1],
-      [1, 0x37639b],
-    ]),
-  );
+  ring.poly(shape).fill(0x4c90cb);
+  ring.moveTo(left, y + 2.5).quadraticCurveTo(0, y + 10.2, right, y + 2.5);
+  for (const [x, py] of hull.slice(3)) ring.lineTo(x, -py);
+  ring.closePath().fill(0x3f74ad);
   ring
     .moveTo(left + 0.6, y + 0.95)
     .lineTo(right - 0.6, y + 0.95)

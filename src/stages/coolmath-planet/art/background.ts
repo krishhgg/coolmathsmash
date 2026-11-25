@@ -1,8 +1,18 @@
-import { Container, FillGradient, Graphics } from 'pixi.js';
-import { layerTransform, VIEW_H, VIEW_W, type StageCamera } from '../../battlefield/art/parallax';
+import { Container, Graphics } from 'pixi.js';
+import { layerTransform, REF_CAMERA, VIEW_H, VIEW_W, type StageCamera } from '../../battlefield/art/parallax';
 import { hash01, sparkle, vGradient } from '../../battlefield/art/util';
+import { stage } from '../geometry';
 
 export const STAR_FIELD = { depth: 0.07, left: -600, right: 1880, top: -520, bottom: 1240 } as const;
+
+const leftEnd = stage.ledges[0]!;
+const rightEnd = stage.ledges[1]!;
+export const BACK_RING = {
+  depth: 1,
+  x: VIEW_W / 2 + ((leftEnd.x + rightEnd.x) / 2 - REF_CAMERA.x) * REF_CAMERA.zoom,
+  y: VIEW_H / 2 + (REF_CAMERA.y - leftEnd.y) * REF_CAMERA.zoom,
+  half: ((rightEnd.x - leftEnd.x) * REF_CAMERA.zoom) / 2,
+} as const;
 
 export function createBackground() {
   const container = new Container({ label: 'coolmath-planet-background' });
@@ -34,37 +44,39 @@ export function createBackground() {
   ] as const)
     sparkle(stars, x, y, size, 0x909bcd);
 
-  const planet = new Container({ label: 'planet-and-orbit' });
-  const orbit = new Graphics();
-  orbit.position.set(640, 450);
-  orbit.rotation = -0.025;
-  orbit
-    .ellipse(0, 0, 365, 31)
-    .stroke({ width: 13, color: 0x537ea9, alpha: 0.8 })
-    .ellipse(0, -3, 365, 31)
-    .stroke({ width: 2, color: 0x7ba5c6, alpha: 0.37 });
+  const planet = new Container({ label: 'parallax-planet' });
+  const orbit = new Container({ label: 'world-aligned-back-ring' });
+  const { x, y, half } = BACK_RING;
+  const ring = new Graphics();
+  ring.position.set(x, y);
+  ring
+    .moveTo(-half, 0)
+    .bezierCurveTo(-half * 0.94, -18, -half * 0.45, -34, 0, -34)
+    .bezierCurveTo(half * 0.45, -34, half * 0.94, -18, half, 0)
+    .bezierCurveTo(half * 0.89, -12, half * 0.42, -23, 0, -23)
+    .bezierCurveTo(-half * 0.42, -23, -half * 0.89, -12, -half, 0)
+    .closePath()
+    .fill(0x5b8ebc);
+  ring
+    .moveTo(-half + 24, -6)
+    .bezierCurveTo(-half * 0.58, -33, half * 0.58, -33, half - 24, -6)
+    .stroke({ width: 1.5, color: 0x91b3cf, alpha: 0.48, cap: 'round' });
+  orbit.addChild(ring);
+
+  orbit.pivot.set(VIEW_W / 2, VIEW_H / 2);
   const sphere = new Container({ label: 'green-planet' });
   sphere.position.set(640, 480);
   const r = 213;
   const disc = new Graphics()
-    .circle(0, 0, r + 5)
-    .fill({ color: 0x6dce80, alpha: 0.13 })
+    .circle(0, 0, r + 2.6)
+    .fill(0x284953)
     .circle(0, 0, r)
-    .fill(
-      new FillGradient({
-        type: 'radial',
-        center: { x: 0.36, y: 0.24 },
-        innerRadius: 0.03,
-        outerCenter: { x: 0.58, y: 0.57 },
-        outerRadius: 0.62,
-        textureSpace: 'local',
-        colorStops: [
-          { offset: 0, color: 0x6bba59 },
-          { offset: 0.52, color: 0x3b914b },
-          { offset: 1, color: 0x1b4d53 },
-        ],
-      }),
-    );
+    .fill(0x58a44e);
+  const shadow = new Graphics()
+    .arc(0, 0, r, Math.PI * -0.21, Math.PI * 0.73)
+    .bezierCurveTo(-57, 176, 117, 131, 168.3, -130.6)
+    .closePath()
+    .fill(0x326b4c);
   const bands = new Graphics({ label: 'rotating-globe-bands' });
   bands
     .moveTo(-228, -53)
@@ -90,9 +102,9 @@ export function createBackground() {
   const rim = new Graphics()
     .arc(0, 0, r - 1, Math.PI * 1.01, Math.PI * 1.73)
     .stroke({ width: 3, color: 0xa4df77, alpha: 0.53, cap: 'round' });
-  sphere.addChild(disc, mask, bands, rim);
-  planet.addChild(orbit, sphere);
-  container.addChild(sky, stars, planet);
+  sphere.addChild(disc, mask, bands, shadow, rim);
+  planet.addChild(sphere);
+  container.addChild(sky, stars, orbit, planet);
 
   stars.pivot.set(VIEW_W / 2, VIEW_H / 2);
   planet.pivot.set(VIEW_W / 2, VIEW_H / 2);
@@ -101,6 +113,7 @@ export function createBackground() {
     update(frame: number, camera: StageCamera) {
       for (const [layer, d] of [
         [stars, depth],
+        [orbit, BACK_RING.depth],
         [planet, 0.13],
       ] as const) {
         const t = layerTransform(d, camera);
