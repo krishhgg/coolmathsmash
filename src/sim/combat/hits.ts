@@ -93,6 +93,12 @@ export function hittable(f: FighterState): boolean {
   return f.action !== 'ko' && f.action !== 'out' && !isIntangible(f);
 }
 
+/** Whether `box` can hit `v` where it is now (HitboxDef.targets): on the ground, or airborne (ledge hangs included). */
+export function targetable(box: Pick<HitboxDef, 'targets'>, v: FighterState): boolean {
+  const targets = box.targets ?? 'both';
+  return targets === 'both' || (targets === 'ground') === (v.ground !== null);
+}
+
 /** One connection, with everything about both sides captured before any of this frame's hits land. */
 interface Connection {
   /** The attacking fighter, who shares the hitlag and is pushed back by a shield; null for an entity's hit. */
@@ -177,7 +183,9 @@ function entityHits(e: EntityState, fighters: FighterState[], hits: Connection[]
   for (const v of fighters) {
     if (v.port === e.owner || e.hitVictims.includes(v.port) || !hittable(v)) continue;
     const body = hurtbox(v, getFighter(v.fighter).stats);
-    const hit = boxes.filter((h) => touches(h, body)).sort((p, q) => p.box.id - q.box.id)[0];
+    const hit = boxes
+      .filter((h) => targetable(h.box, v) && touches(h, body))
+      .sort((p, q) => p.box.id - q.box.id)[0];
     if (!hit) continue;
     e.hitVictims.push(v.port);
     if (e.stale === 0) e.stale = owner && e.move ? stale(owner, e.move) : 1;
@@ -247,7 +255,7 @@ export function applyHit(
 /**
  * Find every hit this frame from the state before any of them lands, then apply them all, so two fighters
  * whose moves connect on the same frame trade. Each move hits a fighter once (per rehit window), lowest
- * hitbox id first. Grab boxes are found from the same state and resolved after the hits (grab.ts), so an
+ * hitbox id first among the boxes that can hit it where it is (HitboxDef.targets). Grab boxes are found from the same state and resolved after the hits (grab.ts), so an
  * attack beats a grab on the same frame. `stage` lands the stage hazards' hits (src/sim/hazards.ts) between the
  * two, adding its victims to `struck`, so they break grabs like any other hit.
  */
@@ -262,7 +270,9 @@ export function resolveHits(m: MatchState, stage?: (struck: Set<FighterState>) =
     for (const v of m.fighters) {
       if (v === a || a.hitVictims.includes(v.port) || !hittable(v)) continue;
       const body = hurtbox(v, getFighter(v.fighter).stats);
-      const hit = boxes.filter((h) => touches(h, body)).sort((p, q) => p.box.id - q.box.id)[0];
+      const hit = boxes
+        .filter((h) => targetable(h.box, v) && touches(h, body))
+        .sort((p, q) => p.box.id - q.box.id)[0];
       if (hit) found.push({ v, box: hit.box, at: { x: hit.x, y: hit.y } });
     }
     for (const { v, box, at } of found) {

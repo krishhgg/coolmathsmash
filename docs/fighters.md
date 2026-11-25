@@ -116,6 +116,14 @@ fsmash: {
 - **Direction.** A hit launches along the attacker's facing unless its box sets `direction`: `'back'` for boxes
   behind him (back aerials, the rear hit of a down smash) and `'away'` for boxes around his body (spins, up
   attacks), which send the target away from his centre.
+- **Ground and air targets.** A box with `targets: 'ground'` hits only fighters standing on the ground, and one
+  with `targets: 'air'` hits only airborne fighters. A fighter hanging on a ledge counts as airborne. Unset, or
+  `'both'`, hits either, as most Ultimate hitboxes do (SmashWiki "Hitbox", groundedness/airness). Kirby's Stone
+  shockwave is ground-only. For a move that acts differently on grounded and aerial targets, put a ground box and
+  an air box in the same place, as Samus' up tilt does. The ground box takes the lower id, and a fighter takes
+  the lowest-id box that can hit it where it is. A box that skips a fighter doesn't use up the move's hit on it,
+  so it can still connect on a later active frame once the fighter lands or leaves the ground. Grab boxes, entity
+  hits, stage hitboxes and damage zones (`hit`) take `targets` too. Throws don't.
 - **Landing lag.** Aerials give `landingLag` and `autoCancel` windows; a `helpless` move's `landingLag` also
   applies when it lands out of the helpless fall.
 - **Auto-cancel.** Landing in an aerial's `autoCancel` window costs only normal landing lag.
