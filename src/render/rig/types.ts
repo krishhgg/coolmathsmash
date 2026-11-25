@@ -135,6 +135,12 @@ export interface AnimClip {
    * its FAF (`src/render/rig/timing.ts`), so frame data can change without re-keying the art.
    */
   active?: [number, number][];
+  /**
+   * Tether move clips: the clip frame the reel holds on. While the fighter reels in (tetherPull), the move's clip
+   * plays on from the frame the line anchored up to this frame and holds it until he arrives. Put it after the
+   * latest frame the line can anchor. Without it the clip plays on to its end.
+   */
+  reel?: number;
 }
 
 /** Palette key -> '#rrggbb'. */

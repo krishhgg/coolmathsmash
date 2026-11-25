@@ -60,6 +60,8 @@ test('a full match: select, countdown, pause, the last KO, GAME!, results and a 
   await page.keyboard.down('Escape');
   await expect(page.locator('.pause-layer')).toBeVisible({ timeout: 15_000 });
   await page.keyboard.up('Escape');
+  // No pad is plugged in or playing, so the tip shows Keyboard 1's default Attack and Pause keys only.
+  await expect(page.locator('.pause-tip span')).toHaveText(['↑↓ Move', 'F Select', 'Esc Resume']);
   const paused = await frame(page);
   await page.waitForTimeout(300);
   expect(await frame(page)).toBe(paused);
@@ -96,6 +98,69 @@ test('a full match: select, countdown, pause, the last KO, GAME!, results and a 
   await expect
     .poll(() => page.evaluate(() => window.__smash!.getState().fighters.map((f) => f.stocks)))
     .toEqual([3, 3]);
+  expect(errors).toEqual([]);
+});
+
+test('Restart replays the Random CPU, its costume and the Random stage; Rematch draws again', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const lineUp = () =>
+    page.evaluate(() => {
+      const { seed, stage, ports } = window.__smash!.getState().config;
+      return { seed, stage, ports };
+    });
+  /** Hold the sim past GO! so a restart shows up as the frame count dropping back. */
+  const holdAt400 = () =>
+    page.evaluate(() => {
+      const harness = window.__smash!;
+      harness.setManual(true);
+      harness.step(Math.max(0, 400 - harness.frame()));
+    });
+  await page.goto('/?debug&quality=lite');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.main-menu')).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.css-screen')).toBeVisible();
+  await page.locator('[data-key="tile:johnny"]').click();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.ss-screen')).toBeVisible();
+  await page.locator('.ss-tile[data-stage="random"]').click();
+  await expect(page.locator('.match-screen')).toBeVisible();
+  await holdAt400();
+  const first = await lineUp();
+  expect(first.ports[0]!.fighter).toBe('johnny');
+
+  for (let restart = 1; restart <= 3; restart++) {
+    await page.keyboard.down('Escape');
+    await expect(page.locator('.pause-layer')).toBeVisible({ timeout: 15_000 });
+    await page.keyboard.up('Escape');
+    await page.getByRole('button', { name: 'Restart' }).click();
+    await expect.poll(() => frame(page), { timeout: 30_000 }).toBeLessThan(400);
+    await holdAt400();
+    expect(await lineUp()).toEqual(first);
+  }
+
+  await page.evaluate(() => {
+    const harness = window.__smash!;
+    harness.patch(1, {
+      stocks: 1,
+      ground: null,
+      action: 'fall',
+      pos: { x: 30, y: -300 },
+      vel: { x: 0, y: -5 },
+    });
+    harness.step(60);
+  });
+  await expect(page.locator('.results-screen[data-phase="winner"]')).toBeVisible({ timeout: 30_000 });
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.results-button.is-focus')).toHaveText('Rematch');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.match-screen')).toBeVisible();
+  await expect.poll(async () => (await lineUp()).seed).not.toBe(first.seed);
   expect(errors).toEqual([]);
 });
 
@@ -144,6 +209,7 @@ test('four-player match uses saved controls and quits back to character select',
   await page.keyboard.up('KeyQ');
   await page.keyboard.press('KeyP');
   await expect(page.locator('.pause-layer')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.pause-tip span')).toHaveText(['↑↓ Move', 'Q Select', 'P Resume']);
   await page.keyboard.press('KeyP');
   await expect(page.locator('.pause-layer')).toBeHidden({ timeout: 15_000 });
   await page.keyboard.press('KeyP');

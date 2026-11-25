@@ -429,7 +429,7 @@ describe('stage and camera', () => {
     expect(stage.ledges.map((l) => l.x).sort((a, b) => a - b)).toEqual([-80, 80]);
   });
 
-  it('frames both fighters with room to read the stage: 4-8 px per unit', () => {
+  it('frames both fighters with room to read the stage: about 5 px per unit', () => {
     const stage = getStage('battlefield');
     const m = fireboys(2);
     const zoomFor = (a: number, b: number) => {
@@ -437,10 +437,11 @@ describe('stage and camera', () => {
       P(m, 1).pos = { x: b, y: 0 };
       return cameraTarget(m, stage).zoom;
     };
-    expect(zoomFor(0, 20)).toBeLessThanOrEqual(8.6);
-    expect(zoomFor(-40, 40)).toBeCloseTo(7.5, 1);
-    expect(zoomFor(-79, 79)).toBeCloseTo(5.2, 1);
-    // A full screen of stage at 160 units wide is 480 px at the reference 3 px/u, 800 px at 5 px/u.
-    expect(160 * zoomFor(-79, 79)).toBeLessThanOrEqual(1280);
+    // Fighters close together or at the spawns: the narrowest view, 240 units across.
+    expect(zoomFor(0, 20)).toBeCloseTo(5.33, 2);
+    expect(zoomFor(-40, 40)).toBeCloseTo(5.33, 2);
+    expect(zoomFor(-79, 79)).toBeCloseTo(4.78, 2);
+    // The 160-unit deck at the spawns: about 60% of the screen in Ultimate, 67% here.
+    expect((160 * zoomFor(-40, 40)) / 1280).toBeLessThanOrEqual(0.7);
   });
 });

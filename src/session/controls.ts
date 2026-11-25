@@ -242,3 +242,26 @@ export function padButtonLabels(buttons: readonly number[]): string[] {
   if (!DPAD_BUTTONS.every((b) => buttons.includes(b))) return buttons.map(padButtonLabel);
   return [...buttons.filter((b) => !DPAD_BUTTONS.includes(b)).map(padButtonLabel), 'D-pad'];
 }
+
+/** Standard-mapping B, which backs out of every menu and so also resumes the pause menu (src/ui/input.ts). */
+const PAD_BACK = 1;
+
+/**
+ * The pause menu's Select and Resume prompts: Keyboard 1's Attack and Pause keys, then, when `pad` is given, A and the
+ * gamepad's first Pause button. A keyboard half with nothing on Attack or Pause shows Space or Esc, the menu keys that
+ * always select and resume (src/ui/input.ts MENU_KEYS); a pad with no Pause button shows B.
+ */
+export function pausePrompts(
+  keyboard: KeyboardBinding | undefined,
+  pad: Record<ButtonName, number[]> | null,
+): { select: string; resume: string } {
+  const key = (action: ControlAction, fallback: string) =>
+    keyLabel((keyboard && boundKeys(keyboard, action)[0]) ?? fallback);
+  const select = [key('attack', 'Space')];
+  const resume = [key('start', 'Escape')];
+  if (pad) {
+    select.push(padButtonLabel(PAD_CONFIRM));
+    resume.push(padButtonLabel(pad.start[0] ?? PAD_BACK));
+  }
+  return { select: select.join(' · '), resume: resume.join(' · ') };
+}

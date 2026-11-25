@@ -7,6 +7,7 @@ import { dropLostTether, rideAnchor } from './actions/tether';
 import { stepTetherMove } from './actions/tetherCast';
 import { applyLaunch, stepLaunchMotion } from './combat/hits';
 import {
+  INFINITE_STOCKS,
   RESPAWN_DELAY,
   SHIELD_MAX,
   SHIELD_REGEN,
@@ -85,7 +86,7 @@ function checkBlastZones(x: Ctx): void {
   const b = stage.geo.blastZones;
   const pastTop = f.pos.y >= b.top + TOP_KO_MARGIN || (f.pos.y >= b.top && f.kb.y >= TOP_KO_MIN_SPEED);
   if (f.pos.x > b.left && f.pos.x < b.right && f.pos.y > b.bottom && !pastTop) return;
-  f.stocks--;
+  if (x.m.config.stocks < INFINITE_STOCKS) f.stocks--;
   const side =
     f.pos.x <= b.left ? 'left' : f.pos.x >= b.right ? 'right' : f.pos.y >= b.top ? 'top' : 'bottom';
   emit(x.m, { type: 'ko', port: f.port, stocks: f.stocks, side, x: f.pos.x, y: f.pos.y });
