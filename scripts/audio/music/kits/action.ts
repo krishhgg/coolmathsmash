@@ -312,34 +312,44 @@ export const pickBass: Instrument = (f, dur, vel, rng) => {
 
 // ---------------------------------------------------------------- winds
 
-/** Harmon-muted trumpet: nasal and buzzy, with a scoop into each note and late vibrato. */
+/**
+ * Harmon-muted trumpet: a thin, focused tone with the mute's resonance around 1.7 kHz. Long notes scoop up
+ * further and take a slower, deeper vibrato, as a player leans into them; short notes stay straight.
+ */
 export const mutedTrumpet: Instrument = (f, dur, vel, rng) => {
   const len = dur + 0.1;
-  const fr = voice(f, 5.4, 0.008, 0.2, -50);
-  const src = layer(len, [osc(len, fr, 'saw'), 0.65], [osc(len, fr, 'pulse', { width: 0.34 }), 0.35]);
+  const long = Math.min(1, dur / 0.6);
+  const fr = voice(f, 5.2, 0.003 + 0.009 * long, 0.14 + 0.06 * long, -30 - 70 * long);
+  const src = layer(
+    len,
+    [osc(len, fr, 'saw'), 0.55],
+    [osc(len, fr, 'pulse', { width: 0.34 }), 0.25],
+    [osc(len, fr), 0.3],
+  );
   const cut = env(len, [
-    [0, f * 2.5],
-    [0.03, f * (4 + 5 * vel)],
-    [len, f * (3 + 2.5 * vel)],
+    [0, f * 2.2],
+    [0.04, f * (3.5 + 4 * vel)],
+    [len, f * (2.8 + 2 * vel)],
   ]);
-  let x = filter(src, 'lowpass', curve(cut, 9000), 0.8);
-  x = filter(x, 'highpass', 320, 0.7);
-  x = filter(x, 'peak', 1100, 1.4, 2);
-  x = filter(x, 'peak', 3100, 2.2, 5);
-  x = filter(x, 'lowpass', 7000);
-  const breath = mul(filter(noise(len, rng), 'bandpass', 2600, 1.2), 0.02 + 0.015 * vel);
-  const puff = mul(filter(noise(0.06, rng), 'bandpass', 1800, 0.9), decay(0.06, 0.02, 0.002));
-  const wobble = shape(len, (t) => 1 + 0.035 * Math.sin(2 * Math.PI * 2.7 * t + f));
+  let x = filter(src, 'lowpass', curve(cut, 8000), 0.8);
+  x = filter(x, 'highpass', 380, 0.7);
+  x = filter(x, 'peak', 1700, 1.3, 4);
+  x = filter(x, 'peak', 3300, 1.5, -2.5);
+  x = filter(x, 'lowpass', 6000);
+  const breath = mul(filter(noise(len, rng), 'bandpass', 1900, 0.9), 0.03 + 0.02 * vel);
+  const puff = mul(filter(noise(0.06, rng), 'bandpass', 1500, 0.9), decay(0.06, 0.02, 0.002));
+  const wobble = shape(len, (t) => 1 + 0.04 * Math.sin(2 * Math.PI * 2.7 * t + f));
   return mul(
-    layer(len, [mul(x, wobble), 1], [breath, 1], [puff, 0.25 * vel]),
-    mul(adsr(len, 0.018, 0.12, 0.8, 0.07), vel * 0.55),
+    layer(len, [mul(x, wobble), 1], [breath, 1], [puff, 0.3 * vel]),
+    mul(adsr(len, 0.02, 0.12, 0.8, 0.07), vel * 0.6),
   );
 };
 
-/** Tenor sax: reedy pulse/saw through vowel-ish formants, breath and a touch of growl when pushed. */
+/** Tenor sax: reedy pulse/saw through vowel-ish formants, breath and a touch of growl when pushed; long notes scoop and sing. */
 export const tenorSax: Instrument = (f, dur, vel, rng) => {
   const len = dur + 0.12;
-  const fr = voice(f, 5.1, 0.012, 0.25, -40);
+  const long = Math.min(1, dur / 0.6);
+  const fr = voice(f, 5, 0.005 + 0.01 * long, 0.18 + 0.07 * long, -25 - 60 * long);
   const src = layer(len, [osc(len, fr, 'saw'), 0.55], [osc(len, fr, 'pulse', { width: 0.43 }), 0.45]);
   const cut = env(len, [
     [0, f * 2],
@@ -349,9 +359,9 @@ export const tenorSax: Instrument = (f, dur, vel, rng) => {
   let x = filter(src, 'lowpass', curve(cut, 5000), 0.9);
   x = filter(x, 'peak', 600, 1, 4.5);
   x = filter(x, 'peak', 1500, 2, 1.5);
-  x = filter(x, 'peak', 2600, 3, -2);
+  x = filter(x, 'peak', 2900, 1.6, -3.5);
   x = drive(x, 1 + 1.4 * vel);
-  const breath = mul(filter(noise(len, rng), 'bandpass', 1200, 1), 0.05);
+  const breath = mul(filter(noise(len, rng), 'bandpass', 1300, 0.9), 0.065);
   const puff = mul(filter(noise(0.05, rng), 'bandpass', 900, 1), decay(0.05, 0.015, 0.002));
   return mul(
     filter(layer(len, [x, 1], [breath, 1], [puff, 0.3]), 'lowpass', 4800),

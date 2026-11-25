@@ -13,7 +13,6 @@ import {
   horn,
   hornFall,
   humanize,
-  kick,
   meter,
   openHat,
   phrase,
@@ -22,7 +21,6 @@ import {
   roll,
   skank,
   slideWhistle,
-  snare,
   steelPan,
   swell,
   tenorSax,
@@ -121,7 +119,7 @@ const pans = humanize(
   ),
   51,
   0.008,
-  0.06,
+  0.15,
 );
 const panHarmony = humanize(
   roll(diatonic(within(panMelody, 0, 8 * BAR), F_MAJOR, -2), 1, 1 / 6).map((n) => ({ ...n, v: n.v * 0.62 })),
@@ -169,7 +167,7 @@ const offbeats = (from: number, to: number, d: number, v: number, up = 0) =>
   bars(from, to).flatMap((b) => [0.5, 1.5, 2.5, 3.5].flatMap((beat) => chordAt(b, beat, d, v, up)));
 /** Section dynamics: A sits back, B leans in, C opens lean (no kick or skank) and swells into the turnaround. */
 const lift = (t: number) =>
-  t < 8 * BAR ? 0.75 : t < 16 * BAR ? 1 : t < 20 * BAR ? 0.7 : ramp(20 * BAR, 24 * BAR, 0.85, 1.05)(t);
+  t < 8 * BAR ? 0.75 : t < 16 * BAR ? 1 : t < 20 * BAR ? 0.8 : ramp(20 * BAR, 24 * BAR, 0.85, 1.05)(t);
 const lean = (b: number) => b >= 16 && b < 20;
 const skanks = humanize(
   dyn(meter([...offbeats(0, 16, 0.2, 0.8), ...offbeats(20, 24, 0.2, 0.8)], 0.6), lift),
@@ -231,6 +229,7 @@ const rims = humanize(loop(grid('....x.......x...'), 8, BAR), 62, 0.004, 0.08);
 const snares = humanize(
   [
     ...loop(grid('....x.......x...', { start: 8 * BAR }), 15, BAR).map((n) => ({ ...n, v: 0.8 })),
+    ...loop(grid('..-.....-.-..-..', { start: 8 * BAR }), 7, BAR).map((n) => ({ ...n, v: 0.22 })),
     at(23, 0, 0.25, 0, 1),
     ...[7, 15].flatMap((b) => grid('............-oxx', { start: b * BAR })),
   ],
@@ -302,32 +301,75 @@ const swells: Note[] = [at(15, 2, 2, 0, 0.6)];
 
 /** Mix gains, before a common trim that keeps the bus below the master compressor (transients stay intact). */
 const HEADROOM = -12;
+const brassTame = { f: 2800, gain: -2.5, q: 1.2 };
+const warm = { f: 300, gain: 2.5, q: 0.9 };
 const tracks: Track[] = [
-  { inst: steelPan, gain: -6, pan: -0.2, verb: 0.28, loop: pans },
-  { inst: steelPan, gain: -10, pan: 0.6, verb: 0.32, loop: panHarmony },
-  { inst: horn, gain: 4, pan: 0.45, verb: 0.28, loop: trumpetCalls },
-  { inst: hornFall, gain: 4, pan: 0.45, verb: 0.3, loop: trumpetFalls },
-  { inst: horn, gain: -1, pan: 0.1, verb: 0.28, loop: brassHits },
-  { inst: tenorSax, gain: -4, pan: -0.1, verb: 0.28, loop: altoSax },
-  { inst: horn, gain: 0, pan: -0.5, verb: 0.3, loop: tromboneCalls },
-  { inst: hornFall, gain: 0, pan: -0.5, verb: 0.3, loop: tromboneFalls },
-  { inst: 'marimba', gain: -6, pan: -0.25, verb: 0.28, loop: marimba },
-  { inst: 'marimba', gain: -12, pan: 0.55, verb: 0.3, loop: late(marimba, 0.04) },
-  { inst: slideWhistle, gain: -6, pan: 0.3, verb: 0.35, loop: whistle },
-  { inst: skank, gain: 0, pan: 0.65, verb: 0.15, loop: skanks },
-  { inst: bubbleOrgan, gain: -6, pan: -0.65, verb: 0.2, loop: dyn(bubbles, lift) },
-  { inst: fingerBass, gain: -3, pan: 0, verb: 0.05, loop: bassLine },
-  { inst: kick, gain: -3, pan: 0, verb: 0.04, loop: kicks },
-  { inst: rim, gain: -6, pan: 0.1, verb: 0.2, loop: rims },
-  { inst: snare, gain: -11, pan: 0.05, verb: 0.22, loop: snares },
-  { inst: hat, gain: 4, pan: 0.35, verb: 0.08, loop: dyn(hats, lift) },
-  { inst: openHat, gain: 0, pan: -0.3, verb: 0.1, loop: dyn(opens, lift) },
-  { inst: 'shaker', gain: -5, pan: 0.6, verb: 0.1, loop: shakes },
-  { inst: conga, gain: -9, pan: -0.55, verb: 0.15, loop: congas },
-  { inst: timbale, gain: -5, pan: 0.5, verb: 0.25, loop: timbales },
-  { inst: bell2, gain: 0, pan: -0.45, verb: 0.15, loop: cowbell },
-  { inst: crash, gain: -3, pan: -0.4, verb: 0.3, loop: crashes },
-  { inst: swell, gain: -12, pan: 0.3, verb: 0.2, loop: swells },
+  {
+    inst: steelPan,
+    gain: -6,
+    pan: -0.3,
+    width: 0.3,
+    verb: 0.28,
+    echo: 0.1,
+    eq: [
+      { f: 700, gain: 2 },
+      { f: 4000, gain: -2 },
+    ],
+    loop: pans,
+  },
+  { inst: steelPan, gain: -10, pan: 0.6, verb: 0.32, eq: [{ f: 4000, gain: -2 }], loop: panHarmony },
+  { inst: horn, gain: 4, pan: 0.55, verb: 0.28, room: 0.1, hp: 200, eq: [brassTame], loop: trumpetCalls },
+  { inst: hornFall, gain: 4, pan: 0.55, verb: 0.3, room: 0.1, hp: 200, eq: [brassTame], loop: trumpetFalls },
+  { inst: 'brass', gain: -2, pan: 0.3, width: 0.3, verb: 0.3, hp: 200, eq: [brassTame], loop: trumpetCalls },
+  {
+    inst: horn,
+    gain: -1,
+    pan: 0.1,
+    width: 0.5,
+    verb: 0.28,
+    room: 0.1,
+    hp: 150,
+    eq: [brassTame],
+    loop: brassHits,
+  },
+  { inst: tenorSax, gain: -4, pan: -0.25, verb: 0.28, room: 0.1, hp: 150, loop: altoSax },
+  {
+    inst: horn,
+    gain: 0,
+    pan: -0.55,
+    verb: 0.3,
+    room: 0.1,
+    hp: 90,
+    eq: [warm, brassTame],
+    loop: tromboneCalls,
+  },
+  {
+    inst: hornFall,
+    gain: 0,
+    pan: -0.55,
+    verb: 0.3,
+    room: 0.1,
+    hp: 90,
+    eq: [warm, brassTame],
+    loop: tromboneFalls,
+  },
+  { inst: 'marimba', gain: -5, pan: 0.3, verb: 0.28, room: 0.25, eq: [{ f: 550, gain: 2 }], loop: marimba },
+  { inst: 'marimba', gain: -12, pan: -0.5, verb: 0.3, room: 0.25, loop: late(marimba, 0.04) },
+  { inst: slideWhistle, gain: -9, pan: 0.3, verb: 0.45, room: 0.3, loop: whistle },
+  { inst: skank, gain: 3, pan: -0.5, verb: 0.12, room: 0.15, hp: 300, loop: skanks },
+  { inst: bubbleOrgan, gain: -6, pan: 0.5, width: 0.4, verb: 0.2, hp: 120, loop: dyn(bubbles, lift) },
+  { inst: fingerBass, gain: -3, pan: 0, verb: 0.03, hp: 35, duck: 2, loop: bassLine },
+  { inst: 'kick', gain: -2, pan: 0, verb: 0, room: 0.1, loop: kicks },
+  { inst: rim, gain: -6, pan: 0.1, verb: 0.15, room: 0.35, loop: rims },
+  { inst: 'snare', gain: -2, pan: 0.05, verb: 0.15, room: 0.4, loop: snares },
+  { inst: hat, gain: 4, pan: 0.35, verb: 0.05, room: 0.1, loop: dyn(hats, lift) },
+  { inst: openHat, gain: 0, pan: -0.3, verb: 0.08, room: 0.1, loop: dyn(opens, lift) },
+  { inst: 'shaker', gain: -5, pan: 0.6, verb: 0.1, room: 0.1, loop: shakes },
+  { inst: conga, gain: -8, pan: -0.55, verb: 0.12, room: 0.3, loop: congas },
+  { inst: timbale, gain: -2, pan: 0.5, verb: 0.2, room: 0.35, loop: timbales },
+  { inst: bell2, gain: 0, pan: 0.45, verb: 0.12, room: 0.2, loop: cowbell },
+  { inst: crash, gain: -3, pan: -0.4, width: 0.6, verb: 0.3, room: 0.1, loop: crashes },
+  { inst: swell, gain: -12, pan: 0.3, width: 0.6, verb: 0.2, loop: swells },
 ];
 
 export const song: Song = {
@@ -338,6 +380,9 @@ export const song: Song = {
   bpm: 158,
   loopBeats: BARS * BAR,
   seed: 9,
-  reverb: { room: 0.42, damp: 0.5, wet: 0.26 },
+  reverb: { room: 0.5, damp: 0.5, wet: 0.26, predelay: 0.02, hp: 220, lp: 10000 },
+  room: { room: 0.1, damp: 0.5, wet: 0.45 },
+  echo: { beats: 0.75, feedback: 0.3, wet: 0.4, lp: 3500 },
+  master: { eq: [{ f: 300, gain: -1, q: 0.8 }], threshold: 3, ratio: 2, ceiling: -1.2 },
   tracks: tracks.map((t) => ({ ...t, gain: (t.gain ?? 0) + HEADROOM })),
 };

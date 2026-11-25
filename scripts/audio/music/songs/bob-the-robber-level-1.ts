@@ -144,6 +144,11 @@ const saxShout = seq(
   ].join(' '),
   { step: 0.5, start: 16 * BAR, v: 0.85, transpose: -12 },
 );
+/** Baritone sax: the shout two octaves down, for big-band weight under the brass. */
+const bari = feel(
+  meter(seq(SHOUT.join(' '), { step: 0.5, start: 16 * BAR, v: 0.8, transpose: -24 }), 0.7),
+  30,
+);
 const sax = feel(phrase([...dyn(saxLine, ramp(8 * BAR, 16 * BAR, 0.7, 1)), ...saxShout], 8, 0.2), 23);
 
 // ---------------------------------------------------------------- comping
@@ -170,7 +175,7 @@ const pianoNotes = CHORDS.flatMap((_, b) =>
   b < 8 || b >= 22
     ? []
     : COMP[(b + (b >= 16 ? 3 : 0)) % COMP.length]!.flatMap(([beat, d]) =>
-        chordAt(b, beat!, d!, b >= 16 ? 0.45 : 0.55),
+        chordAt(b, beat!, d!, b >= 16 ? 0.45 : 0.62),
       ),
 );
 const piano = feel(pianoNotes, 24, 0.015, 0.1);
@@ -203,6 +208,7 @@ const WALK_B = [
 const walk = seq([...WALK, ...WALK2, ...WALK_B].join(' '), { step: 1, v: 0.82 }).map((n) => ({
   ...n,
   d: 0.92,
+  v: n.v * (n.t < 8 * BAR ? 0.85 : 1),
 }));
 const bassHits: Note[] = [
   at(22, 0, 0.7, midi('F2'), 0.8),
@@ -236,7 +242,12 @@ const trip = (bar: number, from: number, n: number) =>
   }));
 /** Brushes: slaps on two and four, and a triplet crescendo that hands A1 over to A2. */
 const slaps = humanize([...beats(0, 8, [1, 3], 0.6), ...trip(7, 2, 6)], 32, 0.008, 0.15);
-const feather = humanize(beats(0, 16, [0, 1, 2, 3], 0.28), 33, 0.006, 0.15);
+const feather = humanize(
+  [...beats(0, 8, [0, 1, 2, 3], 0.28), ...beats(8, 16, [0, 1, 2, 3], 0.36)],
+  33,
+  0.006,
+  0.15,
+);
 const chicks = humanize(beats(0, 22, [1, 3], 0.55), 34, 0.006, 0.1);
 const snapsL = humanize(beats(0, 8, [1], 0.75), 35, 0.01, 0.1);
 const snapsR = humanize(beats(0, 8, [3], 0.75), 36, 0.01, 0.1);
@@ -265,8 +276,17 @@ const stopTime: Note[] = [
   ...trip(22, 2, 6),
   at(23, 0, 0.25, 0, 0.8),
 ];
-const pickupRoll = dyn(grid('..x.x.x.x.x.x.x.', { start: 23 * BAR }), ramp(23 * BAR, 24 * BAR, 0.25, 0.7));
-const snareNotes = [...ghosts, ...backbeat, ...trip(15, 2, 6), ...stopTime, ...feel(pickupRoll, 43)];
+const pickupRoll = dyn(grid('..x.x.x.x.x.x.x.', { start: 23 * BAR }), ramp(23 * BAR, 24 * BAR, 0.3, 0.95));
+/** Sticks come in for A2: a snare triplet crescendo over the brush one. */
+const stickFill = trip(7, 2, 6).map((n) => ({ ...n, v: n.v * 0.8 }));
+const snareNotes = [
+  ...ghosts,
+  ...backbeat,
+  ...stickFill,
+  ...trip(15, 2, 6),
+  ...stopTime,
+  ...feel(pickupRoll, 43),
+];
 const kicks = humanize(
   [
     ...feather,
@@ -290,6 +310,12 @@ const toms = humanize(
       v: 0.5 + 0.05 * i,
     })),
     ...[0, 1, 2].map((i) => ({
+      t: 7 * BAR + 3 + i / 3,
+      d: 0.3,
+      n: midi(['A3', 'E3', 'B2'][i]!),
+      v: 0.55 + 0.1 * i,
+    })),
+    ...[0, 1, 2].map((i) => ({
       t: 15 * BAR + 3 + i / 3,
       d: 0.3,
       n: midi(['A3', 'E3', 'B2'][i]!),
@@ -302,37 +328,109 @@ const toms = humanize(
 );
 const crashes: Note[] = [
   at(0, 0, 1, 0, 0.6),
-  at(8, 0, 1, 0, 0.5),
+  at(8, 0, 1, 0, 0.7),
   at(16, 0, 1, 0, 1),
   at(20, 0, 1, 0, 0.6),
   at(22, 0, 1, 0, 0.85),
   at(23, 0, 1, 0, 0.85),
 ];
+/** A reversed cymbal swells over the chromatic pickup and stops on the downbeat of the loop. */
+const swells: Note[] = [at(23, 2.02, 2, 0, 0.75)];
 
 /** Mix gains, before a common trim that keeps the bus below the master compressor (transients stay intact). */
 const HEADROOM = -12;
 const tracks: Track[] = [
-  { inst: mutedTrumpet, gain: 1, pan: 0.15, verb: 0.28, loop: trumpet },
-  { inst: horn, gain: -5, pan: 0.55, verb: 0.35, loop: highBody },
-  { inst: hornFall, gain: -5, pan: 0.55, verb: 0.35, loop: highEnds },
-  { inst: horn, gain: -5, pan: -0.55, verb: 0.4, loop: trombone },
-  { inst: hornFall, gain: -5, pan: -0.55, verb: 0.4, loop: lowEnds },
-  { inst: tenorSax, gain: -7, pan: -0.35, verb: 0.3, loop: sax },
-  { inst: compPiano, gain: -9, pan: -0.6, verb: 0.3, loop: piano },
-  { inst: vibes, gain: -10, pan: 0.6, verb: 0.4, loop: vibesPart },
-  { inst: twang, gain: -9, pan: 0.4, verb: 0.45, loop: guitar },
-  { inst: upright, gain: -5, pan: 0, verb: 0.08, loop: bassLine },
-  { inst: kick, gain: -3, pan: 0, verb: 0.05, loop: kicks },
-  { inst: brushSweep, gain: -2, pan: -0.2, verb: 0.2, loop: sweeps },
-  { inst: brushSlap, gain: -1, pan: 0.2, verb: 0.3, loop: slaps },
-  { inst: snare, gain: -9, pan: 0.05, verb: 0.3, loop: snareNotes },
-  { inst: rim, gain: -2, pan: 0.15, verb: 0.25, loop: crossStick },
-  { inst: ride, gain: 0, pan: 0.45, verb: 0.2, loop: rideNotes },
-  { inst: pedalHat, gain: 6, pan: -0.35, verb: 0.1, loop: chicks },
-  { inst: snap, gain: 0, pan: -0.45, verb: 0.3, loop: snapsL },
-  { inst: snap, gain: 0, pan: 0.45, verb: 0.3, loop: snapsR },
-  { inst: tom, gain: -10, pan: -0.25, verb: 0.3, loop: toms },
-  { inst: crash, gain: -5, pan: -0.4, verb: 0.35, loop: crashes },
+  {
+    inst: mutedTrumpet,
+    gain: 1,
+    pan: 0.1,
+    verb: 0.26,
+    room: 0.12,
+    hp: 250,
+    eq: [{ f: 3200, gain: -2, q: 1.4 }],
+    loop: trumpet,
+  },
+  {
+    inst: horn,
+    gain: -5,
+    pan: 0.6,
+    width: 0.2,
+    verb: 0.35,
+    room: 0.1,
+    hp: 200,
+    eq: [{ f: 2800, gain: -2.5, q: 1.2 }],
+    loop: highBody,
+  },
+  {
+    inst: hornFall,
+    gain: -5,
+    pan: 0.6,
+    width: 0.2,
+    verb: 0.35,
+    room: 0.1,
+    hp: 200,
+    eq: [{ f: 2800, gain: -2.5, q: 1.2 }],
+    loop: highEnds,
+  },
+  {
+    inst: horn,
+    gain: -4,
+    pan: -0.6,
+    width: 0.2,
+    verb: 0.4,
+    room: 0.1,
+    hp: 100,
+    eq: [{ f: 300, gain: 2 }, ...[{ f: 2800, gain: -2.5, q: 1.2 }]],
+    loop: trombone,
+  },
+  {
+    inst: hornFall,
+    gain: -4,
+    pan: -0.6,
+    width: 0.2,
+    verb: 0.4,
+    room: 0.1,
+    hp: 100,
+    eq: [{ f: 300, gain: 2 }, ...[{ f: 2800, gain: -2.5, q: 1.2 }]],
+    loop: lowEnds,
+  },
+  { inst: tenorSax, gain: -10, pan: -0.25, verb: 0.3, hp: 80, eq: [{ f: 250, gain: 2 }], loop: bari },
+  { inst: tenorSax, gain: -7, pan: 0.45, verb: 0.3, room: 0.1, hp: 150, loop: sax },
+  { inst: compPiano, gain: -9, pan: -0.5, width: 0.6, verb: 0.3, hp: 120, loop: piano },
+  { inst: vibes, gain: -10, pan: 0.55, width: 0.5, verb: 0.4, loop: vibesPart },
+  { inst: twang, gain: -9, pan: -0.4, verb: 0.35, echo: 0.2, hp: 100, loop: guitar },
+  {
+    inst: upright,
+    gain: -4,
+    pan: 0,
+    verb: 0.06,
+    hp: 35,
+    eq: [
+      { f: 100, gain: 1.5 },
+      { f: 700, gain: 1.5 },
+    ],
+    loop: bassLine,
+  },
+  {
+    inst: kick,
+    gain: 0,
+    pan: 0,
+    verb: 0.03,
+    room: 0.12,
+    eq: [{ type: 'lowshelf', f: 90, gain: 2 }],
+    loop: kicks,
+  },
+  { inst: brushSweep, gain: -2, pan: -0.2, width: 0.8, verb: 0.2, room: 0.2, loop: sweeps },
+  { inst: brushSlap, gain: -1, pan: 0.2, verb: 0.25, room: 0.4, loop: slaps },
+  { inst: snare, gain: -8, pan: 0.05, verb: 0.25, room: 0.45, loop: snareNotes },
+  { inst: rim, gain: -2, pan: 0.15, verb: 0.2, room: 0.3, loop: crossStick },
+  { inst: ride, gain: 3, pan: 0.5, verb: 0.15, room: 0.15, loop: rideNotes },
+  { inst: pedalHat, gain: 6, pan: -0.35, verb: 0.08, room: 0.15, loop: chicks },
+  { inst: snap, gain: 0, pan: -0.6, verb: 0.25, room: 0.4, loop: snapsL },
+  { inst: snap, gain: 0, pan: 0.6, verb: 0.25, room: 0.4, loop: snapsR },
+  { inst: tom, gain: -10, pan: -0.25, verb: 0.25, room: 0.4, loop: toms },
+  { inst: crash, gain: -5, pan: -0.4, width: 0.6, verb: 0.3, room: 0.1, loop: crashes },
+  { inst: 'revCrash', gain: -12, pan: 0.3, width: 0.6, verb: 0.2, loop: swells },
 ];
 
 export const song: Song = {
@@ -342,6 +440,9 @@ export const song: Song = {
   bpm: 144,
   loopBeats: BARS * BAR,
   seed: 5,
-  reverb: { room: 0.45, damp: 0.55, wet: 0.28 },
+  reverb: { room: 0.6, damp: 0.5, wet: 0.32, predelay: 0.02, hp: 200, lp: 9000 },
+  room: { room: 0.1, damp: 0.5, wet: 0.45 },
+  echo: { beats: 1, feedback: 0.25, wet: 0.4, lp: 3000 },
+  master: { eq: [{ f: 300, gain: -1, q: 0.8 }], threshold: 3, ratio: 2, ceiling: -1.2 },
   tracks: tracks.map((t) => ({ ...t, gain: (t.gain ?? 0) + HEADROOM })),
 };
