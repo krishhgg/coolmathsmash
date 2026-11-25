@@ -1,5 +1,6 @@
 import type { HitboxDef } from '../fighters/types';
 import type { MatchState } from './match';
+import type { TerrainElement } from './stage';
 
 type Side = 'left' | 'right' | 'top' | 'bottom';
 
@@ -64,7 +65,19 @@ export type SimEvent =
    * A fighter's move or action asks for a screen shake (a heavy landing, Bloxorz block's every tip): `amplitude`
    * in screen pixels at 1280x720, fading out over `frames` frames. Emitted by fighter scripts; the camera reacts.
    */
-  | { type: 'shake'; port: number; amplitude: number; frames: number };
+  | { type: 'shake'; port: number; amplitude: number; frames: number }
+  /** A stage hazard hit a fighter: a damage zone (with its element) or a stage hitbox, by index. */
+  | {
+      type: 'stageHit';
+      victim: number;
+      source: 'zone' | 'hitbox';
+      index: number;
+      element: TerrainElement | null;
+      damage: number;
+      kb: number;
+      x: number;
+      y: number;
+    };
 
 export type SimEventType = SimEvent['type'];
 

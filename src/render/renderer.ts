@@ -11,7 +11,7 @@ import { EventLog } from './debug/eventLog';
 import { InputDisplay } from './debug/inputDisplay';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud } from './hud';
-import { drawMovingPieces, isMoving } from './stagePieces';
+import { drawStagePieces, isMoving } from './stagePieces';
 
 /** Stage art: src/stages/<id>/view.ts exports createStageView (docs/stages.md). Stages without one draw flat. */
 const STAGE_VIEWS = import.meta.glob<{ createStageView: () => StageView }>('../stages/*/view.ts', {
@@ -140,7 +140,7 @@ export class Renderer {
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
     this.stageView?.update(state.frame, view);
-    drawMovingPieces(this.stagePieces, this.stage!, state.stage, state.frame, alpha);
+    drawStagePieces(this.stagePieces, this.stage!, state, alpha);
     state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
     this.drawBoxes(state);
     this.matchHud.update(

@@ -205,6 +205,14 @@ describe('sim events', () => {
     expect(e.y).toBeCloseTo(m.fighters[0]!.pos.y, 9);
   });
 
+  it('a stage hazard hit reports the hazard, its element and the % it added (hazard testbed lava)', () => {
+    const m = testMatch({ stage: 'hazard-testbed', x: -48 });
+    const e = next(m, 'stageHit');
+    expect(e).toMatchObject({ victim: 0, source: 'zone', index: 1, element: 'lava', damage: 12, x: -48 });
+    expect(e.kb).toBeGreaterThan(80);
+    expect(m.fighters[0]!.damage).toBe(24);
+  });
+
   it('the event stream is deterministic', () => {
     const stream = () => {
       const { m } = duel();

@@ -13,4 +13,5 @@ export const fighter = defineFighter({
   stats,
   moves,
   selectable: false,
+  immune: ['water'],
 });

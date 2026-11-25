@@ -276,6 +276,10 @@ it. Nothing in a fighter needs to change for that. A move's `script` that reads 
 as it stands on the current frame, moved pieces and all, and should skip absent pieces
 (`x.stage.present`).
 
+Stage hazards (damage zones, stage hitboxes) hit fighters through the same strike as moves. A fighter unharmed
+by some damaging terrain lists its elements in `immune` on its FighterDef: Fireboy's is `['lava']` and
+Watergirl's `['water']`; goo hurts everyone.
+
 ## Art
 
 `art` is plain data drawn by the vector rig (`src/render/rig/`): parts, poses per clip name and palettes. Clips

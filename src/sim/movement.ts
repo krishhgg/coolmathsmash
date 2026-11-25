@@ -15,6 +15,7 @@ import type { MatchState } from './match';
 import { edgeMaxX, edgeMinX, floorY, ledgePresent, type CompiledStage, type Edge } from './stage';
 import { approach, type Vec } from './vec';
 import { DAMAGE_FLY_TOP_GRAVITY, LAUNCH_DECAY, speedUp, VERTICAL_LAUNCH_FALL_SPEED } from './combat/formulas';
+import { breakGrab } from './actions/grab';
 import { actionDef, enterAction } from './actions/registry';
 
 const EPS = 0.001;
@@ -45,26 +46,44 @@ export function surfaceRange(stage: CompiledStage, g: GroundRef): [number, numbe
   return [edgeMinX(e), edgeMaxX(e)];
 }
 
-/** A floor edge of the same solid continuing past `x` on the given side, for walking across connected floors. */
+/**
+ * A floor continuing past `x`, for walking across connected floors: another floor of the same solid, or a floor
+ * of another solid that meets this one's end at the same height (a trapdoor set into the stage).
+ */
 function connectedFloor(stage: CompiledStage, g: GroundRef, x: number): GroundRef | null {
   if (g.kind !== 'solid') return null;
   const from = stage.edges[g.index]!;
-  for (const e of stage.edges) {
-    if (e === from || e.kind !== 'floor' || e.solid !== from.solid) continue;
-    if (x >= edgeMinX(e) - EPS && x <= edgeMaxX(e) + EPS)
-      return { kind: 'solid', index: stage.edges.indexOf(e) };
+  const end = x < edgeMinX(from) ? edgeMinX(from) : edgeMaxX(from);
+  for (let i = 0; i < stage.edges.length; i++) {
+    const e = stage.edges[i]!;
+    if (i === g.index || e.kind !== 'floor' || !stage.present.solids[e.solid]) continue;
+    if (x < edgeMinX(e) - EPS || x > edgeMaxX(e) + EPS) continue;
+    const meets =
+      end >= edgeMinX(e) - EPS &&
+      end <= edgeMaxX(e) + EPS &&
+      Math.abs(floorY(e, end) - floorY(from, end)) < EPS;
+    if (e.solid === from.solid || meets) return { kind: 'solid', index: i };
   }
   return null;
 }
 
-/** Ground physics: traction, then slide along the surface; walk off or stop at its end. */
+/** Speed of the conveyor belt a grounded fighter stands on: 0 off a belt, or with hazards off. */
+export function conveyorSpeed(x: Ctx, g: GroundRef): number {
+  if (x.m.config.hazards === false) return 0;
+  const geo = x.stage.geo;
+  const piece = g.kind === 'platform' ? geo.platforms[g.index]! : geo.solids[x.stage.edges[g.index]!.solid]!;
+  return piece.conveyor ?? 0;
+}
+
+/** Ground physics: traction, then slide along the surface (and a conveyor belt); walk off or stop at its end. */
 export function groundMove(x: Ctx): void {
   const { f, s, stage } = x;
   const action = actionDef(f);
   if (action.friction !== false) f.vel.x = approach(f.vel.x, 0, s.groundFriction);
   f.kb.x = approach(f.kb.x, 0, s.groundFriction);
   const g = f.ground!;
-  const nx = f.pos.x + f.vel.x + f.kb.x;
+  const belt = conveyorSpeed(x, g);
+  const nx = f.pos.x + f.vel.x + f.kb.x + belt;
   const [lo, hi] = surfaceRange(stage, g);
   if (nx >= lo && nx <= hi) {
     f.pos.x = nx;
@@ -78,7 +97,7 @@ export function groundMove(x: Ctx): void {
     f.pos.y = surfaceY(stage, next, nx);
     return;
   }
-  if ((action.edge ?? 'stop') === 'stop') {
+  if ((action.edge ?? 'stop') === 'stop' && Math.sign(belt) !== (nx < lo ? -1 : 1)) {
     f.pos.x = nx < lo ? lo : hi;
     f.pos.y = surfaceY(stage, g, f.pos.x);
     f.vel.x = 0;
@@ -86,8 +105,9 @@ export function groundMove(x: Ctx): void {
     return;
   }
   f.pos.x = nx;
+  if (f.grabPartner >= 0) breakGrab(x.m, f);
   leaveGround(x);
-  if (action.edge === 'fall') enterAction(x, 'fall', 0);
+  if (action.edge !== 'keep') enterAction(x, 'fall', 0);
 }
 
 export function leaveGround(x: Ctx): void {
