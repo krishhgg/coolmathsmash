@@ -151,9 +151,11 @@ function beat(up: boolean, i: number): Pose {
     base: { y: -lift },
     body: { sy: up ? 1.06 : 0.95, sx: up ? 0.96 : 1.04 },
     head: { rot: up ? -14 : 6 },
+    wingF: { x: up ? -0.9 : 0 },
+    wingB: { x: up ? -1.2 : 0 },
   });
   return up
-    ? wing(wing(pose, 'F', 230 - i * 4, 1.15), 'B', 262 + i * 4, 1.1)
+    ? wing(wing(pose, 'F', 215 - i * 2, 1.25, 1.15), 'B', 248 + i * 2, 1.4, 1.2)
     : wing(wing(pose, 'F', 60, 1.1), 'B', 25, 1.05);
 }
 
@@ -296,25 +298,41 @@ export const clips: Record<string, AnimClip> = {
   },
   doubleJump: {
     length: 30,
-    swaps: { wingF: 'wingA', fx1: 'fxFeathers' },
+    swaps: { wingF: 'wingA' },
     keys: [
       key(0, mix(air({ body: { sy: 0.92, sx: 1.06 } }, 40, 30), { wingF: { sx: 1.1, sy: 1.1 } }), {
         ease: 'out',
       }),
-      key(2, mix(FLAP_DOWN, { fx1: fx(-0.3, 1.4, 0.55, 20) }), {
+      key(2, mix(FLAP_DOWN, { fx1: fx(-1.9, -1.8, 0.9, 20), fx2: fx(0.9, -1.5, 0.8, -30) }), {
         ease: 'linear',
-        swaps: { wingF: 'wingV', fx1: 'fxFeathers' },
+        swaps: { wingF: 'wingV', fx1: 'fxFeather', fx2: 'fxFeather' },
       }),
       ...['wingVs', 'wingFlat', 'wingAs', 'wingA', 'wingAs', 'wingFlat', 'wingVs', 'wingV'].map(
-        (drawing, i) => key(i * 2 + 4, undefined, { swaps: { wingF: drawing, fx1: 'fxFeathers' } }),
+        (drawing, i) =>
+          key(i * 2 + 4, undefined, { swaps: { wingF: drawing, fx1: 'fxFeather', fx2: 'fxFeather' } }),
       ),
-      key(7, mix(FLAP_UP, { body: { sy: 1.12, sx: 0.9 }, fx1: fx(-0.3, 2.6, 0.9, 60) }), {
-        ease: 'inOut',
-        swaps: { wingF: 'wingA', fx1: 'fxFeathers' },
-      }),
-      key(16, mix(FLAP_DOWN, { body: { sx: 1.06, sy: 0.94 } }), { ease: 'inOut' }),
-      key(22, mix(FLAP_UP, { fx1: fx(-0.3, 3.6, 0.5, 140) }), { ease: 'out' }),
-      key(24, undefined, { swaps: { wingF: 'wingVs', fx1: null } }),
+      key(
+        7,
+        mix(FLAP_UP, {
+          body: { sy: 1.12, sx: 0.9 },
+          fx1: fx(-2.7, 0.9, 0.7, 60),
+          fx2: fx(2.3, 0.4, 0.65, -65),
+        }),
+        {
+          ease: 'inOut',
+        },
+      ),
+      key(
+        16,
+        mix(FLAP_DOWN, {
+          body: { sx: 1.06, sy: 0.94 },
+          fx1: fx(-3.2, 3.2, 0.35, 120),
+          fx2: fx(3.1, 2.9, 0.3, -125),
+        }),
+        { ease: 'inOut' },
+      ),
+      key(22, mix(FLAP_UP, { fx1: fx(-3.6, 4.2, 0, 140), fx2: fx(3.5, 3.5, 0, -150) }), { ease: 'out' }),
+      key(24, undefined, { swaps: { wingF: 'wingVs' } }),
       key(30, APEX),
     ].sort((a, b) => a.frame - b.frame),
   },

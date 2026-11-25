@@ -109,7 +109,7 @@ function lift(pose: Pose, side: 'B' | 'F', dx: number, dy: number, toe: number):
 }
 
 /** Jab 1: a short, high neck snap; the belly stays upright over feet kept close together. */
-const PECK1 = strike({ lean: 2, shift: 0.1, head: [4.4, -6.6], aim: -4, feet: [-0.9, 0.1], neck: 5.2 });
+const PECK1 = strike({ lean: 2, shift: 0.1, head: [4.1, -7.7], aim: 26, feet: [-0.9, 0.1], neck: 5.2 });
 /** Jab 2: the recoil loads a longer peck, the belly lunging after the head over a wide stance. */
 const PECK2 = wings(
   lift(strike({ lean: 20, shift: 1.1, head: [4.8, -6.6], aim: -8, feet: [-2.2, 0.6] }), 'B', -1.5, 0.7, 165),
