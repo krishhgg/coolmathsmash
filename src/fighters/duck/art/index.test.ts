@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import { placeInAir, run, testMatch, until } from '../../../sim/testing/sim';
 import { moves } from '../moves';
 import { stats } from '../stats';
 import { art } from '.';
@@ -101,6 +102,18 @@ describe('duck art', () => {
     expect(-y0).toBeLessThan(stats.height + 0.3);
     expect(x1 - x0).toBeGreaterThan(stats.width - 0.5);
     expect(x1 - x0).toBeLessThan(stats.width + 0.5);
+  });
+
+  it('rolls across the stage lip without the rig sinking under the floor', () => {
+    const match = testMatch({ fighter: 'duck' });
+    const duck = placeInAir(match, -86, 6);
+    until(match, (f) => f.action === 'ledgeHang');
+    run(match, 1, { buttons: ['shield'] });
+    for (const frame of [10, 18, 26]) {
+      until(match, (f) => f.action === 'ledgeRoll' && f.actionFrame === frame);
+      const [, , , bottom] = poseBounds(art, samplePose(art, 'ledgeRoll', frame, match.frame));
+      expect(bottom - duck.pos.y, `ledgeRoll@${frame}`).toBeLessThan(3);
+    }
   });
 
   it('has the crown, evil and paint costumes with the same colour keys, and an icon', () => {

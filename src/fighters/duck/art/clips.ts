@@ -552,12 +552,12 @@ export const clips: Record<string, AnimClip> = {
     keys: [
       key(0, HANG, { ease: 'linear' }),
       key(6, pull(6, 40, 0.6), { ease: 'linear' }),
-      key(10, mix(ball(120), { base: { y: belowFloor(10, 40) } }), {
+      key(10, mix(ball(120), { base: { y: -belowFloor(10, 40) } }), {
         ease: 'linear',
         swaps: { ...BLINK, ...WINGS },
       }),
-      key(18, mix(ball(260), { base: { y: belowFloor(18, 40) } }), { ease: 'linear' }),
-      key(26, mix(ball(400), { base: { y: belowFloor(26, 40) } }), { ease: 'linear' }),
+      key(18, mix(ball(260), { base: { y: -belowFloor(18, 40) } }), { ease: 'linear' }),
+      key(26, mix(ball(400), { base: { y: -belowFloor(26, 40) } }), { ease: 'linear' }),
       key(34, ball(540), { ease: 'out' }),
       key(37, mix(CROUCH, { body: { rot: 720 } }), { ease: 'out', swaps: {} }),
       key(50, mix(STAND, { body: { rot: 720 } })),
