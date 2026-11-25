@@ -1,7 +1,9 @@
 /**
- * Writing music as data: note names, a tiny step-sequencer pattern language, chords and drum grids. Times
- * are in beats from the start of the section, durations in beats.
+ * Writing music as data: note names, a tiny step-sequencer pattern language, chords and drum grids, and
+ * phrasing helpers (accents, humanising, legato, portamento, harmony, fills). Times are in beats from the
+ * start of the section, durations in beats.
  */
+import { Rng } from '../dsp.ts';
 
 export interface Note {
   /** Start, in beats. */
@@ -12,6 +14,8 @@ export interface Note {
   n: number;
   /** Velocity 0..1. */
   v: number;
+  /** Slide into this note from this many semitones away (portamento); unpitched instruments ignore it. */
+  glide?: number;
 }
 
 const LETTERS: Record<string, number> = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
@@ -29,6 +33,7 @@ export function midi(name: string): number {
  * - `C5` a note; `C5:3` lasts 3 steps; `C5*0.6` velocity 0.6 (combine: `C5:2*0.7`)
  * - `[C4,E4,G4]` a chord on one step (also takes `:n` and `*v`)
  * - `-` holds the previous note one more step; `.` is a rest
+ * - `~A5` slides into A5 from the previous note (portamento)
  * - `|` is ignored (use it to mark bars)
  */
 export function seq(
@@ -39,6 +44,7 @@ export function seq(
   const out: Note[] = [];
   let t = opts.start ?? 0;
   let last: Note[] = [];
+  let prev: number | undefined;
   for (const tok of pattern.split(/\s+/).filter((x) => x && x !== '|')) {
     if (tok === '.') {
       last = [];
@@ -50,12 +56,14 @@ export function seq(
       t += step;
       continue;
     }
-    const m = /^(\[[^\]]+\]|[^:*]+)(?::([\d.]+))?(?:\*([\d.]+))?$/.exec(tok);
+    const m = /^(~?)(\[[^\]]+\]|[^:*~]+)(?::([\d.]+))?(?:\*([\d.]+))?$/.exec(tok);
     if (!m) throw new Error(`bad token "${tok}"`);
-    const names = m[1]!.startsWith('[') ? m[1]!.slice(1, -1).split(',') : [m[1]!];
-    const len = Number(m[2] ?? 1);
-    const v = Number(m[3] ?? opts.v ?? 0.8);
+    const names = m[2]!.startsWith('[') ? m[2]!.slice(1, -1).split(',') : [m[2]!];
+    const len = Number(m[3] ?? 1);
+    const v = Number(m[4] ?? opts.v ?? 0.8);
     last = names.map((name) => ({ t, d: len * step, n: midi(name) + (opts.transpose ?? 0), v }));
+    if (m[1] && prev !== undefined) for (const n of last) n.glide = prev - n.n;
+    prev = last.at(-1)!.n;
     out.push(...last);
     t += len * step;
   }
@@ -102,6 +110,11 @@ export function root(symbol: string, octave = 2): number {
   return midi(`${name}${octave}`);
 }
 
+/** A chord's root (its bass note for slash chords) folded into the octave starting at `low`. */
+export function rootIn(symbol: string, low: number): number {
+  return low + ((((root(symbol, 4) - low) % 12) + 12) % 12);
+}
+
 /**
  * A drum grid: one char per step. `x` full hit, `o` medium, `-` ghost note, anything else a rest.
  * Returns notes with n = `n` (use it to pick a drum variant).
@@ -124,14 +137,31 @@ export function shift(notes: Note[], beats: number, semis = 0): Note[] {
   return notes.map((n) => ({ ...n, t: n.t + beats, n: n.n + semis }));
 }
 
-/** One chord per bar (or per `beats`), voiced as held notes. */
+/**
+ * A chord's tones folded into the octave starting at MIDI note `low`, so a progression voice-leads in one
+ * register instead of jumping with each root (a slash bass stays below).
+ */
+export function voice(symbol: string, low: number): number[] {
+  const [body, bass] = symbol.split('/');
+  const tones = [...new Set(chord(body!, 4).map((n) => low + ((((n - low) % 12) + 12) % 12)))].sort(
+    (a, b) => a - b,
+  );
+  if (bass) {
+    let b = midi(`${bass}4`);
+    while (b >= tones[0]!) b -= 12;
+    tones.unshift(b);
+  }
+  return tones;
+}
+
+/** One chord per bar (or per `beats`), voiced as held notes; `low` folds each into one octave (see voice). */
 export function pads(
   symbols: string[],
-  opts: { beats?: number; octave?: number; v?: number; start?: number } = {},
+  opts: { beats?: number; octave?: number; v?: number; start?: number; low?: number } = {},
 ): Note[] {
   const beats = opts.beats ?? 4;
   return symbols.flatMap((s, i) =>
-    chord(s, opts.octave ?? 4).map((n) => ({
+    (opts.low === undefined ? chord(s, opts.octave ?? 4) : voice(s, opts.low)).map((n) => ({
       t: (opts.start ?? 0) + i * beats,
       d: beats,
       n,
@@ -182,4 +212,151 @@ export function bass(
           ],
     ),
   );
+}
+
+// ---------------------------------------------------------------- phrasing
+
+const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+const byTime = (notes: Note[]) => [...notes].sort((a, b) => a.t - b.t);
+
+/**
+ * Weight velocities by where each note falls in the bar: the downbeat strongest, then the other beats, the
+ * offbeat eighths, then everything else, so grooves pulse instead of hitting flat.
+ */
+export function accent(
+  notes: Note[],
+  opts: { bar?: number; down?: number; beat?: number; half?: number; off?: number } = {},
+): Note[] {
+  const bar = opts.bar ?? 4;
+  return notes.map((n) => {
+    const pos = ((n.t % bar) + bar) % bar;
+    const frac = pos % 1;
+    const w = near(pos, 0)
+      ? (opts.down ?? 1)
+      : near(frac, 0) || near(frac, 1)
+        ? (opts.beat ?? 0.88)
+        : near(frac, 0.5)
+          ? (opts.half ?? 0.74)
+          : (opts.off ?? 0.6);
+    return { ...n, v: Math.min(1, n.v * w) };
+  });
+}
+
+/** Scale velocities along a line from `from` to `to` across the notes' time span: a crescendo or diminuendo. */
+export function cresc(notes: Note[], from: number, to: number): Note[] {
+  const t0 = Math.min(...notes.map((n) => n.t));
+  const span = Math.max(...notes.map((n) => n.t)) - t0 || 1;
+  return notes.map((n) => ({ ...n, v: Math.min(1, n.v * (from + ((to - from) * (n.t - t0)) / span)) }));
+}
+
+/** Seeded jitter of up to `time` beats and `vel` velocity, so parts stop sounding machine-quantised. */
+export function humanize(notes: Note[], opts: { seed?: number; time?: number; vel?: number } = {}): Note[] {
+  const rng = new Rng(opts.seed ?? 1);
+  const time = opts.time ?? 0.01;
+  const vel = opts.vel ?? 0.08;
+  return notes.map((n) => ({
+    ...n,
+    t: n.t + rng.range(-time, time),
+    v: Math.min(1, Math.max(0.05, n.v * (1 + rng.range(-vel, vel)))),
+  }));
+}
+
+/** Shorten every note to `gate` of its length (staccato). */
+export function staccato(notes: Note[], gate = 0.5): Note[] {
+  return notes.map((n) => ({ ...n, d: n.d * gate }));
+}
+
+/**
+ * Tie each note of a single line into the next one (plus `overlap` beats) when the gap between them is at
+ * most `maxGap` beats, so phrases sing; longer rests stay rests.
+ */
+export function legato(notes: Note[], opts: { overlap?: number; maxGap?: number } = {}): Note[] {
+  const out = byTime(notes).map((n) => ({ ...n }));
+  out.forEach((n, i) => {
+    const next = out.slice(i + 1).find((m) => m.t > n.t + 1e-6);
+    if (next && next.t - (n.t + n.d) <= (opts.maxGap ?? 0.5)) n.d = next.t - n.t + (opts.overlap ?? 0.04);
+  });
+  return out;
+}
+
+/** Slide into every note of a line that leaps `minLeap` semitones or more from the note just before it. */
+export function portamento(notes: Note[], minLeap = 5, maxGap = 0.5): Note[] {
+  const out = byTime(notes).map((n) => ({ ...n }));
+  out.forEach((n, i) => {
+    const p = out[i - 1];
+    if (p && Math.abs(n.n - p.n) >= minLeap && n.t - (p.t + p.d) <= maxGap && n.glide === undefined)
+      n.glide = p.n - n.n;
+  });
+  return out;
+}
+
+/**
+ * A quick grace note `semis` semitones from each note that leaps up `minLeap` or more, played `len` beats
+ * before it (the note before is shortened to make room).
+ */
+export function graces(notes: Note[], opts: { minLeap?: number; semis?: number; len?: number } = {}): Note[] {
+  const len = opts.len ?? 0.125;
+  const out = byTime(notes).map((n) => ({ ...n }));
+  const extra: Note[] = [];
+  out.forEach((n, i) => {
+    const p = out[i - 1];
+    if (!p || n.n - p.n < (opts.minLeap ?? 4) || n.t - p.t <= len * 2) return;
+    p.d = Math.min(p.d, n.t - len - p.t);
+    extra.push({ t: n.t - len, d: len, n: n.n + (opts.semis ?? -2), v: n.v * 0.7 });
+  });
+  return byTime([...out, ...extra]);
+}
+
+const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] };
+
+/**
+ * Harmonise a line in a key: each note moves `steps` degrees along the scale (-2 is a third below, -5 a sixth
+ * below, 2 a third above); notes outside the scale keep their offset from the degree below them.
+ */
+export function harmony(
+  notes: Note[],
+  key: string,
+  steps: number,
+  scale: keyof typeof SCALES = 'major',
+): Note[] {
+  const deg = SCALES[scale];
+  const tonic = midi(`${key}0`);
+  return notes.map((note) => {
+    const rel = note.n - tonic;
+    const within = ((rel % 12) + 12) % 12;
+    let i = deg.length - 1;
+    while (deg[i]! > within) i--;
+    const d = Math.floor(rel / 12) * 7 + i + steps;
+    const oct = Math.floor(d / 7);
+    return { ...note, n: tonic + oct * 12 + deg[d - oct * 7]! + (within - deg[i]!) };
+  });
+}
+
+/**
+ * A drum roll from `start` for `beats`, one hit every `step`, velocity rising from `from` to `to` along a curve
+ * (slow, then fast, like a player building; `curve` 1 is a straight line), with hits on the beat leaning in.
+ */
+export function roll(
+  start: number,
+  beats: number,
+  opts: { step?: number; from?: number; to?: number; n?: number; curve?: number } = {},
+): Note[] {
+  const step = opts.step ?? 0.25;
+  const from = opts.from ?? 0.35;
+  const to = opts.to ?? 1;
+  const count = Math.round(beats / step);
+  return Array.from({ length: count }, (_, k) => {
+    const v = from + (to - from) * (k / Math.max(1, count - 1)) ** (opts.curve ?? 1.6);
+    return {
+      t: start + k * step,
+      d: step,
+      n: opts.n ?? 0,
+      v: Math.min(1, near((k * step) % 1, 0) ? v * 1.1 : v),
+    };
+  });
+}
+
+/** One note `beats` long that ends exactly at `end`: for risers and reverse cymbals that land on a downbeat. */
+export function swell(end: number, beats: number, v = 0.8): Note[] {
+  return [{ t: end - beats, d: beats, n: 60, v }];
 }

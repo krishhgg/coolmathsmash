@@ -4,7 +4,16 @@ import { neutralInput, type InputFrame } from '../input/types';
 import { activeHitboxes } from '../sim/combat/hits';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { hintsFor, type CpuHints } from './hints';
-import { AERIALS, AIR_INPUTS, GROUND_INPUTS, GROUND_MOVES, SPECIALS, STICK, press } from './inputs';
+import {
+  AERIALS,
+  AIR_INPUTS,
+  DASH_INPUTS,
+  GROUND_INPUTS,
+  GROUND_MOVES,
+  SPECIALS,
+  STICK,
+  press,
+} from './inputs';
 import { stageInfo } from './stage';
 
 /**
@@ -58,7 +67,7 @@ export interface FighterKnowledge {
   def: FighterDef;
   stats: FighterStats;
   hints: CpuHints;
-  /** Probes by move name, for grounded starts (normals, smashes, specials) and the dash attack. */
+  /** Probes by move name, for grounded starts (normals, smashes, specials, the grab) and out of a dash. */
   ground: Record<string, MoveProbe>;
   /** Probes by move name, started in mid-air (aerials and specials). */
   air: Record<string, MoveProbe>;
@@ -99,9 +108,10 @@ export function knowledge(fighterId: string, stageId: string): FighterKnowledge 
     const p = probe(def, stageId, name, 'ground');
     if (p) ground[name] = p;
   }
-  if (moves.dashAttack && !avoid.has('dashAttack')) {
-    const p = probe(def, stageId, 'dashAttack', 'dash');
-    if (p) ground.dashAttack = p;
+  for (const name of Object.keys(DASH_INPUTS)) {
+    if (!moves[name] || avoid.has(name)) continue;
+    const p = probe(def, stageId, name, 'dash');
+    if (p) ground[name] = p;
   }
   for (const name of [...AERIALS, ...SPECIALS]) {
     if (!moves[name] || avoid.has(name)) continue;
@@ -155,7 +165,7 @@ function probe(def: FighterDef, stageId: string, move: string, start: MoveProbe[
     start === 'air'
       ? AIR_INPUTS[move]
       : start === 'dash'
-        ? { x: STICK.full, buttons: 1 }
+        ? { x: STICK.full, ...DASH_INPUTS[move] }
         : GROUND_INPUTS[move];
   if (!input) return null;
   step(press(input));

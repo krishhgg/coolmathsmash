@@ -3,7 +3,7 @@
  * `<name>.png` at the capture frame, and for scenarios with a motion window a filmstrip (`<name>.strip.png`,
  * for judges), a GIF (Drive) and an H.264 MP4 (PR uploads), plus `manifest.json`. See docs/hill-climb.md.
  *
- *   npm run capture -- [--only idle,run,redball-*] [--out captures/<run>] [--url <base>] [--build] [--keep-frames]
+ *   npm run capture -- [--only idle,run,redball-*] [--out captures/<run>] [--url <base>] [--build] [--keep-frames] [--quality full|lite]
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -33,8 +33,13 @@ const { values: args } = parseArgs({
     url: { type: 'string' },
     build: { type: 'boolean', default: false },
     'keep-frames': { type: 'boolean', default: false },
+    quality: { type: 'string' },
   },
 });
+
+if (args.quality !== undefined && args.quality !== 'full' && args.quality !== 'lite')
+  throw new Error('--quality must be full or lite');
+const gameQuery = `?harness&quality=${args.quality ?? 'lite'}`;
 
 const root = resolve(import.meta.dirname, '..');
 const git = gitInfo();
@@ -93,7 +98,7 @@ function save(name: string, bytes: Buffer): string {
 }
 
 async function captureGame(page: Page, base: string, s: GameScenarioInfo): Promise<CaptureRecord> {
-  const url = `${base}?harness`;
+  const url = `${base}${gameQuery}`;
   const rec: CaptureRecord = {
     name: s.name,
     description: s.description,
@@ -221,7 +226,7 @@ async function main(): Promise<number> {
     const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
-    await open(page, `${base}?harness`);
+    await open(page, `${base}${gameQuery}`);
     const all = await page.evaluate(() => window.__smash!.scenarios());
     const only = args.only
       ?.split(',')

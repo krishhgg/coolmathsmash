@@ -32,8 +32,9 @@ const away = 'away' as const;
 /**
  * Papa Louie's normals (roster: handoffs/research/roster.md, "1. Papa Louie"). Every strike is his wooden pizza
  * paddle, so the far box (id 0) is the paddle's face, out past his arm, and the near box is the handle. Damage and
- * startup follow the roster's table; the rest is Ultimate middleweight frame data (Mario's and Ness's shapes),
- * tuned so the roster's kill percents hold against Mario in the middle of Battlefield (papa-louie.test.ts).
+ * startup follow the roster's table. Angle, BKB and KBG come from each move's Ultimate analogue (Mario's moves, and
+ * Luigi's 9% forward tilt for the Peel Swipe; 13.0.1 data from dragdown.wiki); papa-louie.test.ts pins the kill
+ * moves to their analogues with koPercent.
  */
 export const moves: Record<string, MoveDef> = {
   /** Paddle Poke: a short jab with the paddle's tip. The far box pulls in so the second poke connects. */
@@ -45,7 +46,7 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [4, 5],
         boxes: [
-          box(0, 7, 8, 3, { damage: 2.5, angle: 361, kbg: 25, bkb: 20 }),
+          box(0, 7, 8, 3, { damage: 2.5, angle: 361, kbg: 30, bkb: 20 }),
           box(1, 11.5, 8, 3.5, { damage: 2.5, angle: 180, kbg: 20, bkb: 15 }),
         ],
       },
@@ -60,8 +61,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [4, 5],
         boxes: [
-          box(0, 7, 8, 3, { damage: 2, angle: 361, kbg: 25, bkb: 20 }),
-          box(1, 11.5, 8, 3.5, { damage: 2, angle: 180, kbg: 20, bkb: 15 }),
+          box(0, 7, 8, 3, { damage: 2, angle: 361, kbg: 30, bkb: 20 }),
+          box(1, 11.5, 8, 3.5, { damage: 2, angle: 180, kbg: 15, bkb: 15 }),
         ],
       },
     ],
@@ -74,8 +75,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [5, 6],
         boxes: [
-          box(0, 12, 8, 4.5, { damage: 4, angle: 361, kbg: 110, bkb: 40 }),
-          box(1, 6.5, 8, 3.5, { damage: 4, angle: 361, kbg: 110, bkb: 40 }),
+          box(0, 12, 8, 4.5, { damage: 4, angle: 361, kbg: 80, bkb: 60 }),
+          box(1, 6.5, 8, 3.5, { damage: 4, angle: 361, kbg: 80, bkb: 60 }),
         ],
       },
     ],
@@ -88,8 +89,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [7, 9],
         boxes: [
-          box(0, 15, 7.5, 4, { damage: 9, angle: 361, kbg: 98, bkb: 10 }),
-          box(1, 9, 7.5, 3.5, { damage: 8, angle: 361, kbg: 98, bkb: 8 }),
+          box(0, 15, 7.5, 4, { damage: 9, angle: 361, kbg: 75, bkb: 50 }),
+          box(1, 9, 7.5, 3.5, { damage: 8, angle: 361, kbg: 75, bkb: 50 }),
         ],
       },
     ],
@@ -114,8 +115,8 @@ export const moves: Record<string, MoveDef> = {
         frames: [15, 17],
         rehit: true,
         boxes: [
-          box(0, 1.5, 16, 6.5, { damage: 4, angle: 88, kbg: 120, bkb: 45, direction: away }),
-          box(1, 7, 11, 4.5, { damage: 4, angle: 88, kbg: 120, bkb: 45, direction: away }),
+          box(0, 1.5, 16, 6.5, { damage: 4, angle: 96, kbg: 130, bkb: 28, direction: away }),
+          box(1, 7, 11, 4.5, { damage: 4, angle: 96, kbg: 130, bkb: 28, direction: away }),
         ],
       },
     ],
@@ -128,8 +129,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [6, 8],
         boxes: [
-          box(0, 14, 1.5, 3.5, { damage: 7, angle: 25, kbg: 55, bkb: 45 }),
-          box(1, 8, 2, 3, { damage: 6, angle: 25, kbg: 55, bkb: 40 }),
+          box(0, 14, 1.5, 3.5, { damage: 7, angle: 25, kbg: 80, bkb: 35 }),
+          box(1, 8, 2, 3, { damage: 6, angle: 25, kbg: 80, bkb: 35 }),
         ],
       },
     ],
@@ -142,13 +143,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [8, 11],
         boxes: [
-          box(0, 12, 6, 4.5, { damage: 10, angle: 50, kbg: 75, bkb: 62 }),
-          box(1, 5, 6, 4, { damage: 10, angle: 50, kbg: 75, bkb: 62 }),
+          box(0, 12, 6, 4.5, { damage: 10, angle: 50, kbg: 43, bkb: 100 }),
+          box(1, 5, 6, 4, { damage: 10, angle: 50, kbg: 43, bkb: 100 }),
         ],
       },
       {
         frames: [12, 20],
-        boxes: [box(0, 10, 5, 4.5, { damage: 6, angle: 60, kbg: 70, bkb: 45 })],
+        boxes: [box(0, 10, 5, 4.5, { damage: 6, angle: 48, kbg: 30, bkb: 100 })],
       },
     ],
   },
@@ -164,8 +165,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [15, 17],
         boxes: [
-          box(0, 15.5, 8, 5, { damage: 17, angle: 361, kbg: 99, bkb: 30 }),
-          box(1, 8.5, 9, 3.5, { damage: 14, angle: 361, kbg: 99, bkb: 25 }),
+          box(0, 15.5, 8, 5, { damage: 17, angle: 361, kbg: 99, bkb: 25 }),
+          box(1, 8.5, 9, 3.5, { damage: 14, angle: 361, kbg: 105, bkb: 25 }),
         ],
       },
     ],
@@ -179,8 +180,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [11, 14],
         boxes: [
-          box(0, 2, 18, 6, { damage: 15, angle: 88, kbg: 96, bkb: 33, direction: away }),
-          box(1, 8, 10, 4.5, { damage: 15, angle: 88, kbg: 96, bkb: 33, direction: away }),
+          box(0, 2, 18, 6, { damage: 15, angle: 83, kbg: 94, bkb: 32, direction: away }),
+          box(1, 8, 10, 4.5, { damage: 15, angle: 83, kbg: 94, bkb: 32, direction: away }),
         ],
       },
     ],
@@ -194,15 +195,15 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [8, 9],
         boxes: [
-          box(0, 14, 2.5, 4.5, { damage: 13, angle: 30, kbg: 96, bkb: 26 }),
-          box(1, 7, 3, 3.5, { damage: 11, angle: 30, kbg: 96, bkb: 26 }),
+          box(0, 14, 2.5, 4.5, { damage: 13, angle: 32, kbg: 100, bkb: 30 }),
+          box(1, 7, 3, 3.5, { damage: 11, angle: 32, kbg: 100, bkb: 30 }),
         ],
       },
       {
         frames: [14, 15],
         boxes: [
-          box(0, -14, 2.5, 4.5, { damage: 13, angle: 30, kbg: 96, bkb: 26, direction: 'back' }),
-          box(1, -7, 3, 3.5, { damage: 11, angle: 30, kbg: 96, bkb: 26, direction: 'back' }),
+          box(0, -14, 2.5, 4.5, { damage: 13, angle: 30, kbg: 100, bkb: 30, direction: 'back' }),
+          box(1, -7, 3, 3.5, { damage: 11, angle: 30, kbg: 100, bkb: 30, direction: 'back' }),
         ],
       },
     ],
@@ -213,10 +214,10 @@ export const moves: Record<string, MoveDef> = {
     faf: 46,
     intangible: [1, 26],
     hits: [
-      { frames: [17, 18], boxes: [box(0, 10, 3, 5, { damage: 7, angle: 361, kbg: 48, bkb: 80 })] },
+      { frames: [17, 18], boxes: [box(0, 10, 3, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80 })] },
       {
         frames: [25, 26],
-        boxes: [box(0, -10, 3, 5, { damage: 7, angle: 361, kbg: 48, bkb: 80, direction: 'back' })],
+        boxes: [box(0, -10, 3, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80, direction: 'back' })],
       },
     ],
   },
@@ -233,15 +234,15 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [5, 7],
         boxes: [
-          box(0, 5, 7.5, 5.5, { damage: 8, angle: 361, kbg: 100, bkb: 10, direction: away }),
-          box(1, -4, 7.5, 5, { damage: 8, angle: 361, kbg: 100, bkb: 10, direction: away }),
+          box(0, 5, 7.5, 5.5, { damage: 8, angle: 361, kbg: 100, bkb: 20, direction: away }),
+          box(1, -4, 7.5, 5, { damage: 8, angle: 361, kbg: 100, bkb: 20, direction: away }),
         ],
       },
       {
         frames: [8, 25],
         boxes: [
-          box(0, 4.5, 7.5, 5, { damage: 5, angle: 361, kbg: 100, bkb: 8, direction: away }),
-          box(1, -3.5, 7.5, 4.5, { damage: 5, angle: 361, kbg: 100, bkb: 8, direction: away }),
+          box(0, 4.5, 7.5, 5, { damage: 5, angle: 361, kbg: 90, bkb: 13, direction: away }),
+          box(1, -3.5, 7.5, 4.5, { damage: 5, angle: 361, kbg: 90, bkb: 13, direction: away }),
         ],
       },
     ],
@@ -262,15 +263,15 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [10, 11],
         boxes: [
-          box(0, 10, 14, 4.5, { damage: 12, angle: 361, kbg: 90, bkb: 30 }),
-          box(1, 5, 11, 3.5, { damage: 10, angle: 361, kbg: 90, bkb: 25 }),
+          box(0, 10, 14, 4.5, { damage: 12, angle: 361, kbg: 80, bkb: 30 }),
+          box(1, 5, 11, 3.5, { damage: 10, angle: 361, kbg: 80, bkb: 20 }),
         ],
       },
       {
         frames: [12, 14],
         boxes: [
-          box(0, 12.5, 3.5, 4, { damage: 12, angle: 285, kbg: 75, bkb: 20 }),
-          box(1, 7, 7.5, 3.5, { damage: 10, angle: 361, kbg: 90, bkb: 25 }),
+          box(0, 12.5, 3.5, 4, { damage: 12, angle: 280, kbg: 78, bkb: 32 }),
+          box(1, 7, 7.5, 3.5, { damage: 10, angle: 361, kbg: 80, bkb: 20 }),
         ],
       },
     ],
@@ -288,8 +289,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [7, 9],
         boxes: [
-          box(0, -12.5, 8, 4.5, { damage: 11, angle: 361, kbg: 100, bkb: 14, direction: 'back' }),
-          box(1, -6.5, 8, 3.5, { damage: 9, angle: 361, kbg: 100, bkb: 10, direction: 'back' }),
+          box(0, -12.5, 8, 4.5, { damage: 11, angle: 361, kbg: 106, bkb: 12, direction: 'back' }),
+          box(1, -6.5, 8, 3.5, { damage: 9, angle: 361, kbg: 106, bkb: 12, direction: 'back' }),
         ],
       },
     ],
@@ -307,8 +308,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [5, 8],
         boxes: [
-          box(0, 1, 18, 5.5, { damage: 8, angle: 75, kbg: 115, bkb: 30, direction: away }),
-          box(1, 6, 13.5, 4, { damage: 8, angle: 75, kbg: 115, bkb: 30, direction: away }),
+          box(0, 1, 18, 5.5, { damage: 8, angle: 75, kbg: 135, bkb: 10, direction: away }),
+          box(1, 6, 13.5, 4, { damage: 8, angle: 75, kbg: 135, bkb: 10, direction: away }),
         ],
       },
     ],
@@ -350,28 +351,28 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 30,
     hits: [],
-    throw: { frame: 13, hit: { damage: 9, angle: 40, kbg: 70, bkb: 60 } },
+    throw: { frame: 13, hit: { damage: 9, angle: 45, kbg: 65, bkb: 60 } },
   },
   /** Brick Oven: turns and shoves the opponent into an oven door behind him; his kill throw near the ledge. */
   bthrow: {
     kind: 'other',
     faf: 52,
     hits: [],
-    throw: { frame: 30, hit: { damage: 11, angle: 45, kbg: 78, bkb: 55, effect: fire, direction: 'back' } },
+    throw: { frame: 30, hit: { damage: 11, angle: 45, kbg: 66, bkb: 70, effect: fire, direction: 'back' } },
   },
   /** Dough Spin: spins the opponent overhead like pizza dough and tosses them up; a combo throw at low %. */
   uthrow: {
     kind: 'other',
     faf: 38,
     hits: [],
-    throw: { frame: 20, hit: { damage: 8, angle: 88, kbg: 70, bkb: 62 } },
+    throw: { frame: 20, hit: { damage: 8, angle: 90, kbg: 72, bkb: 70 } },
   },
   /** Boxed Up: folds the opponent into a pizza box and stomps the lid; pops them up for a follow-up. */
   dthrow: {
     kind: 'other',
     faf: 40,
     hits: [],
-    throw: { frame: 22, hit: { damage: 6, angle: 80, kbg: 50, bkb: 60 } },
+    throw: { frame: 22, hit: { damage: 6, angle: 68, kbg: 90, bkb: 40 } },
   },
   /**
    * Paddle Propeller (up special): spins the paddle overhead like a rotor and rises about 60 units, five 1% hits
