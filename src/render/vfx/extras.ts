@@ -50,6 +50,7 @@ export function chargeShapes(
   const period = Math.round(8 - 4 * full);
   const beat = Math.sin((Math.PI * (frame % period)) / period);
   const s = (1.6 + 1.2 * full) * (0.75 + 0.35 * beat);
+  out.push({ type: 'circle', x: hx, y: hy, r: s * 0.9, fill: { color: 0xffe066, alpha: 0.55 } });
   out.push({
     type: 'poly',
     points: twinkle(hx, hy, s * 1.6, s * 1.6, s * 0.3, Math.PI / 4),
@@ -108,8 +109,8 @@ export function chargeReleaseShapes(x: number, y: number, age: number, seed: num
 
 /**
  * Ultimate's respawn platform under the fighter's feet (`x`, `y`, y down), scaled by `k` (0 to 1) as it appears and
- * fades: a soft glow, a half-clear port-coloured disc with a bright rim and a pulsing white edge accent, light
- * falling from it, and two sparkles at the feet.
+ * fades: a soft glow and one light cone below, a half-clear port-coloured disc with a white core band, a thick
+ * port-coloured front rim, a pulsing white back edge and a dark outline, and two sparkles at the feet.
  */
 export function haloShapes(x: number, y: number, color: number, frame: number, k: number): Shape[] {
   const s = clamp01(k);
@@ -118,42 +119,31 @@ export function haloShapes(x: number, y: number, color: number, frame: number, k
   const ry = 2 * s;
   const cy = y + 1.3;
   const light = mix(color, 0xffffff, 0.6);
-  const dark = mix(color, 0x000000, 0.55);
+  const dark = mix(color, 0x000000, 0.6);
   const pulse = 0.5 + 0.5 * Math.sin((frame * TAU) / 16);
   const out: Shape[] = [
-    { type: 'ellipse', x, y: cy, rx: rx * 1.35, ry: ry * 2, fill: { color: light, alpha: 0.25 * s } },
-  ];
-  for (let i = 0; i < 3; i++) {
-    const off = (i - 1) * rx * 0.55;
-    const len = 7 + 2 * Math.sin(frame * 0.15 + i * 2);
-    out.push({
+    { type: 'ellipse', x, y: cy, rx: rx * 1.35, ry: ry * 2, fill: { color: light, alpha: 0.3 * s } },
+    {
       type: 'poly',
-      points: [x + off - 1.6 * s, cy, x + off + 1.6 * s, cy, x + off * 1.3, cy + len * s],
-      fill: { color: light, alpha: 0.55 },
-      line: { color: dark, width: 0.12, alpha: 0.35 },
-    });
-  }
-  out.push({
-    type: 'ellipse',
-    x,
-    y: cy,
-    rx,
-    ry,
-    fill: { color, alpha: 0.5 },
-    line: { color: dark, width: 0.3 },
-  });
-  out.push({
-    type: 'poly',
-    points: ellipseArc(x, cy, rx * 0.92, ry * 0.75, 0.05, Math.PI - 0.05),
-    open: true,
-    line: { color: light, width: 0.45 },
-  });
-  out.push({
-    type: 'poly',
-    points: ellipseArc(x, cy, rx * 0.92, ry * 0.75, Math.PI + 0.25, TAU - 0.25),
-    open: true,
-    line: { color: 0xeafcff, width: 0.35 + 0.2 * pulse, alpha: 0.6 + 0.4 * pulse },
-  });
+      points: [x - rx * 0.8, cy, x + rx * 0.8, cy, x + rx * 0.3, cy + 6 * s, x - rx * 0.3, cy + 6 * s],
+      fill: { color: light, alpha: 0.35 },
+    },
+    { type: 'ellipse', x, y: cy, rx, ry, fill: { color, alpha: 0.55 } },
+    { type: 'ellipse', x, y: cy - 0.1, rx: rx * 0.7, ry: ry * 0.45, fill: { color: 0xffffff, alpha: 0.85 } },
+    {
+      type: 'poly',
+      points: ellipseArc(x, cy, rx * 0.94, ry * 0.8, 0.05, Math.PI - 0.05),
+      open: true,
+      line: { color: mix(color, 0xffffff, 0.25), width: 0.6 },
+    },
+    {
+      type: 'poly',
+      points: ellipseArc(x, cy, rx * 0.92, ry * 0.75, Math.PI + 0.25, TAU - 0.25),
+      open: true,
+      line: { color: 0xffffff, width: 0.35 + 0.2 * pulse, alpha: 0.6 + 0.4 * pulse },
+    },
+    { type: 'ellipse', x, y: cy, rx, ry, line: { color: dark, width: 0.25 } },
+  ];
   for (const side of [-1, 1]) {
     const phase = (frame + (side > 0 ? 6 : 0)) % 12;
     const z = Math.sin((Math.PI * phase) / 12) * s;

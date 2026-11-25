@@ -29,10 +29,12 @@ that does not follow the last stepped one, starts from no effects. No `Math.rand
 ## Layers
 
 `VfxView` draws `behind` the fighters (respawn platform, dust and launch smoke, speed lines), in `front` of them (hit
-sparks, shield shatters, charge sparkle and release flash) and on `screen` above the world (KO blasts). `FighterView`
-draws what sits on a fighter, from `fighterFx`: the shield bubble (`shieldBubbleShapes`), the jitter offset of body
-and bubble, and a colour flash (smash charge, respawn invincibility) through a `ColorMatrixFilter`. Screen shake is
-the camera's (`SHAKE` and `shakesFrom` in `src/render/camera.ts`); the effects add none of their own.
+sparks, shield shatters, charge sparkle and release flash) and `screen` (KO blasts, in screen pixels). The renderer
+puts `screen` in the world just above the stage, with the camera transform undone, so the beam crosses the screen
+behind the fighters and their tags. `FighterView` draws what sits on a fighter, from `fighterFx`: the shield bubble
+(`shieldBubbleShapes`), the jitter offset of body and bubble, and a colour flash (smash charge, respawn
+invincibility) through a `ColorMatrixFilter`. Screen shake is the camera's (`SHAKE` and `shakesFrom` in
+`src/render/camera.ts`); the effects add none of their own.
 
 ## Tuning
 
@@ -41,8 +43,8 @@ the camera's (`SHAKE` and `shakesFrom` in `src/render/camera.ts`); the effects a
 | Hit spark     | `hitPower(kb, damage)` in [0, 1]: radius 3-6.2 units, life 10-22 frames, streaks from 0.45       |
 | Hitlag jitter | victim ±1.5 units along the knockback axis, attacker ±0.75, fading to 0 at launch; shield ±0.5   |
 | Launch smoke  | knockback speed from 2.4 units/frame (density, puff size and life grow up to 7); speed lines 5.5 |
-| KO blast      | 44 frames: shoots across in 4, holds, pinches out from frame 24; the KO'd trail shrinks over 6   |
-| Smash charge  | flash toward #FFF4B0 every 8 frames, down to every 4 at full charge; ±0.15 units sideways shake  |
+| KO blast      | 34 frames: shoots across in 4, holds until 12, fades by 34; the KO'd trail shrinks over 6        |
+| Smash charge  | flash toward #FFF4B0 for 2 of every 8 frames, down to 1 of 4 at full charge; ±0.15 units shake   |
 
 Capture scenarios for each effect: `hit-spark`, `hit-spark-weak`, `launch-smoke`, `ko-blast`, `shield-hit`,
 `shield-break`, `smash-charge`, `respawn-halo` and `land-dust` (`npm run capture -- --only <names>`).

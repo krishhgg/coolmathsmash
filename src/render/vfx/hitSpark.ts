@@ -93,13 +93,21 @@ export function hitSparkShapes(s: HitSpark, frame: number): Shape[] {
   const ringLife = 6 + Math.round(4 * s.power);
   if (s.style !== 'shield' && s.power >= 0.4 && age - 2 < ringLife) {
     const t = (age - 2) / ringLife;
-    out.push({
-      type: 'circle',
-      x: cx,
-      y: cy,
-      r: s.size * (0.7 + 0.8 * easeOut(t)),
-      line: { color: p.ring, width: s.size * lerp(0.1, 0.02, t), alpha: 1 - t * t },
-    });
+    const r = s.size * (0.7 + 0.8 * easeOut(t));
+    for (const side of [1, -1]) {
+      const mid = s.lean + (side * Math.PI) / 2;
+      const pts: number[] = [];
+      for (let k = 0; k <= 8; k++) {
+        const a = mid + ((k - 4) / 4) * 0.8;
+        pts.push(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      }
+      out.push({
+        type: 'poly',
+        points: pts,
+        open: true,
+        line: { color: p.ring, width: s.size * lerp(0.1, 0.02, t), alpha: 0.6 * (1 - t * t) },
+      });
+    }
   }
   return out;
 }

@@ -17,8 +17,8 @@ export const portColor = (port: number): number => hex(PORT_COLORS[port % PORT_C
 
 /**
  * Draws the effects in three layers: `behind` the fighters in the world (respawn halos, dust, launch smoke and speed
- * lines), in `front` of them (hit sparks, shield shatters, smash-charge sparkle and release flash), and on `screen`
- * above the world (KO blasts, in pixels).
+ * lines), in `front` of them (hit sparks, shield shatters, smash-charge sparkle and release flash), and `screen`
+ * (KO blasts, in screen pixels; the renderer puts it in the world behind the fighters and undoes the camera on it).
  */
 export class VfxView {
   readonly behind = new Graphics();

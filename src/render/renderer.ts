@@ -72,13 +72,14 @@ export class Renderer {
     this.world.addChild(
       this.stageLayer,
       this.stagePieces,
+      this.vfxView.screen,
       this.vfxView.behind,
       this.fighterLayer,
       this.vfxView.front,
       this.foregroundLayer,
       this.boxes,
     );
-    app.stage.addChild(new Sprite(this.backdrop), this.world, this.vfxView.screen, this.hud, this.debug);
+    app.stage.addChild(new Sprite(this.backdrop), this.world, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
     this.hud.addChild(this.matchHud.hud.container);
   }
@@ -146,6 +147,8 @@ export class Renderer {
     const view = this.camera.viewFor(state, this.stage!);
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
+    this.vfxView.screen.scale.set(1 / view.zoom);
+    this.vfxView.screen.position.set(-this.world.x / view.zoom, -this.world.y / view.zoom);
     this.stageView?.update(state.frame, view);
     drawMovingPieces(this.stagePieces, this.stage!, state.stage, state.frame, alpha);
     state.fighters.forEach((f, i) =>

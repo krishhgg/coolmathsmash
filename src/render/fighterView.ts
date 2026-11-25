@@ -131,29 +131,13 @@ export class FighterView {
     const k = fx.flash?.amount ?? 0;
     if (k > 0) {
       const c = fx.flash!.color;
-      const ch = (shift: number) => (k * ((c >> shift) & 255)) / 255;
-      this.flash.matrix = [
-        1 - k,
-        0,
-        0,
-        0,
-        ch(16),
-        0,
-        1 - k,
-        0,
-        0,
-        ch(8),
-        0,
-        0,
-        1 - k,
-        0,
-        ch(0),
-        0,
-        0,
-        0,
-        1,
-        0,
-      ];
+      const row = (shift: number, i: 0 | 1 | 2): [number, number, number, number, number] => {
+        const w = (2 * k * ((c >> shift) & 255)) / 255;
+        const r: [number, number, number, number, number] = [w * 0.3, w * 0.59, w * 0.11, 0, 0];
+        r[i] += 1 - k;
+        return r;
+      };
+      this.flash.matrix = [...row(16, 0), ...row(8, 1), ...row(0, 2), 0, 0, 0, 1, 0];
     }
     this.body.filters = k > 0 ? [this.flash] : [];
     this.shield.clear();
@@ -163,7 +147,15 @@ export class FighterView {
       if (r > 0)
         paint(
           this.shield,
-          shieldBubbleShapes(0, -this.def.stats.height / 2, r, hex(this.shieldColor), frame, fx.shieldHit, cracked),
+          shieldBubbleShapes(
+            0,
+            -this.def.stats.height / 2,
+            r,
+            hex(this.shieldColor),
+            frame,
+            fx.shieldHit,
+            cracked,
+          ),
         );
     }
     this.label.visible = debug;

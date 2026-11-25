@@ -106,7 +106,7 @@ export function stepVfx(v: VfxState, m: MatchState): void {
       }
       case 'land': {
         const f = m.fighters[e.port]!;
-        v.puffs.push(...dustPuffs(f.pos.x, f.pos.y, frame, e.port, e.lag > 4 ? 4 : 3, 0.7, 1.7));
+        v.puffs.push(...dustPuffs(f.pos.x, f.pos.y, frame, e.port, 3, e.lag > 4 ? 0.6 : 0.45, 1.6));
         break;
       }
       case 'action':
@@ -139,7 +139,8 @@ export function shieldPulse(v: VfxState, port: number): { age: number; power: nu
 
 /**
  * Effects drawn on a fighter itself: its hitlag (or smash-charge) jitter in world units, y up; the latest hit on its
- * shield; and a flash toward `color` by `amount` (0 to 1), which replaces the plain intangibility blink.
+ * shield; and a flash toward `color` by `amount` (0 to 1, weighted by brightness so outlines stay dark), which
+ * replaces the plain intangibility blink.
  */
 export interface FighterFx {
   jitter?: { x: number; y: number };
@@ -158,7 +159,7 @@ export function fighterFx(v: VfxState, f: FighterState, frame: number): FighterF
   };
   if (charging(f)) {
     const period = Math.round(8 - 4 * Math.min(1, f.charge / 60));
-    fx.flash = { color: CHARGE_FLASH, amount: frame % period < (period > 5 ? 3 : 2) ? 0.6 : 0 };
+    fx.flash = { color: CHARGE_FLASH, amount: frame % period < (period >= 6 ? 2 : 1) ? 0.5 : 0 };
     fx.jitter = { x: fx.jitter!.x + (frame % 2 ? -CHARGE_JITTER : CHARGE_JITTER), y: fx.jitter!.y };
   } else if (f.action === 'respawn' || f.intangible > 0) {
     fx.flash = { color: 0xffffff, amount: frame % 6 < 2 ? 0.7 : 0 };

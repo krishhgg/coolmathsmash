@@ -16,7 +16,7 @@ export interface ShieldBurst {
 }
 
 export const SHIELD_HIT_LIFE = 6;
-export const SHIELD_BREAK_LIFE = 36;
+export const SHIELD_BREAK_LIFE = 22;
 /** A shield at 0 HP keeps this share of its full size, cracked and blinking, until it shatters from there. */
 export const CRACKED_SHIELD = 0.45;
 
@@ -41,8 +41,8 @@ export function spawnShieldBreak(port: number, frame: number, x: number, y: numb
 }
 
 /**
- * Ultimate's shield bubble as flat Flash layers: a clear port-coloured tint, a bright rim in a lighter tint inside a
- * dark outline, and one white highlight at 10-11 o'clock. A recent hit (`hit`, frames since it landed) fills it
+ * Ultimate's shield bubble as flat Flash layers: a port-coloured tint that deepens toward the edge, a soft glow
+ * outside it, a bright rim in a lighter tint inside a dark port-shade outline, and one white highlight at 10-11 o'clock. A recent hit (`hit`, frames since it landed) fills it
  * white for 5 frames and sends one ripple out from the rim; a `cracked` (empty) shield blinks its rim and shows
  * two cracks. Centre (`cx`, `cy`) in the fighter's space, y down.
  */
@@ -57,12 +57,14 @@ export function shieldBubbleShapes(
 ): Shape[] {
   const rr = r * (1 + 0.012 * Math.sin(frame * 0.21));
   const rim = Math.max(0.3, r * 0.08);
-  const dark = mix(color, 0x000000, 0.55);
-  const rimColor = cracked && frame % 4 < 2 ? 0xffffff : mix(color, 0xffffff, 0.45);
+  const dark = mix(color, 0x000000, 0.45);
+  const rimColor = cracked && frame % 4 < 2 ? 0xffffff : mix(color, 0xffffff, 0.55);
   const out: Shape[] = [
-    { type: 'ellipse', x: cx, y: cy, rx: rr, ry: rr, fill: { color, alpha: 0.24 } },
-    { type: 'circle', x: cx, y: cy, r: rr - rim / 2, line: { color: rimColor, width: rim } },
-    { type: 'circle', x: cx, y: cy, r: rr, line: { color: dark, width: 0.28 } },
+    { type: 'ellipse', x: cx, y: cy, rx: rr, ry: rr, fill: { color, alpha: 0.34 } },
+    { type: 'circle', x: cx, y: cy, r: rr + 0.45, line: { color, width: 0.9, alpha: 0.25 } },
+    { type: 'circle', x: cx, y: cy, r: rr * 0.9, line: { color, width: rr * 0.2, alpha: 0.35 } },
+    { type: 'circle', x: cx, y: cy, r: rr - rim / 2, line: { color: rimColor, width: rim, alpha: 0.9 } },
+    { type: 'circle', x: cx, y: cy, r: rr, line: { color: dark, width: 0.22 } },
     {
       type: 'poly',
       points: arcBand(cx, cy, rr * 0.64, rr * 0.76, -2.75, -2.0),
@@ -114,7 +116,7 @@ export function shieldBreakShapes(b: ShieldBurst, color: number, frame: number):
   const dark = mix(color, 0x000000, 0.55);
   const light = mix(color, 0xffffff, 0.5);
   const t = age / SHIELD_BREAK_LIFE;
-  const fall = 0.018 * age * age;
+  const fall = 0.04 * age * age;
   const out: Shape[] = [];
   if (age < 6) {
     const k = age < 2 ? 0.7 + 0.15 * age : 1 - (age - 2) / 4;
@@ -144,7 +146,7 @@ export function shieldBreakShapes(b: ShieldBurst, color: number, frame: number):
     const span = (TAU / pieces) * (0.7 + 0.2 * rand(b.seed, 60 + i));
     const a0 = spin0 + (i / pieces) * TAU;
     const mid = a0 + span / 2;
-    const dist = b.r * (0.06 + 0.05 * rand(b.seed, 20 + i)) * age * (1 - age / (2.4 * SHIELD_BREAK_LIFE));
+    const dist = b.r * (0.12 + 0.08 * rand(b.seed, 20 + i)) * age * (1 - age / (2 * SHIELD_BREAK_LIFE));
     const thick = Math.max(0.3, rim * 0.28) * (1 - clamp01((t - 0.5) / 0.5));
     if (thick < 0.08) continue;
     const turn = signed(b.seed, 40 + i) * 0.03 * age;
@@ -165,8 +167,7 @@ export function shieldBreakShapes(b: ShieldBurst, color: number, frame: number):
   }
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * TAU + signed(b.seed, 10 + i) * 0.3;
-    const dist =
-      rim + b.r * (0.09 + 0.08 * rand(b.seed, 30 + i)) * age * (1 - age / (2.4 * SHIELD_BREAK_LIFE));
+    const dist = rim + b.r * (0.16 + 0.1 * rand(b.seed, 30 + i)) * age * (1 - age / (2 * SHIELD_BREAK_LIFE));
     const x = cx + Math.cos(a) * dist;
     const y = cy + Math.sin(a) * dist + fall;
     const size = b.r * lerp(0.1, 0.2, rand(b.seed, 50 + i)) * (1 - clamp01((t - 0.55) / 0.45));
@@ -185,14 +186,14 @@ export function shieldBreakShapes(b: ShieldBurst, color: number, frame: number):
       line: { color: dark, width: 0.2 },
     });
   }
-  if (age < 14) {
-    const k = age / 14;
+  if (age < 8) {
+    const k = age / 8;
     out.push({
       type: 'circle',
       x: cx,
       y: cy,
       r: rim + b.r * 1.3 * easeOut(k),
-      line: { color: 0xffffff, width: b.r * 0.1 * (1 - k), alpha: 1 - k * k },
+      line: { color: 0xffffff, width: b.r * 0.08 * (1 - k), alpha: 0.8 * (1 - k) },
     });
   }
   return out;

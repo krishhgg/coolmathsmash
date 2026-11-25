@@ -12,9 +12,9 @@ export interface KoBlast {
   seed: number;
 }
 
-export const KO_LIFE = 44;
-/** The beam reaches 1.25 screen diagonals back across the stage. */
-const BEAM_LENGTH = 1.25 * Math.hypot(VIEW_WIDTH, VIEW_HEIGHT);
+export const KO_LIFE = 34;
+/** The beam reaches one screen diagonal back across the stage, tapering to a point. */
+const BEAM_LENGTH = Math.hypot(VIEW_WIDTH, VIEW_HEIGHT);
 
 export function spawnKoBlast(port: number, frame: number, x: number, y: number): KoBlast {
   return { frame, port, x, y, seed: seedOf(frame, port, 7) };
@@ -36,9 +36,10 @@ export function koAnchor(ko: KoBlast, view: CameraView): { x: number; y: number;
 }
 
 /**
- * Ultimate's KO blast in screen pixels: a port-coloured cone of light, widest where it bursts in at the screen edge
- * and tapering across the whole screen, with a white core, speed streaks, twinkling sparkles and a starburst at the
- * edge. It shoots across in 4 frames, holds until frame 24, then pinches thin and vanishes over 20.
+ * Ultimate's KO blast in screen pixels: a translucent port-coloured cone of light, widest where it bursts in at the
+ * screen edge and tapering to a point across the screen, with a white core, speed streaks, twinkling sparkles and a
+ * starburst at the edge. It shoots across in 4 frames, holds until frame 12, then pinches thin and fades by 34. The
+ * renderer draws it behind the fighters, so the survivors and their tags stay in view.
  */
 export function koBlastShapes(ko: KoBlast, color: number, frame: number, view: CameraView): Shape[] {
   const age = frame - ko.frame;
@@ -46,8 +47,9 @@ export function koBlastShapes(ko: KoBlast, color: number, frame: number, view: C
   const { x: ax, y: ay, ux, uy } = koAnchor(ko, view);
   const a = Math.atan2(uy, ux);
   const reach = easeOut(age / 4);
-  const pinch = age < 24 ? 1 : 1 - clamp01((age - 24) / (KO_LIFE - 24)) ** 0.8;
-  const width = 420 * (age < 3 ? 0.65 + 0.12 * age : 1) * pinch;
+  const pinch = age < 12 ? 1 : 1 - clamp01((age - 12) / (KO_LIFE - 12)) ** 0.8;
+  const fade = age < 12 ? 1 : 1 - clamp01((age - 12) / (KO_LIFE - 12));
+  const width = 380 * (age < 3 ? 0.65 + 0.12 * age : 1) * pinch;
   const len = BEAM_LENGTH * reach;
   const ox = ax - ux * 120;
   const oy = ay - uy * 120;
@@ -59,17 +61,17 @@ export function koBlastShapes(ko: KoBlast, color: number, frame: number, view: C
     out.push({
       type: 'poly',
       points: blade(ox, oy, a + sway, len, width, 1.05),
-      fill: { color, alpha: 0.72 },
+      fill: { color, alpha: 0.35 * fade },
     });
     out.push({
       type: 'poly',
       points: blade(ox, oy, a - sway, len * 0.9, width * 0.62, 1.05),
-      fill: { color: light, alpha: 0.9 },
+      fill: { color: light, alpha: 0.55 * fade },
     });
     out.push({
       type: 'poly',
       points: blade(ox, oy, a, len * 0.78, width * 0.3, 1.05),
-      fill: { color: 0xffffff },
+      fill: { color: 0xffffff, alpha: 0.85 * fade },
     });
   }
   for (let i = 0; i < 12; i++) {

@@ -29,7 +29,7 @@ export type PuffTone = 'smoke' | 'dust';
 /** Flash-style two-tone clouds: dark rim, mid body, light top-left lobe. */
 const TONES: Record<PuffTone, { rim: number; body: number; light: number }> = {
   smoke: { rim: 0x6c7387, body: 0xc0c6d3, light: 0xf8f9fc },
-  dust: { rim: 0x9a8f78, body: 0xdcd3c0, light: 0xfaf6ec },
+  dust: { rim: 0xc2b8a6, body: 0xe6e0d4, light: 0xfbf8f2 },
 };
 
 /** Launch speed (units per frame of knockback) where the smoke trail starts and where it is at its densest. */
@@ -106,9 +106,9 @@ export function dustPuffs(
     const k = Math.floor(i / 2);
     puffs.push({
       born: frame,
-      x: x + side * (0.6 + k * 0.5),
+      x: x + side * (1.4 + k * 0.45),
       y: y + r * 0.4,
-      vx: side * spread * (1 + k * 0.6) * (0.85 + 0.3 * rand(seed, i)),
+      vx: side * spread * (1 + k * 0.35) * (0.85 + 0.3 * rand(seed, i)),
       vy: 0.015 + 0.02 * rand(seed, 50 + i),
       r: r * (1 - k * 0.2) * (0.85 + 0.3 * rand(seed, 100 + i)),
       life: Math.round(12 + 4 * rand(seed, 150 + i)),
@@ -133,7 +133,7 @@ function puffRadius(p: Puff, age: number): number {
 
 /**
  * Every live puff at `frame` in three passes (rims, bodies, light lobes), so overlapping puffs merge into one cloud
- * with a single outline around the whole silhouette. A puff's outline thins away from 8 frames old, before its body
+ * with a single outline around the whole silhouette. A puff's outline thins away from 4 frames old, before its body
  * shrinks, so an ageing trail breaks into soft separate clouds.
  */
 export function puffShapes(puffs: readonly Puff[], frame: number): Shape[] {
@@ -148,7 +148,7 @@ export function puffShapes(puffs: readonly Puff[], frame: number): Shape[] {
       x: p.x + p.vx * slow,
       y: -(p.y + p.vy * slow),
       r,
-      rim: p.tone === 'smoke' ? 0.32 * (1 - clamp01((age - 8) / 10)) : 0.32,
+      rim: p.tone === 'smoke' ? 0.32 * (1 - clamp01((age - 4) / 10)) : 0.22,
       flat: p.tone === 'dust' ? 0.5 : 1,
       tone: p.tone,
     });
