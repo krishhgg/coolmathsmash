@@ -108,6 +108,12 @@ export interface Edge {
   /** Outward unit normal. */
   n: Vec;
   kind: EdgeKind;
+  /**
+   * When `a` is a convex corner of the solid with a wall or ceiling on at least one side (a ledge corner, the
+   * corner where a side wall meets the underside): the outward normal of the edge before it. Fighters' collision
+   * boxes are pushed off the corner in a direction between that normal and `n` (movement.ts pushOffCorner).
+   */
+  corner: Vec | null;
 }
 
 export interface CompiledStage {
@@ -132,6 +138,7 @@ export function compileStage(geo: StageGeometry): CompiledStage {
       area += x1 * y2 - x2 * y1;
     }
     const ccw = area > 0;
+    const first = edges.length;
     for (let i = 0; i < pts.length; i++) {
       const [ax, ay] = pts[i]!;
       const [bx, by] = pts[(i + 1) % pts.length]!;
@@ -141,8 +148,15 @@ export function compileStage(geo: StageGeometry): CompiledStage {
       if (len < 1e-9) continue;
       const n = ccw ? { x: dy / len, y: -dx / len } : { x: -dy / len, y: dx / len };
       const kind: EdgeKind = n.y >= FLOOR_NORMAL_Y ? 'floor' : n.y <= -FLOOR_NORMAL_Y ? 'ceiling' : 'wall';
-      edges.push({ solid: s, index: i, a: { x: ax, y: ay }, b: { x: bx, y: by }, n, kind });
+      edges.push({ solid: s, index: i, a: { x: ax, y: ay }, b: { x: bx, y: by }, n, kind, corner: null });
     }
+    const own = edges.slice(first);
+    own.forEach((e, k) => {
+      const before = own[(k + own.length - 1) % own.length]!;
+      // Convex: this edge heads away from the outward side of the edge before it.
+      const convex = before.n.x * (e.b.x - e.a.x) + before.n.y * (e.b.y - e.a.y) < -1e-9;
+      if (convex && (e.kind !== 'floor' || before.kind !== 'floor')) e.corner = before.n;
+    });
   });
   const ledgeSolid = geo.ledges.map(
     (l) =>
