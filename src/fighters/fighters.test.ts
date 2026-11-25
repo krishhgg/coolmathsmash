@@ -72,6 +72,11 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
       expect(move.armor.frames[0]).toBeGreaterThanOrEqual(1);
       expect(move.armor.frames[1]).toBeGreaterThanOrEqual(move.armor.frames[0]);
       expect(move.armor.frames[1]).toBeLessThan(move.faf);
+      if (move.armor.breakDamageMul !== undefined) {
+        expect(move.armor.threshold ?? move.armor.damageThreshold, `${name} armor breaks`).toBeDefined();
+        expect(move.armor.breakDamageMul).toBeGreaterThan(0);
+        expect(move.armor.breakDamageMul).toBeLessThanOrEqual(1);
+      }
     }
     for (const [a, b] of move.autoCancel ?? []) expect(b).toBeGreaterThanOrEqual(a);
     for (const s of move.spawn ?? []) {

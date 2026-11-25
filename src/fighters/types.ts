@@ -208,9 +208,10 @@ export interface MoveDef {
   /**
    * Armor (Ultimate): on `frames` (inclusive) hits still add damage and hitlag, but they don't launch, cause
    * hitstun or interrupt the move. A hit breaks through when its knockback reaches `threshold` or its damage
-   * reaches `damageThreshold`; with neither set it is heavy armor and nothing breaks through.
+   * reaches `damageThreshold`; with neither set it is heavy armor and nothing breaks through. `breakDamageMul`
+   * scales the % the breaking hit adds, leaving its knockback and hitlag full (Kirby's Stone: 0.5).
    */
-  armor?: { frames: [number, number]; threshold?: number; damageThreshold?: number };
+  armor?: { frames: [number, number]; threshold?: number; damageThreshold?: number; breakDamageMul?: number };
   /** Recoveries: the move ends in helpless fall instead of a normal fall. */
   helpless?: boolean;
   /** Airborne moves that may grab a ledge from this frame. */
