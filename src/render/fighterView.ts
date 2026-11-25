@@ -31,10 +31,11 @@ export function fighterArt(def: FighterDef): FighterArt | undefined {
 }
 
 /**
- * Tech roll and getup roll travel along `dodgeDir` and keep the fighter's facing, so one away from the facing is a
- * back roll. It draws the fighter's own `<action>Back` clip, else `rollBack`; a forward getup roll without its own
- * clip borrows `techRoll`. The clip is retimed so it rolls while the sim travels and ends on the action's last
- * frame. A borrowed `rollBack` starts at its tuck, which follows a tumble landing or lying down without a jump.
+ * Tech roll and getup roll travel along `dodgeDir` and keep the fighter's facing, so a roll away from the facing is
+ * a back roll. A back roll draws the fighter's own `<action>Back` clip, else `rollBack`; a forward getup roll
+ * without its own clip borrows `techRoll`. The clip is retimed so it rolls while the sim travels and ends on the
+ * action's last frame. A borrowed `rollBack` starts at its tuck, since these rolls begin from a tumble landing or
+ * from lying down rather than standing in shield.
  */
 function rollClip(art: FighterArt, f: FighterState): [string, number] | null {
   const action = f.move ? undefined : ROLL_ACTIONS[f.action];

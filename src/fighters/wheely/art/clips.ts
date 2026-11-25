@@ -619,7 +619,8 @@ export const authored: Record<string, AnimClip> = {
   },
   /**
    * A getup roll away from his facing: getUp mirrored over GETUP_ROLL, rocking forward and flipping backwards onto
-   * his wheels. Rotations count down from -180 (the roof pose turned the other way) so the eyes stay upright.
+   * his wheels. Rotations count down from -180, the roof pose measured the other way round, so the eyes stay
+   * upright through the flip.
    */
   getupRollBack: {
     length: 35,
