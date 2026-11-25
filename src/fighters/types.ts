@@ -8,7 +8,7 @@ import type { ActionDef } from '../sim/actions/registry';
 import type { ButtonName } from '../input/types';
 import type { CastHit } from '../sim/cast';
 import type { AbsorberDef, EntityDef, ReflectorDef, SpawnDef } from '../sim/entities/types';
-import type { Ctx } from '../sim/fighter';
+import type { Ctx, FighterState } from '../sim/fighter';
 import type { Vec } from '../sim/vec';
 
 export interface FighterStats {
@@ -133,7 +133,17 @@ export interface TetherDef {
   hang?: ButtonName;
   /** Veto a latch (spend a resource, refuse sky anchors): return false and the line whiffs. */
   onAnchor?: (x: Ctx, hit: TetherHit) => boolean;
+  /** Stop the line at the first hittable opponent in its path. Defaults to false. */
+  targetsFighters?: boolean;
+  /**
+   * Handle fighter contact. At `hit`, return `'pullSelf'` to reel toward the fighter and receive `arrive`
+   * once in contact. Return nothing to retract the line and handle responses such as a grab or yank in script.
+   */
+  onFighter?: (x: Ctx, target: FighterState, event: TetherFighterEvent) => 'pullSelf' | void;
 }
+
+export type TetherFighterEvent =
+  ({ phase: 'hit' } & Extract<CastHit, { kind: 'fighter' }>) | { phase: 'arrive'; point: Vec };
 
 /** Where a tether line stopped: a cast hit, or empty air at full range. */
 export type TetherHit = CastHit | { kind: 'sky'; t: number; point: Vec };

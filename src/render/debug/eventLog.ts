@@ -48,6 +48,8 @@ function describe(e: SimEvent): string {
       return `${e.kind}#${e.id} hit ${n(e.damage)} (${n(e.hp)} hp left)`;
     case 'tetherLatch':
       return `${p(e.port)} tether on ${e.kind}`;
+    case 'tetherFighterHit':
+      return `${p(e.port)} tether hit ${p(e.target)}`;
     default:
       return `${p(e.port)} ${e.type}`;
   }

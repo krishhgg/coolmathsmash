@@ -8,9 +8,8 @@ import type { Ctx } from '../fighter';
 import { leaveGround } from '../movement';
 import type { Vec } from '../vec';
 import { moveOf } from './attack';
-import { anchorPiece } from './tether';
 import { setAction } from './registry';
-import { ledgeFree, releaseTether, tetherOrigin } from './tether';
+import { anchorPiece, ledgeFree, releaseTether, tetherOrigin } from './tether';
 
 /**
  * Firing a tether: a move with `tether` fires a line on its `frame` (aimed ones wait for special to be
@@ -102,7 +101,12 @@ function travel(x: Ctx, t: TetherDef): void {
   const p = Math.min(1, (m.frame - f.tether!.frame + 1) / t.travel);
   const tip = { x: o.x + f.aim!.x * p, y: o.y + f.aim!.y * p };
   const ledges = t.latch.includes('ledge') ? TETHER.ledgeSnap : undefined;
-  const hit = castSegment(m, o, tip, { platforms: true, fighters: false, ignore: f.port, ledges });
+  const hit = castSegment(m, o, tip, {
+    platforms: true,
+    fighters: t.targetsFighters ?? false,
+    ignore: f.port,
+    ledges,
+  });
   if (hit) return anchor(x, t, hit);
   f.tether!.anchor = tip;
   if (p < 1) return;
@@ -113,12 +117,28 @@ function travel(x: Ctx, t: TetherDef): void {
 /** Anchor where the line stopped, if `latch` takes it, the ledge is free and `onAnchor` agrees; else whiff. */
 function anchor(x: Ctx, t: TetherDef, hit: TetherHit): void {
   const { f, m } = x;
-  const kind = hit.kind;
+  const { kind, point } = hit;
+  if (kind === 'fighter') {
+    const target = m.fighters[hit.port]!;
+    const tether = f.tether;
+    const move = f.move;
+    const action = f.action;
+    emit(m, { type: 'tetherFighterHit', port: f.port, target: target.port, x: point.x, y: point.y });
+    const response = t.onFighter?.(x, target, { phase: 'hit', ...hit });
+    if (f.tether !== tether) return;
+    if (response !== 'pullSelf' || f.move !== move || f.action !== action) return releaseTether(m, f);
+    f.tether = {
+      anchor: point,
+      kind,
+      port: target.port,
+      local: { x: point.x - target.pos.x, y: point.y - target.pos.y },
+      frame: m.frame,
+    };
+    startPull(x);
+    return;
+  }
   const ok =
-    kind !== 'fighter' &&
-    t.latch.includes(kind) &&
-    (kind !== 'ledge' || ledgeFree(x, hit.ledge!)) &&
-    t.onAnchor?.(x, hit) !== false;
+    t.latch.includes(kind) && (kind !== 'ledge' || ledgeFree(x, hit.ledge)) && t.onAnchor?.(x, hit) !== false;
   if (!ok) return releaseTether(m, f);
   const surface = hit.kind === 'surface' ? hit.surface : undefined;
   const piece = surface ? anchorPiece(m, surface) : undefined;
@@ -126,12 +146,17 @@ function anchor(x: Ctx, t: TetherDef, hit: TetherHit): void {
   f.tether = {
     anchor: hit.point,
     kind,
-    ...(kind === 'ledge' ? { ledge: hit.ledge! } : {}),
+    ...(kind === 'ledge' ? { ledge: hit.ledge } : {}),
     ...(surface && local ? { surface, local } : {}),
     frame: m.frame,
   };
-  f.aim = null;
   emit(m, { type: 'tetherLatch', port: f.port, kind, x: hit.point.x, y: hit.point.y });
+  startPull(x);
+}
+
+function startPull(x: Ctx): void {
+  const { f } = x;
+  f.aim = null;
   if (f.ground) leaveGround(x);
   const move = f.move;
   setAction(x, 'tetherPull');
