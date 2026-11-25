@@ -2,6 +2,11 @@ import { expect, test, type Page } from '@playwright/test';
 import { Btn } from '../src/input/types';
 
 const frame = (page: Page) => page.evaluate(() => window.__smash!.frame());
+const advanceToGo = (page: Page) =>
+  page.evaluate(() => {
+    const harness = window.__smash!;
+    harness.step(Math.max(0, 180 - harness.frame()));
+  });
 
 test('a full match: select, countdown, pause, the last KO, GAME!, results and a rematch', async ({
   page,
@@ -33,6 +38,7 @@ test('a full match: select, countdown, pause, the last KO, GAME!, results and a 
   ]);
   await expect(page.locator('.callout-slot[data-label="3"] svg')).toBeVisible();
   await expect(page.locator('.match-clock')).toContainText('7:00');
+  await advanceToGo(page);
   await expect(page.locator('.callout-slot[data-label="GO!"]')).toBeAttached({ timeout: 10_000 });
 
   await page.keyboard.press('Escape');
@@ -98,6 +104,7 @@ test('four-player match uses saved controls and quits back to character select',
     .poll(() => page.evaluate(() => window.__smash!.getState().config.ports.map((p) => p.tapJump)))
     .toEqual([false, false, false, false]);
 
+  await advanceToGo(page);
   await page.keyboard.down('KeyQ');
   await expect
     .poll(

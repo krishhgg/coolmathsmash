@@ -83,14 +83,13 @@ export function matchScreen(flow: Flow, game: Game, seed = newSeed()): Screen {
 
   let shown: string | null = null;
   let paused = false;
-  let frozen = false;
   let finaleAt = -1;
   let unsubscribe = () => {};
 
   function pause(): void {
     if (paused || session.phase === 'over') return;
     paused = true;
-    game.manual = true;
+    game.loop.stop();
     pauseLayer.hidden = false;
     focus.set(items[0]!);
     audio.ui('select');
@@ -99,7 +98,7 @@ export function matchScreen(flow: Flow, game: Game, seed = newSeed()): Screen {
   function resume(): void {
     if (!paused) return;
     paused = false;
-    game.manual = frozen;
+    game.loop.start();
     pauseLayer.hidden = true;
     audio.ui('back');
   }
@@ -130,7 +129,6 @@ export function matchScreen(flow: Flow, game: Game, seed = newSeed()): Screen {
       unsubscribe = game.onEvents((_, state) => {
         session.observe(state);
         if (session.phase === 'over' && state.frame >= session.overFrame + FREEZE_AFTER) {
-          frozen = true;
           game.manual = true;
         }
       });
