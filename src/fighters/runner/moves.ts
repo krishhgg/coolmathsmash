@@ -7,6 +7,7 @@ import type { Ctx } from '../../sim/fighter';
 import { ecb } from '../../sim/movement';
 import { edgeMaxX, edgeMinX, floorY } from '../../sim/stage';
 import { boxDropMoves } from './box-drop';
+import { RAPID_JAB } from './timing';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -24,13 +25,7 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 /** Tile Flip's air hop: the upward speed it sets and on which frame. Less than a cycle of gravity, so no stall. */
 export const HOP = { frame: 3, speed: 0.8 };
 
-/**
- * The kick flurry's timeline: a kick on each of these frames. Attack during [loop, loop + 1], after the last kick,
- * restarts it on frame 1, which kicks again, so mashing keeps a kick every other frame (presses buffer, so a press
- * anywhere in the cycle counts). Otherwise the shove comes out three frames after the window closes, on Kirby's
- * finisher timing (startup 3, 39 frames in all).
- */
-export const RAPID_JAB = { kicks: [1, 3, 5, 7], loop: 9, shove: [13, 14] as [number, number], faf: 50 };
+export { RAPID_JAB };
 
 /**
  * Gravity Switch's timeline. She falls upward through RISE, speeding up to riseSpeed. Touching a ceiling or the
