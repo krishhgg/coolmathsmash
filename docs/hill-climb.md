@@ -12,12 +12,12 @@ first, looks second. The intent and the rubric's origin are in the Captain drive
 | Capture runner | `npm run capture` (`scripts/capture.ts`)                 | Headless Chromium at 1280x720: PNG per state, filmstrip + GIF + MP4 for motion, `manifest.json`                                                  |
 | Judge pack     | `npm run judge:pack` (`scripts/judge-pack.ts`)           | Contact sheets (ours left, references right), `rubric.md`, `schema.json`, `prompt.md`                                                            |
 | Aggregator     | `npm run judge:aggregate` (`scripts/judge-aggregate.ts`) | Validates the judges' JSON, writes `scoreboard.md`/`.json`, appends a history row                                                                |
-| CI             | `.github/workflows/captures.yml`                         | Captures each PR that can change a capture and uploads `captures/ci` as the `captures-<sha>` artifact                                            |
+| CI             | `.github/workflows/captures.yml`                         | Captures nightly and on demand; uploads `captures/ci` as the `captures-<sha>` artifact                                                           |
 
-The Captures workflow scopes PRs that only change fighter or stage folders to the corresponding named states,
-matches that use those fighters or stages, and the affected select screens. Shared changes use every scenario.
-The nightly run (10:23 UTC) and manual runs always use the full suite. A scoped manifest has `"scoped": true`.
-Docs, unit tests and audio assets alone don't start a capture job.
+Captures runs nightly on main (10:23 UTC) and on manual dispatch, not on PRs. On Monday through Saturday it compares
+against the last successful scheduled run. If main only changed fighter or stage folders, it captures their named
+states, matches that use them, and the affected select screens. Shared changes or missing history use the full suite;
+an unchanged tree skips rendering. Sunday and manual runs capture the full suite. A scoped manifest has `"scoped": true`.
 
 ## Run one round
 
