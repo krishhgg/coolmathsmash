@@ -112,6 +112,9 @@ fsmash: {
     contact (forward and up). It pulls the target's middle toward that point over `frames` (rounded up)
     and then drops its launch speed. Stage collision still applies. A vector works with any angle; without
     one, `368` falls back to `367`.
+- **Windboxes.** `pushOnly: true` applies knockback without damage, hitlag, hitstun or interruption. It pushes
+  grounded targets horizontally without lifting them, and shields ignore it. Use `damage: 0`; windbox
+  projectiles can be reflected or absorbed as usual, but heal nothing on absorption.
 - **Direction.** A hit launches along the attacker's facing unless its box sets `direction`: `'back'` for boxes
   behind him (back aerials, the rear hit of a down smash) and `'away'` for boxes around his body (spins, up
   attacks), which send the target away from his centre.
