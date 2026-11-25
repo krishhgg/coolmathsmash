@@ -1,20 +1,20 @@
 .css-grid {
-  --tile-w: clamp(146px, calc(1080px / var(--cols, 8)), 220px);
   position: absolute;
-  top: 64px;
-  left: 30px;
-  right: 30px;
-  height: 340px;
-  display: grid;
-  grid-template-columns: repeat(var(--cols, 8), var(--tile-w));
-  grid-auto-rows: calc(var(--tile-w) * 0.72);
+  top: 60px;
+  left: 16px;
+  width: 1248px;
+  height: 370px;
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  align-content: center;
+  align-content: flex-start;
   gap: 4px;
 }
 
 .css-tile {
   position: relative;
+  width: var(--tile-w);
+  height: var(--tile-h);
   overflow: hidden;
   border: 3px solid var(--ink) !important;
   background:
@@ -25,7 +25,7 @@
 
 .css-tile-art {
   position: absolute;
-  inset: 4% 12% 18% 12%;
+  inset: 5% 10% 22% 10%;
   display: grid;
   place-items: center;
 }
@@ -46,7 +46,7 @@
 }
 
 .css-tile-art.is-random {
-  font-size: calc(var(--tile-w) * 0.5);
+  font-size: calc(var(--tile-h) * 0.6);
 }
 
 .css-tile:has(.is-random) {
@@ -59,15 +59,34 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 2px;
-  text-align: center;
+  bottom: 0;
+  height: 24%;
+  display: grid;
+  place-items: center;
   font-family: var(--display);
-  font-size: calc(var(--tile-w) * 0.13);
+  font-size: var(--name-size);
+  line-height: 1;
+  white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: #fff;
   -webkit-text-stroke: 5px var(--ink);
   paint-order: stroke fill;
+}
+
+.css-tile.is-locked {
+  background:
+    radial-gradient(circle at 50% 38%, rgb(120 140 190 / 0.25), transparent 60%),
+    linear-gradient(180deg, #2c3550 0%, #1b2136 60%, #121628 100%);
+}
+
+.css-tile.is-locked .css-tile-art {
+  opacity: 0.55;
+  filter: brightness(0.55);
+}
+
+.css-tile.is-locked .css-tile-name {
+  color: #8f9ab3;
 }
 
 .css-tile.is-pointed,
@@ -80,7 +99,7 @@
   position: absolute;
   left: -20px;
   right: -20px;
-  top: 404px;
+  top: 360px;
   height: 62px;
   z-index: 4;
   transform: rotate(-1.5deg);
@@ -184,8 +203,9 @@
 }
 
 .css-panel-portrait.is-random {
-  font-size: 160px;
-  -webkit-text-stroke: 14px var(--ink);
+  font-size: 128px;
+  -webkit-text-stroke: 12px var(--ink);
+  transform: translate(24px, -20px);
 }
 
 .css-token-hint {
@@ -255,22 +275,22 @@
   top: 44px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
+  gap: 5px;
+  padding: 3px 6px;
   border-radius: 8px;
   background: rgb(10 12 20 / 0.72);
 }
 
 .css-level-label {
-  font-size: 18px;
+  font-size: 16px;
   color: #d5dae4;
 }
 
 .css-level-value {
-  min-width: 30px;
+  min-width: 22px;
   text-align: center;
   font-family: var(--display);
-  font-size: 30px;
+  font-size: 26px;
   color: #ff3b30;
   -webkit-text-stroke: 5px #fff;
   paint-order: stroke fill;
@@ -401,8 +421,8 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 58px;
-  height: 66px;
+  width: 48px;
+  height: 54px;
   transition: transform 70ms linear;
   filter: drop-shadow(0 4px 2px rgb(0 0 0 / 0.45));
 }
@@ -414,10 +434,10 @@
 
 .css-hand > span {
   position: absolute;
-  left: 20px;
-  top: 34px;
+  left: 15px;
+  top: 27px;
   font-family: var(--display);
-  font-size: 20px;
+  font-size: 16px;
   color: var(--port);
   -webkit-text-stroke: 4px #fff;
   paint-order: stroke fill;
@@ -425,23 +445,24 @@
 
 .css-hand .css-coin {
   position: absolute;
-  left: 34px;
-  top: -14px;
+  left: 30px;
+  top: -12px;
 }
 
 .css-coin {
   position: absolute;
   left: 0;
   top: 0;
-  width: 42px;
-  height: 42px;
+  width: 30px;
+  height: 30px;
+  box-sizing: border-box;
   border-radius: 50%;
   display: grid;
   place-items: center;
   font-family: var(--display);
-  font-size: 17px;
+  font-size: 13px;
   color: #fff;
-  -webkit-text-stroke: 4px var(--ink);
+  -webkit-text-stroke: 3px var(--ink);
   paint-order: stroke fill;
   background: radial-gradient(
     circle at 35% 30%,
@@ -449,8 +470,8 @@
     var(--port) 60%,
     color-mix(in srgb, var(--port) 60%, #000)
   );
-  border: 3px solid #fff;
-  box-shadow: 0 3px 0 rgb(0 0 0 / 0.4);
+  border: 2px solid #fff;
+  box-shadow: 0 2px 0 rgb(0 0 0 / 0.45);
 }
 
 .css-coin.is-cpu {
