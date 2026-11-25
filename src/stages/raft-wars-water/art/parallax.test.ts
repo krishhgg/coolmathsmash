@@ -1,9 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { cameraTarget } from '../../../render/camera';
+import { stageStateAt } from '../../../sim/movingStage';
 import { testMatch } from '../../../sim/testing/sim';
 import { layerRectOnScreen, REF_CAMERA, VIEW_H, VIEW_W } from '../../battlefield/art/parallax';
-import { stage } from '../geometry';
+import type * as ArtUtil from '../../battlefield/art/util';
+import { BOAT_SOLID, stage } from '../geometry';
+import { tideHeight, TIDE_HEIGHT } from '../tide';
+import { createStageView } from '../view';
 import { SKY_RECT, WATER_DEPTH, WATER_RECT, WATER_Y } from './lagoon';
+
+vi.mock('../../battlefield/art/util', async (importOriginal) => ({
+  ...(await importOriginal<typeof ArtUtil>()),
+  vGradient: () => 0xffffff,
+}));
 
 describe('Raft War Lagoon camera coverage', () => {
   it('covers the full screen at the corners of its camera bounds and all supported zooms', () => {
@@ -22,8 +31,32 @@ describe('Raft War Lagoon camera coverage', () => {
           expect(water.left).toBeLessThan(0);
           expect(water.right).toBeGreaterThan(VIEW_W);
           expect(water.bottom).toBeGreaterThan(VIEW_H);
+          expect(water.bottom - TIDE_HEIGHT * zoom).toBeGreaterThan(VIEW_H);
           expect(water.top).toBeCloseTo(VIEW_H / 2 + (y - WATER_Y) * zoom);
         }
+  });
+
+  it('interpolates the rendered boat and the waterline and keeps the water still with hazards off', () => {
+    const view = createStageView();
+    const frame = 2490;
+    const previous = stageStateAt(stage, frame - 1);
+    const pieces = stageStateAt(stage, frame, previous);
+    const renderedY = (pieces.solids[BOAT_SOLID]!.y + previous.solids[BOAT_SOLID]!.y) / 2;
+    const canopy = view.world.getChildByLabel('lagoon-canopy')!;
+    const hull = view.world.getChildByLabel('lagoon-skiff')!;
+    const water = view.background.getChildByLabel('lagoon-water', true)!;
+    view.update(frame, REF_CAMERA, { hazards: true, pieces, alpha: 0.5 });
+    expect(hull.y).toBeCloseTo(-renderedY);
+    expect(canopy.y).toBeCloseTo(-renderedY);
+    const interpolatedTide = (tideHeight(frame - 1) + tideHeight(frame)) / 2;
+    expect(water.y).toBeCloseTo(VIEW_H / 2 - interpolatedTide * REF_CAMERA.zoom);
+
+    const still = stageStateAt(stage, frame, undefined, false);
+    view.update(frame, REF_CAMERA, { hazards: false, pieces: still, alpha: 0.5 });
+    expect(hull.y).toBeCloseTo(0);
+    expect(canopy.y).toBeCloseTo(0);
+    expect(water.y).toBe(VIEW_H / 2);
+    expect(view.drawsStagePieces).toBe(true);
   });
 
   it('frames both shores, the roof and the visible gaps at a four-port start', () => {

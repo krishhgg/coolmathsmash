@@ -1,7 +1,6 @@
 import { Container, Graphics } from 'pixi.js';
 import { flipY } from '../../battlefield/art/util';
 import { stage } from '../geometry';
-import { drawWaterline } from './lagoon';
 
 const SAND_INK = 0x55472b;
 
@@ -165,7 +164,6 @@ export function createShores(): Container {
       .ellipse(center + side * 21, 10.4, 0.65, 0.38)
       .fill({ color: 0xa98651, alpha: 0.55 });
     drawNoSwimmingMark(g, center - side * 21, 6.7);
-    drawWaterline(g, points);
     shores.addChild(g);
   }
   return shores;

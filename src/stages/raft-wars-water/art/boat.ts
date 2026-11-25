@@ -1,7 +1,6 @@
 import { Graphics } from 'pixi.js';
 import { flipY } from '../../battlefield/art/util';
-import { stage } from '../geometry';
-import { drawWaterline } from './lagoon';
+import { BOAT_SOLID, CABIN_PLATFORM, stage } from '../geometry';
 
 const INK = 0x254731;
 const STENCIL = 0xd7e6a1;
@@ -72,18 +71,20 @@ function drawTurtle(g: Graphics): void {
   g.circle(8.3, 9.59, 0.36).fill(INK);
 }
 
-export function createBoat(): Graphics {
+export function createBoat(): { hull: Graphics; canopy: Graphics } {
   const g = new Graphics({ label: 'lagoon-skiff' });
-  const { points } = stage.solids[1]!;
+  const canopy = new Graphics({ label: 'lagoon-canopy' });
+  const { points } = stage.solids[BOAT_SOLID]!;
   const polygon = flipY(points);
   const [left, top] = points[0]!;
   const [right] = points[1]!;
   const [, gunwale] = points[2]!;
-  const { x1, x2, y } = stage.platforms[0]!;
+  const { x1, x2, y } = stage.platforms[CABIN_PLATFORM]!;
   const deckY = -top;
   const roofY = -y;
 
-  g.moveTo(x1 + 1.3, roofY + 2)
+  canopy
+    .moveTo(x1 + 1.3, roofY + 2)
     .lineTo(x1 + 4, deckY - 0.5)
     .moveTo(x2 - 1.3, roofY + 2)
     .lineTo(x2 - 4, deckY - 0.5)
@@ -117,17 +118,19 @@ export function createBoat(): Graphics {
   drawTurtle(g);
   drawBoatName(g, 13.5, ['P', 'O', 'W', 'E', 'R']);
 
-  g.roundRect(x1, roofY, x2 - x1, 2.35, 0.45)
+  canopy
+    .roundRect(x1, roofY, x2 - x1, 2.35, 0.45)
     .fill(0x40844a)
     .stroke({ width: 0.62, color: INK });
-  g.moveTo(x1 + 0.35, roofY + 0.42)
+  canopy
+    .moveTo(x1 + 0.35, roofY + 0.42)
     .lineTo(x2 - 0.35, roofY + 0.42)
     .stroke({ width: 0.53, color: 0x8bbd6d, cap: 'round' });
   for (let x = x1 + 0.5; x + 4.2 < x2; x += 4.2)
-    g.moveTo(x, roofY + 1.78)
+    canopy
+      .moveTo(x, roofY + 1.78)
       .quadraticCurveTo(x + 2.02, roofY + 2.86, x + 4.2, roofY + 1.78)
       .fill(0x6ca45a);
 
-  drawWaterline(g, points);
-  return g;
+  return { hull: g, canopy };
 }

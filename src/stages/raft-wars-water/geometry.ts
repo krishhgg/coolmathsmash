@@ -1,4 +1,8 @@
 import type { StageGeometry } from '../../sim/stage';
+import { boatMotion } from './tide';
+
+export const BOAT_SOLID = 1;
+export const CABIN_PLATFORM = 0;
 
 const leftShore: StageGeometry['solids'][number]['points'] = [
   [-140, 0],
@@ -18,6 +22,8 @@ export const stage: StageGeometry = {
   solids: [
     { points: leftShore },
     {
+      motion: boatMotion,
+      hazard: true,
       points: [
         [-45, 0],
         [45, 0],
@@ -31,7 +37,7 @@ export const stage: StageGeometry = {
     },
     { points: leftShore.map(([x, y]) => [-x, y]) },
   ],
-  platforms: [{ x1: -15, x2: 15, y: 28 }],
+  platforms: [{ x1: -15, x2: 15, y: 28, motion: boatMotion, hazard: true }],
   ledges: [
     { x: -140, y: 0, side: -1 },
     { x: -80, y: 0, side: 1 },

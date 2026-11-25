@@ -14,23 +14,42 @@ export const WATER_RECT = {
   bottom: 3400,
 };
 
-export function drawWaterline(g: Graphics, points: readonly Point[]): void {
+function drawWaterline(g: Graphics, points: readonly Point[], waterY: number): void {
   const under: Point[] = [];
+  let left = Infinity;
+  let right = -Infinity;
   for (let i = 0; i < points.length; i++) {
     const [x1, y1] = points[i]!;
     const [x2, y2] = points[(i + 1) % points.length]!;
-    if (y1 < WATER_Y) under.push([x1, y1]);
-    if (y1 < WATER_Y !== y2 < WATER_Y) under.push([x1 + ((x2 - x1) * (WATER_Y - y1)) / (y2 - y1), WATER_Y]);
+    if (y1 < waterY) under.push([x1, y1]);
+    if (y1 < waterY !== y2 < waterY) {
+      const x = x1 + ((x2 - x1) * (waterY - y1)) / (y2 - y1);
+      under.push([x, waterY]);
+      left = Math.min(left, x);
+      right = Math.max(right, x);
+    }
   }
-  g.poly(flipY(under)).fill({ color: WATER_COLOR, alpha: 0.65 });
-  const x = under.filter(([, y]) => y === WATER_Y).map(([x]) => x);
-  const left = Math.min(...x);
-  const right = Math.max(...x);
-  g.moveTo(left - 2.4, -WATER_Y + 0.5)
-    .quadraticCurveTo(left + 0.4, -WATER_Y - 0.3, left + 3.2, -WATER_Y + 0.24)
-    .moveTo(right - 3.2, -WATER_Y + 0.35)
-    .quadraticCurveTo(right - 0.4, -WATER_Y - 0.4, right + 2.4, -WATER_Y + 0.5)
+  if (under.length >= 3) g.poly(flipY(under)).fill({ color: WATER_COLOR, alpha: 0.65 });
+  if (left >= right) return;
+  g.moveTo(left - 2.4, -waterY + 0.5)
+    .quadraticCurveTo(left + 0.4, -waterY - 0.3, left + 3.2, -waterY + 0.24)
+    .moveTo(right - 3.2, -waterY + 0.35)
+    .quadraticCurveTo(right - 0.4, -waterY - 0.4, right + 2.4, -waterY + 0.5)
     .stroke({ width: 0.65, color: 0xb1cbb0, alpha: 0.78, cap: 'round' });
+}
+
+export function createWaterline(points: readonly Point[]) {
+  const graphics = new Graphics({ label: 'lagoon-waterline' });
+  let localY = NaN;
+  return {
+    graphics,
+    update(waterY: number, x: number, y: number) {
+      graphics.position.set(x, -y);
+      if (waterY - y === localY) return;
+      localY = waterY - y;
+      drawWaterline(graphics.clear(), points, localY);
+    },
+  };
 }
 
 function createCloud(x: number, y: number, scale: number): Graphics {
@@ -85,7 +104,7 @@ function createDunes(): Graphics {
 }
 
 function createWater(): Graphics {
-  const g = new Graphics();
+  const g = new Graphics({ label: 'lagoon-water' });
   const { left, top, right, bottom } = WATER_RECT;
   g.rect(left, top, right - left, bottom - top).fill(0x416e71);
   g.rect(left, top, right - left, 570).fill(
@@ -144,10 +163,11 @@ export function createLagoon() {
     createCloud(1132, 140, 1.06),
     createCloud(1481, 98, 0.9),
   );
+  const water = createWater();
   const layers = [
     { view: clouds, depth: 0.055 },
     { view: createDunes(), depth: 0.1 },
-    { view: createWater(), depth: WATER_DEPTH },
+    { view: water, depth: WATER_DEPTH },
   ];
   container.addChild(sky);
   for (const { view } of layers) {
@@ -156,12 +176,13 @@ export function createLagoon() {
   }
   return {
     container,
-    update(camera: StageCamera) {
+    update(camera: StageCamera, rise: number) {
       for (const { view, depth } of layers) {
         const { x, y, scale } = layerTransform(depth, camera);
         view.position.set(x, y);
         view.scale.set(scale);
       }
+      water.y -= rise * camera.zoom;
     },
   };
 }
