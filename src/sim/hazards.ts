@@ -1,5 +1,5 @@
 import { getFighter } from '../fighters/registry';
-import { armorOf, hittable, hurtbox, strike, touches, type PlacedHitbox } from './combat/hits';
+import { armorOf, guardStageHit, hittable, hurtbox, strike, touches, type PlacedHitbox } from './combat/hits';
 import { emit } from './events';
 import type { FighterState } from './fighter';
 import type { MatchState } from './match';
@@ -10,7 +10,8 @@ import { compiledStage } from './step';
 /**
  * Stage hazards (docs/stage-geometry.md). Damage zones and stage hitboxes hit fighters through the same strike
  * as a fighter's move (knockback formula, hitlag, launch with DI, hitstun), with no attacker: no staleness, no
- * rage, and only the victim freezes. Conveyors live in groundMove; trapdoors are scheduled pieces flagged
+ * rage, and only the victim freezes. Shields block them and parries parry them (guardStageHit in
+ * src/sim/combat/hits.ts). Conveyors live in groundMove; trapdoors are scheduled pieces flagged
  * `hazard` (src/sim/movingStage.ts). MatchConfig.hazards = false turns all of them off.
  */
 
@@ -52,6 +53,8 @@ interface Contact {
   hit: HazardHit;
   rehit: number;
   dir: 1 | -1;
+  /** Where the hit comes from for a shield's pushback: the zone's middle or the stage hitbox's anchor. */
+  fromX: number;
   x: number;
   y: number;
 }
@@ -71,14 +74,15 @@ function zoneContact(geo: StageGeometry, v: FighterState, frame: number): Contac
     if (v.pos.x + width / 2 <= at.x1 || v.pos.x - width / 2 >= at.x2) continue;
     if (v.pos.y + height <= at.y1 || v.pos.y >= at.y2) continue;
     const hit = z.hit ?? ELEMENT_HITS[z.element].hit;
-    const away = Math.sign(v.pos.x - (at.x1 + at.x2) / 2);
+    const fromX = (at.x1 + at.x2) / 2;
     return {
       source: 'zone',
       index: i,
       element: z.element,
       hit,
       rehit: z.rehit ?? ELEMENT_HITS[z.element].rehit,
-      dir: launchDir(hit, away, 'away'),
+      dir: launchDir(hit, Math.sign(v.pos.x - fromX), 'away'),
+      fromX,
       x: v.pos.x,
       y: v.pos.y,
     };
@@ -95,14 +99,15 @@ function hitboxContact(geo: StageGeometry, v: FighterState, frame: number): Cont
     const touching = stageHitboxesAt(h, frame).filter((p) => touches(p, body));
     const first = touching.sort((p, q) => p.box.id - q.box.id)[0];
     if (!first) continue;
-    const away = Math.sign(v.pos.x - (h.x + motionOffset(h.motion, frame)[0]));
+    const fromX = h.x + motionOffset(h.motion, frame)[0];
     return {
       source: 'hitbox',
       index: i,
       element: null,
       hit: first.box,
       rehit: h.rehit ?? STAGE_HITBOX_REHIT,
-      dir: launchDir(first.box, away, 'forward'),
+      dir: launchDir(first.box, Math.sign(v.pos.x - fromX), 'forward'),
+      fromX,
       x: first.x,
       y: first.y,
     };
@@ -113,8 +118,17 @@ function hitboxContact(geo: StageGeometry, v: FighterState, frame: number): Cont
 /**
  * After the fighters' hits and before grabs are resolved (resolveHits): each fighter a hazard touches takes that
  * hazard's hit and joins `struck`, at most one stage hit per frame and none while `stageHitLock` (the hazard's
- * `rehit`) runs. Hazards skip intangible fighters and fighters already in hitlag, go through shields and respect
- * armor.
+ * `rehit`) runs. Hazards skip intangible fighters and fighters already in hitlag. A raised shield blocks them and a
+ * shield drop's parry window parries them, as it does any hit (guardStageHit), with `shieldHit` or `parry` and no
+ * `stageHit`; the rehit wait still follows.
+ *
+ * Armor takes them like any hit. SmashWiki, Armor: "Armor is the concept of sustaining hitlag and damage, but not
+ * sustaining any (or sustaining reduced) knockback", and "Grab hitboxes ignore all variations of armor." A hazard
+ * is a hitbox, not a grab.
+ *
+ * Counters: SmashWiki gives no rule for hazards. Counterattack only says "Should any normally blockable attack hit
+ * the user during these guard frames, the attack will be blocked", which on its face takes in a blockable hazard
+ * (docs/stage-geometry.md).
  */
 export function stageHits(m: MatchState, struck: Set<FighterState>): void {
   for (const f of m.fighters) if (f.stageHitLock > 0) f.stageHitLock--;
@@ -126,6 +140,9 @@ export function stageHits(m: MatchState, struck: Set<FighterState>): void {
     if (v.stageHitLock > 0 || v.hitlag > 0 || !hittable(v)) continue;
     const c = zoneContact(geo, v, frame) ?? hitboxContact(geo, v, frame);
     if (!c) continue;
+    v.stageHitLock = c.rehit;
+    struck.add(v);
+    if (guardStageHit(m, v, { box: c.hit, fromX: c.fromX, dir: c.dir, at: { x: c.x, y: c.y } })) continue;
     const { kb, added } = strike(
       m,
       v,
@@ -141,8 +158,6 @@ export function stageHits(m: MatchState, struck: Set<FighterState>): void {
       },
       false,
     );
-    v.stageHitLock = c.rehit;
-    struck.add(v);
     emit(m, {
       type: 'stageHit',
       victim: v.port,
