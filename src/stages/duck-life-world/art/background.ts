@@ -21,11 +21,14 @@ const SKY_HAZE = 0xcdf2f2;
 export const HILLS = { depth: 0.07, left: -700, period: 1600, right: -700 + 1600 * 3, bottom: 1150 } as const;
 
 /** The meadow fills everything below the horizon at every camera; its scenery strip scrolls on top of it. */
-export const MEADOW = { depth: 0.16, left: -900, right: 2180, top: 500, bottom: 2400, period: 2576 } as const;
+export const MEADOW = { depth: 0.16, left: -900, right: 2180, top: 600, bottom: 2400, period: 2576 } as const;
 
 const FENCE_STEP = 46;
 const HURDLE_STEP = MEADOW.period / 8;
-const TRACK = { top: 546, bottom: 586 } as const;
+const H = MEADOW.top;
+const FENCE = { top: H + 8, rails: [H + 14, H + 26], height: 30 } as const;
+const TRACK = { top: H + 46, bottom: H + 86 } as const;
+const FENCE_PAINT = 0xd4e2c8;
 /** Where the background racer runs, in meadow pixels, and the first hurdle's place in the strip. */
 export const RACER_X = 196;
 const FIRST_HURDLE = 140;
@@ -63,8 +66,8 @@ function clouds(): { node: Container; puffs: Graphics[] } {
   const node = new Container({ label: 'clouds' });
   const puffs = Array.from({ length: 7 }, (_, i) => {
     const g = new Graphics();
-    const w = 150 + hash01(i + 3) * 130;
-    cloud(g, 0, 0, w, w * 0.36, 0xffffff, 0xd6eef7, i + 9);
+    const w = 110 + hash01(i + 3) * 90;
+    cloud(g, 0, 0, w, w * 0.34, 0xeaf8fd, 0xbfe4f4, i + 9);
     g.y = 70 + (i % 3) * 62 + hash01(i + 40) * 30;
     node.addChild(g);
     return g;
@@ -86,7 +89,7 @@ function hills(): Container {
   const { left, right, period, bottom } = HILLS;
   for (const [base, seed, color, rim] of [
     [372, 0.4, haze(0x9fd98a, 0.38), haze(0xc3ecaa, 0.4)],
-    [448, 2.1, haze(0x86d05a, 0.22), haze(0xb4ea80, 0.25)],
+    [472, 2.1, haze(0x86d05a, 0.22), haze(0xb4ea80, 0.25)],
   ] as const) {
     const points: number[] = [left, bottom];
     for (let x = left; x <= right; x += 10) points.push(x, crest(x, base, period, seed));
@@ -121,10 +124,10 @@ function windmill(g: Graphics, x: number): Graphics {
   const sails = new Graphics({ label: 'sails' });
   for (let i = 0; i < 4; i++) {
     const blade = new Graphics();
-    blade.rect(-2, -96, 4, 96).fill(haze(0xb99a62));
-    blade.rect(3, -92, 16, 72).fill({ color: haze(0xfbf1d8), alpha: 0.88 });
-    for (let y = -88; y < -20; y += 12) blade.rect(3, y, 16, 2).fill(haze(0xc9ad78));
-    blade.rect(10, -92, 2, 72).fill(haze(0xc9ad78));
+    blade.rect(-2, -96, 4, 96).fill(haze(0xb99a62, 0.32));
+    blade.rect(3, -92, 16, 72).fill({ color: haze(0xe9dcb8, 0.32), alpha: 0.8 });
+    for (let y = -88; y < -20; y += 12) blade.rect(3, y, 16, 2).fill(haze(0xc9ad78, 0.32));
+    blade.rect(10, -92, 2, 72).fill(haze(0xc9ad78, 0.32));
     blade.rotation = (i * Math.PI) / 2;
     sails.addChild(blade);
   }
@@ -239,27 +242,28 @@ function scenery(g: Graphics, ox: number): { sails: Graphics; sign: Graphics } {
   tree(g, ox + 2290, 1.05, 5);
   tree(g, ox + 2350, 0.75, 6);
   // The fence between the horizon and the track.
-  for (let x = ox; x < ox + MEADOW.period; x += FENCE_STEP) g.rect(x, 508, 6, 30).fill(haze(0xece9dc, 0.25));
+  for (let x = ox; x < ox + MEADOW.period; x += FENCE_STEP)
+    g.rect(x, FENCE.top, 6, FENCE.height).fill(FENCE_PAINT);
   // Lane dashes, hurdles and checkpoint flags on the track.
   for (let x = ox; x < ox + MEADOW.period; x += FENCE_STEP)
-    g.rect(x + 10, 565, 18, 2.5).fill(haze(0xfaf5e8, 0.25));
+    g.rect(x + 10, H + 65, 18, 2.5).fill(haze(0xfaf5e8, 0.25));
   for (let k = 0; k < 8; k++) hurdle(g, ox + FIRST_HURDLE + k * HURDLE_STEP);
   for (const fx of [ox + 820, ox + 2060]) {
-    g.rect(fx, 512, 3, 40).fill(haze(0x6e5a44));
-    g.rect(fx + 3, 512, 22, 15).fill(haze(0xfbf6ea));
+    g.rect(fx, H + 12, 3, 40).fill(haze(0x6e5a44));
+    g.rect(fx + 3, H + 12, 22, 15).fill(haze(0xfbf6ea));
     for (let r = 0; r < 3; r++)
       for (let c = r % 2; c < 4; c += 2)
-        g.rect(fx + 3 + c * 5.5, 512 + r * 5, 5.5, 5).fill(haze(0x2e2a26, 0.3));
+        g.rect(fx + 3 + c * 5.5, H + 12 + r * 5, 5.5, 5).fill(haze(0x2e2a26, 0.3));
   }
   // A pond for the swim legs, and flowers in the near grass.
-  g.ellipse(ox + 1640, 652, 120, 24).fill(haze(0x4f9e38));
-  g.ellipse(ox + 1640, 650, 112, 19).fill(haze(0x58c2e4));
-  g.ellipse(ox + 1610, 646, 60, 6).fill(haze(0x93dcf2));
-  g.ellipse(ox + 1700, 655, 12, 4).fill(haze(0x5fb64a));
+  g.ellipse(ox + 1640, H + 152, 120, 24).fill(haze(0x4f9e38));
+  g.ellipse(ox + 1640, H + 150, 112, 19).fill(haze(0x58c2e4));
+  g.ellipse(ox + 1610, H + 146, 60, 6).fill(haze(0x93dcf2));
+  g.ellipse(ox + 1700, H + 155, 12, 4).fill(haze(0x5fb64a));
   for (let i = 0; i < 46; i++) {
     const fx = ox + (i + hash01(i + 600)) * (MEADOW.period / 46);
-    const fy = 612 + hash01(i + 700) * 110;
-    if (Math.abs(fx - ox - 1640) < 140 && fy < 690) continue;
+    const fy = H + 112 + hash01(i + 700) * 110;
+    if (Math.abs(fx - ox - 1640) < 140 && fy < H + 190) continue;
     g.poly([fx - 5, fy, fx - 2, fy - 8, fx, fy - 2, fx + 3, fy - 9, fx + 5, fy]).fill(haze(0x4f9b33));
     const petal = [0xffffff, 0xffe066, 0xf6a3c0][Math.floor(hash01(i + 900) * 3)]!;
     if (i % 2 === 0) g.circle(fx + 8, fy - 3, 2.6).fill(haze(petal, 0.22));
@@ -313,9 +317,9 @@ function meadow() {
     ]),
   );
   ground
-    .rect(left, 514, right - left, 4)
-    .rect(left, 526, right - left, 4)
-    .fill(haze(0xece9dc, 0.25));
+    .rect(left, FENCE.rails[0], right - left, 4)
+    .rect(left, FENCE.rails[1], right - left, 4)
+    .fill(FENCE_PAINT);
   ground.rect(left, TRACK.top, right - left, TRACK.bottom - TRACK.top).fill(
     vGradient([
       [0, haze(0xe3c283)],
