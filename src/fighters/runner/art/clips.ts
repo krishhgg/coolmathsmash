@@ -263,7 +263,18 @@ export const clips: Record<string, AnimClip> = {
   idle: {
     length: 60,
     loop: true,
-    swaps: { face: 'faceIdle' },
+    swaps: {
+      body: 'idleBody',
+      face: 'faceIdle',
+      armBLine: null,
+      foreBLine: null,
+      armB: null,
+      foreB: null,
+      armFLine: null,
+      foreFLine: null,
+      armF: null,
+      foreF: null,
+    },
     keys: [
       key(0, ants(STAND, 0, 0)),
       key(

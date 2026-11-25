@@ -313,6 +313,17 @@ describe('Runner: Jog Flurry (jab: two punches, a kick flurry, a shove)', () => 
     expect(ticks).toEqual(Array.from({ length: 20 }, (_, i) => 2 * i));
   });
 
+  it('briefly freezes on contact without hanging on a looping kick pose', () => {
+    const { m, a, v } = vsMario();
+    put(a, 0, 1, v.ground);
+    put(v, 7, -1, v.ground);
+    attack(m, 0, 'jabRapid');
+    for (let i = 0; i < 4 && v.damage === 0; i++) runPorts(m, 1, [{}, {}]);
+    expect(v.damage).toBeGreaterThan(0);
+    expect(a.hitlag).toBe(4);
+    expect(v.hitlag).toBe(4);
+  });
+
   it('kicks every other frame, then shoves three frames after the loop window closes', () => {
     expect(activeFrames('jabRapid')).toEqual([...RAPID_JAB.kicks, RAPID_JAB.shove[0], RAPID_JAB.shove[1]]);
     expect(RAPID_JAB.shove[0]).toBe(RAPID_JAB.loop + 1 + 3);

@@ -150,7 +150,7 @@ export const moves: Record<string, MoveDef> = {
       ...RAPID_JAB.kicks.map((frame): MoveDef['hits'][number] => ({
         frames: [frame, frame],
         rehit: true,
-        boxes: [box(0, 6.5, 5, 4, { damage: 0.3, angle: 361, kbg: 35, bkb: 7 })],
+        boxes: [box(0, 6.5, 5, 4, { damage: 0.3, angle: 361, kbg: 35, bkb: 7, hitlag: 0.65 })],
       })),
       {
         frames: RAPID_JAB.shove,

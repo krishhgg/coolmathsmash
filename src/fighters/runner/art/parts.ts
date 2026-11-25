@@ -156,6 +156,33 @@ export const body: PathShape[] = [
   { d: ellipse(-1.45, -2.3, 0.72, 0.3), fill: 'skinHi' },
 ];
 
+const IDLE_BODY_PTS: [number, number][] = [
+  [0, -BODY_RY],
+  [2.62, -2.98],
+  [3.67, -1.35],
+  [4.73, -0.2],
+  [5.16, 0.94],
+  [4.84, 1.66],
+  [4.01, 1.45],
+  [3.53, 2.27],
+  [2.54, 3.27],
+  [0, BODY_RY],
+  [-2.64, 3.28],
+  [-3.78, 2.35],
+  [-4.17, 1.51],
+  [-5.0, 1.63],
+  [-5.32, 0.93],
+  [-4.83, -0.23],
+  [-3.83, -1.17],
+  [-2.6, -2.95],
+];
+
+export const idleBody: PathShape[] = [
+  { d: blob(grow(IDLE_BODY_PTS, 1 + LINE / 4.3)), fill: 'line' },
+  { d: blob(IDLE_BODY_PTS), fill: 'skin' },
+  { d: ellipse(-1.45, -2.32, 0.62, 0.24), fill: 'skinHi' },
+];
+
 /** Where the antennae meet the body (body space) and how they splay. */
 export const ANTENNA_BASES = { back: [-1.75, -3.25, -38], front: [1.35, -3.45, 33] } as const;
 

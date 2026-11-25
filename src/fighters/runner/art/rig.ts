@@ -15,6 +15,7 @@ import {
   dust,
   ear,
   faces,
+  idleBody,
   limbs,
   map,
   streak,
@@ -116,6 +117,7 @@ export const rig: Rig = {
   ],
   symbols: {
     body,
+    idleBody,
     antenna,
     ear,
     crest,
