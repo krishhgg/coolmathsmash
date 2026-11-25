@@ -5,6 +5,7 @@ import type { MatchState } from '../sim/match';
 import { getStage } from '../stages/registry';
 import type { StageView } from '../stages/battlefield/view';
 import type { StageGeometry } from '../sim/stage';
+import { tetherOrigin } from '../sim/actions/tether';
 import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
 import { EventLog } from './debug/eventLog';
@@ -173,6 +174,15 @@ export class Renderer {
       });
       for (const b of activeHitboxes(f))
         g.circle(b.x, -b.y, b.box.radius).fill({ color: b.box.grab ? '#a33cff' : '#ff2a2a', alpha: 0.55 });
+      const o = tetherOrigin(f);
+      if (f.tether) {
+        g.moveTo(o.x, -o.y)
+          .lineTo(f.tether.anchor.x, -f.tether.anchor.y)
+          .stroke({ color: '#00c2a8', width: 0.8 });
+        g.circle(f.tether.anchor.x, -f.tether.anchor.y, 1.5).fill('#00c2a8');
+      } else if (f.aim) {
+        g.circle(o.x + f.aim.x, -(o.y + f.aim.y), 3).stroke({ color: '#00c2a8', width: 0.8 });
+      }
     }
   }
 }

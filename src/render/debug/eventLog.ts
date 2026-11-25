@@ -36,6 +36,8 @@ function describe(e: SimEvent): string {
       return `${p(e.ports[0])} ${p(e.ports[1])} grab clank`;
     case 'stagePiece':
       return `${e.piece} ${e.index} ${e.on ? 'appears' : 'vanishes'}`;
+    case 'tetherLatch':
+      return `${p(e.port)} tether on ${e.kind}`;
     default:
       return `${p(e.port)} ${e.type}`;
   }
