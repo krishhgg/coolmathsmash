@@ -219,7 +219,8 @@ export function createBackground() {
 
   return {
     container,
-    update(camera: StageCamera) {
+    update(camera: StageCamera, moving = false) {
+      road.root.visible = !moving;
       for (const { depth, root } of layers) {
         const { x, y, scale } = layerTransform(depth, camera);
         root.position.set(x, y);

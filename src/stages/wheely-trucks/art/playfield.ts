@@ -1,12 +1,14 @@
 import { Container, Graphics, Text } from 'pixi.js';
+import type { StageGeometry } from '../../../sim/stage';
 import { flipY, vGradient } from '../../battlefield/art/util';
 import { stage } from '../geometry';
 
 const INK = 0x25394a;
 const LIGHT = 0xf4f6eb;
 
-function drawWheel(g: Graphics, x: number, y: number, r: number) {
-  g.circle(x, y, r)
+function drawWheel(g: Graphics, x: number, y: number, r: number, aspect: number) {
+  const rx = r * aspect;
+  g.ellipse(x, y, rx, r)
     .fill(
       vGradient([
         [0, 0x344958],
@@ -15,9 +17,9 @@ function drawWheel(g: Graphics, x: number, y: number, r: number) {
       ]),
     )
     .stroke({ color: 0x3f515b, width: 0.48 })
-    .circle(x, y, r * 0.76)
+    .ellipse(x, y, rx * 0.76, r * 0.76)
     .stroke({ color: 0x536770, width: 0.4 })
-    .circle(x, y, r * 0.57)
+    .ellipse(x, y, rx * 0.57, r * 0.57)
     .fill(
       vGradient([
         [0, 0x829fac],
@@ -26,15 +28,15 @@ function drawWheel(g: Graphics, x: number, y: number, r: number) {
       ]),
     )
     .stroke({ color: 0x3d5665, width: 0.55 })
-    .circle(x, y, r * 0.26)
+    .ellipse(x, y, rx * 0.26, r * 0.26)
     .fill(0x91aab4)
     .stroke({ color: 0x627d89, width: 0.38 });
   for (let i = 0; i < 6; i++) {
     const a = (Math.PI * i) / 3;
-    g.circle(x + Math.cos(a) * r * 0.4, y + Math.sin(a) * r * 0.4, 0.33).fill(0x557380);
+    g.ellipse(x + Math.cos(a) * rx * 0.4, y + Math.sin(a) * r * 0.4, 0.33 * aspect, 0.33).fill(0x557380);
   }
-  g.moveTo(x - r * 0.64, y - r * 0.44)
-    .quadraticCurveTo(x - r * 0.34, y - r * 0.74, x + r * 0.03, y - r * 0.76)
+  g.moveTo(x - rx * 0.64, y - r * 0.44)
+    .quadraticCurveTo(x - rx * 0.34, y - r * 0.74, x + rx * 0.03, y - r * 0.76)
     .stroke({ color: 0x637782, width: 0.35, cap: 'round' });
 }
 
@@ -223,21 +225,22 @@ function drawCab(g: Graphics, right: number) {
     .stroke({ color: INK, width: 0.48, join: 'round' });
 }
 
-export function createPlayfield(): Container {
-  const world = new Container({ label: 'truck-convoy-world' });
+export function createPlatform({ x1, x2, y }: StageGeometry['platforms'][number], lift: boolean): Graphics {
+  const platform = new Graphics({ label: lift ? 'striped-lift' : 'loading-tray' });
+  drawPlatform(platform, x2 - x1, lift);
+  platform.position.set(x1, -y);
+  return platform;
+}
+
+export function createTruck(fleetNumber?: number, wheelAspect = 1): Container {
   const [solid] = stage.solids;
   const left = solid!.points[0]![0];
   const right = solid!.points[1]![0];
-  for (const [i, { x1, x2, y }] of stage.platforms.entries()) {
-    const lift = i === 1;
-    const platform = new Graphics({ label: lift ? 'striped-lift' : 'loading-tray' });
-    drawPlatform(platform, x2 - x1, lift);
-    platform.position.set(x1, -y);
-    world.addChild(platform);
-  }
-
-  const g = new Graphics({ label: 'stationary-trailer' });
-  const wheelX = [left + 15, left + 33, right - 17.2];
+  const truck = new Container({
+    label: fleetNumber === undefined ? 'stationary-trailer' : `trailer-${fleetNumber}`,
+  });
+  const g = new Graphics();
+  const wheelX = fleetNumber === undefined ? [left + 15, left + 33, right - 17.2] : [left + 23, right - 17.2];
   const outline = flipY(solid!.points);
   g.poly(outline).fill(
     vGradient([
@@ -269,12 +272,12 @@ export function createPlayfield(): Container {
 
   g.poly(outline).stroke({ color: INK, width: 0.8, alignment: 1, join: 'round' });
   for (const x of wheelX) {
-    g.moveTo(x - 8.2, 23.65)
-      .quadraticCurveTo(x - 7.25, 16.75, x, 16.75)
-      .quadraticCurveTo(x + 7.25, 16.75, x + 8.2, 23.65)
+    g.moveTo(x - 8.2 * wheelAspect, 23.65)
+      .quadraticCurveTo(x - 7.25 * wheelAspect, 16.75, x, 16.75)
+      .quadraticCurveTo(x + 7.25 * wheelAspect, 16.75, x + 8.2 * wheelAspect, 23.65)
       .fill(0x253645)
       .stroke({ color: 0x7b9cab, width: 0.62, cap: 'round' });
-    drawWheel(g, x, 24.5, 6.5);
+    drawWheel(g, x, 24.5, 6.5, wheelAspect);
   }
   g.rect(left, 0, right - left, 1.95).fill(0x466574);
   g.moveTo(left, 0.35).lineTo(right, 0.35).stroke({ color: INK, width: 0.7 });
@@ -294,7 +297,7 @@ export function createPlayfield(): Container {
   g.poly([-45.2, 9, -42.2, 5.65, -37.9, 5.65, -35, 9, -37.9, 12.25, -42.2, 12.25]).fill(0x39717a);
   g.poly([-43.5, 10.4, -41.05, 7.1, -39.75, 8.4, -38.65, 7.25, -36.7, 10.4]).fill(LIGHT);
   const decal = new Text({
-    text: 'ALPINE FREIGHT',
+    text: fleetNumber === undefined ? 'ALPINE FREIGHT' : `PASS CONVOY 0${fleetNumber}`,
     style: {
       fontFamily: 'Arial, sans-serif',
       fontSize: 4.2,
@@ -306,6 +309,12 @@ export function createPlayfield(): Container {
   });
   decal.anchor.set(0, 0.5);
   decal.position.set(-33.1, 9.05);
-  world.addChild(g, decal);
+  truck.addChild(g, decal);
+  return truck;
+}
+
+export function createPlayfield(): Container {
+  const world = new Container({ label: 'truck-convoy-world' });
+  world.addChild(...stage.platforms.map((platform, i) => createPlatform(platform, i === 1)), createTruck());
   return world;
 }
