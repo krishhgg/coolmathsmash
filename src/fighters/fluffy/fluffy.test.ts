@@ -421,6 +421,20 @@ describe('Fluffy: Quick Grapple (up special)', () => {
     expect([f.action, f.move]).toEqual(['helpless', null]);
   });
 
+  it('touching down before the move ends still costs the helpless landing lag', () => {
+    const { f, step, fire } = grapple(-64, 3, 1);
+    fire();
+    let frame = 0;
+    for (let i = 0; i < moves.upB!.faf && f.ground === null; i++) {
+      frame = f.actionFrame;
+      step(1);
+    }
+    expect(f.ground).not.toBeNull();
+    expect(frame).toBeLessThan(moves.upB!.faf);
+    expect(f.action).toBe('land');
+    expect(f.landingLag).toBe(HELPLESS_LANDING_LAG);
+  });
+
   it('reels up to the platform above and lets go into helpless fall, or hangs there while Jump is held', () => {
     const fromGround = (hold: Hold) => {
       const s = grapple(0, 0, 1);

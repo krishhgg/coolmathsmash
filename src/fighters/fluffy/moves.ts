@@ -1,3 +1,4 @@
+import { HELPLESS_LANDING_LAG } from '../../sim/constants';
 import type { HitboxDef, MoveDef } from '../types';
 import { CANDY_SPEED } from './entities';
 
@@ -465,6 +466,8 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 41,
     helpless: true,
+    // Touching down before frame 41 (a missed shot just above the floor) still costs the helpless landing lag.
+    landingLag: HELPLESS_LANDING_LAG,
     hits: [],
     tether: {
       frame: 8,
