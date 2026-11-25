@@ -1,3 +1,5 @@
+import { applyHit } from '../../sim/combat/hits';
+import type { Ctx, FighterState } from '../../sim/fighter';
 import type { HitboxDef, MoveDef } from '../types';
 import { skyAnchor } from './anchors';
 
@@ -13,6 +15,11 @@ const box = (
 /** A grab box: catches instead of hitting, so it carries no damage or knockback. */
 const grabBox = (id: number, x: number, y: number, radius: number) =>
   box(id, x, y, radius, { damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true });
+
+function grappleHit({ m, f }: Ctx, target: FighterState, damage: number): void {
+  if (target.action === 'shield' || target.action === 'shieldStun') return;
+  applyHit(m, f, target, box(0, 0, 0, 0, { damage, angle: 45, kbg: 78, bkb: 56, direction: 'away' }));
+}
 
 type Hit = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius'>;
 
@@ -426,11 +433,12 @@ export const moves: Record<string, MoveDef> = {
    * Point Grapple (neutral special, roster 8): hold special and the reticle walks out with the stick at 6 units a
    * frame up to 160; release and the grabber travels to it in 12 frames. It latches stage geometry, platforms and
    * ledges, reels him in at 4 units a frame, and holding jump keeps him stuck at the anchor. A tap with a direction
-   * fires at full range that way. Empty sky takes one of his three sky anchors.
+   * fires at full range that way. A fighter latch deals 10% on arrival, with Min Min's ARMS Hook knockback.
+   * Empty sky takes one of his three sky anchors.
    */
   neutralB: {
     kind: 'other',
-    faf: 50,
+    faf: 51,
     hits: [],
     tether: {
       frame: 6,
@@ -442,15 +450,20 @@ export const moves: Record<string, MoveDef> = {
       pullSpeed: 4,
       hang: 'jump',
       onAnchor: skyAnchor,
+      targetsFighters: true,
+      onFighter(x, target, event) {
+        if (event.phase === 'hit') return 'pullSelf';
+        grappleHit(x, target, 10);
+      },
     },
   },
   /**
    * Quick Grapple (up special, roster 8): straight up 120 units in 10 frames, bent up to 30 degrees towards the
-   * stick. His recovery, so a line that finds nothing leaves him helpless.
+   * stick. The line pokes fighters for 4%, with Min Min's ARMS Hook knockback. A miss in the air leaves him helpless.
    */
   upB: {
     kind: 'other',
-    faf: 45,
+    faf: 41,
     helpless: true,
     hits: [],
     tether: {
@@ -463,6 +476,10 @@ export const moves: Record<string, MoveDef> = {
       pullSpeed: 4,
       hang: 'jump',
       onAnchor: skyAnchor,
+      targetsFighters: true,
+      onFighter(x, target) {
+        grappleHit(x, target, 4);
+      },
     },
   },
   /** Bounce: hops onto them and bounces off; low knockback for follow-ups. Knockback: Jigglypuff's dthrow. */

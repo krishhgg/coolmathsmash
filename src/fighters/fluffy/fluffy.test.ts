@@ -286,6 +286,23 @@ describe('Fluffy: Stick Tight (down special)', () => {
 });
 
 describe('Fluffy: Point Grapple (neutral special)', () => {
+  it.each([false, true])('reels to a fighter and hits only on arrival (shielded: %s)', (shielded) => {
+    const m = vsMario();
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    place(a, 0, 0, 1, a.ground);
+    place(v, 46, 0, -1, a.ground);
+    const defender: Hold = shielded ? { buttons: ['shield'] } : {};
+    runPorts(m, 1, [{ buttons: ['special'] }, defender]);
+    expect(a.move).toBe('neutralB');
+    runPorts(m, 12, [{ x: 100, buttons: ['special'] }, defender]);
+    for (let i = 0; i < 28 && a.action !== 'tetherPull'; i++) runPorts(m, 1, [{}, defender]);
+    expect(a.tether).toMatchObject({ kind: 'fighter', port: v.port });
+    expect(v.damage).toBe(0);
+    runPorts(m, 30, [{}, defender]);
+    expect(v.damage).toBeCloseTo(shielded ? 0 : 10 * 1.05 * 1.2);
+    expect(a.pos.x).toBeGreaterThan(29);
+  });
+
   /** Fluffy alone, with helpers to put him in the air and to run one shot to its end. */
   function field() {
     const m = testMatch({ fighter: 'fluffy' });
@@ -370,6 +387,18 @@ describe('Fluffy: Point Grapple (neutral special)', () => {
 });
 
 describe('Fluffy: Quick Grapple (up special)', () => {
+  it('pokes a fighter above him for 4% and retracts on contact', () => {
+    const m = vsMario();
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    place(a, 0, 0, 1, a.ground);
+    place(v, 0, 26, -1, null);
+    runPorts(m, 1, [{ y: 100, buttons: ['special'] }, {}]);
+    runPorts(m, 12, [{}, {}]);
+    expect(v.damage).toBeCloseTo(4 * 1.05 * 1.2);
+    expect(a.tether).toBeNull();
+    expect(a.ground).not.toBeNull();
+  });
+
   it('fires from the ground without landing out of its startup', () => {
     const m = testMatch({ fighter: 'fluffy' });
     const a = m.fighters[0]!;
