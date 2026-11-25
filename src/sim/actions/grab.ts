@@ -214,7 +214,7 @@ export function resolveGrabs(m: MatchState, contacts: GrabContact[], struck: Set
 
 /**
  * A pummel, a throw's hold hit or a throw on its frame: pummels and hold hits deal damage and hitlag only (each
- * lands once, counted in hitVictims, though hitlag holds its frame); throws let go and launch.
+ * lands once, counted in holdHitsLanded, though hitlag holds its frame); throws let go and launch.
  */
 function heldHit(m: MatchState, a: FighterState, again: boolean): void {
   const v = m.fighters[a.grabPartner];
@@ -222,9 +222,9 @@ function heldHit(m: MatchState, a: FighterState, again: boolean): void {
   if (!v || !move || v.grabPartner !== a.port || v.action !== 'grabbed') return;
   const holdHits =
     a.action === 'grabPummel' ? [move.pummel] : a.action === 'grabThrow' ? (move.holdHits ?? []) : [];
-  const h = holdHits[a.hitVictims.length];
+  const h = holdHits[a.holdHitsLanded];
   if (h?.frame === a.actionFrame) {
-    a.hitVictims.push(v.port);
+    a.holdHitsLanded++;
     const before = v.damage;
     addDamage(m, v, h.damage);
     a.hitlag = v.hitlag = hitlagFrames(h.damage, { mult: h.hitlag });
@@ -320,6 +320,7 @@ function grab(m: MatchState, a: FighterState, v: FighterState): void {
     move: command ?? null,
     grabPartner: v.port,
     hitVictims: [],
+    holdHitsLanded: 0,
     moveStale: 0,
   });
   Object.assign(v, {
