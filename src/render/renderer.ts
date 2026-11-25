@@ -191,7 +191,8 @@ export class Renderer {
     this.zoomFlash.clear();
     if (zoom) paint(this.zoomFlash, zoomFlashShapes(zoom, state.frame, view, this.quality === 'lite'));
     this.stageView?.update(state.frame, view);
-    drawStagePieces(this.stagePieces, this.stage!, state, alpha);
+    this.stageView?.pieces?.(state.stage, alpha);
+    drawStagePieces(this.stagePieces, this.stage!, state, alpha, !this.stageView?.pieces);
     state.fighters.forEach((f, i) =>
       this.fighters[i]?.update(
         f,
