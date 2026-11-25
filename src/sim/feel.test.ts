@@ -3,9 +3,10 @@ import { isIntangible } from './actions/registry';
 import { cameraTarget } from '../render/camera';
 import { getStage } from '../stages/registry';
 import { createMatch, stepMatch, type MatchState } from './match';
-import { attack, input, run } from './testing/sim';
+import { attack, input, run, type Hold } from './testing/sim';
 import { FRESHNESS_BONUS, isTumble } from './combat/formulas';
 import { getFighter } from '../fighters/registry';
+import type { ButtonName } from '../input/types';
 
 /**
  * Feel metrics: the moment-to-moment behaviours a Smash player feels, measured frame by frame against
@@ -284,41 +285,71 @@ describe('shield', () => {
 });
 
 describe('dodges', () => {
-  it('forward roll travels the fighter roll distance, intangible on frames 4-15, actionable on 31', () => {
-    const m = grounded();
+  /**
+   * Flick out of shield on one frame and step until the dodge ends, holding `then.buttons` from action frame
+   * `then.from` on. Ultimate's numbers are Mario's (docs/physics-reference.md section 7, SmashWiki: Spot dodge, Roll).
+   */
+  function dodge(fighter: string, flick: Hold, then?: { from: number; buttons: ButtonName[] }) {
+    const m = createMatch({ seed: 1, stage: 'battlefield', stocks: 3, ports: [{ fighter }] });
     const f = P(m);
+    f.pos.x = 0;
+    settle(m);
     const x0 = f.pos.x;
-    const intangible: number[] = [];
+    stepMatch(m, [input({ ...flick, buttons: ['shield'] })]);
+    const action = f.action;
     const frames: number[] = [];
-    stepMatch(m, [input({ x: 100, buttons: ['shield'] })]);
-    while (f.action !== 'idle' && frames.length < 60) {
+    const intangible: number[] = [];
+    while (f.action === action && frames.length < 60) {
       frames.push(f.actionFrame);
       if (isIntangible(f)) intangible.push(f.actionFrame);
-      stepMatch(m, [input({})]);
+      const held = then && f.actionFrame + 1 >= then.from ? { buttons: then.buttons } : {};
+      stepMatch(m, [input(held)]);
     }
-    // The last action frame is 30, so the fighter is actionable on frame 31 (ROLL.faf).
-    expect(f.action).toBe('idle');
-    expect(Math.max(...frames) + 1).toBe(31);
-    expect(Math.abs(f.pos.x - x0)).toBeCloseTo(28, 0);
-    expect(intangible[0]).toBe(4);
-    expect(intangible.at(-1)).toBe(15);
+    return {
+      action,
+      // The frame after the dodge's last one is the first the fighter acts on.
+      actionable: Math.max(...frames) + 1,
+      intangible: [intangible[0], intangible.at(-1)],
+      distance: Math.abs(f.pos.x - x0),
+      next: f.action,
+      move: f.move,
+    };
+  }
+
+  it("forward roll is intangible on frames 4-15, actionable on 30, and covers the fighter's own roll distance", () => {
+    const mario = dodge('reference-mario', { x: 100 });
+    expect(mario.action).toBe('rollForward');
+    expect(mario.intangible).toEqual([4, 15]);
+    expect(mario.actionable).toBe(30);
+    expect(mario.distance).toBeCloseTo(32.17, 2);
+    const fireboy = dodge('fireboy', { x: 100 });
+    expect(fireboy.actionable).toBe(30);
+    expect(fireboy.distance).toBeCloseTo(getFighter('fireboy').stats.rollDistance, 2);
   });
 
-  it('spot dodge is intangible on frames 3-17 and ends 4 frames sooner than a roll', () => {
-    const m = grounded();
-    const f = P(m);
-    const intangible: number[] = [];
-    const frames: number[] = [];
-    stepMatch(m, [input({ y: -100, buttons: ['shield'] })]);
-    while (f.action !== 'idle' && frames.length < 60) {
-      frames.push(f.actionFrame);
-      if (isIntangible(f)) intangible.push(f.actionFrame);
-      stepMatch(m, [input({})]);
-    }
-    expect(intangible[0]).toBe(3);
-    expect(intangible.at(-1)).toBe(17);
-    // The last action frame is 26, so the fighter is actionable on frame 27 (SPOT_DODGE.faf).
-    expect(Math.max(...frames) + 1).toBe(27);
+  it('back roll is intangible on frames 5-16 and actionable on 35', () => {
+    const r = dodge('reference-mario', { x: -100 });
+    expect(r.action).toBe('rollBack');
+    expect(r.intangible).toEqual([5, 16]);
+    expect(r.actionable).toBe(35);
+    expect(r.distance).toBeCloseTo(32.17, 2);
+  });
+
+  it('spot dodge is intangible on frames 3-17 and actionable on 26', () => {
+    const r = dodge('reference-mario', { y: -100 });
+    expect(r.action).toBe('spotDodge');
+    expect(r.intangible).toEqual([3, 17]);
+    expect(r.actionable).toBe(26);
+    expect(r.distance).toBe(0);
+  });
+
+  it('spot dodge cancels into a ground attack or special on frame 21; a grab waits for frame 26', () => {
+    const jab = dodge('fireboy', { y: -100 }, { from: 15, buttons: ['attack'] });
+    expect([jab.actionable, jab.move]).toEqual([21, 'jab']);
+    const special = dodge('fireboy', { y: -100 }, { from: 15, buttons: ['special'] });
+    expect([special.actionable, special.move]).toEqual([21, 'neutralB']);
+    const grab = dodge('fireboy', { y: -100 }, { from: 15, buttons: ['grab'] });
+    expect([grab.actionable, grab.move]).toEqual([26, 'grab']);
   });
 });
 
@@ -398,7 +429,7 @@ describe('stage and camera', () => {
     expect(stage.ledges.map((l) => l.x).sort((a, b) => a - b)).toEqual([-80, 80]);
   });
 
-  it('frames both fighters with room to read the stage: 4-8 px per unit', () => {
+  it('frames both fighters with room to read the stage: about 5 px per unit', () => {
     const stage = getStage('battlefield');
     const m = fireboys(2);
     const zoomFor = (a: number, b: number) => {
@@ -406,10 +437,11 @@ describe('stage and camera', () => {
       P(m, 1).pos = { x: b, y: 0 };
       return cameraTarget(m, stage).zoom;
     };
-    expect(zoomFor(0, 20)).toBeLessThanOrEqual(8.6);
-    expect(zoomFor(-40, 40)).toBeCloseTo(7.5, 1);
-    expect(zoomFor(-79, 79)).toBeCloseTo(5.2, 1);
-    // A full screen of stage at 160 units wide is 480 px at the reference 3 px/u, 800 px at 5 px/u.
-    expect(160 * zoomFor(-79, 79)).toBeLessThanOrEqual(1280);
+    // Fighters close together or at the spawns: the narrowest view, 240 units across.
+    expect(zoomFor(0, 20)).toBeCloseTo(5.33, 2);
+    expect(zoomFor(-40, 40)).toBeCloseTo(5.33, 2);
+    expect(zoomFor(-79, 79)).toBeCloseTo(4.78, 2);
+    // The 160-unit deck at the spawns: about 60% of the screen in Ultimate, 67% here.
+    expect((160 * zoomFor(-40, 40)) / 1280).toBeLessThanOrEqual(0.7);
   });
 });

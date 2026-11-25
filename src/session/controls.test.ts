@@ -8,6 +8,8 @@ import {
   menuKeyConflict,
   padButtonLabel,
   padButtonLabels,
+  padMenuConflict,
+  padMenusUsable,
   resetKeyboard,
 } from './controls';
 
@@ -99,5 +101,39 @@ describe('rebinding', () => {
     expect(pad.taunt).toEqual([12, 14, 15]);
     expect(pad.shield).toEqual([13]);
     expect(bindButton(pad, 'start', 9)).toEqual([]);
+  });
+
+  it('keeps A off Pause, since A selects Restart and Quit in the pause menu', () => {
+    const pad = structuredClone(GAMEPAD_BUTTONS);
+    expect(padMenuConflict(pad, 'start', 0)).toBe('confirm');
+    expect(padMenuConflict(pad, 'start', 1)).toBeNull();
+    expect(padMenuConflict(pad, 'start', 3)).toBeNull();
+    expect(padMenuConflict(pad, 'start', 9)).toBeNull();
+    // Off Pause, A and B take any fight action: outside a match the pad's menu buttons ignore the bindings.
+    expect(padMenuConflict(pad, 'jump', 0)).toBeNull();
+    expect(padMenuConflict(pad, 'shield', 1)).toBeNull();
+  });
+
+  it('never takes the last button off Pause', () => {
+    const pad = structuredClone(GAMEPAD_BUTTONS);
+    expect(padMenuConflict(pad, 'attack', 9)).toBe('pause');
+    expect(padMenuConflict(pad, 'taunt', 9)).toBe('pause');
+    expect(padMenuConflict(pad, 'attack', 8)).toBeNull();
+    bindButton(pad, 'start', 3);
+    expect(padMenuConflict(pad, 'jump', 3)).toBe('pause');
+    expect(padMenuConflict(pad, 'attack', 9)).toBeNull();
+    pad.start = [3, 9];
+    expect(padMenuConflict(pad, 'attack', 9)).toBeNull();
+    pad.start = [];
+    expect(padMenuConflict(pad, 'attack', 9)).toBeNull();
+  });
+
+  it('tells which pad mappings leave the pause menu usable', () => {
+    const pad = structuredClone(GAMEPAD_BUTTONS);
+    expect(padMenusUsable(pad)).toBe(true);
+    expect(padMenusUsable({ ...pad, start: [1] })).toBe(true);
+    expect(padMenusUsable({ ...pad, start: [0] })).toBe(false);
+    expect(padMenusUsable({ ...pad, start: [9, 0] })).toBe(false);
+    expect(padMenusUsable({ ...pad, start: [] })).toBe(false);
   });
 });
