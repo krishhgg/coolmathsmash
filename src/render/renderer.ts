@@ -160,6 +160,7 @@ export class Renderer {
         x: VIEW_WIDTH / 2 + (f.pos.x - view.x) * view.zoom,
         y: VIEW_HEIGHT / 2 - (f.pos.y + getFighter(f.fighter).stats.height / 2 - view.y) * view.zoom,
       })),
+      this.costumes,
     );
     this.inputDisplay.container.visible = this.overlays.inputs;
     if (this.overlays.inputs) this.inputDisplay.update(state.players);

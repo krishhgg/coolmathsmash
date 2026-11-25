@@ -1,12 +1,26 @@
 import { getFighter } from '../../fighters/registry';
 import type { MatchState } from '../../sim/match';
+import { recolorIcon } from '../rig/svg';
+import type { FighterArt } from '../rig/types';
 import { Hud, type HudOccluder } from './hud';
 import type { HudPlayer } from './types';
 
-/** The icon SVG a fighter's art ships (`art.icon`), if any. */
-export function fighterIcon(id: string): string | undefined {
-  const art = getFighter(id).art as { icon?: unknown } | undefined;
-  return typeof art?.icon === 'string' ? art.icon : undefined;
+const costumeIcons = new WeakMap<FighterArt, Map<string, string>>();
+
+/** The icon SVG a fighter's art ships, repainted for the selected costume. */
+export function fighterIcon(id: string, costume = 'default'): string | undefined {
+  const art = getFighter(id).art as FighterArt | undefined;
+  if (typeof art?.icon !== 'string') return undefined;
+  const palette = art.palettes?.[costume];
+  if (costume === 'default' || !palette) return art.icon;
+  let colors = costumeIcons.get(art);
+  if (!colors) costumeIcons.set(art, (colors = new Map<string, string>()));
+  let icon = colors.get(costume);
+  if (icon === undefined) {
+    icon = recolorIcon(art.icon, art.palettes.default, palette);
+    colors.set(costume, icon);
+  }
+  return icon;
 }
 
 /**
@@ -34,7 +48,7 @@ export class MatchHud {
     });
   }
 
-  players(state: MatchState): HudPlayer[] {
+  players(state: MatchState, costumes: readonly string[] = []): HudPlayer[] {
     const fresh = this.config !== state.config;
     return state.fighters.map((f, i) => ({
       port: f.port,
@@ -42,13 +56,13 @@ export class MatchHud {
       damage: f.damage,
       stocks: f.stocks,
       maxStocks: state.config.stocks,
-      icon: fighterIcon(f.fighter),
+      icon: fighterIcon(f.fighter, costumes[f.port] ?? state.config.ports[f.port]?.costume),
       eliminated: f.action === 'out',
       hitFrame: fresh ? -1 : (this.hitFrames[i] ?? -1),
     }));
   }
 
-  update(state: MatchState, occluders: readonly HudOccluder[]): void {
-    this.hud.update(this.players(state), state.frame, occluders);
+  update(state: MatchState, occluders: readonly HudOccluder[], costumes: readonly string[]): void {
+    this.hud.update(this.players(state, costumes), state.frame, occluders);
   }
 }

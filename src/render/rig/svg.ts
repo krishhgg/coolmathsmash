@@ -8,6 +8,31 @@ export function resolveColor(ref: string, palette: Palette): string {
 
 const r = (v: number) => String(Math.round(v * 1000) / 1000);
 
+type PaintAttr = 'fill' | 'stroke' | 'stop-color';
+
+const paletteAttr = (attr: PaintAttr, ref: string, palette: Palette) =>
+  `${attr}="${resolveColor(ref, palette)}"${ref.startsWith('#') ? '' : ` data-palette-${attr}="${ref}"`}`;
+
+export function recolorIcon(icon: string, base: Palette, costume: Palette): string {
+  if (icon.includes('data-palette-')) {
+    return icon.replace(
+      /(fill|stroke|stop-color)="([^"]*)" data-palette-\1="([^"]*)"/g,
+      (_, attr: PaintAttr, color: string, ref: string) =>
+        `${attr}="${costume[ref] ?? color}" data-palette-${attr}="${ref}"`,
+    );
+  }
+  const colors = new Map<string, string | null>();
+  for (const [ref, color] of Object.entries(base)) {
+    const key = color.toLowerCase();
+    const next = costume[ref] ?? color;
+    colors.set(key, colors.has(key) && colors.get(key) !== next ? null : next);
+  }
+  return icon.replace(
+    /\b(fill|stroke|stop-color)="(#[0-9a-f]+)"/gi,
+    (_, attr: PaintAttr, color: string) => `${attr}="${colors.get(color.toLowerCase()) ?? color}"`,
+  );
+}
+
 /**
  * Standalone SVG markup for symbols drawn on top of each other (first is backmost), e.g. a head icon. Movie-clip
  * symbols show their first frame.
@@ -19,13 +44,12 @@ export function symbolsToSvg(
   viewBox: [number, number, number, number],
 ): string {
   const defs: string[] = [];
-  const paint = (p: Paint): string => {
-    if (typeof p === 'string') return resolveColor(p, palette);
+  const gradient = (p: Exclude<Paint, string>): string => {
     const id = `g${defs.length}`;
     const stops = p.stops
       .map(
         (s) =>
-          `<stop offset="${r(s.offset)}" stop-color="${resolveColor(s.color, palette)}"${s.alpha === undefined ? '' : ` stop-opacity="${r(s.alpha)}"`}/>`,
+          `<stop offset="${r(s.offset)}" ${paletteAttr('stop-color', s.color, palette)}${s.alpha === undefined ? '' : ` stop-opacity="${r(s.alpha)}"`}/>`,
       )
       .join('');
     defs.push(
@@ -36,9 +60,9 @@ export function symbolsToSvg(
     return `url(#${id})`;
   };
   const path = (s: PathShape) =>
-    `<path d="${s.d}" fill="${s.fill === undefined ? 'none' : paint(s.fill)}" fill-rule="evenodd"${
+    `<path d="${s.d}" ${typeof s.fill === 'string' ? paletteAttr('fill', s.fill, palette) : `fill="${s.fill === undefined ? 'none' : gradient(s.fill)}"`} fill-rule="evenodd"${
       s.stroke
-        ? ` stroke="${resolveColor(s.stroke.color, palette)}" stroke-width="${r(s.stroke.width)}" stroke-linecap="round" stroke-linejoin="round"`
+        ? ` ${paletteAttr('stroke', s.stroke.color, palette)} stroke-width="${r(s.stroke.width)}" stroke-linecap="round" stroke-linejoin="round"`
         : ''
     }/>`;
   const body = layers

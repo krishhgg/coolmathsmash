@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { getFighter } from '../../fighters/registry';
 import { neutralInput } from '../../input/types';
 import { DEFAULT_MATCH, createMatch, stepMatch } from '../../sim/match';
+import { fighterArt, pickCostumes } from '../fighterView';
 import { MatchHud } from './match';
 
 const idle = () => [neutralInput(), neutralInput()];
@@ -56,5 +58,23 @@ describe('MatchHud', () => {
     stepMatch(b, idle());
     hud.step(b);
     expect(hud.players(b)[0]!.hitFrame).toBe(-1);
+  });
+
+  it('uses the palette the renderer assigned each mirror-match port', () => {
+    const m = createMatch({
+      ...DEFAULT_MATCH,
+      ports: [
+        { fighter: 'fireboy', costume: 'light' },
+        { fighter: 'fireboy', costume: 'light' },
+      ],
+    });
+    const art = fighterArt(getFighter('fireboy'))!;
+    const hud = new MatchHud();
+    const costumes = pickCostumes(m.config, () => art);
+    const [light, original] = hud.players(m, costumes);
+    expect(costumes).toEqual(['light', 'default']);
+    expect(light!.icon).toContain(`fill="${art.palettes.light!.skin}" data-palette-fill="skin"`);
+    expect(original!.icon).toBe(art.icon);
+    expect(light!.icon).not.toBe(original!.icon);
   });
 });
