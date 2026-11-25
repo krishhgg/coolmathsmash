@@ -331,36 +331,38 @@ export const clips: Record<string, AnimClip> = {
   ),
   /** Flattens under the attack. */
   spotDodge: {
-    length: 26,
+    length: 25,
     keys: [
       key(0, ground(), { swaps: DETERMINED }),
       key(3, ground(1.45, 0.55), { swaps: FLINCH }),
       key(14, ground(1.5, 0.52)),
-      key(19, ground(0.9, 1.12), { swaps: DETERMINED, ease: 'out' }),
-      key(23, ground(1.03, 0.97)),
-      key(26, ground()),
+      key(18, ground(0.9, 1.12), { swaps: DETERMINED, ease: 'out' }),
+      key(22, ground(1.03, 0.97)),
+      key(25, ground()),
     ],
   },
+  /** One turn over the sim's travel (ROLL_FORWARD.move, frames 4 to 20), then a squash as he brakes. */
   rollForward: {
-    length: 30,
+    length: 29,
     swaps: GRIT,
     keys: [
       key(0, ground()),
       key(3, mix(ground(1.12, 0.9), roll(-10))),
       key(20, mix(ground(1.02, 0.98), roll(360))),
       key(24, mix(ground(1.08, 0.93), roll(362)), { swaps: DETERMINED }),
-      key(30, mix(ground(), roll(360))),
+      key(29, mix(ground(), roll(360))),
     ],
   },
+  /** The same turn backwards over ROLL_BACK.move, with the longer recovery of Mario's back roll. */
   rollBack: {
-    length: 30,
+    length: 34,
     swaps: GRIT,
     keys: [
       key(0, ground()),
       key(3, mix(ground(1.12, 0.9), roll(10))),
       key(20, mix(ground(1.02, 0.98), roll(-360))),
-      key(24, mix(ground(1.08, 0.93), roll(-362)), { swaps: DETERMINED }),
-      key(30, mix(ground(), roll(-360))),
+      key(25, mix(ground(1.08, 0.93), roll(-362)), { swaps: DETERMINED }),
+      key(34, mix(ground(), roll(-360))),
     ],
   },
   /** A quick tuck and spin. */
