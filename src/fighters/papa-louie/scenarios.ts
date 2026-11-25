@@ -30,10 +30,10 @@ export const scenarios: FighterScenarios = {
       match: { ports: [{ fighter: 'papa-louie' }, { fighter: 'fireboy' }] },
       script: [{ port: 0, from: 12, y: 100, buttons: ['special'] }],
       capture: {
-        label: 'Paddle Propeller rises through the second hit window',
-        when: (s) => s.fighters[0]!.move === 'upB' && s.fighters[0]!.actionFrame === 10,
+        label: 'Paddle Propeller kicks through the finishing hit',
+        when: (s) => s.fighters[0]!.move === 'upB' && s.fighters[0]!.actionFrame === 28,
       },
-      motion: { before: 14, after: 40 },
+      motion: { before: 31, after: 18 },
       requires: ['move:upB'],
       refs: [`${PAPA}/ingame-glide-*`, `${PAPA}/official-art-paddle-*`],
     },

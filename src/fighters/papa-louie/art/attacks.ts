@@ -550,11 +550,23 @@ const FT_LIFT = grip(stance(-0.3, 0.5, -6, -1.3, 1.2), [1.4, -6.8], -100, [-2.0,
 const FT_SHOVE = peel(stance(1.2, 0.8, 20, -0.6, 2.2), -90, [14.5, -6.2], 7.6, [-2.6, -5.6]);
 const FT_YANK = grip(stance(0.0, 0.6, -8, -1.3, 1.1), [0.8, -6.0], -90, [-2.4, -5.0]);
 
-const BT_LIFT = grip(stance(-0.2, 0.5, -8, -1.3, 1.2), [2.6, -7.8], -115, [-1.8, -5.6]);
-const BT_SETTLE = grip(stance(-0.2, 0.5, -4, -1.3, 1.2), [2.6, -7.8], -115, [-1.8, -5.6]);
-const BT_TURNED = flip(grip(stance(-0.2, 0.6, -6, -1.2, 1.2), [1.4, -7.6], -100, [-2.2, -5.0]));
-const BT_WIND = flip(grip(stance(-0.6, 0.8, -12, -1.5, 1.0), [-0.4, -5.8], -88, [-2.6, -4.6]));
-const BT_SHOVE = flip(peel(stance(1.2, 0.8, 22, -0.6, 2.2), -90, [13.0, -3.6], 7.5, [-2.8, -5.0]));
+const BT_SCOOP = both(stance(0.64, 1.25, 26, -1.65, 1.4, { head: { rot: -10 } }), [4.4, -4.25], -84);
+const BT_LIFT = both(
+  stance(-0.52, 0.22, -17, -1.62, 1.56, { torso: { sy: 1.07 }, hat: { rot: -15, y: -0.22 } }),
+  [2.9, -9.2],
+  -117,
+);
+const BT_SETTLE = grip(stance(-0.8, 0.22, -19, -1.62, 1.05), [1.8, -8.6], -144, [-2.5, -7.5]);
+const BT_TURNED = flip(both(stance(0.42, 1.12, 17, -1.62, 2.02), [3.4, -6.2], -101));
+const BT_WIND = flip(
+  both(stance(-0.75, 1.4, -19, -1.55, 1.84, { torso: { sy: 0.92 }, hat: { rot: -12 } }), [0.5, -7.45], -148),
+);
+const BT_SHOVE = flip(
+  both(stance(1.3, 0.58, 30, -1.65, 2.32, { head: { rot: -14 }, hat: { rot: 16 } }), [5.1, -5.13], -81),
+);
+const BT_PRESS = flip(
+  peel(stance(1.55, 1.42, 36, -1.65, 2.32, { head: { rot: -13 }, hat: { rot: 18 } }), -71, [12.2, -4], 7),
+);
 const BT_REC = flip(grip(stance(0.6, 0.6, 8, -1.0, 1.6), [3.6, -5.6], -100, [-2.0, -4.6]));
 /** The brick oven behind him (fx3, behind his body), popped in at scale `s`. */
 const OVEN_X = -12.5;
@@ -592,25 +604,26 @@ function propeller(frame: number): Key {
   const taper = phase % 2 ? 0.68 : 1;
   const finish = frame >= 28;
   const coil = frame >= 24 && !finish;
-  const rise = finish ? 0.55 : 0;
+  const pedal = Math.sin(((frame - 5) * Math.PI) / 7);
+  const rise = finish ? 0.62 : coil ? -0.32 : pedal * 0.24;
   const pose = arms(
     mix(AIR, {
       body: {
-        x: side * 0.22,
-        y: coil ? 0.24 : -0.86 - rise,
-        sx: coil ? 1.11 : finish ? 0.86 : 0.94,
-        sy: coil ? 0.91 : finish ? 1.15 : 1.05,
-        rot: finish ? -7 : side * 4,
+        x: finish ? -0.7 : 0.35 + pedal * 0.32,
+        y: coil ? 0.69 : -0.72 - rise,
+        sx: coil ? 1.16 : finish ? 0.83 : 0.94 - pedal * 0.05,
+        sy: coil ? 0.83 : finish ? 1.19 : 1.02 + pedal * 0.08,
+        rot: finish ? 10 : coil ? -14 : 4 + pedal * 12,
       },
-      head: { rot: coil ? 12 : -side * 4 - rise * 14 },
-      hat: { rot: coil ? 9 : -rise * 24 },
-      thighB: { rot: coil ? 56 : finish ? 9 : 24 + side * 8 },
-      shinB: { rot: coil ? 57 : finish ? 9 : 32 },
-      thighF: { rot: coil ? -55 : finish ? -12 : -31 + side * 10 },
-      shinF: { rot: coil ? 89 : finish ? 15 : 44 },
+      head: { rot: coil ? 21 : finish ? -20 : -pedal * 14 },
+      hat: { rot: coil ? 13 : finish ? -23 : 8 * pedal, y: finish ? -0.29 : 0 },
+      thighB: { rot: coil ? 65 : finish ? 16 : 22 + pedal * 27 },
+      shinB: { rot: coil ? 49 : finish ? 0 : 34 + pedal * 14 },
+      thighF: { rot: coil ? -69 : finish ? -27 : -30 - pedal * 29 },
+      shinF: { rot: coil ? 81 : finish ? 1 : 42 - pedal * 18 },
     }),
-    finish ? [-3.55, -9.1] : [-2.2, -7.5],
-    [side * 2.2, -16.1 - rise],
+    finish ? [-3.92, -9.32] : coil ? [-0.9, -4.8] : [-2.45 + pedal * 0.8, -7.1 + pedal],
+    [side * 2.2, -16.2 - rise],
   );
   return key(
     frame,
@@ -619,8 +632,8 @@ function propeller(frame: number): Key {
       fx2: {
         x: 0,
         y: -17 - rise,
-        sx: side * (finish ? 2.1 : 1.65 - taper * 0.35),
-        sy: finish ? 0.68 : 0.3,
+        sx: side * (finish ? 2.3 : 1.65 - taper * 0.35),
+        sy: finish ? 0.9 : 0.3,
         rot: side * (finish ? 6 : 2),
       },
     }),
@@ -633,6 +646,20 @@ const DEFLECT_WIND = mix(grip(stance(-0.6, 1.08, -15, -2.25, 2.04), [2.45, -5.45
 });
 const DEFLECT_HIT = peel(stance(0.48, 0.67, 15, -2.25, 2.15), -136, box('downB'), 5.25, [0.7, -4.9]);
 const DEFLECT_HOLD = peel(stance(0.13, 0.94, 7, -2.1, 2), -149, [6.3, -8.2], 5.1, [0.5, -4.8]);
+const PROPELLER_FOLLOW = grip(
+  mix(AIR, {
+    body: { y: -1.02, rot: 17, sy: 1.08 },
+    head: { rot: -16 },
+    hat: { rot: -15, y: -0.2 },
+    thighF: { rot: -73 },
+    shinF: { rot: 51 },
+    thighB: { rot: 43 },
+    shinB: { rot: 19 },
+  }),
+  [3.35, -11.2],
+  -153,
+  [-3.85, -8.38],
+);
 
 const clips: Record<string, AnimClip> = {
   upB: {
@@ -643,9 +670,9 @@ const clips: Record<string, AnimClip> = {
         ease: 'in',
         swaps: GRIT,
       }),
-      ...Array.from({ length: 25 }, (_, i) => propeller(i + 5)),
-      key(30, grip(AIR, [3.1, -8.4], -155), { ease: 'inOut', swaps: GRIT }),
-      key(38, grip(AIR, [3.3, -6.4], -129), { ease: 'out', swaps: {} }),
+      ...Array.from({ length: 27 }, (_, i) => propeller(i + 5)),
+      key(32, PROPELLER_FOLLOW, { ease: 'out', swaps: GRIT }),
+      key(38, grip(AIR, [3.3, -6.4], -129), { ease: 'inOut', swaps: {} }),
       key(45, AIR),
     ],
   },
@@ -1077,17 +1104,17 @@ const clips: Record<string, AnimClip> = {
     swaps: { ...ANGRY, fxBack: 'oven' },
     keys: [
       key(0, mix(HOLD, { fx3: oven(0) }), { ease: 'inOut', swaps: { fxBack: null } }),
-      key(6, mix(BT_LIFT, { fx3: oven(0) }), { ease: 'in', swaps: GRIT }),
-      key(10, mix(BT_LIFT, { fx3: oven(0.3) }), { ease: 'outBack', swaps: {} }),
-      key(13, mix(BT_SETTLE, { fx3: oven(1) }), { ease: 'in' }),
-      key(15, mix(turning(BT_LIFT, 0.6), { fx3: oven(1) }), { ease: 'step', swaps: GRIT }),
+      key(4, mix(BT_SCOOP, { fx3: oven(0) }), { ease: 'in', swaps: GRIT }),
+      key(9, mix(BT_LIFT, { fx3: oven(0.25) }), { ease: 'outBack' }),
+      key(13, mix(BT_SETTLE, { fx3: oven(1) }), { ease: 'in', swaps: {} }),
+      key(15, mix(turning(BT_SETTLE, 0.6), { fx3: oven(1) }), { ease: 'step', swaps: GRIT }),
       key(16, mix(turning(BT_TURNED, -0.6), { fx3: oven(1) }), { ease: 'out' }),
       key(18, mix(BT_TURNED, { fx3: oven(1) }), { ease: 'inOut' }),
-      key(25, mix(BT_WIND, { fx3: oven(1) }), { ease: 'in' }),
+      key(24, mix(BT_WIND, { fx3: oven(1) }), { ease: 'in' }),
       key(29, mix(BT_SHOVE, { fx3: oven(1) }), { ease: 'linear', swaps: SHOUT }),
-      key(31, mix(BT_SHOVE, { fx3: oven(1, 1.12, 0.9) }), { ease: 'out' }),
-      key(34, mix(BT_SHOVE, { fx3: oven(1, 0.95, 1.1) }), { ease: 'inOut' }),
-      key(38, mix(BT_REC, { fx3: oven(1) }), { ease: 'inOut', swaps: GRIT }),
+      key(31, mix(BT_PRESS, { fx3: oven(1, 1.12, 0.9) }), { ease: 'out' }),
+      key(34, mix(BT_PRESS, { fx3: oven(1, 0.95, 1.1) }), { ease: 'inOut' }),
+      key(37, mix(BT_REC, { fx3: oven(1) }), { ease: 'inOut', swaps: GRIT }),
       key(41, mix(turning(BT_REC, -0.6), { fx3: oven(1) }), { ease: 'step', swaps: {} }),
       key(42, mix(turning(STAND, 0.6), { fx3: oven(1.05) }), { ease: 'out' }),
       key(44, mix(STAND, { fx3: oven(1.1) }), { ease: 'in' }),
