@@ -364,7 +364,13 @@ const FS_HIT = lay(
   8.3,
   [-2.2, -6.6],
 );
-const FS_FOLLOW = grip(stance(1.4, 1.0, 30, -0.4, 2.4), [5.0, -6.4], -66, [-2.4, -6.2]);
+const FS_FOLLOW = grip(
+  stance(1.6, 1.26, 36, -0.8, 2.6, { hat: { rot: 12, y: -0.24 }, head: { rot: -7 } }),
+  [5.4, -5.4],
+  -68,
+  [-3, -4.8],
+);
+const FS_RECOIL = grip(stance(0.3, 0.56, 9, -1.05, 1.75), [3.9, -6.2], -116, [-1.95, -3.9]);
 
 const US_LOW = grip(stance(0.1, 0.9, 10, -1.3, 1.3, SLANT), [2.4, -3.6], -86, [-1.6, -3.4]);
 const US_CHARGE = grip(stance(0, 1.3, 16, -1.4, 1.3, SLANT), [2.2, -3.0], -84, [-1.8, -3.2]);
@@ -584,30 +590,49 @@ function propeller(frame: number): Key {
   const phase = frame % 4;
   const side = phase < 2 ? 1 : -1;
   const taper = phase % 2 ? 0.68 : 1;
-  const rise = frame < 28 ? 0 : 0.3;
+  const finish = frame >= 28;
+  const coil = frame >= 24 && !finish;
+  const rise = finish ? 0.55 : 0;
   const pose = arms(
     mix(AIR, {
-      body: { x: side * 0.14, y: -0.8 - rise, sx: 0.93, sy: 1.07, rot: side * 3 },
-      head: { rot: -side * 4 },
-      thighB: { rot: 24 + side * 7 },
-      thighF: { rot: -31 + side * 8 },
+      body: {
+        x: side * 0.22,
+        y: coil ? 0.24 : -0.86 - rise,
+        sx: coil ? 1.11 : finish ? 0.86 : 0.94,
+        sy: coil ? 0.91 : finish ? 1.15 : 1.05,
+        rot: finish ? -7 : side * 4,
+      },
+      head: { rot: coil ? 12 : -side * 4 - rise * 14 },
+      hat: { rot: coil ? 9 : -rise * 24 },
+      thighB: { rot: coil ? 56 : finish ? 9 : 24 + side * 8 },
+      shinB: { rot: coil ? 57 : finish ? 9 : 32 },
+      thighF: { rot: coil ? -55 : finish ? -12 : -31 + side * 10 },
+      shinF: { rot: coil ? 89 : finish ? 15 : 44 },
     }),
-    [-2.2, -7.5],
+    finish ? [-3.55, -9.1] : [-2.2, -7.5],
     [side * 2.2, -16.1 - rise],
   );
   return key(
     frame,
     mix(aim(pose, 'handF', 180), {
       fx1: { x: -side * 4.1 * taper, y: -17 - rise, rot: -side * 90, sx: 0.63, sy: taper },
-      fx2: { x: 0, y: -17 - rise, sx: side * (1.65 - taper * 0.35), sy: 0.16, rot: side * 2 },
+      fx2: {
+        x: 0,
+        y: -17 - rise,
+        sx: side * (finish ? 2.1 : 1.65 - taper * 0.35),
+        sy: finish ? 0.68 : 0.3,
+        rot: side * (finish ? 6 : 2),
+      },
     }),
     { ease: 'linear', swaps: { ...SHOUT, face: 'faceUp', paddle: null, fx1: 'paddle', fx2: 'rotorTrail' } },
   );
 }
 
-const DEFLECT_WIND = grip(stance(-0.4, 0.85, -10, -1.5, 1.35), [2.5, -5.6], -173, [0.6, -5.2]);
-const DEFLECT_HIT = peel(stance(0.32, 0.66, 12, -1.45, 1.85), -139, box('downB'), 5.25, [0.7, -4.9]);
-const DEFLECT_HOLD = peel(stance(0.12, 0.79, 7, -1.45, 1.85), -145, [6.3, -8.2], 5.1, [0.5, -4.8]);
+const DEFLECT_WIND = mix(grip(stance(-0.6, 1.08, -15, -2.25, 2.04), [2.45, -5.45], -176, [0.22, -4.92]), {
+  paddle: { sx: 0.29 },
+});
+const DEFLECT_HIT = peel(stance(0.48, 0.67, 15, -2.25, 2.15), -136, box('downB'), 5.25, [0.7, -4.9]);
+const DEFLECT_HOLD = peel(stance(0.13, 0.94, 7, -2.1, 2), -149, [6.3, -8.2], 5.1, [0.5, -4.8]);
 
 const clips: Record<string, AnimClip> = {
   upB: {
@@ -629,8 +654,12 @@ const clips: Record<string, AnimClip> = {
     keys: [
       key(0, STAND, { ease: 'out' }),
       key(3, DEFLECT_WIND, { ease: 'in', swaps: GRIT }),
-      ...strike(4, 6, DEFLECT_HIT, GRIT),
-      key(10, DEFLECT_HOLD, { ease: 'out' }),
+      ...strike(4, 6, mix(DEFLECT_HIT, { fx1: smear(wristF(DEFLECT_HIT), -129, false, 0.66) }), {
+        ...GRIT,
+        fx1: 'swoosh',
+      }),
+      key(7, undefined, { swaps: GRIT }),
+      key(11, DEFLECT_HOLD, { ease: 'out' }),
       key(20, DEFLECT_HOLD, { ease: 'inOut' }),
       key(27, DEFLECT_WIND, { ease: 'out', swaps: {} }),
       key(35, STAND),
@@ -772,9 +801,10 @@ const clips: Record<string, AnimClip> = {
         mix(FS_HIT, { fx1: smear(wristF(FS_HIT), toward(box('fsmash', 0, 1), box('fsmash')), true) }),
         { ...SHOUT, fx1: 'swoosh' },
       ),
-      key(15, undefined, { swaps: SHOUT }),
-      key(24, FS_FOLLOW, { ease: 'inOut', swaps: GRIT }),
-      done(30),
+      key(18, undefined, { swaps: GRIT }),
+      key(20, FS_FOLLOW, { ease: 'out' }),
+      key(27, FS_RECOIL, { ease: 'inOut', swaps: {} }),
+      key(38, STAND, { ease: 'out' }),
       key(51, STAND),
     ],
   },

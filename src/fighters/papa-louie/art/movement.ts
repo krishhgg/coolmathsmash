@@ -32,6 +32,7 @@ const CHUTE = { hat: 'hatChute' };
 const HAND_ON_HAT = { handB: 29.5 };
 const PADDLE_BEHIND = { paddle: 0.5 };
 const PADDLE_LOW = { paddle: 6.5 };
+const LEDGE_HOLD = { ...PADDLE_BEHIND, handB: 29.5 };
 
 // --- Builders --------------------------------------------------------------------------------------------
 
@@ -296,31 +297,32 @@ const WALK = gait({
  * coat squashing on every contact and stretching in the air, the paddle carried up in front like the pizza
  * boxes and the back hand flung out behind.
  */
-const RUN_STANCE = 0.42;
+const RUN_STANCE = 0.28;
 const RUN = gait(
   {
     length: 18,
     stance: RUN_STANCE,
-    stride: [2.2, -1.4],
-    lift: 2.1,
-    kick: 0.55,
-    heel: -22,
-    toe: 55,
+    stride: [3.9, -4.1],
+    lift: 3,
+    kick: 0.68,
+    heel: -24,
+    toe: 48,
     upper: (p) => {
       const bob = Math.cos(2 * TAU * (p - RUN_STANCE / 2));
       const lag = Math.cos(2 * TAU * (p - RUN_STANCE / 2 - 0.1));
+      const pump = Math.cos(TAU * (p - 0.08));
       return {
         body: {
-          body: { y: 0.05 + 0.5 * bob, x: 0.25 },
-          torso: { rot: 10 + bob, sy: 1 - 0.05 * bob, sx: 1 + 0.04 * bob },
-          neck: { rot: -5 - 2.5 * lag },
-          hat: { rot: 2 + 5 * lag },
+          body: { y: -0.35 + 0.55 * bob, x: 0.55, rot: 12 },
+          torso: { rot: 20 + 3 * bob, sy: 0.98 - 0.065 * bob, sx: 1 + 0.05 * bob },
+          neck: { rot: -24 - 4 * lag },
+          hat: { rot: 2 + 10 * lag, x: -0.15 + 0.2 * lag },
         },
         hands: [
-          [-3.4 - 0.3 * Math.cos(TAU * p), -7.1 + 0.6 * lag],
-          [3.85, -6.7 + 0.45 * lag],
+          [-2.7 - 1.55 * pump, -6.25 - 0.65 * pump],
+          [4.65 + 0.75 * pump, -6.8 - 0.65 * pump],
         ],
-        paddle: -146 + 4 * lag,
+        paddle: -128 + 9 * lag + 6 * pump,
       };
     },
   },
@@ -409,79 +411,140 @@ const LEAN = build({
 
 // --- Air ------------------------------------------------------------------------------------------------
 
+const JUMP_COIL = build({
+  body: {
+    body: { y: 1.2, x: -0.35, rot: 7 },
+    torso: { rot: 17, sx: 1.12, sy: 0.79 },
+    neck: { y: 0.2, rot: -10 },
+    hat: { rot: -10, sx: 1.08, sy: 0.89 },
+  },
+  feet: [
+    [-2.1, -1],
+    [2.0, -1],
+  ],
+  hands: [
+    [-3.5, -2.7],
+    [3.2, -3.0],
+  ],
+  paddle: -98,
+});
+
 /** Take-off: stretched tall, toes pointed, arms thrown up. */
 const LAUNCH = build({
-  body: { body: { y: -0.3 }, torso: { rot: -4, sy: 1.1, sx: 0.92 }, neck: { rot: 6 }, hat: { rot: -8 } },
+  body: {
+    body: { y: -1, x: -0.15, rot: -7 },
+    torso: { rot: -4, sy: 1.14, sx: 0.9 },
+    neck: { rot: 3 },
+    hat: { rot: -16, y: 0.2 },
+  },
   feet: [
-    [-1.2, -1.35],
-    [1.05, -1.2],
+    [-2.35, -2.65],
+    [1.6, -2.35],
   ],
-  toes: [55, 45],
+  toes: [64, 51],
   hands: [
-    [-2.8, -9.6],
-    [3.7, -8.8],
+    [-3.8, -10.15],
+    [2.6, -10.15],
   ],
-  paddle: -160,
+  paddle: -173,
 });
 
 const RISE = build({
-  body: { torso: { rot: -2, sy: 1.03 }, neck: { rot: 3 }, hat: { rot: -4 } },
+  body: {
+    body: { y: -0.45, rot: 3 },
+    torso: { rot: 4, sy: 1.06 },
+    neck: { rot: -7 },
+    hat: { rot: -5, y: -0.15 },
+  },
   feet: [
-    [-1.6, -1.9],
-    [1.35, -1.9],
+    [-2.8, -2.85],
+    [2.25, -3.2],
   ],
-  toes: [35, 20],
+  toes: [50, 8],
   hands: [
-    [-3.3, -8.5],
-    [3.9, -7.8],
+    [-3.8, -8.8],
+    [3.6, -8.4],
   ],
-  paddle: -150,
+  paddle: -146,
 });
 
-/** Jump apex: knees tucked, arms floating out, the paddle up in front. */
+/** Jump apex: one knee tucks up in front while the other boot and the free arm counterbalance behind. */
 const APEX = build({
-  body: { torso: { sx: 1.02, sy: 0.99 }, hat: { rot: 2 } },
+  body: {
+    body: { y: 0.05, x: -0.4, rot: 13 },
+    torso: { rot: 10, sx: 1.05, sy: 0.91 },
+    neck: { rot: -18 },
+    hat: { rot: 9, y: -0.25 },
+  },
   feet: [
-    [-1.0, -2.6],
-    [1.75, -2.75],
+    [-3.65, -3.35],
+    [3.0, -4.35],
   ],
-  toes: [22, -4],
+  toes: [52, -23],
   hands: [
-    [-3.5, -7.4],
-    [3.9, -7.2],
+    [-4.5, -7.35],
+    [4.55, -6.95],
   ],
-  paddle: -154,
+  paddle: -100,
 });
 
 /** Falling: legs reaching down, arms raised by the air. */
 const FALL: [Pose, Pose] = [
   build({
-    body: { torso: { rot: -3, sy: 1.02 }, neck: { rot: 3 }, hat: { rot: -5, y: -0.1 } },
+    body: {
+      body: { y: -0.55, x: -0.55, rot: -15 },
+      torso: { rot: -5, sy: 1.04 },
+      neck: { rot: 21 },
+      hat: { rot: -8, y: -0.45 },
+    },
     feet: [
-      [-1.4, -1.45],
-      [1.25, -1.05],
+      [-2.45, -1.7],
+      [2.25, -1.25],
     ],
-    toes: [32, 16],
+    toes: [17, -12],
     hands: [
-      [-3.4, -8.9],
-      [4.0, -7.6],
+      [-4.6, -9.4],
+      [3.5, -8.35],
     ],
-    paddle: -132,
+    paddle: -54,
   }),
   build({
-    body: { torso: { rot: -2, sy: 1.03 }, neck: { rot: 1 }, hat: { rot: -2, y: -0.2 } },
+    body: {
+      body: { y: -0.35, x: -0.35, rot: -10 },
+      torso: { rot: -5, sy: 1.01 },
+      neck: { rot: 14 },
+      hat: { rot: -13, y: -0.3 },
+    },
     feet: [
-      [-1.15, -1.1],
-      [1.45, -1.45],
+      [-2, -1.35],
+      [2.65, -1.95],
     ],
-    toes: [20, 28],
+    toes: [6, 25],
     hands: [
-      [-3.7, -8.3],
-      [4.1, -7.1],
+      [-4.2, -8.55],
+      [3.85, -7.85],
     ],
-    paddle: -126,
+    paddle: -68,
   }),
 ];
+
+const LAND = build({
+  body: {
+    body: { y: 1.05, rot: 7 },
+    torso: { rot: 10, sx: 1.12, sy: 0.81 },
+    neck: { y: 0.25, rot: -4 },
+    hat: { rot: 10, sx: 1.09, sy: 0.88 },
+  },
+  feet: [
+    [-1.95, -1],
+    [2.25, -1],
+  ],
+  hands: [
+    [-3.1, -3.25],
+    [3.5, -3.65],
+  ],
+  paddle: -100,
+});
 
 /** Curled into a ball: knees to the chest, head down, the paddle held over his back like a shell (draw it behind). */
 const tuck = (paddle = 148): Pose =>
@@ -621,33 +684,35 @@ function ledgeRise(frame: number): Pt {
 }
 
 /**
- * Hanging from a corner at c, eyes at the lip and fists over it, legs dangling against the wall; lift pulls the
- * body up towards the hands (getups).
+ * Hanging from a corner at c with the free hand on the lip and the peel trailing clear of the wall; lift pulls
+ * the body up towards the lip (getups).
  */
 function hang(c: Pt, lift = 0, extra: Pose = {}): Pose {
   const [cx, cy] = c;
   const p = build({
     body: mix(
       {
-        body: { x: cx - 2.9 + lift * 0.35, y: cy + 11.1 - lift, rot: 4 },
-        torso: { rot: -2 },
-        neck: { rot: -6 },
-        hat: { rot: -4 },
-        thighB: { rot: -8 },
-        shinB: { rot: 30 },
-        thighF: { rot: -24 },
-        shinF: { rot: 28 },
-        footB: { rot: 35 },
-        footF: { rot: 30 },
+        body: { x: cx - 4.25 + lift * 0.35, y: cy + 12.35 - lift, rot: 5 },
+        torso: { rot: 5 },
+        neck: { rot: -13 },
+        hat: { rot: -12 },
+        armB: { x: 0.45, y: -0.75 },
+        thighB: { rot: 16 },
+        shinB: { rot: 26 },
+        thighF: { rot: -19 },
+        shinF: { rot: 39 },
+        footB: { rot: 15 },
+        footF: { rot: 17 },
       },
       extra,
     ),
     hands: [
-      [cx - 0.75, cy + 0.4],
-      [cx - 0.2, cy + 0.35],
+      [cx - 0.85, cy + 0.4],
+      [cx - 3.65, cy + 5.45 - lift * 0.65],
     ],
+    paddle: 38,
   });
-  return aim(aim(aim(p, 'handB', -150), 'handF', -165), 'paddle', -6);
+  return aim(p, 'handB', -120);
 }
 
 const HANG = hang([GX, GY]);
@@ -910,69 +975,74 @@ function shouldered(tap: number, breath = 0): Pose {
 const DASH: [Pose, Pose, Pose, Pose] = [
   build({
     body: {
-      body: { y: 0.8, x: -0.3 },
-      torso: { rot: 4, sy: 0.92, sx: 1.06 },
-      neck: { rot: 4 },
-      hat: { rot: -6 },
+      body: { y: 1.1, x: -0.45, rot: 8 },
+      torso: { rot: 18, sy: 0.82, sx: 1.1 },
+      neck: { rot: -16 },
+      hat: { rot: -14 },
     },
     feet: [
-      [-1.4, -1],
-      [1.6, -1],
+      [-1.65, -1.0],
+      [1.65, -1.0],
     ],
     hands: [
-      [-2.6, -3.6],
-      [2.9, -4.6],
+      [-2.9, -3.3],
+      [2.95, -4.15],
     ],
-    paddle: -140,
-  }),
-  build({
-    body: { body: { y: 0.55, x: 0.2 }, torso: { rot: 13, sy: 1.02 }, neck: { rot: -4 }, hat: { rot: 2 } },
-    feet: [
-      [-1.6, -1],
-      [1.9, -1.8],
-    ],
-    toes: [30, -5],
-    hands: [
-      [-3.4, -5.6],
-      [3.7, -6.0],
-    ],
-    paddle: -136,
+    paddle: -111,
   }),
   build({
     body: {
-      body: { y: 0.1, x: 0.7 },
-      torso: { rot: 18, sy: 1.06, sx: 0.95 },
-      neck: { rot: -9 },
+      body: { y: 0.65, x: 0.15, rot: 18 },
+      torso: { rot: 24, sy: 0.92 },
+      neck: { rot: -29 },
+      hat: { rot: -4 },
+    },
+    feet: [
+      [-2.95, -1],
+      [2.0, -3.55],
+    ],
+    toes: [28, -14],
+    hands: [
+      [-3.25, -4.7],
+      [4.55, -5.25],
+    ],
+    paddle: -104,
+  }),
+  build({
+    body: {
+      body: { y: -0.3, x: 0.85, rot: 21 },
+      torso: { rot: 23, sy: 1.06, sx: 0.95 },
+      neck: { rot: -28 },
+      hat: { rot: 15, x: -0.15 },
+    },
+    feet: [
+      [-4.9, -2.95],
+      [3.5, -2.25],
+    ],
+    toes: [59, -18],
+    hands: [
+      [-4.25, -5.6],
+      [5.35, -6.25],
+    ],
+    paddle: -98,
+  }),
+  build({
+    body: {
+      body: { y: 0.3, x: 0.6, rot: 16 },
+      torso: { rot: 20, sy: 0.91, sx: 1.07 },
+      neck: { rot: -25 },
       hat: { rot: 10 },
     },
     feet: [
-      [-2.6, -1.9],
-      [2.6, -1.6],
+      [-3.5, -4.25],
+      [4.5, -1],
     ],
-    toes: [60, -15],
+    toes: [62, -24],
     hands: [
-      [-3.9, -6.4],
-      [4.2, -7.0],
+      [-3.8, -5.9],
+      [5, -6.8],
     ],
-    paddle: -130,
-  }),
-  build({
-    body: {
-      body: { y: 0.55, x: 0.4 },
-      torso: { rot: 14, sy: 0.95, sx: 1.04 },
-      neck: { rot: -8 },
-      hat: { rot: 8 },
-    },
-    feet: [
-      [-1.8, -2.2],
-      [2.6, -1],
-    ],
-    toes: [65, -20],
-    hands: [
-      [-3.6, -6.2],
-      [3.9, -6.4],
-    ],
-    paddle: -144,
+    paddle: -116,
   }),
 ];
 
@@ -996,7 +1066,7 @@ const raw: Record<string, AnimClip> = {
     length: 10,
     swaps: DETERMINED,
     keys: [
-      key(0, DASH[0], { ease: 'out', swaps: ANGRY }),
+      ...settle(DASH[0], DASH[1], 0, 2, 'out', { swaps: ANGRY }),
       ...settle(DASH[1], DASH[2], 2, 5, 'linear', { swaps: DETERMINED }),
       key(5, DASH[2], { ease: 'in' }),
       key(7, DASH[3], { ease: 'out' }),
@@ -1063,7 +1133,7 @@ const raw: Record<string, AnimClip> = {
 
   jumpSquat: {
     length: 3,
-    keys: [key(0, STAND, { ease: 'out' }), key(3, squash(1.45))],
+    keys: [key(0, STAND, { ease: 'out' }), key(3, JUMP_COIL)],
   },
 
   jump: {
@@ -1073,7 +1143,7 @@ const raw: Record<string, AnimClip> = {
       key(0, LAUNCH, { ease: 'out' }),
       key(10, RISE, { ease: 'inOut', swaps: {} }),
       key(26, APEX, { ease: 'inOut' }),
-      key(40, mix(APEX, { torso: { sx: 1.03, sy: 0.98 } })),
+      key(40, mix(APEX, { torso: { sx: 1.03, sy: 0.94 }, hat: { rot: 5, y: -0.35 } })),
     ],
   },
 
@@ -1101,7 +1171,7 @@ const raw: Record<string, AnimClip> = {
 
   land: {
     length: 4,
-    keys: [key(0, SQUASH, { ease: 'out' }), key(4, STAND)],
+    keys: [key(0, LAND, { ease: 'out' }), key(4, STAND)],
   },
 
   glide: {
@@ -1240,9 +1310,9 @@ const raw: Record<string, AnimClip> = {
     length: 8,
     swaps: SHOUT,
     keys: [
-      key(0, hang([GX, GY], -0.9, { body: { rot: -6 }, thighF: { rot: -50 }, thighB: { rot: 20 } }), {
+      key(0, hang([GX, GY], -0.9, { body: { rot: -1 }, thighF: { rot: -37 }, thighB: { rot: 39 } }), {
         ease: 'outBack',
-        z: PADDLE_BEHIND,
+        z: LEDGE_HOLD,
       }),
       key(8, HANG, { swaps: STRAIN }),
     ],
@@ -1253,13 +1323,13 @@ const raw: Record<string, AnimClip> = {
     loop: true,
     swaps: STRAIN,
     keys: [
-      key(0, HANG, { z: PADDLE_BEHIND }),
+      key(0, HANG, { z: LEDGE_HOLD }),
       key(
         30,
         hang([GX, GY], 0.1, {
-          body: { rot: 2 },
-          thighF: { rot: -14 },
-          thighB: { rot: -16 },
+          body: { rot: 7 },
+          thighF: { rot: -23 },
+          thighB: { rot: 10 },
           shinB: { rot: 40 },
         }),
       ),
