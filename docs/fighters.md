@@ -238,8 +238,21 @@ points of that analogue's own kill % from the same setup (CREW.md, "Knockback va
 It returns the lowest % (to 0.1) from which the hit KOs the target: the target crosses a blast zone **before its
 hitstun ends**, with no input other than the optional DI stick, which is the definition the community KO calculator
 uses. Defaults: the Mario reference (weight 98) standing at Battlefield's ledge (`from: 'ledge'`, launched toward
-the near blast zone), fresh (×1.05), no rage, no DI. A move is as strong as its strongest box; pass `box` to pick
-one. `from` also takes `'centre'` or a point, `target` another fighter id, `attackerPercent` adds rage.
+the near blast zone), fresh (×1.05), no rage, no DI. `from` also takes `'centre'` or a point, `target` another
+fighter id, `attackerPercent` adds rage.
+
+A `{ fighter, move }` hit lands the way the real hit connects:
+
+- **Only the launching hit counts.** That's a throw's release, or a multi-hit move's final hit (its windows from the
+  last `rehit` one on). Earlier hits and pre-throw hitboxes are ignored, and the % is the target's % when the
+  launching hit lands, as in the calculator. Within that hit, the strongest box wins; pass `box` to pick one.
+- **Facing.** The attacker faces whichever way sends the box toward the target's edge: forward, `back`, or `away`
+  from his centre (a box behind him launches backward).
+- **Position.** The attacker stands so the box meets the target's middle. An aerial's attacker goes as low as the
+  floor, so a box that can't reach a standing target (up smashes, up airs) lifts the target into the air to meet it.
+- **Raw hits and throws** land from 10 units inward, as before.
+
+An explicit point for `from` keeps the target exactly there.
 
 It reproduces SSBU-Calculator's KO calculator (rubendal/SSBU-Calculator 233590e, run headless) on Mario's own 13.0.1
 moves within about 2%:
@@ -252,6 +265,16 @@ moves within about 2%:
 | usmash (14%, 83°, 94/32)           | 124.5                     | 126.0                 |
 | uair (7%, 75°, 135/10), airborne   | 186.2                     | 187.9                 |
 | uthrow (7%, 90°, 72/70)            | 240.6                     | 243.8                 |
+
+Captain Falcon's own moves (a test fighter with his 13.0.1 hitboxes), through the `{ fighter, move }` path:
+
+| Falcon on Mario at the ledge, no DI                    | Calculator, same contact point | Engine |
+| ------------------------------------------------------ | ------------------------------ | ------ |
+| usmash hit 2 (14%, 83°, 80/70), Mario lifted to y 21.5 | 100.1                          | 102.1  |
+| fair knee (22%, 32°, 81/30), Mario standing            | 56.0                           | 55.2   |
+| uair (10%, 66°, 96/20), Mario lifted to y 14.5         | 180.8                          | 184.9  |
+
+The up air's gap isn't placement: raw 62–70° hits run about 4 points late in the engine from any height.
 
 So with Ultimate-standard knockback an 18% smash KOs Mario at the ledge in the 60s, not near 100%. SmashWiki agrees:
 Mario's fsmash sweetspot "is capable of KOing most characters reliably at 70% near the ledge". Two engine rules

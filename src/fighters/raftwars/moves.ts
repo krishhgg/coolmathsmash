@@ -120,7 +120,7 @@ export const moves: Record<string, MoveDef> = {
   /**
    * Bottle Rocket: fires a small rocket straight up from the launcher. It rises above their head and bursts at the
    * top, an anti-air that barely touches grounded opponents beside them. Analogue: Snake's up smash, the mortar shell
-   * (14%, 65 degrees, KBG 60, BKB 87), which KOs Mario from about 142%.
+   * (14%, 65 degrees, KBG 60, BKB 87), which KOs Mario at the ledge from about 132% at the same contact height.
    */
   usmash: {
     kind: 'smash',
