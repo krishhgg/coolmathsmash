@@ -148,6 +148,10 @@ export class Renderer {
   stepCamera(state: MatchState): void {
     this.camera.step(state, getStage(state.config.stage));
     this.matchHud.step(state);
+    for (const e of state.events) {
+      if (e.type === 'parry')
+        this.fighters[state.fighters.findIndex((f) => f.port === e.victim)]?.parried(state.frame);
+    }
   }
 
   /** Draw `state`; `alpha` interpolates between the previous and current simulated frame. */

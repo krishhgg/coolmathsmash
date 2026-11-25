@@ -1,6 +1,7 @@
 import { Btn } from '../../input/types';
 import {
   DASH_THRESHOLD,
+  PARRY,
   ROLL,
   SHIELD_BREAK_DIZZY,
   SHIELD_DEPLETION,
@@ -11,7 +12,7 @@ import {
 } from '../constants';
 import { flickDown, flickX, isHeld } from '../control';
 import { emit } from '../events';
-import type { Ctx } from '../fighter';
+import type { Ctx, FighterState } from '../fighter';
 import { leaveGround } from '../movement';
 import { consumeJump, wantsJump } from './common';
 import { shieldGrab } from './grab';
@@ -26,6 +27,16 @@ export function rollWeights([from, to]: [number, number]): number[] {
 }
 
 const ROLL_WEIGHTS = rollWeights(ROLL.move);
+
+/**
+ * A hit landing on `f` during match frame `frame` is parried: `f` is on frames 1 to PARRY.window of a shield drop
+ * that started on or after `parryFrom`, PARRY.lockout frames after its last shieldstun.
+ */
+export function parries(f: FighterState, frame: number): boolean {
+  return (
+    f.action === 'shieldDrop' && f.actionFrame <= PARRY.window && frame - f.actionFrame + 1 >= f.parryFrom
+  );
+}
 
 export function breakShield(x: Ctx): void {
   const { f, d } = x;
@@ -80,7 +91,7 @@ export const DEFENSE: Record<string, ActionDef> = {
     },
   },
 
-  /** Shield release lag; its first frames are the parry window. */
+  /** Shield release lag; its first PARRY.window frames are the parry window (`parries`). */
   shieldDrop: {
     physics: 'ground',
     update(x) {

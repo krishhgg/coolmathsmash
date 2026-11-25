@@ -55,6 +55,9 @@ export function shieldRadius(def: FighterDef, shieldHp: number): number {
   return Math.max(0, def.stats.shieldSize * ((shieldHp / SHIELD_MAX) * 0.85 + 0.15));
 }
 
+/** Frames the parry flash lasts (render only; Ultimate shows a bright flash on the parrying fighter). */
+export const PARRY_FLASH_FRAMES = 12;
+
 /** One fighter: its rig posed from the action and frame, plus shield and debug label. World units, y down. */
 export class FighterView {
   readonly container = new Container();
@@ -63,6 +66,9 @@ export class FighterView {
   private readonly rig: RigView | null;
   private readonly shield = new Graphics();
   private readonly shieldColor: string;
+  private readonly flash = new Graphics({ blendMode: 'add' });
+  /** Match frame of this fighter's last parry (render state only). */
+  private parryAt = -Infinity;
   /** Height of the head above the feet, in world units; the overhead tag points here. */
   readonly top: number;
   private readonly label = new Text({
@@ -91,7 +97,12 @@ export class FighterView {
     this.top = this.art?.height ?? h;
     this.label.position.set(0, -this.top - 5);
     this.label.visible = false;
-    this.container.addChild(this.body, this.shield, this.label);
+    this.container.addChild(this.body, this.shield, this.flash, this.label);
+  }
+
+  /** Start the parry flash; `frame` is the match frame after the parry. */
+  parried(frame: number): void {
+    this.parryAt = frame;
   }
 
   update(f: FighterState, alpha: number, frame: number, debug: boolean): void {
@@ -111,7 +122,20 @@ export class FighterView {
       if (r > 0)
         this.shield.circle(0, -this.def.stats.height / 2, r).fill({ color: this.shieldColor, alpha: 0.45 });
     }
+    this.drawFlash(frame - this.parryAt);
     this.label.visible = debug;
     if (debug) this.label.text = `${f.move ?? f.action} ${f.actionFrame}`;
+  }
+
+  /** A white burst and a pale yellow ring around the body, fading out over PARRY_FLASH_FRAMES. */
+  private drawFlash(t: number): void {
+    this.flash.clear();
+    if (t < 0 || t >= PARRY_FLASH_FRAMES) return;
+    const k = t / PARRY_FLASH_FRAMES;
+    const fade = (1 - k) * (1 - k);
+    const r = this.def.stats.shieldSize;
+    const y = -this.def.stats.height / 2;
+    this.flash.circle(0, y, r * (1.1 - 0.3 * k)).fill({ color: '#ffffff', alpha: 0.85 * fade });
+    this.flash.circle(0, y, r * (1.1 + 0.9 * k)).stroke({ color: '#fff3a8', width: 1.4, alpha: fade });
   }
 }
