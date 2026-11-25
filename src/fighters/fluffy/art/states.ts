@@ -178,14 +178,14 @@ export const STATES: Record<string, AnimClip> = {
     ],
   },
   ledgeCatch: {
-    length: 8,
+    length: 19,
     swaps: { ...SHOCK, mouth: null, ...GRAB },
     keys: [
       key(0, hang(-0.65, { y: 5.3, sy: 1.18, tilt: -14 }), {
         ease: 'out',
       }),
-      key(4, hang(0.25, { y: 3.65, sx: 1.01, sy: 0.98 }), { ease: 'inOut' }),
-      key(8, hang(0)),
+      key(10, hang(0.25, { y: 3.65, sx: 1.01, sy: 0.98 }), { ease: 'inOut' }),
+      key(19, hang(0)),
     ],
   },
   ledgeHang: {
@@ -259,7 +259,7 @@ export const STATES: Record<string, AnimClip> = {
     ],
   },
   ledgeRoll: {
-    length: 49,
+    length: 45,
     swaps: { ...EFFORT, ...GRAB },
     keys: [
       key(0, hang(0), { ease: 'in' }),
@@ -269,7 +269,7 @@ export const STATES: Record<string, AnimClip> = {
       key(14, ball({ y: -0.6, tilt: 60 }), { ease: 'linear', swaps: { ...BLINK, fur: 'furRoll' } }),
       key(34, ball({ y: -0.5, tilt: 340 }), { ease: 'out' }),
       key(40, ball({ sx: 1.12, sy: 0.88, tilt: 360 }), { ease: 'inOut', swaps: HALF }),
-      key(49, ball({ tilt: 360 })),
+      key(45, ball({ tilt: 360 })),
     ],
   },
   ledgeAttack: {

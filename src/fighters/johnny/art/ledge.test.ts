@@ -6,7 +6,7 @@ import { HAND } from './rig';
 
 it('holds the ledge corner with both fists until release', () => {
   for (const [clip, frames] of [
-    ['ledgeCatch', [8]],
+    ['ledgeCatch', [19]],
     ['ledgeHang', [0, 15, 30, 45, 59]],
     ['ledgeJump', [0, 2, 4]],
   ] as const) {
