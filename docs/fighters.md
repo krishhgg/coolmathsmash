@@ -288,10 +288,10 @@ beastChew: {
 ### Tethers
 
 A move with `tether` fires a line from the hand (`TETHER.handHeight` up the body) that travels out, anchors, and
-reels the fighter in, like the roster's grapples for Fluffy and the Fisherman's line. Bob the Robber's Grappling
-Hook is not a tether: his `upB` in `src/fighters/bob-the-robber/specials.ts` is a scripted zip with `drift: false`
-and no line. Fluffy's Quick Grapple, from the test fixtures in `src/sim/testing/tethers.ts` (Point Grapple and
-the Line Tether are there too):
+reels the fighter in: Fluffy's grapples, the Fisherman's line. Bob the Robber's Grappling Hook is not a tether:
+his `upB` in `src/fighters/bob-the-robber/specials.ts` is a scripted zip with `drift: false` and no line. Fluffy's
+Quick Grapple, from the test fixtures in `src/sim/testing/tethers.ts` (Point Grapple and the Line Tether are there
+too):
 
 ```ts
 upB: {
