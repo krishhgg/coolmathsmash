@@ -69,6 +69,15 @@
     "match-game": ["smash/game-end-*", "smash/ko-blast-*"],
     "results-winner": ["smash/results-screen-01*"],
     "results-cards-2p": ["smash/results-screen-02*"],
-    "results-cards-4p": ["smash/results-screen-02*", "smash/results-screen-01*"]
+    "results-cards-4p": ["smash/results-screen-02*", "smash/results-screen-01*"],
+    "hit-spark": ["smash/attack-active-hit-effect-*", "brawlhalla/*attack-hit*"],
+    "hit-spark-weak": ["smash/attack-active-hit-effect-*", "brawlhalla/*attack-hit*"],
+    "launch-smoke": ["smash/launch-high-percent-smoke-trail-*", "brawlhalla/*launch-smoke*"],
+    "ko-blast": ["smash/ko-blast-*", "brawlhalla/*ko-effect*"],
+    "shield-hit": ["smash/shield-perfect-shield-flash-*", "smash/shield-0*"],
+    "shield-break": ["smash/shield-0*", "smash/shield-perfect-shield-flash-*"],
+    "smash-charge": ["smash/attack-active-hit-effect-*"],
+    "respawn-halo": ["smash/battle-4-player-*"],
+    "land-dust": ["smash/run-*"]
   }
 }

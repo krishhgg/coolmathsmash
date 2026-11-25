@@ -15,6 +15,8 @@ import { drawMobility } from './debug/mobility';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud, OverheadTags } from './hud';
 import { drawStagePieces, isMoving } from './stagePieces';
+import { fighterFx, Vfx } from './vfx/system';
+import { VfxView } from './vfx/view';
 
 /** Stage art: src/stages/<id>/view.ts exports createStageView (docs/stages.md). Stages without one draw flat. */
 const STAGE_VIEWS = import.meta.glob<{ createStageView: () => StageView }>('../stages/*/view.ts', {
@@ -46,6 +48,8 @@ export class Renderer {
   readonly overlays: Overlays = { inputs: false, actions: false, hitboxes: false, events: false };
   readonly eventLog = new EventLog();
   readonly camera = new Camera();
+  readonly vfx = new Vfx();
+  private readonly vfxView = new VfxView();
   private readonly inputDisplay = new InputDisplay();
   readonly matchHud = new MatchHud();
   private readonly tags = new OverheadTags();
@@ -82,8 +86,11 @@ export class Renderer {
     this.world.addChild(
       this.stageLayer,
       this.stagePieces,
+      this.vfxView.screen,
+      this.vfxView.behind,
       this.fighterLayer,
       this.entities,
+      this.vfxView.front,
       this.foregroundLayer,
       this.boxes,
     );
@@ -142,24 +149,36 @@ export class Renderer {
   }
 
   /**
-   * Advance the camera, and the HUD's hit timing, by the frame just simulated; Game.step calls this after every
-   * frame.
+   * Advance the camera and the HUD and VFX timing by the frame just simulated; Game.step calls this after every frame.
    */
   stepCamera(state: MatchState): void {
     this.camera.step(state, getStage(state.config.stage));
     this.matchHud.step(state);
+    this.vfx.step(state);
   }
 
   /** Draw `state`; `alpha` interpolates between the previous and current simulated frame. */
   render(state: MatchState, alpha: number): void {
     this.sync(state);
+    const fx = this.vfx.at(state);
     const view = this.camera.viewFor(state, this.stage!);
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
+    this.vfxView.screen.scale.set(1 / view.zoom);
+    this.vfxView.screen.position.set(-this.world.x / view.zoom, -this.world.y / view.zoom);
     this.stageView?.update(state.frame, view);
     drawStagePieces(this.stagePieces, this.stage!, state, alpha);
-    state.fighters.forEach((f, i) => this.fighters[i]?.update(f, alpha, state.frame, this.overlays.actions));
+    state.fighters.forEach((f, i) =>
+      this.fighters[i]?.update(
+        f,
+        alpha,
+        state.frame,
+        this.overlays.actions,
+        fx ? fighterFx(fx, f, state.frame) : {},
+      ),
+    );
     drawEntities(this.entities, state, alpha);
+    this.vfxView.draw(fx, state, view, alpha);
     this.drawBoxes(state);
     this.tags.update(
       state.fighters.map((f, i) => {
