@@ -1,6 +1,6 @@
 import { createMatch, type MatchState } from '../../sim/match';
 import type { FighterState } from '../../sim/fighter';
-import { attack, runPorts, type Hold } from '../../sim/testing/sim';
+import { attack, runPorts } from '../../sim/testing/sim';
 import { moves } from './moves';
 
 /** Papa Louie (P1) against the Mario reference (P2) on Battlefield, both settled on the stage. */
@@ -98,29 +98,4 @@ export function holding(percent: number, x = 0, facing: 1 | -1 = 1) {
   runPorts(m, 1, [{ buttons: ['grab'] }, {}]);
   for (let i = 0; i < 12 && v.action !== 'grabbed'; i++) runPorts(m, 1, [{}, {}]);
   return { m, a, v };
-}
-
-/** Throw with \`hold\` from a grab at \`percent\`; true when Mario is KO'd. */
-export function throwKills(
-  percent: number,
-  hold: (facing: number) => Hold,
-  x = 0,
-  facing: 1 | -1 = 1,
-): boolean {
-  const { m, a, v } = holding(percent, x, facing);
-  if (v.action !== 'grabbed') throw new Error('grab missed');
-  runPorts(m, 1, [hold(a.facing), {}]);
-  return launchKills(m, a, v, v.damage, 400);
-}
-
-/** The lowest whole % at which \`kills\` holds (kills is assumed monotonic in %), or Infinity. */
-export function killPercent(kills: (p: number) => boolean, hi = 300): number {
-  if (!kills(hi)) return Infinity;
-  let lo = 0;
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1;
-    if (kills(mid)) hi = mid;
-    else lo = mid;
-  }
-  return kills(lo) ? lo : hi;
 }

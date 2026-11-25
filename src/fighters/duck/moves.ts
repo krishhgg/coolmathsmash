@@ -21,14 +21,15 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
   box(id, x, y, radius, { damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true });
 
 /**
- * The Duck's normals, from the roster sheet ("### 7. The Duck"): damage and first active frame per move, with
- * Ultimate-style knockback (the roster's kill percents are checked loosely in duck.test.ts until COOL-3's KO
- * calibration lands). He has no fists, so the head is the
- * weapon: pecks, headbutts and the battering-ram dash, with wing flaps and webbed-foot kicks around it. Frame
- * windows are inclusive and faf is the first actionable frame; move names double as animation clip names.
+ * The Duck's normals, from the roster sheet ("### 7. The Duck"): damage and first active frame per move. Angle,
+ * BKB and KBG for the normals and throws come from their named Ultimate 13.0.1 analogues (the rubendal data viewer):
+ * Pikachu where the moves fit, or another fighter whose move fills the same role. duck.test.ts checks the kill
+ * percents against those analogues. He has no fists, so the head is the weapon:
+ * pecks, headbutts and the battering-ram dash, with wing flaps and webbed-foot kicks around it. Frame windows are
+ * inclusive and faf is the first actionable frame; move names double as animation clip names.
  */
 export const moves: Record<string, MoveDef> = {
-  /** Peck, peck, wing slap: Attack again during each window continues the combo. */
+  /** Peck, peck, wing slap: Attack again during each window continues the combo. Pecks: Kirby's jab 1. */
   jab: {
     kind: 'other',
     faf: 18,
@@ -57,17 +58,18 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
+  /** Wing slap: Mario's jab 3. */
   jab3: {
     kind: 'other',
     faf: 31,
     hits: [
       {
         frames: [4, 5],
-        boxes: [box(0, 6.5, 5.5, 4, { damage: 4, angle: 361, kbg: 110, bkb: 45 })],
+        boxes: [box(0, 6.5, 5.5, 4, { damage: 4, angle: 361, kbg: 80, bkb: 60 })],
       },
     ],
   },
-  /** Headbutt: the video's battering ram, a lunge with the head. */
+  /** Headbutt: the video's battering ram, a lunge with the head. Pikachu's ftilt. */
   ftilt: {
     kind: 'other',
     faf: 30,
@@ -75,13 +77,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [7, 9],
         boxes: [
-          box(0, 9, 6.5, 3.5, { damage: 9, angle: 361, kbg: 100, bkb: 10 }),
-          box(1, 4.5, 6, 3.5, { damage: 9, angle: 361, kbg: 100, bkb: 10 }),
+          box(0, 9, 6.5, 3.5, { damage: 9, angle: 361, kbg: 100, bkb: 15 }),
+          box(1, 4.5, 6, 3.5, { damage: 9, angle: 361, kbg: 100, bkb: 15 }),
         ],
       },
     ],
   },
-  /** Wing Flap: both wings beat upward over his head; a juggle starter. */
+  /** Wing Flap: both wings beat upward over his head; a juggle starter. Wario's utilt. */
   utilt: {
     kind: 'other',
     faf: 26,
@@ -89,13 +91,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [5, 10],
         boxes: [
-          box(0, 0, 12, 5, { damage: 6, angle: 95, kbg: 125, bkb: 28, direction: 'away' }),
-          box(1, 4, 8, 3.5, { damage: 6, angle: 95, kbg: 125, bkb: 28, direction: 'away' }),
+          box(0, 0, 12, 5, { damage: 6, angle: 92, kbg: 130, bkb: 28, direction: 'away' }),
+          box(1, 4, 8, 3.5, { damage: 6, angle: 95, kbg: 130, bkb: 28, direction: 'away' }),
         ],
       },
     ],
   },
-  /** Low Peck at the opponent's feet; pops them up for follow-ups. */
+  /** Low Peck at the opponent's feet. Pikachu's dtilt. */
   dtilt: {
     kind: 'other',
     faf: 22,
@@ -103,22 +105,22 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [4, 6],
         boxes: [
-          box(0, 8, 1.5, 2.8, { damage: 6, angle: 75, kbg: 50, bkb: 50 }),
-          box(1, 4, 2, 3, { damage: 6, angle: 75, kbg: 50, bkb: 50 }),
+          box(0, 8, 1.5, 2.8, { damage: 6, angle: 361, kbg: 100, bkb: 12 }),
+          box(1, 4, 2, 3, { damage: 6, angle: 361, kbg: 100, bkb: 12 }),
         ],
       },
     ],
   },
-  /** Hurdle Run: the running-training sprint ends in a headfirst ram; weaker late. */
+  /** Hurdle Run: the running-training sprint ends in a headfirst ram; weaker late. Pikachu's dash attack. */
   dashAttack: {
     kind: 'other',
     faf: 40,
     hits: [
-      { frames: [7, 10], boxes: [box(0, 6, 5.5, 4.5, { damage: 11, angle: 45, kbg: 75, bkb: 70 })] },
-      { frames: [11, 20], boxes: [box(0, 5.5, 5.5, 4, { damage: 7, angle: 50, kbg: 70, bkb: 50 })] },
+      { frames: [7, 10], boxes: [box(0, 6, 5.5, 4.5, { damage: 11, angle: 60, kbg: 88, bkb: 70 })] },
+      { frames: [11, 20], boxes: [box(0, 5.5, 5.5, 4, { damage: 7, angle: 70, kbg: 50, bkb: 100 })] },
     ],
   },
-  /** Big Headbutt: winds the neck back, then slams forward. His strongest grounded hit. */
+  /** Big Headbutt: winds the neck back, then slams forward. His strongest grounded hit. Yoshi's fsmash (also a headbutt). */
   fsmash: {
     kind: 'smash',
     faf: 48,
@@ -127,13 +129,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [14, 16],
         boxes: [
-          box(0, 11, 6.5, 4, { damage: 16, angle: 361, kbg: 100, bkb: 32 }),
-          box(1, 5.5, 6, 3.5, { damage: 13, angle: 361, kbg: 100, bkb: 28 }),
+          box(0, 11, 6.5, 4, { damage: 16, angle: 361, kbg: 102, bkb: 30 }),
+          box(1, 5.5, 6, 3.5, { damage: 13, angle: 361, kbg: 97, bkb: 30 }),
         ],
       },
     ],
   },
-  /** Takeoff: a huge upward flap that launches whatever is overhead. */
+  /** Takeoff: a huge upward flap that launches whatever is overhead. Pikachu's usmash. */
   usmash: {
     kind: 'smash',
     faf: 44,
@@ -142,13 +144,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [10, 13],
         boxes: [
-          box(0, 0, 13, 5.5, { damage: 14, angle: 88, kbg: 96, bkb: 36, direction: 'away' }),
-          box(1, 0, 6, 5, { damage: 12, angle: 88, kbg: 96, bkb: 32, direction: 'away' }),
+          box(0, 0, 13, 5.5, { damage: 14, angle: 87, kbg: 89, bkb: 50, direction: 'away' }),
+          box(1, 0, 6, 5, { damage: 12, angle: 85, kbg: 90, bkb: 30, direction: 'away' }),
         ],
       },
     ],
   },
-  /** Wing Sweep: both wings sweep low on each side at once. */
+  /** Wing Sweep: both wings sweep low on each side at once. Mario's dsmash (rear hit). */
   dsmash: {
     kind: 'smash',
     faf: 42,
@@ -157,8 +159,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [7, 8],
         boxes: [
-          box(0, 8.5, 2, 4, { damage: 12, angle: 30, kbg: 95, bkb: 25 }),
-          box(1, -8.5, 2, 4, { damage: 12, angle: 30, kbg: 95, bkb: 25, direction: 'back' }),
+          box(0, 8.5, 2, 4, { damage: 12, angle: 30, kbg: 100, bkb: 30 }),
+          box(1, -8.5, 2, 4, { damage: 12, angle: 30, kbg: 100, bkb: 30, direction: 'back' }),
         ],
       },
     ],
@@ -176,7 +178,7 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Feather Spin: a spinning ball of feathers; strong at the start, weaker as it lingers. */
+  /** Feather Spin: a spinning ball of feathers; strong at the start, weaker as it lingers. Mario's nair. */
   nair: {
     kind: 'aerial',
     faf: 40,
@@ -188,15 +190,15 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [4, 6],
-        boxes: [box(0, 0, 5.5, 6.5, { damage: 8, angle: 361, kbg: 100, bkb: 15, direction: 'away' })],
+        boxes: [box(0, 0, 5.5, 6.5, { damage: 8, angle: 361, kbg: 100, bkb: 20, direction: 'away' })],
       },
       {
         frames: [7, 22],
-        boxes: [box(0, 0, 5.5, 6, { damage: 5, angle: 361, kbg: 100, bkb: 10, direction: 'away' })],
+        boxes: [box(0, 0, 5.5, 6, { damage: 5, angle: 361, kbg: 90, bkb: 13, direction: 'away' })],
       },
     ],
   },
-  /** Dive Header: a short forward dive with the head. */
+  /** Dive Header: a short forward dive with the head. Bowser Jr.'s fair. */
   fair: {
     kind: 'aerial',
     faf: 38,
@@ -209,13 +211,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [9, 12],
         boxes: [
-          box(0, 8.5, 4.5, 4, { damage: 11, angle: 40, kbg: 95, bkb: 30 }),
-          box(1, 4, 5, 3.5, { damage: 9, angle: 40, kbg: 95, bkb: 25 }),
+          box(0, 8.5, 4.5, 4, { damage: 11, angle: 45, kbg: 93, bkb: 33 }),
+          box(1, 4, 5, 3.5, { damage: 9, angle: 45, kbg: 93, bkb: 33 }),
         ],
       },
     ],
   },
-  /** Web Kick: both webbed feet kick out behind him. His aerial kill move. */
+  /** Web Kick: both webbed feet kick out behind him. His aerial kill move. Dr. Mario's bair (a backward dropkick). */
   bair: {
     kind: 'aerial',
     faf: 36,
@@ -227,15 +229,15 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [8, 10],
-        boxes: [box(0, -8.5, 4, 4, { damage: 12, angle: 361, kbg: 100, bkb: 15, direction: 'back' })],
+        boxes: [box(0, -8.5, 4, 4, { damage: 12, angle: 361, kbg: 95, bkb: 10, direction: 'back' })],
       },
       {
         frames: [11, 15],
-        boxes: [box(0, -7.5, 4, 3.5, { damage: 8, angle: 361, kbg: 100, bkb: 5, direction: 'back' })],
+        boxes: [box(0, -7.5, 4, 3.5, { damage: 8, angle: 361, kbg: 90, bkb: 7, direction: 'back' })],
       },
     ],
   },
-  /** Beak Snap: snaps the beak straight up; a juggling tool. */
+  /** Beak Snap: snaps the beak straight up; a juggling tool. Villager's uair. */
   uair: {
     kind: 'aerial',
     faf: 32,
@@ -248,15 +250,15 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [5, 8],
         boxes: [
-          box(0, 1.5, 13, 4, { damage: 8, angle: 75, kbg: 115, bkb: 30, direction: 'away' }),
-          box(1, 1, 9, 3.5, { damage: 8, angle: 75, kbg: 115, bkb: 30, direction: 'away' }),
+          box(0, 1.5, 13, 4, { damage: 8, angle: 85, kbg: 100, bkb: 40, direction: 'away' }),
+          box(1, 1, 9, 3.5, { damage: 8, angle: 85, kbg: 100, bkb: 40, direction: 'away' }),
         ],
       },
     ],
   },
   /**
    * Foot Stomp: a webbed-foot stomp straight down, a preview of the Final Smash. The foot meteors on its first
-   * frames; the late hit sends away.
+   * frames; the late hit sends away. Dr. Mario's dair.
    */
   dair: {
     kind: 'aerial',
@@ -270,13 +272,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [12, 14],
         boxes: [
-          box(0, 1, -1, 4, { damage: 12, angle: 270, kbg: 80, bkb: 20 }),
-          box(1, 0, 3.5, 4, { damage: 10, angle: 361, kbg: 90, bkb: 20, direction: 'away' }),
+          box(0, 1, -1, 4, { damage: 12, angle: 270, kbg: 100, bkb: 10 }),
+          box(1, 0, 3.5, 4, { damage: 10, angle: 361, kbg: 100, bkb: 10, direction: 'away' }),
         ],
       },
       {
         frames: [15, 20],
-        boxes: [box(0, 0.5, 0, 4, { damage: 8, angle: 361, kbg: 90, bkb: 15, direction: 'away' })],
+        boxes: [box(0, 0.5, 0, 4, { damage: 8, angle: 361, kbg: 100, bkb: 10, direction: 'away' })],
       },
     ],
   },
@@ -286,26 +288,26 @@ export const moves: Record<string, MoveDef> = {
   pivotGrab: { kind: 'other', faf: 37, hits: [{ frames: [11, 12], boxes: [grabBox(0, 8.5, 5.5, 5)] }] },
   /** Peck on the held opponent. */
   pummel: { kind: 'other', faf: 7, hits: [], pummel: { frame: 1, damage: 1.2, hitlag: 2 } },
-  /** Head Toss: flicks the opponent forward with the head. */
+  /** Head Toss: flicks the opponent forward with the head. Mario's fthrow. */
   fthrow: {
     kind: 'other',
     faf: 30,
     hits: [],
-    throw: { frame: 12, hit: { damage: 8, angle: 40, kbg: 65, bkb: 55 } },
+    throw: { frame: 12, hit: { damage: 8, angle: 45, kbg: 65, bkb: 60 } },
   },
-  /** Wing Fling: spins round and flings them behind with a wing. His kill throw at the ledge. */
+  /** Wing Fling: spins round and flings them behind with a wing. His kill throw at the ledge. Luigi's bthrow (also a spin). */
   bthrow: {
     kind: 'other',
     faf: 42,
     hits: [],
-    throw: { frame: 22, hit: { damage: 10, angle: 45, kbg: 70, bkb: 60, direction: 'back' } },
+    throw: { frame: 22, hit: { damage: 10, angle: 45, kbg: 65, bkb: 80, direction: 'back' } },
   },
-  /** Carry & Drop: flaps up holding them, then lets go overhead. */
+  /** Carry & Drop: flaps up holding them, then lets go overhead. Luigi's uthrow. */
   uthrow: {
     kind: 'other',
     faf: 46,
     hits: [],
-    throw: { frame: 24, hit: { damage: 8, angle: 90, kbg: 70, bkb: 65 } },
+    throw: { frame: 24, hit: { damage: 8, angle: 90, kbg: 72, bkb: 70 } },
   },
   /**
    * Flight Training (up special): the flying-training mini-game as a recovery. A rapid flapping climb of about 100
@@ -379,11 +381,11 @@ export const moves: Record<string, MoveDef> = {
       f.vel.x = f.facing * DIVE.slideSpeed;
     },
   },
-  /** Double Stomp: two stomps on the floored opponent, popping them up at a combo angle. */
+  /** Double Stomp: two stomps on the floored opponent, popping them up at a combo angle. Pikachu's dthrow. */
   dthrow: {
     kind: 'other',
     faf: 38,
     hits: [],
-    throw: { frame: 20, hit: { damage: 6, angle: 75, kbg: 40, bkb: 60 } },
+    throw: { frame: 20, hit: { damage: 6, angle: 83, kbg: 100, bkb: 60 } },
   },
 };
