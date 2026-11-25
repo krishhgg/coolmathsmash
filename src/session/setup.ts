@@ -1,5 +1,7 @@
+import { randomInt } from '../engine/rng';
+import type { MatchConfig } from '../sim/match';
 import type { DeviceId } from './devices';
-import { fighterCostumes, stageIds } from './roster';
+import { fighterCostumes, selectableFighterIds, stageIds } from './roster';
 
 export const RANDOM = 'random';
 export const MAX_PLAYERS = 4;
@@ -98,4 +100,44 @@ export function pickFighter(setup: MatchSetup, slot: number, fighter: string): v
     fighter === RANDOM
       ? 'default'
       : freeCostume(setup, slot, fighter, s.fighter === fighter ? s.costume : 'default');
+}
+
+/** How a match port is driven. */
+export type Controller = { kind: 'human'; device: DeviceId | null } | { kind: 'cpu'; level: number };
+
+export interface ResolvedMatch {
+  config: MatchConfig;
+  controllers: Controller[];
+}
+
+/**
+ * Turn a setup into a match: random fighters, costumes and stage drawn from `seed` (so the same seed gives the same
+ * match), one port per slot in panel order.
+ */
+export function resolveMatch(setup: MatchSetup, seed: number, tapJump = true): ResolvedMatch {
+  const rng = { rng: seed | 0 };
+  const fighters = selectableFighterIds();
+  const stages = stageIds();
+  const draft: MatchSetup = structuredClone(setup);
+  draft.slots.forEach((s, i) => {
+    const random = !s.fighter || s.fighter === RANDOM;
+    const fighter = random ? fighters[randomInt(rng, fighters.length)]! : s.fighter!;
+    s.fighter = fighter;
+    s.costume = freeCostume(draft, i, fighter, random ? 'default' : s.costume);
+  });
+  const stage =
+    setup.stage === RANDOM || !stages.includes(setup.stage)
+      ? stages[randomInt(rng, stages.length)]!
+      : setup.stage;
+  return {
+    config: {
+      seed: seed | 0,
+      stage,
+      stocks: setup.rules.stocks,
+      ports: draft.slots.map((s) => ({ fighter: s.fighter!, costume: s.costume, tapJump })),
+    },
+    controllers: setup.slots.map((s) =>
+      s.kind === 'cpu' ? { kind: 'cpu', level: s.level } : { kind: 'human', device: s.device },
+    ),
+  };
 }

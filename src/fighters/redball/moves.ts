@@ -1,4 +1,5 @@
 import { setAction } from '../../sim/actions/registry';
+import { approach } from '../../sim/vec';
 import type { HitboxDef, MoveDef } from '../types';
 import { specials } from './specials';
 
@@ -110,6 +111,7 @@ export const moves: Record<string, MoveDef> = {
     ],
     script({ f }) {
       if (f.actionFrame >= 13 && f.actionFrame <= 18) f.vel.x = f.facing * 2.4;
+      if (f.actionFrame > 18) f.vel.x = approach(f.vel.x, 0, 0.8);
     },
   },
   /** Super Bounce: squashes, then springs straight up. Jigglypuff's up smash. Charges on frame 6. */

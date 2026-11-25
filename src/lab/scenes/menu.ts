@@ -28,6 +28,7 @@ export const scene: LabScene = {
     const flow: Flow = {
       settings: defaultSettings(),
       setup: defaultSetup(),
+      lastMatch: null,
       game: null,
       saveSettings: () => {},
       has: (route) => route in SCREENS && !SCREENS[route]!.needsGame,

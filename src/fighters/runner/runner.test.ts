@@ -378,6 +378,20 @@ describe('Runner: Gravity Switch (up special)', () => {
     expect(f.pos.y).toBeLessThan(y + 5);
   });
 
+  it('faces the direction she steers during the rise before touching a ceiling', () => {
+    const m = testMatch({ fighter: 'runner', x: 70 });
+    const f = placeInAir(m, 70, 8, -1);
+    run(m, 1, { y: 100, buttons: ['special'] });
+    const start = f.pos.x;
+    run(m, 6, { x: 100 });
+    expect(f.move).toBe('upB');
+    expect(f.actionFrame).toBeLessThan(GRAVITY_SWITCH.cling[0]);
+    expect(f.pos.x).toBeGreaterThan(start);
+    expect(f.facing).toBe(1);
+    run(m, 1, { x: -100 });
+    expect(f.facing).toBe(-1);
+  });
+
   it('clings to the underside of the top platform and runs along it upside down', () => {
     const m = testMatch({ fighter: 'runner', x: 0 });
     const f = m.fighters[0]!;

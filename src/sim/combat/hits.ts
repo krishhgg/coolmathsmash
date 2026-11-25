@@ -51,6 +51,8 @@ export interface Hurtbox {
 }
 
 export function hurtbox(f: FighterState, s: FighterStats): Hurtbox {
+  const posed = getFighter(f.fighter).hurtbox?.(f);
+  if (posed) return posed;
   if (s.width > s.height) {
     const r = s.height / 2;
     return { x: f.pos.x, y1: f.pos.y + r, y2: f.pos.y + r, r, hw: s.width / 2 - r };
