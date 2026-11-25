@@ -95,7 +95,10 @@ const recoil =
     const { f } = x;
     if (f.actionFrame !== frame) return;
     f.vel.x += dx * f.facing;
-    if (dy > 0 && f.vel.y < dy) f.vel.y = dy;
+    if (dy > 0 && f.vel.y < dy) {
+      f.fastFalling = false;
+      f.vel.y = dy;
+    }
   };
 
 /** Aerial timings shared by the shots: `autoCancel` early and from `lateFrom`. */

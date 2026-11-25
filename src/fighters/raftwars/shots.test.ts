@@ -145,6 +145,23 @@ describe('Raft Wars kids: the launcher (jab, tilts, aerials)', () => {
     expect(a.vel.y).toBeGreaterThan(1);
   });
 
+  it('down air interrupts an existing fast fall and keeps rising after the shot', () => {
+    const { m, a } = setup(90);
+    runPorts(m, 8, [{}, {}]);
+    runPorts(m, 1, [{ y: -100 }, {}]);
+    expect(a.fastFalling).toBe(true);
+    start(m, { y: -100, buttons: ['attack'] });
+    expect(a.move).toBe('dair');
+    runPorts(m, 8, [{ y: -100 }, {}]);
+    expect(a.actionFrame).toBe(9);
+    expect(a.vel.y).toBeCloseTo(-stats.fastFallSpeed);
+    const before = a.pos.y;
+    runPorts(m, 4, [{ y: -100 }, {}]);
+    expect(a.fastFalling).toBe(false);
+    expect(a.vel.y).toBeGreaterThan(0);
+    expect(a.pos.y).toBeGreaterThan(before + 4);
+  });
+
   it('the back air ball launches its target backward', () => {
     const { m, a, v } = setup(30);
     Object.assign(v, {
