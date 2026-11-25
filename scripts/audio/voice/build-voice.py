@@ -30,6 +30,8 @@ ROOT = HERE.parents[2]
 OUT = ROOT / 'public' / 'audio' / 'voice'
 SR = 44100
 TTS_SR = 24000
+#: Loudest true peak a shipped (decoded) file may reach, dBFS.
+PEAK_DB = -1.0
 
 
 @dataclass(frozen=True)
@@ -38,12 +40,17 @@ class Style:
 
     speed: float = 1.0
     #: Delivery, applied inside Kokoro before it renders audio: `pitch` scales the predicted pitch (a shout sits
-    #: higher), `range` widens its swings around the mean, `hold` stretches the stressed vowel of the last word
-    #: ("Gaaame!"), and `rise` bends the pitch up over the last 40% (a suspended "The winner is...").
+    #: higher), `range` widens the intonation (the smoothed contour, not the frame-to-frame jitter, which would
+    #: warble), `hold` stretches the stressed vowel of the last word ("Gaaame!"), and `rise` replaces the end of
+    #: the intonation: over the last 40% of the voiced words (not the pause Kokoro leaves for "..." or "!") it
+    #: glides to `rise` times the line's average pitch, so 1 holds a shout up instead of dropping like a statement
+    #: and 1.5 leaves "The winner is..." hanging.
     pitch: float = 1.0
     range: float = 1.0
     hold: float = 1.0
-    rise: float = 1.0
+    rise: float | None = None
+    #: Scales Kokoro's predicted energy curve: above 1 pushes the voice harder (more vocal effort).
+    effort: float = 1.0
     #: Seconds of reverb kept after the voice stops (the file ends there).
     tail: float = 1.2
     #: Hall level against the dry voice.
@@ -55,14 +62,14 @@ class Style:
 
 
 STYLES = {
-    # Countdown and "Go!": quick, high and hot, a drier hall so the next number lands clean.
-    'count': Style(speed=1.08, pitch=1.3, range=1.3, hold=1.7, tail=1.1, wet=0.22, drive=2.0),
+    # Countdown and "Go!": quick, high and hot, held up at the end, a drier hall so the next number lands clean.
+    'count': Style(speed=1.08, pitch=1.25, range=1.3, hold=1.4, rise=1.0, tail=1.1, wet=0.22, drive=1.8),
     # "Gaaame!": held and shouted.
-    'call': Style(speed=1.0, pitch=1.28, range=1.35, hold=1.8, tail=1.6, wet=0.28, drive=1.6),
-    'name': Style(speed=0.98, pitch=1.2, range=1.35, hold=1.6, tail=1.5, wet=0.28, drive=1.8),
-    'title': Style(speed=0.92, pitch=1.22, range=1.4, hold=1.7, tail=2.4, wet=0.32, drive=1.6),
+    'call': Style(speed=1.0, pitch=1.22, range=1.35, hold=1.5, rise=1.0, tail=1.6, wet=0.28, drive=1.5),
+    'name': Style(speed=0.98, pitch=1.18, range=1.45, hold=1.35, rise=1.0, tail=1.5, wet=0.28, drive=1.4),
+    'title': Style(speed=0.95, pitch=1.22, range=1.6, hold=1.8, rise=1.25, tail=2.4, wet=0.32, drive=1.5),
     # "The winner is...": slow, rising and suspended, then the hall rings into the pause before the name.
-    'build': Style(speed=0.8, pitch=1.05, range=1.45, hold=2.6, rise=1.4, tail=1.0, wet=0.3, drive=1.3),
+    'build': Style(speed=0.82, pitch=1.05, range=1.4, hold=2.2, rise=1.5, tail=1.1, wet=0.3, drive=1.2),
 }
 
 
@@ -74,7 +81,7 @@ class Chain:
     pitch: float = 1.0
     formant: str = 'preserved'
     highpass: float = 75
-    warmth_db: float = 4.5
+    warmth_db: float = 3.5
     mud_db: float = -3.0
     #: Broad upper-mid lift: the spectral tilt of a raised, shouting voice.
     effort_db: float = 3.0
@@ -83,17 +90,18 @@ class Chain:
     #: Compressor threshold (linear) and ratio.
     threshold: float = 0.1
     ratio: float = 5.0
-    #: Parallel exciter: saturated upper mids (2-5 kHz) mixed in at this level, for shouted grit.
-    excite: float = 0.12
-    #: De-esser: sibilance (5-10 kHz) louder than this fraction of the voice is turned down.
-    deess: float = 0.3
+    #: Parallel exciter: saturated upper mids (2-4.5 kHz) mixed in at this level, for shouted grit.
+    excite: float = 0.08
+    #: De-esser: sibilance (4-10 kHz) louder than this fraction of the voice is turned down.
+    deess: float = 0.2
     rt60: float = 2.6
     predelay: float = 0.05
     #: How far the hall is pulled down under the words (0..1), so it blooms in the gaps and the tail
     #: instead of smearing consonants and glides.
     duck_wet: float = 0.6
-    #: Sample-peak ceiling before encoding (LAME overshoots a little; the decoded file stays under -1 dBFS).
-    ceiling_db: float = -1.8
+    #: True-peak ceiling before encoding; LAME overshoots a little, so main() re-limits any file that decodes
+    #: above PEAK_DB.
+    ceiling_db: float = -1.6
 
 
 CHAIN = Chain()
@@ -157,12 +165,31 @@ def tts(text: str, voice: str, style: Style, lang: str | None = None) -> np.ndar
         f0, energy = model.predictor.F0Ntrain(d.transpose(-1, -2) @ aln, s)
         voiced = f0 > 40
         mean = f0[voiced].mean() if voiced.any() else torch.tensor(0.0)
-        t = torch.linspace(0, 1, f0.shape[-1])
-        bend = 1 + (style.rise - 1) * torch.clamp((t - 0.6) / 0.4, 0, 1)
-        f0 = torch.where(voiced, (mean + (f0 - mean) * style.range) * style.pitch * bend, f0)
+        v = voiced[0].numpy()
+        frames = np.arange(f0.shape[-1])
+        filled = np.interp(frames, frames[v], f0[0].numpy()[v]) if v.any() else f0[0].numpy()
+        contour = torch.from_numpy(ndimage.uniform_filter1d(filled, 9)).float()[None]
+        jitter = f0 - contour
+        if style.rise is not None:
+            spoken = [kept.index(i) + 1 for i, p in enumerate(ps) if i in kept and p not in ' !?.,…']
+            ends = torch.cumsum(dur, 0).numpy() * f0.shape[-1] / int(dur.sum())
+            words = frames[v & (frames < ends[spoken[-1]])]
+            first, last = words[0], words[-1]
+            pivot = int(first + 0.6 * (last - first))
+            u = torch.from_numpy(np.clip((frames - pivot) / max(1, last - pivot), 0, 1)).float()[None]
+            glide = contour[0, pivot] + (mean * style.rise - contour[0, pivot]) * u
+            contour = contour * (1 - u) + glide * u
+        shaped = mean + (contour - mean) * style.range + jitter
+        f0 = torch.where(voiced, shaped * style.pitch, f0)
         asr = model.text_encoder(ids, lengths, mask) @ aln
-        audio = model.decoder(asr, f0, energy, ref[:, :128]).squeeze()
-    return audio.numpy().astype(np.float64)
+        audio = model.decoder(asr, f0, energy * style.effort, ref[:, :128]).squeeze().numpy().astype(np.float64)
+    # End 70 ms after the last phoneme: Kokoro voices the pause it leaves for "!" or "..." with a stray "-uh".
+    spoken = [kept.index(i) + 1 for i, p in enumerate(ps) if i in kept and p not in ' !?.,…']
+    end = int(torch.cumsum(dur, 0)[spoken[-1]]) * len(audio) // int(dur.sum()) + int(0.07 * TTS_SR)
+    audio = audio[:end]
+    fade = int(0.05 * TTS_SR)
+    audio[-fade:] *= np.linspace(1, 0, fade)
+    return audio
 
 
 def trim(x: np.ndarray, sr: int, floor_db: float = -42) -> np.ndarray:
@@ -213,7 +240,7 @@ def saturate(x: np.ndarray, drive: float, excite: float) -> np.ndarray:
     """tanh drive on the whole voice plus a parallel exciter (hard-driven upper mids) for a shouted edge."""
     x = x / max(1e-9, np.abs(x).max())
     y = np.tanh(x * drive) / np.tanh(drive) if drive > 1 else x
-    return y + excite * band(np.tanh(band(x, 2000, 5000) * 8), 1500, 5000)
+    return y + excite * band(np.tanh(band(x, 2000, 4500) * 8), 1500, 4500)
 
 
 def envelope(x: np.ndarray, seconds: float) -> np.ndarray:
@@ -221,8 +248,8 @@ def envelope(x: np.ndarray, seconds: float) -> np.ndarray:
 
 
 def deess(x: np.ndarray, threshold: float) -> np.ndarray:
-    """Turn the 5-10 kHz band down wherever it is louder than `threshold` times the whole voice."""
-    s = band(x, 5000, 10000)
+    """Turn the 4-10 kHz band down wherever it is louder than `threshold` times the whole voice."""
+    s = band(x, 4000, 10000)
     ratio = envelope(s, 0.005) / np.maximum(envelope(x, 0.005), 1e-9)
     gain = np.clip(threshold / np.maximum(ratio, 1e-9), 0.25, 1)
     return x - s * (1 - ndimage.uniform_filter1d(gain, int(0.003 * SR)))
@@ -249,8 +276,8 @@ def hall(chain: Chain, seed: int = 0x5A5A) -> np.ndarray:
     noise = rng.standard_normal(int(SR * chain.rt60 * 1.3))
     f, t, spec = signal.stft(noise, fs=SR, nperseg=nfft, noverlap=nfft - hop, boundary=None)
     f, t = f[:, None], t[None, :]
-    rt = chain.rt60 * np.interp(np.log10(np.maximum(f, 20)), np.log10([60, 250, 1000, 4000, 12000]), [1.1, 1.05, 1, 0.7, 0.35])
-    spec *= np.exp(-6.91 * t / rt) * (1 - np.exp(-t / 0.05)) / (1 + (f / 9000) ** 2)
+    rt = chain.rt60 * np.interp(np.log10(np.maximum(f, 20)), np.log10([60, 250, 1000, 4000, 12000]), [1.1, 1.05, 1, 0.55, 0.3])
+    spec *= np.exp(-6.91 * t / rt) * (1 - np.exp(-t / 0.05)) / (1 + (f / 6000) ** 2)
     _, ir = signal.istft(spec, fs=SR, nperseg=nfft, noverlap=nfft - hop, boundary=None)
     ir = band(ir, 120, None)
     ir = np.concatenate([np.zeros(int(SR * chain.predelay)), ir])
@@ -267,7 +294,7 @@ def reverb(x: np.ndarray, style: Style, chain: Chain) -> np.ndarray:
     """
     if chain not in _halls:
         _halls[chain] = hall(chain)
-    wet = signal.fftconvolve(band(x, 250, 5000), _halls[chain])[: len(x) + int(style.tail * SR)]
+    wet = signal.fftconvolve(deess(band(x, 250, 3500), chain.deess / 2), _halls[chain])[: len(x) + int(style.tail * SR)]
     env = ndimage.uniform_filter1d(ndimage.maximum_filter1d(np.abs(x), int(0.01 * SR)), int(0.08 * SR))
     env = np.concatenate([env / env.max(), np.zeros(len(wet) - len(x))])
     wet *= 1 - chain.duck_wet * np.clip(env * 2, 0, 1)
@@ -280,9 +307,18 @@ def reverb(x: np.ndarray, style: Style, chain: Chain) -> np.ndarray:
     return y
 
 
+def true_peak(x: np.ndarray) -> np.ndarray:
+    """Per-sample peak of the 4x oversampled signal, which catches the overs between samples."""
+    return np.abs(signal.resample_poly(x, 4, 1)).reshape(-1, 4).max(axis=1)
+
+
+def true_peak_db(x: np.ndarray) -> float:
+    return float(20 * np.log10(true_peak(x).max()))
+
+
 def limit(x: np.ndarray, ceiling: float, lookahead: float = 0.004) -> np.ndarray:
-    """Look-ahead peak limiter: gain never lets a sample pass the ceiling and glides in over the window."""
-    need = np.minimum(1, ceiling / np.maximum(np.abs(x), 1e-12))
+    """Look-ahead true-peak limiter: gain never lets the signal pass the ceiling and glides in over the window."""
+    need = np.minimum(1, ceiling / np.maximum(true_peak(x), 1e-12))
     w = max(1, int(SR * lookahead))
     g = ndimage.minimum_filter1d(need, size=2 * w + 1)
     g = ndimage.uniform_filter1d(g, size=w)
@@ -302,7 +338,7 @@ def loudness(x: np.ndarray, lufs: float, ceiling_db: float) -> np.ndarray:
 def render(text: str, style: Style, voice: str, lang: str | None = None, chain: Chain = CHAIN) -> np.ndarray:
     x = trim(tts(text, voice, style, lang), TTS_SR)
     x = ffmpeg_filter(x, TTS_SR, chain)
-    x = deess(saturate(x, style.drive, chain.excite), chain.deess) * 0.5
+    x = saturate(deess(x, chain.deess), style.drive, chain.excite) * 0.5
     x = reverb(x, style, chain)
     return loudness(x, style.lufs, chain.ceiling_db)
 
@@ -319,6 +355,13 @@ def encode(x: np.ndarray, out: Path, quality: int = 5) -> None:
         )
 
 
+def decode(path: Path) -> np.ndarray:
+    pcm = subprocess.run(
+        ['ffmpeg', '-loglevel', 'error', '-i', path, '-f', 'f32le', '-ac', '1', '-'], check=True, capture_output=True
+    ).stdout
+    return np.frombuffer(pcm, dtype=np.float32).astype(np.float64)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--only', help='comma-separated line names')
@@ -332,13 +375,18 @@ def main() -> None:
         if only and name not in only:
             continue
         x = render(line['text'], replace(STYLES[line['style']], **line.get('delivery', {})), voice, spec.get('lang'))
-        encode(x, OUT / f'{name}.mp3')
+        out = OUT / f'{name}.mp3'
+        for _ in range(4):
+            encode(x, out)
+            over = true_peak_db(decode(out)) - PEAK_DB
+            if over <= 0:
+                break
+            x = limit(x, 10 ** ((true_peak_db(x) - over - 0.1) / 20))
         if args.wav:
             Path(args.wav).mkdir(parents=True, exist_ok=True)
             soundfile.write(Path(args.wav, f'{name}.wav'), x, SR, subtype='PCM_16')
-        peak = 20 * np.log10(np.abs(x).max())
-        size = (OUT / f'{name}.mp3').stat().st_size
-        print(f'{name:24} {len(x) / SR:5.2f}s  peak {peak:5.1f} dBFS  {size / 1024:5.1f} KiB')
+        size = out.stat().st_size
+        print(f'{name:24} {len(x) / SR:5.2f}s  true peak {true_peak_db(decode(out)):5.1f} dBFS  {size / 1024:5.1f} KiB')
 
 
 if __name__ == '__main__':
