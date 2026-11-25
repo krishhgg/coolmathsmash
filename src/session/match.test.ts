@@ -1,8 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { neutralInput } from '../input/types';
+import type { SimEvent } from '../sim/events';
 import { createMatch } from '../sim/match';
 import { COUNTDOWN_FRAMES, MatchSession, countdownLabel, formatClock } from './match';
 import { defaultSetup, pickFighter, resolveMatch } from './setup';
+
+const hit: SimEvent = {
+  type: 'hit',
+  attacker: 0,
+  victim: 1,
+  move: null,
+  damage: 18,
+  kb: 10,
+  tumble: false,
+  hitlag: 0,
+  effect: 'normal',
+  x: 0,
+  y: 0,
+};
 
 function start() {
   const setup = defaultSetup();
@@ -33,19 +48,8 @@ describe('match session', () => {
     state.frame = COUNTDOWN_FRAMES + 10;
     state.fighters[1]!.stocks = 0;
     state.events = [
-      {
-        type: 'hit',
-        attacker: 0,
-        victim: 1,
-        move: null,
-        damage: 18,
-        kb: 10,
-        tumble: false,
-        hitlag: 0,
-        effect: 'normal',
-        x: 0,
-        y: 0,
-      },
+      { type: 'pummel', attacker: 0, victim: 1, damage: 3 },
+      hit,
       { type: 'ko', port: 1, stocks: 0, side: 'right', x: 0, y: 0 },
     ];
     session.observe(state);
@@ -54,8 +58,8 @@ describe('match session', () => {
       reason: 'stock',
       frames: 10,
       players: [
-        { place: 1, stats: { kos: 1, damageDealt: 18 } },
-        { place: 2, stats: { falls: 1, sds: 0, outFrame: state.frame } },
+        { place: 1, stats: { kos: 1, damageDealt: 21 } },
+        { place: 2, stats: { damageTaken: 21, falls: 1, sds: 0, outFrame: state.frame } },
       ],
     });
     const result = session.result;
@@ -65,6 +69,22 @@ describe('match session', () => {
     session.observe(state);
     expect(session.result).toBe(result);
     expect(session.result?.players[0]!.stocks).toBe(3);
+  });
+
+  it('counts a later fall as a self-destruct if the fighter reached a ledge after the hit', () => {
+    const { state, session } = start();
+    state.frame = COUNTDOWN_FRAMES + 10;
+    state.events = [hit];
+    session.observe(state);
+    state.frame++;
+    state.events = [{ type: 'action', port: 1, from: 'fall', to: 'ledgeCatch' }];
+    session.observe(state);
+    state.frame++;
+    state.fighters[1]!.stocks = 0;
+    state.events = [{ type: 'ko', port: 1, stocks: 0, side: 'bottom', x: 0, y: 0 }];
+    session.observe(state);
+    expect(session.result?.players[0]!.stats.kos).toBe(0);
+    expect(session.result?.players[1]!.stats.sds).toBe(1);
   });
 
   it('breaks time-limit ties with stocks first, then damage', () => {

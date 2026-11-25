@@ -127,11 +127,11 @@ export class MatchSession {
     if (this.phase === 'over') return;
     if (this.phase === 'countdown' && state.frame >= COUNTDOWN_FRAMES) this.phase = 'play';
     for (const e of state.events) {
-      if (e.type === 'hit') {
+      if (e.type === 'hit' || e.type === 'pummel') {
         this.stats[e.attacker]!.damageDealt += e.damage;
         this.stats[e.victim]!.damageTaken += e.damage;
-        this.lastHitBy[e.victim] = e.attacker;
-      } else if (e.type === 'land') {
+        if (e.type === 'hit') this.lastHitBy[e.victim] = e.attacker;
+      } else if (e.type === 'land' || (e.type === 'action' && e.to === 'ledgeCatch')) {
         this.lastHitBy[e.port] = -1;
       } else if (e.type === 'ko') {
         const s = this.stats[e.port]!;

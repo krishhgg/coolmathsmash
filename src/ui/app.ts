@@ -76,7 +76,10 @@ export class App implements Flow {
   readonly settings: Settings = loadSettings();
   readonly setup: MatchSetup = defaultSetup();
   lastMatch: FinishedMatch | null = null;
-  readonly input = new MenuInput(() => this.settings.keyboard);
+  readonly input = new MenuInput(
+    () => this.settings.keyboard,
+    () => (this.route === 'match' ? this.settings.gamepad.start : null),
+  );
   private screen: Screen | null = null;
   route: Route | null = null;
 

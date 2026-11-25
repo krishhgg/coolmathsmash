@@ -81,7 +81,7 @@ test('four-player match uses saved controls and quits back to character select',
   await page.addInitScript(() => {
     localStorage.setItem(
       'coolmathsmash.settings.v1',
-      JSON.stringify({ keyboard: [{ buttons: { attack: ['KeyQ'] } }], tapJump: false }),
+      JSON.stringify({ keyboard: [{ buttons: { attack: ['KeyQ'], start: ['KeyP'] } }], tapJump: false }),
     );
   });
   await page.goto('/?debug');
@@ -98,8 +98,9 @@ test('four-player match uses saved controls and quits back to character select',
   await expect(page.locator('.css-ready')).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(page.locator('.ss-screen')).toBeVisible();
-  await page.keyboard.press('Enter');
+  await page.locator('.ss-tile[data-stage="testbed"]').click();
   await expect(page.locator('.match-screen')).toBeVisible();
+  expect(await page.evaluate(() => window.__smash!.getState().config.stage)).toBe('testbed');
   await expect
     .poll(() => page.evaluate(() => window.__smash!.getState().config.ports.map((p) => p.tapJump)))
     .toEqual([false, false, false, false]);
@@ -117,7 +118,11 @@ test('four-player match uses saved controls and quits back to character select',
     )
     .toBe(true);
   await page.keyboard.up('KeyQ');
-  await page.keyboard.press('Escape');
+  await page.keyboard.press('KeyP');
+  await expect(page.locator('.pause-layer')).toBeVisible();
+  await page.keyboard.press('KeyP');
+  await expect(page.locator('.pause-layer')).toBeHidden();
+  await page.keyboard.press('KeyP');
   await expect(page.locator('.pause-layer')).toBeVisible();
   await page.getByRole('button', { name: 'Quit' }).click();
   await expect(page.locator('.css-panel')).toHaveCount(4);
