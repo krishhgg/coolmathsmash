@@ -23,4 +23,11 @@ How Smash inputs map to a keyboard:
 - **Tap jump** (flick up to jump) is on by default per port.
 - When opposite directions are held, the most recently pressed one wins.
 
+Rebinding (Controls screen) refuses layouts that would break a menu:
+
+- **Keyboard**: Enter, Num Enter and Backspace can only be Pause; Space can only be Attack (`menuKeyConflict`).
+- **Gamepad**: A cannot be Pause, because during a match the Pause buttons replace their menu jobs and A is the only
+  pad button that selects Restart or Quit. Pause also keeps at least one button (`padMenuConflict`). Ultimate avoids
+  both by never letting + be remapped. A saved mapping that breaks either rule loads as the defaults.
+
 Debug: **F2** toggles the input display.
