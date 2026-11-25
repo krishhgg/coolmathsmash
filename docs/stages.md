@@ -64,6 +64,10 @@ non-solid. A shallow, muted rear plane (about 1.3 units) above the main deck's f
 the crisp front edge stays the walkable surface. Check alignment in the lab: `/lab.html?scene=stage&stage=<id>&collision=1` overlays the hull (magenta), platform
 surfaces (cyan), ledge points (yellow dots), camera bounds (yellow) and blast zones (red).
 
+Test it too: `surfaceMismatches(stage, solids)` in `src/render/surface.ts` reads the fills of the Graphics that
+draws the solid ground (no drop-through platforms in it) and lists every x along the stage's floors where the top of
+the drawing is not the collision floor. `src/render/placeholderStage.test.ts` runs it on every stage's placeholder.
+
 ## Readability
 
 Fighters come first. Keep the area behind the playfield calm: lower contrast and saturation than the fighters,
@@ -95,7 +99,8 @@ variety comes from `hash01(n)` (a fixed integer hash). Build Graphics once and o
 
 1. Add `src/stages/<slug>/geometry.ts` (collision, owned by the sim side) and `src/stages/<slug>/view.ts`
    exporting `createStageView(): StageView`. The renderer finds every `src/stages/<slug>/view.ts` by glob, so no
-   shared file changes; a stage without a view is drawn as flat collision shapes.
+   shared file changes; a stage without a view is drawn as flat collision shapes
+   (`src/render/placeholderStage.ts`), with grass along every floor edge.
 2. Put art in `src/stages/<slug>/art/`: a palette, the playfield (world units) and background layers (screen
    pixels at the reference camera plus a depth). Reuse `parallax.ts` and `util.ts` from Battlefield.
 3. Use the stage lab scene to view a registered stage at any camera
