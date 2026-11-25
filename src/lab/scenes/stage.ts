@@ -20,7 +20,7 @@ function flatStage(stage: StageGeometry): StageView {
 /** Lab-only stand-ins (port-coloured, Flash-outlined) to judge readability before real fighters exist. */
 function dummies(stage: StageGeometry): Container {
   const root = new Container({ label: 'dummies' });
-  const spots =
+  const spots: [number, number][] =
     stage.id === 'battlefield'
       ? [
           [-40, 0],
@@ -29,8 +29,8 @@ function dummies(stage: StageGeometry): Container {
           [3, 47.19],
         ]
       : [
-          ...stage.spawns.slice(0, 2).map(([x, y]) => [x, y]),
-          ...stage.platforms.map(({ x1, x2, y }) => [(x1 + x2) / 2, y]),
+          ...stage.spawns.slice(0, 2).map(([x, y]): [number, number] => [x, y]),
+          ...stage.platforms.map(({ x1, x2, y }): [number, number] => [(x1 + x2) / 2, y]),
         ];
   const colors = [0xf2333a, 0x2f84ff, 0xffc21a, 0x2fbf45];
   spots.forEach(([x, y], i) => {
@@ -39,7 +39,7 @@ function dummies(stage: StageGeometry): Container {
     g.roundRect(-4.2, -15, 8.4, 15, 4).fill(color).stroke({ width: 0.7, color: 0x111111 });
     g.circle(0, -18.5, 4.6).fill(color).stroke({ width: 0.7, color: 0x111111 });
     g.circle(1.4, -19.2, 1.1).fill(0xffffff).circle(1.7, -19.1, 0.5).fill(0x111111);
-    g.position.set(x!, -y!);
+    g.position.set(x, -y);
     root.addChild(g);
   });
   return root;
