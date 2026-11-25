@@ -5,7 +5,7 @@ import { hash01, vGradient } from '../../battlefield/art/util';
 export const SKY = { depth: 0, left: 0, right: VIEW_W, top: 0, bottom: VIEW_H };
 const OVERSCAN = { left: -2200, right: VIEW_W + 2200, bottom: 3400 };
 export const VERGE = { depth: 0.17, ...OVERSCAN, top: 565 };
-export const HIGHWAY = { depth: 0.25, ...OVERSCAN, top: 642 };
+export const HIGHWAY = { depth: 0.2, ...OVERSCAN, top: 674 };
 
 function cloud(g: Graphics, x: number, y: number, w: number, h: number) {
   g.moveTo(x - w * 0.5, y)
@@ -113,31 +113,29 @@ function drawVerge(g: Graphics) {
 function drawHighway(g: Graphics) {
   const { left, right, top, bottom } = HIGHWAY;
   const width = right - left;
-  g.rect(left, top - 8, width, 23).fill(0xa6ac96);
-  g.rect(left, top, width, bottom - top).fill(0x748792);
-  g.rect(left, top, width, 180).fill(
+  g.rect(left, top, width, bottom - top).fill(0x899a9d);
+  g.rect(left, top - 14, width, 118).fill(
     vGradient([
-      [0, 0x8698a2],
-      [0.55, 0x748995],
-      [1, 0x748792],
+      [0, 0xbcc49e],
+      [0.13, 0xb0b9a0],
+      [0.33, 0x9da9a2],
+      [1, 0x899a9d],
     ]),
   );
-  for (const y of [top + 10, top + 110]) {
-    g.rect(left, y, width, 2.25).fill({ color: 0xd8dbc0, alpha: 0.57 });
-  }
-  for (let x = left + 22; x < right - 112; x += 169) {
-    g.poly([x, top + 55, x + 98, top + 55, x + 112, top + 59, x + 14, top + 59]).fill({
-      color: 0xebe5c6,
-      alpha: 0.52,
+  for (let x = left + 20; x < right - 156; x += 218) {
+    g.poly([x, top + 25, x + 138, top + 25, x + 156, top + 27.6, x + 17, top + 27.6]).fill({
+      color: 0xdddcc0,
+      alpha: 0.33,
     });
+    g.roundRect(x + 28, top + 22.7, 106, 0.85, 0.4).fill({ color: 0xd3d7be, alpha: 0.27 });
   }
-  for (let x = left + 39; x < right - 7; x += 122) {
-    g.rect(x, top - 17, 4.5, 19).fill({ color: 0x82989b, alpha: 0.65 });
-    g.rect(x, top - 17, 1.5, 19).fill({ color: 0xa4b0ac, alpha: 0.64 });
-    g.roundRect(x + 1.5, top - 19, 3, 3, 1).fill({ color: 0xd6c99f, alpha: 0.68 });
+  for (let x = left + 36; x < right - 68; x += 147) {
+    g.roundRect(x, top - 9, 62, 2.4, 0.8).fill({ color: 0x869f9a, alpha: 0.42 });
+    for (const post of [x + 3, x + 58]) {
+      g.rect(post, top - 10, 2.6, 8.5).fill({ color: 0x859c92, alpha: 0.45 });
+      g.roundRect(post, top - 11, 2.8, 2.1, 0.6).fill({ color: 0xd3c89f, alpha: 0.48 });
+    }
   }
-  g.rect(left, top - 14, width, 3).fill({ color: 0x9dadae, alpha: 0.7 });
-  g.rect(left, top - 11, width, 2).fill({ color: 0x8e9e9e, alpha: 0.58 });
 }
 
 export function createBackground() {
