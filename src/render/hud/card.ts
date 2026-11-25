@@ -1,4 +1,5 @@
 import { ColorMatrixFilter, Container, FillGradient, Graphics, Text, TextStyle } from 'pixi.js';
+import { INFINITE_STOCKS } from '../../sim/constants';
 import { hudFontFamily } from './font';
 import { iconView } from './icon';
 import { brighten, damageColor, formatDamage, hitEffect, slotColor } from './style';
@@ -272,6 +273,8 @@ export class DamageCard {
 
   private drawStocks(p: HudPlayer): void {
     for (const child of this.stocks.removeChildren()) child.destroy({ children: true });
+    // Infinite stock has nothing to count, like the stockless meters of Ultimate's Time battles.
+    if (p.maxStocks >= INFINITE_STOCKS) return;
     const left = PORT_LABEL_X - 2 + STOCK_SIZE / 2;
     const remaining = p.eliminated ? 0 : Math.max(0, p.stocks);
     if (p.maxStocks > 5) {

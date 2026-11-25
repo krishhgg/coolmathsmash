@@ -1,4 +1,5 @@
 import { randomInt } from '../engine/rng';
+import { INFINITE_STOCKS } from '../sim/constants';
 import type { MatchConfig } from '../sim/match';
 import type { DeviceId } from './devices';
 import { fighterCostumes, selectableFighterIds, stageIds } from './roster';
@@ -37,7 +38,7 @@ export interface MatchSetup {
   rules: Rules;
 }
 
-export const STOCK_CHOICES = [1, 2, 3, 4, 5, 99];
+export const STOCK_CHOICES = [1, 2, 3, 4, 5, INFINITE_STOCKS];
 export const TIME_CHOICES = [0, 2, 3, 4, 5, 6, 7, 8, 10];
 
 export function humanSlot(device: DeviceId): SlotSetup {
