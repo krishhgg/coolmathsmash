@@ -124,7 +124,7 @@ describe('johnny art', () => {
   it('keeps his boots above the rig root in every airborne clip', () => {
     for (const name of ['jump', 'doubleJump', 'fall', 'helpless', 'hitstun', 'tumble'])
       for (let f = 0; f <= art.clips[name]!.length; f++)
-        expect(-poseBounds(art, samplePose(art, name, f, f))[1], `${name}@${f}`).toBeGreaterThanOrEqual(-0.4);
+        expect(poseBounds(art, samplePose(art, name, f, f))[3], `${name}@${f}`).toBeLessThanOrEqual(0.4);
   });
 
   it('has costumes with the same colour keys, default first, and an icon', () => {
