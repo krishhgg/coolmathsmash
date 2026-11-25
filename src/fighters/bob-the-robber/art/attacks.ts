@@ -231,6 +231,19 @@ const TWIRL_POSE = (deg: number) =>
     deg,
   );
 
+/**
+ * The ledge attack's low baton sweep once Bob is up on the stage, from frame `from` (`clips.ts` draws the climb
+ * before it). The engine's ledge attack has no hitbox yet; the swing lands on frame 22, its last intangible frame.
+ */
+export const ledgeSweep = (from: number): Key[] => [
+  key(from, swing(LOW, [2.2, -3.6], -30, -1), { ease: 'out', swaps: { ...ANGRY, ...BATON } }),
+  key(18, DTILT_BACK, { ease: 'in' }),
+  strikeKey(22, trail(DTILT_HIT, true), { ...SHOUT, ...BATON, smear: 'smear90' }),
+  key(25, trail(DTILT_HIT, true), { ease: 'out' }),
+  key(31, swing(LOW, [3.0, -2.8], 30, -1), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
+  key(55, READY, { swaps: SIDE }),
+];
+
 export const attacks: Record<string, AnimClip> = {
   jab: {
     length: 19,
