@@ -2,10 +2,14 @@ import type { FighterScenarios, LabScenario } from '../../harness/scenarios';
 
 const JU = 'characters/johnny-upgrade';
 
-/** A lab contact sheet of Johnny's rig at `states` (clip@frame), in `palette`. */
+/**
+ * A lab contact sheet of Johnny's rig at `states` (clip@frame), in `palette`, drawn at `zoom` pixels per unit:
+ * small enough that his tallest and widest pose fits its cell (scenarios.test.ts checks every pose).
+ */
 const sheet = (
   name: string,
   description: string,
+  zoom: number,
   states: string[],
   refs: string[],
   palette = 'default',
@@ -15,7 +19,7 @@ const sheet = (
   page: {
     kind: 'lab',
     scene: 'fighter',
-    params: { fighter: 'johnny', sheet: '1', states: states.join(','), palette },
+    params: { fighter: 'johnny', sheet: '1', states: states.join(','), palette, zoom: String(zoom) },
   },
   refs,
 });
@@ -51,6 +55,7 @@ export const scenarios: FighterScenarios = {
     sheet(
       'movement',
       'Run, walk, dash, run brake, turnaround, crouch and landing key poses.',
+      8.5,
       [
         'run@0',
         'run@6',
@@ -73,6 +78,7 @@ export const scenarios: FighterScenarios = {
     sheet(
       'air-hurt',
       'Jump squat to apex, the double-jump flip, the fall loop, shield, hitstun and tumble.',
+      8.5,
       [
         'jumpSquat@3',
         'jump@0',
@@ -95,6 +101,7 @@ export const scenarios: FighterScenarios = {
     sheet(
       'attacks',
       'The first active frame of each normal: jab chain, tilts, dash attack, smashes and aerials.',
+      8,
       [
         'jab@3',
         'jab2@4',
@@ -117,6 +124,7 @@ export const scenarios: FighterScenarios = {
     sheet(
       'grabs-specials',
       'Grab, dash grab, pummel, the four throws, getup attack, Upgrade Dash and Double-Jump Boots.',
+      7.5,
       [
         'grab@7',
         'dashGrab@10',
@@ -137,6 +145,7 @@ export const scenarios: FighterScenarios = {
       sheet(
         `costume-${palette}`,
         `The ${palette} costume in idle, run, jump and forward smash.`,
+        12,
         ['idle@0', 'run@6', 'jump@0', 'fsmash@19'],
         [`${JU}/official-art-04*`, `${JU}/ingame-noskills-confused-*`, `${JU}/official-art-02*`],
         palette,
