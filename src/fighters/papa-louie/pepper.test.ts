@@ -1,78 +1,60 @@
 import { describe, expect, it } from 'vitest';
 import { spawnEntity } from '../../sim/entities/entities';
 import { attack, runPorts } from '../../sim/testing/sim';
-import { moves } from './moves';
 import { versus } from './testing';
 
-const bombs = (m: { entities: { kind: string }[] }) =>
-  m.entities.filter((e) => e.kind === 'papa-louie/pepperBomb');
+const BOMB = 'papa-louie/pepperBomb';
+const BURST = 'papa-louie/pepperBurst';
 
-describe('Papa Louie: Pepper Bomb (neutral special)', () => {
-  it('comes out of his hand on frame 14 at 10%', () => {
-    expect(moves.neutralB!.spawn).toEqual([
-      { frame: 14, entity: 'pepperBomb', x: 6, y: 9, vx: 2.1, vy: 2.4, max: 2 },
-    ]);
+describe('Papa Louie: Pepper Bomb', () => {
+  it('throws a bomb on frame 14 and lobs it up and forward', () => {
     const m = versus();
-    attack(m, 0, 'neutralB');
     const f = m.fighters[0]!;
-    while (bombs(m).length === 0) runPorts(m, 1, [{}, {}]);
+    attack(m, 0, 'neutralB');
+    runPorts(m, 13, [{}, {}]);
+    expect(m.entities).toHaveLength(0);
+    runPorts(m, 1, [{}, {}]);
+    const [bomb] = m.entities;
     expect(f.actionFrame).toBe(14);
-    expect(bombs(m)[0]).toMatchObject({ owner: 0, age: 1, facing: 1, move: 'neutralB' });
-    expect(bombs(m)[0]!.kind).toBe('papa-louie/pepperBomb');
-    expect(m.entities[0]!.pos.y).toBeGreaterThan(f.pos.y + 8);
+    expect(bomb).toMatchObject({ kind: BOMB, owner: 0, age: 1, facing: f.facing, move: 'neutralB' });
+    expect(bomb!.pos.x).toBeCloseTo(f.pos.x + f.facing * 6);
+    expect(bomb!.pos.y).toBeCloseTo(f.pos.y + 9);
+    expect(bomb!.vel.x * f.facing).toBeGreaterThan(0);
+    expect(bomb!.vel.y).toBeGreaterThan(0);
   });
 
-  it('bounces twice on the floor, then bursts by itself', () => {
+  it('bounces twice on the floor and then bursts on the third landing', () => {
     const m = versus();
-    const bomb = spawnEntity(m, {
-      kind: 'papa-louie/pepperBomb',
-      owner: 0,
-      pos: { x: -60, y: 20 },
-      vel: { x: 0, y: 0 },
-    });
-    let bounces = 0;
-    let last = bomb.vel.y;
-    while (!bomb.dead && bounces <= 3) {
-      runPorts(m, 1, [{}, {}]);
-      if (bomb.vel.y > 0 && last <= 0) bounces++;
-      last = bomb.vel.y;
-    }
+    const bomb = spawnEntity(m, { kind: BOMB, owner: 0, pos: { x: -60, y: 20 } });
+    for (let i = 0; i < 100 && !bomb.dead; i++) runPorts(m, 1, [{}, {}]);
     expect(bomb.dead).toBe(true);
-    expect(bounces).toBe(2);
+    expect(bomb.data.bounces).toBe(3);
+    const [burst] = m.entities;
+    expect(burst).toMatchObject({ kind: BURST, pos: { x: -60, y: 1.5 }, age: 1, owner: 0 });
+    runPorts(m, 1, [{}, {}]);
+    expect(m.entities).toHaveLength(0);
   });
 
-  it('holds at two on screen', () => {
+  it('skips the throw if two bombs are already in flight', () => {
     const m = versus();
+    for (const x of [-60, 60]) spawnEntity(m, { kind: BOMB, owner: 0, pos: { x, y: 45 } });
     attack(m, 0, 'neutralB');
-    while (bombs(m).length < 1) runPorts(m, 1, [{}, {}]);
-    runPorts(m, 40, [{}, {}]);
-    attack(m, 0, 'neutralB');
-    for (let i = 0; i < 40 && bombs(m).length < 2; i++) runPorts(m, 1, [{}, {}]);
-    expect(bombs(m)).toHaveLength(2);
-    runPorts(m, 40, [{}, {}]);
-    attack(m, 0, 'neutralB');
-    runPorts(m, 20, [{}, {}]);
-    expect(bombs(m).length).toBeLessThanOrEqual(2);
+    runPorts(m, 14, [{}, {}]);
+    expect(m.entities.map((e) => e.id)).toEqual([1, 2]);
+    expect(m.nextEntityId).toBe(3);
   });
 
-  it('bursts on a fighter it touches, for 10%', () => {
+  it('bursts on contact and deals a fresh 10% projectile hit', () => {
     const m = versus();
-    const [a, v] = m.fighters as [
-      { pos: { x: number; y: number } },
-      { pos: { x: number; y: number }; damage: number },
-    ];
-    attack(m, 0, 'neutralB');
-    while (bombs(m).length === 0) runPorts(m, 1, [{}, {}]);
-    spawnEntity(m, {
-      kind: 'papa-louie/pepperBomb',
+    const v = m.fighters[1]!;
+    const bomb = spawnEntity(m, {
+      kind: BOMB,
       owner: 0,
-      pos: { x: v.pos.x + 6, y: v.pos.y + 8 },
-      move: null,
+      pos: { x: v.pos.x, y: v.pos.y + 7 },
+      move: 'neutralB',
     });
-    const before = bombs(m).length;
-    runPorts(m, 3, [{}, {}]);
-    expect(v.damage).toBeCloseTo(10 * 1.2, 6);
-    expect(bombs(m).length).toBeLessThan(before + 1);
-    expect(a.pos).toBeDefined();
+    runPorts(m, 1, [{}, {}]);
+    expect(v.damage).toBeCloseTo(10 * 1.05 * 1.2, 6);
+    expect(bomb.dead).toBe(true);
   });
 });

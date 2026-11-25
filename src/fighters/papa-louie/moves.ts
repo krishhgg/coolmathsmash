@@ -352,7 +352,7 @@ export const moves: Record<string, MoveDef> = {
     kind: 'projectile',
     faf: 40,
     hits: [],
-    spawn: [{ frame: 14, entity: 'pepperBomb', x: 6, y: 9, vx: 2.1, vy: 2.4, max: 2 }],
+    spawn: [{ frame: 14, entity: 'pepperBomb', x: 6, y: 9, vx: 1.25, vy: 1.55, max: 2 }],
   },
   /** Pepper Shake: shakes pepper on the opponent sitting on the paddle. */
   pummel: { kind: 'other', faf: 7, hits: [], pummel: { frame: 1, damage: 1.3, hitlag: 2.1 } },
