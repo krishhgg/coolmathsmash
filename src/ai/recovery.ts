@@ -123,7 +123,8 @@ function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterSta
     if (jumpAt !== Infinity) out.push({ ...none, jumpAt });
     for (const special of specials) {
       for (const below of [-24, -12, -4, 4, 12, 20, 30]) out.push({ ...none, jumpAt, special, below });
-      if (under)
+      // From under the stage an up special used at once rises into the underside, so also try drifting out first.
+      if (under && special === 'upB')
         for (const reach of [-8, 0, 12, 24, 36]) out.push({ ...none, jumpAt, special, below: -24, reach });
       if (jumpAt === Infinity) for (const at of [1, 10]) out.push({ ...none, special, specialAt: at });
     }
