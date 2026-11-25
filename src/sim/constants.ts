@@ -53,9 +53,33 @@ export const SHIELD_HP_AFTER_BREAK = 37.5;
 export const SHIELD_BREAK_HEIGHT = 40;
 export const SHIELD_BREAK_DIZZY = 300;
 
-/** Dodges (Ultimate, Mario-like defaults). Frame windows are inclusive. */
-export const SPOT_DODGE = { faf: 27, intangible: [3, 17] as [number, number] };
-export const ROLL = { faf: 31, intangible: [4, 15] as [number, number], move: [4, 20] as [number, number] };
+/**
+ * Ground dodges: Mario's Ultimate frame data, shared by every fighter (each sets its own `rollDistance`). UFD
+ * (https://ultimateframedata.com/mario) and SmashWiki (https://www.ssbwiki.com/Spot_dodge,
+ * https://www.ssbwiki.com/Roll) give total frames: spot dodge 25, or 20 when cancelled into an attack; forward
+ * roll 29; back roll 34. FAF is total + 1, the convention docs/fighters.md uses and the data viewer's CancelFrame
+ * confirms (Mario's ledge getup: UFD total 34, CancelFrame 35). Frame windows are inclusive.
+ */
+export const SPOT_DODGE = {
+  faf: 26,
+  intangible: [3, 17] as [number, number],
+  /**
+   * From this frame a ground attack or special cancels the dodge; grabs and dash attacks wait for the FAF
+   * (SmashWiki: "can now be canceled 5 frames earlier than usual into any ground attack").
+   */
+  attackCancel: 21,
+};
+/** Mario's forward roll travels 32.17 u (SmashWiki: Roll). The movement frames are not in the reference. */
+export const ROLL_FORWARD = {
+  faf: 30,
+  intangible: [4, 15] as [number, number],
+  move: [4, 20] as [number, number],
+};
+export const ROLL_BACK = {
+  faf: 35,
+  intangible: [5, 16] as [number, number],
+  move: [4, 20] as [number, number],
+};
 export const AIR_DODGE_NEUTRAL = { faf: 47, intangible: [3, 29] as [number, number], landingLag: 10 };
 export const AIR_DODGE_DIRECTIONAL = {
   faf: 70,
@@ -178,3 +202,9 @@ export const TOP_KO_MARGIN = 30;
 export const RESPAWN_DELAY = 60;
 export const RESPAWN_PLATFORM_MAX = 300;
 export const RESPAWN_INVINCIBILITY = 120;
+
+/**
+ * `MatchConfig.stocks` for the Infinite rule, which plays like Ultimate's Time battle: a KO costs no stock, so nobody
+ * is ever eliminated and only the clock (or quitting) ends the match.
+ */
+export const INFINITE_STOCKS = 99;
