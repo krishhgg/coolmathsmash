@@ -135,6 +135,30 @@ export function bindButton(
   return taken;
 }
 
+/** Standard-mapping A, the button that selects in every menu (src/ui/input.ts PAD_BUTTONS). */
+export const PAD_CONFIRM = 0;
+
+/**
+ * Why binding pad `button` to `action` would strand a controller-only player, or null if it would not. During a match
+ * the pad's Pause buttons replace their menu jobs (src/ui/input.ts), so Pause on A leaves the pause menu with nothing
+ * to select Restart or Quit ('confirm'). Pause also keeps at least one button, or the pad cannot open the pause menu
+ * at all ('pause'). Any other binding is safe: outside a match the pad's menu buttons ignore the fight bindings, and
+ * in the pause menu B resumes just as Pause does. Ultimate never gets here because + is always pause and cannot be
+ * remapped; this keeps Pause rebindable and refuses only the two layouts that would leave a player stuck.
+ */
+export function padMenuConflict(
+  pad: Record<ButtonName, number[]>,
+  action: ButtonName,
+  button: number,
+): 'confirm' | 'pause' | null {
+  if (action === 'start') return button === PAD_CONFIRM ? 'confirm' : null;
+  return pad.start.length > 0 && pad.start.every((b) => b === button) ? 'pause' : null;
+}
+
+/** Whether a gamepad mapping can open the pause menu and select in it (see padMenuConflict). */
+export const padMenusUsable = (pad: Record<ButtonName, number[]>): boolean =>
+  pad.start.length > 0 && !pad.start.includes(PAD_CONFIRM);
+
 const KEY_NAMES: Record<string, string> = {
   ArrowUp: '↑',
   ArrowDown: '↓',
