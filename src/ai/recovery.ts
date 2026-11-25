@@ -7,14 +7,14 @@ import { actionable, type FighterKnowledge } from './knowledge';
 import { STICK, press } from './inputs';
 import type { CpuLevel } from './levels';
 import { run, soloMatch, type Driver, type Sample } from './look';
-import { floorBelow, underStage, type StageInfo } from './stage';
+import { floorBelow, type StageInfo } from './stage';
 
 /**
  * Getting back to the stage. The CPU tries a set of recovery plans (drift, double jump at different times, up or
  * side special at different heights, an air dodge) in a private copy of the simulation and picks one that ends on
- * the ledge or the stage. From under the stage, plans can hold the special until the fighter has drifted out from
- * under it, as Ultimate's CPUs do, instead of rising into the underside. Low levels sometimes pick a plan at
- * random, which is how they self-destruct.
+ * the ledge or the stage. From under the stage, plans can also hold the special until the fighter has drifted
+ * out near the ledge, as Ultimate's CPUs do, instead of rising into the underside. Low levels sometimes pick a plan
+ * at random, which is how they self-destruct.
  */
 
 export interface RecoveryParams {
@@ -24,8 +24,12 @@ export interface RecoveryParams {
   special: string | null;
   specialAt: number;
   below: number;
-  /** Hold the special while the stage is straight overhead, so it starts once the fighter is out from under it. */
-  clear: boolean;
+  /**
+   * Hold the special until the fighter is at most this far inside the spot where it would hang from the ledge,
+   * so a fighter under the stage drifts out before it rises. Negative: drift that far out past the spot first.
+   * Infinity: no wait.
+   */
+  reach: number;
   /** Frame to air dodge toward the ledge, or Infinity. */
   dodgeAt: number;
 }
@@ -46,11 +50,19 @@ export function targetLedge(info: StageInfo, x: number): Ledge | null {
   return best;
 }
 
-/** Where to steer: onto the stage once level with the ledge, else to where the fighter would hang from it. */
-function steerX(info: StageInfo, L: Ledge | null, f: Readonly<FighterState>, width: number): number {
+/** Where a fighter `width` wide hangs from ledge L (the sim's hangPos). */
+function hangX(L: Ledge, width: number): number {
+  return L.x + L.side * (width / 2 + 0.5);
+}
+
+/**
+ * Where to steer: onto the stage once level with the ledge, else to where the fighter would hang from it, or `out`
+ * units past that.
+ */
+function steerX(info: StageInfo, L: Ledge | null, f: Readonly<FighterState>, width: number, out = 0): number {
   if (!L) return info.centerX;
   if (f.pos.y >= L.y - 1) return L.x - L.side * 12;
-  return L.x + L.side * (width / 2 + 0.5);
+  return hangX(L, width) + L.side * out;
 }
 
 export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: RecoveryParams): Driver {
@@ -59,9 +71,10 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
   let dodged = false;
   return (t, f) => {
     const L = targetLedge(info, f.pos.x);
-    const tx = steerX(info, L, f, k.stats.width);
-    const d = tx - f.pos.x;
-    const sx = Math.abs(d) < 2 ? Math.round(d * 30) : Math.sign(d) * STICK.full;
+    const out = p.special && !special && p.reach < 0 ? -p.reach : 0;
+    const d = steerX(info, L, f, k.stats.width) - f.pos.x;
+    const ds = out ? steerX(info, L, f, k.stats.width, out) - f.pos.x : d;
+    const sx = Math.abs(ds) < 2 ? Math.round(ds * 30) : Math.sign(ds) * STICK.full;
     const i = neutralInput();
     i.x = Math.max(-100, Math.min(100, sx));
     if (f.ground !== null || !actionable(f) || f.action === 'helpless') return i;
@@ -72,9 +85,9 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
       return i;
     }
     const low = L ? f.pos.y < L.y - p.below : false;
-    const under = p.clear && underStage(info, f.pos.x, f.pos.y, L?.y ?? info.top, k.stats.width / 4);
+    const near = !L || L.side * (hangX(L, k.stats.width) - f.pos.x) <= p.reach + 1;
     const due = t >= p.specialAt || (p.specialAt === Infinity && low && f.vel.y <= 0.5);
-    if (!special && p.special && due && !under) {
+    if (!special && p.special && due && near) {
       special = true;
       if (p.special === 'upB') return press({ x: 40 * dir, y: STICK.special, buttons: Btn.Special });
       if (p.special === 'sideB') return press({ x: STICK.special * dir, buttons: Btn.Special });
@@ -98,18 +111,20 @@ function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterSta
     special: null,
     specialAt: Infinity,
     below: 0,
-    clear: false,
+    reach: Infinity,
     dodgeAt: Infinity,
   };
   out.push(none);
   const canJump = f.jumpsUsed < k.stats.jumps;
   const jumps = canJump ? [1, 8, 16, 26, 38, 52] : [Infinity];
-  const clears = underStage(info, f.pos.x, f.pos.y, info.top) ? [false, true] : [false];
+  const L = targetLedge(info, f.pos.x);
+  const under = L !== null && L.side * (L.x - f.pos.x) > 0 && f.pos.y < L.y;
   for (const jumpAt of jumps) {
     if (jumpAt !== Infinity) out.push({ ...none, jumpAt });
     for (const special of specials) {
-      for (const clear of clears)
-        for (const below of [-24, -12, -4, 4, 12, 20, 30]) out.push({ ...none, jumpAt, special, below, clear });
+      for (const below of [-24, -12, -4, 4, 12, 20, 30]) out.push({ ...none, jumpAt, special, below });
+      if (under)
+        for (const reach of [-8, 0, 12, 24, 36]) out.push({ ...none, jumpAt, special, below: -24, reach });
       if (jumpAt === Infinity) for (const at of [1, 10]) out.push({ ...none, special, specialAt: at });
     }
   }

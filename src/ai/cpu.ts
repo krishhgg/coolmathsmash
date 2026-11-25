@@ -936,7 +936,7 @@ function assumedInput(snap: FighterState, info: StageInfo, state: Readonly<Match
       special,
       specialAt: Infinity,
       below: 10,
-      clear: false,
+      reach: Infinity,
       dodgeAt: Infinity,
     });
   }

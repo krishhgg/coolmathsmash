@@ -55,25 +55,6 @@ export function overSolidGround(info: StageInfo, x: number, y: number): boolean 
   return floorBelow(info, x, y, false) !== null;
 }
 
-/**
- * Solid stage straight above (x, y), below height `top`: the underside of the stage, which a fighter rising from
- * here would hit. Only edges that face down count, so standing beside a vertical wall is not under it. `margin`
- * widens x on both sides for the fighter's body.
- */
-export function underStage(info: StageInfo, x: number, y: number, top: number, margin = 0): boolean {
-  for (const e of info.c.edges) {
-    if (e.n.y > -0.05) continue;
-    const x1 = Math.max(edgeMinX(e), x - margin);
-    const x2 = Math.min(edgeMaxX(e), x + margin);
-    if (x1 > x2) continue;
-    const at = (px: number) => e.a.y + ((e.b.y - e.a.y) * (px - e.a.x)) / (e.b.x - e.a.x || 1);
-    const hi = Math.max(at(x1), at(x2));
-    const lo = Math.min(at(x1), at(x2));
-    if (hi > y && lo < top) return true;
-  }
-  return false;
-}
-
 /** The platform index under (x, y) within `slack` units of its top, or -1. */
 export function platformAt(info: StageInfo, x: number, y: number, slack = 0.5): number {
   return info.c.geo.platforms.findIndex((p) => x >= p.x1 && x <= p.x2 && Math.abs(p.y - y) <= slack);
