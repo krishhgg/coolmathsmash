@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import ref from '../sim/reference/physics-constants.json';
 import { entityDef } from '../sim/entities/entities';
-import { FIGHTERS } from './registry';
+import { allFighters } from './registry';
 import type { FighterStats } from './types';
 
 const range = ref.cast_ranges;
@@ -27,7 +27,7 @@ const CAST: [keyof FighterStats, { min: number; max: number }][] = [
   ['shieldSize', range.shield_size],
 ];
 
-describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %s', (_, def) => {
+describe.each(Object.values(allFighters()).map((f) => [f.id, f] as const))('fighter %s', (_, def) => {
   it.each(CAST)('%s is within the Ultimate cast range', (stat, { min, max }) => {
     expect(def.stats[stat]).toBeGreaterThanOrEqual(min);
     expect(def.stats[stat]).toBeLessThanOrEqual(max);
@@ -43,7 +43,7 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
     if (move.transform) {
       expect(move.transform.frame).toBeLessThan(move.faf);
       expect(
-        FIGHTERS[move.transform.into]?.moves?.[name],
+        allFighters()[move.transform.into]?.moves?.[name],
         `${move.transform.into} has ${name}`,
       ).toBeDefined();
     }
@@ -72,6 +72,11 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
       expect(move.armor.frames[0]).toBeGreaterThanOrEqual(1);
       expect(move.armor.frames[1]).toBeGreaterThanOrEqual(move.armor.frames[0]);
       expect(move.armor.frames[1]).toBeLessThan(move.faf);
+      if (move.armor.breakDamageMul !== undefined) {
+        expect(move.armor.threshold ?? move.armor.damageThreshold, `${name} armor breaks`).toBeDefined();
+        expect(move.armor.breakDamageMul).toBeGreaterThan(0);
+        expect(move.armor.breakDamageMul).toBeLessThanOrEqual(1);
+      }
     }
     for (const [a, b] of move.autoCancel ?? []) expect(b).toBeGreaterThanOrEqual(a);
     if (move.tether) {

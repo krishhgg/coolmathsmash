@@ -152,6 +152,21 @@ export interface PropArt {
   symbol: string;
   /** Uniform scale applied to the symbol. */
   scale: number;
+  /**
+   * Where the lab's fighter scene draws it over the clips that fire it (in a match the engine spawns and moves it),
+   * keyed by clip name.
+   */
+  preview?: Record<string, PropPreview>;
+}
+
+/** A projectile in the lab: from clip frame `frame` on, at (x, y) from the feet (x forward, y up), then moving. */
+export interface PropPreview {
+  frame: number;
+  x: number;
+  y: number;
+  /** Units it moves each frame after `frame`. */
+  vx?: number;
+  vy?: number;
 }
 
 export interface FighterArt {
