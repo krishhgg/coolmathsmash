@@ -18,7 +18,7 @@ import { inHitlag, type Ctx, type FighterState } from '../fighter';
 import type { MatchState } from '../match';
 import { restoreAirOptions } from '../movement';
 import { endStatusesOnHit, isFrozen } from '../statuses';
-import { moveOf, playMove, startMove } from './attack';
+import { moveOf, playMove, startMove, stopInPlace } from './attack';
 import { setAction, type ActionDef } from './registry';
 
 /**
@@ -79,6 +79,9 @@ export function mashDir(i: InputFrame): number {
   return x > 0 ? 1 : 2;
 }
 
+/** A Final Smash cinematic with `final.still`: in the air the user holds still through it, as in its activation. */
+const stillThrow = (f: FighterState) => moveOf(f)?.final?.still === true;
+
 export const GRAB_ACTIONS: Record<string, ActionDef> = {
   /** Holding someone: any stick or C-stick direction throws that way, Attack or Grab pummels. */
   grabHold: {
@@ -107,13 +110,14 @@ export const GRAB_ACTIONS: Record<string, ActionDef> = {
   },
 
   /**
-   * A throw: invincible until it lets go on its release frame (resolveGrabs), as in Ultimate. A command grab
-   * caught in the air plays its throw in the air, and landing doesn't end it.
+   * A throw: invincible until it lets go on its release frame (resolveGrabs), as in Ultimate, and a Final Smash's
+   * cinematic to its end. A command grab caught in the air plays its throw in the air, and landing doesn't end it.
    */
   grabThrow: {
     physics: 'ground',
-    drift: (x) => moveOf(x.f)?.drift ?? true,
-    intangible: (f) => f.grabPartner >= 0,
+    drift: (x) => !stillThrow(x.f) && (moveOf(x.f)?.drift ?? true),
+    gravity: (x) => !stillThrow(x.f),
+    intangible: (f) => f.grabPartner >= 0 || moveOf(f)?.final !== undefined,
     update(x) {
       const move = playMove(x);
       if (move && x.f.actionFrame >= move.faf) setAction(x, x.f.ground ? 'idle' : 'fall');
@@ -345,6 +349,7 @@ function grab(m: MatchState, a: FighterState, v: FighterState): void {
     vel: { x: 0, y: 0 },
     kb: { x: 0, y: 0 },
   });
+  if (stillThrow(a) && !a.ground) stopInPlace(a);
   restoreAirOptions(v);
   const c = m.players[v.port]!.control;
   for (const b of MASH_BUTTONS) consume(c, b);

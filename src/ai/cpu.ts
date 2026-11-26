@@ -8,6 +8,7 @@ import { GRAB, SHIELD_DROP_FRAMES } from '../sim/constants';
 import { statusDef, statusLength } from '../sim/statuses';
 import type { EntityState } from '../sim/entities/types';
 import type { FighterState } from '../sim/fighter';
+import { finalReach } from '../sim/finalSmash';
 import { stepMatch, type MatchState } from '../sim/match';
 import { STICK, TURNING_MOVES, press } from './inputs';
 import { actionable, knowledge, type FighterKnowledge } from './knowledge';
@@ -58,6 +59,8 @@ import {
  */
 
 const HISTORY = 64;
+/** An opponent this far behind the CPU's feet still overlaps its body, so a Final Smash in front can reach it. */
+const FINAL_BEHIND = 4;
 const HORIZON = 45;
 /**
  * How far ahead a CPU whose fighter shoots reads the opponent: long enough for a Fireball to cross most of
@@ -181,6 +184,8 @@ export class Cpu {
       this.recovery = null;
       return this.onLedge(state, me);
     }
+    const final = this.finalSmash(state, me);
+    if (final) return final;
     const info = stageInfo(state);
     const offstage =
       me.ground === null && floorBelow(info, me.pos.x, me.pos.y) === null && !a.startsWith('ledge');
@@ -202,6 +207,27 @@ export class Cpu {
     const i = this.runProgram(me, info);
     if (i) return i;
     return me.ground === null ? this.airIdle(me, info) : NEUTRAL;
+  }
+
+  /**
+   * Holding a Final Smash charge: neutral special as soon as an opponent, as the CPU sees it, is in the Final Smash's
+   * reach in front (finalReach). Special is let go for a frame first if it was held, so the press registers.
+   */
+  private finalSmash(state: Readonly<MatchState>, me: Readonly<FighterState>): InputFrame | null {
+    if (!me.finalReady || !actionable(me)) return null;
+    const reach = finalReach(me.fighter);
+    if (!reach) return null;
+    const lag = this.lv.reaction;
+    const opp = nearestOpponent(state, me, lag, (p, l) => this.seen(p, l));
+    if (!opp) return null;
+    const g = this.seen(opp.port, lag);
+    const ahead = (g.pos.x - me.pos.x) * me.facing;
+    const up = g.pos.y - me.pos.y;
+    const tall = getFighter(g.fighter).stats.height;
+    if (ahead < -FINAL_BEHIND || ahead > reach.ahead || up + tall < reach.low || up > reach.high) return null;
+    this.prog = null;
+    if (this.last.buttons & Btn.Special) return NEUTRAL;
+    return { ...NEUTRAL, buttons: Btn.Special };
   }
 
   /** Able to start something: actionable, or holding a shield. */
@@ -539,14 +565,15 @@ export class Cpu {
 
     const self: Self = { f: me, k, info, groundDelay: me.ground ? 0 : Infinity, jumpDelay: 0, state };
     const edgeguarding = this.isEdgeguarding(state, me, snap, info);
-    const attacks = this.rank(state, findAttacks(self, target), target, snap, k, info, edgeguarding);
+    const attacks = this.rank(state, attacksFor(self, target), target, snap, k, info, edgeguarding);
     const chance =
       situation === 'combo' ? this.lv.followUp : situation === 'punish' ? this.lv.punish : this.lv.aggression;
     if (attacks.length && this.rand() < chance && this.startAttack(state, attacks, me, info)) return;
     if (Math.abs(now.x - me.pos.x) < 45 && this.rand() < this.lv.whiff * 0.3) {
       const facing = (move: string) => (TURNING_MOVES.has(move) ? dir : me.facing);
       const any = Object.keys(k.ground).filter(
-        (move) => info.calm || this.groundMoveSafe(me, k, info, move, facing(move)),
+        (move) =>
+          !savesFinal(me, move) && (info.calm || this.groundMoveSafe(me, k, info, move, facing(move))),
       );
       if (any.length && me.ground && actionable(me)) {
         const move = any[Math.floor(this.rand() * any.length)]!;
@@ -608,7 +635,7 @@ export class Cpu {
     }
     if (!actionable(me)) return false;
     const self: Self = { f: me, k, info, groundDelay: 0, jumpDelay: 0, state };
-    const counters = findAttacks(self, target).filter((a) => a.kind === 'ground' && a.tHit < threat.t - 1);
+    const counters = attacksFor(self, target).filter((a) => a.kind === 'ground' && a.tHit < threat.t - 1);
     if (counters.length && this.rand() < 0.35 * skill) {
       counters.sort((a, b) => a.tHit - b.tHit);
       this.startAttack(state, [counters[0]!], me, info);
@@ -654,7 +681,7 @@ export class Cpu {
     };
     const freeAt = target.path.findIndex((s) => actionable(s) || (s.grounded && s.action === 'shield'));
     const window = freeAt < 0 ? target.path.length : freeAt;
-    const attacks = this.rank(state, findAttacks(self, target), target, snap, k, info, false).filter(
+    const attacks = this.rank(state, attacksFor(self, target), target, snap, k, info, false).filter(
       (a) => a.tHit < window,
     );
     if (attacks.length && situation !== 'neutral' && this.rand() < this.lv.punish) {
@@ -1132,6 +1159,16 @@ function farBelow(f: Readonly<FighterState>, info: StageInfo): boolean {
   const L = targetLedge(info, f.pos.x);
   return L !== null && f.pos.y < L.y - FAR_BELOW;
 }
+
+/**
+ * Holding the charge, neutral special is the Final Smash, which the CPU saves for an opponent in its reach
+ * (Cpu.finalSmash), so it is left out of the attack options.
+ */
+const savesFinal = (me: Readonly<FighterState>, move: string) =>
+  move === 'neutralB' && me.finalReady && finalReach(me.fighter) !== null;
+
+const attacksFor = (self: Self, target: Target) =>
+  findAttacks(self, target).filter((a) => !savesFinal(self.f, a.move));
 
 function nearestOpponent(
   state: Readonly<MatchState>,

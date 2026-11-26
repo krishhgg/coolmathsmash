@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
+import { poseBounds, shapesBounds, shapesContain, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
+import type { Paint, PathShape } from '../../../render/rig/types';
 import { MUZZLE_LEAD } from '../entities';
 import { moves } from '../moves';
-import { GUN_MUZZLE } from './parts';
+import { MEGA_LASER } from '../upgrade';
+import { BURST_RADIUS } from './burst';
+import { GUN_MUZZLE, MAGNET_POLES } from './parts';
 import { HAND } from './rig';
 import { art } from '.';
 
@@ -150,6 +153,84 @@ describe('johnny art', () => {
       const m = samplePose(art, name, moveClipFrame(art.clips[name]!, frame, move), frame).world.foreF!;
       expect(m.a * lx + m.c * ly + m.tx, `${name} x`).toBeCloseTo(x - MUZZLE_LEAD, 1);
       expect(m.b * lx + m.d * ly + m.ty, `${name} y`).toBeCloseTo(-y, 1);
+    }
+  });
+
+  it('keys Coin Magnet and Upgraded Laser on their moves: FAF - 1 long, with the shot on its spawn frame', () => {
+    for (const name of ['downB', 'neutralBUpgraded', 'neutralBUpgradedAir']) {
+      const move = moves[name]!;
+      expect(art.clips[name]!.length, name).toBe(move.faf - 1);
+      const shot = move.spawn?.[0]?.frame;
+      expect(art.clips[name]!.active, name).toEqual(shot === undefined ? [] : [[shot, shot]]);
+    }
+  });
+
+  it("holds the coins on the magnet's poles through Coin Magnet's charge cycle", () => {
+    // Gun space (x out along the magnet, y down) to forearm space, as for the Laser Gun.
+    const [lx, ly] = [-MAGNET_POLES[1], HAND + MAGNET_POLES[0]];
+    for (let f = 5; f <= 16; f++) {
+      const { world, symbols } = samplePose(art, 'downB', f, f);
+      const hand = world.foreF!;
+      expect(symbols.foreF, `downB@${f}`).toBe('magnet');
+      expect(symbols.fx1, `downB@${f}`).toMatch(/^coins\d$/);
+      expect(world.fx1!.tx, `downB@${f} x`).toBeCloseTo(hand.a * lx + hand.c * ly + hand.tx, 1);
+      expect(world.fx1!.ty, `downB@${f} y`).toBeCloseTo(hand.b * lx + hand.d * ly + hand.ty, 1);
+    }
+  });
+
+  it("draws Upgraded Laser's burst out to its hit's edge on every drawing, and not much past it", () => {
+    const R = MEGA_LASER.burstRadius;
+    const prop = art.projectiles!.laserBurst!;
+    expect(BURST_RADIUS).toBe(R);
+    const loop = art.rig.symbols[prop.symbol];
+    if (!loop || Array.isArray(loop)) throw new Error('the burst is a symbol loop');
+    expect(loop.loop).toHaveLength(7);
+    for (const name of loop.loop) {
+      const shapes = art.rig.symbols[name] as PathShape[];
+      // Solid paint only: the glow is a gradient.
+      const solid = shapes.filter((shape) => typeof shape.fill === 'string');
+      for (let deg = 0; deg < 360; deg += 15) {
+        const [x, y] = [Math.cos((deg * Math.PI) / 180), Math.sin((deg * Math.PI) / 180)];
+        expect(
+          shapesContain(solid, (0.95 * R * x) / prop.scale, (0.95 * R * y) / prop.scale),
+          `${name} ${deg}`,
+        ).toBe(true);
+      }
+      const [x0, y0, x1, y1] = shapesBounds(shapes).map((v) => v * prop.scale);
+      expect(Math.max(-x0!, -y0!, x1!, y1!), name).toBeLessThanOrEqual(1.1 * R);
+    }
+  });
+
+  it('lets the fighters the burst holds at its centre show through its glow and star', () => {
+    /** The opacity `paint` gives at (x, y): 1 for a flat colour, the radial stops' alpha at that distance. */
+    const alphaAt = (paint: Paint, x: number, y: number): number => {
+      if (typeof paint === 'string') return 1;
+      if (paint.type !== 'radial') throw new Error('the burst only uses radial gradients');
+      const t = Math.min(1, Math.hypot(x - paint.cx, y - paint.cy) / paint.r);
+      const stops = paint.stops;
+      const i = Math.max(
+        1,
+        stops.findIndex((stop) => stop.offset >= t),
+      );
+      const [a, b] = [stops[i - 1]!, stops[i]!];
+      const u = b.offset > a.offset ? (t - a.offset) / (b.offset - a.offset) : 1;
+      return (a.alpha ?? 1) + ((b.alpha ?? 1) - (a.alpha ?? 1)) * Math.min(1, Math.max(0, u));
+    };
+    const prop = art.projectiles!.laserBurst!;
+    const loop = art.rig.symbols[prop.symbol];
+    if (!loop || Array.isArray(loop)) throw new Error('the burst is a symbol loop');
+    // The loops pull a held fighter's middle to the centre: a fighter-sized box there (Mario: 8 wide, 15 tall).
+    for (const name of loop.loop) {
+      const shapes = (art.rig.symbols[name] as PathShape[]).filter((shape) => shape.fill !== undefined);
+      let most = 0;
+      for (let x = -4; x <= 4; x += 0.5)
+        for (let y = -7.5; y <= 7.5; y += 0.5) {
+          const clear = shapes
+            .filter((shape) => shapesContain([shape], x / prop.scale, y / prop.scale))
+            .reduce((left, shape) => left * (1 - alphaAt(shape.fill!, x / prop.scale, y / prop.scale)), 1);
+          most = Math.max(most, 1 - clear);
+        }
+      expect(most, name).toBeLessThanOrEqual(0.7);
     }
   });
 

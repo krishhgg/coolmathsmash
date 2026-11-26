@@ -6,6 +6,8 @@ import {
   SHIN,
   THIGH,
   UPPER_ARM,
+  afterimages,
+  afterimagesFaint,
   antenna,
   body,
   cane,
@@ -118,6 +120,8 @@ export const rig: Rig = {
     { name: 'fx2', bone: 'fx2', symbol: null },
   ],
   symbols: {
+    afterimages,
+    afterimagesFaint,
     body,
     idleBody,
     antenna,

@@ -41,6 +41,11 @@ export interface EntityState {
   hitlagAt: number;
   /** The owner's move that spawned (or reflected) it: its hits stale that move. */
   move: string | null;
+  /**
+   * A Final Smash move put it out (MoveDef.final): its hits go through shields, parries and counters. Fixed at spawn,
+   * so it stays so whatever its owner plays or turns into later.
+   */
+  final: boolean;
   /** Stale multiplier fixed when it first connects (0 = not connected yet). */
   stale: number;
   /** Damage multiplier from the spawning move's charge (EntityDef.chargeDamage) and from reflections (1 = neither). */

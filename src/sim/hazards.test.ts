@@ -3,6 +3,8 @@ import { hashState } from '../engine/hash';
 import { registerFighter } from '../fighters/registry';
 import { defineFighter } from '../fighters/types';
 import { registerStage } from '../stages/registry';
+import { hitlagFrames, SHIELD_DAMAGE_MULT, shieldPushback, shieldstunFrames } from './combat/formulas';
+import { PARRY, SHIELD_DEPLETION, SHIELD_REGEN } from './constants';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
 import { zoneAt } from './hazards';
@@ -45,6 +47,25 @@ function stageHitsOver(
   }
   return hits;
 }
+
+/** Events of `type` during the next `frames` frames (`hold` is port 0's input), with the frame each happened on. */
+function eventsOver<T extends SimEvent['type']>(
+  m: MatchState,
+  frames: number,
+  type: T,
+  hold: { buttons?: 'shield'[] } = {},
+): (Extract<SimEvent, { type: T }> & { frame: number })[] {
+  const out = [];
+  for (let i = 0; i < frames; i++) {
+    run(m, 1, hold);
+    for (const e of m.events)
+      if (e.type === type) out.push({ ...(e as Extract<SimEvent, { type: T }>), frame: m.frame });
+  }
+  return out;
+}
+
+/** Put fighter `f` on the floor at x, as if it had walked there. */
+const placeAt = (f: FighterState, x: number) => Object.assign(f, { pos: { x, y: 0 }, prevPos: { x, y: 0 } });
 
 const groundSolid = (m: MatchState, f: FighterState) =>
   f.ground?.kind === 'solid' ? compiledStage(m.config.stage).edges[f.ground.index]!.solid : -1;
@@ -194,6 +215,128 @@ describe('hazards and grabs', () => {
     const w = goo.fighters[1]!;
     expect(stageHitsOver(goo, 1).map((h) => [h.victim, h.element])).toEqual([[1, 'goo']]);
     expect([w.action, w.grabPartner, w.grabDamage, w.launch]).toEqual(['grabbed', 0, 2, null]);
+  });
+});
+
+/**
+ * Shields block stage hazards and parries parry them, as any hit (src/sim/combat/hits.ts guardStageHit cites
+ * SmashWiki). The lava pool (zone 1, x -60 to -36, 12%) and the blade (stage hitbox 0, 8%, out from frame 120 at
+ * x -95) are the testbed's.
+ */
+describe('hazards and shields', () => {
+  const SHIELD = { buttons: ['shield' as const] };
+
+  /** Mario standing at x -25, clear of every hazard, with his shield up for 5 frames: match frame 15. */
+  function shielding() {
+    const m = hazardMatch([mario.id], [-25]);
+    const f = m.fighters[0]!;
+    run(m, 10);
+    run(m, 5, SHIELD);
+    expect([m.frame, f.action]).toEqual([15, 'shield']);
+    return { m, f };
+  }
+
+  it('a raised shield blocks the lava: shield damage, shieldstun and pushback away from the pool, no %', () => {
+    const { m, f } = shielding();
+    placeAt(f, -44);
+    const hp = f.shieldHp;
+    const blocked = eventsOver(m, 1, 'shieldHit', SHIELD);
+    expect(blocked).toEqual([
+      {
+        type: 'shieldHit',
+        attacker: -1,
+        victim: 0,
+        move: null,
+        damage: 12,
+        shieldHp: f.shieldHp,
+        x: -44,
+        y: 0,
+        frame: 16,
+      },
+    ]);
+    expect(m.events.filter((e) => e.type === 'stageHit')).toEqual([]);
+    const stun = shieldstunFrames(12, 'other');
+    expect(f.damage).toBe(0);
+    expect(f.shieldHp).toBeCloseTo(hp - SHIELD_DEPLETION - 12 * SHIELD_DAMAGE_MULT, 9);
+    expect([f.action, f.hitlag, f.hitstun, f.launch]).toEqual(['shieldStun', hitlagFrames(12), stun, null]);
+    expect(f.kb.x).toBeCloseTo(shieldPushback(12, stun).defender, 9);
+  });
+
+  it("blocks the lava again after the pool's rehit time while the shield stays up", () => {
+    const { m, f } = shielding();
+    placeAt(f, -44);
+    const blocked = eventsOver(m, 40, 'shieldHit', SHIELD);
+    expect(blocked.map((e) => e.frame)).toEqual([16, 46]);
+    expect(f.damage).toBe(0);
+  });
+
+  it('a raised shield blocks the blade, pushing the fighter away from it', () => {
+    const m = hazardMatch([mario.id], [-97]);
+    const f = m.fighters[0]!;
+    run(m, 105);
+    run(m, 14, SHIELD);
+    expect(f.action).toBe('shield');
+    const hp = f.shieldHp;
+    const blocked = eventsOver(m, 1, 'shieldHit', SHIELD);
+    expect(blocked).toMatchObject([
+      { attacker: -1, victim: 0, move: null, damage: 8, x: -95, y: 6, frame: 120 },
+    ]);
+    expect(f.damage).toBe(0);
+    expect(f.shieldHp).toBeCloseTo(hp - SHIELD_DEPLETION - 8 * SHIELD_DAMAGE_MULT, 9);
+    expect(f.action).toBe('shieldStun');
+    expect(f.kb.x).toBeCloseTo(-shieldPushback(8, shieldstunFrames(8, 'other')).defender, 9);
+    expect(eventsOver(m, 60, 'stageHit', SHIELD)).toEqual([]);
+  });
+
+  /** Mario lets his shield go (`shielding`) and is in the lava on drop frame `k`. */
+  function lavaOnDropFrame(k: number) {
+    const { m, f } = shielding();
+    run(m, k - 1);
+    if (k > 1) expect([f.action, f.actionFrame]).toEqual(['shieldDrop', k - 1]);
+    placeAt(f, -44);
+    const hp = f.shieldHp;
+    run(m, 1);
+    return { m, f, hp };
+  }
+
+  it(`parries the lava on drop frames 1 and ${PARRY.window}: no %, no shield damage, an indirect hit's freeze`, () => {
+    for (const k of [1, PARRY.window]) {
+      const { m, f, hp } = lavaOnDropFrame(k);
+      expect(m.events.filter((e) => ['parry', 'shieldHit', 'stageHit'].includes(e.type))).toEqual([
+        { type: 'parry', attacker: -1, victim: 0, move: null, x: -44, y: 0 },
+      ]);
+      expect(f.damage).toBe(0);
+      expect(f.shieldHp).toBeCloseTo(hp + SHIELD_REGEN, 9);
+      expect([f.action, f.hitstun, f.launch]).toEqual(['idle', 0, null]);
+      expect(f.hitlag).toBe(hitlagFrames(12) + PARRY.projectileDefenderHitlag);
+    }
+  });
+
+  it("then waits the pool's rehit time before the lava hits again", () => {
+    const { m } = lavaOnDropFrame(1);
+    expect(stageHitsOver(m, 40).map((h) => [h.frame, h.damage])).toEqual([[46, 12]]);
+  });
+
+  it(`takes the lava on drop frame ${PARRY.window + 1}, the first after the parry window`, () => {
+    const { m, f } = lavaOnDropFrame(PARRY.window + 1);
+    expect(m.events.filter((e) => e.type === 'parry' || e.type === 'shieldHit')).toEqual([]);
+    expect(m.events.filter((e) => e.type === 'stageHit')).toMatchObject([{ element: 'lava', damage: 12 }]);
+    expect(f.damage).toBe(12);
+    expect(f.action).toBe('tumble');
+  });
+
+  it('parries the blade on drop frame 1', () => {
+    const m = hazardMatch([mario.id], [-97]);
+    const f = m.fighters[0]!;
+    run(m, 105);
+    run(m, 14, SHIELD);
+    run(m, 1);
+    expect(m.events.filter((e) => ['parry', 'shieldHit', 'stageHit'].includes(e.type))).toEqual([
+      { type: 'parry', attacker: -1, victim: 0, move: null, x: -95, y: 6 },
+    ]);
+    expect(f.damage).toBe(0);
+    expect(f.hitlag).toBe(hitlagFrames(8) + PARRY.projectileDefenderHitlag);
+    expect(stageHitsOver(m, 60)).toEqual([]);
   });
 });
 
