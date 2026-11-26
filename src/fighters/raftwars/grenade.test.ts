@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createMatch } from '../../sim/match';
+import { koPercent } from '../../sim/testing/ko';
 import { run, testMatch, until } from '../../sim/testing/sim';
+import { grenadeEntities } from './grenade';
 
 const G = 'raftwars/grenade';
 const BURST = 'raftwars/grenadeBurst';
@@ -74,5 +76,22 @@ describe('Raft Wars Kids: Grenade (side special)', () => {
     victim.vel = { x: 0, y: 0 };
     run(m, 3);
     expect(victim.damage).toBeCloseTo(13 * 1.2 * 1.05);
+  });
+});
+
+/**
+ * Measured, not sourced. grenade.ts names no Ultimate analogue for the burst (13%, 80 degrees, KBG 69, BKB 60), and
+ * no Ultimate hit has all four of those numbers (searched in the 13.0.1 hitbox data of ultimate-hitboxes.com), so
+ * there is no Ultimate kill percent to hold it to. Its angle, KBG and BKB are those of Snake's Hand Grenade, which
+ * pepper.test.ts gives as 9% (SmashWiki); at 13% the burst KOs well before it would at 9%. 160.7% is what
+ * koPercent gave on main when this was written: the burst's knockback on the Mario reference at Battlefield's ledge,
+ * fresh, no rage, no DI.
+ */
+describe('Raft Wars Kids: Grenade kill percent (measured, no Ultimate analogue)', () => {
+  it('the burst KOs within 5 points of its measured 160.7%', () => {
+    const { damage, angle, kbg, bkb } = grenadeEntities.grenadeBurst!.hits![0]!.boxes[0]!;
+    const percent = koPercent({ hit: { damage, angle, kbg, bkb } });
+    expect(percent).not.toBeNull();
+    expect(Math.abs(percent! - 160.7)).toBeLessThanOrEqual(5);
   });
 });

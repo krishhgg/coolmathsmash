@@ -61,7 +61,7 @@ feeds back into the simulation.
 | `float`         | `port`, `phase` (`start`, `end`)                                                                  | a float starts or ends (including mid-aerial, landing)                                                                                             |
 | `fuelEmpty`     | `port`                                                                                            | a fuel hover burns its last fuel while thrusting                                                                                                   |
 | `statusStart`   | `port`, `status` (kind), `frames`, `source`                                                       | a status goes on a fighter, after the `hit` that applied it, but not when applied again while on; `source` is the port credited, -1 for none       |
-| `statusEnd`     | `port`, `status` (kind), `reason` (`expired`, `ko`, `cleared`)                                    | a status comes off: it ran out (mashing included), the fighter was KO'd, or a script cleared it                                                    |
+| `statusEnd`     | `port`, `status` (kind), `reason` (`expired`, `ko`, `cleared`, `hit`)                             | a status comes off: it ran out (mashing included), the fighter was KO'd, a script cleared it, or a hit ended it (`endOnHit`)                       |
 | `statusDamage`  | `port`, `status` (kind), `damage`, `source`                                                       | a status's tick damages its fighter, with no hitlag or knockback; `damage` is what it added, `source` the port credited                            |
 
 `x` and `y` are world units with y up. `action` events come last in a frame, one per fighter whose action

@@ -15,6 +15,9 @@ import {
   TECH_ROLL,
 } from '../../../sim/constants';
 import { fighter } from '..';
+import { MUZZLE, STUN_GUN } from '../entities';
+import { TASER_TIP } from './parts';
+import { MUZZLE_LEAD } from './stunGun';
 import { art } from '.';
 
 /** Canonical clip lengths for the engine's actions (loops: any length; hold: plays once and holds). */
@@ -72,13 +75,13 @@ describe('bob the robber art', () => {
     }
   });
 
-  it('has a clip for every move, ending at FAF - 1 with its hit windows (or throw or pummel frame) active', () => {
-    expect(moves.length).toBe(26);
+  it('has a clip for every move, ending at FAF - 1 with its hit windows (throw, pummel or shot frame) active', () => {
+    expect(moves.length).toBe(28);
     for (const [name, move] of moves) {
       const clip = art.clips[name];
       expect(clip, name).toBeDefined();
       expect(clip!.length, name).toBe(move.faf - 1);
-      const impact = move.throw?.frame ?? move.pummel?.frame;
+      const impact = move.throw?.frame ?? move.pummel?.frame ?? STUN_GUN.shot;
       const windows = move.hits.length ? move.hits.map((h) => h.frames) : [[impact, impact]];
       expect(clip!.active, name).toEqual(windows);
     }
@@ -102,6 +105,15 @@ describe('bob the robber art', () => {
           }
         }
     expect(misses).toEqual([]);
+  });
+
+  it("holds the taser's prongs just behind the shot as he fires, standing and in the air", () => {
+    for (const name of ['neutralB', 'neutralBAir']) {
+      const m = samplePose(art, name, STUN_GUN.charge, STUN_GUN.charge).world.gun!;
+      const [px, py] = TASER_TIP;
+      expect(m.a * px + m.c * py + m.tx, `${name} x`).toBeCloseTo(MUZZLE.x - MUZZLE_LEAD, 1);
+      expect(m.b * px + m.d * py + m.ty, `${name} y`).toBeCloseTo(-MUZZLE.y, 1);
+    }
   });
 
   it('only references bones, slots and symbols that exist, with keys in order inside the clip', () => {

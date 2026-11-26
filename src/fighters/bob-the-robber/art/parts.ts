@@ -1206,6 +1206,204 @@ export const hook: PathShape[] = [
   fill(ellipse(-0.95, 0, 0.14, 0.14), 'line'),
 ];
 
+/**
+ * The stun gun: a stubby yellow taser held by its black grip (the origin sits in the fist), the barrel above the
+ * hand pointing along +x, a dark cartridge on the nose and two metal prongs whose tips are TASER_TIP.
+ */
+export const TASER_TIP: P = [2.9, -1.0];
+export const taser: PathShape[] = [
+  ink(
+    poly([
+      [-0.55, -0.7],
+      [0.5, -0.7],
+      [0.42, 0.55],
+      [-0.5, 0.5],
+    ]),
+    'gear',
+    0.18,
+  ),
+  stroke(
+    curve([
+      [0.5, -0.55],
+      [1.05, -0.2],
+      [0.62, 0.12],
+    ]),
+    0.16,
+  ),
+  ink(capsule(-0.55, -1.0, 1.75, -1.0, 0.52, 0.5), 'taser', 0.2),
+  fill(capsule(-0.5, -0.66, 1.65, -0.66, 0.14, 0.14), 'goldLo'),
+  fill(capsule(-0.25, -1.3, 1.3, -1.3, 0.1, 0.09), 'taserHi'),
+  ink(
+    poly([
+      [0.55, -1.32],
+      [0.98, -1.32],
+      [0.78, -1.02],
+      [1.08, -1.02],
+      [0.6, -0.6],
+      [0.72, -0.92],
+      [0.46, -0.92],
+    ]),
+    'line',
+    0.04,
+  ),
+  ink(
+    poly([
+      [1.75, -1.5],
+      [2.45, -1.42],
+      [2.45, -0.58],
+      [1.75, -0.5],
+    ]),
+    'gear',
+    0.18,
+  ),
+  fill(capsule(1.85, -1.32, 2.33, -1.3, 0.06, 0.05), 'gearHi'),
+  ink(capsule(2.45, -1.22, TASER_TIP[0], -1.22, 0.1, 0.08), 'metal', 0.12),
+  ink(capsule(2.45, -0.78, TASER_TIP[0], -0.78, 0.1, 0.08), 'metal', 0.12),
+];
+
+/** A zigzag bolt through `points`, inked dark under a pale core. */
+const bolt = (points: readonly P[], width = 0.16): PathShape[] => [
+  stroke(line(points), width + 0.14),
+  stroke(line(points), width, 'zap'),
+];
+
+/**
+ * The taser crackling while it charges, between and around the prongs (prong space: TASER_TIP is the origin, +x
+ * forward). Three drawings looped at 30 fps on the match clock, so a held charge keeps sparking.
+ */
+const crackle = (k: number): PathShape[] => {
+  const j = (a: number, b: number, c: number) => [a, b, c][k]!;
+  return [
+    fill(ellipse(0.1, 0, 0.75, 0.6), {
+      type: 'radial',
+      cx: 0.1,
+      cy: 0,
+      r: 0.75,
+      stops: [
+        { offset: 0, color: 'zap', alpha: 0.9 },
+        { offset: 0.5, color: 'zap2', alpha: 0.45 },
+        { offset: 1, color: 'zap2', alpha: 0 },
+      ],
+    }),
+    ...bolt([
+      [0, -0.22],
+      [j(0.2, 0.28, 0.14), j(-0.06, 0.02, -0.1)],
+      [j(0.06, 0.02, 0.12), j(0.06, -0.04, 0.1)],
+      [0, 0.22],
+    ]),
+    ...bolt(
+      [
+        [0.05, j(-0.22, 0.22, -0.22)],
+        [j(0.35, 0.3, 0.42), j(-0.42, 0.36, -0.3)],
+        [j(0.55, 0.62, 0.5), j(-0.3, 0.5, -0.55)],
+      ],
+      0.1,
+    ),
+  ];
+};
+
+/**
+ * The shot: a ball of crackling current (radius about 1 at the shot's own scale; the prop scale sets its size),
+ * pale at the core, blue at the rim, with a short tail behind it and arcs that jump about in three drawings.
+ */
+const shotDrawing = (k: number): PathShape[] => {
+  const turn = [0, 40, 80][k]!;
+  const arc = (a: number, len: number): P[] => {
+    const r = (deg: number, d: number): P => [
+      d * Math.cos(((deg + turn) * Math.PI) / 180),
+      d * Math.sin(((deg + turn) * Math.PI) / 180),
+    ];
+    return [r(a, 0.55), r(a + 18, 0.85), r(a - 10, 1.05), r(a + 12, 1.15 + len)];
+  };
+  return [
+    fill(
+      poly([
+        [-0.2, -0.62],
+        [-1.9, -0.18],
+        [-2.3, 0],
+        [-1.9, 0.18],
+        [-0.2, 0.62],
+      ]),
+      {
+        type: 'linear',
+        x0: -2.3,
+        y0: 0,
+        x1: -0.2,
+        y1: 0,
+        stops: [
+          { offset: 0, color: 'zap2', alpha: 0 },
+          { offset: 1, color: 'zap2', alpha: 0.6 },
+        ],
+      },
+    ),
+    fill(ellipse(0, 0, 1.25, 1.25), {
+      type: 'radial',
+      cx: 0,
+      cy: 0,
+      r: 1.25,
+      stops: [
+        { offset: 0.45, color: 'zap2', alpha: 0.55 },
+        { offset: 1, color: 'zap2', alpha: 0 },
+      ],
+    }),
+    ink(
+      poly(
+        Array.from({ length: 14 }, (_, i): P => {
+          const r = i % 2 ? 0.62 : 0.86 + 0.06 * ((i + k) % 3);
+          const a = ((i / 14) * 360 + turn / 2) * (Math.PI / 180);
+          return [r * Math.cos(a), r * Math.sin(a)];
+        }),
+      ),
+      'zap2',
+      0.12,
+    ),
+    fill(ellipse(0.05, 0, 0.5, 0.46), 'zap'),
+    fill(ellipse(0.12, -0.08, 0.22, 0.18), 'eye'),
+    ...bolt(arc(-50, 0.15), 0.1),
+    ...bolt(arc(70, 0.05), 0.1),
+    ...bolt(arc(190, 0.2), 0.1),
+  ];
+};
+
+/** The flash as the shot leaves the prongs: a spiky white-cored burst (prong space). */
+export const zapFlash: PathShape[] = [
+  fill(ellipse(0.6, 0, 1.4, 1.1), {
+    type: 'radial',
+    cx: 0.6,
+    cy: 0,
+    r: 1.4,
+    stops: [
+      { offset: 0, color: 'zap', alpha: 0.9 },
+      { offset: 0.6, color: 'zap2', alpha: 0.35 },
+      { offset: 1, color: 'zap2', alpha: 0 },
+    ],
+  }),
+  ink(
+    poly(
+      Array.from({ length: 12 }, (_, i): P => {
+        const r = i % 2 ? 0.35 : i % 4 ? 0.85 : 1.25;
+        const a = (i / 12) * Math.PI * 2;
+        return [0.5 + r * Math.cos(a), r * 0.8 * Math.sin(a)];
+      }),
+    ),
+    'zap',
+    0.12,
+  ),
+  fill(ellipse(0.5, 0, 0.3, 0.26), 'eye'),
+];
+
+export const zaps: Record<string, PathShape[] | { loop: string[]; fps: number }> = {
+  zapCrackle0: crackle(0),
+  zapCrackle1: crackle(1),
+  zapCrackle2: crackle(2),
+  zapCrackle: { loop: ['zapCrackle0', 'zapCrackle1', 'zapCrackle2'], fps: 30 },
+  zapFlash,
+  stunShot0: shotDrawing(0),
+  stunShot1: shotDrawing(1),
+  stunShot2: shotDrawing(2),
+  stunShot: { loop: ['stunShot0', 'stunShot1', 'stunShot2'], fps: 30 },
+};
+
 /** One unit of rope along +x; its bone stretches it to length. */
 export const rope: PathShape[] = [
   fill(
