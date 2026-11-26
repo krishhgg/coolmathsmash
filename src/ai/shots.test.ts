@@ -7,6 +7,7 @@ import { press } from './inputs';
 import { knowledge } from './knowledge';
 import { run, soloMatch } from './look';
 import { shotHit } from './shots';
+import { floorBelow, stageInfo } from './stage';
 
 const STAGE = 'battlefield';
 /** Every fighter with a move whose entity has hitboxes, found by probing, not listed by hand. */
@@ -211,23 +212,30 @@ describe('CPU projectiles', () => {
     }
   });
 
-  it("drop Snail Bob's crate on an opponent standing 60 or 90 units away", () => {
+  it("drop Snail Bob's crate onto an opponent over the stage that stood 60 or 80 units away", () => {
     // Crate Drop is 10% since #257. Without his CPU's 1.2 preference his down air outscores it, and at 60 units he
-    // never drops it.
-    for (const d of [60, 90]) {
+    // never drops it. The crate has to land on the Red Ball while it is over the stage: at 60 units it catches the Red
+    // Ball his side special launched (frame 86), at 80 units a standing one (frames 200 and 202). At 90 units his
+    // other hits knock the Red Ball off the stage first, and on seeds 1 to 4 every crate he drops in 600 frames falls
+    // past the ledge at it about 119 units below.
+    for (const d of [60, 80]) {
       for (const seed of [1, 2]) {
         const m = facingOff('snailbob', -d / 2, d, seed);
         const cpu = createCpu({ port: 0, level: 9, seed });
-        let dropped = -1;
-        for (let i = 0; i < 300 && dropped < 0; i++) {
+        const crates = new Set<number>();
+        let landed = -1;
+        for (let i = 0; i < 300 && landed < 0; i++) {
           stepMatch(m, [cpu.input(m), neutralInput()]);
-          if (
-            m.events.some((e) => e.type === 'entitySpawn' && e.owner === 0 && e.kind === 'snailbob/crateFall')
-          ) {
-            dropped = i;
+          const o = m.fighters[1]!;
+          for (const e of m.events) {
+            if (e.type === 'entitySpawn' && e.owner === 0 && e.kind === 'snailbob/crateFall')
+              crates.add(e.id);
+            const crate =
+              e.type === 'hit' && e.attacker === 0 && e.entity !== undefined && crates.has(e.entity);
+            if (crate && floorBelow(stageInfo(m), o.pos.x, o.pos.y) !== null) landed = i;
           }
         }
-        expect(dropped, `${d}, seed ${seed}`).toBeGreaterThanOrEqual(0);
+        expect(landed, `${d}, seed ${seed}`).toBeGreaterThanOrEqual(0);
       }
     }
   });
@@ -320,6 +328,92 @@ describe('CPU projectiles', () => {
           if (m.events.some((e) => e.type === 'hit' && e.attacker === 0 && e.entity !== undefined)) hit = i;
         }
         expect(hit, `${id}, seed ${seed}`).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it("count on their own shots already out: Raft Wars' Aimed Shots connect with a standing Red Ball", () => {
+    // The setups from the captures: a Red Ball 80-120 units away, seeds 1 to 6. Before his look-ahead of the Red Ball
+    // held his own entities, he fired 18 Aimed Shots held to 40 frames here and hit with one. At 90 units on seed 1
+    // his grenade from frame 0 bursts on the Red Ball on frame 105 and launches it over the ball that came out on
+    // frame 97. With his entities in it, he also sees a shot of his land inside his 8 frames of reaction time, and no
+    // longer starts charging at a Red Ball it just knocked toward the ledge (80 units, seed 1: hit on frame 141,
+    // charging from 145, the Red Ball off the stage when the ball comes out).
+    // A tapped one fired while the Red Ball still stands where it started has to reach it too. With his spacing error
+    // in the shot's flight, at 90 units on seed 1 one came out on frame 59 and the floor took it on frame 96, 0.04
+    // units short of the Red Ball on the frame before. Now he taps from 2 frames further in and it hits on frame 95.
+    const fired = { held: 0, tapped: 0 };
+    const missed: string[] = [];
+    for (const d of [80, 90, 100, 110, 120]) {
+      for (let seed = 1; seed <= 6; seed++) {
+        const m = facingOff('raftwars', -d / 2, d, seed);
+        const cpu = createCpu({ port: 0, level: 9, seed });
+        const out = new Map<number, string>();
+        let charged = false;
+        let touched = false;
+        for (let i = 0; i < 420; i++) {
+          stepMatch(m, [cpu.input(m), neutralInput()]);
+          for (const e of m.events) {
+            // The sim reports a charged release; the ball comes out 3 frames later.
+            if (e.type === 'charge' && e.port === 0 && e.phase === 'fire' && e.move.startsWith('neutralB'))
+              charged = true;
+            if (e.type === 'entitySpawn' && e.owner === 0 && e.kind === 'raftwars/aimedShot') {
+              const kind = charged ? 'held' : 'tapped';
+              if (charged || !touched) {
+                out.set(e.id, `${d}, seed ${seed}: ${kind}, out on frame ${i}`);
+                fired[kind]++;
+              }
+              charged = false;
+            }
+            if (e.type === 'hit' && e.entity !== undefined) out.delete(e.entity);
+            if (e.type === 'hit' && e.victim === 1) touched = true;
+          }
+        }
+        missed.push(...out.values());
+      }
+    }
+    expect(fired.held).toBeGreaterThan(0);
+    expect(fired.tapped).toBeGreaterThan(0);
+    expect(missed).toEqual([]);
+  }, 60_000);
+
+  it('spend no long shot on an opponent falling far below the stage', () => {
+    // A Red Ball falling 35-45 units under the right ledge with three jumps left and no input, Raft Wars standing near
+    // the middle, as in the captures (80 units, seed 1: charging from frame 199 at a Red Ball 50 units below, the ball
+    // out on frame 254, the Red Ball KO'd on frame 263). The CPU assumes it recovers (assumedInput in cpu.ts), and a
+    // held Aimed Shot or a grenade at the ledge where it would come back scored as a hit.
+    for (const [x, y] of [
+      [111, -40],
+      [119, -45],
+      [110, -35],
+    ] as const) {
+      for (const seed of [1, 2]) {
+        const m = facingOff('raftwars', 0, 30, seed);
+        Object.assign(m.fighters[1]!, {
+          pos: { x, y },
+          prevPos: { x, y: y + 1.4 },
+          vel: { x: 0, y: -1.4 },
+          ground: null,
+          action: 'fall',
+          actionFrame: 20,
+          jumpsUsed: 1,
+          damage: 20,
+        });
+        const cpu = createCpu({ port: 0, level: 9, seed });
+        const long: string[] = [];
+        let started = -1;
+        for (let i = 0; i < 120; i++) {
+          stepMatch(m, [cpu.input(m), neutralInput()]);
+          for (const e of m.events) {
+            if (e.type === 'move' && e.port === 0) started = i;
+            const held =
+              e.type === 'charge' && e.port === 0 && e.phase === 'fire' && e.move.startsWith('neutralB');
+            const grenade = e.type === 'entitySpawn' && e.owner === 0 && e.kind === 'raftwars/grenade';
+            if (held || grenade)
+              long.push(`${held ? 'held Aimed Shot' : 'grenade'} started on frame ${started}`);
+          }
+        }
+        expect(long, `${x}, ${y}, seed ${seed}`).toEqual([]);
       }
     }
   });

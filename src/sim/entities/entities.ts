@@ -1,4 +1,4 @@
-import { allFighters } from '../../fighters/registry';
+import { allFighters } from '../../fighters/lookup';
 import { emit } from '../events';
 import { inHitlag, type Ctx, type FighterState } from '../fighter';
 import { inFinalSmash } from '../finalSmash';
