@@ -500,6 +500,15 @@ finalSmashCinematic: {
   its attacks.
 - **Events.** Activation emits `finalSmash` after the `move` event, with the freeze length; a trap's catch is a
   `commandGrab` event (docs/sim-events.md).
+- **Stage-wide.** A Final Smash that reaches everyone near the user is a direct one with big boxes. Runner's Tunnel
+  Flip (`src/fighters/runner/finalSmash.ts`) is Peach Blossom: three rings of damage (30, 20 and 10% out to 25, 50 and
+  100 units, no knockback) on frames 40-61, then rings of 0% boxes with a freezing, mashable `endOnHit` status, one
+  status kind per stuck length since a box's status takes its length from the status. Its `final.freeze` is 38, so the
+  hit lands on Peach Blossom's own frame 40.
+- **View flips.** A Final Smash that turns the stage over does it in the renderer only: the art's `viewFlips` names
+  the move frames over which the backdrop and world mirror top to bottom and turn back (docs/art.md,
+  `src/render/viewFlip.ts`). Nobody's gravity or controls change, so the sim stays as it was. Runner's view turns over
+  on frames 40-61, stays upside down to 230 and is upright again on 247, the frame before she can act.
 - **Not built.** Ultimate's Final Smash Meter, the height boost after an aerial Final Smash, the solid-colour background
   for the whole move, and the close-up of the user's eyes.
 
