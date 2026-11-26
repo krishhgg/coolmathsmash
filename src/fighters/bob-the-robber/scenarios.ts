@@ -4,6 +4,9 @@ import type { MoveDef } from '../types';
 import { PARALYZED, STUN_GUN } from './entities';
 import { moves } from './moves';
 
+/** Shadow Step's strike: the counterattack's first active frame. */
+const STRIKE = moves.downBHit!.hits[0]!.frames[0];
+
 const ID = 'bob-the-robber';
 const BOB = 'characters/bob-the-robber';
 const ART = [`${BOB}/official-art-0*`, `${BOB}/official-art-chase-*`];
@@ -61,9 +64,16 @@ const sheet = (name: string, description: string, states: string[]): LabScenario
   refs: ART,
 });
 
-/** The frame a move's clip is checked on: its first active frame, its throw or pummel frame, or the stun gun's shot. */
+/**
+ * The frame a move's clip is checked on: its first active frame, its throw or pummel frame, the first frame its
+ * counter catches, or the stun gun's shot.
+ */
 const firstActive = (move: MoveDef): number =>
-  move.hits[0]?.frames[0] ?? move.throw?.frame ?? move.pummel?.frame ?? STUN_GUN.shot;
+  move.hits[0]?.frames[0] ??
+  move.throw?.frame ??
+  move.pummel?.frame ??
+  move.counter?.window[0] ??
+  STUN_GUN.shot;
 
 const AIR_MOVES = new Set(['nair', 'fair', 'bair', 'uair', 'dair', 'neutralBAir', 'sideB', 'upB']);
 const atFirstActive = (pick: (name: string) => boolean) =>
@@ -258,6 +268,29 @@ export const scenarios: FighterScenarios = {
       },
       motion: { before: 50, after: 50 },
       requires: ['move:neutralB'],
+      refs: ['smash/attack-active-*', ...ART],
+    },
+    {
+      name: `${ID}-shadow-step`,
+      description:
+        'Shadow Step (down special): Bob ducks into the shadow, Fireboy (40%) walks in with his forward tilt and hits it, and Bob steps out of the shadow behind him with the baton; capture the strike.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: ID }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: 6, y: 0 }, facing: -1 } },
+        { port: 1, state: { pos: { x: -6, y: 0 }, facing: 1, damage: 40 } },
+      ],
+      script: [
+        { port: 0, from: 10, to: 11, y: -100, buttons: ['special'] },
+        { port: 1, from: 10, to: 16, x: 50 },
+        { port: 1, from: 14, to: 15, x: 50, buttons: ['attack'] },
+      ],
+      capture: {
+        label: "P1's Shadow Step strike reaches its first active frame",
+        when: (s) => s.fighters[0]!.move === 'downBHit' && s.fighters[0]!.actionFrame >= STRIKE,
+      },
+      motion: { before: 30, after: 30 },
+      requires: ['move:downB'],
       refs: ['smash/attack-active-*', ...ART],
     },
     moveShot(
