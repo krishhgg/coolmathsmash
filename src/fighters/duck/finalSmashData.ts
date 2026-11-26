@@ -63,6 +63,16 @@ export const WAVE = {
 };
 
 /**
+ * The slam's boxes, the burst's hitboxes, from his feet (x forward, y up): its capsule as three circles along it, at
+ * 50, 34 and 18 in front. The art draws the burst inside them.
+ */
+export const STOMP_BOXES: { x: number; y: number; radius: number }[] = [
+  STOMP.to,
+  (STOMP.from + STOMP.to) / 2,
+  STOMP.from,
+].map((x) => ({ x, y: STOMP.y, radius: STOMP.radius }));
+
+/**
  * The charge's boxes, the shockwave's hitboxes, from the floor under its centre (x forward, y up): Ganon's 45% front
  * box, then each 35% capsule as three circles along it. The art draws the shockwave inside them.
  */

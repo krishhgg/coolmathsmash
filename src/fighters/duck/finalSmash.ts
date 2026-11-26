@@ -2,7 +2,7 @@ import { destroyEntity, spawnFromMove } from '../../sim/entities/entities';
 import type { EntityDef } from '../../sim/entities/types';
 import { PARALYZED } from '../bob-the-robber/entities';
 import type { HitboxDef, MoveDef } from '../types';
-import { FAF, REACH, STOMP, WAVE, WAVE_BOXES } from './finalSmashData';
+import { FAF, REACH, STOMP, STOMP_BOXES, WAVE, WAVE_BOXES } from './finalSmashData';
 
 export { FAF, REACH, STOMP, WAVE } from './finalSmashData';
 
@@ -11,12 +11,10 @@ export { FAF, REACH, STOMP, WAVE } from './finalSmashData';
  * numbers, their sources and the estimates are in finalSmashData.ts.
  */
 
-/** The slam's capsule as three circles along it (18, 34 and 50 in front), each with its numbers. */
-const slamBoxes: HitboxDef[] = [STOMP.to, (STOMP.from + STOMP.to) / 2, STOMP.from].map((x, id) => ({
+/** The slam's capsule as three circles along it (STOMP_BOXES: 50, 34 and 18 in front), each with its numbers. */
+const slamBoxes: HitboxDef[] = STOMP_BOXES.map((b, id) => ({
   id,
-  x,
-  y: STOMP.y,
-  radius: STOMP.radius,
+  ...b,
   damage: 10,
   angle: 270,
   kbg: 100,

@@ -1,5 +1,5 @@
 import type { PathShape, SymbolLoop } from '../../../render/rig/types';
-import { STOMP, WAVE, WAVE_BOXES } from '../finalSmashData';
+import { STOMP_BOXES, WAVE, WAVE_BOXES } from '../finalSmashData';
 import { BODY_R, HEAD_R, LINE, blob, circle, place, poly } from './parts';
 
 /**
@@ -77,30 +77,48 @@ function bolt(from: P, deg: number, len: number, w: number, kink = 1): PathShape
   return { d: poly(place(pts, deg, from[0], from[1])), fill: 'star', stroke: { color: 'line', width: 0.5 } };
 }
 
-/** The slam's dome over its area, from 7 behind his feet to 75 in front and 50 up, at `s` of its size. */
-function dome(s: number): string {
-  const cx = (STOMP.from + STOMP.to) / 2;
-  const rx = ((STOMP.to - STOMP.from) / 2 + STOMP.radius) * s;
-  const ry = (STOMP.y + STOMP.radius) * s;
-  const pts: P[] = Array.from({ length: 25 }, (_, i): P => {
-    const a = PI + (i / 24) * PI;
-    return [cx + rx * cos(a), ry * sin(a)];
-  });
-  return poly(pts.map(([x, y]) => [n(x), n(y)]));
+/** The slam's hitboxes as circles in the burst's drawing (y down, from his feet), back to front. */
+const SLAM_CIRCLES = STOMP_BOXES.map((b) => [b.x, -b.y, b.radius] as const).sort((a, b) => a[0] - b[0]);
+
+/**
+ * The slam's dome: the outline of its three circles, each shrunk by `inset` so whatever is drawn on that outline
+ * stays `inset` inside them. A bubble of force from 7 behind his feet to 75 in front and 50 up, resting on the floor
+ * where the circles touch it.
+ */
+function dome(inset: number): string {
+  const circles = SLAM_CIRCLES.map(([x, y, r]) => [x, y, r - inset] as const);
+  const [mx, my] = [(circles[0]![0] + circles.at(-1)![0]) / 2, circles[0]![1]];
+  const inside = (x: number, y: number, skip: number) =>
+    circles.some(([cx, cy, r], i) => i !== skip && Math.hypot(x - cx, y - cy) < r - 1e-9);
+  const pts: P[] = circles.flatMap(([cx, cy, r], i) =>
+    Array.from({ length: 96 }, (_, k): P => [
+      cx + r * cos((k * PI) / 48),
+      cy + r * sin((k * PI) / 48),
+    ]).filter(([x, y]) => !inside(x, y, i)),
+  );
+  // Where neighbouring circles cross, so the outline turns its corners on them rather than cutting across.
+  for (let i = 1; i < circles.length; i++) {
+    const [ax, ay, r] = circles[i - 1]!;
+    const [bx] = circles[i]!;
+    const h = Math.sqrt(r * r - ((bx - ax) / 2) ** 2);
+    pts.push([(ax + bx) / 2, ay - h], [(ax + bx) / 2, ay + h]);
+  }
+  const around = ([x, y]: P) => Math.atan2(y - my, x - mx);
+  return poly(pts.sort((a, b) => around(a) - around(b)).map(([x, y]) => [n(x), n(y)]));
 }
 
 /**
  * The dome filled with a flash, brightest in its middle and fading towards the rim, `a` its opacity, so the Duck at
  * its back edge stays clear.
  */
-function flash(s: number, a: number): PathShape {
+function flash(inset: number, a: number): PathShape {
   return {
-    d: dome(s),
+    d: dome(inset),
     fill: {
       type: 'radial',
       cx: 38,
-      cy: -10,
-      r: 48 * s,
+      cy: -18,
+      r: 44,
       stops: [
         { offset: 0, color: 'glowCore', alpha: a * 0.85 },
         { offset: 0.45, color: 'star', alpha: a * 0.55 },
@@ -110,26 +128,38 @@ function flash(s: number, a: number): PathShape {
   };
 }
 
-/** The dome's rim as a ring of ink, `w` thick. */
-const rim = (s: number, w: number): PathShape => ({ d: dome(s), stroke: { color: 'line', width: w } });
+/** The dome's rim as a ring of ink `w` thick, kept inside the circles. */
+const rim = (inset: number, w: number): PathShape => ({
+  d: dome(inset),
+  stroke: { color: 'line', width: w },
+});
 
 /**
- * Bolts crackling out across the dome from just past his stamping toes (12, -1): [angle, length] each (deg, y down,
- * -90 straight up), fanned forwards so they never cross the Duck.
+ * Bolts crackling out across the dome from where the back circle meets the floor (18, -5): [angle, length] each (deg,
+ * y down, -90 straight up), fanned forwards and kept inside the circles.
  */
 const bolts = (spokes: [number, number][], w: number) =>
-  spokes.map(([a, len], i) => bolt([12, -1], a, len, w, i % 2 ? 1 : -1));
+  spokes.map(([a, len], i) => bolt([18, -5], a, len, w, i % 2 ? 1 : -1));
 
-/** Dust rolling out along the floor under the dome, risen by `rise` and grown by `g`: three puffs to a cloud. */
+/**
+ * Dust rolling out along the floor under the dome, risen by `rise` and grown by `g`: a cloud of three puffs over each
+ * place a circle meets the floor, and a smaller one, a little higher, between them.
+ */
 function dust(rise: number, g: number): PathShape[] {
-  const at = [-4, 12, 30, 48, 64];
+  const at: [number, number, number][] = [
+    [18, 3.6, 2.6],
+    [26, 5.2, 2.2],
+    [34, 3.6, 2.6],
+    [42, 5.2, 2.2],
+    [50, 3.6, 2.6],
+  ];
   return cloud(
-    at.flatMap((x, i): [number, number, number][] => {
-      const r = (3.4 - Math.abs(i - 2) * 0.35) * g;
+    at.flatMap(([x, h, size]): [number, number, number][] => {
+      const r = size * g;
       return [
-        [x - r * 0.7, -r * 0.5 - rise, r * 0.75],
-        [x, -r * 0.8 - rise, r],
-        [x + r * 0.75, -r * 0.45 - rise, r * 0.7],
+        [x - r * 0.8, -h - rise + r * 0.2, r * 0.7],
+        [x, -h - rise, r],
+        [x + r * 0.8, -h - rise + r * 0.25, r * 0.65],
       ];
     }),
   );
@@ -137,52 +167,53 @@ function dust(rise: number, g: number): PathShape[] {
 
 /**
  * The burst, drawn for the entity's 23 frames as six drawings (the first for three frames, the rest for four): the
- * flash fills the slam's dome with paralysing bolts on its five active frames, then its rim spreads and fades while
- * dust rolls out along the floor and settles.
+ * flash fills the slam's dome with paralysing bolts on its five active frames, then its rim spreads out to the
+ * circles' edge and fades while dust rolls out along the floor and settles. Every drawing stays inside the circles
+ * (index.test.ts).
  */
 const bursts: PathShape[][] = [
   [
-    flash(0.92, 0.9),
-    rim(0.92, 1.2),
+    flash(2.4, 0.9),
+    rim(2.4, 1.2),
     ...bolts(
       [
-        [-84, 32],
-        [-64, 40],
-        [-44, 46],
-        [-26, 52],
-        [-10, 56],
+        [-92, 34],
+        [-70, 38],
+        [-48, 40],
+        [-28, 42],
+        [-12, 40],
       ],
       1.8,
     ),
   ],
   [
-    flash(1, 0.65),
-    rim(1, 1),
+    flash(1.4, 0.65),
+    rim(1.4, 1),
     ...bolts(
       [
-        [-76, 36],
-        [-54, 44],
-        [-34, 50],
-        [-16, 56],
+        [-82, 36],
+        [-58, 40],
+        [-36, 42],
+        [-18, 42],
       ],
       1.6,
     ),
     ...dust(0, 0.8),
   ],
   [
-    flash(1.04, 0.32),
-    rim(1.04, 0.7),
+    flash(0.9, 0.32),
+    rim(0.9, 0.7),
     ...bolts(
       [
-        [-70, 30],
-        [-40, 38],
-        [-18, 44],
+        [-74, 30],
+        [-44, 34],
+        [-22, 36],
       ],
       1.2,
     ),
     ...dust(1.5, 1),
   ],
-  [rim(1.07, 0.4), ...dust(3, 1.2)],
+  [rim(0.6, 0.4), ...dust(3, 1.2)],
   [...dust(4.5, 1.1)],
   [...dust(6, 0.75)],
 ];
