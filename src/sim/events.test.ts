@@ -4,16 +4,20 @@ import { DAMAGE_MAX } from './combat/hits';
 import { spawnEntity } from './entities/entities';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
+import { PLANET } from './items/planet';
 import { createMatch, type MatchState } from './match';
 import { lungeTester } from './testing/beast';
+import { COUNTER_TEST_FIGHTERS, counterTesterMarth } from './testing/counter';
 import { gadgets } from './testing/gadgets';
 import { MOBILITY_TEST_FIGHTERS, testFloater, testHover } from './testing/mobility';
 import { testCharger } from './testing/charge';
 import { marioReference as mario } from './testing/reference';
+import { testStatus } from './testing/statuses';
 import { tetherTester } from './testing/tethers';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from './testing/sim';
 
 registerFighter(gadgets);
+for (const def of COUNTER_TEST_FIGHTERS) registerFighter(def);
 
 function of<T extends SimEvent['type']>(m: MatchState, type: T): Extract<SimEvent, { type: T }>[] {
   return m.events.filter((e): e is Extract<SimEvent, { type: T }> => e.type === type);
@@ -243,6 +247,31 @@ describe('sim events', () => {
     expect(seen[3]).toEqual({ type: 'throw', attacker: 0, victim: 1, move: 'beastChew' });
   });
 
+  it('a counter reports the catch and what the caught hit would have dealt, then its counterattack and hit', () => {
+    const { m, v } = duel();
+    v.fighter = counterTesterMarth.id;
+    attack(m, 1, 'downB');
+    runPorts(m, 9, [{}, {}]);
+    attack(m, 0, 'probe');
+    const seen: SimEvent[] = [];
+    for (let i = 0; i < 40 && !seen.some((e) => e.type === 'hit'); i++) {
+      runPorts(m, 1, [{}, {}]);
+      seen.push(...m.events.filter((e) => ['counter', 'move', 'hit'].includes(e.type)));
+    }
+    expect(seen.map((e) => e.type)).toEqual(['counter', 'move', 'hit']);
+    expect(seen[0]).toEqual({
+      type: 'counter',
+      port: 1,
+      attacker: 0,
+      move: 'downBHit',
+      damage: 12 * 1.05,
+      x: -2,
+      y: 8,
+    });
+    expect(seen[1]).toEqual({ type: 'move', port: 1, move: 'downBHit' });
+    expect(seen[2]).toMatchObject({ type: 'hit', attacker: 1, victim: 0, move: 'downBHit' });
+  });
+
   it('tethers report the fire, the latch with what it anchored to, then the release', () => {
     const m = testMatch({ fighter: tetherTester.id, x: -70 });
     attack(m, 0, 'upB');
@@ -431,5 +460,53 @@ describe('entity events', () => {
     runPorts(crate, 1, [{}, {}]);
     expect(of(crate, 'entityHit')).toMatchObject([{ id: 1, attacker: 0, damage: 12, hp: -2 }]);
     expect(of(crate, 'entityDestroy')).toMatchObject([{ id: 1, reason: 'broken' }]);
+  });
+
+  it('breaking the Coolmath Planet reports the break, then finalReady for the breaker', () => {
+    const m = pair('test-gadgets', -40, 60);
+    const planet = spawnEntity(m, { kind: PLANET, owner: -1, pos: { x: -32, y: 6 } });
+    planet.hp = 10;
+    attack(m, 0, 'strike');
+    runPorts(m, 1, [{}, {}]);
+    expect(of(m, 'entityDestroy')).toMatchObject([{ id: planet.id, kind: PLANET, reason: 'broken' }]);
+    expect(of(m, 'finalReady')).toEqual([{ type: 'finalReady', port: 0, x: planet.pos.x, y: planet.pos.y }]);
+    const types = m.events.map((e) => e.type);
+    expect(types.indexOf('entityDestroy')).toBeLessThan(types.indexOf('finalReady'));
+  });
+});
+
+describe('status events', () => {
+  registerFighter(testStatus);
+
+  it("a status reports its start on the hit's frame, after the hit, and its end on its last frame", () => {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: testStatus.id }, { fighter: mario.id }, { fighter: mario.id }],
+    });
+    m.fighters.forEach((f, i) => {
+      const x = [-20, -10, 60][i]!;
+      Object.assign(f, { pos: { x, y: 0 }, prevPos: { x, y: 0 }, facing: i === 0 ? 1 : -1, intangible: 0 });
+    });
+    runPorts(m, 20, []);
+    attack(m, 0, 'ftilt');
+    for (let i = 0; i < 10 && of(m, 'statusStart').length === 0; i++) runPorts(m, 1, []);
+    const types = m.events.map((e) => e.type);
+    expect(types.indexOf('hit')).toBeLessThan(types.indexOf('statusStart'));
+    expect(of(m, 'statusStart')).toEqual([
+      { type: 'statusStart', port: 1, status: 'test-status/warm', frames: 90, source: 0 },
+    ]);
+    const lag = m.fighters[1]!.hitlag;
+    expect(lag).toBeGreaterThan(0);
+    let frames = 0;
+    while (of(m, 'statusEnd').length === 0 && frames < 200) {
+      runPorts(m, 1, []);
+      frames++;
+    }
+    expect(of(m, 'statusEnd')).toEqual([
+      { type: 'statusEnd', port: 1, status: 'test-status/warm', reason: 'expired' },
+    ]);
+    expect(frames).toBe(lag + 90); // paused through hitlag, then 90 frames
   });
 });
