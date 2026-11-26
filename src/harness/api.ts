@@ -11,6 +11,7 @@ import { registerStage } from '../stages/registry';
 import { hazardTestbed } from '../stages/hazardTestbed';
 import { testbed } from '../stages/testbed';
 import { testCharger } from '../sim/testing/charge';
+import { FINAL_SMASH_TEST_FIGHTERS } from '../sim/testing/finalSmash';
 import {
   SCENARIOS,
   applyPatch,
@@ -75,6 +76,7 @@ export function installHarness(game: Game): HarnessApi {
   registerStage(testbed);
   registerStage(hazardTestbed);
   registerFighter(testCharger);
+  for (const def of FINAL_SMASH_TEST_FIGHTERS) registerFighter(def);
   const ports = () => game.state.players.length;
   let active: GameScenario | null = null;
   const advance = (s: GameScenario) => game.step(scenarioInputs(s, game.state));
