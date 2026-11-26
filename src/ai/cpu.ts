@@ -3,8 +3,9 @@ import { nextRandom } from '../engine/rng';
 import type { HitboxDef, ThrowHitDef } from '../fighters/types';
 import { Btn, neutralInput, type InputFrame } from '../input/types';
 import { hurtbox } from '../sim/combat/hits';
-import { knockback, shieldstunFrames } from '../sim/combat/formulas';
+import { hitstunFrames, knockback, shieldstunFrames } from '../sim/combat/formulas';
 import { GRAB, SHIELD_DROP_FRAMES } from '../sim/constants';
+import { statusDef, statusLength } from '../sim/statuses';
 import type { FighterState } from '../sim/fighter';
 import { stepMatch, type MatchState } from '../sim/match';
 import { STICK, TURNING_MOVES, press } from './inputs';
@@ -57,6 +58,11 @@ import {
 
 const HISTORY = 64;
 const HORIZON = 45;
+/**
+ * How far ahead a CPU whose fighter shoots reads the opponent: long enough for a Fireball to cross most of
+ * Battlefield (17 frames of startup and 70 of flight) or a Grenade's fuse to run out.
+ */
+const SHOT_HORIZON = 110;
 const NEUTRAL = Object.freeze(neutralInput());
 
 type Situation = 'combo' | 'punish' | 'neutral';
@@ -456,19 +462,24 @@ export class Cpu {
     return knowledge(f.fighter, state.config.stage);
   }
 
-  /** The opponent's next frames as the CPU expects them, t = 0 being the frame about to be simulated. */
+  /**
+   * The opponent's next frames as the CPU expects them, t = 0 being the frame about to be simulated: HORIZON frames,
+   * and `horizon` frames of the same prediction as `far` when that is longer (for projectiles).
+   */
   private foresee(
     state: Readonly<MatchState>,
     opp: Readonly<FighterState>,
-  ): { path: Sample[]; snap: FighterState } {
+    horizon = HORIZON,
+  ): { path: Sample[]; far?: Sample[]; snap: FighterState } {
     const lag = Math.min(this.lv.reaction, this.history.length - 1);
     const snap = this.seen(opp.port, lag);
     const m = soloMatch(state, snap);
     const info = stageInfo(state);
-    const samples = run(m, lag + HORIZON + 1, assumedInput(snap, info, state));
-    const path = samples.slice(lag);
-    while (path.length < HORIZON) path.push(path.at(-1) ?? samplesFallback(snap));
-    return { path, snap };
+    const samples = run(m, lag + Math.max(horizon, HORIZON) + 1, assumedInput(snap, info, state));
+    const far = samples.slice(lag);
+    while (far.length < Math.max(horizon, HORIZON)) far.push(far.at(-1) ?? samplesFallback(snap));
+    if (horizon <= HORIZON) return { path: far, snap };
+    return { path: far.slice(0, HORIZON), far, snap };
   }
 
   private think(state: Readonly<MatchState>, me: Readonly<FighterState>, info: StageInfo): void {
@@ -479,11 +490,13 @@ export class Cpu {
       return;
     }
     const k = this.knowledge(state, me);
-    const { path, snap } = this.foresee(state, opp);
+    const { path, far, snap } = this.foresee(state, opp, k.shoots ? SHOT_HORIZON : HORIZON);
     const target: Target = {
       path,
       errX: (this.rand() * 2 - 1) * this.lv.spacingError,
       grabbableIn: snap.grabbableFrom - state.frame,
+      ...(far && { far }),
+      ...(k.shoots && { rush: rush(far ?? path, me.pos.x, knowledge(snap.fighter, state.config.stage)) }),
     };
     const now = path[0]!;
     const dir = (Math.sign(now.x - me.pos.x) || me.facing) as 1 | -1;
@@ -502,7 +515,7 @@ export class Cpu {
     }
     if (this.escape(me, info)) return;
 
-    const self: Self = { f: me, k, info, groundDelay: me.ground ? 0 : Infinity, jumpDelay: 0 };
+    const self: Self = { f: me, k, info, groundDelay: me.ground ? 0 : Infinity, jumpDelay: 0, state };
     const edgeguarding = this.isEdgeguarding(state, me, snap, info);
     const attacks = this.rank(state, findAttacks(self, target), target, snap, k, info, edgeguarding);
     const chance =
@@ -572,7 +585,7 @@ export class Cpu {
       return false;
     }
     if (!actionable(me)) return false;
-    const self: Self = { f: me, k, info, groundDelay: 0, jumpDelay: 0 };
+    const self: Self = { f: me, k, info, groundDelay: 0, jumpDelay: 0, state };
     const counters = findAttacks(self, target).filter((a) => a.kind === 'ground' && a.tHit < threat.t - 1);
     if (counters.length && this.rand() < 0.35 * skill) {
       counters.sort((a, b) => a.tHit - b.tHit);
@@ -615,6 +628,7 @@ export class Cpu {
       groundDelay: stun + SHIELD_DROP_FRAMES + 1,
       jumpDelay: stun,
       grabDelay: stun + GRAB.shieldGrabLock + 1,
+      state,
     };
     const freeAt = target.path.findIndex((s) => actionable(s) || (s.grounded && s.action === 'shield'));
     const window = freeAt < 0 ? target.path.length : freeAt;
@@ -642,9 +656,10 @@ export class Cpu {
     const opp = getFighter(snap.fighter).stats;
     const me = state.fighters[this.port]!;
     const offstageOk = edgeguarding && this.lv.level >= 6;
+    const arrive = target.rush?.arrive ?? 0;
     const out: Attack[] = [];
     for (const a of attacks) {
-      const s = target.path[a.tHit]!;
+      const s = (target.far ?? target.path)[a.tHit]!;
       const onStage =
         landsSafe(info, k.id, a.endX, a.endY + 1) &&
         (info.calm || a.landX === undefined || landsSafe(info, k.id, a.landX, a.endY + 1)) &&
@@ -665,7 +680,11 @@ export class Cpu {
         wbkb: box.wbkb,
         weight: opp.weight,
       });
-      let v = box.damage * (k.hints.prefer?.[a.move] ?? 1) * (1 + Math.min(1.5, kb / 110));
+      // A shot into a held shield chips it and nothing more; walking in for the grab is worth more. Dropped here, so
+      // the KO bonus below can't bring it back.
+      if (s.action === 'shield' && a.shot) continue;
+      const damage = a.shot?.damage ?? box.damage;
+      let v = damage * (k.hints.prefer?.[a.move] ?? 1) * (1 + Math.min(1.5, kb / 110));
       if (s.action === 'shield') {
         const kind = k.def.moves?.[a.move]?.kind ?? 'other';
         const unsafe = a.busy - a.tHit - shieldstunFrames(box.damage, kind) - 5;
@@ -673,6 +692,7 @@ export class Cpu {
       } else if (s.action !== 'hitstun' && s.action !== 'tumble') {
         v -= Math.max(0, a.busy - a.tHit) * 0.06;
       }
+      if (a.shot) v -= exposure(a, arrive, holdUp(box, kb)) * SHOT_EXPOSURE;
       v /= 1 + a.tHit / 30;
       out.push({ ...a, score: v });
     }
@@ -692,13 +712,16 @@ export class Cpu {
   }
 
   private wouldKill(state: Readonly<MatchState>, a: Attack, target: Target, snap: FighterState): boolean {
-    const s = target.path[a.tHit]!;
+    const s = (target.far ?? target.path)[a.tHit]!;
+    // A shot launches from its entity's facing and position, as the sim's launchDir does.
+    const facing = a.shot?.facing ?? a.facing;
+    const from = a.shot?.x ?? a.endX;
     const dir =
       a.box.direction === 'back'
-        ? -a.facing
+        ? -facing
         : a.box.direction === 'away'
-          ? Math.sign(s.x - a.endX) || a.facing
-          : a.facing;
+          ? Math.sign(s.x - from) || facing
+          : facing;
     return launchKills(state, snap, s, a.box, dir as 1 | -1);
   }
 
@@ -719,7 +742,9 @@ export class Cpu {
     const ff =
       this.rand() < this.lv.fastFall && floorBelow(info, pick.endX, pick.endY + 1, true, true) !== null;
     if (pick.kind === 'ground') {
-      this.start(groundMove(pick.move, TURNING_MOVES.has(pick.move) ? pick.facing : me.facing));
+      this.start(
+        groundMove(pick.move, TURNING_MOVES.has(pick.move) ? pick.facing : me.facing, pick.held ?? 0),
+      );
       return true;
     }
     const make = () => (pick.kind === 'jump' ? jumpAerial(pick, ff, info) : airAerial(pick, ff, info));
@@ -943,6 +968,58 @@ const THROWS: [string, InputFrame][] = [
 /** The most damage one of the fighter's throws does (what a grab is worth). */
 function throwDamage(k: FighterKnowledge): number {
   return Math.max(0, ...THROWS.map(([name]) => k.def.moves?.[name]?.throw?.hit.damage ?? 0));
+}
+
+/**
+ * Score lost per frame a shot leaves the CPU busy after the opponent could be on it. A shot hits long after it is
+ * thrown, so unlike a melee hit it does not stop an opponent who is already close: a slow one thrown up close is
+ * the opening the opponent punishes.
+ */
+const SHOT_EXPOSURE = 0.25;
+/** How close the opponent must get to strike, for `rush`. */
+const STRIKE = 15;
+
+/**
+ * The target (`opp`) running straight at x from the first frame it can act on its path, at its run speed, until it is
+ * within striking distance: its path doing so (rising and falling as predicted), the frame it gets there and the
+ * frame its quickest grounded hit could land from there (Target.rush).
+ */
+function rush(path: Sample[], x: number, opp: FighterKnowledge): NonNullable<Target['rush']> {
+  const speed = opp.stats.runSpeed;
+  const startup = Math.min(...Object.values(opp.ground).map((p) => (p.first < 0 ? Infinity : p.first)));
+  const free = path.findIndex((s) => actionable(s));
+  const t0 = free < 0 ? path.length : free;
+  const from = path[Math.min(t0, path.length - 1)]!.x;
+  const gap = Math.max(0, Math.abs(from - x) - STRIKE);
+  const dir = Math.sign(x - from);
+  const ran = path.map((s, t) => {
+    if (t < t0) return s;
+    const nx = from + dir * Math.min(gap, speed * (t - t0));
+    return { ...s, x: nx, hurt: { ...s.hurt, x: s.hurt.x + nx - s.x } };
+  });
+  const arrive = t0 + gap / speed;
+  return { path: ran, arrive, strikes: arrive + (Number.isFinite(startup) ? startup : 0) };
+}
+
+/**
+ * Frames a shot leaves the CPU busy after the target could arrive. A shot that lands first, or that would meet the
+ * target on its way in (Attack.shot.stops), holds it up for `hold` frames.
+ */
+function exposure(a: Attack, arrive: number, hold: number): number {
+  const at = a.tHit <= arrive || a.shot?.stops ? arrive + hold : arrive;
+  return Math.max(0, a.busy - at);
+}
+
+/**
+ * Frames a hit with `box` at knockback `kb` holds the target up: its hitstun, after the freeze of a status that
+ * freezes (Bob the Robber's paralysis, which lasts longer than the hitstun it comes before).
+ */
+function holdUp(box: HitboxDef, kb: number): number {
+  const def = box.status ? statusDef(box.status) : null;
+  const freeze = def?.freeze
+    ? statusLength(def, { damage: box.damage, knockback: kb * (box.hitlag ?? 1) })
+    : 0;
+  return hitstunFrames(kb) + freeze;
 }
 
 /** Frames of hitlag a pummel adds on top of its own length (an estimate, for the escape margin). */
