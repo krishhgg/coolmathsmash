@@ -31,13 +31,18 @@ export function consumeJump(x: Ctx): void {
   }
 }
 
+/** Standing on a soft platform: a stage's drop-through platform or an entity's (EntityDef.platform). */
 export function onPlatform(x: Ctx): boolean {
-  return x.f.ground?.kind === 'platform';
+  return x.f.ground?.kind === 'platform' || x.f.ground?.kind === 'entity';
 }
 
+/**
+ * Drop through the soft platform underfoot. A stage platform is remembered so that it can't catch the fighter on the
+ * way down; an entity's stays put, so starting below its surface is enough.
+ */
 export function dropThroughPlatform(x: Ctx): void {
   const { f } = x;
-  f.dropPlatform = f.ground!.index;
+  if (f.ground!.kind === 'platform') f.dropPlatform = f.ground!.index;
   leaveGround(x);
   f.pos.y -= 0.01;
   setAction(x, 'fall');

@@ -110,6 +110,13 @@ export interface EntityDef {
   hp?: number;
   /** Hittable entities with a weight are launched by the hits they take (Ultimate's knockback formula). */
   weight?: number;
+  /**
+   * A soft platform on top, like a stage's drop-through platforms: fighters land on it from above, pass up through
+   * it, and drop through it with down. It is `width` wide, centred on the entity, with its surface `y` above the
+   * entity's centre. It carries nobody, so give such an entity no velocity, gravity or weight (it should stay put).
+   * See docs/fighters.md, "Entities and projectiles".
+   */
+  platform?: { width: number; y: number };
   /** Runs every frame before physics. Deterministic only: use `x.m.rng` for randomness. */
   script?: (x: EntityCtx) => void;
   /** A hittable entity reached 0 HP; `by` is the port credited with the last hit (-1 for nobody). */

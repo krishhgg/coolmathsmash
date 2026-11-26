@@ -12,6 +12,7 @@ import type { Ctx, FighterState } from './fighter';
 import type { MatchState, PlayerState } from './match';
 import { resetMetersOnKo, tickMeters } from './meters';
 import { airMove, groundMove } from './movement';
+import { keepEntityFooting } from './movingStage';
 import { clearStatusesOnKo, tickFreezes, tickStatuses } from './statuses';
 
 export { compiledStage, makeCtx } from './context';
@@ -29,6 +30,7 @@ export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): voi
     return;
   }
   if (frozen) return;
+  keepEntityFooting(x);
   if (f.launch) applyLaunch(x);
   else if (f.launchMotion) stepLaunchMotion(x);
   f.actionFrame++;

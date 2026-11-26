@@ -24,6 +24,7 @@ import {
 } from './combat/formulas';
 import { breakGrab } from './actions/grab';
 import { actionDef, enterAction } from './actions/registry';
+import { entityPlatform } from './entities/entities';
 
 const EPS = 0.001;
 /** Movement is split into sub-steps no longer than this, so fast fighters never tunnel through thin geometry. */
@@ -41,10 +42,12 @@ export function ecb(f: FighterState, ctx: Ctx) {
 }
 
 export function surfaceY(stage: CompiledStage, g: GroundRef, x: number): number {
+  if (g.kind === 'entity') return g.y;
   return g.kind === 'platform' ? stage.geo.platforms[g.index]!.y : floorY(stage.edges[g.index]!, x);
 }
 
 export function surfaceRange(stage: CompiledStage, g: GroundRef): [number, number] {
+  if (g.kind === 'entity') return [g.x1, g.x2];
   if (g.kind === 'platform') {
     const p = stage.geo.platforms[g.index]!;
     return [p.x1, p.x2];
@@ -76,7 +79,7 @@ function connectedFloor(stage: CompiledStage, g: GroundRef, x: number): GroundRe
 
 /** Speed of the conveyor belt a grounded fighter stands on: 0 off a belt, or with hazards off. */
 export function conveyorSpeed(x: Ctx, g: GroundRef): number {
-  if (x.m.config.hazards === false) return 0;
+  if (x.m.config.hazards === false || g.kind === 'entity') return 0;
   const geo = x.stage.geo;
   const piece = g.kind === 'platform' ? geo.platforms[g.index]! : geo.solids[x.stage.edges[g.index]!.solid]!;
   return piece.conveyor ?? 0;
@@ -305,6 +308,12 @@ function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
       }
       if (passing || f.pos.x < p.x1 || f.pos.x > p.x2) continue;
       if (crossing(prev.y - p.y, f.pos.y - p.y)) return { kind: 'platform', index: i };
+    }
+    // Entities' soft platforms (EntityDef.platform), in spawn order.
+    for (const e of passing ? [] : x.m.entities) {
+      const p = entityPlatform(e);
+      if (!p || f.pos.x < p.x1 || f.pos.x > p.x2) continue;
+      if (crossing(prev.y - p.y, f.pos.y - p.y)) return { kind: 'entity', index: e.id, ...p };
     }
   }
   const box = ecb(f, x);
