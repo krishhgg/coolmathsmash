@@ -30,6 +30,7 @@ import {
   type Pt,
 } from './poses';
 import { rig } from './rig';
+import { tech } from './tech';
 
 /**
  * Johnny's movement, defence and hurt clips, posed after the 2012 game's drawings: the bow-legged fighting stance
@@ -683,4 +684,5 @@ export const clips: Record<string, AnimClip> = {
   ...dodges,
   ...laser,
   ...ledge,
+  ...tech,
 };
