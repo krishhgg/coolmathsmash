@@ -5,6 +5,7 @@ import type { HitboxDef, MoveDef } from '../fighters/types';
 import { neutralInput } from '../input/types';
 import { createMatch, stepMatch } from '../sim/match';
 import { STAGES } from '../stages/registry';
+import { runCpuMatch } from './bench';
 import { hintsFor } from './hints';
 import { createCpu } from './index';
 import { AERIALS, SPECIALS } from './inputs';
@@ -194,4 +195,15 @@ describe('air probes of moves that end in a helpless fall', () => {
     }
     expect(ends).toEqual([1, 2, 3, 4, 5].map((seed) => `seed ${seed}: back with Ramp Jump`));
   });
+});
+
+describe('a recovery that carries the CPU back over the stage', () => {
+  // Level 9 against level 9 on Battlefield (src/ai/bench.ts). Wheely drifts past the right edge and Ramp Jumps, which
+  // carries him back over the stage at 2.2 units a frame. The CPU used to drop its recovery plan once there was stage
+  // under him and give no input in the helpless fall over the stage's middle, so he drifted off the left side and
+  // self-destructed on frame 5156. The plan steers through that fall, as the planner checked it.
+  it('keeps steering its helpless fall, so a level 9 Wheely does not self-destruct in seed 1 against Johnny', () => {
+    const r = runCpuMatch({ seed: 1, levels: [9, 9], fighters: ['wheely', 'johnny'], maxFrames: 5156 + 60 });
+    expect(r.kos.filter((k) => k.selfDestruct)).toEqual([]);
+  }, 60_000);
 });

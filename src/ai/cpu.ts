@@ -215,6 +215,10 @@ export class Cpu {
       this.prog = null;
       return this.recover(state, me, info);
     }
+    // A recovery that brings the fighter back over the stage still unable to act (in its special, or the helpless fall
+    // after it) carries on until it lands: the plan was checked steering through that fall. Wheely's Ramp Jump can carry
+    // him over the stage at 2 units a frame, and with no input he would drift across it and off the far side.
+    if (this.recovery && me.ground === null && !actionable(me)) return this.recover(state, me, info);
     this.recovery = null;
     if (state.frame >= this.nextThink || !this.prog) {
       if (this.free(me)) {
