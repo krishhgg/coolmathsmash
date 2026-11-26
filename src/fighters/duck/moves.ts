@@ -1,5 +1,6 @@
 import type { HitboxDef, MoveDef } from '../types';
 import { stickX } from '../../sim/control';
+import { finalSmash, finalSmashAir } from './finalSmash';
 import { runningRam } from './ram';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -399,4 +400,7 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 20, hit: { damage: 6, angle: 83, kbg: 100, bkb: 60 } },
   },
+  /** Evolved Stomp (Final Smash): on Ganon, The Demon King (finalSmash.ts). */
+  finalSmash,
+  finalSmashAir,
 };
