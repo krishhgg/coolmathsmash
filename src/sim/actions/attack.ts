@@ -221,22 +221,18 @@ export function playMove(x: Ctx): MoveDef | null {
 }
 
 /**
- * The floor went out from under `x.f` (its platform vanished or moved away, or a conveyor belt carried it off): a Final
- * Smash has spent its charge, so it carries on, as a landing carries one on (`aerial`'s land). A grounded one plays on
- * in the air from the same frame, and a trap's cinematic keeps its catch, the user's end and the held fighter's alike.
- * A `still` one, cinematic included, stops where it left the floor, as one started in the air does. True when it
- * carried on; the caller then only leaves the ground.
+ * The floor went out from under `x.f` (its platform vanished or moved away, or a conveyor belt carried it off) after
+ * the activation freeze: a Final Smash has spent its charge, so it carries on, as a landing carries one on (`aerial`'s
+ * land), in the air from the same frame. A `still` one stops where it left the floor, as one started in the air does.
+ * True when it carried on; the caller then only leaves the ground. A trap's cinematic never loses its floor: it holds
+ * the others, and the stage stands still with them (advanceStage).
  */
 export function finalSmashLeavesGround(x: Ctx): boolean {
-  const { f, m } = x;
-  const holder = f.action === 'grabbed' ? m.fighters[f.grabPartner] : undefined;
-  if (holder?.grabPartner === f.port && holder.action === 'grabThrow' && inFinalSmash(holder)) return true;
-  if (!inFinalSmash(f)) return false;
-  if (f.action === 'attack') {
-    const { move, actionFrame } = f;
-    enterAction(x, 'aerial', actionFrame);
-    f.move = move;
-  }
+  const { f } = x;
+  if (f.action !== 'attack' || !inFinalSmash(f)) return false;
+  const { move, actionFrame } = f;
+  enterAction(x, 'aerial', actionFrame);
+  f.move = move;
   if (still(x)) stopInPlace(f);
   return true;
 }

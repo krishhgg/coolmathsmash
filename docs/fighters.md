@@ -430,7 +430,11 @@ move. The others are held on the move's frames 2 to `freeze` + 1, so nothing in 
 before frame `freeze` + 2 (`fighters.test.ts` checks it). The freeze holds every other fighter and entity in hitlag
 for each frame it lasts (`holdStill`, at the end of `stepMatch`, listing them in `MatchState.finalHold`), so actions,
 launches, statuses (freezing ones such as paralysis included) and lifetimes wait, and nothing held is pushed, hits,
-grabs or is touched by hazards. It reads only the end of the frame, so port order doesn't change it.
+grabs or is touched by hazards. It reads only the end of the frame, so port order doesn't change it. The stage stops
+too: "All stage hazards are paused during a Final Smash" (SmashWiki, Stage hazard). Its clock
+(`MatchState.stageFrame`) waits, so no piece moves, vanishes or carries anyone, and no zone, stage hitbox or conveyor
+belt acts until the hold ends. SmashWiki also says platforms only slow down during some Final Smashes; here they stop
+for the hold and run at full speed after it.
 
 A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned beams (Mario Finale):
 
@@ -469,10 +473,9 @@ finalSmashCinematic: {
 - **Landing.** A `final` move that lands carries on from the same frame, as with `continuesOnLanding`: the charge is
   already spent, so a fall, or a moving platform rising under a `still` user, can't cut it short.
 - **Losing the floor.** The same goes the other way (`finalSmashLeavesGround`): when a platform vanishes or moves out
-  from under the user, or a conveyor belt carries it off an end, a grounded `final` move plays on in the air from the
-  same frame, and a trap's cinematic keeps its catch, whichever of the two loses the floor first. A `still` one,
-  cinematic included, stops where it left the floor (`stopInPlace`), as one started in the air does, so speed from a
-  dash doesn't carry it away.
+  from under the user after the freeze, or a conveyor belt carries it off an end, a grounded `final` move plays on in
+  the air from the same frame. A `still` one stops where it left the floor (`stopInPlace`), as one started in the air
+  does. A trap's cinematic never loses its floor, since the stage stands still while it holds the others.
 - **CPUs.** A CPU holding the charge presses neutral special once an opponent is inside the Final Smash's reach in front
   (`finalReach`: its boxes, or `final.range` for one that spawns its blast), and otherwise leaves neutral special out of
   its attacks.

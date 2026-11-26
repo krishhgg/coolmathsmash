@@ -48,8 +48,10 @@ feet from above, so fighters pass up through them.
 
 ## Moving platforms and solids
 
-Any solid or platform can move and can appear and vanish. Both are pure functions of the match frame, so they
-replay exactly and need no state of their own.
+Any solid or platform can move and can appear and vanish. Both are pure functions of the stage's clock
+(`MatchState.stageFrame`), so they replay exactly and need no state of their own. The clock is the match frame,
+except that it stops while a Final Smash holds the others (src/sim/finalSmash.ts): "All stage hazards are paused
+during a Final Smash" (SmashWiki, Stage hazard). Pieces, zones, stage hitboxes and conveyor belts all wait then.
 
 ```ts
 // Keyframes: [frame within the period, dx, dy] from the authored position, looping. `ease` eases in and out

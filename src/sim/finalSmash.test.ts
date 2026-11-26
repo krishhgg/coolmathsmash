@@ -181,42 +181,42 @@ describe('Final Smash activation', () => {
     expect(landed).toBe(true);
   });
 
-  it('carries on when its platform vanishes under it: the move, its frame and the freeze go on (testbed platform 1)', () => {
+  it('carries on when its platform vanishes under it after the freeze: the move and its frame go on (testbed platform 1)', () => {
     const m = matchOn(testbed([DIRECT, NONE]), [
       [-4, 58],
       [60, 0],
     ]);
-    const [a, v] = m.fighters as [FighterState, FighterState];
-    stepTo(m, VANISHES - 10);
+    const [a] = m.fighters as [FighterState, FighterState];
+    stepTo(m, VANISHES - 5);
     a.finalReady = true;
     step(m, 1, [SPECIAL]);
-    const held = where(v);
+    const [, last] = finalBlast.hits[0]!.frames;
     let fell = -1;
-    for (let i = 0; i < FREEZE; i++) {
+    for (let f = 2; f <= last; f++) {
       step(m, 1);
-      if (fell < 0 && a.ground === null) fell = i;
-      expect([a.move, a.actionFrame, where(v)]).toEqual(['finalSmash', i + 2, held]);
+      if (fell < 0 && a.ground === null) fell = a.actionFrame;
+      expect([a.move, a.actionFrame]).toEqual(['finalSmash', f]);
     }
-    // Activated on frame 190; the stage takes on frame 200's pose at the end of frame 199, the freeze's ninth.
-    expect(fell).toBe(8);
-    // Airborne and `still`: it holds where the platform was, and its boxes open on their frames.
-    expect([a.action, a.pos.y]).toEqual(['aerial', 58]);
-    step(m, finalBlast.hits[0]!.frames[0] - FREEZE - 1);
-    expect([a.move, a.actionFrame, activeHitboxes(a).length]).toEqual(['finalSmash', 42, 2]);
+    // Activated on frame 195: the stage stood still through the 40-frame freeze, so platform 1 went 40 frames late,
+    // on the move's frame 45, with its boxes out (42 to 51).
+    expect(fell).toBe(45);
+    // Airborne and `still`: it holds where the platform was, its boxes still out.
+    expect([a.action, a.pos.y, activeHitboxes(a).length]).toEqual(['aerial', 58, 2]);
   });
 
-  it('holds a still one where its platform vanished, though it came out of a dash', () => {
+  it('holds a still one where its platform vanished, whatever speed it had on the floor', () => {
     const m = matchOn(testbed([DIRECT, NONE]), [
-      [-8, 58],
+      [-4, 58],
       [60, 0],
     ]);
     const [a] = m.fighters as [FighterState, FighterState];
-    stepTo(m, VANISHES - 3);
-    step(m, 1, [{ x: 100 }]);
-    expect(a.action).toBe('dash');
+    stepTo(m, VANISHES - 5);
     a.finalReady = true;
     step(m, 1, [SPECIAL]);
-    expect([a.move, a.vel.x > 0]).toEqual(['finalSmash', true]);
+    step(m, 43);
+    expect([a.actionFrame, a.ground]).toEqual([44, { kind: 'platform', index: 1 }]);
+    // Speed on the floor's last frame, as a slide or a push would leave it.
+    a.vel.x = 1.5;
     step(m, 1);
     expect([a.action, a.ground]).toEqual(['aerial', null]);
     const at = { ...a.pos };
@@ -226,64 +226,7 @@ describe('Final Smash activation', () => {
     }
   });
 
-  it("holds a still trap's cinematic where its platform vanished, whatever speed the user had", () => {
-    const m = matchOn(testbed([STILL_TRAP, NONE]), [
-      [-8, 58],
-      [6, 58],
-    ]);
-    const [a, v] = m.fighters as [FighterState, FighterState];
-    stepTo(m, VANISHES - 60);
-    a.finalReady = true;
-    step(m, 1, [SPECIAL]);
-    stepTo(m, VANISHES - 1);
-    expect([a.action, a.grabPartner]).toEqual(['grabThrow', v.port]);
-    // Speed left on the floor's last frame, as a slide or a push would leave it.
-    a.vel.x = 1.5;
-    step(m, 1);
-    expect(a.ground).toBe(null);
-    const at = { ...a.pos };
-    for (let i = 0; i < 30; i++) {
-      step(m, 1);
-      expect([a.pos, v.action]).toEqual([at, 'grabbed']);
-    }
-  });
-
-  it("keeps a trap's catch when its platform vanishes mid-cinematic: both fall and the throw still lands", () => {
-    // Both port orders: whichever of the two loses the floor first, the grab holds.
-    for (const order of [
-      [TRAP, NONE],
-      [NONE, TRAP],
-    ]) {
-      const user = order.indexOf(TRAP);
-      const xs = [-8, 6];
-      const m = matchOn(
-        testbed(order),
-        order.map((_, i) => [xs[i === user ? 0 : 1]!, 58]),
-      );
-      const a = m.fighters[user]!;
-      const v = m.fighters[1 - user]!;
-      stepTo(m, VANISHES - 60);
-      a.finalReady = true;
-      const press: Hold[] = [{}, {}];
-      press[user] = SPECIAL;
-      step(m, 1, press);
-      step(m, finalTrap.hits[0]!.frames[0] - 1);
-      expect([a.action, v.action, a.grabPartner]).toEqual(['grabThrow', 'grabbed', v.port]);
-      expect(m.frame).toBeLessThan(VANISHES);
-      let fell = false;
-      const seen: SimEvent[] = [];
-      while (a.grabPartner >= 0 && seen.length < 1000) {
-        seen.push(...step(m, 1).filter((e) => e.type === 'pummel' || e.type === 'throw'));
-        fell ||= a.ground === null;
-        if (a.grabPartner >= 0) expect([a.move, v.action]).toEqual(['finalSmashCinematic', 'grabbed']);
-      }
-      expect(fell).toBe(true);
-      expect(seen.map((e) => e.type)).toEqual(['pummel', 'pummel', 'pummel', 'throw']);
-      expect(a.actionFrame).toBe(finalCinematic.throw!.frame);
-    }
-  });
-
-  it("carries on when a conveyor belt carries the user off its end (Papa's Pizzeria, hazards on)", () => {
+  it("carries on when a conveyor belt carries the user off its end, the belt stopped through the freeze (Papa's Pizzeria, hazards on)", () => {
     const m = matchOn({ ...config([DIRECT, NONE]), stage: 'hazard-testbed' }, [
       [-25, 0],
       [80, 0],
@@ -297,11 +240,16 @@ describe('Final Smash activation', () => {
     });
     a.finalReady = true;
     step(m, 1, [SPECIAL]);
+    const x = a.pos.x;
     for (let i = 0; i < FREEZE; i++) {
       step(m, 1);
-      expect([a.move, a.actionFrame]).toEqual(['finalSmash', i + 2]);
+      expect([a.move, a.actionFrame, a.pos.x]).toEqual(['finalSmash', i + 2, x]);
     }
-    expect([a.ground, a.pos.x > -35]).toEqual([null, true]);
+    for (let f = FREEZE + 2; a.ground !== null && f < finalBlast.faf; f++) {
+      step(m, 1);
+      expect([a.move, a.actionFrame]).toEqual(['finalSmash', f]);
+    }
+    expect([a.action, a.ground, a.pos.x > -35]).toEqual(['aerial', null, true]);
   });
 
   it('comes out of a dash, a run and a crouch, states a special starts from', () => {
@@ -422,6 +370,89 @@ describe('Final Smash rules', () => {
       step(m, 1);
       expect(where(v)).toEqual(held);
     }
+  });
+
+  it('stops the stage too: a held fighter on a vanishing platform keeps its move and its floor (testbed platform 1)', () => {
+    const m = matchOn(testbed([DIRECT, NONE]), [
+      [40, 0],
+      [0, 58],
+    ]);
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    stepTo(m, VANISHES - 11);
+    step(m, 1, [{}, SPECIAL]);
+    expect([v.move, v.actionFrame]).toEqual(['neutralB', 1]);
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    const held = { ...where(v), move: v.move, ground: v.ground };
+    for (let i = 0; i < FREEZE; i++) {
+      step(m, 1);
+      expect([{ ...where(v), move: v.move, ground: v.ground }, m.stage.platforms[1]!.on]).toEqual([
+        held,
+        true,
+      ]);
+    }
+    expect(m.frame).toBeGreaterThan(VANISHES);
+    step(m, 1);
+    expect([v.move, v.actionFrame]).toEqual(['neutralB', held.frame + 1]);
+  });
+
+  it('stops the stage too: a moving platform carries no held fighter away (testbed platform 0)', () => {
+    const m = matchOn(testbed([DIRECT, NONE]), [
+      [40, 0],
+      [-5, 30],
+    ]);
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    stepTo(m, 120);
+    expect(v.ground).toEqual({ kind: 'platform', index: 0 });
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    const glider = m.stage.platforms[0]!.x;
+    const held = where(v);
+    for (let i = 0; i < FREEZE; i++) {
+      step(m, 1);
+      expect([where(v), m.stage.platforms[0]!.x]).toEqual([held, glider]);
+    }
+    step(m, 2);
+    expect(m.stage.platforms[0]!.x).toBeGreaterThan(glider);
+    expect(v.pos.x).toBeGreaterThan(held.x);
+  });
+
+  it("stops stage hazards too: a held fighter's stage-hit lock waits out the freeze (hazard testbed)", () => {
+    const m = matchOn({ ...config([DIRECT, NONE]), stage: 'hazard-testbed' }, [
+      [-25, 0],
+      [80, 0],
+    ]);
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    v.stageHitLock = 30;
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    const lock = v.stageHitLock;
+    step(m, FREEZE);
+    expect(v.stageHitLock).toBe(lock);
+    step(m, 1);
+    expect(v.stageHitLock).toBe(lock - 1);
+  });
+
+  it("stops the stage through a trap's cinematic: a fighter on a vanishing platform stays on it until the release", () => {
+    const m = matchOn(testbed([TRAP, NONE, NONE]), [
+      [-20, 0],
+      [-6, 0],
+      [0, 58],
+    ]);
+    const [a, v, w] = m.fighters as [FighterState, FighterState, FighterState];
+    stepTo(m, VANISHES - 60);
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    step(m, finalTrap.hits[0]!.frames[0] - 1);
+    expect([a.action, v.action]).toEqual(['grabThrow', 'grabbed']);
+    const held = where(w);
+    for (let i = 0; i < 400 && a.grabPartner >= 0; i++) {
+      step(m, 1);
+      expect([where(w), m.stage.platforms[1]!.on]).toEqual([held, true]);
+    }
+    expect(v.action).not.toBe('grabbed');
+    // Without the stop, platform 1 would have gone on frame 200, mid-cinematic.
+    expect(m.frame).toBeGreaterThan(VANISHES + 50);
   });
 
   it("keeps a held fighter's active hitbox out: nothing it touches during the freeze is hit", () => {

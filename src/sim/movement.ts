@@ -75,9 +75,12 @@ function connectedFloor(stage: CompiledStage, g: GroundRef, x: number): GroundRe
   return null;
 }
 
-/** Speed of the conveyor belt a grounded fighter stands on: 0 off a belt, or with hazards off. */
+/**
+ * Speed of the conveyor belt a grounded fighter stands on: 0 off a belt, with hazards off, or while a Final Smash's
+ * hold stops the stage (advanceStage).
+ */
 export function conveyorSpeed(x: Ctx, g: GroundRef): number {
-  if (x.m.config.hazards === false) return 0;
+  if (x.m.config.hazards === false || x.m.finalHold) return 0;
   const geo = x.stage.geo;
   const piece = g.kind === 'platform' ? geo.platforms[g.index]! : geo.solids[x.stage.edges[g.index]!.solid]!;
   return piece.conveyor ?? 0;
