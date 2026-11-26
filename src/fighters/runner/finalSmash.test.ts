@@ -9,7 +9,9 @@ import { statusOf } from '../../sim/statuses';
 import { koPercent } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { input, type Hold } from '../../sim/testing/sim';
+import { viewFlip } from '../../render/viewFlip';
 import { registerFighter } from '../registry';
+import { art } from './art';
 import { RINGS, STUCK, finalSmash, statuses } from './finalSmash';
 import { TUNNEL_FLIP } from './timing';
 
@@ -270,6 +272,39 @@ describe('Tunnel Flip (Final Smash), on Peach Blossom', () => {
     expect(r.actionFrame).toBe(39);
     expect(m.finalHold).toBeUndefined();
     expect(v.hitlag).toBe(0);
+  });
+
+  it('turns the view upside down over frames 40-61, holds it to 230, and is upright again on 247 and after', () => {
+    expect(art.viewFlips).toEqual({ finalSmash: { turn: [40, 61], back: [231, 247] } });
+    const { m, r } = flipMatch(-40, [0, 40]);
+    const scale = new Map<number, number>();
+    for (let f = 1; f <= F.faf + 20; f++) {
+      if (f > 1) step(m, 1);
+      scale.set(f, viewFlip(m));
+      if (f < F.faf) expect([r.move, r.actionFrame]).toEqual(['finalSmash', f]);
+    }
+    const turned = [...scale].filter(([, s]) => s !== 1).map(([f]) => f);
+    expect([turned[0], turned.at(-1)]).toEqual([40, 246]);
+    for (let f = 61; f <= 230; f++) expect(scale.get(f), `${f}`).toBe(-1);
+    for (const f of [39, 247, F.faf, F.faf + 20]) expect(scale.get(f), `${f}`).toBe(1);
+    expect(r.action).toBe('idle');
+  });
+
+  it('has a clip on its frame data with the tunnel drawn in her rig', () => {
+    const clip = art.clips.finalSmash!;
+    expect(clip.length).toBe(F.faf - 1);
+    expect(clip.active).toEqual([F.hit, F.clean, F.late]);
+    expect(art.rig.symbols.tunnel).toBeDefined();
+    expect(art.rig.symbols.tunnelFaint).toBeDefined();
+    const shown = (f: number) => clip.keys.filter((k) => k.frame <= f && k.swaps).at(-1)?.swaps?.fxBack;
+    expect([shown(39), shown(40), shown(61), shown(70), shown(231), shown(247)]).toEqual([
+      undefined,
+      'tunnel',
+      'tunnel',
+      undefined,
+      'tunnelFaint',
+      undefined,
+    ]);
   });
 
   it('lets CPUs use it once an opponent is inside the near ring in front', () => {

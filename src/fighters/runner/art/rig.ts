@@ -25,6 +25,8 @@ import {
   streak,
   swoosh,
   tile,
+  tunnel,
+  tunnelFaint,
   type Part,
 } from './parts';
 
@@ -137,6 +139,8 @@ export const rig: Rig = {
     streak,
     swoosh,
     tile,
+    tunnel,
+    tunnelFaint,
     ...faces,
     ...partSymbols(limbs),
   },

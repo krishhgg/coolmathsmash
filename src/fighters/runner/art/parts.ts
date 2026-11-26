@@ -452,6 +452,61 @@ export const tile: PathShape[] = [
   { d: `M-2.95 0.1L2.95 0.1L2.95 0.48L-2.95 0.48Z`, fill: 'tileLo' },
 ];
 
+/** A flat palette colour at `alpha` (a gradient whose two stops match), for effects that fade out. */
+const faded = (color: string, alpha: number): Paint =>
+  alpha >= 1
+    ? color
+    : {
+        type: 'linear',
+        x0: -1,
+        y0: 0,
+        x1: 1,
+        y1: 0,
+        stops: [
+          { offset: 0, color, alpha },
+          { offset: 1, color, alpha },
+        ],
+      };
+
+/** Cells along each side of the tunnel's square frame, and the gaps where tiles are missing (column, row). */
+const TUNNEL_CELLS = 20;
+const TUNNEL_GAPS = new Set(['6,0', '13,0', '19,5', '19,12', '0,9', '4,19', '15,19']);
+
+/**
+ * Run's tunnel seen end on, for Tunnel Flip: a square frame of floor tiles one unit from its centre to each side, with
+ * a few tiles missing to show the dark of space through the gaps. Scale it up around her to grow the tunnel and turn it
+ * to roll it. `alpha` fades it.
+ */
+function tunnelRing(alpha: number): PathShape[] {
+  const cell = 2 / TUNNEL_CELLS;
+  const gap = 0.012;
+  const tiles: string[] = [];
+  const shades: string[] = [];
+  for (let i = 0; i < TUNNEL_CELLS; i++)
+    for (let j = 0; j < TUNNEL_CELLS; j++) {
+      const edge = i === 0 || j === 0 || i === TUNNEL_CELLS - 1 || j === TUNNEL_CELLS - 1;
+      if (!edge || TUNNEL_GAPS.has(`${i},${j}`)) continue;
+      const [x0, y0] = [-1 + i * cell + gap, -1 + j * cell + gap];
+      const [x1, y1] = [x0 + cell - 2 * gap, y0 + cell - 2 * gap];
+      const lo = y1 - (y1 - y0) * 0.32;
+      tiles.push(`M${n(x0)} ${n(y0)}L${n(x1)} ${n(y0)}L${n(x1)} ${n(y1)}L${n(x0)} ${n(y1)}Z`);
+      shades.push(`M${n(x0)} ${n(lo)}L${n(x1)} ${n(lo)}L${n(x1)} ${n(y1)}L${n(x0)} ${n(y1)}Z`);
+    }
+  const o = 1 + gap;
+  const h = 1 - cell - gap;
+  return [
+    {
+      d: `M${n(-o)} ${n(-o)}L${n(o)} ${n(-o)}L${n(o)} ${n(o)}L${n(-o)} ${n(o)}ZM${n(-h)} ${n(-h)}L${n(h)} ${n(-h)}L${n(h)} ${n(h)}L${n(-h)} ${n(h)}Z`,
+      fill: faded('tileLine', alpha),
+    },
+    { d: tiles.join(''), fill: faded('tile', alpha) },
+    { d: shades.join(''), fill: faded('tileLo', alpha) },
+  ];
+}
+
+export const tunnel = tunnelRing(1);
+export const tunnelFaint = tunnelRing(0.4);
+
 export const crate: PathShape[] = [
   { d: 'M-6.3 -0.2L-6.3 -8.25L-3.55 -10.65L4.2 -10.65L6.3 -8.35L6.3 -0.2Z', fill: 'tileLine' },
   { d: 'M-5.7 -0.8L-5.7 -7.95L2.7 -7.95L2.7 -0.8Z', fill: 'tile' },
