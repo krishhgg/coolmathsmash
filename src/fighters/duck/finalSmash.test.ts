@@ -263,8 +263,9 @@ describe('Evolved Stomp (Final Smash), on Ganon, The Demon King', () => {
   it("KOs within 5 points of Ganon's charge from the centre, and from 0% at the ledge, as Ganon's does", () => {
     // The KO calculator's percent for Ganon's 45% front box, on the same Mario-weight target, is the % when the hit
     // lands; the Duck's own target has taken the slam's 10.5% by then.
-    const centre = koPercent({ hit: GANON_CHARGE, from: 'centre' });
+    const centre = koPercent({ hit: GANON_CHARGE, from: 'centre' })!;
     const inMatch = koFrom(-40, 0);
+    expect(centre).toBeCloseTo(40.7, 1);
     expect(Math.abs(inMatch.atWave - centre)).toBeLessThanOrEqual(5);
     expect(inMatch.start).toBeGreaterThan(20);
     expect(koPercent({ hit: GANON_CHARGE })).toBe(0);

@@ -1,7 +1,7 @@
 import { shapesBounds } from '../../../render/rig/geometry';
 import { symbolsToSvg } from '../../../render/rig/svg';
 import type { FighterArt, PathShape } from '../../../render/rig/types';
-import { STOMP, WAVE } from '../finalSmash';
+import { STOMP, WAVE } from '../finalSmashData';
 import { LEDGE_GRIP, clips } from './clips';
 import { palettes } from './palettes';
 import { rig } from './rig';

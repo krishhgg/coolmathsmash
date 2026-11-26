@@ -1,6 +1,6 @@
 import type { Pose } from '../../../render/rig/author';
 import type { AnimClip, Key } from '../../../render/rig/types';
-import { FAF, STOMP, WAVE } from '../finalSmash';
+import { FAF, STOMP, WAVE } from '../finalSmashData';
 import { strike, wings } from './attacks';
 import { ANGRY, SHOUT, STAND, WEB, air, fx, key, leg, mix } from './poses';
 
@@ -31,7 +31,7 @@ const GLOW = { fxBack: 'fxGlow3', face: 'faceHappy' };
 function poses(inAir: boolean) {
   /** Feet planted at back and front ankle offsets on the ground, or hanging in the air. */
   const planted = (b: number, f: number): [number, number] | null => (inAir ? null : [b, f]);
-  /** Standing tall, wings out to the sides, head up: the evolved Duck between stomps. */
+  /** Standing tall, head up, wings held back: the evolved Duck between stomps. */
   const stance = (breath = 0): Pose =>
     wings(
       strike({
@@ -41,7 +41,8 @@ function poses(inAir: boolean) {
         aim: -6,
         feet: planted(-1.1, 0.7),
       }),
-      [158 - breath * 6, 1.5],
+      // -202 rather than 158, so the wing swings the short way to and from the stamp's -166.
+      [-202 - breath * 6, 1.5],
       [-160 + breath * 6, 1.5],
     );
   /** The roar: head thrown back, beak open, both wings raised high. */
@@ -50,13 +51,13 @@ function poses(inAir: boolean) {
     [-148, 1.85],
     [-122, 1.85],
   );
-  /** Winding up a stamp: leaning back, the front webbed foot raised high, wings out for balance. */
+  /** Winding up a stamp: leaning back, the front webbed foot raised high, wings up behind him for balance. */
   const lift = (high: number): Pose => {
     const base = strike({ lean: -12, shift: -0.3, head: [0.0, -8.4], aim: -14, feet: planted(-1.0, 0.2) });
     const raised = leg(base, 'F', [1.3 + high * 0.2, -2.0 - high * 0.6], 70);
     return wings(raised, [-150 - high * 6, 1.6], [-128 - high * 6, 1.55]);
   };
-  /** The stamp: thrown forward onto the front foot, belly squashed, wings flung down and back. */
+  /** The stamp: thrown forward onto the front foot, belly squashed, wings flung back and up. */
   const stamp = (squash: number): Pose => {
     const base = strike({
       lean: 12,

@@ -1,5 +1,5 @@
 import type { FighterScenarios, GameScenario } from '../../harness/scenarios';
-import { STOMP, WAVE } from './finalSmash';
+import { STOMP, WAVE } from './finalSmashData';
 
 const DL = 'characters/duck-life';
 

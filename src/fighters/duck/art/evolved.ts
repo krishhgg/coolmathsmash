@@ -1,5 +1,5 @@
 import type { PathShape, SymbolLoop } from '../../../render/rig/types';
-import { STOMP, WAVE } from '../finalSmash';
+import { STOMP, WAVE } from '../finalSmashData';
 import { BODY_R, HEAD_R, LINE, blob, circle, place, poly } from './parts';
 
 /**
@@ -51,10 +51,10 @@ export const tail: PathShape[] = [
 ];
 
 /** A cloud of dust puffs (x, y, r): inked rings first, then the fills, so the puffs merge into one cloud. */
-function cloud(puffs: [number, number, number][], ink = 0.7, fill = 'puff', line = 'puffLine'): PathShape[] {
+function cloud(puffs: [number, number, number][], ink = 0.7): PathShape[] {
   return [
-    ...puffs.map(([x, y, r]) => ({ d: circle(x, y, r + ink), fill: line })),
-    ...puffs.map(([x, y, r]) => ({ d: circle(x, y, r), fill })),
+    ...puffs.map(([x, y, r]) => ({ d: circle(x, y, r + ink), fill: 'puffLine' })),
+    ...puffs.map(([x, y, r]) => ({ d: circle(x, y, r), fill: 'puff' })),
   ];
 }
 
@@ -89,19 +89,22 @@ function dome(s: number): string {
   return poly(pts.map(([x, y]) => [n(x), n(y)]));
 }
 
-/** The dome filled with a flash, brightest at the stomp point and fading towards the rim, `a` its opacity. */
+/**
+ * The dome filled with a flash, brightest in its middle and fading towards the rim, `a` its opacity, so the Duck at
+ * its back edge stays clear.
+ */
 function flash(s: number, a: number): PathShape {
   return {
     d: dome(s),
     fill: {
       type: 'radial',
-      cx: 6,
-      cy: 0,
-      r: 78 * s,
+      cx: 38,
+      cy: -10,
+      r: 48 * s,
       stops: [
-        { offset: 0, color: 'glowCore', alpha: a },
-        { offset: 0.35, color: 'star', alpha: a * 0.75 },
-        { offset: 1, color: 'glow', alpha: a * 0.1 },
+        { offset: 0, color: 'glowCore', alpha: a * 0.85 },
+        { offset: 0.45, color: 'star', alpha: a * 0.55 },
+        { offset: 1, color: 'glow', alpha: a * 0.08 },
       ],
     },
   };
@@ -110,9 +113,12 @@ function flash(s: number, a: number): PathShape {
 /** The dome's rim as a ring of ink, `w` thick. */
 const rim = (s: number, w: number): PathShape => ({ d: dome(s), stroke: { color: 'line', width: w } });
 
-/** Bolts crackling out from the stomp point (5, -2) across the dome: [angle, length] each (deg, y down). */
+/**
+ * Bolts crackling out across the dome from just past his stamping toes (12, -1): [angle, length] each (deg, y down,
+ * -90 straight up), fanned forwards so they never cross the Duck.
+ */
 const bolts = (spokes: [number, number][], w: number) =>
-  spokes.map(([a, len], i) => bolt([5, -2], a, len, w, i % 2 ? 1 : -1));
+  spokes.map(([a, len], i) => bolt([12, -1], a, len, w, i % 2 ? 1 : -1));
 
 /** Dust rolling out along the floor under the dome, risen by `rise` and grown by `g`: three puffs to a cloud. */
 function dust(rise: number, g: number): PathShape[] {
@@ -140,12 +146,11 @@ const bursts: PathShape[][] = [
     rim(0.92, 1.2),
     ...bolts(
       [
-        [-160, 22],
-        [-120, 30],
-        [-88, 34],
-        [-58, 40],
-        [-32, 46],
-        [-10, 52],
+        [-84, 32],
+        [-64, 40],
+        [-44, 46],
+        [-26, 52],
+        [-10, 56],
       ],
       1.8,
     ),
@@ -155,11 +160,10 @@ const bursts: PathShape[][] = [
     rim(1, 1),
     ...bolts(
       [
-        [-140, 28],
-        [-100, 36],
-        [-70, 42],
-        [-44, 48],
-        [-20, 56],
+        [-76, 36],
+        [-54, 44],
+        [-34, 50],
+        [-16, 56],
       ],
       1.6,
     ),
@@ -170,9 +174,9 @@ const bursts: PathShape[][] = [
     rim(1.04, 0.7),
     ...bolts(
       [
-        [-112, 26],
-        [-62, 34],
-        [-26, 40],
+        [-70, 30],
+        [-40, 38],
+        [-18, 44],
       ],
       1.2,
     ),
@@ -224,10 +228,9 @@ function waveDrawing(j: number, g = 1): PathShape[] {
   const f = WAVE.radius;
   const w = (i: number) => sin(rad(j * 120 + i * 67)) * 0.9;
   const puffs: [number, number, number][] = [
-    [-34, f - 3, 3.5],
-    [-27, f - 6, 5.5],
-    [-17, f - 9, 8.5],
-    [-20, f - 22, 7.5],
+    [-30, f - 3, 3.5],
+    [-22, f - 5.5, 5.5],
+    [-13, f - 9, 8.5],
     [-8, f - 16, 11],
     [-9, f - 33, 9],
     [3, f - 38, 8],
@@ -272,7 +275,7 @@ function waveDrawing(j: number, g = 1): PathShape[] {
       ? [
           clod(-4 + j * 2, f - 44 + j * 2, 1.6, j * 50),
           clod(12 - j, f - 42 + j * 3, 1.2, 40 + j * 70),
-          clod(-22 + j * 1.5, f - 33 - j, 1.3, 90 + j * 45),
+          clod(-16 + j * 1.5, f - 33 - j, 1.3, 90 + j * 45),
           clod(22 + j, f - 24 - j * 2, 1.0, 20 + j * 60),
         ]
       : []),
