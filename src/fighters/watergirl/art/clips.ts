@@ -1,7 +1,25 @@
 import { art as fireboy } from '../../fireboy/art';
 import { JET_TIP } from '../../fireboy/art/parts';
-import { AIR, ANGRY, BALL, CROUCH, NO_BODY, STAND, UP, ball, flame, key, mix } from '../../fireboy/art/poses';
+import {
+  AIR,
+  ANGRY,
+  BALL,
+  CROUCH,
+  FRONT_ARM_IN_FRONT,
+  NO_BODY,
+  STAND,
+  UP,
+  ball,
+  feet,
+  flame,
+  hands,
+  key,
+  mix,
+} from '../../fireboy/art/poses';
+import { HAND, rig } from '../../fireboy/art/rig';
+import { pointOf, type Pose } from '../../../render/rig/author';
 import type { AnimClip, BonePose, Key } from '../../../render/rig/types';
+import { STREAM } from '../waterStream';
 
 type Pt = readonly [number, number];
 
@@ -77,11 +95,96 @@ const upB: AnimClip = {
   ],
 };
 
+/** Feet apart and leaning back by `rot` against the stream, both hands together at `front` like on a nozzle. */
+const brace = (rot: number, drop: number, front: Pt): Pose =>
+  hands(
+    feet(
+      mix({ body: { rot }, hip: { y: drop } }, { armF: { sy: 1.3 }, foreF: { sy: 1.3 } }),
+      [-1.0, 0],
+      [0.9, 0],
+      true,
+    ),
+    [front[0] - 0.5, front[1] + 0.3],
+    front,
+    -1,
+  );
+
+const PUMP_UP = brace(-6, 0.45, [1.4, -3.3]);
+const CHARGED = brace(-10, 0.6, [1.0, -3.1]);
+const SPRAY = brace(-8, 0.5, [3.0, -3.7]);
+
+/** Her front hand while she sprays, where the stream leaves her. */
+const NOZZLE = pointOf(rig, SPRAY, 'foreF', 0, HAND);
+
+/** The water's tail sits on her front hand and its round head at `head`, `r` wide: the stream she sprays. */
+function spray(head: Pt, r: number): BonePose {
+  const [x, y] = NOZZLE;
+  const rot = (Math.atan2(y - head[1], x - head[0]) * 180) / Math.PI + 90;
+  return { x: head[0], y: head[1], rot, sx: r / BALL, sy: Math.hypot(x - head[0], y - head[1]) / JET_TIP };
+}
+
+/** The stream's head on the 12-degree aim, `d` units out from the nozzle. */
+const aimed = (d: number): Pt => {
+  const theta = (STREAM.angle * Math.PI) / 180;
+  return [STREAM.nozzle.x + d * Math.cos(theta), -STREAM.nozzle.y - d * Math.sin(theta)];
+};
+
+/**
+ * Water Stream (neutral special), frame for frame on its move (src/fighters/watergirl/waterStream.ts): she plants
+ * her feet and pumps a ball of water up at her hands, holds it there while Special charges it, then sprays. The
+ * stream surges on each of the seven pumps and dies off after the last; `recovery` is the light or heavy shoot.
+ */
+function waterStream(recovery: number): AnimClip {
+  const release = STREAM.chargeFrame;
+  const pumps = Array.from(
+    { length: STREAM.pumps },
+    (_, i) => release + STREAM.firstPump + i * STREAM.pumpEvery,
+  );
+  const last = pumps[pumps.length - 1]!;
+  const surge = (frame: number, d: number, r: number) =>
+    key(
+      frame,
+      mix(SPRAY, {
+        fx1: spray(aimed(d), r),
+        fx2: ball(NOZZLE[0] + 0.6, NOZZLE[1], r * 0.6),
+      }),
+      {
+        ease: 'inOut',
+      },
+    );
+  return {
+    active: [[pumps[0]!, last]],
+    length: release + recovery - 1,
+    swaps: ANGRY,
+    keys: [
+      key(0, STAND, { ease: 'out' }),
+      key(8, mix(PUMP_UP, { fx2: ball(2.4, -3.6, 0.7) }), { ease: 'inOut', swaps: { fx2: 'fxBall' } }),
+      key(release - 1, mix(CHARGED, { fx2: ball(2.0, -3.4, 1.5) }), { ease: 'linear' }),
+      key(release, mix(CHARGED, { fx2: ball(2.0, -3.4, 1.6) }), { ease: 'in' }),
+      key(
+        release + 1,
+        mix(SPRAY, { fx1: spray(aimed(1), 1.2), fx2: ball(NOZZLE[0] + 0.6, NOZZLE[1], 1.2) }),
+        {
+          ease: 'out',
+          swaps: { fx1: 'fxJet', fx2: 'fxBall', face: 'faceFrontShout' },
+          z: FRONT_ARM_IN_FRONT,
+        },
+      ),
+      ...pumps.flatMap((p) => [surge(p, 6.5, 2.3), surge(p + 2.5, 4.5, 1.8)]),
+      key(last + 4, mix(SPRAY, { fx1: spray(aimed(1), 0.5), fx2: ball(NOZZLE[0] + 0.6, NOZZLE[1], 0.4) }), {
+        ease: 'inOut',
+      }),
+      key(last + 5, mix(SPRAY), { swaps: { fx1: null, fx2: null }, z: {} }),
+      key(release + recovery - 1, STAND),
+    ],
+  };
+}
+
 const { clips: base } = fireboy;
 
 /**
  * Watergirl's clips: Fireboy's, with the water thrown further where her hitboxes reach further (jabs, ftilt,
- * fair) and her own Geyser.
+ * fair), and her own Geyser and Water Stream.
  */
 export const clips: Record<string, AnimClip> = {
   ...base,
@@ -91,4 +194,6 @@ export const clips: Record<string, AnimClip> = {
   ftilt: reaim(base.ftilt!, 'fx1', [15, -8], 2.8),
   fair: nudge(base.fair!, 'fx1', 4, -1.6),
   upB,
+  neutralB: waterStream(STREAM.light),
+  neutralBHeavy: waterStream(STREAM.heavy),
 };
