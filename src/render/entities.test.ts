@@ -10,11 +10,15 @@ import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { input } from '../sim/testing/sim';
 import { finalTrapTester, noFinalTester } from '../sim/testing/finalSmash';
 import { gadgets } from '../sim/testing/gadgets';
-import { EntityView, entityArt, layerFighters, propPlacement } from './entities';
-import { FighterView, fighterArt } from './fighterView';
+import { EntityView, entityArt, layerFighters, propPlacement, propSymbol } from './entities';
+import { FighterView, fighterArt, headTop } from './fighterView';
 import { drawPlanetEntity } from './items';
 import { Renderer } from './renderer';
-import type { PropArt } from './rig/types';
+import { LOCK_RINGS, lockPip, lockRing } from '../fighters/raftwars/art/arsenalParts';
+import { MAX_ZOOM } from './camera';
+import { POINTER, TAG_H, TAG_LIFT, tagWidth } from './hud/tags';
+import { shapesBounds } from './rig/geometry';
+import type { PathShape, PropArt } from './rig/types';
 
 /** A test-only fighter whose entities have no art, so they always draw the disc. */
 registerFighter(gadgets);
@@ -85,6 +89,113 @@ describe('propPlacement', () => {
       scaleX: -1,
       rotation: 0,
     });
+  });
+});
+
+describe('propSymbol', () => {
+  it('draws each stack prop on one spot by its rank there, from the state, and counts down as they go', () => {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'raftwars' }, { fighter: 'raftwars' }],
+    });
+    const mark = (owner: number, x: number) =>
+      spawnEntity(m, { kind: 'raftwars/lockMark', owner, pos: { x, y: 7 } });
+    const marks = [0, 1, 2, 3, 4, 5].map(() => mark(0, 10));
+    const [apart, theirs] = [mark(0, -20), mark(1, 10)];
+    const prop = entityArt('raftwars/lockMark')!.prop;
+    const stack = prop.stack!;
+    const symbol = (e: EntityState) => propSymbol(m, e, prop);
+    // Six on one spot draw by rank, the sixth as the last of the stack; one elsewhere, or another owner's on the same
+    // spot, starts its own stack.
+    expect(marks.map(symbol)).toEqual([...stack, stack.at(-1)]);
+    expect([apart, theirs].map(symbol)).toEqual([stack[0], stack[0]]);
+    // Without `stack` a prop draws its own symbol.
+    const ball = spawnEntity(m, { kind: 'fireboy/fireball', owner: 0, pos: { x: 10, y: 7 } });
+    expect(propSymbol(m, ball, entityArt('fireboy/fireball')!.prop)).toBe('fxBall');
+
+    // The view draws the rank's drawing, and swaps it when a mark below goes.
+    m.entities = [marks[0]!, marks[1]!];
+    for (const e of m.entities) e.age = 1;
+    const view = new EntityView();
+    const widths = () => {
+      view.draw(m, 1, ['default', 'default']);
+      return (view.over.children as Container[]).map((c) => (c.children[0] as Graphics).context.bounds.width);
+    };
+    const [inner, outer] = widths() as [number, number];
+    expect(outer).toBeGreaterThan(inner + 2);
+    m.entities = [marks[1]!];
+    expect(widths()).toEqual([inner]);
+  });
+
+  it("keeps Full Arsenal's diamonds clear of every fighter's overhead tag, at any zoom", () => {
+    // The renderer points each tag TAG_LIFT above the head (headTop, renderer.ts) and draws the pill above that point
+    // (placeTag): POINTER + TAG_H pixels up and tagWidth wide, so in world units it grows as the camera pulls out. A
+    // mark sits on the middle of its foe's body, half the fighter's height up (fullArsenal.ts).
+    const prop = entityArt('raftwars/lockMark')!.prop;
+    const drawings = prop.stack!.flatMap((name) => (prop.symbols[name] as { loop: string[] }).loop);
+    const pips = drawings.map((name) => (prop.symbols[name] as PathShape[]).at(-1)!);
+    pips.forEach((p, i) => expect(p).toEqual(lockPip(Math.floor(i / 2), i % 2 ? 0.85 : 1)));
+    const roster = Object.values(allFighters()).filter((def) => fighterArt(def));
+    expect(roster.length).toBeGreaterThan(10);
+    for (const def of roster) {
+      const tip = headTop(def) + TAG_LIFT;
+      const middle = def.stats.height / 2;
+      for (const zoom of [MAX_ZOOM, 3, 2, 1]) {
+        const half = tagWidth('CPU') / 2 / zoom;
+        const tag = { x0: -half, x1: half, y0: tip, y1: tip + (POINTER + TAG_H) / zoom };
+        for (const p of pips) {
+          const [x0, y0, x1, y1] = shapesBounds([p]);
+          // Rig y is down from the mark; the tag's box is in units up from the feet.
+          const pip = { x0, x1, y0: middle - y1, y1: middle - y0 };
+          const overlaps = pip.x0 < tag.x1 && tag.x0 < pip.x1 && pip.y0 < tag.y1 && tag.y0 < pip.y1;
+          expect(overlaps, `${def.id} at zoom ${zoom}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it("keeps every Full Arsenal ring's bottom above the feet of every fighter, the shortest to the tallest", () => {
+    // A mark sits on the middle of its foe's body, so a foe's feet are half its height below the mark. Every ring, ink
+    // included, ends above that for every fighter in the roster.
+    const prop = entityArt('raftwars/lockMark')!.prop;
+    const drawings = prop.stack!.flatMap((name) => (prop.symbols[name] as { loop: string[] }).loop);
+    const rings = drawings
+      .map((name, i) => {
+        const shapes = prop.symbols[name] as PathShape[];
+        const rank = Math.floor(i / 2);
+        if (rank >= LOCK_RINGS) return [];
+        expect(shapes.slice(0, -1)).toEqual(lockRing(rank, i % 2 ? 0.9 : 1));
+        return shapes.slice(0, -1);
+      })
+      .filter((r) => r.length);
+    expect(rings).toHaveLength(LOCK_RINGS * 2);
+    const roster = Object.values(allFighters()).filter((def) => fighterArt(def));
+    const halves = roster.map((def) => def.stats.height / 2);
+    expect([Math.min(...halves), Math.max(...halves)]).toEqual([5.5, 12]);
+    for (const def of roster)
+      for (const ring of rings)
+        expect(shapesBounds(ring)[3], def.id).toBeLessThanOrEqual(def.stats.height / 2);
+  });
+
+  it('draws a mark above a burst on the same spot, whichever came first', () => {
+    const m = createMatch({ seed: 1, stage: 'battlefield', stocks: 3, ports: [{ fighter: 'raftwars' }] });
+    spawnEntity(m, { kind: 'raftwars/lockMark', owner: 0, pos: { x: 10, y: 7 } });
+    spawnEntity(m, { kind: 'raftwars/volleyBlast', owner: 0, pos: { x: 10, y: 7 }, final: true });
+    expect(entityArt('raftwars/lockMark')!.prop.above).toBe(true);
+    const view = new EntityView();
+    view.draw(m, 1, ['default']);
+    const [markView] = view.over.children as [Container];
+    const [burstView] = view.props.children as [Container];
+    expect(markView.position).toMatchObject({ x: 10, y: -7 });
+    expect(burstView.position).toMatchObject({ x: 10, y: -7 });
+    expect(view.container.getChildIndex(view.over)).toBeGreaterThan(view.container.getChildIndex(view.props));
+    // A later mark still goes above an earlier burst.
+    spawnEntity(m, { kind: 'raftwars/lockMark', owner: 0, pos: { x: 10, y: 7 } });
+    view.draw(m, 1, ['default']);
+    expect(view.over.children).toHaveLength(2);
+    expect(view.props.children).toEqual([burstView]);
   });
 });
 

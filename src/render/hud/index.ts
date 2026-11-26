@@ -3,4 +3,4 @@ export { loadHudFont } from './font';
 export { MatchHud, fighterIcon } from './match';
 export { PLACEHOLDER_ICON } from './icon';
 export type { HudPlayer } from './types';
-export { OverheadTags, type TagTarget } from './tags';
+export { OverheadTags, TAG_LIFT, type TagTarget } from './tags';

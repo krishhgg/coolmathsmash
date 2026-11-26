@@ -1,6 +1,34 @@
-import type { FighterScenarios } from '../../harness/scenarios';
+import type { FighterScenarios, GameScenario, Predicate } from '../../harness/scenarios';
 
 const RW = 'characters/raft-wars';
+
+/**
+ * Full Arsenal (Final Smash): the kids hold the charge 60 units from Fireboy and use it on frame 10; capture when
+ * `when` first holds.
+ */
+function fullArsenal(
+  name: string,
+  description: string,
+  label: string,
+  when: Predicate,
+  motion: GameScenario['motion'],
+): GameScenario {
+  return {
+    name,
+    description,
+    page: { kind: 'game' },
+    match: { ports: [{ fighter: 'raftwars' }, { fighter: 'fireboy' }] },
+    patches: [
+      { port: 0, state: { pos: { x: -40, y: 0 }, facing: 1, finalReady: true } },
+      { port: 1, state: { pos: { x: 20, y: 0 }, facing: -1 } },
+    ],
+    script: [{ port: 0, from: 10, to: 11, buttons: ['special'] }],
+    capture: { label, when },
+    motion,
+    requires: ['move:finalSmash'],
+    refs: ['smash/attack-active-*', `${RW}/ingame-aim-*`],
+  };
+}
 
 /**
  * Raft Wars Kids' capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
@@ -135,5 +163,19 @@ export const scenarios: FighterScenarios = {
       requires: ['move:neutralB'],
       refs: ['smash/attack-active-*', `${RW}/ingame-aim-*`],
     },
+    fullArsenal(
+      'raftwars-final-smash-hunt',
+      'Full Arsenal (Final Smash): the brother spots through his spyglass while the crosshair marks Fireboy; capture the third mark.',
+      'three lock marks out',
+      (s) => s.entities.filter((e) => e.kind === 'raftwars/lockMark').length >= 3,
+      { before: 60, after: 20 },
+    ),
+    fullArsenal(
+      'raftwars-final-smash',
+      "Full Arsenal (Final Smash): the kids' barrage comes down on Fireboy; capture the first burst.",
+      "P2's damage rises",
+      (s, prev) => s.fighters[1]!.damage > prev.fighters[1]!.damage,
+      { before: 150, after: 30 },
+    ),
   ],
 };

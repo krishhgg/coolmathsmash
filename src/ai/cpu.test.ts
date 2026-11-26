@@ -101,19 +101,30 @@ describe('fighter knowledge', () => {
 });
 
 describe('CPU knockdowns', () => {
-  /** Drop port 0 into the middle of the stage in tumble and run its CPU until it is back on its feet. */
-  function knockdown(level: number, seed: number): { seen: string[]; down: number } {
+  /** Port 0 starting a tumble at (x, y), moving (0, vy) with launch speed (0, kb) and `hitstun` frames of hitstun. */
+  interface Tumble {
+    x: number;
+    y: number;
+    vy: number;
+    kb: number;
+    hitstun: number;
+  }
+  /** A drop into the middle of the stage. */
+  const DROP: Tumble = { x: 10, y: 25, vy: -1, kb: -1, hitstun: 40 };
+
+  /** Put port 0 in tumble at `start` and run its CPU until it is back on its feet. */
+  function knockdown(level: number, seed: number, start = DROP): { seen: string[]; down: number } {
     const m = match();
     const f = m.fighters[0]!;
     Object.assign(f, {
-      pos: { x: 10, y: 25 },
-      prevPos: { x: 10, y: 25 },
-      vel: { x: 0, y: -1 },
-      kb: { x: 0, y: -1 },
+      pos: { x: start.x, y: start.y },
+      prevPos: { x: start.x, y: start.y },
+      vel: { x: 0, y: start.vy },
+      kb: { x: 0, y: start.kb },
       ground: null,
       action: 'tumble',
       actionFrame: 0,
-      hitstun: 40,
+      hitstun: start.hitstun,
     });
     m.fighters[1]!.pos = { x: -60, y: 0 };
     const cpu = createCpu({ port: 0, level, seed });
@@ -139,6 +150,55 @@ describe('CPU knockdowns', () => {
       expect(seen.slice(0, 3)).toEqual(['tumble', 'downBound', 'down']);
       expect(seen[3]).toMatch(/^getup|attack/);
       expect(down).toBeLessThan(DOWN_AUTO_GETUP / 2);
+    }
+  });
+
+  /**
+   * Tumbling up from (60, 20) with 50 frames of hitstun at a launch speed of 1.7 or 1.75, under
+   * HITSTUN_CANCEL_AIR_DODGE's 2.5, so the air dodge cancel opens on frame 41. These touch down on frames 41 and 42,
+   * just inside it. A Shield press four frames before touching down would wait in the input buffer and come out as an
+   * air dodge on frame 41, sideways when the stick is held for a tech roll.
+   */
+  const IN_CANCEL: Tumble[] = [
+    { x: 60, y: 20, vy: 0, kb: 1.7, hitstun: 50 },
+    { x: 60, y: 20, vy: 0, kb: 1.75, hitstun: 50 },
+  ];
+  /**
+   * A fall from the same spot that touches down long before any air dodge opens. How a CPU lands it (a tech roll, a
+   * tech in place or a missed tech) is its own pick, and it should land the others the same way.
+   */
+  const FALL: Tumble = { x: 60, y: 20, vy: 0, kb: 0, hitstun: 50 };
+  const landing = (seen: string[]) => seen.find((a) => a === 'downBound' || /^tech/.test(a));
+
+  it('tech a landing inside the air dodge cancel window without air dodging, when they pick a tech', () => {
+    const picks = new Set<string | undefined>();
+    for (const level of [5, 7, 9]) {
+      for (const seed of [1, 2, 3, 4, 5, 6]) {
+        const pick = landing(knockdown(level, seed, FALL).seen);
+        picks.add(pick);
+        for (const start of IN_CANCEL) {
+          const { seen } = knockdown(level, seed, start);
+          const at = `L${level} seed ${seed} launch ${start.kb}: ${seen.join(' > ')}`;
+          expect(seen, at).not.toContain('airDodge');
+          expect(landing(seen), at).toBe(pick);
+        }
+      }
+    }
+    expect([...picks].sort()).toEqual(['downBound', 'techInPlace', 'techRoll']);
+  });
+
+  it('tech when hitstun runs out just before touching down, never air dodging into landing lag', () => {
+    // 39 frames of hitstun and a touchdown on frame 42: a press four frames before would wait in the buffer until
+    // hitstun ran out and come out as an air dodge then.
+    const start: Tumble = { x: 60, y: 20, vy: 0, kb: 1.75, hitstun: 39 };
+    for (const level of [5, 7, 9]) {
+      for (const seed of [1, 2, 3, 4, 5, 6]) {
+        const pick = landing(knockdown(level, seed, FALL).seen);
+        const { seen } = knockdown(level, seed, start);
+        const at = `L${level} seed ${seed}: ${seen.join(' > ')}`;
+        expect(seen, at).not.toContain('land');
+        expect(landing(seen), at).toBe(pick);
+      }
     }
   });
 });

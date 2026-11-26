@@ -75,6 +75,11 @@ const summer: Palette = {
   duckHi: '#fff6c2',
   beak: '#ff8a1f',
   beakLo: '#d9641a',
+  aim: '#ff3b30',
+  aimHi: '#ffd0c8',
+  brass: '#e0a83a',
+  brassLo: '#b37a1e',
+  brassHi: '#fff0a8',
 };
 
 /**
