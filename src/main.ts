@@ -28,7 +28,7 @@ async function boot(): Promise<void> {
   renderer.overlays.actions = params.has('actions');
   renderer.overlays.hitboxes = params.has('hitboxes');
   renderer.overlays.events = params.has('events');
-  game.onEvents((events, state) => renderer.eventLog.record(events, state.frame));
+  game.onEvents((events, state) => renderer.eventLog.record(events, state));
   game.keyboard.attach(window);
   audio.match(game);
   const toggles: Record<string, keyof typeof renderer.overlays> = {

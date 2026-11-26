@@ -868,6 +868,239 @@ function boot(t: Tone): PathShape[] {
   ];
 }
 
+// ---------------------------------------------------------------------------------------------------------
+// Laser Gun: a chunky retro ray gun in the near fist. It is drawn in "gun space" (x along the barrel from the hand
+// centre, y down, as it looks aimed level to the right) and turned into forearm space, where the barrel runs down
+// the forearm's +y axis past the hand and the top of the gun is the thumb side (+x).
+
+const gun = (pts: readonly P[]): P[] =>
+  pts.map((p) => (p.length === 3 ? [-p[1], H + p[0], p[2]] : [-p[1], H + p[0]]));
+
+/** The muzzle tip in gun space: the bore's centre line is 1.45 above the hand. */
+export const GUN_MUZZLE: readonly [number, number] = [4.75, -1.45];
+
+/** Ray gun: domed housing with an energy window and a fin, ringed barrel, flared emitter, grip in the fist. */
+function gunShapes(): PathShape[] {
+  const bore = GUN_MUZZLE[1];
+  const ring = (x: number): PathShape =>
+    inked(
+      smooth(
+        gun([
+          [x - 0.14, bore - 0.62, 0],
+          [x + 0.14, bore - 0.62, 0],
+          [x + 0.14, bore + 0.62, 0],
+          [x - 0.14, bore + 0.62, 0],
+        ]),
+      ),
+      'suit',
+      'suitLine',
+      0.08,
+    );
+  return [
+    // Grip, slanting back through the fist; only its butt shows below the fingers.
+    inked(
+      smooth(
+        gun([
+          [-0.95, -0.9, 0],
+          [0.55, -0.9, 0],
+          [0.2, 1.75],
+          [-0.15, 2.05, 0],
+          [-1.2, 2.05, 0],
+          [-1.4, 1.7],
+        ]),
+      ),
+      'gunLo',
+      'gunLine',
+    ),
+    fill(
+      poly(
+        gun([
+          [-1.32, 1.62],
+          [-0.12, 1.62],
+          [-0.15, 2.0],
+          [-1.22, 2.0],
+        ]),
+      ),
+      'suit',
+    ),
+    // Fin, swept back off the top of the housing.
+    inked(
+      smooth(
+        gun([
+          [-0.9, -2.1, 0],
+          [0.5, -2.1, 0],
+          [-0.75, -2.95, 0],
+          [-1.35, -3.05, 0],
+        ]),
+      ),
+      'suit',
+      'suitLine',
+    ),
+    // Barrel, rings and flared emitter.
+    inked(
+      smooth(
+        gun([
+          [1.0, bore - 0.42, 0],
+          [3.9, bore - 0.42, 0],
+          [3.9, bore + 0.42, 0],
+          [1.0, bore + 0.42, 0],
+        ]),
+      ),
+      'gun',
+      'gunLine',
+    ),
+    fill(
+      poly(
+        gun([
+          [1.0, bore + 0.12],
+          [3.9, bore + 0.12],
+          [3.9, bore + 0.4],
+          [1.0, bore + 0.4],
+        ]),
+      ),
+      'gunLo',
+    ),
+    fill(
+      poly(
+        gun([
+          [1.2, bore - 0.3],
+          [3.7, bore - 0.3],
+          [3.7, bore - 0.18],
+          [1.2, bore - 0.18],
+        ]),
+      ),
+      'gunHi',
+    ),
+    ring(2.2),
+    ring(3.0),
+    inked(
+      smooth(
+        gun([
+          [3.75, bore - 0.5, 0],
+          [4.55, bore - 0.88],
+          [4.75, bore - 0.82, 0],
+          [4.75, bore + 0.82, 0],
+          [4.55, bore + 0.88],
+          [3.75, bore + 0.5, 0],
+        ]),
+      ),
+      'gun',
+      'gunLine',
+    ),
+    fill(
+      smooth(
+        gun([
+          [3.8, bore + 0.2, 0],
+          [4.7, bore + 0.45],
+          [4.7, bore + 0.75, 0],
+          [3.8, bore + 0.45, 0],
+        ]),
+      ),
+      'gunLo',
+    ),
+    inked(ellipseIn(4.68, bore, 0.16, 0.6), 'laser', 'laserLine', 0.06),
+    fill(ellipseIn(4.7, bore - 0.12, 0.07, 0.26), 'laserHi'),
+    // Domed housing with its glowing energy window.
+    inked(
+      smooth(
+        gun([
+          [-1.75, -1.35],
+          [-1.35, -2.2],
+          [-0.2, -2.42],
+          [1.05, -2.12],
+          [1.45, -1.45],
+          [1.15, -0.72],
+          [-0.2, -0.55],
+          [-1.4, -0.72],
+        ]),
+      ),
+      'gun',
+      'gunLine',
+    ),
+    fill(
+      smooth(
+        gun([
+          [-1.55, -0.95],
+          [-0.2, -0.78],
+          [1.15, -0.9],
+          [1.2, -0.72, 0],
+          [-0.2, -0.58],
+          [-1.35, -0.75],
+        ]),
+      ),
+      'gunLo',
+    ),
+    inked(ellipseIn(-0.15, -1.5, 0.9, 0.45), 'laser', 'laserLine', 0.07),
+    fill(ellipseIn(-0.4, -1.62, 0.42, 0.14), 'laserHi'),
+    fill(ellipseIn(-0.95, -2.0, 0.3, 0.12), 'gunHi'),
+  ];
+}
+
+/** An ellipse at gun-space (x, y), its `rx` along the barrel. */
+function ellipseIn(x: number, y: number, rx: number, ry: number): string {
+  return ellipse(-y, H + x, ry, rx);
+}
+
+/** Muzzle flash, drawn in fx space at the muzzle: a cyan burst with a long spike along +x and a white core. */
+export const muzzleFlash: PathShape[] = [
+  inked(
+    smooth(
+      [
+        [-0.35, -0.55, 0],
+        [0.15, -1.05, 0],
+        [0.45, -0.45, 0],
+        [2.4, 0, 0],
+        [0.45, 0.45, 0],
+        [0.15, 1.05, 0],
+        [-0.35, 0.55, 0],
+        [-0.15, 0, 0],
+      ],
+      true,
+    ),
+    'laser',
+    'laserLine',
+    0.07,
+  ),
+  fill(ellipse(0.25, 0, 0.5, 0.36), 'laserHi'),
+];
+
+/**
+ * The laser bolt, in its own space: its head (the hit's centre) on the origin, a flat-ended streak trailing back
+ * 6 units to -x, with a white core. Two frames flicker the glow.
+ */
+function bolt(glow: number): PathShape[] {
+  return [
+    inked(
+      smooth([
+        [0.95, 0],
+        [0.55, -0.72 * glow],
+        [-2.5, -0.62 * glow, 0],
+        [-6, -0.3, 0],
+        [-6, 0.3, 0],
+        [-2.5, 0.62 * glow, 0],
+        [0.55, 0.72 * glow],
+      ]),
+      'laser',
+      'laserLine',
+      0.09,
+    ),
+    fill(
+      smooth([
+        [0.6, 0],
+        [0.3, -0.3],
+        [-2.6, -0.24, 0],
+        [-5.2, -0.1, 0],
+        [-5.2, 0.1, 0],
+        [-2.6, 0.24, 0],
+        [0.3, 0.3],
+      ]),
+      'laserHi',
+    ),
+  ];
+}
+
+export const laserBolt = { laserBolt0: bolt(1), laserBolt1: bolt(0.85) };
+
 export const parts: Record<string, Part> = {
   upperArm: upperArm(NEAR),
   upperArmFar: upperArm(FAR),
@@ -875,6 +1108,7 @@ export const parts: Record<string, Part> = {
   fistFar: forearm(FAR, fistShapes()),
   palm: forearm(NEAR, palmShapes()),
   palmFar: forearm(FAR, palmShapes()),
+  gun: forearm(NEAR, [...gunShapes(), ...fistShapes()]),
   thigh: legTube(NEAR, THIGH, 0.84, 0.66),
   thighFar: legTube(FAR, THIGH, 0.84, 0.66),
   shin: legTube(NEAR, SHIN - 0.35, 0.66, 0.54),

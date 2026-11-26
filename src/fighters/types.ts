@@ -70,6 +70,8 @@ export interface FighterStats {
   shieldSize: number;
   /** Distance travelled by a roll. */
   rollDistance: number;
+  /** Distance travelled by a back roll out of shield (Mario 30.63). Defaults to rollDistance. */
+  backRollDistance?: number;
   /** Speed of a directional air dodge at its start. */
   airDodgeSpeed: number;
 }

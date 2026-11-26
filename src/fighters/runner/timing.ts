@@ -10,3 +10,18 @@
  * finisher timing (startup 3, 39 frames in all).
  */
 export const RAPID_JAB = { kicks: [1, 3, 5, 7], loop: 9, shove: [13, 14] as [number, number], faf: 50 };
+
+/**
+ * Box Drop's timeline (Kirby's Stone, box-drop.ts). The crate lands its impact and starts armoring on `impact`; the
+ * aerial's spike is out from `impact` to `airEnd`. Special opens the crate from `cancelFrom` (18 frames in, Kirby's
+ * minimum), and it opens by itself on `release` (150 frames in, Kirby's maximum). Either way the move jumps to
+ * `release` and she climbs out for 31 frames, Kirby's, so `groundedFaf` is `release` + 31.
+ */
+export const BOX_DROP = {
+  impact: 12,
+  airEnd: 16,
+  cancelFrom: 12 + 18,
+  release: 12 + 150,
+  groundedFaf: 12 + 150 + 31,
+  aerialFaf: 90,
+};

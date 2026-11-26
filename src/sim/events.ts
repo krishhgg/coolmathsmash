@@ -42,6 +42,19 @@ export type SimEvent =
       x: number;
       y: number;
     }
+  /**
+   * A hit landed in the first 5 frames of `victim`'s shield drop and was parried (Ultimate's perfect shield): no
+   * damage, no shield damage, no shieldstun, and no `shieldHit`. `x`, `y` is the hitbox centre.
+   */
+  | {
+      type: 'parry';
+      attacker: number;
+      entity?: number;
+      victim: number;
+      move: string | null;
+      x: number;
+      y: number;
+    }
   | { type: 'shieldBreak'; port: number }
   /** A fighter crossed a blast zone; `stocks` is what it has left. */
   | { type: 'ko'; port: number; stocks: number; side: Side; x: number; y: number }
