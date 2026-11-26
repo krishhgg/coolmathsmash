@@ -1,7 +1,6 @@
 import type { FighterScenarios, LabScenario } from '../../harness/scenarios';
 import { art } from './art';
-import { GRAVITY_SWITCH } from './moves';
-import { BOX_DROP } from './timing';
+import { BOX_DROP, GRAVITY_SWITCH } from './timing';
 
 const RUN = 'characters/runner';
 
@@ -31,9 +30,9 @@ const sheet = (
 
 /**
  * The Runner's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus Gravity Switch on the underside of a platform, Tile Flip, the Jog Flurry, Box Drop, and lab contact
- * sheets of her key poses, every move on its first active frame, and Box Drop's exit. References live in the Captain
- * drive's refs/.
+ * Fireboy, plus Gravity Switch on the underside of a platform, Tile Flip on the ground and in the air, the Jog Flurry,
+ * Box Drop from the air and on the ground, and lab contact sheets of her key poses, every move on its first active
+ * frame, and Box Drop's exit. References live in the Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'runner',
@@ -94,6 +93,29 @@ export const scenarios: FighterScenarios = {
       refs: ['smash/attack-active-*', `${RUN}/ingame-run3-*`],
     },
     {
+      name: 'runner-tile-flip-air',
+      description:
+        'Runner, just above the floor beside Fireboy at 30%, uses Tile Flip in the air: a small gravity hop into a kick.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'runner' }, { fighter: 'fireboy' }] },
+      patches: [
+        {
+          port: 0,
+          state: { pos: { x: -4, y: 7 }, prevPos: { x: -4, y: 7 }, ground: null, action: 'fall', facing: 1 },
+        },
+        { port: 1, state: { pos: { x: 3, y: 0 }, prevPos: { x: 3, y: 0 }, facing: -1, damage: 30 } },
+      ],
+      script: [{ port: 0, from: 0, buttons: ['special'] }],
+      capture: {
+        label: "P1 move 'neutralBAir' and P2's damage rises",
+        when: (s, prev) =>
+          s.fighters[0]!.move === 'neutralBAir' && s.fighters[1]!.damage > prev.fighters[1]!.damage,
+      },
+      motion: { before: 8, after: 20 },
+      requires: ['move:neutralBAir'],
+      refs: ['smash/attack-active-*', `${RUN}/sprite-runner-jump-*`],
+    },
+    {
       name: 'runner-jog-flurry',
       description: 'Runner mashes jab into Fireboy at 20%: two punches, the kick flurry, then the shove.',
       page: { kind: 'game' },
@@ -142,6 +164,26 @@ export const scenarios: FighterScenarios = {
       },
       motion: { before: 18, after: 20 },
       requires: ['move:downBAir'],
+      refs: [`${RUN}/ingame-run2-*`, 'smash/attack-active-*'],
+    },
+    {
+      name: 'runner-box-drop-ground',
+      description:
+        'Runner turns into a crate where she stands with Box Drop on the ground; the impact knocks Fireboy at 30% away.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'runner' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -4, y: 0 }, prevPos: { x: -4, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: 4, y: 0 }, prevPos: { x: 4, y: 0 }, facing: -1, damage: 30 } },
+      ],
+      script: [{ port: 0, from: 10, y: -100, buttons: ['special'] }],
+      capture: {
+        label: "P1 move 'downB' and P2's damage rises",
+        when: (s, prev) =>
+          s.fighters[0]!.move === 'downB' && s.fighters[1]!.damage > prev.fighters[1]!.damage,
+      },
+      motion: { before: 16, after: 20 },
+      requires: ['move:downB'],
       refs: [`${RUN}/ingame-run2-*`, 'smash/attack-active-*'],
     },
     {

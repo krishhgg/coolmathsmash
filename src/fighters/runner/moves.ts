@@ -7,7 +7,7 @@ import type { Ctx } from '../../sim/fighter';
 import { ecb } from '../../sim/movement';
 import { edgeMaxX, edgeMinX, floorY } from '../../sim/stage';
 import { boxDropMoves } from './box-drop';
-import { RAPID_JAB } from './timing';
+import { GRAVITY_SWITCH, RAPID_JAB } from './timing';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -25,25 +25,7 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 /** Tile Flip's air hop: the upward speed it sets and on which frame. Less than a cycle of gravity, so no stall. */
 export const HOP = { frame: 3, speed: 0.8 };
 
-export { RAPID_JAB };
-
-/**
- * Gravity Switch's timeline. She falls upward through RISE, speeding up to riseSpeed. Touching a ceiling or the
- * underside of a platform jumps to CLING, where she runs along it upside down; running off its end jumps to POP,
- * a short upward fall that carries her past the edge (onto a ledge, from under the stage). Running out of RISE or
- * CLING, or pressing Special again, ends it in helpless fall.
- */
-export const GRAVITY_SWITCH = {
-  rise: [4, 53] as [number, number],
-  riseAccel: 0.2,
-  riseSpeed: 2,
-  cling: [60, 119] as [number, number],
-  clingSpeed: 2.31,
-  pop: [120, 127] as [number, number],
-  faf: 128,
-  /** Special ends it from this frame. */
-  cancelFrom: 10,
-};
+export { GRAVITY_SWITCH, RAPID_JAB };
 
 /** Downward-facing surfaces she can cling to: platform undersides and solid edges that face mostly down. */
 const CLING_NORMAL_Y = -0.25;

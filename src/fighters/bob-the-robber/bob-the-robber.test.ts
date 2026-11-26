@@ -326,6 +326,21 @@ describe('Bob the Robber: kill percents against Ultimate analogues (Mario at the
   });
 });
 
+/**
+ * Measured, not sourced. Baton Twirl Rush (side special, specials.ts) names no Ultimate analogue, and no Ultimate
+ * hit has its bonk's damage, angle, BKB and KBG (5%, 45 degrees, BKB 55, KBG 110; searched in the 13.0.1 hitbox
+ * data of ultimate-hitboxes.com), so there is no Ultimate kill percent to hold it to. 164.3% is what koPercent gave
+ * on main when this was written: the bonk lands on Mario at the Battlefield ledge, fresh, no rage, no DI, and the
+ * percent is his when it lands, after the five 1.5% carry hits. The Grappling Hook KOs only from 332.9%.
+ */
+describe('Bob the Robber: Baton Twirl Rush kill percent (measured, no Ultimate analogue)', () => {
+  it('the bonk KOs within 5 points of its measured 164.3%', () => {
+    const percent = koPercent({ hit: { fighter: ID, move: 'sideB' } });
+    expect(percent).not.toBeNull();
+    expect(Math.abs(percent! - 164.3)).toBeLessThanOrEqual(5);
+  });
+});
+
 /** Bob (P1) at x facing `facing` holding Mario 11 units in front at `percent`. */
 function holding(percent: number, x = 0, facing: 1 | -1 = 1) {
   const m = createMatch({
