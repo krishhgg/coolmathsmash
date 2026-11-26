@@ -28,6 +28,7 @@ export function stepEntities(m: MatchState): void {
     const x = entityCtx(m, e, stage);
     if (e.hitlag > 0) {
       e.hitlag--;
+      e.hitlagAt = m.frame;
       if (e.grounded) keepFooting(x);
       continue;
     }
