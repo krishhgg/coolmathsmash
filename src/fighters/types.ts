@@ -332,6 +332,25 @@ export interface MoveDef {
   reflectors?: ReflectorDef[];
   /** Absorber bubbles: absorbable projectiles touching one vanish and heal this fighter. */
   absorbers?: AbsorberDef[];
+  /**
+   * Part of the fighter's Final Smash (src/sim/finalSmash.ts, docs/fighters.md): the move named `finalSmash`, its
+   * `air` variant and a trap's cinematic. The user is intangible, its hits can't be shielded, and landing doesn't end
+   * it (as continuesOnLanding).
+   */
+  final?: FinalSmashDef;
+}
+
+/** Final Smash options (src/sim/finalSmash.ts). All are optional; `final: {}` marks a move as part of one. */
+export interface FinalSmashDef {
+  /** Frames everyone else is held still from activation (default FINAL_SMASH.freeze). */
+  freeze?: number;
+  /**
+   * In the air, the user stops and holds still (no gravity or drift) for the move, like Mario in Mario Finale. A trap's
+   * cinematic with it holds still too.
+   */
+  still?: boolean;
+  /** How far ahead of the feet it reaches, for CPUs deciding when to use it (default: its hitboxes' reach). */
+  range?: number;
 }
 
 export interface FighterDef {

@@ -18,6 +18,7 @@ import { moveDef } from '../sharedMoves';
 import type { Ctx, FighterState } from '../fighter';
 import { HELPLESS_LANDING_LAG, SPECIAL_REVERSE } from '../constants';
 import { spawnFromMove } from '../entities/entities';
+import { freezeOf, inFinalSmash } from '../finalSmash';
 import { pickUpItem } from '../items/pickup';
 import { leaveGround, normalLandingLag } from '../movement';
 import { fastFallCheck } from './air';
@@ -123,6 +124,39 @@ function bReverse(x: Ctx): void {
 }
 
 /**
+ * Neutral special with a Final Smash charge plays the Final Smash (src/sim/finalSmash.ts) and spends the charge. A
+ * `still` one started in the air stops the user where it is. False, keeping the charge, without a `finalSmash` move.
+ */
+function startFinalSmash(x: Ctx): boolean {
+  const { f } = x;
+  if (!f.finalReady || !x.def.moves?.finalSmash || !startMove(x, 'finalSmash')) return false;
+  f.finalReady = false;
+  const final = moveOf(f)?.final ?? {};
+  if (!f.ground && final.still) stopInPlace(f);
+  const { move, port, pos } = f;
+  emit(x.m, {
+    type: 'finalSmash',
+    port,
+    move: move!,
+    freeze: freezeOf(final),
+    x: pos.x,
+    y: pos.y + x.s.height / 2,
+  });
+  return true;
+}
+
+/**
+ * Special by stick direction (startSpecial: turnaround and B-reverse), or the Final Smash for a neutral special while
+ * holding the charge.
+ */
+function special(x: Ctx): boolean {
+  consume(x.c, Btn.Special);
+  const dir = specialDir(x.c, x.f.facing);
+  if (dir === 'neutral' && startFinalSmash(x)) return true;
+  return startSpecial(x, dir);
+}
+
+/**
  * Grounded attack inputs, Smash style: Grab (or Attack with Shield held) grabs; the C-stick smashes; Attack with a
  * freshly flicked stick smashes, with a held stick tilts, and alone jabs; Attack while dashing or running is a
  * dash attack. Backward smashes and tilts turn around first. Standing or walking, Attack without a smash input picks
@@ -137,10 +171,7 @@ export function groundAttack(x: Ctx): boolean {
     turnFor(x, cDir);
     return startMove(x, SMASH[cDir]);
   }
-  if (buffered(c, Btn.Special)) {
-    consume(c, Btn.Special);
-    return startSpecial(x, specialDir(c, f.facing));
-  }
+  if (buffered(c, Btn.Special)) return special(x);
   if (!buffered(c, Btn.Attack)) return false;
   consume(c, Btn.Attack);
   const smash = smashDir(c, f.facing);
@@ -184,10 +215,7 @@ export function airAttack(x: Ctx, specials = true): boolean {
     consumeCStick(c);
     return startMove(x, AERIAL[cDir]);
   }
-  if (specials && buffered(c, Btn.Special)) {
-    consume(c, Btn.Special);
-    return startSpecial(x, specialDir(c, f.facing));
-  }
+  if (specials && buffered(c, Btn.Special)) return special(x);
   if (!buffered(c, Btn.Attack)) return false;
   consume(c, Btn.Attack);
   return startMove(x, AERIAL[stickDir(c, f.facing)]);
@@ -230,10 +258,42 @@ export function playMove(x: Ctx): MoveDef | null {
   return move;
 }
 
-function moveIntangible(f: FighterState): boolean {
-  const w = moveOf(f)?.intangible;
-  return w !== undefined && inWindow(f.actionFrame, w);
+/**
+ * The floor went out from under `x.f` (its platform vanished or moved away, or a conveyor belt carried it off) after
+ * the activation freeze: a Final Smash has spent its charge, so it carries on, as a landing carries one on (`aerial`'s
+ * land), in the air from the same frame. A `still` one stops where it left the floor, as one started in the air does.
+ * True when it carried on; the caller then only leaves the ground. A trap's cinematic never loses its floor: it holds
+ * the others, and the stage stands still with them (advanceStage).
+ */
+export function finalSmashLeavesGround(x: Ctx): boolean {
+  const { f } = x;
+  if (f.action !== 'attack' || !inFinalSmash(f)) return false;
+  const { move, actionFrame } = f;
+  enterAction(x, 'aerial', actionFrame);
+  f.move = move;
+  if (still(x)) stopInPlace(f);
+  return true;
 }
+
+/**
+ * A `still` Final Smash in the air holds the user where it is: no speed, knockback or fast fall left, since its
+ * gravity and drift are off and air friction never runs (Mario in Mario Finale).
+ */
+export function stopInPlace(f: FighterState): void {
+  f.vel = { x: 0, y: 0 };
+  f.kb = { x: 0, y: 0 };
+  f.fastFalling = false;
+}
+
+/** Intangible on the move's `intangible` frames, and on every frame of a Final Smash. */
+function moveIntangible(f: FighterState): boolean {
+  const move = moveOf(f);
+  if (move?.final) return true;
+  return move?.intangible !== undefined && inWindow(f.actionFrame, move.intangible);
+}
+
+/** An airborne `still` Final Smash holds the user in place: no gravity, no drift, no fast fall. */
+const still = (x: Ctx) => moveOf(x.f)?.final?.still === true;
 
 /** Jab combos: Attack with the stick neutral inside the move's `next` window starts the combo's next hit. */
 function comboNext(x: Ctx, move: MoveDef): boolean {
@@ -263,8 +323,8 @@ export const ATTACK: Record<string, ActionDef> = {
   aerial: {
     physics: 'air',
     intangible: moveIntangible,
-    drift: (x) => moveOf(x.f)?.drift ?? true,
-    gravity: (x) => moveOf(x.f)?.gravity ?? true,
+    drift: (x) => !still(x) && (moveOf(x.f)?.drift ?? true),
+    gravity: (x) => !still(x) && (moveOf(x.f)?.gravity ?? true),
     ledge: (x) => {
       const from = moveOf(x.f)?.ledgeFrom;
       return from === undefined ? false : from;
@@ -273,7 +333,8 @@ export const ATTACK: Record<string, ActionDef> = {
       const { f } = x;
       const move = playMove(x);
       if (!move) return;
-      if (!move.helpless && !move.tether?.aimed && move.fastFall !== false) fastFallCheck(x);
+      if (!move.helpless && !move.tether?.aimed && !move.final?.still && move.fastFall !== false)
+        fastFallCheck(x);
       if (f.actionFrame < move.faf) return;
       if (glideAfterMove(x, move)) return;
       if (!move.helpless) return setAction(x, 'fall');
@@ -283,7 +344,8 @@ export const ATTACK: Record<string, ActionDef> = {
     land(x) {
       const { f } = x;
       const move = moveOf(f)!;
-      if (move.continuesOnLanding) {
+      // A Final Smash has spent its charge: landing (a fall, or a platform rising under a still one) never ends it.
+      if (move.continuesOnLanding || move.final) {
         const { move: name, actionFrame } = f;
         enterAction(x, 'attack', actionFrame);
         f.move = name;

@@ -1,4 +1,5 @@
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../config';
+import { inFinalSmash } from '../sim/finalSmash';
 import type { MatchState } from '../sim/match';
 import { SHAKE, type CameraView, type Focus } from './camera';
 import { predictKo, type KoPrediction } from './koPredict';
@@ -20,7 +21,11 @@ import { blade, easeOut, lerp, TAU, type Shape } from './vfx/shapes';
  * - 1v1 only: "In games with more than two players, the slowdown and camera zoom effects will be nearly
  *   non-existent." Two players, the same test as the 1v1 damage multiplier (hits.ts addDamage).
  * - It never triggers on an invincible fighter, during a Final Smash or in a timed match's last five seconds. Hits
- *   miss invincible fighters already, and this game has neither of the others yet.
+ *   miss invincible fighters already, a hit while any fighter plays a Final Smash starts none, and timed matches
+ *   don't exist yet.
+ * - A Final Smash's activation gets its own zoom, gold, on the user (SmashWiki, Final Smash: "Most Final Smashes cause
+ *   the camera to temporarily zoom in on the user when activated"), with any number of players. It lasts the sim's
+ *   activation freeze (src/sim/finalSmash.ts), the frames everyone else holds still, and outranks both hit zooms.
  *
  * SmashWiki gives no length for either zoom, and Ultimate's slowdown would stretch sim frames, which the renderer
  * cannot do. So the zoom plays over the victim's hitlag (SmashWiki's Hitlag article: floor(damage * 0.65 + 6) frames,
@@ -42,12 +47,16 @@ export const ZOOM = {
 export const ZOOM_FLASH = {
   special: { base: 0x1650d8, light: 0x8fd8ff, dark: 0x081f66 },
   finish: { base: 0xc8101e, light: 0xff7a4d, dark: 0x5c0010 },
+  final: { base: 0xe0a014, light: 0xfff0a0, dark: 0x7a3600 },
 };
 const FLASH_ALPHA = 0.78;
 
 export type ZoomKind = keyof typeof ZOOM_FLASH;
 
-/** One zoom, spawned by a hit and kept in step with its victim's freeze (stepZoom). */
+/**
+ * One zoom, spawned by a hit and kept in step with its victim's freeze (stepZoom), or by a Final Smash's activation
+ * (kind `final`: `victim` is the user, the point its body's middle, and `until` the end of the activation freeze).
+ */
 export interface SpecialZoom {
   kind: ZoomKind;
   /** The hit's frame. */
@@ -67,14 +76,35 @@ export interface SpecialZoom {
   seed: number;
 }
 
-const RANK: Record<ZoomKind, number> = { special: 1, finish: 2 };
+const RANK: Record<ZoomKind, number> = { special: 1, finish: 2, final: 3 };
+
+/** The zoom a Final Smash activated on `m`'s last frame starts, over the frames everyone else holds still. */
+function finalZoom(m: MatchState): SpecialZoom | null {
+  const e = m.events.find((e) => e.type === 'finalSmash');
+  if (e?.type !== 'finalSmash') return null;
+  const { port, freeze, x, y } = e;
+  return {
+    kind: 'final',
+    frame: m.frame,
+    until: m.frame + freeze,
+    victim: port,
+    x,
+    y,
+    kb: 0,
+    ko: null,
+    seed: seedOf(m.frame, port, 17),
+  };
+}
 
 /**
- * The zoom `m`'s last frame starts, if any: of that frame's hits (on `victim` only, when given) on a fighter that
- * froze, a predicted KO first, then the strongest knockback. Only in 1v1.
+ * The zoom `m`'s last frame starts, if any: a Final Smash's activation, or of that frame's hits (on `victim` only,
+ * when given) on a fighter that froze, a predicted KO first, then the strongest knockback, only in 1v1 and never
+ * during a Final Smash.
  */
 export function zoomFrom(m: MatchState, victim?: number): SpecialZoom | null {
-  if (m.players.length !== 2) return null;
+  const final = victim === undefined ? finalZoom(m) : null;
+  if (final) return final;
+  if (m.players.length !== 2 || m.fighters.some(inFinalSmash)) return null;
   let best: SpecialZoom | null = null;
   for (const e of m.events) {
     if (e.type !== 'hit' || (victim !== undefined && e.victim !== victim)) continue;
@@ -124,13 +154,14 @@ export interface ZoomState {
  * victim's live freeze, so it ends on the frame the victim actually launches: entity contacts can lengthen the
  * freeze, and a hit landing during it (a returning projectile) replaces both the freeze and the pending launch
  * (hits.ts strike). That hit decides the zoom again from the new launch: it keeps its start and contact point, so the
- * camera does not jump, and ends when the new launch neither KOs nor is strong. Then a new zoom from this frame's
- * hits takes over if it outranks the running one (a Finish Zoom over a Special Zoom).
+ * camera does not jump, and ends when the new launch neither KOs nor is strong. A Final Smash's zoom keeps its
+ * length. Then a new zoom from this frame takes over if it outranks the running one (a Finish Zoom over a Special
+ * Zoom, a Final Smash over either).
  */
 export function stepZoom(s: ZoomState, m: MatchState): void {
   s.frame = m.frame;
   let z = s.zoom && m.frame <= s.zoom.until ? s.zoom : null;
-  if (z) {
+  if (z && z.kind !== 'final') {
     const { frame, x, y, seed, victim } = z;
     if (m.events.some((e) => e.type === 'hit' && e.victim === victim)) {
       const again = zoomFrom(m, victim);
