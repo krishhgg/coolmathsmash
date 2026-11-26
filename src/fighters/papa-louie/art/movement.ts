@@ -3,7 +3,6 @@ import { ease, samplePose } from '../../../render/rig/sample';
 import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, BonePose, Ease, FighterArt, Key } from '../../../render/rig/types';
 import {
-  AIR_DODGE_NEUTRAL,
   GETUP_STAND,
   LEDGE_ATTACK,
   LEDGE_CATCH_FRAMES,
@@ -1203,13 +1202,13 @@ const raw: Record<string, AnimClip> = {
   },
 
   airDodge: {
-    length: AIR_DODGE_NEUTRAL.faf - 1,
+    length: 46,
     keys: [
       key(0, FALL[0], { ease: 'out' }),
       key(3, dodge(0), { ease: 'inOut', swaps: SQUINT, z: HAND_ON_HAT }),
       key(27, dodge(6), { ease: 'inOut' }),
       key(32, undefined, { swaps: WORRIED, z: {} }),
-      key(AIR_DODGE_NEUTRAL.faf - 1, FALL[0], { swaps: {} }),
+      key(46, FALL[0], { swaps: {} }),
     ],
   },
 
@@ -1742,6 +1741,13 @@ const raw: Record<string, AnimClip> = {
     ],
   },
 };
+
+/**
+ * The air dodge, drawn over the old 46-frame neutral dodge, on the current 52 (AIR_DODGE_NEUTRAL): keys inside the
+ * intangible window (3 to 29) stay put and only the recovery after it stretches. A directional dodge plays the same
+ * clip over its own length.
+ */
+raw.airDodge = retimeClip(raw.airDodge!, 52, [[29, 29]]);
 
 const FREE = new Set(['root', 'body', 'fx1', 'fx2', 'fx3']);
 const WRISTS = new Set(['handB', 'handF']);
