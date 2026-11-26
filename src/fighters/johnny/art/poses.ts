@@ -1,5 +1,5 @@
 import { pointOf, reach, type Pose } from '../../../render/rig/author';
-import { flattenPath } from '../../../render/rig/geometry';
+import { flattenPath, poseBounds } from '../../../render/rig/geometry';
 import { samplePose, worldTransforms, type Affine, type BoneTransform } from '../../../render/rig/sample';
 import type { AnimClip, FighterArt, Key } from '../../../render/rig/types';
 import { ANKLE } from './parts';
@@ -138,18 +138,20 @@ export function key(frame: number, pose?: Pose, extra: Omit<Key, 'frame' | 'pose
 export function onFloor(clip: AnimClip): AnimClip {
   const art: FighterArt = { rig, clips: { clip }, palettes: { default: {} }, height: 0, icon: '' };
   const keys = Array.from({ length: clip.length + 1 }, (_, frame) => {
-    const { local } = samplePose(art, 'clip', frame, frame);
+    const sampled = samplePose(art, 'clip', frame, frame);
+    const bottom = poseBounds(art, sampled)[3];
     const pose: Pose = Object.fromEntries(
       rig.bones.map(({ name, x, y, rot = 0, sx = 1, sy = 1 }) => {
-        const p = local[name]!;
-        return [name, { x: p.x - x, y: p.y - y, rot: p.rot - rot, sx: p.sx / sx, sy: p.sy / sy }];
+        const p = sampled.local[name]!;
+        const lift = name === 'body' ? bottom : 0;
+        return [name, { x: p.x - x, y: p.y - y - lift, rot: p.rot - rot, sx: p.sx / sx, sy: p.sy / sy }];
       }),
     );
     const authored = clip.keys.filter((k) => k.frame === frame).reverse();
     const swaps = authored.find((k) => k.swaps)?.swaps;
     const z = authored.find((k) => k.z)?.z;
     const step = authored.find((k) => k.pose)?.ease === 'step';
-    return key(frame, grounded(pose), {
+    return key(frame, pose, {
       ease: step ? 'step' : 'linear',
       ...(swaps && { swaps }),
       ...(z && { z }),
