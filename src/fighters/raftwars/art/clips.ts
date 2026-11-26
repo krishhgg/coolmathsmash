@@ -47,7 +47,7 @@ const DEG = 180 / Math.PI;
 const round = (v: number) => Math.round(v * 1000) / 1000;
 
 /** The brother's offsets: lean (degrees, + leans forwards), head tilt, far arm, near arm and leg swing. */
-function bro(lean = 0, head = 0, armB = 0, armF = 0, leg = 0, lift = 0): Pose {
+export function bro(lean = 0, head = 0, armB = 0, armF = 0, leg = 0, lift = 0): Pose {
   return {
     bro: { rot: lean, y: -lift },
     broHead: { rot: head },
@@ -58,11 +58,11 @@ function bro(lean = 0, head = 0, armB = 0, armF = 0, leg = 0, lift = 0): Pose {
 }
 
 /** The brother hanging on with both hands, his far arm up and waving, as he cheers. */
-const BRO_CHEER = bro(4, -8, -150, 0, -20, 0.2);
+export const BRO_CHEER = bro(4, -8, -150, 0, -20, 0.2);
 /** The brother ducking behind his brother's head, head down and both arms holding on. */
-const BRO_DUCK = bro(18, 14, 30, 6, 10);
+export const BRO_DUCK = bro(18, 14, 30, 6, 10);
 /** Thrown about: leaning back, far arm flung up, leg kicking out. */
-const BRO_FLUNG = bro(-26, -18, -165, -40, -50, 0.2);
+export const BRO_FLUNG = bro(-26, -18, -165, -40, -50, 0.2);
 
 // ---------------------------------------------------------------------------------------------------------
 // Standing, crouching and the air.
@@ -72,7 +72,7 @@ const FAR_FOOT: Pt = [1.3, 0];
 const NEAR_FOOT: Pt = [-0.6, 0];
 
 /** Plants the feet and aims the launcher (`gun` degrees, 0 forwards, negative up). */
-function stand(extra: Pose, gun = -6, back: Pt = FAR_FOOT, front: Pt = NEAR_FOOT): Pose {
+export function stand(extra: Pose, gun = -6, back: Pt = FAR_FOOT, front: Pt = NEAR_FOOT): Pose {
   return aim(feet(extra, back, front), gun);
 }
 
@@ -108,7 +108,7 @@ const SQUAT = stand(
 );
 
 /** Airborne legs: the near knee lifted, the far leg trailing, toes pointing down. */
-function air(extra: Pose = {}, gun = -6, tuck = 0): Pose {
+export function air(extra: Pose = {}, gun = -6, tuck = 0): Pose {
   const pose = aim(
     mix(
       {

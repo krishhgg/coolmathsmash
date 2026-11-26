@@ -1,6 +1,7 @@
 import { shapesBounds } from '../../../render/rig/geometry';
 import { symbolsToSvg } from '../../../render/rig/svg';
 import type { FighterArt } from '../../../render/rig/types';
+import { aimedShotClips, aimedShotProp } from './aimedShot';
 import { LEDGE_GRIP, clips } from './clips';
 import { hat, head } from './parts';
 import { palettes } from './palettes';
@@ -17,8 +18,9 @@ function iconBox(): [number, number, number, number] {
 export const art: FighterArt = {
   height: 13,
   rig,
-  clips,
+  clips: { ...clips, ...aimedShotClips },
   palettes,
   ledgeGrip: LEDGE_GRIP,
   icon: symbolsToSvg(rig.symbols, ['head', 'face', 'hat'], palettes.default, iconBox()),
+  projectiles: { aimedShot: aimedShotProp },
 };

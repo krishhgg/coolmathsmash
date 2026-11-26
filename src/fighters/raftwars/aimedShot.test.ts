@@ -118,7 +118,7 @@ describe('Raft Wars kids: Aimed Shot (neutral special)', () => {
     expect(shotHit(112, 40, 60).tumble).toBe(true);
   });
 
-  it('arcs to the floor about 60 units ahead uncharged and flies its whole 60 frames, about 190 units, at full', () => {
+  it('arcs to the floor about 57 units ahead uncharged and flies its whole 60 frames, about 190 units, at full', () => {
     const range = (frames: number) => {
       const { m, a } = setup(-10, undefined, -70);
       charge(m, a, frames);
@@ -141,8 +141,8 @@ describe('Raft Wars kids: Aimed Shot (neutral special)', () => {
       };
     };
     const low = range(0);
-    expect(low.distance).toBeGreaterThan(55);
-    expect(low.distance).toBeLessThan(70);
+    expect(low.distance).toBeGreaterThan(50);
+    expect(low.distance).toBeLessThan(65);
     expect(low.reason).toBe('stage');
     const high = range(AIMED_SHOT.chargeFrames);
     expect(high.age).toBe(AIMED_SHOT.lifetime);

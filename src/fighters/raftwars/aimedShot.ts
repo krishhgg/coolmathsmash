@@ -29,13 +29,16 @@ export const AIMED_SHOT = {
   /**
    * The arc. Charge Shot flies straight; the kids' ball leaves the launcher 10 degrees up and falls back down, with
    * gravity picked so that a full-charge shot from the launcher comes down at the end of Charge Shot's 60 frames, about
-   * 190 units out. An uncharged shot lands about 60 units ahead.
+   * 190 units out. A half-charge shot lands about 113 units ahead and an uncharged one about 57.
    */
   elevation: 10,
   gravity: 0.022,
-  /** The launcher's muzzle on the firing frame, from the feet (x forward, y up), standing and in the air. */
-  muzzle: { x: 8.6, y: 7.6 },
-  airMuzzle: { x: 8.6, y: 7.6 },
+  /**
+   * Where the ball appears on the firing frame, from the feet (x forward, y up), standing and in the air: 1.5 units
+   * out of the drawn launcher's muzzle along the barrel (art/aimedShot.ts).
+   */
+  muzzle: { x: 6.2, y: 5.75 },
+  airMuzzle: { x: 6.2, y: 7.35 },
 } as const;
 
 const DEG = Math.PI / 180;
