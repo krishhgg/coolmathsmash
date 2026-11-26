@@ -37,6 +37,8 @@ export interface EntityState {
   damage: number;
   /** Frozen frames left after being hit. A projectile does not freeze when it hits something. */
   hitlag: number;
+  /** Match frame of its latest hitlag frame (-1 = none), for inHitlag. */
+  hitlagAt: number;
   /** The owner's move that spawned (or reflected) it: its hits stale that move. */
   move: string | null;
   /** Stale multiplier fixed when it first connects (0 = not connected yet). */

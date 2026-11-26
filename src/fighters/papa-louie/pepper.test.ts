@@ -65,7 +65,7 @@ describe('Papa Louie: Pepper Bomb (neutral special)', () => {
     spawnEntity(m, { kind: BURST, owner: 0, pos: { x: -60, y: 1.5 } });
     const radii: number[] = [];
     for (let i = 0; i < 3; i++) {
-      radii.push(...m.entities.flatMap((e) => entityHitboxes(e).map((b) => b.box.radius)));
+      radii.push(...m.entities.flatMap((e) => entityHitboxes(m, e).map((b) => b.box.radius)));
       runPorts(m, 1, [{}, {}]);
     }
     expect(radii).toHaveLength(2);
