@@ -51,12 +51,13 @@ function setKeys(binding: KeyboardBinding, action: ControlAction, keys: string[]
 
 /**
  * Keys every menu reads whatever the bindings say (src/ui/input.ts MENU_KEYS), and the one action each can take
- * without a press doing two things. Enter and Backspace already pause a match and act in menus, so they can only be
- * Start; Space confirms in menus, as Attack does.
+ * without a press doing two things. Enter, Escape and Backspace already pause a match and act in menus, so they can
+ * only be Start (Escape is Keyboard 1's default Pause); Space confirms in menus, as Attack does.
  */
 const MENU_KEY_ACTIONS: Readonly<Record<string, ControlAction>> = {
   Enter: 'start',
   NumpadEnter: 'start',
+  Escape: 'start',
   Backspace: 'start',
   Space: 'attack',
 };
@@ -66,6 +67,10 @@ export function menuKeyConflict(code: string, action: ControlAction): ControlAct
   const only = MENU_KEY_ACTIONS[code];
   return only !== undefined && only !== action ? only : null;
 }
+
+/** Whether every menu key a keyboard binding uses is on its one action (see menuKeyConflict). */
+export const keyboardMenusUsable = (binding: KeyboardBinding): boolean =>
+  CONTROL_ACTIONS.every((a) => boundKeys(binding, a).every((code) => menuKeyConflict(code, a) === null));
 
 /** Where a rebind took a key or button away from. */
 export interface Taken {

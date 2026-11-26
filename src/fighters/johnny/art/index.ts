@@ -1,6 +1,7 @@
 import { shapesBounds } from '../../../render/rig/geometry';
 import { symbolsToSvg } from '../../../render/rig/svg';
 import type { FighterArt } from '../../../render/rig/types';
+import { LASER, MUZZLE } from '../entities';
 import { clips } from './clips';
 import { LEDGE_GRIP } from './ledge';
 import { head } from './parts';
@@ -22,4 +23,19 @@ export const art: FighterArt = {
   palettes,
   ledgeGrip: LEDGE_GRIP,
   icon: symbolsToSvg(rig.symbols, ['head', 'grit'], palettes.default, iconBox()),
+  projectiles: {
+    /**
+     * Laser Gun's bolt: its head on the hit's centre, 6 units of streak behind it. The lab draws it from the frame
+     * after the shot (the muzzle flash covers the shot's own frame), one frame of travel past where it appears.
+     */
+    laser: {
+      symbols: rig.symbols,
+      symbol: 'laserBolt',
+      scale: 1,
+      preview: {
+        neutralB: { frame: 9, x: MUZZLE.x + LASER.speed, y: MUZZLE.y, vx: LASER.speed },
+        neutralBAir: { frame: 8, x: MUZZLE.x + LASER.speed, y: MUZZLE.airY, vx: LASER.speed },
+      },
+    },
+  },
 };

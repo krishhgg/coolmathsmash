@@ -1,6 +1,6 @@
 import { GAMEPAD_BUTTONS, KEYBOARD_BINDINGS, type KeyboardBinding } from '../input/bindings';
 import type { ButtonName } from '../input/types';
-import { padMenusUsable } from './controls';
+import { keyboardMenusUsable, padMenusUsable, resetKeyboard } from './controls';
 
 /** Player-facing settings kept in localStorage: control bindings and options. */
 export interface Settings {
@@ -36,7 +36,9 @@ function browserStorage(): StorageLike | null {
 /**
  * Saved settings over the defaults; anything missing or malformed falls back to its default. A saved gamepad mapping
  * with Pause on A or on no button at all (possible before the controls screen refused those) loads as the defaults,
- * so a controller-only player is never stuck in or out of the pause menu.
+ * so a controller-only player is never stuck in or out of the pause menu. A keyboard half with a menu key on the
+ * wrong action (Escape on Attack would pause on every attack) loads as its defaults the way Reset does, taking those
+ * keys off the other half.
  */
 export function loadSettings(storage: StorageLike | null = browserStorage()): Settings {
   const defaults = defaultSettings();
@@ -66,6 +68,9 @@ export function loadSettings(storage: StorageLike | null = browserStorage()): Se
         ]),
       ),
     };
+  });
+  keyboard.forEach((binding, i) => {
+    if (!keyboardMenusUsable(binding)) resetKeyboard(keyboard, i);
   });
   const gamepad = Object.fromEntries(
     Object.entries(defaults.gamepad).map(([name, indices]) => {
