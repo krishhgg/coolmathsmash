@@ -9,7 +9,9 @@ import { koPercent } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { input, type Hold } from '../../sim/testing/sim';
 import { registerFighter } from '../registry';
+import { art } from './art';
 import { CONVEYOR, finalSmash, finalSmashCinematic, oven } from './finalSmash';
+import type { SymbolLoop } from '../../render/rig/types';
 
 registerFighter(marioReference);
 
@@ -157,8 +159,11 @@ describe('Conveyor Oven (Final Smash), on House of Boom', () => {
       stale: 1,
       rage: 1,
     });
-    expect(hitsOn(seen, 1)).toEqual([expect.objectContaining({ type: 'hit', damage: 0, hitlag: 0 })]);
-    expect(hitsOn(seen, 1)[0]!.type === 'hit' && hitsOn(seen, 1)[0]!.kb).toBeCloseTo(kb, 6);
+    const hits = seen.filter(
+      (e): e is Extract<SimEvent, { type: 'hit' }> => e.type === 'hit' && e.victim === 1,
+    );
+    expect(hits).toEqual([expect.objectContaining({ damage: 0, hitlag: 0 })]);
+    expect(hits[0]!.kb).toBeCloseTo(kb, 6);
     stepUntil(m, () => a.move === 'finalSmashCinematic');
     expect(v.action).toBe('grabbed');
   });
@@ -226,12 +231,12 @@ describe('Conveyor Oven (Final Smash), on House of Boom', () => {
   it("KOs Mario at the ledge from 31%, within 5 points of House of Boom's final hit, and from 62% at centre stage", () => {
     const move = { fighter: 'papa-louie', move: 'finalSmashCinematic' };
     const analogue = { damage: 45, angle: 35, kbg: 34, bkb: 60 };
-    const ledge = koPercent({ hit: move });
-    expect(Math.abs(ledge - koPercent({ hit: analogue }))).toBeLessThanOrEqual(5);
+    const ledge = koPercent({ hit: move })!;
+    expect(Math.abs(ledge - koPercent({ hit: analogue })!)).toBeLessThanOrEqual(5);
     expect(ledge).toBeGreaterThanOrEqual(29);
     expect(ledge).toBeLessThanOrEqual(33);
-    const centre = koPercent({ hit: move, from: 'centre' });
-    expect(Math.abs(centre - koPercent({ hit: analogue, from: 'centre' }))).toBeLessThanOrEqual(5);
+    const centre = koPercent({ hit: move, from: 'centre' })!;
+    expect(Math.abs(centre - koPercent({ hit: analogue, from: 'centre' })!)).toBeLessThanOrEqual(5);
     expect(centre).toBeGreaterThanOrEqual(60);
     expect(centre).toBeLessThanOrEqual(65);
   });
@@ -284,6 +289,23 @@ describe('Conveyor Oven (Final Smash), on House of Boom', () => {
     }
     expect(caught).toBe(true);
     expect(v.damage).toBeCloseTo(15 + 45 * 1.05, 6);
+  });
+
+  it('has a clip for each move on its frame data, and the oven shuts on the 15% and blasts on the final hit', () => {
+    expect(art.clips.finalSmash?.length).toBe(finalSmash.faf - 1);
+    expect(art.clips.finalSmash?.active).toEqual([CONVEYOR.jolt, CONVEYOR.catch]);
+    expect(art.clips.finalSmashCinematic?.length).toBe(finalSmashCinematic.faf - 1);
+    expect(art.clips.finalSmashCinematic?.active).toEqual([[CONVEYOR.blast, CONVEYOR.blast]]);
+    const prop = art.projectiles?.oven;
+    expect(prop?.symbol).toBe('ovenFlipbook');
+    const book = art.rig.symbols.ovenFlipbook as SymbolLoop;
+    expect(book.fps).toBe(60);
+    expect(book.loop.length).toBeGreaterThan(oven.lifetime!);
+    expect(book.loop[CONVEYOR.inOven - 1]).toMatch(/^ovenOpen/);
+    expect(book.loop[CONVEYOR.inOven]).toBe('ovenSlam');
+    expect(book.loop[CONVEYOR.blast - 1]).toMatch(/^ovenShake/);
+    expect(book.loop[CONVEYOR.blast]).toMatch(/^ovenBlast/);
+    for (const name of book.loop) expect(art.rig.symbols[name], name).toBeDefined();
   });
 
   it('lets a CPU fire it at an opponent in its reach (finalReach), at once', () => {

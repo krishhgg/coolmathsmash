@@ -46,7 +46,7 @@ export const CONVEYOR = {
   blast: 110,
   cinematicFaf: 140,
   /** Where the oven bursts up, from Papa's feet: round the held foe, just in front of him. */
-  ovenX: 14,
+  ovenX: 13,
 };
 
 /** House of Boom's stretched box from `from` to `to` (forward) as circles no further apart than their radius. */
