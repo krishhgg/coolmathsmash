@@ -1,6 +1,6 @@
 import { allFighters } from '../../fighters/registry';
 import { emit } from '../events';
-import type { Ctx } from '../fighter';
+import { inHitlag, type Ctx } from '../fighter';
 import type { MatchState } from '../match';
 import type { Vec } from '../vec';
 import type { PlacedHitbox } from '../combat/hits';
@@ -53,6 +53,7 @@ export function spawnEntity(m: MatchState, o: SpawnOptions): EntityState {
     hp: def.hp ?? 0,
     damage: 0,
     hitlag: 0,
+    hitlagAt: -1,
     move: o.move ?? null,
     stale: 0,
     damageMul: chargeScale(o.charge ?? 0, def.chargeDamage ?? 1),
@@ -106,9 +107,9 @@ export const isHittable = (def: EntityDef) => def.hp !== undefined;
 export const isReflectable = (def: EntityDef) => def.reflectable ?? (!!def.hits?.length && !isHittable(def));
 export const isAbsorbable = (def: EntityDef) => def.absorbable ?? (!!def.hits?.length && !isHittable(def));
 
-/** The entity's hitboxes out this frame, placed in the world. */
-export function entityHitboxes(e: EntityState): PlacedHitbox[] {
-  if (e.dead || e.hitlag > 0) return [];
+/** The entity's hitboxes out on this frame of `m`, placed in the world; none while it is frozen in hitlag. */
+export function entityHitboxes(m: MatchState, e: EntityState): PlacedHitbox[] {
+  if (e.dead || inHitlag(m, e)) return [];
   const hits = entityDef(e.kind).hits;
   if (!hits) return [];
   return hits
@@ -117,6 +118,6 @@ export function entityHitboxes(e: EntityState): PlacedHitbox[] {
 }
 
 /** Its strongest hit this frame after reflections, for clanks and reflector/absorber limits. */
-export function entityPower(e: EntityState): number {
-  return Math.max(0, ...entityHitboxes(e).map(({ box }) => (box.pushOnly ? 0 : box.damage))) * e.damageMul;
+export function entityPower(m: MatchState, e: EntityState): number {
+  return Math.max(0, ...entityHitboxes(m, e).map(({ box }) => (box.pushOnly ? 0 : box.damage))) * e.damageMul;
 }
