@@ -1,7 +1,7 @@
 import { pointOf, reach, type Pose } from '../../../render/rig/author';
 import { flattenPath } from '../../../render/rig/geometry';
-import { worldTransforms, type Affine, type BoneTransform } from '../../../render/rig/sample';
-import type { Key } from '../../../render/rig/types';
+import { samplePose, worldTransforms, type Affine, type BoneTransform } from '../../../render/rig/sample';
+import type { AnimClip, FighterArt, Key } from '../../../render/rig/types';
 import { ANKLE } from './parts';
 import { FOOT, HAND, rig } from './rig';
 
@@ -35,11 +35,8 @@ function worldRot(pose: Pose): Record<string, number> {
   );
 }
 
-/**
- * Lifts an airborne drawing (through `body`) until nothing hangs below the rig root, the floor he lands on, so he
- * never sinks into a platform in the air and pops up when he touches down.
- */
-export function aloft(pose: Pose): Pose {
+/** The lowest drawn point of `pose` in rig y (down), with each slot wearing its rest symbol. */
+function lowest(pose: Pose): number {
   const world = worldOf(pose);
   let low = -Infinity;
   for (const slot of rig.slots) {
@@ -50,7 +47,21 @@ export function aloft(pose: Pose): Pose {
       for (const pts of flattenPath(shape.d, 4))
         for (let i = 0; i < pts.length; i += 2) low = Math.max(low, m.b * pts[i]! + m.d * pts[i + 1]! + m.ty);
   }
+  return low;
+}
+
+/**
+ * Lifts an airborne drawing (through `body`) until nothing hangs below the rig root, the floor he lands on, so he
+ * never sinks into a platform in the air and pops up when he touches down.
+ */
+export function aloft(pose: Pose): Pose {
+  const low = lowest(pose);
   return low <= 0 ? pose : mix(pose, { body: { y: (pose.body?.y ?? 0) - low } });
+}
+
+/** Moves a drawing (through `body`) up or down until its lowest point rests on the floor: rolls and lying poses. */
+export function grounded(pose: Pose): Pose {
+  return mix(pose, { body: { y: (pose.body?.y ?? 0) - lowest(pose) } });
 }
 
 /** Turns one boot so its sole meets the world at `deg` degrees (0: flat, toes forward; 90: toes down). */
@@ -119,6 +130,34 @@ export function key(frame: number, pose?: Pose, extra: Omit<Key, 'frame' | 'pose
   return pose ? { frame, pose, ...extra } : { frame, ...extra };
 }
 
+/**
+ * `clip` keyed on every frame, each one moved up or down (through `body`) so its lowest point rests on the floor.
+ * A tween between two planted poses can bend a knee through the floor or lift the boots off it; keying every frame
+ * on the floor stops that. Swaps, draw orders and step keys stay on their frames.
+ */
+export function onFloor(clip: AnimClip): AnimClip {
+  const art: FighterArt = { rig, clips: { clip }, palettes: { default: {} }, height: 0, icon: '' };
+  const keys = Array.from({ length: clip.length + 1 }, (_, frame) => {
+    const { local } = samplePose(art, 'clip', frame, frame);
+    const pose: Pose = Object.fromEntries(
+      rig.bones.map(({ name, x, y, rot = 0, sx = 1, sy = 1 }) => {
+        const p = local[name]!;
+        return [name, { x: p.x - x, y: p.y - y, rot: p.rot - rot, sx: p.sx / sx, sy: p.sy / sy }];
+      }),
+    );
+    const authored = clip.keys.filter((k) => k.frame === frame).reverse();
+    const swaps = authored.find((k) => k.swaps)?.swaps;
+    const z = authored.find((k) => k.z)?.z;
+    const step = authored.find((k) => k.pose)?.ease === 'step';
+    return key(frame, grounded(pose), {
+      ease: step ? 'step' : 'linear',
+      ...(swaps && { swaps }),
+      ...(z && { z }),
+    });
+  });
+  return { ...clip, keys };
+}
+
 const LIMBS = ['armB', 'foreB', 'armF', 'foreF', 'thighB', 'shinB', 'footB', 'thighF', 'shinF', 'footF'];
 
 /**
@@ -182,6 +221,18 @@ export const STANCE = hands(
   mix(feet({ hip: { y: 0.25 }, body: { rot: 2 } }, [3.0, 0], [-2.4, 0]), { footF: { sx: -1 } }),
   [5.7, -9.0],
   [-3.7, -8.9],
+  -1,
+  1,
+);
+
+/** Turnaround pivot: squared up to the camera, fists on his hips, boots splayed; nearly the same drawing either way round. */
+export const PIVOT = hands(
+  mix(
+    feet({ hip: { y: 0.45 }, armF: { x: -0.35 }, armB: { x: 0.35 }, neck: { y: 0.15 } }, [3.5, 0], [-3.1, 0]),
+    { footF: { sx: -1 } },
+  ),
+  [4.3, -4.6],
+  [-3.6, -4.7],
   -1,
   1,
 );
