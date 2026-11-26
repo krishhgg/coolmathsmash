@@ -653,19 +653,22 @@ const PB_WIND = (() => {
   const p = grip(stance(-0.7, 0.75, -14, -1.6, 1.2, { head: { rot: -6 } }), [3.9, -7.0], -118, [-3.7, -11.0]);
   return propAt(p, [-4.2, -12.2]);
 })();
-/** The arm whipping over his head, the body coming forward. */
+/** The arm whipping over his head, the body coming forward and the peel swinging back over his shoulder. */
 const PB_WHIP = (() => {
-  const p = grip(stance(0.3, 0.55, 6, -1.3, 1.5), [0.9, -6.2], -170, [0.6, -12.6]);
+  const p = grip(stance(0.3, 0.55, 6, -1.3, 1.5), [-0.9, -5.8], 120, [0.6, -12.6]);
   return propAt(p, [1.4, -13.6]);
 })();
-/** The release: the arm out long ahead of him, the bomb on the spawn point. */
+/** The release: the arm out long ahead of him, the bomb on the spawn point, the peel trailing back for balance. */
 const PB_RELEASE = (() => {
-  const p = grip(stance(0.9, 0.6, 16, -1.2, 1.8), [1.0, -5.6], -174, [5.3, -9.7]);
+  const p = grip(stance(0.9, 0.6, 16, -1.2, 1.8), [-1.6, -5.6], 75, [5.3, -9.7]);
   return propAt(p, PEPPER_AT);
 })();
 /** Following through low and forward, the hand empty. */
-const PB_FOLLOW = grip(stance(1.1, 0.85, 22, -1.0, 2.0), [1.4, -5.2], -160, [5.8, -6.2]);
+const PB_FOLLOW = grip(stance(1.1, 0.85, 22, -1.0, 2.0), [-1.4, -5.6], 80, [5.8, -6.2]);
+const PB_FOLLOW_LOW = grip(stance(1.0, 0.8, 18, -1.0, 2.0), [-1.0, -5.6], 88, [5.0, -5.0]);
 const PB_SETTLE = grip(stance(0.5, 0.7, 10, -1.1, 1.6), [2.4, -5.4], -165, [3.4, -4.4]);
+/** The throwing arm in front of his body, the peel behind it. */
+const PB_THROW_Z = { ...BACK_ARM_FRONT, ...PADDLE_BEHIND };
 /** The throwing arm's arc: pivots at the back shoulder, its thick edge on the arm. */
 const pbSmear = (pose: Pose, s: number): BonePose => {
   const shoulder = at(pose, 'armB');
@@ -744,14 +747,14 @@ const clips: Record<string, AnimClip> = {
       key(0, STAND, { ease: 'out' }),
       key(3, PB_REACH, { ease: 'inOut', swaps: { ...ANGRY, prop: 'pepperBomb' } }),
       key(9, PB_WIND, { ease: 'in', swaps: { ...GRIT, prop: 'pepperBomb' } }),
-      key(12, PB_WHIP, { ease: 'linear', swaps: { ...SHOUT, prop: 'pepperBomb' }, z: BACK_ARM_FRONT }),
+      key(12, PB_WHIP, { ease: 'linear', swaps: { ...SHOUT, prop: 'pepperBomb' }, z: PB_THROW_Z }),
       key(13, PB_RELEASE, { ease: 'out' }),
       key(14, mix(PB_FOLLOW, { fx1: pbSmear(PB_RELEASE, 0.62) }), {
         ease: 'out',
         swaps: { ...SHOUT, fx1: 'swoosh' },
       }),
       key(16, undefined, { swaps: SHOUT }),
-      key(19, PB_FOLLOW, { ease: 'inOut' }),
+      key(19, PB_FOLLOW_LOW, { ease: 'inOut' }),
       key(26, PB_SETTLE, { ease: 'inOut', swaps: GRIT, z: {} }),
       key(39, STAND, { swaps: {} }),
     ],

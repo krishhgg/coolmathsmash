@@ -165,6 +165,8 @@ describe('papa louie art', () => {
     expect(Math.hypot(m.tx - x, m.ty + y)).toBeLessThan(1);
     for (let f = frame; f <= art.clips.neutralB!.length; f++)
       expect(samplePose(art, 'neutralB', f, f).symbols.prop, `neutralB@${f}`).toBeNull();
+    for (let f = 0; f <= art.clips.neutralB!.length; f++)
+      expect(poseBounds(art, samplePose(art, 'neutralB', f, f))[3], `neutralB@${f}`).toBeLessThan(0.05);
     expect(art.projectiles?.pepperBomb?.preview?.neutralB?.frame).toBe(frame);
   });
 
