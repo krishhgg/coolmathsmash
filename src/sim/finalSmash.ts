@@ -54,28 +54,30 @@ function holds(u: Readonly<FighterState>): boolean {
   return u.actionFrame <= freezeOf(final);
 }
 
-/** Who the Final Smash freeze held on the last frame (MatchState.finalHold): fighters by port, entities by id. */
+/** Who the Final Smash freeze holds on this frame (MatchState.finalHold): fighters by port, entities by id. */
 export interface FinalHold {
   fighters: number[];
   entities: number[];
 }
 
 /**
+ * `f` is held by a Final Smash on this frame of `m`. stepFighter skips its freezing statuses then, which otherwise
+ * count down through hitlag, so a paralysis waits out the freeze like every other status.
+ */
+export function heldStill(m: MatchState, f: Readonly<FighterState>): boolean {
+  return m.finalHold?.fighters.includes(f.port) ?? false;
+}
+
+/**
  * The Final Smash freeze, once every fighter, entity and hit of the frame is done (stepMatch): while a Final Smash
- * activates or traps someone, every other fighter and entity is held for the next frame. Holding gives it two frames
- * of hitlag and takes one back at the end of that frame, so it never acts (actions, launches, timers, lifetimes all
- * wait) and every pass of the frame sees it in hitlag: it isn't pushed, its hitboxes and grab boxes stay out, and
- * hazards and projectile contacts pass it by. The user plays on, and so does a trapped fighter, and so do the
- * projectiles the Final Smash itself put out. Reading only the end of the frame keeps it the same whatever the port
- * order.
+ * activates or traps someone, every other fighter and entity is held for the next frame. Holding gives it one frame
+ * of hitlag, so it never acts (actions, launches, statuses, freezing ones included, and lifetimes all wait) and every
+ * pass of the frame sees it in hitlag (inHitlag): it isn't pushed, its hitboxes and grab boxes stay out, and hazards
+ * and projectile contacts pass it by. The user plays on, and so does a trapped fighter, and so do the projectiles the
+ * Final Smash itself put out. Reading only the end of the frame keeps it the same whatever the port order.
  */
 export function holdStill(m: MatchState): void {
-  const last = m.finalHold;
-  if (last) {
-    for (const f of m.fighters) if (last.fighters.includes(f.port)) f.hitlag = Math.max(0, f.hitlag - 1);
-    for (const e of m.entities) if (last.entities.includes(e.id)) e.hitlag = Math.max(0, e.hitlag - 1);
-    delete m.finalHold;
-  }
+  delete m.finalHold;
   const users = m.fighters.filter(holds);
   if (users.length === 0) return;
   const plays = (f: FighterState) =>
@@ -83,12 +85,12 @@ export function holdStill(m: MatchState): void {
   const hold: FinalHold = { fighters: [], entities: [] };
   for (const f of m.fighters) {
     if (plays(f)) continue;
-    f.hitlag += 2;
+    f.hitlag++;
     hold.fighters.push(f.port);
   }
   for (const e of m.entities) {
     if (users.some((u) => u.port === e.owner && isFinalMove(u.fighter, e.move))) continue;
-    e.hitlag += 2;
+    e.hitlag++;
     hold.entities.push(e.id);
   }
   m.finalHold = hold;

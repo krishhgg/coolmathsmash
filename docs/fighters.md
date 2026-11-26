@@ -425,8 +425,8 @@ SmashWiki gives no length for the activation freeze, so 40 frames is an estimate
 move. The others are held on the move's frames 2 to `freeze` + 1, so nothing in the activation move may come out
 before frame `freeze` + 2 (`fighters.test.ts` checks it). The freeze holds every other fighter and entity in hitlag
 for each frame it lasts (`holdStill`, at the end of `stepMatch`, listing them in `MatchState.finalHold`), so actions,
-launches, statuses and lifetimes wait, and nothing held is pushed, hits, grabs or is touched by hazards. It reads only
-the end of the frame, so port order doesn't change it.
+launches, statuses (freezing ones such as paralysis included) and lifetimes wait, and nothing held is pushed, hits,
+grabs or is touched by hazards. It reads only the end of the frame, so port order doesn't change it.
 
 A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned beams. Fireboy's Fire Blast
 (`src/fighters/fireboy/finalSmash.ts`) is the roster example: Mario Finale's frame data, damage and knockback on a
@@ -701,8 +701,9 @@ dthrow: { ..., throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55
   the hit's hitlag is (the box's `hitlag` multiplier, x0.67 on a crouch cancel), before the length is floored.
 - **Freezing.** A `freeze` status holds the fighter as hitlag does: no action, physics or timers, and the launch waits
   for it. It ticks on every frame from the one after it went on, hitlag included, so a hit that applies one freezes the
-  victim for the longer of its hitlag and the status. Other statuses pause while it lasts, and other fighters can't
-  push it, on the frame it runs out too. The renderer shakes the fighter and flickers it in the status's `color`.
+  victim for the longer of its hitlag and the status, except that it waits while a Final Smash holds the fighter.
+  Other statuses pause while it lasts, and other fighters can't push it, on the frame it runs out too. The renderer
+  shakes the fighter and flickers it in the status's `color`.
 - **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status. With `endOnHit`, a later
   hit that lands (not on a shield), a pummel or a throw's hold hit included, takes it off, reported as `statusEnd` with
   reason `hit`. That hit's hitlag and launch take over, and no hit landing on the same frame can put the same status

@@ -170,15 +170,18 @@ export function jumpSquatAttack(x: Ctx): boolean {
   return false;
 }
 
-/** Airborne attack inputs: Attack or the C-stick picks an aerial by direction relative to facing; Special a special. */
-export function airAttack(x: Ctx): boolean {
+/**
+ * Airborne attack inputs: Attack or the C-stick picks an aerial by direction relative to facing; Special a special,
+ * unless `specials` is false (a hitstun cancel allows aerials only).
+ */
+export function airAttack(x: Ctx, specials = true): boolean {
   const { f, c } = x;
   const cDir = cStickDir(c, f.facing);
   if (cDir !== 'neutral') {
     consumeCStick(c);
     return startMove(x, AERIAL[cDir]);
   }
-  if (buffered(c, Btn.Special)) return special(x);
+  if (specials && buffered(c, Btn.Special)) return special(x);
   if (!buffered(c, Btn.Attack)) return false;
   consume(c, Btn.Attack);
   return startMove(x, AERIAL[stickDir(c, f.facing)]);

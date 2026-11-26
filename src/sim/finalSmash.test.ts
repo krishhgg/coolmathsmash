@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { hashState } from '../engine/hash';
+import { PARALYZED } from '../fighters/bob-the-robber/entities';
 import { registerFighter } from '../fighters/registry';
 import type { InputFrame } from '../input/types';
 import { isIntangible } from './actions/registry';
@@ -7,10 +8,11 @@ import { knockback } from './combat/formulas';
 import { spawnEntity } from './entities/entities';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
-import { FINAL_SMASH } from './finalSmash';
+import { FINAL_SMASH, heldStill } from './finalSmash';
 import { SMASH_BALL } from './items/spawn';
 import { createMatch, stepMatch, type MatchConfig, type MatchState } from './match';
 import { decodeReplay, encodeReplay } from './replay';
+import { applyStatus, isFrozen, statusOf } from './statuses';
 import {
   finalBlast,
   finalCinematic,
@@ -298,6 +300,42 @@ describe('Final Smash rules', () => {
     expect(step(m, 1).filter((e) => e.type === 'hit')).toEqual([
       expect.objectContaining({ attacker: 1, victim: 2 }),
     ]);
+  });
+
+  it("pauses a held fighter's paralysis: it has as many frames left after the freeze as before", () => {
+    const m = match([DIRECT, NONE], [-60, 40]);
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    applyStatus(m, v, PARALYZED, { frames: 60 });
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    const left = statusOf(v, PARALYZED)!.frames;
+    expect(left).toBeGreaterThan(55);
+    for (let i = 0; i < FREEZE; i++) {
+      step(m, 1);
+      expect([statusOf(v, PARALYZED)?.frames, isFrozen(m, v)]).toEqual([left, true]);
+    }
+    step(m, 1);
+    expect(statusOf(v, PARALYZED)?.frames).toBe(left - 1);
+  });
+
+  it("pauses a held fighter's paralysis through a trap's whole cinematic, longer than the paralysis", () => {
+    const m = match([TRAP, NONE, NONE], [-30, -16, 60]);
+    const [a, v, w] = m.fighters as [FighterState, FighterState, FighterState];
+    applyStatus(m, w, PARALYZED, { frames: 60 });
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    const left = statusOf(w, PARALYZED)!.frames;
+    let frames = 0;
+    let free = 0;
+    for (; frames < 400 && (a.move === 'finalSmash' || a.grabPartner >= 0); frames++) {
+      if (!heldStill(m, w)) free++;
+      step(m, 1);
+    }
+    expect(v.damage).toBeGreaterThan(24);
+    expect(frames).toBeGreaterThan(left);
+    // Every port acts on the catch frame, the one frame between the activation freeze and the cinematic.
+    expect(free).toBe(1);
+    expect(statusOf(w, PARALYZED)?.frames).toBe(left - 1);
   });
 
   it('lands a direct hit with its own damage and launch, straight through a shield', () => {
