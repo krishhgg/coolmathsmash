@@ -208,6 +208,32 @@ describe('Fire Blast (Final Smash), on Mario Finale', () => {
     expect(a.action).toBe('fall');
   });
 
+  it('still puts the fire out when the rising raft lands him first (Raft War Lagoon, hazards on)', () => {
+    const m = createMatch({
+      seed: 1,
+      stage: 'raft-wars-water',
+      hazards: true,
+      stocks: 3,
+      ports: [{ fighter: 'fireboy' }, { fighter: marioReference.id }],
+    });
+    step(m, 20);
+    const a = m.fighters[0]!;
+    Object.assign(a, {
+      pos: { x: -30, y: 0.4 },
+      prevPos: { x: -30, y: 0.4 },
+      vel: { x: 0, y: 0 },
+      ground: null,
+    });
+    Object.assign(a, { action: 'fall', actionFrame: 1, facing: 1, finalReady: true });
+    step(m, 1, [SPECIAL]);
+    expect(a.move).toBe('finalSmashAir');
+    step(m, BLAST.frame - 1);
+    expect(a.ground).not.toBe(null);
+    expect([a.move, a.actionFrame]).toEqual(['finalSmashAir', BLAST.frame]);
+    expect(m.entities.filter((e) => e.kind === 'fireboy/blast')).toHaveLength(1);
+    expect(a.vel.y).toBeLessThanOrEqual(0);
+  });
+
   it('carries a Mario-weight fighter 30 units in front through most of its hits at any percent', () => {
     const hits = (percent: number) => {
       const { m, v } = blastMatch(percent);

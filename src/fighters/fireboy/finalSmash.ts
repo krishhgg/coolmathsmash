@@ -140,6 +140,8 @@ export const finalSmashAir: MoveDef = {
   spawn,
   script(x) {
     const { f } = x;
+    // Only in the air: a platform rising under him can land him mid-move, which then plays on, grounded.
+    if (f.ground) return;
     if (f.actionFrame === BLAST.frame) f.vel = { x: RECOIL.x * f.facing, y: RECOIL.y };
     else if (f.actionFrame > BLAST.frame) f.vel = { x: f.vel.x * RECOIL.decay, y: f.vel.y * RECOIL.decay };
   },
