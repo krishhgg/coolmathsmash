@@ -27,10 +27,12 @@ import {
   smears,
   spark,
   stars,
+  taser,
   thigh,
   torso,
   twirl,
   upperArm,
+  zaps,
 } from './parts';
 
 /** Outline slots for both segments of a limb, then their fills, so the elbow or knee has no seam. */
@@ -146,6 +148,8 @@ export const rig: Rig = {
     stars,
     ...smears,
     twirl,
+    taser,
+    ...zaps,
   },
 };
 

@@ -18,7 +18,7 @@ import type { Ctx, FighterState } from './fighter';
 import type { MatchState, PlayerState } from './match';
 import { resetMetersOnKo, tickMeters } from './meters';
 import { airMove, groundMove } from './movement';
-import { clearStatusesOnKo, tickStatuses } from './statuses';
+import { clearStatusesOnKo, tickFreezes, tickStatuses } from './statuses';
 
 export { compiledStage, makeCtx } from './context';
 
@@ -28,10 +28,12 @@ export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): voi
   f.prevPos = { x: f.pos.x, y: f.pos.y };
   dropLostTether(m, f);
   rideAnchor(m, f);
+  const frozen = tickFreezes(x);
   if (f.hitlag > 0) {
     f.hitlag--;
     return;
   }
+  if (frozen) return;
   if (f.launch) applyLaunch(x);
   else if (f.launchMotion) stepLaunchMotion(x);
   f.actionFrame++;
