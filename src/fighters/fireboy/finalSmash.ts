@@ -39,7 +39,7 @@ export const BLAST = {
 };
 
 /** One row of Mario Finale's hitbox table: both fireballs' values, and which fighters they hit. */
-interface Row {
+export interface MarioFinaleRow {
   damage: number;
   bkb: number;
   kbg: number;
@@ -47,12 +47,14 @@ interface Row {
   angles: [number, number];
   targets: HitboxDef['targets'];
 }
+type Row = MarioFinaleRow;
 
 /**
  * Mario Finale's three windows, in move frames, with their rows. The mid and late windows each have an aerial-only row
- * (ids 0 and 1) and a grounded-only row (ids 2 and 3); the early window's one row hits both.
+ * (ids 0 and 1) and a grounded-only row (ids 2 and 3); the early window's one row hits both. Watergirl's Tidal Wave
+ * (src/fighters/watergirl/finalSmash.ts) takes the same table.
  */
-const WINDOWS: { frames: [number, number]; rows: Row[] }[] = [
+export const MARIO_FINALE: { frames: [number, number]; rows: Row[] }[] = [
   { frames: [65, 104], rows: [{ damage: 2.5, bkb: 25, kbg: 40, angles: [50, 48], targets: 'both' }] },
   {
     frames: [105, 154],
@@ -86,14 +88,17 @@ const fireballs = (row: Row, id: number): HitboxDef[] =>
     ...(row.targets !== 'both' && { targets: row.targets }),
   }));
 
-/** Each window cut into 7-frame rehit windows over the blast's age (age 1 = move frame BLAST.frame). */
-function blastHits(): HitWindow[] {
+/**
+ * Mario Finale's windows cut into 7-frame rehit windows over the age of an entity spawned on its first hit frame (age
+ * 1 = move frame BLAST.frame), with `boxes` drawing each row's two hitboxes from its first id.
+ */
+export function marioFinaleHits(boxes: (row: Row, id: number) => HitboxDef[]): HitWindow[] {
   const out: HitWindow[] = [];
-  for (const w of WINDOWS) {
-    const boxes = w.rows.flatMap((row, i) => fireballs(row, i * 2));
+  for (const w of MARIO_FINALE) {
+    const all = w.rows.flatMap((row, i) => boxes(row, i * 2));
     for (let f = w.frames[0]; f <= w.frames[1]; f += BLAST.rehit) {
       const end = Math.min(f + BLAST.rehit - 1, w.frames[1]);
-      out.push({ frames: [f - BLAST.frame + 1, end - BLAST.frame + 1], rehit: true, boxes });
+      out.push({ frames: [f - BLAST.frame + 1, end - BLAST.frame + 1], rehit: true, boxes: all });
     }
   }
   return out;
@@ -110,7 +115,7 @@ export const blast: EntityDef = {
   reflectable: false,
   absorbable: false,
   kind: 'other',
-  hits: blastHits(),
+  hits: marioFinaleHits(fireballs),
 };
 
 const spawn = [{ frame: BLAST.frame, entity: 'blast', x: BLAST.x, y: BLAST.y, vx: BLAST.speed }];

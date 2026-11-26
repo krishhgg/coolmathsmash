@@ -1,4 +1,5 @@
 import type { EntityDef } from '../../sim/entities/types';
+import { wave } from './finalSmash';
 
 /**
  * Water Stream's pumps are Mario's F.L.U.D.D. pumps in Ultimate (SmashWiki, Mario (SSBU)/Down special, hitbox and
@@ -33,6 +34,8 @@ function pump(tier: number): EntityDef {
   };
 }
 
-export const entities: Record<string, EntityDef> = Object.fromEntries(
-  Array.from({ length: PUMP.tiers + 1 }, (_, tier) => [`pump${tier}`, pump(tier)]),
-);
+export const entities: Record<string, EntityDef> = {
+  ...Object.fromEntries(Array.from({ length: PUMP.tiers + 1 }, (_, tier) => [`pump${tier}`, pump(tier)])),
+  /** Tidal Wave's wave, Mario Finale's fireballs (finalSmash.ts). */
+  wave,
+};
