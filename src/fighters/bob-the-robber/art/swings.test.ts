@@ -5,7 +5,28 @@ import type { PathShape } from '../../../render/rig/types';
 import { art } from '.';
 
 /** Swings checked frame by frame. Bob's other grounded clips still dip into the floor, so they join once fixed. */
-const SWINGS = ['jab', 'jab2', 'jab3', 'ftilt', 'utilt', 'dtilt', 'dashAttack', 'fsmash'];
+const SWINGS = [
+  'jab',
+  'jab2',
+  'jab3',
+  'ftilt',
+  'utilt',
+  'dtilt',
+  'dashAttack',
+  'fsmash',
+  'dsmash',
+  'getupAttack',
+  'dashGrab',
+  'dthrow',
+  'ledgeAttack',
+];
+
+/**
+ * The frame each swing's checks start from. The ledge attack opens with the ledge climb, drawn frame by frame and
+ * shared with ledgeClimb and ledgeRoll, so its checks start on frame 12, where the climb leaves him standing.
+ */
+const FROM: Record<string, number> = { ledgeAttack: 12 };
+const from = (name: string) => FROM[name] ?? 0;
 
 /** How far a drawn part may reach below the floor (rig y 0), as in Fireboy's rolls and Runner's getup attack. */
 const SINK = 0.2;
@@ -121,7 +142,7 @@ describe("bob's baton swings", () => {
   it('keeps every drawn part, the baton tip included, above the floor on every frame', () => {
     const sunk: string[] = [];
     for (const name of SWINGS)
-      for (let f = 0; f <= art.clips[name]!.length; f++) {
+      for (let f = from(name); f <= art.clips[name]!.length; f++) {
         const pose = samplePose(art, name, f, f);
         const bottom = poseBounds(art, pose)[3];
         const m = pose.world.baton!;
@@ -135,8 +156,8 @@ describe("bob's baton swings", () => {
   it(`turns no drawn part more than ${TURN} degrees between frames, or ${STRIKE} as it strikes`, () => {
     const spun: string[] = [];
     for (const name of SWINGS) {
-      let prev = samplePose(art, name, 0, 0);
-      for (let f = 1; f <= art.clips[name]!.length; f++) {
+      let prev = samplePose(art, name, from(name), from(name));
+      for (let f = from(name) + 1; f <= art.clips[name]!.length; f++) {
         const pose = samplePose(art, name, f, f);
         const before = drawn(prev);
         const limit = striking(name, f) ? STRIKE : TURN;
@@ -153,8 +174,8 @@ describe("bob's baton swings", () => {
   it('never moves a held prop in front of or behind a part it covers from one frame to the next', () => {
     const popped: string[] = [];
     for (const name of SWINGS) {
-      let prev = samplePose(art, name, 0, 0);
-      for (let f = 1; f <= art.clips[name]!.length; f++) {
+      let prev = samplePose(art, name, from(name), from(name));
+      for (let f = from(name) + 1; f <= art.clips[name]!.length; f++) {
         const pose = samplePose(art, name, f, f);
         const [was, now] = [layers(prev), layers(pose)];
         for (const prop of PROPS.filter((p) => drawing(prev, p) && drawing(pose, p)))
