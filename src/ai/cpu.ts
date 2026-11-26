@@ -650,7 +650,9 @@ export class Cpu {
   ): Attack[] {
     const opp = getFighter(snap.fighter).stats;
     const offstageOk = edgeguarding && this.lv.level >= 6;
-    const arrive = arrival(target.far ?? target.path, state.fighters[this.port]!.pos.x, opp.runSpeed);
+    const arrive = attacks.some((a) => a.shot)
+      ? arrival(target.far ?? target.path, state.fighters[this.port]!.pos.x, opp.runSpeed)
+      : 0;
     const out: Attack[] = [];
     for (const a of attacks) {
       const s = (target.far ?? target.path)[a.tHit]!;

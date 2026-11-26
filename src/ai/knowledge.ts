@@ -46,7 +46,10 @@ export interface ProbeSpawn {
   /** Frames after the input frame that it appears, counted like ProbeFrame.t. Its hits start that frame. */
   t: number;
   kind: string;
-  /** Where it appears from where the fighter started (dx, dy) and from where the fighter is on that frame (ox, oy), facing right. */
+  /**
+   * Where it appears, facing right: from where the fighter started (dx, dy) and from where the fighter is on that
+   * frame (ox, oy).
+   */
   dx: number;
   dy: number;
   ox: number;
