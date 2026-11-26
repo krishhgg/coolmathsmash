@@ -733,6 +733,8 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   standing on it has `ground: { kind: 'entity', index: <entity id>, x1, x2, y }`, and `standingOn(m, e)` lists who
   does. It carries nobody and has no ledges, so give the entity no velocity, gravity or weight, and `floor` and `wall`
   `'pass'`. Whoever stands on it falls on their next frame once the entity is gone (expired, broken or destroyed).
+  On the frame it appears it catches its owner even while they hold down, as Create Block puts Steve on his block, so
+  a down special that puts one under the fighter lands them on it.
   Other entities don't land on it, and CPUs don't count it as ground. The Raft Wars kids' Duck Raft
   (`src/fighters/raftwars/duckRaft.ts`) is the example.
 - **Reflectors.** A move's `reflectors` are bubbles (`frames`, `x`, `y`, `radius`) that turn a touching projectile

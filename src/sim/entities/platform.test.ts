@@ -58,6 +58,20 @@ describe('entity platforms', () => {
     expect(f.pos.y).toBeLessThan(-10);
   });
 
+  it('catches its owner on the frame it appears under them, even while they hold down', () => {
+    for (const owner of [0, -1]) {
+      const m = testMatch();
+      const f = placeInAir(m, 120, 40);
+      run(m, 10, { y: -100 });
+      expect(f.vel.y).toBeLessThan(0);
+      // Spawned between frames, it is new (age 0) while the fighters act on the next one.
+      const e = spawnEntity(m, { kind: 'test/deck', owner, pos: { x: f.pos.x, y: f.pos.y - 2 } });
+      run(m, 1, { y: -100 });
+      if (owner === 0) expect(f.ground).toMatchObject({ kind: 'entity', index: e.id });
+      else expect(f.ground).toBeNull();
+    }
+  });
+
   it('drops a standing fighter through it on a down flick', () => {
     const { m, f } = standOnDeck();
     run(m, 1, { y: -100 });

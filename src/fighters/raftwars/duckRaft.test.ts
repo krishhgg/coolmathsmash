@@ -84,6 +84,25 @@ describe('Raft Wars Kids: Duck Raft (down special)', () => {
     expect(f.ground).toMatchObject({ kind: 'entity', index: raft.id });
   });
 
+  it('catches the kids on the raft they place under them while they still hold down, as Create Block does', () => {
+    const m = testMatch({ fighter: 'raftwars' });
+    const f = placeInAir(m, 0, 100);
+    run(m, DUCK_RAFT.place - 1, DOWN_B);
+    expect([f.ground, f.fastFalling]).toEqual([null, true]);
+    run(m, 1, DOWN_B);
+    const raft = rafts(m)[0]!;
+    expect(f.ground).toMatchObject({ kind: 'entity', index: raft.id });
+    run(m, 30, { y: -100 });
+    expect(f.ground).toMatchObject({ kind: 'entity', index: raft.id });
+    expect(f.pos.y).toBe(entityPlatform(raft)!.y);
+    // Afterwards the raft is an ordinary soft platform: a fresh down flick drops them through it.
+    run(m, 5);
+    run(m, 1, { y: -100 });
+    run(m, 10);
+    expect(f.ground).toBeNull();
+    expect(f.pos.y).toBeLessThan(entityPlatform(raft)!.y);
+  });
+
   it('holds another fighter, who lands on it, stands, and drops through it with down', () => {
     const m = duel();
     const raft = throwRaft(m);
