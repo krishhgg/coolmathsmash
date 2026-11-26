@@ -35,6 +35,12 @@ export interface RecoveryParams {
   reach: number;
   /** Frame to air dodge toward the ledge, or Infinity. */
   dodgeAt: number;
+  /**
+   * The special may come before the double jump, as soon as it is due. The CPU's own plans keep their order; this is
+   * how it pictures an opponent recovering (assumedInput in cpu.ts): one already low under the ledge uses its special
+   * at once, and one higher double jumps first.
+   */
+  specialFirst?: true;
 }
 
 export interface RecoveryPlan {
@@ -111,7 +117,7 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
     // A plan with a double jump uses its special after it, never before: a fighter that starts low enough would
     // otherwise use it on the first frame and keep the jump for nothing (Wheely 35 units beside Battlefield's ledge and
     // 50 under it Ramp Jumps into the stage's side, where a double jump first gets him back).
-    const jumpDone = jumped || p.jumpAt === Infinity || f.jumpsUsed >= k.stats.jumps;
+    const jumpDone = p.specialFirst || jumped || p.jumpAt === Infinity || f.jumpsUsed >= k.stats.jumps;
     if (!special && p.special && due && near && jumpDone) {
       special = true;
       if (p.special === 'upB') return press({ x: 40 * dir, y: STICK.special, buttons: Btn.Special });

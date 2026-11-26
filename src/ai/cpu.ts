@@ -1358,6 +1358,7 @@ function assumedInput(snap: FighterState, info: StageInfo, state: Readonly<Match
       below: 10,
       reach: Infinity,
       dodgeAt: Infinity,
+      specialFirst: true,
     });
   }
   const vx = snap.vel.x;
