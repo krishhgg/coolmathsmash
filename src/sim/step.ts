@@ -25,6 +25,7 @@ export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): voi
   const frozen = tickFreezes(x);
   if (f.hitlag > 0) {
     f.hitlag--;
+    f.hitlagAt = m.frame;
     return;
   }
   if (frozen) return;

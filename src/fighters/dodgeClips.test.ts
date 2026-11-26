@@ -29,13 +29,6 @@ const ACTIONS: Record<string, number> = {
   ledgeAttack: LEDGE_ATTACK.faf - 1,
 };
 
-/**
- * Fighters whose clips still follow the old timings because another PR was changing their art when the rest were
- * retimed. Their check is expected to fail; take a fighter off this list once its clips match. Watergirl draws
- * Fireboy's clips, so she matches through his.
- */
-const WAITING = ['snailbob'];
-
 /** Actions drawn with a back roll when they roll away from the facing (clipFor). */
 const BACK_ROLLS = ['techRoll', 'getupRoll'];
 
@@ -64,12 +57,7 @@ function drift(id: string): string[] {
 const drawn = Object.keys(allFighters()).filter((id) => fighterArt(allFighters()[id]!));
 
 describe.each(drawn)('%s', (id) => {
-  const check = WAITING.includes(id) ? it.fails : it;
-  check('draws every dodge, roll, tech, getup and ledge attack over the whole action', () => {
+  it('draws every dodge, roll, tech, getup and ledge attack over the whole action', () => {
     expect(drift(id)).toEqual([]);
   });
-});
-
-it('only waits on fighters that have art', () => {
-  for (const id of WAITING) expect(drawn, id).toContain(id);
 });
