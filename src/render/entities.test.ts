@@ -1,14 +1,18 @@
-import { Graphics } from 'pixi.js';
+import { Graphics, type Container } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
-import { allFighters, getFighter } from '../fighters/registry';
+import { allFighters, getFighter, registerFighter } from '../fighters/registry';
 import { spawnEntity } from '../sim/entities/entities';
 import type { EntityState } from '../sim/entities/types';
 import { PLANET } from '../sim/items/planet';
 import { createMatch, type MatchState } from '../sim/match';
+import { gadgets } from '../sim/testing/gadgets';
 import { EntityView, entityArt, propPlacement } from './entities';
 import { fighterArt } from './fighterView';
 import { drawPlanetEntity } from './items';
 import type { PropArt } from './rig/types';
+
+/** A test-only fighter whose entities have no art, so they always draw the disc. */
+registerFighter(gadgets);
 
 function match(): MatchState {
   return createMatch({
@@ -24,11 +28,13 @@ describe('entityArt', () => {
     expect(entityArt('fireboy/fireball')?.prop.symbol).toBe('fxBall');
     expect(entityArt('johnny/laser')?.prop.symbol).toBe('laserBolt');
     expect(entityArt('fluffy/candy')?.prop.symbol).toBe('candy');
+    expect(entityArt('papa-louie/pepperBomb')?.prop.symbol).toBe('pepperBomb');
+    expect(entityArt('papa-louie/pepperBurst')?.prop.symbol).toBe('pepperBurst');
   });
 
   it('returns null for kinds without art, so they draw the disc', () => {
-    expect(entityArt('papa-louie/pepperBomb')).toBeNull();
-    expect(entityArt('papa-louie/pepperBurst')).toBeNull();
+    expect(entityArt('test-gadgets/bolt')).toBeNull();
+    expect(entityArt('test-gadgets/crate')).toBeNull();
     expect(entityArt('fireboy/nothing')).toBeNull();
     expect(entityArt('nobody/fireball')).toBeNull();
     expect(entityArt('planet')).toBeNull();
@@ -78,7 +84,7 @@ describe('propPlacement', () => {
 });
 
 describe('EntityView', () => {
-  it('draws a fireball with its art and a Pepper Bomb as the disc, and drops views of entities that left', () => {
+  it('draws a fireball and a Pepper Bomb with their art and an artless kind as the disc, and drops views of entities that left', () => {
     const m = match();
     const fireball = spawnEntity(m, {
       kind: 'fireboy/fireball',
@@ -88,18 +94,21 @@ describe('EntityView', () => {
       facing: -1,
     });
     spawnEntity(m, { kind: 'papa-louie/pepperBomb', owner: 1, pos: { x: -10, y: 5 } });
+    spawnEntity(m, { kind: 'test-gadgets/bolt', owner: 1, pos: { x: 0, y: 20 } });
     fireball.age = 1;
     const view = new EntityView();
     view.draw(m, 1, ['default', 'default']);
 
-    expect(view.props.children).toHaveLength(1);
-    const prop = view.props.children[0]!;
+    expect(view.props.children).toHaveLength(2);
+    const [prop, pepper] = view.props.children as [Container, Container];
     expect(prop.position).toMatchObject({ x: 10, y: -5 });
     expect(prop.scale.x).toBe(-1);
     const g = prop.children[0] as Graphics;
     expect(g.scale.x).toBe(0.7);
     expect(g.context.instructions.length).toBeGreaterThan(0);
-    // The pepper's disc is the only thing in the placeholder layer.
+    expect(pepper.position).toMatchObject({ x: -10, y: -5 });
+    expect((pepper.children[0] as Graphics).context.instructions.length).toBeGreaterThan(0);
+    // The bolt's disc is the only thing in the placeholder layer.
     expect(view.discs.context.instructions.length).toBeGreaterThan(0);
 
     // fxBall flickers at 30 fps on the entity's age: age 2 is its second drawing.
@@ -111,7 +120,7 @@ describe('EntityView', () => {
 
     m.entities = m.entities.filter((e) => e !== fireball);
     view.draw(m, 1, ['default', 'default']);
-    expect(view.props.children).toHaveLength(0);
+    expect(view.props.children).toEqual([pepper]);
     expect(view.discs.context.instructions.length).toBeGreaterThan(0);
 
     m.entities = [];
