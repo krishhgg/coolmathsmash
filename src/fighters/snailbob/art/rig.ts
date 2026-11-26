@@ -69,6 +69,7 @@ import {
   whipSmear,
 } from './parts';
 import type { Part } from './shapes';
+import { charge, laser, ship1, ship2, ship3, shipBlast, shipBlastFade, shipSwoop, zap } from './ship';
 
 /** Outline slots for both segments of a limb, then their fills, so the joint has no seam. */
 function limbSlots(upper: string, lower: string, upperSym: string | null, lowerSym: string | null): Slot[] {
@@ -236,5 +237,16 @@ export const rig: Rig = {
     signal: { loop: ['signal1', 'signal2', 'signal3'], fps: 15 },
     /** Crate Drop's crate: drawn by the engine as the `crateFall` and `crate` entities (art.projectiles). */
     crate,
+    /** Shell Ship (the Final Smash, ship.ts): the spaceship, its exhaust flickering on the match clock. */
+    ship1,
+    ship2,
+    ship3,
+    ship: { loop: ['ship1', 'ship2', 'ship3', 'ship2'], fps: 20 },
+    shipSwoop,
+    laser,
+    charge,
+    zap,
+    shipBlast,
+    shipBlastFade,
   },
 };

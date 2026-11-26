@@ -7,6 +7,7 @@ import type { Ctx } from '../../sim/fighter';
 import { ecb } from '../../sim/movement';
 import { edgeMaxX, edgeMinX, floorY } from '../../sim/stage';
 import { boxDropMoves } from './box-drop';
+import { finalSmash } from './finalSmash';
 import { strafeDashMoves } from './strafe-dash';
 import { GRAVITY_SWITCH, RAPID_JAB } from './timing';
 
@@ -403,6 +404,8 @@ export const moves: Record<string, MoveDef> = {
   },
   ...strafeDashMoves,
   ...boxDropMoves,
+  /** Tunnel Flip, her Final Smash (finalSmash.ts): Peach Blossom's frames, damage and sleep. */
+  finalSmash,
   /** Grabs, on Kirby's frame data; her arms are short, so the standing grab reaches 10.5 units. */
   grab: { kind: 'other', faf: 34, hits: [{ frames: [6, 7], boxes: [grabBox(0, 6.5, 6, 4)] }] },
   dashGrab: { kind: 'other', faf: 42, hits: [{ frames: [9, 10], boxes: [grabBox(0, 7.5, 6, 4.5)] }] },

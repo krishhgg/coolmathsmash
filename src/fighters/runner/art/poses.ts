@@ -127,7 +127,7 @@ export const AWAY = { face: 'faceBack' };
 
 /**
  * Draw orders. Slots: fxBack 0, antB 1, far arm 2-5, cane 6, far leg 7-12, near leg 13-18, antF 19, body 20,
- * crest 21, face 22, hat 23, near arm 24-27, fx 28-29.
+ * crest 21, face 22, hat 23, near arm 24-27, fx 28-29, and fxUnder 30, which draws under every fighter (Slot.under).
  */
 export const FAR_ARM_IN_FRONT = { armBLine: 27.1, foreBLine: 27.2, armB: 27.3, foreB: 27.4 };
 
