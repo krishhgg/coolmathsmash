@@ -1,6 +1,7 @@
 import { ColorMatrixFilter, Container, Graphics, Text } from 'pixi.js';
+import { airDodgeFaf } from '../sim/actions/air';
 import { isIntangible } from '../sim/actions/registry';
-import { LEDGE_JUMP, SHIELD_MAX } from '../sim/constants';
+import { AIR_DODGE_DIRECTIONAL, AIR_DODGE_NEUTRAL, LEDGE_JUMP, SHIELD_MAX } from '../sim/constants';
 import type { FighterState } from '../sim/fighter';
 import type { MatchConfig } from '../sim/match';
 import { statusDef } from '../sim/statuses';
@@ -8,7 +9,7 @@ import type { FighterDef } from '../fighters/types';
 import { PORT_COLORS } from './debug/inputDisplay';
 import { drawFinalGlow } from './items';
 import { moveClipFrame } from './rig/timing';
-import type { FighterArt } from './rig/types';
+import type { AnimClip, FighterArt } from './rig/types';
 import { createRigView, type RigView } from './rig/view';
 import { paint } from './vfx/paint';
 import { hex } from './vfx/shapes';
@@ -68,6 +69,28 @@ export function chargeClipName(art: FighterArt | undefined, move: string): strin
 }
 
 /**
+ * The clip frame an air dodge draws. The clip is drawn over the neutral dodge (AIR_DODGE_NEUTRAL.faf - 1 frames)
+ * and plays frame for frame on one. A directional dodge is intangible for fewer frames and lasts longer, so its
+ * intangible window maps onto the neutral one and its last frame onto the clip's end, piecewise linearly: the twist
+ * plays a little faster and the recovery after it slows to fill the rest of the dodge.
+ */
+function airDodgeFrame(clip: AnimClip, f: FighterState): number {
+  if (f.dodgeDir.x === 0 && f.dodgeDir.y === 0) return f.actionFrame;
+  const knots: [number, number][] = [
+    [0, 0],
+    [AIR_DODGE_DIRECTIONAL.intangible[0], AIR_DODGE_NEUTRAL.intangible[0]],
+    [AIR_DODGE_DIRECTIONAL.intangible[1], AIR_DODGE_NEUTRAL.intangible[1]],
+    [airDodgeFaf(f.dodgeDir) - 1, clip.length],
+  ];
+  const t = Math.min(f.actionFrame, knots[knots.length - 1]![0]);
+  let i = 1;
+  while (knots[i]![0] < t) i++;
+  const [x0, y0] = knots[i - 1]!;
+  const [x1, y1] = knots[i]!;
+  return y0 + ((t - x0) * (y1 - y0)) / (x1 - x0);
+}
+
+/**
  * The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. A tech or getup roll
  * away from the facing draws a back roll (backRoll). A tether move's clip plays on through the reel, held on the
  * clip's `reel` frame (AnimClip.reel) until the fighter arrives, unless the art has its own clip for the reel
@@ -87,6 +110,7 @@ export function clipFor(def: FighterDef, art: FighterArt, f: FighterState): [str
   const own = f.move && !(reeling && art.clips[f.action]) ? f.move : (backRoll(art, f) ?? f.action);
   const name = art.clips[own] ? own : (STAND_INS[own] ?? 'idle');
   const clip = art.clips[name];
+  if (clip && f.action === 'airDodge' && name === 'airDodge') return [name, airDodgeFrame(clip, f)];
   if (!clip || !f.move || name !== f.move) return [name, f.actionFrame];
   const frame = moveClipFrame(clip, moveFrame(f), def.moves?.[f.move]);
   return [name, reeling && clip.reel !== undefined ? Math.min(frame, clip.reel) : frame];
