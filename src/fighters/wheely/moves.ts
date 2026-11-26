@@ -2,6 +2,7 @@ import type { HitboxDef, MoveDef } from '../types';
 import { chargeLerp } from '../../sim/actions/charge';
 import { stickX } from '../../sim/control';
 import type { Ctx } from '../../sim/fighter';
+import { finalSmash, finalSmashAir, finalSmashCinematic } from './finalSmash';
 import { REV_UP } from './revUp';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -437,4 +438,8 @@ export const moves: Record<string, MoveDef> = {
    * revs with the grounded one (as Samus's Charge Shot does) and carries on when it lands.
    */
   neutralBAir: { ...revUp(6, 25 / 6, 40, 72), continuesOnLanding: true },
+  /** Full Throttle, the Final Smash, on Captain Falcon's Blue Falcon (finalSmash.ts). */
+  finalSmash,
+  finalSmashAir,
+  finalSmashCinematic,
 };
