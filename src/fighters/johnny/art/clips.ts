@@ -4,6 +4,7 @@ import { attacks } from './attacks';
 import { dodges } from './dodges';
 import { laser } from './laser';
 import { ledge } from './ledge';
+import { magnet } from './magnet';
 import {
   AIR,
   BACK_ARM_OVER_HEAD,
@@ -684,6 +685,7 @@ export const clips: Record<string, AnimClip> = {
   ...attacks,
   ...dodges,
   ...laser,
+  ...magnet,
   ...reactions,
   ...ledge,
   ...tech,

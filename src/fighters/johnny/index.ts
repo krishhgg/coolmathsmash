@@ -3,6 +3,7 @@ import { art } from './art';
 import { entities } from './entities';
 import { moves } from './moves';
 import { stats } from './stats';
+import { meters, statuses, upgradeEntities } from './upgrade';
 
 export const fighter = defineFighter({
   id: 'johnny',
@@ -10,6 +11,8 @@ export const fighter = defineFighter({
   series: 'Johnny Upgrade (2012)',
   stats,
   moves,
-  entities,
+  entities: { ...entities, ...upgradeEntities },
+  meters,
+  statuses,
   art,
 });
