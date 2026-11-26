@@ -7,6 +7,7 @@ import { resolveEntityContacts } from './entities/contacts';
 import { stepEntities } from './entities/step';
 import type { EntityState } from './entities/types';
 import { emit, type SimEvent } from './events';
+import { holdStill, type FinalHold } from './finalSmash';
 import { createItems, stepItems, type ItemsState } from './items/spawn';
 import { settleMeters } from './meters';
 import { pushApart } from './movement';
@@ -53,8 +54,15 @@ export interface MatchState {
   events: SimEvent[];
   /** Where each solid and platform is on this frame (moving and vanishing pieces, src/sim/movingStage.ts). */
   stage: StageState;
+  /**
+   * The stage's own clock, the frame `stage` is posed at: the match frame, less the frames a Final Smash's hold
+   * stopped the stage (advanceStage). Schedules, motions, zones and stage hitboxes run on it.
+   */
+  stageFrame: number;
   /** The item spawner's timers (src/sim/items/spawn.ts); idle while the Items rule is off. */
   items: ItemsState;
+  /** Who a Final Smash's freeze is holding this frame (src/sim/finalSmash.ts); absent when nobody is held. */
+  finalHold?: FinalHold;
 }
 
 export const DEFAULT_MATCH: MatchConfig = {
@@ -78,6 +86,7 @@ export function createMatch(config: MatchConfig = DEFAULT_MATCH): MatchState {
     nextEntityId: 1,
     events: [],
     stage: stageStateAt(stage, 0, undefined, config.hazards !== false),
+    stageFrame: 0,
     items: createItems(),
   };
 }
@@ -96,6 +105,7 @@ export function stepMatch(state: MatchState, inputs: readonly InputFrame[]): voi
   resolveHits(state, posedStage(state), (struck) => stageHits(state, struck));
   state.fighters.forEach((f, i) => (f.hitlag = Math.max(f.hitlag, owed[i]!)));
   settleMeters(state);
+  holdStill(state);
   state.fighters.forEach((f, i) => {
     if (f.action !== before[i]) emit(state, { type: 'action', port: f.port, from: before[i]!, to: f.action });
   });
