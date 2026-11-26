@@ -61,11 +61,11 @@ describe('Raft Wars Kids: Duck Raft (down special)', () => {
     expect([f.action, f.move]).toEqual(['idle', null]);
   });
 
-  it('sets it down just in front of them on the ground, its hull on the floor and its deck 3.5 up', () => {
+  it('sets it down 14.5 in front of them on the ground, its hull on the floor and its deck 3.5 up', () => {
     const m = testMatch({ fighter: 'raftwars' });
     const f = m.fighters[0]!;
     const raft = throwRaft(m);
-    expect(raft.pos).toEqual({ x: f.pos.x + 13 * f.facing, y: f.pos.y + DUCK_RAFT.bottom });
+    expect(raft.pos).toEqual({ x: f.pos.x + 14.5 * f.facing, y: f.pos.y + DUCK_RAFT.bottom });
     expect(raft.facing).toBe(f.facing);
     expect(entityPlatform(raft)).toEqual({ x1: raft.pos.x - 7, x2: raft.pos.x + 7, y: 3.5 });
     expect(f.ground?.kind).toBe('solid');

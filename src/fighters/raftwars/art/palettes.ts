@@ -70,6 +70,11 @@ const summer: Palette = {
   grenade: '#62743a',
   grenadeLo: '#435226',
   grenadeHi: '#b2c47a',
+  duck: '#ffd93b',
+  duckLo: '#e8a91a',
+  duckHi: '#fff6c2',
+  beak: '#ff8a1f',
+  beakLo: '#d9641a',
 };
 
 /**
