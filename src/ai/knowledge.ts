@@ -1,6 +1,6 @@
 import { getFighter } from '../fighters/registry';
 import type { FighterDef, FighterStats, HitboxDef, MoveDef } from '../fighters/types';
-import { neutralInput, type InputFrame } from '../input/types';
+import { Btn, neutralInput, type InputFrame } from '../input/types';
 import { SMASH_CHARGE_FRAMES } from '../sim/actions/charge';
 import { activeHitboxes } from '../sim/combat/hits';
 import { entityHitboxes } from '../sim/entities/entities';
@@ -117,12 +117,13 @@ export interface MoveProbe {
   /** Where those entities' hitboxes went; null when they never had any. */
   shot: ShotReach | null;
   /**
-   * A chargeable special (MoveDef.charge, not a smash attack) probed a second time with Special held for its charge,
-   * up to CHARGE_HOLD frames of it: Bob the Robber's Stun Gun at full charge, Raft Wars' Aimed Shot part of the way.
-   * This probe is the tapped move.
+   * A chargeable special (MoveDef.charge, not a smash attack) probed a second time fired with charge, up to
+   * CHARGE_HOLD frames of it (chargeInput): Special held for Bob the Robber's Stun Gun at full charge and Raft Wars'
+   * Aimed Shot part of the way, and Wheely's tap-charged Rev Up left to charge and then pressed again. This probe is
+   * the tapped move.
    */
   charged?: MoveProbe;
-  /** Frames of charge this probe held Special for (it is another probe's `charged`). */
+  /** Frames of charge this probe fired the move with (it is another probe's `charged`). */
   held?: number;
 }
 
@@ -153,6 +154,32 @@ const ACTIONABLE = new Set([
   'turn',
   'runBrake',
 ]);
+
+/**
+ * The input that fires the move `f` plays the way the knowledge probe fired it, `hold` being the frames of charge it
+ * fires with (MoveProbe.held, 0 for the tapped probe); null once nothing more is needed.
+ *
+ * - A tap-charged special (MoveDef.storeCharge.tap) charges by itself until Special is pressed again: neutral until
+ *   it reaches its charge frame with `hold` frames of charge, then Special, so it fires with that charge (uncharged
+ *   for 0). The move waits on the frame before its charge frame while it charges, so that is the frame to press on.
+ *   Null past its charge frame.
+ * - Any other move keeps `buttons` (its input's) held while it has less than `hold` frames of charge (Special for a
+ *   held charge, src/sim/actions/charge.ts), then null, which lets go and fires.
+ */
+export function chargeInput(
+  f: { fighter: string; move: string | null; actionFrame: number; charge: number },
+  buttons: number,
+  hold: number,
+): InputFrame | null {
+  const def = f.move === null ? undefined : getFighter(f.fighter).moves?.[f.move];
+  if (def?.storeCharge?.tap && def.charge !== undefined) {
+    if (f.actionFrame >= def.charge) return null;
+    return f.actionFrame === def.charge - 1 && f.charge >= hold
+      ? press({ buttons: Btn.Special })
+      : neutralInput();
+  }
+  return f.charge < hold ? press({ buttons }) : null;
+}
 
 /** The fighter can start something new this frame (Smash's "actionable"). */
 export function actionable(f: { action: string; hitstun: number }): boolean {
@@ -212,24 +239,22 @@ function settle(def: FighterDef, stageId: string): MatchState {
 }
 
 /**
- * The most charge frames a CPU holds Special for. A charge that holds the CPU in place longer gives the opponent that
- * long to close in, and leaves too little of its 110-frame look-ahead (cpu.ts, SHOT_HORIZON) for the shot to fly:
+ * The most charge frames a CPU waits through before it fires, holding Special or, for a tap-charged move, pressing it
+ * again (chargeInput). A charge that holds the CPU in place longer gives the opponent that long to close in, and leaves too little of its 110-frame look-ahead (cpu.ts, SHOT_HORIZON) for the shot to fly:
  * Aimed Shot fires 3 frames after its charge ends, so a full 112-frame charge comes out on frame 128.
  */
 const CHARGE_HOLD = 40;
 
 /**
- * Frames of charge the CPU can hold a special for: up to its full charge and CHARGE_HOLD, 0 when it has no charge
- * that Special holds (src/sim/actions/charge.ts). Smash attacks charge on Attack instead, and a stored charge that
- * charges by itself (`storeCharge.tap`, Samus's Charge Shot) fires on the next press, not on a release, so the CPU
- * taps both.
+ * Frames of charge the CPU can fire a special with: up to its full charge and CHARGE_HOLD, 0 when it has no charge
+ * (src/sim/actions/charge.ts). Smash attacks charge on Attack instead, so the CPU taps them.
  */
 function chargeHold(move: MoveDef): number {
-  if (move.charge === undefined || move.kind === 'smash' || move.storeCharge?.tap) return 0;
+  if (move.charge === undefined || move.kind === 'smash') return 0;
   return Math.min(move.chargeFrames ?? SMASH_CHARGE_FRAMES, CHARGE_HOLD);
 }
 
-/** Probe `move` from `start`; with `hold`, Special stays held after the press until the move has that much charge. */
+/** Probe `move` from `start`; with `hold`, it fires with that much charge (chargeInput). */
 function probe(
   def: FighterDef,
   stageId: string,
@@ -278,7 +303,7 @@ function probe(
   let busy = PROBE_LIMIT;
   let helpless = false;
   for (let t = 0; t < PROBE_LIMIT; t++) {
-    if (t > 0) step(f.move === move && f.charge < hold ? press({ buttons: input.buttons }) : neutralInput());
+    if (t > 0) step((f.move === move && chargeInput(f, input.buttons ?? 0, hold)) || neutralInput());
     shots.see(t, f.move === move, x0, y0);
     if (f.action === 'helpless') helpless = true;
     const boxes = f.move === move ? activeHitboxes(f) : [];

@@ -1,5 +1,8 @@
 import type { HitboxDef, MoveDef } from '../types';
+import { chargeLerp } from '../../sim/actions/charge';
 import { stickX } from '../../sim/control';
+import type { Ctx } from '../../sim/fighter';
+import { REV_UP } from './revUp';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -19,6 +22,38 @@ const box = (
 /** A grab box: catches instead of hitting, so it carries no damage or knockback. */
 const grabBox = (id: number, x: number, y: number, radius: number) =>
   box(id, x, y, radius, { damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true });
+
+/** Rev Up's drive: brake into the rev, floor it at a speed set by the revs, then skid to a stop. */
+function revUpDrive(x: Ctx): void {
+  const { f } = x;
+  const [from, to] = REV_UP.drive;
+  if (f.actionFrame < from) {
+    if (f.ground) f.vel.x *= 0.8;
+  } else if (f.actionFrame <= to) {
+    f.vel.x = f.facing * chargeLerp(f, ...REV_UP.speed);
+  } else {
+    f.vel.x *= 0.85;
+  }
+}
+
+/**
+ * Rev Up, grounded or aerial: Giant Punch's input model and hit (`damage` uncharged, `chargeDamage` up to full, BKB
+ * and KBG of the fully charged punch). Both boxes are the car: the front bumper (Giant Punch's 5.5 fist) and the cab
+ * (its 4.0 arm).
+ */
+function revUp(damage: number, chargeDamage: number, bkb: number, kbg: number): MoveDef {
+  const hit = { damage, angle: 361, kbg, bkb };
+  return {
+    kind: 'other',
+    faf: REV_UP.faf,
+    charge: REV_UP.charge,
+    chargeFrames: REV_UP.chargeFrames,
+    chargeDamage,
+    storeCharge: { tap: true, storeAtFull: true },
+    hits: [{ frames: REV_UP.hit, boxes: [box(0, 8, 5, 5.5, hit), box(1, 2, 5.5, 4, hit)] }],
+    script: revUpDrive,
+  };
+}
 
 /**
  * Wheely's normals: a car with no fists, so every hit is the bumper, the wheels, the hood, the horn or the exhaust.
@@ -385,4 +420,21 @@ export const moves: Record<string, MoveDef> = {
       }
     },
   },
+  /**
+   * Rev Up (neutral special): parks and revs the engine, then pops the clutch and blasts forward bumper first.
+   * Giant Punch's input model (`{ tap: true, storeAtFull: true }`): tap Special and he revs by himself; Special or
+   * Attack again lets go. Shield, a roll or spot dodge out of it, an air dodge or a jump keeps the revs for next time,
+   * and at full revs he keeps them and stops revving. A full charge kept that way blasts off at once next time. Like
+   * any stored charge it is lost on a KO. SmashWiki's "Charge" page lists only Oil Panic and Wario Waft as kept
+   * after a KO.
+   *
+   * Grounded Giant Punch: 10% uncharged to 28% at full ("base damage + 18 * (charge frames / 110)"), Sakurai angle,
+   * BKB 35 and KBG 73 (the full punch's; uncharged it is 45 and 70, and the engine scales only the damage).
+   */
+  neutralB: { ...revUp(10, 2.8, 35, 73), air: 'neutralBAir' },
+  /**
+   * Rev Up in the air: aerial Giant Punch, 6% to 25% with the full punch's BKB 40 and KBG 72. It shares the stored
+   * revs with the grounded one (as Samus's Charge Shot does) and carries on when it lands.
+   */
+  neutralBAir: { ...revUp(6, 25 / 6, 40, 72), continuesOnLanding: true },
 };
