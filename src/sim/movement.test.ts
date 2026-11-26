@@ -210,12 +210,13 @@ describe('ground movement (Mario reference: walk 1.155, initial dash 1.936, run 
     expect(distance).toBeCloseTo(29.022, 3);
   });
 
-  it('dash dances when flicked back during the initial dash', () => {
+  it('dash dances when flicked back on the first 5 frames of the initial dash (turn_dash_frame 5)', () => {
     const m = testMatch();
     const f = fighter(m);
-    run(m, 4, { x: 100 });
+    run(m, 3, { x: 100 });
     run(m, 1);
     run(m, 1, { x: -100 });
+    expect(f.actionFrame).toBe(1);
     expect(f.action).toBe('dash');
     expect(f.facing).toBe(-1);
     expect(f.vel.x).toBeCloseTo(-S.dashInitialSpeed);

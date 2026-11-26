@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { isIntangible } from './actions/registry';
 import { cameraTarget } from '../render/camera';
 import { getStage } from '../stages/registry';
+import { INPUT_BUFFER_FRAMES } from './constants';
 import { createMatch, stepMatch, type MatchState } from './match';
 import { attack, input, placeInAir, run, type Hold } from './testing/sim';
 import { FRESHNESS_BONUS, isTumble, shieldBreakStun } from './combat/formulas';
-import { getFighter } from '../fighters/registry';
+import { getFighter, registerFighter } from '../fighters/registry';
+import { defineFighter } from '../fighters/types';
+import { marioReference } from './testing/reference';
 import ref from './reference/physics-constants.json';
 import type { ButtonName } from '../input/types';
 
@@ -34,6 +37,18 @@ function grounded(ports = 1): MatchState {
   settle(m);
   return m;
 }
+
+/**
+ * Reference Mario with Captain Falcon's 15-frame initial dash (UFD stats, Dash Turnaround: fast 1-5, buffer window
+ * 6-15, full dash 16), long enough for a flick back after frame 5 to leave the input buffer before the dash ends.
+ */
+const LONG_DASH = defineFighter({
+  ...marioReference,
+  id: 'test-long-initial-dash',
+  selectable: false,
+  stats: { ...marioReference.stats, dashFrames: 15 },
+});
+registerFighter(LONG_DASH);
 
 describe('ground movement', () => {
   it('dashes at the initial dash speed for the dash window, then runs', () => {
@@ -84,6 +99,72 @@ describe('ground movement', () => {
     expect(speeds[10]).toBeCloseTo(1.76, 9);
   });
 
+  /**
+   * The fighter dashes right with a full stick, lets go for one frame and holds full left from frame `flick` until
+   * `release`, where frame 1 is the dash's first frame. Returns the first frame it faces left, its action and its
+   * speed then, or null if it never turns.
+   */
+  function flickBack(flick: number, release = Infinity, fighter = 'reference-mario') {
+    return turnAround(fighter, (frame) =>
+      frame < flick - 1 ? { x: 100 } : frame === flick - 1 || frame >= release ? {} : { x: -100 },
+    );
+  }
+
+  /** The fighter's first frame facing left under `hold` (frame 1 is the first input), or null if it never turns. */
+  function turnAround(fighter: string, hold: (frame: number) => Hold) {
+    const m = createMatch({ seed: 1, stage: 'battlefield', stocks: 3, ports: [{ fighter }] });
+    const f = P(m);
+    f.pos.x = 0;
+    settle(m);
+    for (let frame = 1; frame <= 30; frame++) {
+      stepMatch(m, [input(hold(frame))]);
+      if (frame > 1 && f.facing === -1) return { frame, action: f.action, vx: f.vel.x };
+    }
+    return null;
+  }
+
+  it('a flick back turns the initial dash around at once on frames 1-5 and when it ends on 6-10 (UFD Dash Turnaround)', () => {
+    // UFD stats, Dash Turnaround, Mario: Fast (Initial Dash) frames 1-5, Normal (Buffer Window) 6-10, Slow (Full
+    // Dash) 11. SmashWiki Dashdance: in Ultimate "any character is free to dash back without the laggy skid animation
+    // as long as the run phase of the dash has not begun".
+    const flicks = [3, 4, 5, 6, 7, 8, 9, 10];
+    const turns = flicks.map((flick) => flickBack(flick));
+    expect(turns.map((t) => t?.frame)).toEqual([3, 4, 5, 11, 11, 11, 11, 11]);
+    // Each turn is a new initial dash the other way at full dash speed, not a skid.
+    expect(turns.every((t) => t?.action === 'dash' && t.vx === -1.936)).toBe(true);
+  });
+
+  it('a late flick back stays in the buffer after the stick lets go', () => {
+    // Flicked back on frame 8 and released on 9: still in the buffer on frame 11, so Mario dashes back then.
+    expect(flickBack(8, 9)).toEqual({ frame: 11, action: 'dash', vx: -1.936 });
+  });
+
+  it('a late flick back leaves the buffer INPUT_BUFFER_FRAMES after the stick lets go', () => {
+    const end = LONG_DASH.stats.dashFrames + 1;
+    const flick = end - INPUT_BUFFER_FRAMES;
+    expect(flick).toBeGreaterThan(5);
+    // Flicked back for one frame: in the buffer until INPUT_BUFFER_FRAMES after that frame.
+    expect(flickBack(flick + 1, flick + 2, LONG_DASH.id)?.frame).toBe(end);
+    expect(flickBack(flick, flick + 1, LONG_DASH.id)).toBe(null);
+    // The hold buffer counts from the last frame the stick was held back, as it does for a button: held on frame
+    // flick + 1 is still in the buffer at the end, and held to the end always is.
+    expect(flickBack(flick, flick + 2, LONG_DASH.id)?.frame).toBe(end);
+    expect(flickBack(flick, Infinity, LONG_DASH.id)?.frame).toBe(end);
+  });
+
+  it('a second late flick back refreshes the buffer, as a new button press does', () => {
+    // Flicked back for one frame on frame 6, then for one frame 2 frames before the end. The first flick is out of the
+    // buffer by the end; the second is still in it, so the fighter dashes back then.
+    const end = LONG_DASH.stats.dashFrames + 1;
+    const first = end - INPUT_BUFFER_FRAMES - 1;
+    const second = end - 2;
+    expect(first).toBeGreaterThan(5);
+    expect(flickBack(first, first + 1, LONG_DASH.id)).toBe(null);
+    const hold = (frame: number): Hold =>
+      frame === first || frame === second ? { x: -100 } : frame < first - 1 ? { x: 100 } : {};
+    expect(turnAround(LONG_DASH.id, hold)?.frame).toBe(end);
+  });
+
   it('a tapped dash holds 1.95 u/f for 6 frames, then slides out at traction (Ultimate: dash_speed_keep_frame 6)', () => {
     const m = grounded();
     const f = P(m);
@@ -106,29 +187,29 @@ describe('ground movement', () => {
     expect(f.pos.x - x0).toBeCloseTo(29.75, 2);
   });
 
-  it('dash-dances: a neutral frame and a flick back restarts the dash the other way', () => {
+  it('dash-dances: a neutral frame and a flick back on frame 5 restarts the dash the other way', () => {
     const m = grounded();
     const f = P(m);
     const xs: number[] = [];
     const vs: number[] = [];
     const facings: number[] = [];
     for (let i = 0; i < 24; i++) {
-      const leg = Math.floor(i / 8);
-      const hold = i % 8 === 7 ? {} : { x: leg % 2 === 0 ? 100 : -100 };
+      const leg = Math.floor(i / 4);
+      const hold = i % 4 === 3 ? {} : { x: leg % 2 === 0 ? 100 : -100 };
       stepMatch(m, [input(hold)]);
       xs.push(f.pos.x);
       vs.push(f.vel.x);
       facings.push(f.facing);
     }
     expect(new Set(facings).size).toBe(2);
-    // Each flick back restarts the dash at full dash speed the other way.
-    expect(vs[8]).toBeCloseTo(-1.95, 9);
-    expect(vs[16]).toBeCloseTo(1.95, 9);
-    // Each 8-frame leg: 6 frames at 1.95 (dash_speed_keep_frame), frame 7 braked to run speed 1.85 by traction,
-    // and the neutral frame 8 braked to 1.75.
-    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(15.3, 1);
+    // Each flick back comes on frame 5 of the dash, the last frame of Ultimate's fast turnaround (turn_dash_frame 5),
+    // and restarts the dash at full dash speed the other way.
+    expect(vs[4]).toBeCloseTo(-1.95, 9);
+    expect(vs[8]).toBeCloseTo(1.95, 9);
+    // Each 4-frame leg, neutral frame included, is inside dash_speed_keep_frame: 4 x 1.95 = 7.8 u.
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(7.8, 1);
     expect(f.action).toBe('dash');
-    expect(Math.abs(f.vel.x)).toBeCloseTo(1.75, 3);
+    expect(Math.abs(f.vel.x)).toBeCloseTo(1.95, 3);
   });
 
   it('stops in traction distance from run speed (Ultimate: 1.76 u/f at 0.102 u/f^2 is 18 frames)', () => {
