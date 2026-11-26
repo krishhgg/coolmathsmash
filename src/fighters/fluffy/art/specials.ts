@@ -143,8 +143,10 @@ export const SPECIALS: Record<string, AnimClip> = {
     ],
   },
   /**
-   * Quick Grapple: fires the grabber straight up on 8 and zips up the line after it. A long reel holds on 24, the
-   * last frame the line still reaches well up, until the reel arrives.
+   * Quick Grapple: fires the grabber straight up on 8 and zips up the line after it. The renderer draws the grabber
+   * from his hand to the line's real end (src/render/tetherLine.ts), so the clip leaves it out. The line anchors by
+   * 17 at the latest (fired on 8, 10 frames out), so a long reel holds on 24, stretched along the line, until the
+   * reel arrives.
    */
   upB: {
     length: 40,
@@ -156,65 +158,14 @@ export const SPECIALS: Record<string, AnimClip> = {
         ease: 'in',
         swaps: { ...FOCUS, ...PUFF },
       }),
-      key(
-        8,
-        ball({
-          float: true,
-          sx: 0.92,
-          sy: 1.1,
-          look: [0.1, -0.6],
-          grab: { from: [0, -6], to: [0, -14], near: -90 },
-        }),
-        {
-          ease: 'linear',
-          swaps: { ...FOCUS, ...GRAB },
-        },
-      ),
-      key(
-        12,
-        ball({
-          float: true,
-          sx: 0.88,
-          sy: 1.14,
-          look: [0, -0.6],
-          grab: { from: [0, -6], to: [2, -60], near: -90 },
-        }),
-        { ease: 'linear' },
-      ),
-      key(
-        16,
-        ball({
-          float: true,
-          sx: 0.8,
-          sy: 1.3,
-          look: [0, -0.6],
-          grab: { from: [0, -6], to: [2, -50], near: -90 },
-        }),
-        {
-          ease: 'linear',
-          swaps: { ...EFFORT, ...GRAB, ...FALL_FUR },
-        },
-      ),
-      key(
-        28,
-        ball({
-          float: true,
-          sx: 0.82,
-          sy: 1.26,
-          look: [0, -0.6],
-          grab: { from: [0, -6], to: [1, -14], near: -90 },
-        }),
-        { ease: 'out' },
-      ),
-      key(
-        32,
-        ball({ float: true, sx: 1.04, sy: 0.96, spin: 120, grab: { from: [0, -6], to: [0, -8], near: -90 } }),
-        {
-          ease: 'inOut',
-          swaps: { ...HALF, ...WHIP },
-        },
-      ),
-      key(33, undefined, { swaps: HALF }),
+      key(8, ball({ float: true, sx: 0.92, sy: 1.1, look: [0.1, -0.6] }), { ease: 'linear', swaps: FOCUS }),
+      key(12, ball({ float: true, sx: 0.88, sy: 1.14, look: [0, -0.6] }), { ease: 'linear' }),
+      key(16, ball({ float: true, sx: 0.8, sy: 1.3, look: [0, -0.6] }), {
+        ease: 'linear',
+        swaps: { ...EFFORT, ...FALL_FUR },
+      }),
+      key(28, ball({ float: true, sx: 0.82, sy: 1.26, look: [0, -0.6] }), { ease: 'out' }),
+      key(32, ball({ float: true, sx: 1.04, sy: 0.96, spin: 120 }), { ease: 'inOut', swaps: HALF }),
       key(40, ball({ float: true, spin: 360 })),
     ],
   },
