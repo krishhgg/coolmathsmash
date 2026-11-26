@@ -57,7 +57,7 @@ export interface EntityState {
 
 /** Why an entity left the match. */
 export type DestroyReason =
-  'expired' | 'blastZone' | 'stage' | 'hit' | 'clank' | 'absorbed' | 'broken' | 'script';
+  'expired' | 'blastZone' | 'stage' | 'hit' | 'clank' | 'absorbed' | 'broken' | 'script' | 'pickup';
 
 /** Everything an entity's script sees on one frame. */
 export interface EntityCtx {
@@ -107,6 +107,13 @@ export interface EntityDef {
   weight?: number;
   /** Runs every frame before physics. Deterministic only: use `x.m.rng` for randomness. */
   script?: (x: EntityCtx) => void;
+  /** A hittable entity reached 0 HP; `by` is the port credited with the last hit (-1 for nobody). */
+  onBreak?: (m: MatchState, e: EntityState, by: number) => void;
+  /**
+   * An item: a grounded, idle or walking fighter whose Attack press touches it while it rests on the stage picks it
+   * up instead of attacking. This runs, then the item leaves the match (reason `pickup`).
+   */
+  pickup?: (m: MatchState, f: FighterState, e: EntityState) => void;
 }
 
 /** A move puts an entity out on one of its frames. */
