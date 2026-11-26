@@ -260,3 +260,35 @@ export const AIR: Pose = {
   armB: { rot: 45 },
   foreB: { rot: 40 },
 };
+
+/**
+ * Rolled up for a somersault: chin on his chest, knees hugged in, fists wrapped round his shins. `somersault` turns
+ * it through `body` and rests it on the floor.
+ */
+export const TUCK = hands(
+  {
+    hip: { y: -0.6 },
+    torso: { rot: 20 },
+    neck: { y: 0.9, rot: 24 },
+    thighF: { rot: -100 },
+    shinF: { rot: 120 },
+    thighB: { rot: -86 },
+    shinB: { rot: 112 },
+    footF: { rot: 30 },
+    footB: { rot: 30 },
+  },
+  [3.6, -7.4],
+  [2.0, -7.0],
+  1,
+  1,
+);
+
+/** One key a frame from `start` to `end`, the tuck turning from `from` to `to` degrees as it rolls on the floor. */
+export function somersault(start: number, end: number, from: number, to: number): Key[] {
+  const keys: Key[] = [];
+  for (let f = start; f <= end; f++) {
+    const rot = from + ((to - from) * (f - start)) / (end - start);
+    keys.push(key(f, grounded(mix(TUCK, { body: { rot } })), { ease: 'linear' }));
+  }
+  return keys;
+}

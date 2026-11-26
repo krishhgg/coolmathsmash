@@ -16,12 +16,12 @@ import {
   aloft,
   feet,
   fist,
-  grounded,
   hands,
   key,
   mix,
   onFloor,
   shortTurns,
+  somersault,
 } from './poses';
 
 /**
@@ -62,23 +62,6 @@ const DUCK_SWAY = duck(2.2, 15, 8);
 /** Rising out of it, the weight coming back over both boots. */
 const DUCK_RISE = duck(1.2, 4, -2);
 
-/**
- * Rolled up for a somersault: chin on his chest, knees hugged in, fists wrapped round his shins. Rotate it through
- * `body` and rest it on the floor with `grounded`.
- */
-const TUCK_LEGS: Pose = {
-  hip: { y: -0.6 },
-  torso: { rot: 20 },
-  neck: { y: 0.9, rot: 24 },
-  thighF: { rot: -100 },
-  shinF: { rot: 120 },
-  thighB: { rot: -86 },
-  shinB: { rot: 112 },
-  footF: { rot: 30 },
-  footB: { rot: 30 },
-};
-const TUCK = hands(TUCK_LEGS, [3.6, -7.4], [2.0, -7.0], 1, 1);
-
 /** Ducking into the roll: low, chin tucked, arms reaching ahead. */
 const DIVE = hands(
   mix(
@@ -99,16 +82,6 @@ const UNROLL = hands(
   1,
   -1,
 );
-
-/** One key a frame from `start` to `end` turning the tuck through `turn` degrees, resting on the floor. */
-function somersault(start: number, end: number, turn: number): Key[] {
-  const keys: Key[] = [];
-  for (let f = start; f <= end; f++) {
-    const u = (f - start) / (end - start);
-    keys.push(key(f, grounded(mix(TUCK, { body: { rot: turn * u } })), { ease: 'linear' }));
-  }
-  return keys;
-}
 
 /**
  * The air dodge's corkscrew: pulled into a pencil, forearms crossed over his goggles, boots together and toes
@@ -206,7 +179,7 @@ export const dodges: Record<string, AnimClip> = {
     keys: shortTurns([
       key(0, STANCE, { ease: 'in' }),
       key(3, DIVE, { ease: 'in' }),
-      ...somersault(5, 18, 360),
+      ...somersault(5, 18, 0, 360),
       key(21, mix(UNROLL, { body: { rot: 372 } }), { ease: 'out' }),
       key(23, mix(PIVOT, { body: { rot: 360, sx: 0.92 } }), { ease: 'step' }),
       key(24, mix(PIVOT, { body: { rot: 360, sx: -0.92 } }), { ease: 'out', swaps: { ...GRIT, ...GUARD } }),
@@ -220,7 +193,7 @@ export const dodges: Record<string, AnimClip> = {
     keys: shortTurns([
       key(0, STANCE, { ease: 'in' }),
       key(3, mix(UNROLL, { body: { rot: -6 } }), { ease: 'in' }),
-      ...somersault(5, 20, -360),
+      ...somersault(5, 20, 0, -360),
       key(24, mix(UNROLL, { body: { rot: -348 } }), { ease: 'out' }),
       key(ROLL_BACK.faf - 1, mix(STANCE, { body: { rot: -360 } }), { swaps: { ...GRIT, ...GUARD } }),
     ]),
