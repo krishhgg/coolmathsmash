@@ -7,6 +7,7 @@ import { emit } from '../../sim/events';
 import type { Ctx } from '../../sim/fighter';
 import type { HitboxDef, MoveDef } from '../types';
 import { LASER, MUZZLE } from './entities';
+import { finalSmashMoves } from './finalSmash';
 import { upgradable, upgradeMoves } from './upgrade';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -465,4 +466,6 @@ export const moves: Record<string, MoveDef> = {
   },
   /** Coin Magnet (down special) and Upgraded Laser: the upgrade meter's moves, in upgrade.ts. */
   ...upgradeMoves,
+  /** Max Upgrade, the Final Smash, on Omnislash: finalSmash.ts. */
+  ...finalSmashMoves,
 };

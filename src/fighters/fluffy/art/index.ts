@@ -49,16 +49,19 @@ export const art: FighterArt = {
     preview: { neutralB: { frame: 0, to: 23, x: TARGET[0], y: -TARGET[1] } },
   },
   /**
-   * Point Grapple's grabber, the rig's own line and tip drawings, drawn from his hand to the line's real end in a
-   * match. The lab shows it flying at the clip's target from the shot on 12 and holding there to 40.
+   * The grabber of Point Grapple and Quick Grapple, the rig's own line and tip drawings, drawn from his hand to the
+   * line's real end in a match. The lab shows Point Grapple's flying at the clip's target from the shot on 12 and
+   * holding there to 40, and Quick Grapple's flying 120 units straight up from the shot on 8 and holding there to
+   * 28, through the reel pose.
    */
   tetherLine: {
     symbols: rig.symbols,
     line: 'line',
     tip: 'tip',
-    moves: ['neutralB'],
+    moves: ['neutralB', 'upB'],
     preview: {
       neutralB: { frame: 12, to: 40, from: [0, HAND], end: [TARGET[0], -TARGET[1]], travel: 12 },
+      upB: { frame: 8, to: 28, from: [0, HAND], end: [0, HAND + 120], travel: 10 },
     },
   },
 };
