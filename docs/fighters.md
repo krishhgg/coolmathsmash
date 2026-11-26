@@ -486,7 +486,11 @@ finalSmashCinematic: {
 ```
 
 - **Catching.** The trap catches like any command grab: the nearest grabbable fighter in front, through shields. Ultimate
-  traps every fighter its hitbox touches; this one holds the first.
+  traps every fighter its hitbox touches; this one holds the first. Bloxorz block's Split Switch
+  (`src/fighters/bloxorz/finalSmash.ts`) is Donkey Kong's Jungle Rush: its activation freeze is 27 frames so the punch's
+  catch comes out on Jungle Rush's frame 29, and the punch's 12% and the barrage's 31 rapid hits are the cinematic's
+  `holdHits`, with Jungle Rush's hitlag multipliers (x5 and x0.4). Lying, the block stands up on frame 4, so both forms
+  share one cinematic.
 - **Landing.** A `final` move that lands carries on from the same frame, as with `continuesOnLanding`: the charge is
   already spent, so a fall, or a moving platform rising under a `still` user, can't cut it short.
 - **Losing the floor.** The same goes the other way (`finalSmashLeavesGround`): when a platform vanishes or moves out
