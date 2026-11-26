@@ -123,7 +123,7 @@ interface Connection {
   move: string | null;
   link?: LaunchLink;
   /** The victim's armor this frame (MoveDef.armor): hits below both thresholds don't launch. Null without armor. */
-  armor: { kb: number; damage: number } | null;
+  armor: { kb: number; damage: number; breakDamageMul: number } | null;
 }
 
 /**
@@ -157,11 +157,18 @@ function connection(
   };
 }
 
-/** The knockback and damage thresholds of `v`'s armor this frame (MoveDef.armor); unset ones never break. */
+/**
+ * The knockback and damage thresholds of `v`'s armor this frame (MoveDef.armor), unset ones never breaking, and the
+ * damage multiplier of the hit that breaks it (1 unless set).
+ */
 export function armorOf(v: FighterState): Connection['armor'] {
   const armor = moveOf(v)?.armor;
   if (!armor || !inWindow(v.actionFrame, armor.frames)) return null;
-  return { kb: armor.threshold ?? Infinity, damage: armor.damageThreshold ?? Infinity };
+  return {
+    kb: armor.threshold ?? Infinity,
+    damage: armor.damageThreshold ?? Infinity,
+    breakDamageMul: armor.breakDamageMul ?? 1,
+  };
 }
 
 /**
@@ -301,8 +308,11 @@ export interface Strike {
   /** The victim's % before this frame's hits. */
   percent: number;
   crouch: boolean;
-  /** The victim's armor (MoveDef.armor): hits below both thresholds don't launch. Null without armor. */
-  armor: { kb: number; damage: number } | null;
+  /**
+   * The victim's armor (MoveDef.armor): hits below both thresholds don't launch, and the hit that breaks through
+   * adds `breakDamageMul` of its damage. Null without armor.
+   */
+  armor: { kb: number; damage: number; breakDamageMul: number } | null;
   /** How an autolink or position-vector hit follows its attacker after hitlag; only a fighter's hits have one. */
   link?: LaunchLink;
 }
@@ -310,8 +320,9 @@ export interface Strike {
 /**
  * The victim's side of a hit: damage, hitlag and the launch waiting for hitlag to end. When several hits land
  * on one victim on the same frame (`again`), the strongest knockback is the launch and the longest hitlag is
- * the freeze. An armored victim takes hits below both its thresholds without launching, and a held fighter stays
- * in the grab, the damage counting toward breaking it. Returns the knockback, the hitlag and the % added.
+ * the freeze. An armored victim takes hits below both its thresholds without launching; the hit that breaks through
+ * adds only `breakDamageMul` of its damage, judged and launched on the full damage. A held fighter stays in the grab,
+ * the damage counting toward breaking it. Returns the knockback, the hitlag and the % added.
  */
 export function strike(
   m: MatchState,
@@ -331,12 +342,13 @@ export function strike(
     crouch,
   });
   const damage = base * stale;
+  const armored = armor !== null && kb < armor.kb && damage < armor.damage;
   const before = v.damage;
-  addDamage(m, v, damage);
+  addDamage(m, v, armor && !armored ? damage * armor.breakDamageMul : damage);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric', crouch });
   v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
   const result = { kb, lag, added: v.damage - before };
-  if (armor && kb < armor.kb && damage < armor.damage) return result;
+  if (armored) return result;
   const held = grabArmour(m, v, damage);
   if (again && v.launch && v.launch.kb >= kb) return result;
   v.launch = { kb, angle: box.angle, dir, setKnockback: (box.wbkb ?? 0) > 0, ...(link && { link }) };
