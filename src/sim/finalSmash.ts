@@ -39,11 +39,6 @@ export function finalOf(f: Readonly<FighterState>): FinalSmashDef | undefined {
 /** `f` is playing a Final Smash (its activation move, an air variant or a trap's cinematic). */
 export const inFinalSmash = (f: Readonly<FighterState>): boolean => finalOf(f) !== undefined;
 
-/** Fighter `fighter`'s move `move` is part of its Final Smash, so it and the projectiles it spawns can't be shielded. */
-export function isFinalMove(fighter: string, move: string | null): boolean {
-  return move !== null && getFighter(fighter).moves?.[move]?.final !== undefined;
-}
-
 export const freezeOf = (final: FinalSmashDef): number => final.freeze ?? FINAL_SMASH.freeze;
 
 /** `u`'s Final Smash holds the others still on the next frame: in the activation freeze, or trapping someone. */
@@ -89,7 +84,7 @@ export function holdStill(m: MatchState): void {
     hold.fighters.push(f.port);
   }
   for (const e of m.entities) {
-    if (users.some((u) => u.port === e.owner && isFinalMove(u.fighter, e.move))) continue;
+    if (e.final && users.some((u) => u.port === e.owner)) continue;
     e.hitlag++;
     hold.entities.push(e.id);
   }

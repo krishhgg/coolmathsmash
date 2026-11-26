@@ -17,6 +17,7 @@ import {
   SIDE,
   TUCK,
   aim,
+  continuous,
   feet,
   floor,
   fx,
@@ -92,6 +93,22 @@ const LOW = feet(
 );
 export const BATON_READY = swing(STANCE, [2.6, -5.8], -60);
 
+/**
+ * STANCE turned or shifted by `lean`, with the feet planted again. Mixing a body turn into a stance after its feet
+ * were solved swings the legs with the body and sinks a shoe into the floor.
+ */
+const stanceWith = (lean: Pose) => feet(mix(STANCE, lean), floor(-1.8), floor(1.8));
+
+/** How far to lift the ankle of a shoe pitched 30 degrees onto tiptoe so its toe rests on the floor. */
+const TIPTOE = 0.75;
+
+/**
+ * LUNGE turned or shifted by `lean`, front foot planted again and the back foot on tiptoe at `back`, where the
+ * stretched back leg still reaches.
+ */
+const lungeWith = (lean: Pose, back: number) =>
+  feet(mix(LUNGE, lean), floor(back, -TIPTOE), floor(2.6), false, [30, 0]);
+
 /** The opponent held by the collar at the front fist. */
 const HOLD = hands(
   feet({ body: { rot: 6 }, hip: { y: 0.45 } }, floor(-1.8), floor(1.6)),
@@ -148,13 +165,15 @@ const DASH_LATE = aim(reachB(hands(SLIDE, [4.7, -5.5], [2.6, -4.4]), [4.7, -5.5]
 // Smashes ----------------------------------------------------------------------------------------------------
 
 const FSMASH_WIND = hands(
-  swing(mix(STANCE, { body: { rot: -12, x: -0.6 }, neck: { rot: 6 } }), [-0.8, -9.8], -165),
+  swing(stanceWith({ body: { rot: -12, x: -0.6 }, neck: { rot: 6 } }), [-0.8, -9.8], -165),
   [-0.4, -9.4],
   null,
 );
-const FSMASH_TOP = swing(mix(STANCE, { body: { rot: 2 } }), [1.6, -10.6], -80);
-const FSMASH_HIT = reachF(swing(mix(LUNGE, { body: { rot: 8, x: 1.6 } }), [6.2, -6.9], -8), [6.2, -6.9]);
-const FSMASH_FOLLOW = swing(mix(LUNGE, { body: { rot: 20, x: 1.4 } }), [4.0, -5.4], 70);
+/** Baton straight up over the head; the back hand has let go and swings forward with the stroke. */
+const FSMASH_TOP = aim(swing(stanceWith({ body: { rot: 2 } }), [1.6, -10.6], -90), 'armB', -80);
+const FSMASH_HIT = reachF(swing(lungeWith({ body: { rot: 8, x: 1.6 } }, -1.6), [6.2, -6.9], -8), [6.2, -6.9]);
+/** The stroke carries on down until the tip nearly touches the floor in front of him. */
+const FSMASH_FOLLOW = swing(lungeWith({ body: { rot: 20, x: 1.4 } }, -2.2), [4.2, -5.8], 45);
 
 const USMASH_LOW = swing(mix(CROUCH, { body: { rot: 4 } }), [2.6, -3.6], 40);
 const USMASH_HAND: Pt = [0.8, -12.2];
@@ -374,7 +393,7 @@ export const attacks: Record<string, AnimClip> = {
     length: 49,
     active: [[13, 15]],
     swaps: { ...ANGRY, ...BATON, handB: 'fist' },
-    keys: [
+    keys: continuous([
       key(0, BATON_READY, { ease: 'out' }),
       key(8, FSMASH_WIND, { ease: 'inOut', z: FRONT_ARM_OVER_HEAD }),
       key(9, FSMASH_WIND, { ease: 'in' }),
@@ -388,7 +407,7 @@ export const attacks: Record<string, AnimClip> = {
       key(15, trail(FSMASH_HIT, false, 0.6), { ease: 'out' }),
       key(21, FSMASH_FOLLOW, { ease: 'inOut', swaps: { ...ANGRY, ...BATON, handB: 'fist' } }),
       key(49, BATON_READY),
-    ],
+    ]),
   },
   usmash: {
     length: 51,

@@ -1,6 +1,7 @@
 import { shapesBounds } from '../../../render/rig/geometry';
 import { symbolsToSvg } from '../../../render/rig/svg';
 import type { FighterArt, PathShape } from '../../../render/rig/types';
+import { BLAST } from '../finalSmash';
 import { LEDGE_GRIP, clips } from './clips';
 import { palettes } from './palettes';
 import { rig } from './rig';
@@ -31,6 +32,16 @@ export const art: FighterArt = {
       scale: 0.7,
       align: true,
       preview: { neutralB: { frame: 14, x: 8.5, y: 4.6, vx: 1.4 } },
+    },
+    /** Fire Blast, the Final Smash's fire: drawn at world scale, as big as its radius-16 hitboxes. */
+    blast: {
+      symbols: rig.symbols,
+      symbol: 'fxBlast',
+      scale: 1,
+      preview: {
+        finalSmash: { frame: BLAST.frame, x: BLAST.x, y: BLAST.y, vx: BLAST.speed },
+        finalSmashAir: { frame: BLAST.frame, x: BLAST.x, y: BLAST.y, vx: BLAST.speed },
+      },
     },
   },
 };
