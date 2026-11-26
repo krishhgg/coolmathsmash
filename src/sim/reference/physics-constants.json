@@ -51,6 +51,8 @@
   "ssbw_sdi": "https://www.ssbwiki.com/Smash_directional_influence",
   "ssbw_grab": "https://www.ssbwiki.com/Grab",
   "ssbw_mash": "https://www.ssbwiki.com/Button_mashing",
+  "ssbw_b_reversing": "https://www.ssbwiki.com/B-reversing",
+  "ssbw_side_special": "https://www.ssbwiki.com/Side_special_move",
   "calc": "https://github.com/rubendal/SSBU-Calculator (commit 233590e94bc4bd8813f2d1a2af45c8c46648f351; js/formulas.js, js/knockback.js)",
   "calc_chars": "https://github.com/rubendal/SSBU-Calculator (commit 233590e; Data/<fighter>/data.json, 89 fighters)",
   "calc_stages": "https://github.com/rubendal/SSBU-Calculator (commit 233590e; Data/Stages/ssbustagedata.json, LVD-derived collision data)",
@@ -1160,7 +1162,9 @@
   "dash_stick_x": 0.85,
   "run_stick_x": 0.75,
   "walk_max_stick_note": "walk speed scales with stick tilt; keyboard needs a walk modifier",
-  "_source": "params_sheet (precede 7, precede_extension 2, turn_dash_frame 5, dash_speed_keep_frame 6, re_dash_frame 0xF, dash_stick_x 0.85, run_stick_x 0.75); ufd_stats (Dash and Run Speed, Dash Turnaround); mmsp"
+  "b_reverse_window_frames_after_press": 4,
+  "b_reverse_note": "stick behind the fighter 1 to 4 frames after the special input turns it around and reverses its momentum; behind on the press is a turnaround special (facing only). Neutral, side and down specials; up specials only turn around.",
+  "_source": "params_sheet (precede 7, precede_extension 2, turn_dash_frame 5, dash_speed_keep_frame 6, re_dash_frame 0xF, dash_stick_x 0.85, run_stick_x 0.75); ufd_stats (Dash and Run Speed, Dash Turnaround); mmsp; ssbw_b_reversing (B-reverse window and momentum); ssbw_side_special (side specials reverse)"
  },
  "tech": {
   "window_frames": 11,

@@ -3,6 +3,7 @@ import { registerFighter } from '../../fighters/registry';
 import { defineFighter, type MoveDef } from '../../fighters/types';
 import { SPECIAL_REVERSE } from '../constants';
 import type { MatchState } from '../match';
+import ref from '../reference/physics-constants.json';
 import { marioReference } from '../testing/reference';
 import { placeInAir, run, testMatch, type Hold } from '../testing/sim';
 
@@ -119,7 +120,8 @@ describe('turnaround special (Ultimate: the stick behind the fighter on the pres
 });
 
 describe('B-reverse (Ultimate: the stick behind within 4 frames of the special input)', () => {
-  it('reads Ultimate window: 1 to 4 frames after the press, frames 2-5 of the special', () => {
+  it('the window is 1 to 4 frames after the press: frames 2-5 of the special', () => {
+    expect(SPECIAL_REVERSE.window).toEqual([2, 1 + ref.movement.b_reverse_window_frames_after_press]);
     expect(SPECIAL_REVERSE.window).toEqual([2, 5]);
   });
 

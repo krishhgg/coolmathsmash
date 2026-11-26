@@ -201,6 +201,12 @@ Mario frame data from [UFD Mario](https://ultimateframedata.com/mario). Most of 
 - **Dash:** a fast turnaround is possible in the first 5 frames of an initial dash. Mario's initial dash lasts 10 frames and his pivot dash 12. Dash speed is kept for 6 frames ([UFD stats](https://ultimateframedata.com/stats) Dash Turnaround and Dash and Run; params `turn_dash_frame` 5, `dash_speed_keep_frame` 6; [MMSP](https://gamebanana.com/mods/38616) gives the same 6).
 - **Stick thresholds:** dash 0.85, run 0.75.
 - **Keyboards are digital,** so walking and tilt attacks need a modifier key (see section 18).
+- **Turnaround special and B-reverse** ([SmashWiki: B-reversing](https://www.ssbwiki.com/B-reversing); [SmashWiki: Side special move](https://www.ssbwiki.com/Side_special_move)). The engine's values are `SPECIAL_REVERSE` in `src/sim/constants.ts`, tested in `src/sim/actions/bReverse.test.ts`.
+  - *Turnaround special:* the stick behind the fighter when Special is pressed turns it around before the special starts. Facing changes and momentum does not. It works for every special, on the ground and in the air ("In Ultimate, the new dash cancel mechanics now allow characters to perform grounded turnaround-Bs"; "when a player reverses the direction of their up special to recover, they are performing a turnaround up special").
+  - *B-reverse:* "In Ultimate, the direction input must be within 4 frames of the special input." The press is the special's frame 1, so the stick behind the fighter on frames 2-5 turns it around and reverses its horizontal speed ("turning around and reversing their momentum"). Frame 6 is too late. It happens once per special, on the ground and in the air. Knockback still decaying from an earlier hit keeps its direction.
+  - *Which specials:* "In Brawl, SSB4 and Ultimate, most side special moves can be reversed in the first few frames." The B-reversing page's exceptions include Falcon Punch, Warlock Punch and Mewtwo's Disable ("Not every special move can be B-reversed"), so neutral and down specials allow it by default. SmashWiki only describes reversing an up special as a turnaround, so up specials don't B-reverse by default. `MoveDef.bReverse` overrides the default per move.
+  - *Wavebounce:* "a matter of performing both a turnaround-B and a B-reverse within the same special move. The result is that the character will change the direction they move, but not the direction they are facing."
+  - *Not stated by SmashWiki:* the stick threshold (the engine uses its direction threshold, 0.25) and whether a tap is needed (the engine accepts any stick position past the threshold). The tap-and-release form of the turnaround, where the stick is back at neutral when Special is pressed, is not modelled; only a stick held behind on the press turns.
 - **Speed ranges in the cast:** walk 0.62–1.575, initial dash 1.45–2.45, run 1.18–3.85 u/frame. Ground friction (traction) is 0.076–0.138 (section 17).
 
 ## 11. Tech, missed tech and jab lock
@@ -689,6 +695,8 @@ if __name__ == "__main__":
 - ssbw_sdi: https://www.ssbwiki.com/Smash_directional_influence
 - ssbw_grab: https://www.ssbwiki.com/Grab
 - ssbw_mash: https://www.ssbwiki.com/Button_mashing
+- ssbw_b_reversing: https://www.ssbwiki.com/B-reversing
+- ssbw_side_special: https://www.ssbwiki.com/Side_special_move
 - calc: https://github.com/rubendal/SSBU-Calculator (commit 233590e94bc4bd8813f2d1a2af45c8c46648f351; js/formulas.js, js/knockback.js)
 - calc_chars: https://github.com/rubendal/SSBU-Calculator (commit 233590e; Data/<fighter>/data.json, 89 fighters)
 - calc_stages: https://github.com/rubendal/SSBU-Calculator (commit 233590e; Data/Stages/ssbustagedata.json, LVD-derived collision data)
