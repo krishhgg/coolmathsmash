@@ -4,7 +4,14 @@ import type { HitboxDef, ThrowHitDef } from '../fighters/types';
 import { Btn, neutralInput, type InputFrame } from '../input/types';
 import { hurtbox } from '../sim/combat/hits';
 import { hitstunFrames, knockback, shieldstunFrames } from '../sim/combat/formulas';
-import { GRAB, SHIELD_DROP_FRAMES } from '../sim/constants';
+import {
+  AIR_DODGE_TECH_WINDOW,
+  GRAB,
+  INPUT_BUFFER_FRAMES,
+  SHIELD_DROP_FRAMES,
+  TECH_WINDOW,
+} from '../sim/constants';
+import { buffered, type ControlState } from '../sim/control';
 import { statusDef, statusLength } from '../sim/statuses';
 import type { FighterState } from '../sim/fighter';
 import { finalReach } from '../sim/finalSmash';
@@ -86,7 +93,7 @@ export class Cpu {
   private recovery: RecoveryPlan | null = null;
   private recoveryDrive: Driver | null = null;
   private ledgePlan: { option: LedgeOption; at: number } | null = null;
-  private techPlan: { tech: boolean; dir: number; pressed: boolean } | null = null;
+  private techPlan: { tech: boolean; dir: number | null; pressed: boolean } | null = null;
   private getupPlan: { option: GetupOption; at: number; dir: number } | null = null;
   private grabPlan: {
     at: number;
@@ -162,7 +169,9 @@ export class Cpu {
     if (a !== 'respawn') this.respawnAt = -1;
     if (!me.launch) this.diStick = null;
     if (!a.startsWith('ledge')) this.ledgePlan = null;
-    if (a !== 'tumble' || me.launch) this.techPlan = null;
+    // A tech press an air dodge took keeps its plan, and its stick, until the dodge touches down.
+    const teching = a === 'tumble' || (a === 'airDodge' && this.techPlan?.pressed === true);
+    if (!teching || me.launch) this.techPlan = null;
     if (a !== 'down') this.getupPlan = null;
     if (a !== 'grabHold' && a !== 'grabPummel') this.grabPlan = null;
     if (a === 'ko' || a === 'out') {
@@ -172,7 +181,7 @@ export class Cpu {
     }
     if (a === 'respawn') return this.onRespawn(state, me);
     if (me.launch) return this.onLaunch(state, me);
-    if (a === 'tumble') {
+    if (teching) {
       const i = this.onTumble(state, me);
       if (i) return i;
     }
@@ -282,19 +291,34 @@ export class Cpu {
   }
 
   /**
-   * Tumbling into the floor: decide once whether to tech, then press Shield a few frames before touching down (a
-   * look-ahead says when) and hold the stick for a tech roll or let go for a tech in place.
+   * Tumbling into the floor: decide once whether to tech, then press Shield inside the tech window (the TECH_WINDOW
+   * frames before touching down, which a look-ahead with no input predicts) and hold the stick for a tech roll or let
+   * go for a tech in place. Each press is tried on a copy of the match first (techPress). A press waits in the input
+   * buffer, and an air dodge takes it as soon as one is possible: from frame 41 of hitstun by the hitstun cancel
+   * (HITSTUN_CANCEL_AIR_DODGE), or once hitstun runs out. While hitstun lasts the CPU never presses where that would
+   * happen. It presses TECH_LEAD frames before touching down, or earlier in the window when only an earlier press
+   * leaves the buffer before a dodge opens. Once hitstun is over every press air dodges, and the CPU presses only
+   * when that dodge touches down soon enough to tech (AIR_DODGE_TECH_WINDOW), never into landing lag.
    */
   private onTumble(state: Readonly<MatchState>, me: Readonly<FighterState>): InputFrame | null {
-    this.techPlan ??= { tech: this.rand() < this.lv.tech, dir: 0, pressed: false };
+    this.techPlan ??= { tech: this.rand() < this.lv.tech, dir: null, pressed: false };
     const plan = this.techPlan;
     if (!plan.tech) return null;
-    if (plan.pressed) return press({ x: plan.dir * 100 });
-    const m = soloMatch(state, me, state.players[this.port]!.control);
-    const path = run(m, TECH_LEAD + 1, undefined, (g) => g.action !== 'tumble');
-    if (path.at(-1)?.action !== 'downBound') return null;
+    if (plan.pressed) return press({ x: (plan.dir ?? 0) * 100 });
+    const control = state.players[this.port]!.control;
+    const fall = run(soloMatch(state, me, control), TECH_WINDOW, undefined, (g) => g.action !== 'tumble');
+    const touch = fall.at(-1);
+    if (touch?.action !== 'downBound') return null;
+    plan.dir ??= this.getupDirection(state, { ...me, pos: { x: touch.x, y: touch.y } }, [0, 1, -1]);
+    const ahead = fall.length - 1;
+    const now = techPress(state, me, control, 0, plan.dir);
+    if (ahead > TECH_LEAD) {
+      // Early in the window: press now only when this press techs and one a frame later would not.
+      if (now !== 'tech' || techPress(state, me, control, 1, plan.dir) === 'tech') return null;
+    } else if (now === null || (now === 'dodge' && me.hitstun > 0)) {
+      return null;
+    }
     plan.pressed = true;
-    plan.dir = this.getupDirection(state, me, [0, 1, -1]);
     return press({ buttons: Btn.Shield });
   }
 
@@ -1004,6 +1028,42 @@ type GetupOption = 'stand' | 'roll' | 'attack';
 
 /** Frames before touching down that the CPU presses Shield to tech (the window is TECH_WINDOW, 11). */
 const TECH_LEAD = 4;
+
+/**
+ * What pressing Shield `wait` frames from now, then holding the stick toward `dir`, does for a tumbling CPU, run on
+ * a copy of the match: 'tech' when it techs on touching down and no air dodge takes the press, 'dodge' when an air
+ * dodge takes it (the hitstun cancel, or hitstun running out while the press is buffered) and still techs by
+ * touching down within AIR_DODGE_TECH_WINDOW frames (Ultimate's air_escape_passive_trigger_frame, 15), and null when
+ * it misses the tech or lands in landing lag.
+ */
+function techPress(
+  state: Readonly<MatchState>,
+  me: Readonly<FighterState>,
+  control: Readonly<ControlState>,
+  wait: number,
+  dir: number,
+): 'tech' | 'dodge' | null {
+  const shield = press({ buttons: Btn.Shield });
+  const hold = press({ x: dir * 100 });
+  const m = soloMatch(state, me, control);
+  const ctl = m.players[0]!.control;
+  let dodged = false;
+  const path = run(
+    m,
+    wait + AIR_DODGE_TECH_WINDOW + 1,
+    (t) => (t < wait ? NEUTRAL : t === wait ? shield : hold),
+    (g, t) => {
+      // A dodge consumes the press it takes, even one that starts on the touchdown frame and never shows in a
+      // sample, so a press gone from the buffer before it would expire went to an air dodge.
+      if (t >= wait && t - wait < INPUT_BUFFER_FRAMES && !buffered(ctl, Btn.Shield)) dodged = true;
+      return g.action !== 'tumble' && g.action !== 'airDodge';
+    },
+  );
+  const end = path.at(-1)?.action;
+  if (end !== 'techInPlace' && end !== 'techRoll') return null;
+  return dodged ? 'dodge' : 'tech';
+}
+
 /** Knocked down, getting up, or in a grab: nothing to input until it ends. */
 const BUSY = new Set([
   'downBound',
