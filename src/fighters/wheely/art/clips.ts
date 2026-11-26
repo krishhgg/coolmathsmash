@@ -594,7 +594,7 @@ export const authored: Record<string, AnimClip> = {
     ],
   },
   /** On his roof, wheels turning in the air. */
-  knockdown: {
+  down: {
     length: 40,
     loop: true,
     swaps: DIZZY,
@@ -605,7 +605,7 @@ export const authored: Record<string, AnimClip> = {
     ],
   },
   /** Rocks back, then flips over onto his wheels. */
-  getUp: {
+  getupStand: {
     length: 29,
     swaps: HURT,
     keys: [
@@ -639,7 +639,7 @@ export const authored: Record<string, AnimClip> = {
     ],
   },
   /** Hits the floor and bounces straight back onto his wheels. */
-  tech: {
+  techInPlace: {
     length: 26,
     swaps: CLOSED,
     keys: [
@@ -712,11 +712,8 @@ export const authored: Record<string, AnimClip> = {
 const baked = Object.fromEntries(Object.entries(authored).map(([name, clip]) => [name, holdEffects(clip)]));
 export const clips: Record<string, AnimClip> = {
   ...baked,
-  down: baked.knockdown!,
-  getupStand: baked.getUp!,
   /** The same flip, spread over the getup roll's 35 frames while the sim slides him sideways. */
-  getupRoll: retimeClip(baked.getUp!, 35),
-  techInPlace: baked.tech!,
+  getupRoll: retimeClip(baked.getupStand!, 35),
   /** A tech roll away from the facing: the back roll with its frames moved onto the tech roll's travel. */
   techRollBack: retimeClip(baked.rollBack!, 40, [
     [4, 4],
