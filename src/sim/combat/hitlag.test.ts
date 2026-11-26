@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { getFighter } from '../../fighters/registry';
 import type { FighterState } from '../fighter';
-import type { MatchState } from '../match';
+import { createMatch, type MatchState } from '../match';
+import { marioReference as mario } from '../testing/reference';
 import { attack, run, testMatch } from '../testing/sim';
 import { hitlagFrames } from './formulas';
 
@@ -89,5 +90,37 @@ describe('hitlag', () => {
     expect(landed).toEqual([LAG + 1]);
     expect(a.hitVictims).toEqual([1, 2]);
     expect(v.launch).toBeNull();
+  });
+
+  it('keeps a frozen grabber from catching anyone until it acts again', () => {
+    const m = testMatch({ fighter: 'fireboy', players: 2 });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    stand(a, -6, 1);
+    stand(v, 3, -1);
+    // Frozen on frame 6 of Fireboy's grab, the first of its two grab-box frames, with the victim inside the box.
+    attack(m, 0, 'grab');
+    Object.assign(a, { actionFrame: 6, hitlag: 3 });
+
+    const caught: number[] = [];
+    for (let frame = 1; frame <= 4; frame++) {
+      run(m, 1);
+      if (m.events.some((e) => e.type === 'grab')) caught.push(frame);
+    }
+    expect(caught).toEqual([4]);
+    expect([a.action, v.action]).toEqual(['grabHold', 'grabbed']);
+  });
+
+  it('keeps stage hazards off a fighter on every hitlag frame', () => {
+    const m = createMatch({ seed: 1, stage: 'hazard-testbed', stocks: 3, ports: [{ fighter: mario.id }] });
+    const f = m.fighters[0]!;
+    // In the testbed's lava, which hits a fighter there on the first frame it can.
+    Object.assign(f, { pos: { x: -48, y: 0.001 }, prevPos: { x: -48, y: 0.001 }, hitlag: LAG });
+
+    const landed: number[] = [];
+    for (let frame = 1; frame <= LAG + 1; frame++) {
+      run(m, 1);
+      if (m.events.some((e) => e.type === 'stageHit')) landed.push(frame);
+    }
+    expect(landed).toEqual([LAG + 1]);
   });
 });
