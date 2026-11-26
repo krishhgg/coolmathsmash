@@ -1,6 +1,7 @@
 import type { Pose } from '../../../render/rig/author';
 import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, Key } from '../../../render/rig/types';
+import { GRAB } from '../../../sim/constants';
 import {
   BLINK,
   DIZZY,
@@ -997,6 +998,8 @@ clips.getupRollBack = retimeClip(clips.rollBack, 35, [
   [4, 4],
   [20, 28],
 ]);
+/** Grab release over GRAB.releaseLag frames (src/sim/actions/grab.ts): the 30-frame clip ends on frame 29. */
+clips.grabRelease = retimeClip(clips.grabRelease!, GRAB.releaseLag);
 
 /** Angles of the pose helpers, for the tests. */
 export const authored = { STAND, HANG, rotOf, grip };
