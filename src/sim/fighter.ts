@@ -10,11 +10,21 @@ import type { CompiledStage } from './stage';
 import type { StatusState } from './statuses';
 import { vec, type Vec } from './vec';
 
-export interface GroundRef {
-  kind: 'solid' | 'platform';
-  /** Edge index into CompiledStage.edges for solids, platform index for platforms. */
-  index: number;
-}
+export type GroundRef =
+  | {
+      kind: 'solid' | 'platform';
+      /** Edge index into CompiledStage.edges for solids, platform index for platforms. */
+      index: number;
+    }
+  | {
+      /** An entity's soft platform (EntityDef.platform), which stays put: its surface is kept on the reference. */
+      kind: 'entity';
+      /** The entity's id. */
+      index: number;
+      x1: number;
+      x2: number;
+      y: number;
+    };
 
 /**
  * One fighter's complete simulation state. Plain data; the renderer reads it, harness scenarios query it.
@@ -128,6 +138,8 @@ export interface FighterState {
    * surface anchor also keeps that surface and the anchor within it, so a moving piece carries the line along.
    * `moveFrame` is the move's frame on the first frame of tetherPull (the frame the line anchored) or tetherHang
    * (the frame the reel arrived), so the renderer plays the move's clip on through the reel instead of restarting it.
+   * `arrived` marks a reel that reached its fighter this frame: the tether's `arriveHit` is out (activeHitboxes) until
+   * the fighter next steps and lets go.
    */
   tether: {
     anchor: Vec;
@@ -138,9 +150,12 @@ export interface FighterState {
     surface?: GroundRef;
     local?: Vec;
     moveFrame?: number;
+    arrived?: boolean;
   } | null;
   /** A tether's target as an offset from the fighter: the reticle while aiming, then where the line is going. */
   aim: Vec | null;
+  /** Sky anchors taken this airtime (TetherDef.skyAnchors); landing or a ledge or surface latch resets it. */
+  skyAnchorsUsed: number;
   /** Frames before stage hazards (damage zones, stage hitboxes) can hit this fighter again. */
   stageHitLock: number;
   /** Timed statuses on this fighter, oldest first (src/sim/statuses.ts). */
@@ -215,6 +230,7 @@ export function createFighter(
     mobility: createMobility(getFighter(fighterId)),
     tether: null,
     aim: null,
+    skyAnchorsUsed: 0,
     stageHitLock: 0,
     statuses: [],
     meters: createMeters(getFighter(fighterId)),

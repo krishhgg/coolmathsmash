@@ -548,8 +548,10 @@ upB: {
 - **Anchoring.** The first thing the line touches anchors it if `latch` lists it: `ledge` (any ledge the line
   passes within `TETHER.ledgeSnap`, 10 units, of from off the stage, if nobody holds it and the fighter still has
   ledge grabs), `surface` (any solid edge or platform, from either side) or `sky` (empty air at full range).
-  Anything else stops the line and the move plays out. `onAnchor(x, hit)` can veto an anchor by returning false
-  (Fluffy's limited sky anchors).
+  Anything else stops the line and the move plays out. `onAnchor(x, hit)` can veto an anchor by returning false.
+- **Sky anchors.** `skyAnchors` limits sky anchors per airtime. `FighterState.skyAnchorsUsed` counts them across
+  all of the fighter's tether moves, so give each move the same limit. With none left, a sky shot whiffs. Landing
+  or a ledge or surface latch resets the count. Fluffy's Point Grapple and Quick Grapple share 3.
 - **Reeling.** An anchored fighter goes into `tetherPull`: no gravity or drift, straight at `pullSpeed` towards
   the anchor. A ledge anchor ends in a ledge grab once he is within `TETHER.ledgeArrive` (6 units) of the hang
   position, which is tether recovery. Another anchor ends with his hand on it: holding `hang` keeps him there
@@ -571,8 +573,11 @@ only. The line passes through fighters, so the hit and the ledge pull stay indep
 
 A tether ignores fighters unless it sets `targetsFighters: true`. If the line reaches a fighter before stage
 geometry, `onFighter(ctx, target, event)` can handle the contact in script or return `'pullSelf'` on
-`event.phase === 'hit'` to reel the user in. The same hook receives `'arrive'` on contact, where the move can
-apply its own hit. Grab and yank behavior is left to the move script.
+`event.phase === 'hit'` to reel the user in. The same hook receives `'arrive'` on contact. A hit on arrival goes
+in `arriveHit`, a hitbox placed from the fighter like a move's: the reel holds still on the arrival frame with it out,
+and `resolveHits` lands it after every fighter has stepped, so a shield pressed that frame blocks it on either port
+and parries, counters and trades work as for any hitbox (Fluffy's Point Grapple kick). The fighter lets go into a fall
+the next frame it steps. Grab and yank behavior is left to the move script.
 
 ### Kill percentages
 
@@ -795,7 +800,8 @@ meters: {
   and `spendMeter` read and change them, clamped to 0..`max`. `spendMeter` takes `cost` only when the meter holds
   that much, and returns whether it did. An unknown meter name throws.
 - `regen` changes the value every frame the fighter acts (not while KO'd), negative to drain. With `grounded` it only regenerates on
-  the ground.
+  the ground, and with `grounded: 'stage'` only on the stage itself, not on an entity's platform (the Raft Wars kids'
+  `raft` meter gives one raft per trip to the stage, so rafts can't chain into an endless recovery).
 - `dealt` and `taken` fill a meter from damage: that much per % the fighter's hits, projectiles, pummels, throw hold hits
   and statuses add to another fighter, and per % it takes from anything. The % counts as added, 1v1 multiplier
   included. Shields and entities don't count. The gain lands at the end of the frame, after every hit.
@@ -874,6 +880,17 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
 - **Hittable entities.** Give `hp` and fighters' attacks and other owners' projectiles damage it (once per move);
   attacker and entity share the hitlag, it breaks at 0 HP, and with a `weight` it is launched by Ultimate's
   knockback formula using the % it has taken. A fighter cannot hit its own entities.
+- **Platforms.** `platform: { width, y }` puts a soft platform on top of an entity, `width` wide and its surface `y`
+  above the entity's centre. Fighters treat it like a stage's drop-through platform: they land on it from above, pass
+  up through it, drop through it with a down flick or by holding down as they fall, and walk off its ends. A fighter
+  standing on it has `ground: { kind: 'entity', index: <entity id>, x1, x2, y }`, and `standingOn(m, e)` lists who
+  does. It carries nobody and has no ledges, so give the entity no velocity, gravity or weight, and `floor` and `wall`
+  `'pass'`. Whoever stands on it falls on their next frame once the entity is gone (expired, broken or destroyed).
+  One put down while its owner is airborne catches them even while they hold down, until they first touch ground after
+  it appears: at once if they are falling, and as they come back down if they were rising, as Steve lands on a block
+  he places under himself. A down special that puts one under the fighter lands them on it.
+  Other entities don't land on it, and CPUs don't count it as ground. The Raft Wars kids' Duck Raft
+  (`src/fighters/raftwars/duckRaft.ts`) is the example.
 - **Reflectors.** A move's `reflectors` are bubbles (`frames`, `x`, `y`, `radius`) that turn a touching projectile
   away from the fighter, make it his, and multiply its damage, speed and remaining lifetime. Defaults are Fox's
   Reflector in Ultimate: damage x1.4, speed x1.4, lifespan x1, up to 50% (SmashWiki, Reflection); Mario's Cape is

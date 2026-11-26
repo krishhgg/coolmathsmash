@@ -79,12 +79,21 @@ export function hurtbox(f: FighterState, s: FighterStats): Hurtbox {
   return { x: f.pos.x, y1: f.pos.y + r, y2: f.pos.y + Math.max(height - r, r), r };
 }
 
+/**
+ * The current move's boxes out this frame: its hit windows', plus a tether's `arriveHit` while a reel that reached
+ * its fighter holds for the hit pass (FighterState.tether.arrived).
+ */
 export function activeHitboxes(f: FighterState): PlacedHitbox[] {
   const move = moveOf(f);
   if (!move) return [];
-  return move.hits
-    .filter((w) => inWindow(f.actionFrame, w.frames))
-    .flatMap((w) => w.boxes.map((box) => ({ box, x: f.pos.x + box.x * f.facing, y: f.pos.y + box.y })));
+  const place = (box: HitboxDef): PlacedHitbox => ({
+    box,
+    x: f.pos.x + box.x * f.facing,
+    y: f.pos.y + box.y,
+  });
+  const boxes = move.hits.filter((w) => inWindow(f.actionFrame, w.frames)).flatMap((w) => w.boxes.map(place));
+  const kick = move.tether?.arriveHit;
+  return kick && f.action === 'tetherPull' && f.tether?.arrived ? [...boxes, place(kick)] : boxes;
 }
 
 export function touches(h: PlacedHitbox, body: Hurtbox): boolean {

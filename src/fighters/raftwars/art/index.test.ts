@@ -19,6 +19,8 @@ import { moves } from '../moves';
 import { stats } from '../stats';
 import { art } from '.';
 import { aimedShotClips } from './aimedShot';
+import { duckRaftClips } from './duckRaft';
+import { DUCK_RAFT } from '../duckRaftData';
 import { frameData } from './attacks';
 
 /** Engine actions and their canonical clip lengths (loops: any length; holds: not looping). */
@@ -99,8 +101,9 @@ describe('raft wars art', () => {
       expect(clip, name).toBeDefined();
       expect(clip!.length, name).toBe(move.faf - 1);
       // Aimed Shot fires from its script, not `spawn`, on AIMED_SHOT.fire. The charge holds the move on its charge
-      // frame, so the ball leaves on that frame at every charge.
-      const fired = name in aimedShotClips ? AIMED_SHOT.fire : undefined;
+      // frame, so the ball leaves on that frame at every charge. Duck Raft throws its raft from its script too.
+      const fired =
+        name in aimedShotClips ? AIMED_SHOT.fire : name in duckRaftClips ? DUCK_RAFT.place : undefined;
       const impact = move.spawn?.[0]?.frame ?? move.throw?.frame ?? move.pummel?.frame ?? fired;
       const windows = move.hits.length ? move.hits.map((h) => h.frames) : [[impact, impact]];
       expect(clip!.active, name).toEqual(windows);
@@ -111,9 +114,9 @@ describe('raft wars art', () => {
   it('keys the clips to the frame data in the moves', () => {
     const { FAF, SPAWNS, GRAB_BOXES } = frameData;
     for (const [name, move] of Object.entries(moves)) {
-      // These tables copy the moves' numbers because attacks.ts can't import the moves. Aimed Shot's clips read
-      // AIMED_SHOT from the move file itself (aimedShot.ts), so there is no copy to check.
-      if (name in aimedShotClips) continue;
+      // These tables copy the moves' numbers because attacks.ts can't import the moves. Aimed Shot's and Duck Raft's
+      // clips read AIMED_SHOT and DUCK_RAFT from the move files themselves, so there is no copy to check.
+      if (name in aimedShotClips || name in duckRaftClips) continue;
       expect(FAF[name], name).toBe(move.faf);
       const spawns = (move.spawn ?? []).map(({ frame, x, y, vx, vy }) => ({
         frame,
@@ -186,6 +189,7 @@ describe('raft wars art', () => {
       'fthrow',
       'uthrow',
       'sideB',
+      'downB',
     ];
     const ground = [
       ...standing,

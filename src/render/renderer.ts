@@ -10,13 +10,15 @@ import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
 import { drawChargeGlows } from './chargeGlow';
 import { EventLog } from './debug/eventLog';
-import { drawEntityBoxes, EntityView } from './entities';
+import { drawEntityBoxes, EntityView, layerFighters } from './entities';
 import { InputDisplay } from './debug/inputDisplay';
 import { drawMobility } from './debug/mobility';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud, OverheadTags } from './hud';
 import { placeholderStage } from './placeholderStage';
+import { ReticleView } from './reticle';
 import { drawStagePieces } from './stagePieces';
+import { TetherLineView } from './tetherLine';
 import { paint } from './vfx/paint';
 import { fighterFx, Vfx } from './vfx/system';
 import { VfxView } from './vfx/view';
@@ -63,7 +65,9 @@ export class Renderer {
   private readonly stagePieces = new Graphics();
   /** The Special and Finish Zoom flash, in screen pixels behind the fighters (like the KO blast). */
   private readonly zoomFlash = new Graphics();
-  private readonly fighterLayer = new Container();
+  private readonly fighterLayer = new Container({ sortableChildren: true });
+  /** Fighters standing in a raft, under its rim (EntityView.fronts); layerFighters moves them in and out. */
+  private readonly boatLayer = new Container({ sortableChildren: true });
   private readonly foregroundLayer = new Container();
   private stageView: StageView | null = null;
   /**
@@ -78,6 +82,8 @@ export class Renderer {
   });
   private readonly boxes = new Graphics();
   private readonly entities = new EntityView();
+  private readonly reticles = new ReticleView();
+  private readonly tetherLines = new TetherLineView();
   private readonly glows = new Graphics();
   private fighters: FighterView[] = [];
   /** Fighter id each view was built for; a transform swaps the view. */
@@ -100,8 +106,14 @@ export class Renderer {
       this.vfxView.screen,
       this.vfxView.behind,
       this.glows,
+      this.tetherLines.behind,
+      this.entities.back,
+      this.boatLayer,
+      this.entities.fronts,
       this.fighterLayer,
       this.entities.container,
+      this.reticles.container,
+      this.tetherLines.front,
       this.vfxView.front,
       this.foregroundLayer,
       this.boxes,
@@ -145,6 +157,7 @@ export class Renderer {
     if (this.matchKey !== state.config) {
       this.matchKey = state.config;
       this.fighterLayer.removeChildren();
+      this.boatLayer.removeChildren();
       this.fighters = [];
       this.fighterIds = [];
       this.costumes = pickCostumes(state.config, (id) => fighterArt(getFighter(id)));
@@ -158,7 +171,9 @@ export class Renderer {
         this.quality === 'lite',
       );
       const old = this.fighters[i];
-      if (old) this.fighterLayer.replaceChild(old.container, view.container);
+      // A transformed fighter's old view may stand in a raft (boatLayer): the new one takes its place there.
+      const parent = old?.container.parent;
+      if (old && parent) parent.replaceChild(old.container, view.container);
       else this.fighterLayer.addChild(view.container);
       this.fighters[i] = view;
       this.fighterIds[i] = f.fighter;
@@ -207,6 +222,14 @@ export class Renderer {
       ),
     );
     this.entities.draw(state, alpha, this.costumes);
+    this.reticles.draw(state, alpha, this.costumes);
+    this.tetherLines.draw(state, alpha, this.costumes);
+    layerFighters(
+      state,
+      this.fighters.map((v) => v?.container),
+      this.boatLayer,
+      this.fighterLayer,
+    );
     this.vfxView.draw(fx, state, view, alpha);
     this.drawBoxes(state);
     this.tags.update(
