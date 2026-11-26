@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createCpu } from '../../ai/index';
+import { planScenario, type GameScenario } from '../../harness/scenarios';
 import type { SimEvent } from '../../sim/events';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../../sim/match';
@@ -7,6 +8,7 @@ import { koPercent } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
 import { RAM, RAM_BOUNCE, runningRam } from './ram';
+import { scenarios } from './scenarios';
 import { stats } from './stats';
 
 type Hit = Extract<SimEvent, { type: 'hit' }>;
@@ -213,6 +215,11 @@ describe("The Duck: Running Ram (side special, Pikachu's Skull Bash)", () => {
     expect(frames).toBe(RAM.bounce.frames + 1);
     expect(a.action).toBe('fall');
     expect(v.damage > 0).toBe(v.action !== 'shield');
+  });
+
+  it('captures the full-charge ram hitting Fireboy for the hill-climb scenarios', () => {
+    const ram = scenarios.extra!.find((s) => s.name === 'duck-running-ram') as GameScenario;
+    expect(planScenario(ram).status).toBe('captured');
   });
 
   it('a level 9 CPU rams Fireboy without errors', () => {
