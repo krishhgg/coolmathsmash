@@ -208,7 +208,7 @@ export const scenarios: FighterScenarios = {
     },
     sheet(
       'attacks',
-      'Idle, run, jump and ledge hang, then the first active frame of the jab chain, tilts, dash attack, smashes and aerials.',
+      'Idle, run, jump and ledge hang, then the first active frame of the jab chain, tilts, dash attack, smashes, getup attack and aerials.',
       7.5,
       [
         'idle@0',
@@ -226,6 +226,7 @@ export const scenarios: FighterScenarios = {
           'fsmash',
           'usmash',
           'dsmash',
+          'getupAttack',
           'nair',
           'fair',
           'bair',
