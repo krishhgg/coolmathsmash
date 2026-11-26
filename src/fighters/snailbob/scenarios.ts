@@ -4,8 +4,8 @@ const SB = 'characters/snail-bob';
 
 /**
  * Snail Bob's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus the Shell Pound's landing shockwave and a Rocket Hover recovery from below the ledge. References
- * live in the Captain drive's refs/.
+ * Fireboy, plus the Shell Pound's landing shockwave, a Rocket Hover recovery from below the ledge and the down
+ * special Shell Pound's hop and drop. References live in the Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'snailbob',
@@ -86,6 +86,30 @@ export const scenarios: FighterScenarios = {
       motion: { before: 50, after: 90 },
       requires: ['move:upB'],
       refs: ['smash/ledge-hang-*', `${SB}/official-art-02*`],
+    },
+    {
+      name: 'snailbob-downb-pound',
+      description:
+        'Snail Bob fires Shell Pound (down special, Bowser Bomb) from the ground beside Fireboy at 60%: he tucks ' +
+        'into his shell, scoops Fireboy up as he hops on frame 11, somersaults, hangs and drops on frame 37, then ' +
+        'lands in the shockwave and sits dizzy through the landing lag. Capture the first frame of the drop.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'snailbob' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: 0, y: 0 }, vel: { x: 0, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: 8, y: 0 }, damage: 60, facing: -1 } },
+      ],
+      script: [{ port: 0, from: 4, y: -100, buttons: ['special'] }],
+      capture: {
+        label: "P1 move 'downB', first frame of the drop",
+        when: (s, prev) =>
+          s.fighters[0]!.move === 'downB' &&
+          s.fighters[0]!.actionFrame === 37 &&
+          prev.fighters[0]!.actionFrame !== 37,
+      },
+      motion: { before: 40, after: 70 },
+      requires: ['move:downB'],
+      refs: ['smash/attack-active-*', `${SB}/shell-01*`],
     },
   ],
 };
