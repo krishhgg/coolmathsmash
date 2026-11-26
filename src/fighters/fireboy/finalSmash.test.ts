@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { knockback } from '../../sim/combat/formulas';
 import { finalReach } from '../../sim/finalSmash';
 import type { SimEvent } from '../../sim/events';
 import type { FighterState } from '../../sim/fighter';
@@ -86,33 +87,64 @@ describe('Fire Blast (Final Smash), on Mario Finale', () => {
     expect(starts).toContain(155);
   });
 
-  it("deals Mario Finale's damage and knockback, 74% if every hit lands ('about 75%')", () => {
+  it("deals Mario Finale's damage and knockback, grounded and aerial rows apart, 74% if every hit lands ('about 75%')", () => {
     const row = (f: number) => (f < 105 ? 0 : f < 155 ? 1 : 2);
+    // [damage, BK, KS, fire1 angle, fire2 angle, targets] per row: SmashWiki's hitbox table.
     const table = [
-      { damage: 2.5, bkb: 25, kbg: 40, angles: [50, 48] },
-      { damage: 3, bkb: 20, kbg: 90, angles: [23, 20] },
-      { damage: 3.5, bkb: 10, kbg: 120, angles: [23, 20] },
-    ];
+      [[2.5, 25, 40, 50, 48, undefined]],
+      [
+        [3, 20, 90, 23, 20, 'air'],
+        [3, 15, 100, 50, 48, 'ground'],
+      ],
+      [
+        [3.5, 10, 120, 23, 20, 'air'],
+        [3.5, 5, 130, 50, 48, 'ground'],
+      ],
+    ] as const;
     let total = 0;
     for (const w of windows) {
-      const want = table[row(w.frames[0])]!;
-      expect(w.boxes.map((b) => [b.id, b.y, b.radius])).toEqual([
-        [0, BLAST.stretch, 16],
-        [1, -BLAST.stretch, 16],
-      ]);
-      for (const b of w.boxes) {
-        expect([b.damage, b.bkb, b.kbg, b.angle, b.hitlag, b.effect]).toEqual([
-          want.damage,
-          want.bkb,
-          want.kbg,
-          want.angles[b.id],
-          0,
-          'fire',
-        ]);
-      }
-      total += want.damage;
+      const rows = table[row(w.frames[0])];
+      const want = rows.flatMap(([damage, bkb, kbg, a1, a2, targets], i) =>
+        [a1, a2].map((angle, k) => ({
+          id: i * 2 + k,
+          y: k ? -BLAST.stretch : BLAST.stretch,
+          damage,
+          bkb,
+          kbg,
+          angle,
+          targets,
+        })),
+      );
+      expect(
+        w.boxes.map(({ id, y, damage, bkb, kbg, angle, targets }) => ({
+          id,
+          y,
+          damage,
+          bkb,
+          kbg,
+          angle,
+          targets,
+        })),
+      ).toEqual(want);
+      for (const b of w.boxes) expect([b.radius, b.hitlag, b.effect]).toEqual([16, 0, 'fire']);
+      total += rows[0][0];
     }
     expect(total).toBe(74);
+  });
+
+  it("hits a fighter standing in its way with the grounded row, Mario Finale's mid-window 3% at BK 15, KS 100", () => {
+    const { m, v } = blastMatch();
+    Object.assign(v, { pos: { x: 40, y: v.pos.y }, prevPos: { x: 40, y: v.pos.y } });
+    let first: Extract<SimEvent, { type: 'hit' }> | undefined;
+    let frame = 1;
+    for (; frame < 224 && !first; frame++) {
+      first = step(m, 1).find((e): e is Extract<SimEvent, { type: 'hit' }> => e.type === 'hit');
+    }
+    expect(frame).toBeGreaterThan(105);
+    expect(frame).toBeLessThan(155);
+    const kb = knockback({ percent: 0, damage: 3, kbg: 100, bkb: 15, weight: 98, stale: 1.05, rage: 1 });
+    expect(first).toEqual(expect.objectContaining({ victim: 1, damage: 3 * 1.05, hitlag: 0 }));
+    expect(first!.kb).toBeCloseTo(kb, 6);
   });
 
   it('is unblockable, unreflectable and unabsorbable, and never clanks', () => {

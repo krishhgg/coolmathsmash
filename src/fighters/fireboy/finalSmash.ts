@@ -9,15 +9,12 @@ import type { HitboxDef, HitWindow, MoveDef } from '../types';
  * - Timing table: early hits 65-104, mid hits 105-154, late hits 155-224, each at a rehit rate of 7; interruptible
  *   on frame 157 grounded and 147 aerial.
  * - Hitbox table: two fireballs (bones fire1 and fire2), radius 16.0, each stretched from Y -3 to 3. Early 2.5%,
- *   BK 25, KS 40 at angles 50 and 48. Mid 3.0%, BK 20, KS 90 at 23 and 20. Late 3.5%, BK 10, KS 120 at 23 and 20.
- *   Angle type Forward, hitlag x0.0, Flame effect; unblockable, unreflectable, unabsorbable, no clang. The angles
- *   are the numbers in the table's angle icons (AngleIcon50.png and so on).
+ *   BK 25, KS 40 at angles 50 and 48, hitting anyone. Mid 3.0%: BK 20, KS 90 at 23 and 20 against airborne
+ *   fighters, BK 15, KS 100 at 50 and 48 against grounded ones. Late 3.5%: BK 10, KS 120 at 23 and 20 airborne, BK 5,
+ *   KS 130 at 50 and 48 grounded. Angle type Forward, hitlag x0.0, Flame effect; unblockable, unreflectable,
+ *   unabsorbable, no clang. The angles are the numbers in the table's angle icons (AngleIcon50.png and so on), and
+ *   the grounded and aerial flags its GroundedTrue/AerialFalse icons (HitboxDef.targets).
  * - Every window landed adds up to 74%: SmashWiki's Mario Finale article puts Ultimate's at "about 75%".
- *
- * The table also gives the mid and late windows grounded-only rows (BK 15, KS 100 and BK 5, KS 130, at 50 and 48)
- * beside the aerial-only ones above. Hitboxes here can't target only grounded or only airborne fighters until
- * HitboxDef.targets lands (#230), so every target takes the aerial rows, which are what a fighter carried in the
- * blast meets.
  *
  * SmashWiki gives no speed for the fireballs. At BLAST.speed the blast lands the most hits on a Mario-weight fighter
  * standing 30 units in front of Fireboy, summed over 0 to 150% (a sweep from 0.9 to 1.6 units a frame), and burns
@@ -41,37 +38,59 @@ export const BLAST = {
   stretch: 3,
 };
 
-/** Mario Finale's three windows, in move frames, with its two fireballs' boxes (fire1 above, fire2 below). */
-const WINDOWS: {
-  frames: [number, number];
+/** One row of Mario Finale's hitbox table: both fireballs' values, and which fighters they hit. */
+interface Row {
   damage: number;
   bkb: number;
   kbg: number;
+  /** fire1's angle, then fire2's. */
   angles: [number, number];
-}[] = [
-  { frames: [65, 104], damage: 2.5, bkb: 25, kbg: 40, angles: [50, 48] },
-  { frames: [105, 154], damage: 3, bkb: 20, kbg: 90, angles: [23, 20] },
-  { frames: [155, 224], damage: 3.5, bkb: 10, kbg: 120, angles: [23, 20] },
+  targets: HitboxDef['targets'];
+}
+
+/**
+ * Mario Finale's three windows, in move frames, with their rows. The mid and late windows each have an aerial-only row
+ * (ids 0 and 1) and a grounded-only row (ids 2 and 3); the early window's one row hits both.
+ */
+const WINDOWS: { frames: [number, number]; rows: Row[] }[] = [
+  { frames: [65, 104], rows: [{ damage: 2.5, bkb: 25, kbg: 40, angles: [50, 48], targets: 'both' }] },
+  {
+    frames: [105, 154],
+    rows: [
+      { damage: 3, bkb: 20, kbg: 90, angles: [23, 20], targets: 'air' },
+      { damage: 3, bkb: 15, kbg: 100, angles: [50, 48], targets: 'ground' },
+    ],
+  },
+  {
+    frames: [155, 224],
+    rows: [
+      { damage: 3.5, bkb: 10, kbg: 120, angles: [23, 20], targets: 'air' },
+      { damage: 3.5, bkb: 5, kbg: 130, angles: [50, 48], targets: 'ground' },
+    ],
+  },
 ];
 
-const fireball = (id: number, y: number, w: (typeof WINDOWS)[number]): HitboxDef => ({
-  id,
-  x: 0,
-  y,
-  radius: BLAST.radius,
-  damage: w.damage,
-  angle: w.angles[id]!,
-  kbg: w.kbg,
-  bkb: w.bkb,
-  hitlag: 0,
-  effect: 'fire',
-});
+/** A row's two fireballs: fire1 above the centre line, fire2 below. */
+const fireballs = (row: Row, id: number): HitboxDef[] =>
+  [BLAST.stretch, -BLAST.stretch].map((y, i) => ({
+    id: id + i,
+    x: 0,
+    y,
+    radius: BLAST.radius,
+    damage: row.damage,
+    angle: row.angles[i]!,
+    kbg: row.kbg,
+    bkb: row.bkb,
+    hitlag: 0,
+    effect: 'fire',
+    ...(row.targets !== 'both' && { targets: row.targets }),
+  }));
 
 /** Each window cut into 7-frame rehit windows over the blast's age (age 1 = move frame BLAST.frame). */
 function blastHits(): HitWindow[] {
   const out: HitWindow[] = [];
   for (const w of WINDOWS) {
-    const boxes = [fireball(0, BLAST.stretch, w), fireball(1, -BLAST.stretch, w)];
+    const boxes = w.rows.flatMap((row, i) => fireballs(row, i * 2));
     for (let f = w.frames[0]; f <= w.frames[1]; f += BLAST.rehit) {
       const end = Math.min(f + BLAST.rehit - 1, w.frames[1]);
       out.push({ frames: [f - BLAST.frame + 1, end - BLAST.frame + 1], rehit: true, boxes });
