@@ -1372,6 +1372,28 @@ function star(cx: number, cy: number, r: number): string {
   return poly(pts);
 }
 
+/**
+ * The charge flash at full revs (Rev Up): a ragged burst of fourteen uneven rays about 7.5 units across, with a
+ * white-hot core, centred on the origin. It draws behind the car, so the rays flare out round the body.
+ */
+export const flash: PathShape[] = (() => {
+  const RAYS = [1, 0.78, 0.94, 0.7, 1.06, 0.82, 0.9, 0.74, 1.02, 0.8, 0.96, 0.72, 1.04, 0.86];
+  const burst = (r: number, waist: number, turn: number): Pt[] =>
+    RAYS.flatMap((len, i): Pt[] => {
+      const a = (((i * 360) / RAYS.length + turn) * Math.PI) / 180;
+      const b = ((((i + 0.5) * 360) / RAYS.length + turn) * Math.PI) / 180;
+      return [
+        [r * len * Math.cos(a), r * len * Math.sin(a)],
+        [r * waist * Math.cos(b), r * waist * Math.sin(b)],
+      ];
+    });
+  return [
+    fill(poly(burst(7.6, 0.5, -90)), 'beam', 'beamLine', LINE),
+    fill(poly(burst(4.6, 0.56, -77)), 'flameHi'),
+    fill(ellipse(0, 0, 2.6, 2.3), 'glint'),
+  ];
+})();
+
 /** Dizzy stars circling over the roof. */
 export const stars: PathShape[] = [
   [-1.6, 0.15, 0.5],

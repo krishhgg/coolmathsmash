@@ -107,7 +107,8 @@ charge building, give the art a clip named `<move>Charge` with one frame per cha
 `chargeFrames`): while the move waits on its charge frame, the renderer plays it on the frames charged so far, and
 the move's own clip carries on from the charge frame on release. Start it on the move clip's charge-frame pose. The
 Duck's `sideBCharge` crouches, ruffles his feathers on a symbol loop and swells a glow behind him over its 80
-frames. The placeholder charge glow (`src/render/chargeGlow.ts`) leaves such a move alone.
+frames, and Wheely's `neutralBCharge` (`src/fighters/wheely/art/revUp.ts`) shakes harder and puffs bigger as
+the revs build, and flashes as they top out. The placeholder charge glow (`src/render/chargeGlow.ts`) leaves such a move alone.
 
 ## Pose checklist
 

@@ -60,6 +60,29 @@ export const scenarios: FighterScenarios = {
       refs: ['smash/attack-active-*', `${W}/video-thumb-ingame-driving-*`, `${W}/official-art-01*`],
     },
     {
+      name: 'wheely-rev-up-full',
+      description:
+        'Wheely taps Rev Up (neutral special), revs to full by himself and keeps it, then blasts into Fireboy at ' +
+        '40% with the full charge; capture the hit.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'wheely' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -55, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: -10, y: 0 }, facing: -1, damage: 40 } },
+      ],
+      script: [
+        { port: 0, from: 10, buttons: ['special'] },
+        { port: 0, from: 140, buttons: ['special'] },
+      ],
+      capture: {
+        label: "P2's damage rises",
+        when: (s, prev) => s.fighters[1]!.damage > prev.fighters[1]!.damage,
+      },
+      motion: { before: 45, after: 30 },
+      requires: ['move:neutralB'],
+      refs: ['smash/attack-active-*', `${W}/video-thumb-ingame-driving-*`, `${W}/official-art-01*`],
+    },
+    {
       name: 'wheely-ramp-jump',
       description: 'Wheely launches off the ramp with his up special; capture the top of the arc.',
       page: { kind: 'game' },

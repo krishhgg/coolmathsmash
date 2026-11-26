@@ -50,7 +50,7 @@ export interface Attack {
     /** It would also meet the target running in (Target.rush) before the target's quickest hit could land. */
     stops?: true;
   };
-  /** Hold Special until the move has this many frames of charge (MoveProbe.charged), rather than tapping it. */
+  /** Fire the move with this many frames of charge (MoveProbe.charged, chargeInput), rather than tapping it. */
   held?: number;
   score: number;
 }
