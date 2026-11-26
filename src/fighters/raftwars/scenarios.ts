@@ -93,5 +93,24 @@ export const scenarios: FighterScenarios = {
       requires: ['move:sideB'],
       refs: ['smash/attack-active-*', `${RW}/ingame-aim-*`],
     },
+    {
+      name: 'raftwars-aimed-shot',
+      description:
+        'Aimed Shot (neutral special) held to full charge, 112 frames, fires by itself and hits Fireboy at 60% 50 units away.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'raftwars' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -40, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: 10, y: 0 }, facing: -1, damage: 60 } },
+      ],
+      script: [{ port: 0, from: 10, to: 140, buttons: ['special'] }],
+      capture: {
+        label: "P2's damage rises when the full-charge ball lands",
+        when: (s, prev) => s.fighters[1]!.damage > prev.fighters[1]!.damage,
+      },
+      motion: { before: 60, after: 20 },
+      requires: ['move:neutralB'],
+      refs: ['smash/attack-active-*', `${RW}/ingame-aim-*`],
+    },
   ],
 };
