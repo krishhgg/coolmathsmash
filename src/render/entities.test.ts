@@ -1,12 +1,13 @@
-import { Graphics, type Container } from 'pixi.js';
+import { Container, Graphics } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import { allFighters, getFighter, registerFighter } from '../fighters/registry';
 import { spawnEntity } from '../sim/entities/entities';
 import type { EntityState } from '../sim/entities/types';
+import type { FighterState } from '../sim/fighter';
 import { PLANET } from '../sim/items/planet';
 import { createMatch, type MatchState } from '../sim/match';
 import { gadgets } from '../sim/testing/gadgets';
-import { EntityView, entityArt, propPlacement } from './entities';
+import { EntityView, entityArt, layerFighters, propPlacement } from './entities';
 import { fighterArt } from './fighterView';
 import { drawPlanetEntity } from './items';
 import type { PropArt } from './rig/types';
@@ -128,15 +129,16 @@ describe('EntityView', () => {
     expect(view.discs.context.instructions).toHaveLength(0);
   });
 
-  it('draws a prop with a front behind the fighters and only its front over them, and drops both views', () => {
+  it('draws a prop with a front behind the fighters and its front into its own layer, and drops both views', () => {
     const m = createMatch({ seed: 1, stage: 'battlefield', stocks: 3, ports: [{ fighter: 'raftwars' }] });
     const raft = spawnEntity(m, { kind: 'raftwars/duckRaft', owner: 0, pos: { x: 4, y: 2.5 }, facing: -1 });
     const view = new EntityView();
     view.draw(m, 1, ['default']);
     expect(view.back.children).toHaveLength(1);
-    expect(view.props.children).toHaveLength(1);
+    expect(view.fronts.children).toHaveLength(1);
+    expect(view.props.children).toHaveLength(0);
     const [body] = view.back.children as [Container];
-    const [rim] = view.props.children as [Container];
+    const [rim] = view.fronts.children as [Container];
     for (const c of [body, rim]) {
       expect(c.position).toMatchObject({ x: 4, y: -2.5 });
       expect(c.scale.x).toBe(-1);
@@ -149,7 +151,44 @@ describe('EntityView', () => {
     m.entities = m.entities.filter((e) => e !== raft);
     view.draw(m, 1, ['default']);
     expect(view.back.children).toHaveLength(0);
-    expect(view.props.children).toHaveLength(0);
+    expect(view.fronts.children).toHaveLength(0);
+  });
+
+  it('puts only the fighters standing in a raft under its rim, everyone else over it, in port order', () => {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'fireboy' }, { fighter: 'raftwars' }, { fighter: 'fireboy' }],
+    });
+    const raft = spawnEntity(m, { kind: 'raftwars/duckRaft', owner: 1, pos: { x: 0, y: 2.5 } });
+    const crate = spawnEntity(m, { kind: 'test-gadgets/crate', owner: 0, pos: { x: 30, y: 0 } });
+    const [a, kids, c] = m.fighters as [FighterState, FighterState, FighterState];
+    const on = (e: EntityState) => ({ kind: 'entity' as const, index: e.id, x1: -7, x2: 7, y: 3.5 });
+    kids.ground = on(raft);
+    // Fireboy 0 stands on the floor under the raft; Fireboy 2 stands on an entity without a front.
+    c.ground = on(crate);
+    const views = m.fighters.map(() => new Container());
+    const boat = new Container({ sortableChildren: true });
+    const rest = new Container({ sortableChildren: true });
+    layerFighters(m, views, boat, rest);
+    expect(boat.children).toEqual([views[1]]);
+    expect(rest.children).toEqual([views[0], views[2]]);
+    expect(views.map((v) => v.zIndex)).toEqual([0, 1, 2]);
+
+    // Out of the raft the kids go back among the others, in port order; a fighter in the raft goes under the rim.
+    kids.ground = null;
+    a.ground = on(raft);
+    layerFighters(m, views, boat, rest);
+    expect(boat.children).toEqual([views[0]]);
+    rest.sortChildren();
+    expect(rest.children).toEqual([views[1], views[2]]);
+    // A raft that is gone no longer holds anyone under its rim.
+    m.entities = [];
+    layerFighters(m, views, boat, rest);
+    expect(boat.children).toEqual([]);
+    rest.sortChildren();
+    expect(rest.children).toEqual(views);
   });
 
   it('draws the Coolmath Planet with its item drawing, not a disc', () => {

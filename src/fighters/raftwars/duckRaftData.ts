@@ -41,7 +41,10 @@ export const DUCK_RAFT = {
    * their feet.
    */
   ground: { x: 16.5, y: 2.5 },
-  /** Frames the pop lasts when the raft goes: four drawings, three frames each, from age 0 (the frame it goes). */
+  /**
+   * Frames the pop is drawn when the raft goes, ages 1 to 11 from the frame it goes, however it went: four drawings of
+   * three frames each on the 20 fps loop, the first one two frames long because age 0 never shows.
+   */
   popFrames: 11,
   air: { x: 0, y: -1 },
 } as const;

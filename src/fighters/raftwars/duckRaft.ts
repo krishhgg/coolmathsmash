@@ -21,8 +21,16 @@ const KIND = 'raftwars/duckRaft';
  * The raft goes with a pop: a short burst of air and torn vinyl where it was, whether it broke, wore out or was
  * replaced. The pop is an entity of its own that only draws: no hits and no HP, so nothing reacts to it.
  */
-function pop(m: MatchState, e: EntityState): void {
-  spawnEntity(m, { kind: 'raftwars/duckRaftPop', owner: e.owner, pos: e.pos, facing: e.facing });
+function pop(m: MatchState, e: EntityState): EntityState {
+  return spawnEntity(m, { kind: 'raftwars/duckRaftPop', owner: e.owner, pos: e.pos, facing: e.facing });
+}
+
+/**
+ * A break lands in the hit phase, after this frame's entities have aged, so its pop starts at age 1 as a pop spawned
+ * earlier in the frame does ("1 on the frame it spawns"). Every pop then draws for DUCK_RAFT.popFrames frames.
+ */
+function popOnBreak(m: MatchState, e: EntityState): void {
+  pop(m, e).age = 1;
 }
 
 /** Throws the raft on frame 4, if the kids have one: the old one goes, and the new one appears where DUCK_RAFT says. */
@@ -73,7 +81,7 @@ export const duckRaftEntities: Record<string, EntityDef> = {
     wall: 'pass',
     platform: { width: DUCK_RAFT.width, y: DUCK_RAFT.deck },
     script: wearOut,
-    onBreak: pop,
+    onBreak: popOnBreak,
   },
   /** The pop the raft leaves behind (art.projectiles.duckRaftPop): four drawings, three frames each. */
   duckRaftPop: { radius: 1, lifetime: DUCK_RAFT.popFrames, floor: 'pass', wall: 'pass' },

@@ -158,9 +158,9 @@ export interface PropArt {
    */
   align?: boolean;
   /**
-   * A symbol drawn over fighters, on top of `symbol`, which then draws behind them. Duck Raft's rim
-   * (`src/fighters/raftwars/art/raft.ts`) covers the feet of whoever stands in the raft, while the rest of the raft
-   * stays behind every fighter. Without it the whole prop draws over fighters, as a projectile should.
+   * A symbol drawn over the fighters standing on this entity and under every other fighter, on top of `symbol`,
+   * which then draws behind all of them. Duck Raft's rim (`src/fighters/raftwars/art/raft.ts`) covers the feet of
+   * whoever stands in the raft and nobody else. Without it the whole prop draws over fighters, as a projectile should.
    */
   front?: string;
   /**

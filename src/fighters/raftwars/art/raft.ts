@@ -12,7 +12,8 @@ import { bezier, ellipse, inflate, place, poly, smooth, strokes, turn, type P } 
  * Raft space is the entity's: origin at its centre, y down, the bow (+x) the way it faces. Its bottom is
  * DUCK_RAFT.bottom down. The whole raft draws behind fighters, so its head and hull never hide anyone. Only `duckRaftRim`,
  * the top band of the hull from its rim (0.95 above the deck the sim stands fighters on) to just under the deck, draws
- * over them, so whoever stands on it stands in the boat with their feet behind the rim (PropArt.front).
+ * over whoever stands in it, so they stand in the boat with their feet behind the rim (PropArt.front). Every other
+ * fighter draws over the rim too.
  */
 
 const fill = (d: string, color: string): PathShape => ({ d, fill: color });

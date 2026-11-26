@@ -180,15 +180,16 @@ describe('Raft Wars Kids: Duck Raft (down special)', () => {
   it('leaves a pop where it was when it breaks, wears out or is replaced, which lasts 11 frames and does nothing', () => {
     const POP = 'raftwars/duckRaftPop';
     const pops = (m: MatchState) => m.entities.filter((e) => e.kind === POP);
+    // Checked on the frame the raft went: the pop is there at age 1 and is drawn on exactly popFrames frames.
     const check = (m: MatchState, gone: EntityState) => {
       const [p] = pops(m);
       expect(p, 'pop').toBeDefined();
       expect([p!.pos, p!.facing, p!.owner]).toEqual([gone.pos, gone.facing, gone.owner]);
       expect(entityPlatform(p!)).toBeNull();
-      run(m, DUCK_RAFT.popFrames - p!.age);
-      expect(pops(m)).toEqual([p]);
-      run(m, 1);
-      expect(pops(m)).toEqual([]);
+      expect(p!.age).toBe(1);
+      let drawn = 1;
+      for (; pops(m).length > 0 && drawn < 30; drawn++) run(m, 1);
+      expect(drawn - 1).toBe(DUCK_RAFT.popFrames);
     };
 
     // Worn out.
