@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
+import { poseBounds, shapesBounds, shapesContain, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
+import type { PathShape } from '../../../render/rig/types';
 import { MUZZLE_LEAD } from '../entities';
 import { moves } from '../moves';
+import { MEGA_LASER } from '../upgrade';
+import { BURST_RADIUS } from './burst';
 import { GUN_MUZZLE, MAGNET_POLES } from './parts';
 import { HAND } from './rig';
 import { art } from '.';
@@ -172,6 +175,29 @@ describe('johnny art', () => {
       expect(symbols.fx1, `downB@${f}`).toMatch(/^coins\d$/);
       expect(world.fx1!.tx, `downB@${f} x`).toBeCloseTo(hand.a * lx + hand.c * ly + hand.tx, 1);
       expect(world.fx1!.ty, `downB@${f} y`).toBeCloseTo(hand.b * lx + hand.d * ly + hand.ty, 1);
+    }
+  });
+
+  it("draws Upgraded Laser's burst out to its hit's edge on every drawing, and not much past it", () => {
+    const R = MEGA_LASER.burstRadius;
+    const prop = art.projectiles!.laserBurst!;
+    expect(BURST_RADIUS).toBe(R);
+    const loop = art.rig.symbols[prop.symbol];
+    if (!loop || Array.isArray(loop)) throw new Error('the burst is a symbol loop');
+    expect(loop.loop).toHaveLength(7);
+    for (const name of loop.loop) {
+      const shapes = art.rig.symbols[name] as PathShape[];
+      // Solid paint only: the glow is a gradient.
+      const solid = shapes.filter((shape) => typeof shape.fill === 'string');
+      for (let deg = 0; deg < 360; deg += 15) {
+        const [x, y] = [Math.cos((deg * Math.PI) / 180), Math.sin((deg * Math.PI) / 180)];
+        expect(
+          shapesContain(solid, (0.95 * R * x) / prop.scale, (0.95 * R * y) / prop.scale),
+          `${name} ${deg}`,
+        ).toBe(true);
+      }
+      const [x0, y0, x1, y1] = shapesBounds(shapes).map((v) => v * prop.scale);
+      expect(Math.max(-x0!, -y0!, x1!, y1!), name).toBeLessThanOrEqual(1.1 * R);
     }
   });
 
