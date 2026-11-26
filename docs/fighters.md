@@ -338,7 +338,7 @@ beastChew: {
 ### Counters
 
 A move with `counter` blocks hits and answers them with a counterattack. Marth's Counter in Ultimate, from the test
-fixtures in `src/sim/testing/counter.ts` until Bob's Shadow Step exists:
+fixtures in `src/sim/testing/counter.ts`:
 
 ```ts
 downB: {
@@ -370,7 +370,10 @@ downBHit: {
 - **The freeze.** The counterer goes straight into the counterattack `move` and freezes with the attacker for
   `freeze` frames (default 21, Marth's). The counterattack's frame 1 is the last frozen frame, so its frame numbers
   are Ultimate's and Marth's swing lands 25 frames after the catch. The counterer is intangible through the freeze,
-  and the counterattack's own `intangible` takes over from frame 1.
+  and the counterattack's own `intangible` takes over from frame 1. A counter whose Ultimate analogue doesn't freeze
+  the counterer counts its counterattack frames from the catch; take `freeze - 1` off them so the hit lands on the
+  same frame after the catch. Bob the Robber's Shadow Step (`src/fighters/bob-the-robber/specials.ts`) does this
+  with Double Team's frames and a 12-frame freeze.
 - **Facing.** The counterer turns to face the hit. With `behind` it reappears that many units behind the attacker
   instead, facing their back, as Lucario's Double Team does: on the attacker's floor (held to its ends), or in the
   air beside an airborne attacker.

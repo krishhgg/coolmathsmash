@@ -423,6 +423,22 @@ export const faces: Record<string, PathShape[]> = {
   face3qWide: face('3q', 'wide', 'ouch'),
   face3qGlow: face('3q', 'glow', 'flat'),
   face3qShush: face('3q', 'sneak', 'shush'),
+  /** Only his eyes, glowing in the dark: drawn over the shadow he hides in (Shadow Step). */
+  face3qShadow: [
+    ...LAYOUT['3q'].eyes.map((cx, i) =>
+      fill(ellipse(cx, EYE_Y + 0.1, LAYOUT['3q'].rx[i]! * 1.5, 0.9), {
+        type: 'radial',
+        cx,
+        cy: EYE_Y + 0.1,
+        r: LAYOUT['3q'].rx[i]! * 1.5,
+        stops: [
+          { offset: 0, color: 'glow', alpha: 0.55 },
+          { offset: 1, color: 'glow', alpha: 0 },
+        ],
+      }),
+    ),
+    ...eyes('3q', 'glow'),
+  ],
 };
 
 // ---------------------------------------------------------------------------------------------------------
@@ -1492,3 +1508,174 @@ export const twirl: PathShape[] = [
   ...[0, 120, 240].map((a) => fill(sector(a, a + 55, 0.86, 1.0, 10), 'smearEdge')),
   ...[60, 180, 300].map((a) => fill(sector(a, a + 35, 0.6, 0.68, 8), 'smearEdge')),
 ];
+
+// ---------------------------------------------------------------------------------------------------------
+// Shadow Step: the pool Bob sinks into, the shadow over him, its burst as he steps out, and his eyes in the dark
+
+/** Three drawings of a shadow effect, looped at 10 fps on the match clock so the smoke churns while he waits. */
+const churn = (draw: (k: number) => PathShape[], name: string) => ({
+  [`${name}0`]: draw(0),
+  [`${name}1`]: draw(1),
+  [`${name}2`]: draw(2),
+  [name]: { loop: [`${name}0`, `${name}1`, `${name}2`], fps: 10 },
+});
+
+/** A dark flame of shadow rising `h` from (x, 0), its tip leaning `lean` units. */
+const wisp = (x: number, h: number, lean: number, w = 0.55): string =>
+  blob(
+    [
+      [x - w, 0.1],
+      [x - w * 0.55, -h * 0.45],
+      [x + lean, -h],
+      [x + w * 0.5, -h * 0.5],
+      [x + w, 0.1],
+    ],
+    0.8,
+  );
+
+/**
+ * The pool on the floor under him (rig space, centred between the feet): a flat puddle of shadow with a paler rim
+ * and dark wisps curling up from it.
+ */
+const shadowPool = (k: number): PathShape[] => {
+  const j = (a: number, b: number, c: number) => [a, b, c][k]!;
+  const rim: P[] = Array.from({ length: 18 }, (_, i) => {
+    const a = (i / 18) * Math.PI * 2;
+    const r = 1 + (i % 2 ? -0.04 : 0.05 + 0.03 * ((i + k) % 3));
+    return [6.3 * r * Math.cos(a), 0.15 + 1.05 * r * Math.sin(a)];
+  });
+  return [
+    ink(blob(rim), 'shadow', 0.14),
+    stroke(ellipse(0, 0.2, 4.1, 0.55), 0.1, 'shadowHi'),
+    ...[
+      [-4.6, j(1.6, 2.2, 1.3), j(-0.3, 0.2, -0.5)],
+      [-1.9, j(2.6, 1.8, 2.9), j(0.3, -0.2, 0.1)],
+      [2.2, j(2.0, 2.8, 1.7), j(-0.2, 0.4, 0.3)],
+      [4.7, j(1.3, 1.6, 2.1), j(0.4, -0.1, 0.5)],
+    ].map(([x, h, lean]) => ink(wisp(x!, h!, lean!), 'shadow', 0.12)),
+  ];
+};
+
+/**
+ * The shadow over him while he hides: a lumpy column of smoke from the floor to just over his beanie (rig space,
+ * feet at the origin), darkest at the floor and see-through enough near the top that his shape shows inside it.
+ */
+const shadowVeil = (k: number): PathShape[] => {
+  const j = (a: number, b: number, c: number) => [a, b, c][k]!;
+  const outline: P[] = [
+    [-5.4, 0.5],
+    [-5.3 + j(0, 0.2, -0.2), -2.4],
+    [-5.9, -4.9 + j(0, -0.3, 0.2)],
+    [-5.6 + j(0.2, 0, -0.2), -7.2],
+    [-6.8, -9.3 + j(0, 0.2, -0.2)],
+    [-5.9, -12.1],
+    [-3.6 + j(0, 0.2, -0.1), -13.6],
+    [-2.0, -13.2],
+    [-0.7, -13.3 + j(0, 0.25, -0.15)],
+    [1.5 + j(0, -0.2, 0.1), -12.9],
+    [3.6, -11.9 + j(0, -0.2, 0.2)],
+    [5.6, -10.0],
+    [5.6 + j(0, -0.2, 0.2), -7.6],
+    [5.0, -5.2 + j(0, 0.3, -0.2)],
+    [5.7 + j(0.1, -0.1, 0), -2.8],
+    [5.4, 0.5],
+    [2.4, 1.0],
+    [-2.6, 1.0],
+  ];
+  return [
+    {
+      d: blob(outline, 0.9),
+      fill: {
+        type: 'linear',
+        x0: 0,
+        y0: -13.3,
+        x1: 0,
+        y1: 1,
+        stops: [
+          { offset: 0, color: 'shadow', alpha: 0.8 },
+          { offset: 0.55, color: 'shadow', alpha: 0.88 },
+          { offset: 1, color: 'shadow', alpha: 0.96 },
+        ],
+      },
+      stroke: { color: 'shadowHi', width: 0.16 },
+    },
+    stroke(
+      curve([
+        [-3.6, -2.6 + j(0, 0.3, -0.3)],
+        [-2.2, -4.2],
+        [-3.3, -5.8 + j(0, -0.2, 0.3)],
+      ]),
+      0.12,
+      'shadowHi',
+    ),
+    stroke(
+      curve([
+        [3.4, -6.2 + j(0, -0.3, 0.2)],
+        [2.1, -7.9],
+        [3.2, -9.6 + j(0, 0.2, -0.3)],
+      ]),
+      0.12,
+      'shadowHi',
+    ),
+    stroke(
+      curve([
+        [-1.6 + j(0, 0.3, -0.2), -10.8],
+        [0.2, -11.7],
+        [1.8 + j(0, -0.2, 0.3), -10.9],
+      ]),
+      0.1,
+      'shadowHi',
+    ),
+  ];
+};
+
+/** A round puff of smoke at (x, y), radius r, its edge lumpy with `lobes` bumps. */
+const puff = (x: number, y: number, r: number, lobes = 7, turn = 0): string =>
+  blob(
+    Array.from({ length: lobes * 2 }, (_, i): P => {
+      const a = ((i / (lobes * 2)) * 360 + turn) * (Math.PI / 180);
+      const k = i % 2 ? 0.93 : 1.05;
+      return [x + r * k * Math.cos(a), y + r * k * Math.sin(a)];
+    }),
+  );
+
+/**
+ * The shadow going "poof" as he springs out of it: a ring of dark smoke puffs round his middle (rig space, centred
+ * on (0, -6)) with a few specks thrown clear. Clips grow it and drop it within a few frames.
+ */
+export const shadowBurst: PathShape[] = [
+  ...Array.from({ length: 9 }, (_, i) => {
+    const a = ((i * 40 + (i % 2 ? 8 : -5)) * Math.PI) / 180;
+    const d = i % 3 === 1 ? 4.9 : 4.3;
+    const r = [1.7, 1.35, 1.55][i % 3]!;
+    const [x, y] = [d * Math.cos(a), -6 + d * 1.05 * Math.sin(a)];
+    return {
+      d: puff(x, y, r, 8, i * 23),
+      fill: {
+        type: 'radial' as const,
+        cx: x - r * 0.3,
+        cy: y - r * 0.3,
+        r: r * 1.3,
+        stops: [
+          { offset: 0, color: 'shadowHi', alpha: 0.9 },
+          { offset: 0.55, color: 'shadow', alpha: 0.92 },
+          { offset: 1, color: 'shadow', alpha: 0.85 },
+        ],
+      },
+      stroke: { color: 'shadow', width: 0.14 },
+    };
+  }),
+  ...[
+    [-6.9, -9.4, 0.42],
+    [6.6, -2.8, 0.36],
+    [6.2, -10.6, 0.3],
+    [-6.4, -1.9, 0.34],
+    [0.4, -12.6, 0.38],
+  ].map(([x, y, r]) => ink(ellipse(x!, y!, r!, r!), 'shadow', 0.08)),
+];
+
+export const shadows: Record<string, PathShape[] | { loop: string[]; fps: number }> = {
+  ...churn(shadowPool, 'shadowPool'),
+  ...churn(shadowVeil, 'shadowVeil'),
+  shadowBurst,
+};
