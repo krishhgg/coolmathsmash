@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { createCpu } from '../../ai';
+import { neutralInput } from '../../input/types';
 import ref from '../../sim/reference/physics-constants.json';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
-import { createMatch, type MatchState } from '../../sim/match';
+import { createMatch, stepMatch, type MatchState } from '../../sim/match';
 import { koPercent, type KoHit } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
 import { CRATE_FRAMES, CRATE_RADIUS } from './entities';
+import { fighter } from '.';
 import { DAIR_PLUNGE_FROM, SPIN_ROLL, moves } from './moves';
 import { stats } from './stats';
 
@@ -533,4 +536,129 @@ describe('Snail Bob: Crate Drop (neutral special)', () => {
     runPorts(m, 3, [{}, {}]);
     expect(crates(m, 'crate')).toHaveLength(0);
   });
+});
+
+describe('Snail Bob: Rocket Hover (up special)', () => {
+  const UP_B: Hold = { y: 50, buttons: ['special'] };
+  const HOLD_B: Hold = { buttons: ['special'] };
+
+  it("is R.O.B.'s Robo Burner: 143 frames of fuel, no hitbox, actionable on frame 25, never helpless", () => {
+    expect(fighter.hover).toEqual({ fuel: 143, rise: 1, accel: 0.1 });
+    expect(moves.upB).toMatchObject({ kind: 'other', faf: 25, action: 'hover', hits: [] });
+    expect(moves.upB!.helpless).toBeUndefined();
+  });
+
+  it('burns the whole tank in 143 frames of thrust, rising about 140 units, then falls with his midair jump left', () => {
+    const m = snail();
+    const f = m.fighters[0]!;
+    const y0 = f.pos.y;
+    run(m, 1, UP_B);
+    expect([f.move, f.action]).toEqual(['upB', 'hover']);
+    let thrust = 1;
+    let top = y0;
+    while (f.action === 'hover') {
+      const left = f.mobility.hoverFuel;
+      run(m, 1, HOLD_B);
+      if (f.mobility.hoverFuel < left) thrust++;
+      top = Math.max(top, f.pos.y);
+    }
+    expect(thrust).toBe(143);
+    expect(f.mobility.hoverFuel).toBe(0);
+    expect(f.action).toBe('fall');
+    expect(top - y0).toBeGreaterThan(135);
+    expect(top - y0).toBeLessThan(143);
+    run(m, 1, { buttons: ['jump'] });
+    expect(f.action).toBe('doubleJump');
+  });
+
+  it('holds him in the move until frame 25 even when Special is tapped, then drops him into a normal fall', () => {
+    const m = snail();
+    const f = placeInAir(m, 100, 60);
+    run(m, 1, UP_B);
+    run(m, 23);
+    expect([f.action, f.actionFrame]).toEqual(['hover', 24]);
+    run(m, 1);
+    expect(f.action).toBe('fall');
+    expect(f.mobility.hoverFuel).toBe(142);
+  });
+
+  it('keeps the fuel he did not burn for another hover in the same airtime, without refilling in the air', () => {
+    const m = snail();
+    const f = placeInAir(m, 100, 60);
+    run(m, 1, UP_B);
+    run(m, 39, HOLD_B);
+    run(m, 1);
+    expect(f.action).toBe('fall');
+    expect(f.mobility.hoverFuel).toBe(103);
+    run(m, 30);
+    expect(f.mobility.hoverFuel).toBe(103);
+    run(m, 1, UP_B);
+    expect([f.move, f.action]).toEqual(['upB', 'hover']);
+    run(m, 9, HOLD_B);
+    expect(f.mobility.hoverFuel).toBe(93);
+  });
+
+  it('refills an empty tank in 90 frames once he lands (Robo Burner: about 1.5 s on the ground)', () => {
+    const m = snail();
+    const f = m.fighters[0]!;
+    run(m, 1, UP_B);
+    until(m, (g) => g.action !== 'hover', HOLD_B, 200);
+    until(m, (g) => g.ground !== null, {}, 200);
+    expect(f.mobility.hoverFuel).toBe(0);
+    run(m, 45);
+    expect(f.mobility.hoverFuel).toBeCloseTo(71.5, 6);
+    run(m, 44);
+    expect(f.mobility.hoverFuel).toBeLessThan(143);
+    run(m, 1);
+    expect(f.mobility.hoverFuel).toBeCloseTo(143, 6);
+  });
+
+  it('brings him back onto Battlefield from below the ledge after Mario launches him, with no midair jump left', () => {
+    const { m, a, v } = vsMario();
+    Object.assign(place(a, 72), { facing: -1, damage: 20 });
+    Object.assign(place(v, 64), { facing: 1 });
+    runPorts(m, 2, [{}, {}]);
+    attack(m, 1, 'probe');
+    const step = (hold: Hold) => runPorts(m, 1, [hold, {}]);
+    for (let i = 0; i < 300 && (a.ground || a.pos.y > -30); i++) step({});
+    expect(a.damage).toBeGreaterThan(20);
+    expect(a.hitstun).toBe(0);
+    expect(a.pos.x).toBeGreaterThan(90);
+    expect(a.pos.y).toBeLessThan(-30);
+    a.jumpsUsed = stats.jumps;
+    step(UP_B);
+    expect(a.move).toBe('upB');
+    // Rise to the ledge's height first, then drift in; over the stage, let go and drop onto it.
+    for (let i = 0; i < 400 && !a.ground && !a.action.startsWith('ledge'); i++)
+      step(a.pos.x > 70 ? { x: a.pos.y > -2 ? -100 : 0, buttons: ['special'] } : {});
+    expect(a.stocks).toBe(3);
+    expect(a.ground !== null || a.action.startsWith('ledge')).toBe(true);
+    expect(Math.abs(a.pos.x)).toBeLessThanOrEqual(80);
+  });
+
+  it.each([4, 7, 9])(
+    'a level %d CPU holds the hover from below the ledge after Mario launches him, back to the stage',
+    (level) => {
+      const { m, a, v } = vsMario();
+      Object.assign(place(a, 72), { facing: -1, damage: 20 });
+      Object.assign(place(v, 64), { facing: 1 });
+      runPorts(m, 2, [{}, {}]);
+      attack(m, 1, 'probe');
+      for (let i = 0; i < 300 && (a.ground || a.pos.y > -30); i++) runPorts(m, 1, [{}, {}]);
+      expect(a.pos.y).toBeLessThan(-30);
+      a.jumpsUsed = stats.jumps;
+      const cpu = createCpu({ port: 0, level, seed: 5 });
+      let fuel = a.mobility.hoverFuel;
+      let safe = false;
+      for (let i = 0; i < 600 && !safe; i++) {
+        stepMatch(m, [cpu.input(m), neutralInput()]);
+        fuel = Math.min(fuel, a.mobility.hoverFuel);
+        safe = a.ground !== null || a.action === 'ledgeHang';
+      }
+      expect(a.stocks).toBe(3);
+      expect(safe).toBe(true);
+      // Rode the tank up instead of tapping it: a tap burns one frame of fuel and falls.
+      expect(fighter.hover.fuel - fuel).toBeGreaterThan(30);
+    },
+  );
 });

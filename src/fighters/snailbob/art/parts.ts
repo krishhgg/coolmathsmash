@@ -715,3 +715,101 @@ export const stars: PathShape[] = [-1, 1].flatMap((side) => {
   });
   return [inkedFill(poly(pts), 'pow', 0.16)];
 });
+
+/* ---------------------------------------------------------------- Rocket Hover (rocket and flame bones) */
+
+/** The booster's height from the base of its canister (the rocket bone) to the tip of its nose. */
+export const ROCKET = 5.0;
+const ROCKET_R = 1.0;
+const fin = (side: 1 | -1): string =>
+  poly([
+    [side * 0.9, -1.7],
+    [side * 1.95, -0.3],
+    [side * 1.95, 0.55],
+    [side * 0.85, 0.05],
+  ]);
+const hazardStripe = (x: number): string =>
+  poly([
+    [x - 0.25, -2.25],
+    [x + 0.15, -2.25],
+    [x - 0.15, -1.4],
+    [x - 0.55, -1.4],
+  ]);
+
+/**
+ * Rocket Hover's booster, nose up from the rocket bone at the base of the canister: a stubby steel rocket with a
+ * red nose cone, red fins and a yellow and black hazard band, strapped behind the shell.
+ */
+export const rocket: PathShape[] = [
+  inkedFill(fin(-1), 'knob', LINE * 1.4),
+  inkedFill(fin(1), 'knob', LINE * 1.4),
+  inkedFill(
+    poly([
+      [-0.6, 0],
+      [0.6, 0],
+      [0.9, 0.85],
+      [-0.9, 0.85],
+    ]),
+    'steelLo',
+    LINE * 1.4,
+  ),
+  inkedFill(
+    blob([
+      [-ROCKET_R, 0.05, true],
+      [-ROCKET_R * 1.04, -2.6],
+      [-ROCKET_R * 0.86, -3.7],
+      [0, -ROCKET],
+      [ROCKET_R * 0.86, -3.7],
+      [ROCKET_R * 1.04, -2.6],
+      [ROCKET_R, 0.05, true],
+    ]),
+    'steel',
+    LINE * 1.8,
+  ),
+  fill(
+    blob([
+      [-ROCKET_R * 0.94, -3.35, true],
+      [-ROCKET_R * 0.6, -4.3],
+      [0, -ROCKET + 0.04],
+      [ROCKET_R * 0.6, -4.3],
+      [ROCKET_R * 0.94, -3.35, true],
+    ]),
+    'knob',
+  ),
+  ink(`M${n(-ROCKET_R * 0.95)} -3.35Q0 -3.1 ${n(ROCKET_R * 0.95)} -3.35`, LINE),
+  fill(
+    poly([
+      [-ROCKET_R * 1.03, -2.25],
+      [ROCKET_R * 1.03, -2.25],
+      [ROCKET_R * 1.02, -1.4],
+      [-ROCKET_R * 1.02, -1.4],
+    ]),
+    'hazard',
+  ),
+  ...[-0.35, 0.45, 1.25].map((x) => fill(hazardStripe(x), 'hazardLo')),
+  ink(`M${n(-ROCKET_R)} -2.25L${n(ROCKET_R)} -2.25M${n(-ROCKET_R)} -1.4L${n(ROCKET_R)} -1.4`, LINE * 0.8),
+  fill(ellipse(-0.5, -2.95, 0.16, 0.62), 'gloss'),
+  fill(ellipse(-0.42, -0.75, 0.14, 0.42), 'gloss'),
+];
+
+/** One flame cel, hanging down from the nozzle (the flame bone): `len` long, `w` wide at the nozzle, tip off by `lean`. */
+function flameCel(len: number, w: number, lean: number): PathShape[] {
+  const tongue = (s: number, tip: number): string =>
+    blob([
+      [-w * s, 0, true],
+      [-w * s * 1.12, len * tip * 0.28],
+      [-w * s * 0.62, len * tip * 0.64],
+      [lean * s, len * tip, true],
+      [w * s * 0.62, len * tip * 0.64],
+      [w * s * 1.12, len * tip * 0.28],
+      [w * s, 0, true],
+    ]);
+  return [
+    inkedFill(tongue(1, 1), 'flameLo', LINE * 1.2),
+    fill(tongue(0.72, 0.78), 'flame'),
+    fill(tongue(0.4, 0.52), 'flameHi'),
+  ];
+}
+export const flame1 = flameCel(5.6, 0.95, 0.25);
+export const flame2 = flameCel(6.7, 1.05, -0.35);
+export const flame3 = flameCel(4.9, 0.9, 0.05);
