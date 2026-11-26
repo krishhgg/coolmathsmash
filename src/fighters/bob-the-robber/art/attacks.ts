@@ -301,7 +301,7 @@ const GRAB_WIND = hands(stanceWith({ body: { rot: -4 } }), [0.0, -7.2], [1.6, -7
 const GRAB_REACH = reachBoth(lungeWith({ body: { rot: 16 } }, -2.6), [6.0, -7.4], [5.2, -6.8]);
 const PIVOT_REACH = reachBoth(lungeWith({ body: { rot: 18, x: 1.4 } }, -2.2), [6.8, -7.4], [6.2, -6.8]);
 const FTHROW = reachBoth(lungeWith({ body: { rot: 18, x: 1.4 } }, -2.2), [6.2, -7.8], [5.6, -6.4]);
-/** Stretched up on his toes under the throw. */
+/** Standing tall under the throw, his body stretched 4% upwards. */
 const UTHROW_REACH = stanceWith({ body: { rot: -6, sy: 1.04 } });
 
 // Specials ---------------------------------------------------------------------------------------------------
