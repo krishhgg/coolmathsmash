@@ -41,7 +41,10 @@ export interface StatusDef {
    * applies it is the longer of the hit's hitlag and the status (Ultimate's paralysis takes the place of hitlag).
    */
   freeze?: boolean;
-  /** A later hit on the fighter (not on a shield) takes it off, and that hit can't put it back on (Ultimate's paralysis). */
+  /**
+   * A later hit on the fighter (not on a shield), a pummel or a throw's hold hit included, takes it off, and no hit
+   * landing with it can put it back on (Ultimate's paralysis).
+   */
   endOnHit?: boolean;
   /** Presentation only: the colour of its badge over the fighter's head. */
   color?: string;

@@ -607,12 +607,12 @@ dthrow: { ..., throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55
   the hit's hitlag is (the box's `hitlag` multiplier, x0.67 on a crouch cancel), before the length is floored.
 - **Freezing.** A `freeze` status holds the fighter as hitlag does: no action, physics or timers, and the launch waits
   for it. It ticks on every frame from the one after it went on, hitlag included, so a hit that applies one freezes the
-  victim for the longer of its hitlag and the status. Other statuses pause while it lasts. The renderer shakes the
-  fighter and flickers it in the status's `color`.
+  victim for the longer of its hitlag and the status. Other statuses pause while it lasts, and other fighters can't
+  push it. The renderer shakes the fighter and flickers it in the status's `color`.
 - **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status. With `endOnHit`, a later
-  hit that lands (not on a shield) takes it off, reported as `statusEnd` with reason `hit`. That hit's hitlag and
-  launch take over, and it can't put the same status back on. A status that went on this frame stays, so hits landing
-  together give the same result in any port order.
+  hit that lands (not on a shield), a pummel or a throw's hold hit included, takes it off, reported as `statusEnd` with
+  reason `hit`. That hit's hitlag and launch take over, and no hit landing on the same frame can put the same status
+  back on. A status that went on this frame stays, so hits landing together give the same result in any port order.
 
 Bob the Robber's paralysis (`src/fighters/bob-the-robber/statuses.ts`) uses all three. It is Ultimate's paralysis
 (SmashWiki, "Paralyze"): floor(1 + knockback x hitlag multiplier x crouch) frames, at most 90, in place of the hit's

@@ -293,6 +293,26 @@ describe("Bob the Robber: Stun Gun (Zero Suit Samus's Paralyzer)", () => {
     expect(v.launch).toBeNull();
   });
 
+  it("ends when a pummel lands on the paralyzed fighter Bob grabbed, as Ultimate's hits do", () => {
+    const { m, a, v } = duel(11);
+    shoot(m, 300);
+    expect(statusOf(v, PARALYZED)!.frames).toBe(49);
+    while (a.move === 'neutralB') runPorts(m, 1, []);
+    runPorts(m, 1, [{ buttons: ['grab'] }, {}]);
+    for (let i = 0; i < 15 && a.action !== 'grabHold'; i++) runPorts(m, 1, []);
+    expect(a.action).toBe('grabHold');
+    expect(v.action).toBe('grabbed');
+    expect(hasStatus(v, PARALYZED)).toBe(true);
+    let events: SimEvent[] = [];
+    for (let i = 0; i < 15 && !events.some((e) => e.type === 'pummel'); i++) {
+      runPorts(m, 1, [i === 0 ? { buttons: ['attack'] } : {}, {}]);
+      events = m.events;
+    }
+    expect(events.some((e) => e.type === 'pummel')).toBe(true);
+    expect(events).toContainEqual({ type: 'statusEnd', port: 1, status: PARALYZED, reason: 'hit' });
+    expect(hasStatus(v, PARALYZED)).toBe(false);
+  });
+
   it('is blocked by shields: 2 frames of shieldstun, 3 at full charge, no damage and no paralysis', () => {
     for (const [hold, stun, damage] of [
       [1, PARALYZER.shieldstun.uncharged, 4],
