@@ -3,7 +3,7 @@ import { toLocal } from '../../../render/rig/sample';
 import type { AnimClip, BonePose, Key } from '../../../render/rig/types';
 import { LEDGE_ATTACK } from '../../../sim/constants';
 import { RAPID_JAB } from '../timing';
-import { AIR, BALL_Y, HANG, READY, TUCK, pull, runPose } from './clips';
+import { AIR, BALL_Y, DOWN, HANG, READY, TUCK, pull, runPose } from './clips';
 import {
   ANGRY,
   AWAY,
@@ -316,6 +316,52 @@ const SPLITS = hitting(
   ['shinB', [8.5, -2], 2.0],
   ['shinF', [-8.5, -2], 2.0],
 );
+
+/**
+ * Getup attack: sitting back on the floor on one hand, spinning on her seat in the splits with the front foot kicked
+ * high. `side` 1 has the far leg in front; -1 is half a turn later, the near leg in front and her back to the camera.
+ */
+function floorSpin(side: 1 | -1): Pose {
+  return hitting(
+    P({
+      x: -0.3,
+      y: 3.1,
+      sy: 0.9,
+      sx: 1.06,
+      rot: -18,
+      raw: { thighB: { sy: 1.85 }, shinB: { sy: 1.5 }, thighF: { sy: 1.85 }, shinF: { sy: 1.5 } },
+      legs:
+        side === 1
+          ? [
+              [7.6, -3.8],
+              [-7.6, -1.4],
+            ]
+          : [
+              [-7.6, -1.4],
+              [7.6, -3.8],
+            ],
+      knees: side === 1 ? [-1, 1] : [1, -1],
+      arms: [
+        [3.6 * side, -10.2],
+        [-6.4, -0.4],
+      ],
+      ant: [-22, 10],
+    }),
+    ['shinB', [8 * side, -3], 2.2],
+    ['shinF', [-8 * side, -3], 2.2],
+  );
+}
+/** Her near leg drawn over her body, as it swings round in front of her seat. */
+const NEAR_LEG_IN_FRONT = {
+  thighFLine: 23.1,
+  shinFLine: 23.2,
+  footFLine: 23.3,
+  thighF: 23.4,
+  shinF: 23.5,
+  footF: 23.6,
+};
+const SPIN_FRONT = floorSpin(1);
+const SPIN_BACK = floorSpin(-1);
 
 /** Scissor Kick: the far leg scoops up, then the near leg cuts across. */
 const SCISSOR1 = hitting(
@@ -903,6 +949,21 @@ export const attacks: Record<string, AnimClip> = {
       done(18, SPLITS),
       key(30, CROUCH, { swaps: FACE }),
       key(43, READY),
+    ],
+  ),
+  getupAttack: move(
+    46,
+    [[16, 21]],
+    [
+      key(0, DOWN, { ease: 'inOut' }),
+      key(7, mix(TUCK, { body: { x: -0.8, y: BALL_Y, rot: -110 } }), { ease: 'inOut' }),
+      key(13, mix(TUCK, { body: { x: -0.2, y: BALL_Y, rot: -20 } }), { ease: 'in' }),
+      ...strike(16, 18, SPIN_FRONT, { ...STREAK2, ...SHOUT }),
+      ...strike(19, 21, SPIN_BACK, { ...STREAK2, ...AWAY }, NEAR_LEG_IN_FRONT),
+      key(22, SPIN_BACK, { swaps: { ...NO_FX, ...AWAY } }),
+      key(27, mix(TUCK, { body: { y: BALL_Y, rot: 10 } }), { swaps: FACE, z: {} }),
+      key(33, CROUCH),
+      key(45, READY),
     ],
   ),
   nair: move(

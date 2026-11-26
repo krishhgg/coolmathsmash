@@ -254,6 +254,26 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
+  /**
+   * Getup attack: from flat on her back she spins on the floor, her legs in the splits, kicking both sides at once.
+   * Kirby's Ultimate face-up getup attack (https://dragdown.wiki/wiki/SSBU/Kirby/Data): 7%, 48°, BKB 80, KBG 48,
+   * active 16-21, 45 frames. The boxes sit where the roster's getup attacks put theirs (±8 forward, 3 up, radius 5),
+   * and the intangibility is the engine's shared [1, 26] (docs/fighters.md).
+   */
+  getupAttack: {
+    kind: 'other',
+    faf: 46,
+    intangible: [1, 26],
+    hits: [
+      {
+        frames: [16, 21],
+        boxes: [
+          box(0, 8, 3, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80 }),
+          box(1, -8, 3, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80, direction: 'back' }),
+        ],
+      },
+    ],
+  },
   /** Space Tuck: tucks into a spinning ball, as she does falling through space; strong early, weaker late. */
   nair: {
     kind: 'aerial',
