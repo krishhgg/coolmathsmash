@@ -18,6 +18,7 @@ import {
   headFront,
   hook,
   ledgeGripHand,
+  lightsOut,
   point,
   rope,
   sack,
@@ -66,7 +67,8 @@ const HEAD_SCALE = 1.16;
 /**
  * Bob's skeleton, standing and facing right. `body` sits at his middle so rotating it turns the whole fighter;
  * the baton and stun gun ride in the front fist, the swung sack in the back fist, the carried sack on his back.
- * `fx1`-`fx4` and `fxS` are free effect bones that clips place in rig space.
+ * `fx1`-`fx4` and `fxS` are free effect bones that clips place in rig space. `dark`, on `fxDark`, is the dark Lights Out
+ * (the Final Smash) draws over the stage, the other fighters and all of him but the effects above it.
  */
 export const rig: Rig = {
   bones: [
@@ -99,6 +101,7 @@ export const rig: Rig = {
     { name: 'fx3', parent: 'root', x: 0, y: 0 },
     { name: 'fx4', parent: 'root', x: 0, y: 0 },
     { name: 'fxS', parent: 'root', x: 0, y: 0 },
+    { name: 'fxDark', parent: 'root', x: 0, y: 0 },
   ],
   slots: [
     { name: 'fxBack', bone: 'fx4', symbol: null },
@@ -120,6 +123,7 @@ export const rig: Rig = {
     { name: 'face', bone: 'face', symbol: 'face3q' },
     { name: 'hat', bone: 'hat', symbol: 'hat3q' },
     { name: 'gear', bone: 'hat', symbol: null },
+    { name: 'dark', bone: 'fxDark', symbol: null, decor: true },
     { name: 'fx1', bone: 'fx1', symbol: null },
     { name: 'fx2', bone: 'fx2', symbol: null },
     { name: 'fx3', bone: 'fx3', symbol: null },
@@ -152,6 +156,7 @@ export const rig: Rig = {
     taser,
     ...zaps,
     ...shadows,
+    ...lightsOut,
   },
 };
 
