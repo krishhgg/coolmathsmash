@@ -21,25 +21,6 @@ import { registerFighter } from '../fighters/registry';
 import { createMatch, stepMatch } from '../sim/match';
 import { marioReference } from '../sim/testing/reference';
 
-/**
- * Game scenarios that do not capture today, each with the reason. Every other game scenario must capture, and a listed
- * one that captures again fails until it is taken off, so the list can only shrink.
- */
-const NOT_CAPTURING: Record<string, string> = Object.fromEntries(
-  [
-    'runner-attack-active',
-    'runner-launch-high-percent',
-    'runner-gravity-switch',
-    'runner-tile-flip',
-    'runner-jog-flurry',
-    'runner-box-drop',
-  ].map((name) => [
-    name,
-    "Runner's scenarios.ts imports GRAVITY_SWITCH from her moves.ts, so with the harness loaded first she is " +
-      'registered before her moves exist and never performs one. #245 moves it to timing.ts.',
-  ]),
-);
-
 const game = (name: string) => {
   const s = findScenario(name);
   if (isLabScenario(s)) throw new Error(`${name} is a lab scenario`);
@@ -167,20 +148,14 @@ describe('fighter scenarios (src/fighters/<id>/scenarios.ts)', () => {
     expect(names).toContain('redball-dair-bounce');
   });
 
+  // Every game scenario must capture. A pending one, such as a move no fighter performs, fails like a missed one.
   it.each(SCENARIOS.filter((s) => !isLabScenario(s)).map((s) => [s.name, s] as const))(
     '%s reaches its capture frame',
-    (name, s) => {
+    (_, s) => {
       const plan = planScenario(s as GameScenario, () => true);
-      if (!(name in NOT_CAPTURING)) expect(plan.status, plan.reason).toBe('captured');
-      else if (plan.status === 'captured') expect.fail(`${name} captures now; take it off NOT_CAPTURING`);
-      else expect(plan.status, plan.reason).toBe('pending');
+      expect(plan.status, plan.reason).toBe('captured');
     },
   );
-
-  it('NOT_CAPTURING names only existing game scenarios', () => {
-    const names = new Set(SCENARIOS.filter((s) => !isLabScenario(s)).map((s) => s.name));
-    expect(Object.keys(NOT_CAPTURING).filter((name) => !names.has(name))).toEqual([]);
-  });
 });
 
 describe('applyPatch', () => {
