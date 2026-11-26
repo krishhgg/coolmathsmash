@@ -1,4 +1,4 @@
-import { getFighter } from '../../fighters/registry';
+import { getFighter } from '../../fighters/lookup';
 import type { CounterDef, FighterStats, HitboxDef, MoveKind } from '../../fighters/types';
 import { moveOf } from '../actions/attack';
 import { chargeMultiplier } from '../actions/charge';
@@ -385,13 +385,17 @@ function windPush({ v, box, shielding, percent, crouch, dir, rage }: Connection)
   if (!v.ground) v.kb.y += Math.sin(theta) * speed;
 }
 
+/** Whether damage taken is x1.2: in a 1v1 with items off, unless the match says otherwise (MatchConfig.oneVOne). */
+export function oneVOne(m: Readonly<MatchState>): boolean {
+  return m.config.oneVOne ?? (m.players.length === 2 && !m.config.items);
+}
+
 /**
  * Add `damage` to a fighter's meter: x1.2 in a 1v1 with items off, and x its statuses' damageTaken (the meter only, not
  * knockback), capped at 999%.
  */
 export function addDamage(m: MatchState, v: FighterState, damage: number): void {
-  const oneVOne = m.players.length === 2 && !m.config.items;
-  const mul = (oneVOne ? ONE_V_ONE_DAMAGE : 1) * damageTaken(v);
+  const mul = (oneVOne(m) ? ONE_V_ONE_DAMAGE : 1) * damageTaken(v);
   v.damage = Math.min(DAMAGE_MAX, v.damage + damage * mul);
 }
 

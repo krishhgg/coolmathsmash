@@ -1,4 +1,4 @@
-import { getFighter } from '../registry';
+import { getFighter } from '../lookup';
 import type { ActionDef } from '../../sim/actions/registry';
 import { setAction } from '../../sim/actions/registry';
 import { groundActionable, startMovement } from '../../sim/actions/common';

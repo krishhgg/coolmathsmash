@@ -12,7 +12,7 @@ import { stepMatch, type MatchState } from '../sim/match';
 import { STICK, TURNING_MOVES, press } from './inputs';
 import { actionable, knowledge, type FighterKnowledge } from './knowledge';
 import { cpuLevel, type CpuLevel } from './levels';
-import { overlaps, run, soloMatch, type Driver, type Sample } from './look';
+import { overlaps, run, runAmong, soloMatch, type Driver, type OwnFrame, type Sample } from './look';
 import { findAttacks, type Attack, type Self, type Target } from './options';
 import {
   airAerial,
@@ -74,6 +74,8 @@ export class Cpu {
   readonly lv: CpuLevel;
   private readonly rng: { rng: number };
   private history: FighterState[][] = [];
+  /** The CPU's own fighter and live entities on each frame of `history`. */
+  private ownHistory: OwnFrame[] = [];
   private prog: (Program & { t: number }) | null = null;
   private last: InputFrame = neutralInput();
   private nextThink = 0;
@@ -133,8 +135,16 @@ export class Cpu {
   }
 
   private remember(state: Readonly<MatchState>): void {
-    this.history.push(state.fighters.map(snapshot));
-    if (this.history.length > HISTORY) this.history.shift();
+    const frame = state.fighters.map(snapshot);
+    this.history.push(frame);
+    this.ownHistory.push({
+      f: frame[this.port]!,
+      entities: state.entities.filter((e) => e.owner === this.port && !e.dead).map((e) => structuredClone(e)),
+    });
+    if (this.history.length > HISTORY) {
+      this.history.shift();
+      this.ownHistory.shift();
+    }
   }
 
   /** An opponent as the CPU perceives it: `lag` frames old. */
@@ -493,7 +503,9 @@ export class Cpu {
 
   /**
    * The opponent's next frames as the CPU expects them, t = 0 being the frame about to be simulated: HORIZON frames,
-   * and `horizon` frames of the same prediction as `far` when that is longer (for projectiles).
+   * and `horizon` frames of the same prediction as `far` when that is longer (for projectiles). The CPU's own
+   * entities play out in it too, so their hits move the opponent. They start as they were when the opponent was last
+   * seen, so a shot that has hit since still hits, and the ones out now replace them when the look-ahead reaches now.
    */
   private foresee(
     state: Readonly<MatchState>,
@@ -503,8 +515,11 @@ export class Cpu {
     const lag = Math.min(this.lv.reaction, this.history.length - 1);
     const snap = this.seen(opp.port, lag);
     const m = soloMatch(state, snap);
+    // Ids for what spawns in the look-ahead start past the match's, so the CPU's entities keep their own.
+    m.nextEntityId = state.nextEntityId;
     const info = stageInfo(state);
-    const samples = run(m, lag + Math.max(horizon, HORIZON) + 1, assumedInput(snap, info, state));
+    const drive = assumedInput(snap, info, state);
+    const samples = runAmong(m, lag + Math.max(horizon, HORIZON) + 1, drive, lag, this.ownHistory, opp.port);
     const far = samples.slice(lag);
     while (far.length < Math.max(horizon, HORIZON)) far.push(far.at(-1) ?? samplesFallback(snap));
     if (horizon <= HORIZON) return { path: far, snap };
@@ -687,9 +702,14 @@ export class Cpu {
     const me = state.fighters[this.port]!;
     const offstageOk = edgeguarding && this.lv.level >= 6;
     const arrive = target.rush?.arrive ?? 0;
+    const below = farBelow(snap, info);
     const out: Attack[] = [];
     for (const a of attacks) {
       const s = (target.far ?? target.path)[a.tHit]!;
+      // A shot that lands past HORIZON is aimed at a guess of where the opponent will be by then and leaves the CPU
+      // busy a long time. Against an opponent far below the stage, only its assumed recovery (assumedInput) brings it
+      // back into the shot, and one that falls instead is KO'd with the shot still in the air.
+      if (a.shot && a.tHit > HORIZON && below) continue;
       const onStage =
         landsSafe(info, k.id, a.endX, a.endY + 1) &&
         (info.calm || a.landX === undefined || landsSafe(info, k.id, a.landX, a.endY + 1)) &&
@@ -711,8 +731,8 @@ export class Cpu {
         weight: opp.weight,
       });
       // A shot into a held shield chips it and nothing more; walking in for the grab is worth more. Dropped here, so
-      // the KO bonus below can't bring it back.
-      if (s.action === 'shield' && a.shot) continue;
+      // the KO bonus below can't bring it back. That includes the shield stun from a shot of the CPU's already out.
+      if ((s.action === 'shield' || s.action === 'shieldStun') && a.shot) continue;
       const damage = a.shot?.damage ?? box.damage;
       let v = damage * (k.hints.prefer?.[a.move] ?? 1) * (1 + Math.min(1.5, kb / 110));
       if (s.action === 'shield') {
@@ -738,7 +758,7 @@ export class Cpu {
   private safeOffstage(a: Attack, info: StageInfo, k: FighterKnowledge): boolean {
     const L = targetLedge(info, a.endX);
     if (!L || a.kind === 'ground' || a.kind === 'doubleJump' || k.stats.jumps < 2) return false;
-    return Math.abs(a.endX - L.x) < 25 && a.endY > L.y - 15;
+    return Math.abs(a.endX - L.x) < 25 && a.endY > L.y - FAR_BELOW;
   }
 
   private wouldKill(state: Readonly<MatchState>, a: Attack, target: Target, snap: FighterState): boolean {
@@ -1124,6 +1144,17 @@ function samplesFallback(snap: FighterState): Sample {
 }
 
 const GONE = new Set(['ko', 'out']);
+
+/** How far under the ledge counts as far below the stage, for the CPU's offstage attacks and for long shots. */
+const FAR_BELOW = 15;
+
+/** Off the stage and more than FAR_BELOW under the ledge it would come back to. */
+function farBelow(f: Readonly<FighterState>, info: StageInfo): boolean {
+  if (f.ground !== null || f.action.startsWith('ledge') || floorBelow(info, f.pos.x, f.pos.y) !== null)
+    return false;
+  const L = targetLedge(info, f.pos.x);
+  return L !== null && f.pos.y < L.y - FAR_BELOW;
+}
 
 /**
  * Holding the charge, neutral special is the Final Smash, which the CPU saves for an opponent in its reach
