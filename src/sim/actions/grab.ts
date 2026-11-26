@@ -14,7 +14,7 @@ import {
   type ControlState,
   type Dir,
 } from '../control';
-import type { Ctx, FighterState } from '../fighter';
+import { inHitlag, type Ctx, type FighterState } from '../fighter';
 import type { MatchState } from '../match';
 import { restoreAirOptions } from '../movement';
 import { endStatusesOnHit } from '../statuses';
@@ -173,7 +173,7 @@ function grabbable(m: MatchState, v: FighterState): boolean {
 export function findGrabs(m: MatchState): GrabContact[] {
   const contacts: GrabContact[] = [];
   for (const a of m.fighters) {
-    if (a.hitlag > 0) continue;
+    if (inHitlag(m, a)) continue;
     const boxes = activeHitboxes(a).filter((h) => h.box.grab);
     if (boxes.length === 0) continue;
     const command = moveOf(a)?.commandGrab !== undefined;
