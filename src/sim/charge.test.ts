@@ -146,7 +146,7 @@ describe('charging', () => {
     expect(damageDealt(smash, { buttons: ['attack'] }, 100) / damageDealt(smash, {}, 0)).toBeCloseTo(1.4, 12);
   });
 
-  it("charges a special while Special is held: Running Ram's chargeDamage 2.2 takes 10% to 22%", () => {
+  it('charges a special while Special is held: a chargeDamage of 2.2 takes 10% to 22%', () => {
     const m = charger();
     const f = m.fighters[0]!;
     run(m, 1, sideB(f.facing));
