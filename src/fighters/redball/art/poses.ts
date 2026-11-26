@@ -60,6 +60,22 @@ export function lick(pose: Pose, to: Pt): Pose {
   return mix(pose, { tongue: { rot, sx: Math.max(0.12, (dist - 0.35) / TONGUE) } });
 }
 
+/**
+ * `lick` for a long tongue out of a squashed or stretched ball: the ball's uneven scale bends the tongue off the
+ * line `lick` aims along, which shows at Tongue Lash's length, so this re-aims four times until the tip's centre
+ * lands on `to`.
+ */
+export function lickAt(pose: Pose, to: Pt): Pose {
+  let aim: Pt = to;
+  let out = lick(pose, aim);
+  for (let i = 0; i < 4; i++) {
+    const [x, y] = pointOf(rig, out, 'tongueTip', 0.35, 0);
+    aim = [aim[0] + to[0] - x, aim[1] + to[1] - y];
+    out = lick(pose, aim);
+  }
+  return out;
+}
+
 /** A tongue pulled back into the mouth (still drawn, tiny). */
 export const TONGUE_IN: Pose = { tongue: { sx: 0.12 } };
 

@@ -82,4 +82,6 @@ function checkBlastZones(x: Ctx): void {
   f.hitstun = 0;
   f.speedUpFaf = 0;
   f.flyTop = false;
+  // Ultimate: a stored charge is lost only on a KO as the form that stored it (Squirtle's Water Gun).
+  if (f.storedCharge?.fighter === f.fighter) f.storedCharge = null;
 }
