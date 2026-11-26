@@ -2,6 +2,7 @@ import { destroyEntity, spawnEntity } from '../../sim/entities/entities';
 import type { EntityDef, EntityState } from '../../sim/entities/types';
 import type { MatchState } from '../../sim/match';
 import type { HitboxDef } from '../types';
+import { oven } from './finalSmash';
 
 /**
  * Pepper Bomb's hit. Its Ultimate analogue is Snake's Hand Grenade, the lobbed bomb that bounces and goes off on a
@@ -88,4 +89,6 @@ export const entities: Record<string, EntityDef> = {
       { frames: [2, 2], boxes: [{ ...PEPPER_HIT, radius: BURST_RADIUS * BURST_GROWTH }] },
     ],
   },
+  /** Conveyor Oven's brick oven (./finalSmash.ts): a drawing that bakes the Final Smash's catch. */
+  oven,
 };
