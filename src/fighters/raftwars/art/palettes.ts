@@ -64,6 +64,12 @@ const summer: Palette = {
   puffHi: '#ffffff',
   puffLine: '#c8d0da',
   sweat: '#8fd8ff',
+  splash: '#7fd0ff',
+  splashLo: '#3f9fe0',
+  splashHi: '#ffffff',
+  grenade: '#62743a',
+  grenadeLo: '#435226',
+  grenadeHi: '#b2c47a',
 };
 
 /**
