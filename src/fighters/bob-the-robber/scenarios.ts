@@ -1,6 +1,7 @@
 import type { FighterPatch, FighterScenarios, GameScenario, LabScenario } from '../../harness/scenarios';
 import type { ScriptStep } from '../../harness/script';
 import type { MoveDef } from '../types';
+import { PARALYZED, STUN_GUN } from './entities';
 import { moves } from './moves';
 
 const ID = 'bob-the-robber';
@@ -60,11 +61,11 @@ const sheet = (name: string, description: string, states: string[]): LabScenario
   refs: ART,
 });
 
-/** The frame a move's clip is checked on: its first active frame, or its throw or pummel frame. */
+/** The frame a move's clip is checked on: its first active frame, its throw or pummel frame, or the stun gun's shot. */
 const firstActive = (move: MoveDef): number =>
-  move.hits[0]?.frames[0] ?? move.throw?.frame ?? move.pummel?.frame ?? 1;
+  move.hits[0]?.frames[0] ?? move.throw?.frame ?? move.pummel?.frame ?? STUN_GUN.shot;
 
-const AIR_MOVES = new Set(['nair', 'fair', 'bair', 'uair', 'dair', 'sideB', 'upB']);
+const AIR_MOVES = new Set(['nair', 'fair', 'bair', 'uair', 'dair', 'neutralBAir', 'sideB', 'upB']);
 const atFirstActive = (pick: (name: string) => boolean) =>
   Object.entries(moves)
     .filter(([name]) => pick(name))
@@ -72,8 +73,8 @@ const atFirstActive = (pick: (name: string) => boolean) =>
 
 /**
  * Bob the Robber's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus his tippers, twirls, sack meteor, kill throw and specials. References live in the Captain drive's
- * refs/.
+ * Fireboy, plus his tippers, twirls, sack meteor, kill throw, specials and the stun gun's paralysis. References live
+ * in the Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: ID,
@@ -221,6 +222,44 @@ export const scenarios: FighterScenarios = {
       { pos: { x: -30, y: 0 }, facing: -1, damage: 40 },
       [{ port: 0, from: 10, to: 11, x: 100, buttons: ['special'] }],
     ),
+    {
+      name: `${ID}-stun-gun-charge`,
+      description:
+        'Stun Gun (neutral special) held to a full charge: the taser crackles at the prongs before it fires.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: ID }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -40, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: 10, y: 0 }, facing: -1 } },
+      ],
+      script: [{ port: 0, from: 10, to: 60, buttons: ['special'] }],
+      capture: {
+        label: "P1's stun gun is fully charged",
+        when: (s) => s.fighters[0]!.move === 'neutralB' && s.fighters[0]!.charge >= STUN_GUN.chargeFrames,
+      },
+      motion: { before: 30, after: 30 },
+      requires: ['move:neutralB'],
+      refs: ['smash/attack-active-*', ...ART],
+    },
+    {
+      name: `${ID}-stun-gun-paralyze`,
+      description:
+        'Stun Gun at full charge: the shot freezes Fireboy (40%) where he stands, shaking and flickering, before the knockback; capture 15 frames into the paralysis.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: ID }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -40, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: -5, y: 0 }, facing: -1, damage: 40 } },
+      ],
+      script: [{ port: 0, from: 10, to: 60, buttons: ['special'] }],
+      capture: {
+        label: 'P2 is 15 frames into the paralysis',
+        when: (s) => (s.fighters[1]!.statuses.find((st) => st.kind === PARALYZED)?.age ?? 0) >= 15,
+      },
+      motion: { before: 50, after: 50 },
+      requires: ['move:neutralB'],
+      refs: ['smash/attack-active-*', ...ART],
+    },
     moveShot(
       'up-special',
       'Grappling Hook (up special) from below the left ledge: the hook flies, then Bob zips up after it.',

@@ -13,6 +13,7 @@ import type { Ctx, FighterState, GroundRef } from './fighter';
 import { emit } from './events';
 import type { MatchState } from './match';
 import { edgeMaxX, edgeMinX, floorY, ledgePresent, type CompiledStage, type Edge } from './stage';
+import { isFrozen } from './statuses';
 import { approach, type Vec } from './vec';
 import {
   DAMAGE_FLY_TOP_GRAVITY,
@@ -163,7 +164,8 @@ export function pushApart(m: MatchState, stage: CompiledStage): void {
     for (let j = i + 1; j < fs.length; j++) {
       const a = fs[i]!;
       const b = fs[j]!;
-      if (!a.ground || !b.ground || a.hitlag > 0 || b.hitlag > 0 || Math.abs(a.pos.y - b.pos.y) > 1) continue;
+      if (!a.ground || !b.ground || Math.abs(a.pos.y - b.pos.y) > 1) continue;
+      if (a.hitlag > 0 || b.hitlag > 0 || isFrozen(a) || isFrozen(b)) continue;
       const reach = (getFighter(a.fighter).stats.width + getFighter(b.fighter).stats.width) / 2;
       const dx = b.pos.x - a.pos.x;
       const overlap = reach - Math.abs(dx);
