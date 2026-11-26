@@ -9,7 +9,7 @@ import {
 import { buffered, consume, flickDown, stickX, stickY } from '../control';
 import { emit } from '../events';
 import type { Ctx } from '../fighter';
-import type { Vec } from '../vec';
+import { approach, type Vec } from '../vec';
 import { airAttack } from './attack';
 import { consumeJump, wantsJump } from './common';
 import { techPressed, tumbleLanding } from './knockdown';
@@ -45,6 +45,22 @@ export function airActionable(x: Ctx): boolean {
 }
 
 const directional = (x: Ctx) => x.f.dodgeDir.x !== 0 || x.f.dodgeDir.y !== 0;
+
+const { speed: SLIDE_SPEED, distance: SLIDE_DISTANCE, endSpeed: SLIDE_END_SPEED } = AIR_DODGE_DIRECTIONAL;
+/** The slide's brake a frame: from SLIDE_SPEED down to SLIDE_END_SPEED over SLIDE_DISTANCE (v² = u² - 2as). */
+export const AIR_DODGE_SLIDE_BRAKE =
+  (SLIDE_SPEED * SLIDE_SPEED - SLIDE_END_SPEED * SLIDE_END_SPEED) / (2 * SLIDE_DISTANCE);
+
+/**
+ * One axis of the slide braked for a frame. Each axis brakes by its share of the dodge direction, as Ultimate's stop
+ * energy does, so the slide keeps its angle; an axis already at or below its share of the end speed (a wall stopped
+ * it) is left alone.
+ */
+function brakeSlide(v: number, dir: number): number {
+  const floor = Math.abs(dir) * SLIDE_END_SPEED;
+  if (Math.abs(v) <= floor) return v;
+  return Math.sign(v) * Math.max(Math.abs(v) - Math.abs(dir) * AIR_DODGE_SLIDE_BRAKE, floor);
+}
 
 /** The FAF of an air dodge toward `dir`: neutral when it is zero, else by stick angle (AIR_DODGE_DIRECTIONAL). */
 export function airDodgeFaf(dir: Vec): number {
@@ -107,15 +123,16 @@ export const AIR: Record<string, ActionDef> = {
   },
 
   /**
-   * Ultimate air dodge, once per airtime. Neutral keeps momentum; directional slingshots back briefly, then
-   * travels in the stick direction without gravity, and lands with 11-19 frames of lag depending on timing.
-   * Out of tumble, the dodge's Shield press is also a tech press: touching down within AIR_DODGE_TECH_WINDOW
-   * frames of it techs.
+   * Ultimate air dodge, once per airtime. Neutral keeps momentum; directional slingshots back briefly, then slides
+   * in the stick direction without gravity, braking to the slide's end speed. From `gravityFrom` gravity and air
+   * friction take over what is left of that speed, and from `driftFrom` the stick drifts the fighter again. It lands
+   * with 11-19 frames of lag depending on timing. Out of tumble, the dodge's Shield press is also a tech press:
+   * touching down within AIR_DODGE_TECH_WINDOW frames of it techs.
    */
   airDodge: {
     physics: 'air',
-    drift: (x) => !directional(x),
-    gravity: (x) => !directional(x) || x.f.actionFrame > AIR_DODGE_DIRECTIONAL.moveEnd,
+    drift: (x) => !directional(x) || x.f.actionFrame >= AIR_DODGE_DIRECTIONAL.driftFrom,
+    gravity: (x) => !directional(x) || x.f.actionFrame >= AIR_DODGE_DIRECTIONAL.gravityFrom,
     ledge: (x) => (directional(x) ? AIR_DODGE_DIRECTIONAL.ledgeFrom : false),
     intangible: (f) =>
       inWindow(
@@ -138,11 +155,14 @@ export const AIR: Record<string, ActionDef> = {
           f.vel.x = -dir.x * 0.35;
           f.vel.y = -dir.y * 0.35;
         } else if (f.actionFrame === 3) {
-          f.vel.x = dir.x * s.airDodgeSpeed;
-          f.vel.y = dir.y * s.airDodgeSpeed;
-        } else if (f.actionFrame <= AIR_DODGE_DIRECTIONAL.moveEnd) {
-          f.vel.x *= AIR_DODGE_DIRECTIONAL.decay;
-          f.vel.y *= AIR_DODGE_DIRECTIONAL.decay;
+          f.vel.x = dir.x * SLIDE_SPEED;
+          f.vel.y = dir.y * SLIDE_SPEED;
+        } else if (f.actionFrame < AIR_DODGE_DIRECTIONAL.gravityFrom) {
+          f.vel.x = brakeSlide(f.vel.x, dir.x);
+          f.vel.y = brakeSlide(f.vel.y, dir.y);
+        } else if (f.actionFrame < AIR_DODGE_DIRECTIONAL.driftFrom) {
+          // Air friction without the stick, which the dodge ignores until driftFrom.
+          f.vel.x = approach(f.vel.x, 0, s.airFriction);
         }
       }
       if (f.actionFrame >= airDodgeFaf(f.dodgeDir)) setAction(x, 'fall');

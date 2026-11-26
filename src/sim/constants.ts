@@ -156,6 +156,7 @@ export const ROLL_BACK = {
  * Air dodges: Mario's Ultimate frame data, shared by every fighter. UFD and SmashWiki (https://www.ssbwiki.com/Air_dodge)
  * give total frames: neutral 52; directional 71 down, 77 diagonally down, 87 sideways, 102 diagonally up, 116 up.
  * FAF is total + 1, as for the ground dodges. A directional dodge leaves the fighter able to act, not helpless.
+ * The slide's sources are in docs/physics-reference.md section 7.
  */
 export const AIR_DODGE_NEUTRAL = { faf: 53, intangible: [3, 29] as [number, number], landingLag: 10 };
 export const AIR_DODGE_DIRECTIONAL = {
@@ -164,9 +165,18 @@ export const AIR_DODGE_DIRECTIONAL = {
   /** A shorter stick gives a neutral air dodge (`escape_air_slide_stick` 0.66, of the stick's length). */
   stick: 0.66,
   intangible: [3, 21] as [number, number],
-  /** Free movement ends and gravity returns. */
-  moveEnd: 20,
-  decay: 0.9,
+  /**
+   * The slide starts at `speed` and brakes by a constant amount each frame along the dodge until it is down to
+   * `endSpeed`, the brake that takes `distance` units to do it (Mario's fighter_param_motion: escape_air_slide_speed
+   * 4.2, escape_air_slide_distance 20, escape_air_slide_end_speed 1.3; 81 of 83 fighters share them).
+   */
+  speed: 4.2,
+  distance: 20,
+  endSpeed: 1.3,
+  /** Gravity and air friction take over the slide's speed from this frame (script flag SLIDE_ENABLE_GRAVITY). */
+  gravityFrom: 14,
+  /** The stick drifts the fighter again from this frame (script flag SLIDE_ENABLE_CONTROL). */
+  driftFrom: 24,
   /** Ledges can be grabbed from this frame (Ultimate: after 24 frames). */
   ledgeFrom: 25,
   landingLagEarly: 19,
