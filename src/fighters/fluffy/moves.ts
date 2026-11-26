@@ -49,8 +49,9 @@ const tether = (near: number) => [
 /**
  * Fluffy's normals (roster sheet 8). His game is a grabber fired across the screen, so his tilts, smashes and grab
  * reach far (forward tilt 45 units, forward smash and grab 70, Min Min range) and recover slowly, while the
- * close-range moves use his fuzzy body. Damage and first active frames are the roster's, except that the two kill moves within about 2% of their
- * analogue take its damage (forward smash 16%, back air 10.5%). Angle, growth and base
+ * close-range moves use his fuzzy body. Damage and first active frames are the roster's, except that the kill moves
+ * take their analogue's damage: forward smash 16% and back air 10.5%, and the neutral, forward, up and down airs,
+ * which KOd more than 5 points off their analogue at the roster's damage (fluffy.test.ts). Angle, growth and base
  * knockback come from each move's Ultimate analogue (CREW.md, "Knockback values and kill percents"), named on each
  * move: Min Min's moves for his grabber, Jigglypuff's for his body, and Mario's where the damage matches better (back
  * air, forward, back and up throw). The values are from SSBU-Calculator's hitbox data. Frame windows are inclusive;
@@ -271,7 +272,7 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Bristle: every hair stands on end; strong at first, then a lingering prickle. Knockback: Jigglypuff's nair. */
+  /** Bristle: every hair stands on end; strong at first, then a lingering prickle. Jigglypuff's nair, 11% then 6%. */
   nair: {
     kind: 'aerial',
     faf: 40,
@@ -283,15 +284,15 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [5, 7],
-        boxes: [box(0, 0, 5.5, 8, { damage: 8, angle: 361, kbg: 100, bkb: 30, direction: 'away' })],
+        boxes: [box(0, 0, 5.5, 8, { damage: 11, angle: 361, kbg: 100, bkb: 30, direction: 'away' })],
       },
       {
         frames: [8, 24],
-        boxes: [box(0, 0, 5.5, 7, { damage: 5, angle: 361, kbg: 70, bkb: 50, direction: 'away' })],
+        boxes: [box(0, 0, 5.5, 7, { damage: 6, angle: 361, kbg: 70, bkb: 50, direction: 'away' })],
       },
     ],
   },
-  /** Lash: the grabber whips forward 25 units. Knockback: Min Min's fair (Dragon). */
+  /** Lash: the grabber whips forward 25 units. Min Min's fair (Dragon), 8% along the whole arm. */
   fair: {
     kind: 'aerial',
     faf: 42,
@@ -309,7 +310,7 @@ export const moves: Record<string, MoveDef> = {
           5,
           2,
           (i) => (i === 0 ? 4.5 : 4),
-          (i) => ({ damage: i === 0 ? 10 : 8, angle: 361, kbg: 90, bkb: 50 }),
+          () => ({ damage: 8, angle: 361, kbg: 90, bkb: 50 }),
         ),
       },
     ],
@@ -337,7 +338,7 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Whirl: the grabber twirls over his head. Knockback: Min Min's uair. */
+  /** Whirl: the grabber twirls over his head. Min Min's uair, her 6.5% boxes. */
   uair: {
     kind: 'aerial',
     faf: 34,
@@ -350,13 +351,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [6, 10],
         boxes: [
-          box(0, 0, 17, 6, { damage: 7, angle: 70, kbg: 130, bkb: 40, direction: 'away' }),
-          box(1, 0, 11, 5, { damage: 7, angle: 70, kbg: 130, bkb: 40, direction: 'away' }),
+          box(0, 0, 17, 6, { damage: 6.5, angle: 70, kbg: 130, bkb: 40, direction: 'away' }),
+          box(1, 0, 11, 5, { damage: 6.5, angle: 70, kbg: 130, bkb: 40, direction: 'away' }),
         ],
       },
     ],
   },
-  /** Candy Drop: a hard candy slammed down beneath him; it spikes at first. Knockback: Min Min's dair. */
+  /** Candy Drop: a hard candy slammed down beneath him; it spikes at first. Min Min's dair, 11% then 9%. */
   dair: {
     kind: 'aerial',
     faf: 48,
@@ -366,8 +367,8 @@ export const moves: Record<string, MoveDef> = {
       [38, 48],
     ],
     hits: [
-      { frames: [12, 14], boxes: [box(0, 0, -2, 5.5, { damage: 10, angle: 285, kbg: 90, bkb: 30 })] },
-      { frames: [15, 24], boxes: [box(0, 0, -1, 5, { damage: 7, angle: 55, kbg: 60, bkb: 80 })] },
+      { frames: [12, 14], boxes: [box(0, 0, -2, 5.5, { damage: 11, angle: 285, kbg: 90, bkb: 30 })] },
+      { frames: [15, 24], boxes: [box(0, 0, -1, 5, { damage: 9, angle: 55, kbg: 60, bkb: 80 })] },
     ],
   },
   /**
