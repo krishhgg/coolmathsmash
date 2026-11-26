@@ -12,6 +12,7 @@ import {
   footWeb,
   fxFeather,
   fxFeathers,
+  fxGlows,
   fxPuff,
   fxSpeed,
   fxStar,
@@ -19,6 +20,7 @@ import {
   head,
   headLine,
   leg,
+  ruffles,
   wingLines,
   wingOpen,
 } from './parts';
@@ -88,6 +90,10 @@ export const rig: Rig = {
       loop: ['wingV', 'wingVs', 'wingFlat', 'wingAs', 'wingA', 'wingAs', 'wingFlat', 'wingVs'],
       fps: 30,
     },
+    /** Feathers fluffing up while Running Ram charges, flickering through three drawings. */
+    fxRuffle: { loop: ['ruffleA', 'ruffleB', 'ruffleC'], fps: 15 },
+    ...ruffles,
+    ...fxGlows,
     crown,
     crest,
     fxPuff,
