@@ -1,10 +1,12 @@
 import type { FighterScenarios } from '../../harness/scenarios';
+import { CONVEYOR } from './finalSmash';
 
 const PAPA = 'characters/papa-louie';
 
 /**
  * Papa Louie's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, his Pepper Bomb, Parmesan Shaker, Paddle Propeller, Paddle Deflect and Brick Oven in a match, and lab sheets of every move
+ * Fireboy, his Pepper Bomb, Parmesan Shaker, Paddle Propeller, Paddle Deflect, Brick Oven and Conveyor Oven (the Final
+ * Smash) in a match, and lab sheets of every move
  * on its first active frame (the pummel and throws on their impact frame). Zoom 6 keeps the peel's reach inside the
  * cells. References live in the Captain drive's refs/.
  */
@@ -144,6 +146,27 @@ export const scenarios: FighterScenarios = {
       },
       motion: { before: 24, after: 17 },
       requires: ['move:bthrow'],
+      refs: [`${PAPA}/official-art-paddle-*`, `${PAPA}/ingame-run-*`],
+    },
+    {
+      name: 'papa-louie-final-smash',
+      description:
+        'Papa holds a Final Smash charge and fires Conveyor Oven at Fireboy: the belt rolls out, catches him, carries him into the brick oven, and the oven blasts him out.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'papa-louie' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -40, y: 0 }, facing: 1, finalReady: true } },
+        { port: 1, state: { pos: { x: -4, y: 0 }, facing: -1, damage: 40 } },
+      ],
+      script: [{ port: 0, from: 10, buttons: ['special'] }],
+      capture: {
+        label: 'The oven blasts the catch out',
+        when: (s) =>
+          s.fighters[0]!.move === 'finalSmashCinematic' && s.fighters[0]!.actionFrame === CONVEYOR.blast,
+        limit: 400,
+      },
+      motion: { before: 150, after: 40 },
+      requires: ['move:finalSmash', 'move:finalSmashCinematic'],
       refs: [`${PAPA}/official-art-paddle-*`, `${PAPA}/ingame-run-*`],
     },
     {
