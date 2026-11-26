@@ -1,5 +1,6 @@
 import type { HitboxDef, MoveDef } from '../types';
 import { stickX } from '../../sim/control';
+import { finalSmash, finalSmashAir } from './finalSmash';
 import { swap } from './swap';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -368,4 +369,7 @@ export const moves: Record<string, MoveDef> = {
   },
   /** Swap (down special): Watergirl takes over. */
   downB: swap('watergirl'),
+  /** Fire Blast, the Final Smash, on Mario Finale (finalSmash.ts). */
+  finalSmash,
+  finalSmashAir,
 };

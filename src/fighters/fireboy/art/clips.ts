@@ -2,6 +2,7 @@ import { pointOf, type Pose } from '../../../render/rig/author';
 import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip } from '../../../render/rig/types';
 import { attacks } from './attacks';
+import { finalSmashAirClip, finalSmashClip } from './finalSmash';
 import {
   AIR,
   ANGRY,
@@ -824,6 +825,8 @@ export const clips: Record<string, AnimClip> = {
     keys: [key(0, STAND), key(30, BREATHE)],
   },
   ...attacks,
+  finalSmash: finalSmashClip,
+  finalSmashAir: finalSmashAirClip,
 };
 
 /** The tech roll on the getup roll's timeline: the sim's travel ends on frame 28 instead of 30, and 35 frames in all. */

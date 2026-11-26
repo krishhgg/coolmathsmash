@@ -409,7 +409,10 @@ before frame `freeze` + 2 (`fighters.test.ts` checks it). The freeze is a frame 
 fighter and entity at the end of each frame it lasts, so actions, launches, statuses, lifetimes and hitboxes all wait,
 the same way whatever the port order.
 
-A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned beams (Mario Finale):
+A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned beams. Fireboy's Fire Blast
+(`src/fighters/fireboy/finalSmash.ts`) is the roster example: Mario Finale's frame data, damage and knockback on a
+`fireboy/blast` entity that crosses the stage and keeps burning after Fireboy can act, as Mario's fireballs do. The
+test fighter's is a plain hitbox:
 
 ```ts
 finalSmash: {
