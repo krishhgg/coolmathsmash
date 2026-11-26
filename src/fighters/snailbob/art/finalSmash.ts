@@ -117,11 +117,19 @@ const remote = (base: Pose, x: number, y: number, deg: number, s?: number): Pose
 
 /* ---------------------------------------------------------------- the activation */
 
-/** The swoop: where the ship is on each frame from its dive in behind Bob to the catch and on (y up is negative). */
+/**
+ * The swoop: where the ship is on each frame, from far off behind and above Bob to the catch and on (y up is
+ * negative). Through the activation freeze, to move frame SHIP.freeze + 1, the renderer holds its gold zoom on Bob's
+ * middle, 120 units across (src/render/zoom.ts, ZOOM.width), so the dive starts small, as if far off in the sky
+ * behind him, and grows as it comes down over his head, all inside that view (finalSmash.test.ts checks every frame).
+ * The zoom ends as the swoop reaches the catch.
+ */
 const SWOOP: [number, ShipAt][] = [
-  [16, { x: -84, y: -74, rot: 30 }],
-  [22, { x: -46, y: -46, rot: 27 }],
-  [25, { x: -18, y: -25, rot: 16 }],
+  [15, { x: -40, y: -33, rot: 20, s: 0.15 }],
+  [18, { x: -40, y: -31, rot: 22, s: 0.3 }],
+  [21, { x: -35, y: -27, rot: 24, s: 0.5 }],
+  [24, { x: -24, y: -21, rot: 22, s: 0.75 }],
+  [26, { x: -5, y: -18, rot: 14, s: 0.95 }],
   [27, { x: 13, y: -13.5, rot: 4 }],
   [28, { x: 30, y: -12, rot: 0 }],
   [29, { x: 44, y: -12, rot: 0 }],
@@ -132,7 +140,7 @@ const SWOOP: [number, ShipAt][] = [
 ];
 const shipAt = (frame: number): ShipAt => SWOOP.find(([f]) => f === frame)![1];
 
-/** The ship's symbol through the swoop: streaking (shipSwoop) from just before the catch until it pulls up. */
+/** The ship's symbol through the swoop: streaking (shipSwoop) from the frame before the catch until it pulls up. */
 const SHIP_ON = { fxBack: 'ship' };
 const STREAK = { fxBack: 'shipSwoop' };
 
@@ -152,9 +160,11 @@ function activation(): AnimClip {
   ];
   /** Bob's pose under the ship's key on `frame`. */
   const bob: Record<number, Pose> = {
-    16: remote(CALL, 8.6, -4.6, -10),
-    22: remote(CALL, 8.4, -4.8, -12),
-    25: remote(OVERHEAD, 8.6, -4.8, -8),
+    15: remote(CALL, 8.6, -4.6, -10),
+    18: remote(CALL, 8.5, -4.7, -11),
+    21: remote(add(CALL, look(0.05, 0)), 8.4, -4.8, -12),
+    24: remote(add(OVERHEAD, look(-0.15, 0)), 8.5, -4.8, -10),
+    26: remote(OVERHEAD, 8.6, -4.8, -8),
     27: remote(FOLLOW, 8.8, -4.4, -4),
     28: remote(FOLLOW, 8.8, -4.4, -4),
     29: remote(add(FOLLOW, look(0.05, 0)), 8.8, -4.4, -4),
@@ -165,20 +175,13 @@ function activation(): AnimClip {
   };
   for (const [f, p] of SWOOP) {
     const swaps =
-      f === 16
+      f === SWOOP[0]![0] || f === 34
         ? { ...WIDE, mouth: 'grin', ...REMOTE_ON, ...SHIP_ON }
-        : f === 26 || f === 27
+        : f === 27
           ? { ...WIDE, mouth: 'grin', ...REMOTE_ON, ...STREAK }
-          : f === 34
-            ? { ...WIDE, mouth: 'grin', ...REMOTE_ON, ...SHIP_ON }
-            : undefined;
+          : undefined;
     keys.push(key(f, mix(bob[f]!, shipPose(p)), { ease: 'linear', ...(swaps && { swaps }) }));
   }
-  keys.splice(
-    keys.findIndex((k) => k.frame === 27),
-    0,
-    key(26, undefined, { swaps: { ...WIDE, mouth: 'grin', ...REMOTE_ON, ...STREAK } }),
-  );
   keys.push(
     key(41, undefined, { swaps: { ...WIDE, mouth: 'grin', ...REMOTE_ON, fxBack: null } }),
     key(46, remote(AW, 8.4, -3.8, 6), { ease: 'inOut', swaps: { ...DAZED, ...REMOTE_ON } }),
