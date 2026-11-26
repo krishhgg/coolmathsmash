@@ -946,8 +946,9 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   One put down while its owner is airborne catches them even while they hold down, until they first touch ground after
   it appears: at once if they are falling, and as they come back down if they were rising, as Steve lands on a block
   he places under himself. A down special that puts one under the fighter lands them on it.
-  Other entities don't land on it, and CPUs don't count it as ground. The Raft Wars kids' Duck Raft
-  (`src/fighters/raftwars/duckRaft.ts`) is the example.
+  Other entities don't land on it. A CPU's read of the stage (`stageInfo`) doesn't count it as ground, but its
+  look-aheads (`soloMatch`) hold everyone's, so the CPU sees itself land on one and techs there. The Raft Wars kids'
+  Duck Raft (`src/fighters/raftwars/duckRaft.ts`) is the example.
 - **Reflectors.** A move's `reflectors` are bubbles (`frames`, `x`, `y`, `radius`) that turn a touching projectile
   away from the fighter, make it his, and multiply its damage, speed and remaining lifetime. Defaults are Fox's
   Reflector in Ultimate: damage x1.4, speed x1.4, lifespan x1, up to 50% (SmashWiki, Reflection); Mario's Cape is

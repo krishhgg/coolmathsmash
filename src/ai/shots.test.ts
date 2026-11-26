@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { allFighters } from '../fighters/registry';
 import { Btn, neutralInput } from '../input/types';
+import { spawnEntity } from '../sim/entities/entities';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { createCpu } from './index';
 import { press } from './inputs';
@@ -124,6 +125,41 @@ describe('move probes', () => {
     expect(hit?.box.direction ?? 'forward').toBe('forward');
     expect(hit?.facing).toBe(-1);
     expect(hit!.x).toBeLessThan(-8);
+  });
+
+  it("spend a shot on another player's raft in its way, as the match does, and pass one through the shooter's own", () => {
+    // Fireboy's Fireball at a Raft Wars 80 units off, with a Duck Raft resting on the floor halfway. Raft Wars' raft
+    // takes the Fireball; one of Fireboy's own lets it by, as a fighter's entities ignore each other.
+    for (const [owner, lands] of [
+      [1, false],
+      [0, true],
+    ] as const) {
+      const m = createMatch({
+        seed: 1,
+        stage: STAGE,
+        stocks: 3,
+        ports: [{ fighter: 'fireboy' }, { fighter: 'raftwars' }],
+      });
+      for (let i = 0; i < 30; i++) stepMatch(m, [neutralInput(), neutralInput()]);
+      Object.assign(m.fighters[0]!, { pos: { x: -40, y: 0 }, prevPos: { x: -40, y: 0 }, facing: 1 });
+      Object.assign(m.fighters[1]!, { pos: { x: 40, y: 0 }, prevPos: { x: 40, y: 0 }, facing: -1 });
+      spawnEntity(m, { kind: 'raftwars/duckRaft', owner, pos: { x: 0, y: 2.5 } });
+      const [me, opp] = m.fighters;
+      const p = knowledge('fireboy', STAGE).ground.neutralB!;
+      const path = run(soloMatch(m, opp!), 110);
+      const hit = shotHit(m, me!, p, 0, 1, (s) => ({ x: me!.pos.x + s.dx, y: me!.pos.y + s.dy }), {
+        path,
+        errX: 0,
+      });
+      expect(hit !== null, `raft of port ${owner}`).toBe(lands);
+      const real = structuredClone(m);
+      let struck = false;
+      for (let i = 0; i < 110 && !struck; i++) {
+        stepMatch(real, [i === 0 ? press({ buttons: Btn.Special }) : neutralInput(), neutralInput()]);
+        struck = real.events.some((e) => e.type === 'hit' && e.victim === 1);
+      }
+      expect(struck, `raft of port ${owner}, in the match`).toBe(lands);
+    }
   });
 
   it('find every fighter whose moves shoot, and nothing on moves that spawn nothing', () => {
