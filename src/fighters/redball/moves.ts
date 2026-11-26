@@ -287,12 +287,12 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 18, hit: { damage: 8, angle: 90, kbg: 70, bkb: 65 } },
   },
-  /** Sit-Squash: sits on them; low knockback for follow-ups. */
+  /** Sit-Squash: sits on them; low knockback for follow-ups. Leaves them Squared (statuses.ts). */
   dthrow: {
     kind: 'other',
     faf: 38,
     hits: [],
-    throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55 } },
+    throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55, status: 'redball/squared' } },
   },
   ...specials,
 };
