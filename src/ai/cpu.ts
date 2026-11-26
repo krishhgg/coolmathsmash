@@ -57,6 +57,11 @@ import {
 
 const HISTORY = 64;
 const HORIZON = 45;
+/**
+ * How far ahead a CPU whose fighter shoots reads the opponent: long enough for a Fireball to cross most of
+ * Battlefield (17 frames of startup and 70 of flight) or a Grenade's fuse to run out.
+ */
+const SHOT_HORIZON = 110;
 const NEUTRAL = Object.freeze(neutralInput());
 
 type Situation = 'combo' | 'punish' | 'neutral';
@@ -456,19 +461,24 @@ export class Cpu {
     return knowledge(f.fighter, state.config.stage);
   }
 
-  /** The opponent's next frames as the CPU expects them, t = 0 being the frame about to be simulated. */
+  /**
+   * The opponent's next frames as the CPU expects them, t = 0 being the frame about to be simulated: HORIZON frames,
+   * and `horizon` frames of the same prediction as `far` when that is longer (for projectiles).
+   */
   private foresee(
     state: Readonly<MatchState>,
     opp: Readonly<FighterState>,
-  ): { path: Sample[]; snap: FighterState } {
+    horizon = HORIZON,
+  ): { path: Sample[]; far?: Sample[]; snap: FighterState } {
     const lag = Math.min(this.lv.reaction, this.history.length - 1);
     const snap = this.seen(opp.port, lag);
     const m = soloMatch(state, snap);
     const info = stageInfo(state);
-    const samples = run(m, lag + HORIZON + 1, assumedInput(snap, info, state));
-    const path = samples.slice(lag);
-    while (path.length < HORIZON) path.push(path.at(-1) ?? samplesFallback(snap));
-    return { path, snap };
+    const samples = run(m, lag + Math.max(horizon, HORIZON) + 1, assumedInput(snap, info, state));
+    const far = samples.slice(lag);
+    while (far.length < Math.max(horizon, HORIZON)) far.push(far.at(-1) ?? samplesFallback(snap));
+    if (horizon <= HORIZON) return { path: far, snap };
+    return { path: far.slice(0, HORIZON), far, snap };
   }
 
   private think(state: Readonly<MatchState>, me: Readonly<FighterState>, info: StageInfo): void {
@@ -479,11 +489,12 @@ export class Cpu {
       return;
     }
     const k = this.knowledge(state, me);
-    const { path, snap } = this.foresee(state, opp);
+    const { path, far, snap } = this.foresee(state, opp, k.shoots ? SHOT_HORIZON : HORIZON);
     const target: Target = {
       path,
       errX: (this.rand() * 2 - 1) * this.lv.spacingError,
       grabbableIn: snap.grabbableFrom - state.frame,
+      ...(far && { far }),
     };
     const now = path[0]!;
     const dir = (Math.sign(now.x - me.pos.x) || me.facing) as 1 | -1;
@@ -502,7 +513,7 @@ export class Cpu {
     }
     if (this.escape(me, info)) return;
 
-    const self: Self = { f: me, k, info, groundDelay: me.ground ? 0 : Infinity, jumpDelay: 0 };
+    const self: Self = { f: me, k, info, groundDelay: me.ground ? 0 : Infinity, jumpDelay: 0, state };
     const edgeguarding = this.isEdgeguarding(state, me, snap, info);
     const attacks = this.rank(state, findAttacks(self, target), target, snap, k, info, edgeguarding);
     const chance =
@@ -569,7 +580,7 @@ export class Cpu {
       return false;
     }
     if (!actionable(me)) return false;
-    const self: Self = { f: me, k, info, groundDelay: 0, jumpDelay: 0 };
+    const self: Self = { f: me, k, info, groundDelay: 0, jumpDelay: 0, state };
     const counters = findAttacks(self, target).filter((a) => a.kind === 'ground' && a.tHit < threat.t - 1);
     if (counters.length && this.rand() < 0.35 * skill) {
       counters.sort((a, b) => a.tHit - b.tHit);
@@ -612,6 +623,7 @@ export class Cpu {
       groundDelay: stun + SHIELD_DROP_FRAMES + 1,
       jumpDelay: stun,
       grabDelay: stun + GRAB.shieldGrabLock + 1,
+      state,
     };
     const freeAt = target.path.findIndex((s) => actionable(s) || (s.grounded && s.action === 'shield'));
     const window = freeAt < 0 ? target.path.length : freeAt;
@@ -640,7 +652,7 @@ export class Cpu {
     const offstageOk = edgeguarding && this.lv.level >= 6;
     const out: Attack[] = [];
     for (const a of attacks) {
-      const s = target.path[a.tHit]!;
+      const s = (target.far ?? target.path)[a.tHit]!;
       const onStage =
         landsSafe(info, k.id, a.endX, a.endY + 1) &&
         (info.calm || a.landX === undefined || landsSafe(info, k.id, a.landX, a.endY + 1));
@@ -661,7 +673,10 @@ export class Cpu {
         weight: opp.weight,
       });
       let v = box.damage * (k.hints.prefer?.[a.move] ?? 1) * (1 + Math.min(1.5, kb / 110));
-      if (s.action === 'shield') {
+      if (s.action === 'shield' && a.shot) {
+        // A shot into a held shield chips it and nothing more; walking in for the grab is worth more.
+        v = 0;
+      } else if (s.action === 'shield') {
         const kind = k.def.moves?.[a.move]?.kind ?? 'other';
         const unsafe = a.busy - a.tHit - shieldstunFrames(box.damage, kind) - 5;
         v = box.damage * 0.2 - Math.max(0, unsafe) * 0.6;
@@ -687,7 +702,7 @@ export class Cpu {
   }
 
   private wouldKill(state: Readonly<MatchState>, a: Attack, target: Target, snap: FighterState): boolean {
-    const s = target.path[a.tHit]!;
+    const s = (target.far ?? target.path)[a.tHit]!;
     const dir =
       a.box.direction === 'back'
         ? -a.facing

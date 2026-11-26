@@ -1,0 +1,104 @@
+import type { HitboxDef } from '../fighters/types';
+import { neutralInput } from '../input/types';
+import { entityHitboxes, spawnEntity } from '../sim/entities/entities';
+import type { FighterState } from '../sim/fighter';
+import { stepMatch, type MatchState } from '../sim/match';
+import type { MoveProbe, ProbeSpawn } from './knowledge';
+import { overlaps, soloMatch, type Sample } from './look';
+
+/**
+ * Projectiles. A move's probe says what it spawns: each entity's kind, frame, offset, velocity and hitbox. To see
+ * whether a shot meets the target, the CPU puts those entities out where they would appear on a copy of the match
+ * (the stage as it stands on this frame, the CPU's own fighter as their owner), each as it was at the end of its
+ * first frame in the probe, and plays their flight frame by frame against the target's predicted path. Bounces,
+ * bursts, falls past the ledge and moving platforms come out as the simulation has them.
+ */
+
+/** Hitbox-to-hurtbox margin, as for the fighter's own hitboxes (options.ts). */
+const MARGIN = -0.5;
+/** Slack around the probe's reach before a flight is worth playing out. */
+const PAD = 6;
+const NEUTRAL = [neutralInput()];
+const GONE = new Set(['ko', 'out', 'respawn']);
+
+/** Where a spawn appears when its move is input `offset` frames from now, `t` frames from now; null if it doesn't. */
+export type Place = (s: ProbeSpawn, t: number) => { x: number; y: number } | null;
+
+export interface ShotTarget {
+  /** Predicted target, t = 0 being the frame about to be simulated. */
+  path: Sample[];
+  errX: number;
+}
+
+/**
+ * First frame (from now) and hitbox with which an entity of move `p`, input `offset` frames from now facing `facing`,
+ * touches the target; null when none does within the path. Entities over the move's `max` that the CPU already has
+ * out are not spawned, as the sim skips them.
+ */
+export function shotHit(
+  state: Readonly<MatchState>,
+  me: Readonly<FighterState>,
+  p: MoveProbe,
+  offset: number,
+  facing: 1 | -1,
+  place: Place,
+  target: ShotTarget,
+): { t: number; box: HitboxDef } | null {
+  const first = p.spawns[0];
+  if (!p.shot || !first) return null;
+  const at = place(first, offset + first.t);
+  if (!at || !inReach(p, at.x - first.ox * facing, offset, facing, target)) return null;
+  const out = new Map<string, number>();
+  for (const e of state.entities)
+    if (e.owner === me.port && !e.dead) out.set(e.kind, (out.get(e.kind) ?? 0) + 1);
+  const m = soloMatch(state, me);
+  const end = target.path.length;
+  let next = 0;
+  for (let t = 0; t < end; t++) {
+    stepMatch(m, NEUTRAL);
+    for (; next < p.spawns.length && offset + p.spawns[next]!.t === t; next++) {
+      const s = p.spawns[next]!;
+      const pos = place(s, t);
+      const n = out.get(s.kind) ?? 0;
+      if (!pos || (s.max !== undefined && n >= s.max)) continue;
+      out.set(s.kind, n + 1);
+      const e = spawnEntity(m, { kind: s.kind, owner: 0, pos, move: p.move });
+      Object.assign(e, {
+        age: 1,
+        vel: { x: s.vx * facing, y: s.vy },
+        facing: (s.facing * facing) as 1 | -1,
+        lifetime: s.lifetime,
+        data: { ...s.data },
+      });
+    }
+    if (!m.entities.length) {
+      if (next >= p.spawns.length) return null;
+      continue;
+    }
+    const s = target.path[t]!;
+    if (s.intangible || GONE.has(s.action)) continue;
+    const hurt = { ...s.hurt, x: s.hurt.x + target.errX };
+    for (const e of m.entities) {
+      for (const b of entityHitboxes(e)) {
+        if (overlaps(b.x, b.y, b.box.radius, hurt, MARGIN)) return { t, box: b.box };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Whether the target comes within the probe's horizontal reach of the move's entities (measured from the fighter
+ * when the first one appears, here at `baseX`) any time after they are first out. A cheap test before the flight.
+ */
+function inReach(p: MoveProbe, baseX: number, offset: number, facing: 1 | -1, target: ShotTarget): boolean {
+  const r = p.shot!;
+  const lo = baseX + (facing > 0 ? r.x1 : -r.x2) - PAD;
+  const hi = baseX + (facing > 0 ? r.x2 : -r.x1) + PAD;
+  for (let t = offset + r.from; t < target.path.length; t++) {
+    const h = target.path[t]!.hurt;
+    const x = h.x + target.errX;
+    if (x + h.r >= lo && x - h.r <= hi) return true;
+  }
+  return false;
+}

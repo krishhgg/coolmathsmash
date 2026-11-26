@@ -1,7 +1,7 @@
 import type { CpuHints } from '../../ai/hints';
 
 /**
- * The CPU reads a move's reach from the hitboxes it probes, so it can't predict the Fireball (an entity, not a
- * hitbox) or what the Temple Mirror's reflector is for yet; it leaves both alone until it learns entities.
+ * The CPU follows the Fireball through its probe and flight (src/ai/shots.ts), but it can't tell what the Temple
+ * Mirror's reflector is for yet, so it leaves the mirror alone.
  */
-export const ai: CpuHints = { avoid: ['neutralB', 'sideB'] };
+export const ai: CpuHints = { avoid: ['sideB'] };

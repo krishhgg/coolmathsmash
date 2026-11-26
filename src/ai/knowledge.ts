@@ -2,6 +2,8 @@ import { getFighter } from '../fighters/registry';
 import type { FighterDef, FighterStats, HitboxDef, MoveDef } from '../fighters/types';
 import { neutralInput, type InputFrame } from '../input/types';
 import { activeHitboxes } from '../sim/combat/hits';
+import { entityHitboxes } from '../sim/entities/entities';
+import type { EntityState } from '../sim/entities/types';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { hintsFor, type CpuHints } from './hints';
 import {
@@ -18,8 +20,8 @@ import { staticStage } from './stage';
 
 /**
  * What a CPU knows about a fighter, learned by trying every move once in a private copy of the simulation: when
- * its hitboxes come out, where they reach, how it moves the fighter and how long it leaves the fighter busy. Read
- * from the registry and the real move code, so a new fighter needs no AI changes.
+ * its hitboxes come out, where they reach, what it spawns (projectiles), how it moves the fighter and how long it
+ * leaves the fighter busy. Read from the registry and the real move code, so a new fighter needs no AI changes.
  */
 
 /** A hitbox relative to the fighter on that frame, facing right. */
@@ -37,6 +39,46 @@ export interface ProbeFrame {
   dx: number;
   dy: number;
   boxes: LocalBox[];
+}
+
+/** An entity the move put out (a projectile, a bomb, a falling crate), as it appeared. */
+export interface ProbeSpawn {
+  /** Frames after the input frame that it appears, counted like ProbeFrame.t. Its hits start that frame. */
+  t: number;
+  kind: string;
+  /** Where it appears from where the fighter started (dx, dy) and from where the fighter is on that frame (ox, oy), facing right. */
+  dx: number;
+  dy: number;
+  ox: number;
+  oy: number;
+  /**
+   * Its velocity and facing (1 = the fighter's) at the end of the frame it appears, after its script's first run,
+   * and the state that run left in `data`: a copy put out in this state plays on as the original did.
+   */
+  vx: number;
+  vy: number;
+  facing: 1 | -1;
+  data: EntityState['data'];
+  /** Frames it lives (0 = until something destroys it). */
+  lifetime: number;
+  /** The strongest hitbox it or what it turns into (a bomb's burst) put out during the probe; null when none did. */
+  box: HitboxDef | null;
+  /** The move's cap on how many of this kind the fighter can have out at once. */
+  max?: number;
+}
+
+/**
+ * Where the move's entities had hitboxes during the probe, from the first spawn until the last of them was gone:
+ * the frames after the input frame of the first and last one, and their envelope from where the fighter was when the
+ * first entity appeared, facing right. Entities fly on after the fighter can act again, so this outlasts `busy`.
+ */
+export interface ShotReach {
+  from: number;
+  to: number;
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
 }
 
 export interface MoveProbe {
@@ -60,6 +102,10 @@ export interface MoveProbe {
   damage: number;
   /** Envelope of the boxes relative to the fighter, facing right. */
   reach: { x1: number; x2: number; y1: number; y2: number };
+  /** Entities the move spawned while it played, in the order they appeared (empty for most moves). */
+  spawns: ProbeSpawn[];
+  /** Where those entities' hitboxes went; null when they never had any. */
+  shot: ShotReach | null;
 }
 
 export interface FighterKnowledge {
@@ -71,6 +117,8 @@ export interface FighterKnowledge {
   ground: Record<string, MoveProbe>;
   /** Probes by move name, started in mid-air (aerials and specials). */
   air: Record<string, MoveProbe>;
+  /** Some probed move puts out an entity with hitboxes (a projectile), so attack options must follow entities. */
+  shoots: boolean;
 }
 
 const cache = new Map<string, FighterKnowledge>();
@@ -118,13 +166,16 @@ export function knowledge(fighterId: string, stageId: string): FighterKnowledge 
     const p = probe(def, stageId, name, 'air');
     if (p) air[name] = p;
   }
-  k = { id: fighterId, def, stats: def.stats, hints, ground, air };
+  const shoots = [...Object.values(ground), ...Object.values(air)].some((p) => p.shot !== null);
+  k = { id: fighterId, def, stats: def.stats, hints, ground, air, shoots };
   cache.set(key, k);
   return k;
 }
 
 const DASH_LEAD = 6;
 const PROBE_LIMIT = 240;
+/** Frames after the input frame the probe follows a move's entities for, once the fighter can act again. */
+const FLIGHT_LIMIT = 240;
 
 function settle(def: FighterDef, stageId: string): MatchState {
   const m = createMatch({
@@ -174,6 +225,7 @@ function probe(def: FighterDef, stageId: string, move: string, start: MoveProbe[
         ? { x: STICK.full, ...DASH_INPUTS[move] }
         : GROUND_INPUTS[move];
   if (!input) return null;
+  const shots = new Shots(def, move, m);
   step(press(input));
   if (f.move !== move) return null;
   const active: ProbeFrame[] = [];
@@ -181,6 +233,7 @@ function probe(def: FighterDef, stageId: string, move: string, start: MoveProbe[
   let helpless = false;
   for (let t = 0; t < PROBE_LIMIT; t++) {
     if (t > 0) step(neutralInput());
+    shots.see(t, f.move === move, x0, y0);
     if (f.action === 'helpless') helpless = true;
     const boxes = f.move === move ? activeHitboxes(f) : [];
     if (boxes.length) {
@@ -197,6 +250,11 @@ function probe(def: FighterDef, stageId: string, move: string, start: MoveProbe[
     }
   }
   if (f.action === 'ko' || f.action === 'out') return null;
+  const end = { x: f.pos.x - x0, y: f.pos.y - y0, grounded: f.ground !== null };
+  for (let t = busy + 1; t < FLIGHT_LIMIT && shots.flying(); t++) {
+    step(neutralInput());
+    shots.see(t, false, x0, y0);
+  }
   const all = active.flatMap((a) => a.boxes);
   return {
     move,
@@ -206,9 +264,9 @@ function probe(def: FighterDef, stageId: string, move: string, start: MoveProbe[
     first: active[0]?.t ?? -1,
     last: active.at(-1)?.t ?? -1,
     busy,
-    endDx: f.pos.x - x0,
-    endDy: f.pos.y - y0,
-    endsGrounded: f.ground !== null,
+    endDx: end.x,
+    endDy: end.y,
+    endsGrounded: end.grounded,
     helpless,
     damage: all.reduce((d, b) => Math.max(d, b.box.damage), 0),
     reach: {
@@ -217,5 +275,98 @@ function probe(def: FighterDef, stageId: string, move: string, start: MoveProbe[
       y1: Math.min(0, ...all.map((b) => b.y - b.r)),
       y2: Math.max(0, ...all.map((b) => b.y + b.r)),
     },
+    spawns: shots.spawns,
+    shot: shots.reach(),
   };
+}
+
+/**
+ * Follows the entities a probed move puts out. One that appears while the move plays is a spawn; one that appears
+ * where one of the fighter's entities was destroyed on the same frame is what that entity turned into (a bomb's
+ * burst) and counts toward its spawn's hitbox. Every hitbox of either goes into the envelope.
+ */
+class Shots {
+  readonly spawns: ProbeSpawn[] = [];
+  private readonly root = new Map<number, ProbeSpawn>();
+  private seen: number;
+  private base: { x: number; y: number } | null = null;
+  private from = -1;
+  private to = -1;
+  private env = { x1: Infinity, x2: -Infinity, y1: Infinity, y2: -Infinity };
+
+  constructor(
+    private readonly def: FighterDef,
+    private readonly move: string,
+    private readonly m: MatchState,
+  ) {
+    this.seen = m.nextEntityId;
+  }
+
+  /** Any of the fighter's entities still in the match. */
+  flying(): boolean {
+    return this.m.entities.some((e) => e.owner === 0);
+  }
+
+  see(t: number, playing: boolean, x0: number, y0: number): void {
+    const { m } = this;
+    const f = m.fighters[0]!;
+    for (const e of m.entities) {
+      if (e.owner !== 0 || e.id < this.seen) continue;
+      const parent = m.events.find(
+        (v) => v.type === 'entityDestroy' && v.x === e.pos.x && v.y === e.pos.y && this.root.has(v.id),
+      );
+      if (parent?.type === 'entityDestroy') {
+        this.root.set(e.id, this.root.get(parent.id)!);
+      } else if (playing) {
+        const s: ProbeSpawn = {
+          t,
+          kind: e.kind,
+          dx: e.pos.x - x0,
+          dy: e.pos.y - y0,
+          ox: e.pos.x - f.pos.x,
+          oy: e.pos.y - f.pos.y,
+          vx: e.vel.x,
+          vy: e.vel.y,
+          facing: e.facing,
+          data: { ...e.data },
+          lifetime: e.lifetime,
+          box: null,
+          max: this.cap(e.kind),
+        };
+        this.spawns.push(s);
+        this.root.set(e.id, s);
+        this.base ??= { x: f.pos.x, y: f.pos.y };
+      }
+    }
+    this.seen = m.nextEntityId;
+    for (const e of m.entities) {
+      const s = this.root.get(e.id);
+      if (!s || !this.base) continue;
+      for (const b of entityHitboxes(e)) {
+        if (!s.box || b.box.damage > s.box.damage) s.box = b.box;
+        const r = b.box.radius;
+        const x = b.x - this.base.x;
+        const y = b.y - this.base.y;
+        this.env = {
+          x1: Math.min(this.env.x1, x - r),
+          x2: Math.max(this.env.x2, x + r),
+          y1: Math.min(this.env.y1, y - r),
+          y2: Math.max(this.env.y2, y + r),
+        };
+        if (this.from < 0) this.from = t;
+        this.to = t;
+      }
+    }
+  }
+
+  reach(): ShotReach | null {
+    return this.from < 0 ? null : { from: this.from, to: this.to, ...this.env };
+  }
+
+  /** The `max` of the move's spawn that puts out this kind, named as spawnFromMove names it. */
+  private cap(kind: string): number | undefined {
+    const spawn = this.def.moves?.[this.move]?.spawn ?? [];
+    return spawn.find((s) => (s.entity.includes('/') ? s.entity : `${this.def.id}/${s.entity}`) === kind)
+      ?.max;
+  }
 }
