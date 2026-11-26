@@ -15,9 +15,10 @@ import type { HitboxDef, HoldHitDef, MoveDef, ThrowHitDef } from '../types';
  *   the capsule by under 0.25 units between circles), so it reaches 41 units ahead, from 3 below the feet to 23 up.
  *   Its 12% lands as the cinematic's first hold hit, on frame 1, with its x5 hitlag (30 frames, HITLAG.max).
  * - The barrage (the cinematic, animation length 209, actionable on 210): hits 1-18 on frames 6-7, 10-11, ..., 74-75,
- *   1.2% each, and hits 19-31 on frames 79, 83, ..., 127, 1.1% each, all at hitlag x0.4. Each is four set-knockback
- *   boxes (FKV 40, angles 135, 45, 225 and 315) round a point in front of him that push the catch back into it, so it
- *   stays put; the trap holds the catch here, so each lands as a hold hit on its first frame: damage and hitlag only.
+ *   1.2% each, and hits 19-31 on frames 79, 83, ..., 127, 1.1% each, all at hitlag x0.4. Each hit is five boxes, four
+ *   of them set-knockback boxes (FKV 40, angles 135, 45, 225 and 315) round a point in front of him that push the
+ *   catch back into it, so it stays put; the trap holds the catch here, so each lands as a hold hit on its first frame:
+ *   damage and hitlag only.
  * - The release (Jungle Rush's final hit, frames 139-140): 14%, angle 70, BK 90, KS 96, hitlag x1.0.
  * - Total: 12 + 18 x 1.2 + 13 x 1.1 + 14 = 61.9%, before staleness and the 1v1 multiplier.
  *

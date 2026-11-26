@@ -165,9 +165,10 @@ describe("Fuzz Frenzy (Final Smash), on Donkey Kong's Jungle Rush", () => {
     expect(v.action).toBe('tumble');
   });
 
-  it('holds everyone else still through the cinematic: a foe outside the lash is untouched until the release', () => {
-    const { m, a, w } = frenzyMatch({ third: 20 });
-    // The third fighter is in front too, but further than the catch: the nearest is caught, the other waits.
+  it('catches only the nearest foe and holds everyone else still, untouched, until the release', () => {
+    // The third fighter stands 40 units in front, inside the lash's reach too, behind the one 30 units away.
+    const { m, a, w } = frenzyMatch({ third: 0 });
+    expect(w.pos.x - a.pos.x).toBe(40);
     step(m, 1, [SPECIAL]);
     step(m, 28);
     expect(a.move).toBe('finalSmashCinematic');
@@ -187,13 +188,13 @@ describe("Fuzz Frenzy (Final Smash), on Donkey Kong's Jungle Rush", () => {
   });
 
   it.each([
-    ['10 units in front', 10, 0, true],
-    ['30 units in front', 30, 0, true],
-    ['44 units in front (the reach plus half his body)', 44, 0, true],
-    ['47 units in front', 47, 0, false],
-    ['behind him', -12, 0, false],
-  ])('catches a foe %s: %s', (_, gap, air, caught) => {
-    const { m, v } = frenzyMatch({ gap, air });
+    { where: '10 units in front', gap: 10, caught: true },
+    { where: '30 units in front', gap: 30, caught: true },
+    { where: '44 units in front (41 of reach and half his body)', gap: 44, caught: true },
+    { where: '47 units in front', gap: 47, caught: false },
+    { where: '12 units behind', gap: -12, caught: false },
+  ])('a foe $where: caught $caught', ({ gap, caught }) => {
+    const { m, v } = frenzyMatch({ gap });
     const seen = frenzy(m);
     expect(seen.some((e) => e.type === 'commandGrab')).toBe(caught);
     if (!caught) expect(v.damage).toBe(0);

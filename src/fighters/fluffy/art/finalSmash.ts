@@ -1,5 +1,4 @@
-import type { BonePose, Key } from '../../../render/rig/types';
-import type { AnimClip } from '../../../render/rig/types';
+import type { AnimClip, BonePose, Key } from '../../../render/rig/types';
 import { FUZZ_FRENZY } from '../finalSmash';
 import {
   BRISTLE,
