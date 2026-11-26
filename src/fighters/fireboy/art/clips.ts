@@ -831,3 +831,12 @@ clips.getupRoll = retimeClip(clips.techRoll!, 35, [
   [4, 4],
   [30, 28],
 ]);
+/** Tech and getup rolls away from the facing: the back roll with its frames moved onto each action's travel. */
+clips.techRollBack = retimeClip(clips.rollBack!, 40, [
+  [4, 4],
+  [20, 30],
+]);
+clips.getupRollBack = retimeClip(clips.rollBack!, 35, [
+  [4, 4],
+  [20, 28],
+]);
