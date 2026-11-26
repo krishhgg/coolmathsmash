@@ -21,6 +21,8 @@ import { art } from '.';
 import { aimedShotClips } from './aimedShot';
 import { duckRaftClips } from './duckRaft';
 import { DUCK_RAFT } from '../duckRaftData';
+import { ARSENAL } from '../fullArsenalData';
+import { fullArsenalClips } from './fullArsenal';
 import { frameData } from './attacks';
 
 /** Engine actions and their canonical clip lengths (loops: any length; holds: not looping). */
@@ -101,9 +103,16 @@ describe('raft wars art', () => {
       expect(clip, name).toBeDefined();
       expect(clip!.length, name).toBe(move.faf - 1);
       // Aimed Shot fires from its script, not `spawn`, on AIMED_SHOT.fire. The charge holds the move on its charge
-      // frame, so the ball leaves on that frame at every charge. Duck Raft throws its raft from its script too.
+      // frame, so the ball leaves on that frame at every charge. Duck Raft throws its raft from its script too, and
+      // Full Arsenal its first shot.
       const fired =
-        name in aimedShotClips ? AIMED_SHOT.fire : name in duckRaftClips ? DUCK_RAFT.place : undefined;
+        name in aimedShotClips
+          ? AIMED_SHOT.fire
+          : name in duckRaftClips
+            ? DUCK_RAFT.place
+            : name in fullArsenalClips
+              ? ARSENAL.fire[0]
+              : undefined;
       const impact = move.spawn?.[0]?.frame ?? move.throw?.frame ?? move.pummel?.frame ?? fired;
       const windows = move.hits.length ? move.hits.map((h) => h.frames) : [[impact, impact]];
       expect(clip!.active, name).toEqual(windows);
@@ -114,9 +123,9 @@ describe('raft wars art', () => {
   it('keys the clips to the frame data in the moves', () => {
     const { FAF, SPAWNS, GRAB_BOXES } = frameData;
     for (const [name, move] of Object.entries(moves)) {
-      // These tables copy the moves' numbers because attacks.ts can't import the moves. Aimed Shot's and Duck Raft's
-      // clips read AIMED_SHOT and DUCK_RAFT from the move files themselves, so there is no copy to check.
-      if (name in aimedShotClips || name in duckRaftClips) continue;
+      // These tables copy the moves' numbers because attacks.ts can't import the moves. Aimed Shot's, Duck Raft's and
+      // Full Arsenal's clips read AIMED_SHOT, DUCK_RAFT and ARSENAL themselves, so there is no copy to check.
+      if (name in aimedShotClips || name in duckRaftClips || name in fullArsenalClips) continue;
       expect(FAF[name], name).toBe(move.faf);
       const spawns = (move.spawn ?? []).map(({ frame, x, y, vx, vy }) => ({
         frame,
