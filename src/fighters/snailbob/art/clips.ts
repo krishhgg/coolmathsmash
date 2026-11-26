@@ -27,6 +27,7 @@ import {
   type Pt,
 } from './poses';
 import { attacks } from './attacks';
+import { shellPound } from './shellPound';
 import { specials } from './specials';
 import { BODY_Y, SHELL_X, SHELL_Y, rig } from './rig';
 
@@ -656,7 +657,7 @@ void rig;
 
 /**
  * Every clip: the engine's action names and the canonical names in docs/art.md that differ from them (knockdown,
- * getUp, tech), then every move's clip (attacks.ts, specials.ts).
+ * getUp, tech), then every move's clip (attacks.ts, specials.ts, shellPound.ts).
  */
 export const clips: Record<string, AnimClip> = {
   idle,
@@ -702,6 +703,7 @@ export const clips: Record<string, AnimClip> = {
   grabbed,
   ...attacks,
   ...specials,
+  ...shellPound,
 };
 
 /** Tech and getup rolls away from the facing: the back roll with its frames moved onto each action's travel. */
