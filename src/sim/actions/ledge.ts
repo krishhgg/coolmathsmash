@@ -80,7 +80,7 @@ export const LEDGE: Record<string, ActionDef> = {
     },
   },
 
-  /** Hanging: jump, attack, shield (roll), toward/up (climb) or away/down (drop). Lets go after 5 seconds. */
+  /** Hanging: jump, attack, shield (roll), toward/up (climb) or away/down (drop). Lets go after LEDGE_HANG_MAX frames. */
   ledgeHang: {
     physics: 'none',
     update(x) {
