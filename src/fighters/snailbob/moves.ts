@@ -373,6 +373,13 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     spawn: [{ frame: 14, entity: 'snailbob/crateFall', x: 20, y: 45, vy: -1.5, max: 1 }],
   },
+  /**
+   * Rocket Hover (up special): a little rocket under the shell (the Snail Bob 4 kind) thrusts him up while Special
+   * is held, on the fuel in FighterDef.hover. It plays like R.O.B.'s Robo Burner in Ultimate: no hitbox (the
+   * exhaust deals no damage), actionable on frame 25, and letting go falls without going helpless, so he can hover
+   * again on the fuel left. The tank refills only on the ground.
+   */
+  upB: { kind: 'other', faf: 25, action: 'hover', hits: [] },
   /** Grabs: slow, short-armed (frame 9, about 11.5 units against Mario's 12 from a wider body). */
   grab: { kind: 'other', faf: 40, hits: [{ frames: [9, 10], boxes: [grabBox(0, 7.5, 6, 4)] }] },
   dashGrab: { kind: 'other', faf: 48, hits: [{ frames: [11, 12], boxes: [grabBox(0, 8.5, 6, 4.5)] }] },

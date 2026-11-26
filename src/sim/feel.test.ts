@@ -48,7 +48,12 @@ describe('ground movement', () => {
     }
     const dashFrames = actions.filter((a) => a === 'dash').length;
     expect(dashFrames).toBe(11);
-    expect(speeds[0]).toBeCloseTo(1.95, 3);
+    // Ultimate's dash_speed_keep_frame: dash speed on frames 1-6, then traction (0.1) brakes it to run speed on
+    // frame 7, still inside the dash, so the run starts at run speed instead of dropping 0.1 in one frame on frame 12.
+    expect(speeds.slice(0, 6).every((v) => Math.abs(v - 1.95) < 1e-9)).toBe(true);
+    expect(speeds[6]).toBeCloseTo(1.85, 9);
+    expect(actions[11]).toBe('run');
+    expect(speeds[11]).toBeCloseTo(1.85, 9);
     expect(actions.at(-1)).toBe('run');
     expect(s.vel.x).toBeCloseTo(1.85, 3);
   });
@@ -63,31 +68,67 @@ describe('ground movement', () => {
     const s = P(m);
     s.pos.x = 0;
     settle(m);
+    const speeds: number[] = [];
     const actions: string[] = [];
     for (let i = 0; i < 14; i++) {
       stepMatch(m, [input({ x: 100 })]);
+      speeds.push(s.vel.x);
       actions.push(s.action);
     }
     expect(actions.filter((a) => a === 'dash').length).toBe(ref.movement.mario_initial_dash_frames);
     expect(actions.indexOf('run') + 1).toBe(ref.movement.mario_initial_dash_frames + 1);
+    // docs/physics-reference.md section 10: 1.936 for 6 frames, then 1.834 and 1.76 held.
+    expect(speeds.slice(0, 6).every((v) => Math.abs(v - 1.936) < 1e-9)).toBe(true);
+    expect(speeds[6]).toBeCloseTo(1.834, 9);
+    expect(speeds[7]).toBeCloseTo(1.76, 9);
+    expect(speeds[10]).toBeCloseTo(1.76, 9);
+  });
+
+  it('a tapped dash holds 1.95 u/f for 6 frames, then slides out at traction (Ultimate: dash_speed_keep_frame 6)', () => {
+    const m = grounded();
+    const f = P(m);
+    const x0 = f.pos.x;
+    const speeds: number[] = [];
+    const actions: string[] = [];
+    for (let i = 0; i < 30; i++) {
+      stepMatch(m, [input(i === 0 ? { x: 100 } : {})]);
+      speeds.push(f.vel.x);
+      actions.push(f.action);
+    }
+    expect(speeds.slice(0, 6).every((v) => Math.abs(v - 1.95) < 1e-9)).toBe(true);
+    expect(speeds[6]).toBeCloseTo(1.85, 9);
+    expect(speeds[10]).toBeCloseTo(1.45, 9);
+    expect(speeds[11]).toBeCloseTo(1.35, 9);
+    expect(speeds[24]).toBeCloseTo(0.05, 9);
+    expect(speeds[25]).toBe(0);
+    expect(actions[10]).toBe('dash');
+    expect(actions[11]).toBe('idle');
+    expect(f.pos.x - x0).toBeCloseTo(29.75, 2);
   });
 
   it('dash-dances: a neutral frame and a flick back restarts the dash the other way', () => {
     const m = grounded();
     const f = P(m);
     const xs: number[] = [];
+    const vs: number[] = [];
     const facings: number[] = [];
     for (let i = 0; i < 24; i++) {
       const leg = Math.floor(i / 8);
       const hold = i % 8 === 7 ? {} : { x: leg % 2 === 0 ? 100 : -100 };
       stepMatch(m, [input(hold)]);
       xs.push(f.pos.x);
+      vs.push(f.vel.x);
       facings.push(f.facing);
     }
     expect(new Set(facings).size).toBe(2);
-    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(15.6, 1);
+    // Each flick back restarts the dash at full dash speed the other way.
+    expect(vs[8]).toBeCloseTo(-1.95, 9);
+    expect(vs[16]).toBeCloseTo(1.95, 9);
+    // Each 8-frame leg: 6 frames at 1.95 (dash_speed_keep_frame), frame 7 braked to run speed 1.85 by traction,
+    // and the neutral frame 8 braked to 1.75.
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(15.3, 1);
     expect(f.action).toBe('dash');
-    expect(Math.abs(f.vel.x)).toBeCloseTo(1.95, 3);
+    expect(Math.abs(f.vel.x)).toBeCloseTo(1.75, 3);
   });
 
   it('stops in traction distance from run speed (Ultimate: 1.76 u/f at 0.102 u/f^2 is 18 frames)', () => {
