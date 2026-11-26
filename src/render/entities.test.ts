@@ -5,10 +5,13 @@ import { spawnEntity } from '../sim/entities/entities';
 import type { EntityState } from '../sim/entities/types';
 import type { FighterState } from '../sim/fighter';
 import { PLANET } from '../sim/items/planet';
-import { createMatch, type MatchState } from '../sim/match';
+import { inFinalSmash } from '../sim/finalSmash';
+import { createMatch, stepMatch, type MatchState } from '../sim/match';
+import { input } from '../sim/testing/sim';
+import { finalTrapTester, noFinalTester } from '../sim/testing/finalSmash';
 import { gadgets } from '../sim/testing/gadgets';
 import { EntityView, entityArt, layerFighters, propPlacement, propStack } from './entities';
-import { fighterArt } from './fighterView';
+import { FighterView, fighterArt } from './fighterView';
 import { drawPlanetEntity } from './items';
 import { Renderer } from './renderer';
 import type { PropArt } from './rig/types';
@@ -283,6 +286,64 @@ describe('EntityView', () => {
     expect(boat.children).toEqual([]);
     rest.sortChildren();
     expect(rest.children).toEqual(views);
+  });
+
+  it("draws a Final Smash user over every other port, raft or not, after the renderer's per-frame update", () => {
+    // The in-game capture's setup: the Final Smash user on port 0, the foe it catches on 1, someone held on 2. The
+    // trap tester stands in for Bob the Robber, whose rig's gradients need a browser canvas to build.
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: finalTrapTester.id }, { fighter: noFinalTester.id }, { fighter: noFinalTester.id }],
+    });
+    const [bob, caught] = m.fighters as [FighterState, FighterState, FighterState];
+    m.fighters.forEach((f, i) => {
+      const x = [-30, -16, 60][i]!;
+      Object.assign(f, {
+        pos: { x, y: 1 },
+        prevPos: { x, y: 1 },
+        ground: null,
+        action: 'fall',
+        facing: i ? -1 : 1,
+      });
+    });
+    const idle = () => m.players.map(() => input({}));
+    for (let i = 0; i < 30; i++) stepMatch(m, idle());
+    const views = m.fighters.map((f) => new FighterView(getFighter(f.fighter), f.port, 'default', true));
+    const boat = new Container({ sortableChildren: true });
+    const rest = new Container({ sortableChildren: true });
+    /** One rendered frame's fighters, in the renderer's order: every view's update, then layerFighters. */
+    const draw = () => {
+      m.fighters.forEach((f, i) => views[i]!.update(f, 1, m.frame, false));
+      layerFighters(
+        m,
+        views.map((v) => v.container),
+        boat,
+        rest,
+      );
+      for (const layer of [boat, rest]) layer.sortChildren();
+      const ports = (layer: Container) =>
+        layer.children.map((c) => views.findIndex((v) => v.container === c));
+      return { boat: ports(boat), rest: ports(rest) };
+    };
+    expect(draw()).toEqual({ boat: [], rest: [0, 1, 2] });
+    bob.finalReady = true;
+    stepMatch(m, [input({ buttons: ['special'] }), input({}), input({})]);
+    let frames = 0;
+    for (; frames < 600 && inFinalSmash(bob); frames++) {
+      expect(draw()).toEqual({ boat: [], rest: [1, 2, 0] });
+      stepMatch(m, idle());
+    }
+    expect(caught.damage).toBeGreaterThan(24);
+    expect(frames).toBeGreaterThan(150);
+    expect(draw()).toEqual({ boat: [], rest: [0, 1, 2] });
+
+    // Standing in a raft he still goes over everyone, not under its rim with the others over him.
+    const raft = spawnEntity(m, { kind: 'raftwars/duckRaft', owner: 1, pos: { x: bob.pos.x, y: 2.5 } });
+    Object.assign(bob, { action: 'grabThrow', move: 'finalSmashCinematic', actionFrame: 60, grabPartner: 1 });
+    bob.ground = { kind: 'entity', index: raft.id, x1: -7, x2: 7, y: 3.5 };
+    expect(draw()).toEqual({ boat: [], rest: [1, 2, 0] });
   });
 
   it('draws the Coolmath Planet with its item drawing, not a disc', () => {

@@ -5,6 +5,7 @@ import { entityDef, entityHitboxes, isHittable } from '../sim/entities/entities'
 import type { EntityState } from '../sim/entities/types';
 import { PLANET } from '../sim/items/planet';
 import type { FighterState } from '../sim/fighter';
+import { inFinalSmash } from '../sim/finalSmash';
 import type { MatchState } from '../sim/match';
 import { PORT_COLORS } from './debug/inputDisplay';
 import { fighterArt } from './fighterView';
@@ -177,7 +178,9 @@ export function standsInFront(state: MatchState, f: FighterState): boolean {
 /**
  * Puts each fighter's view (by index) in `boat` while it stands in a prop with a `front`, and in `rest` otherwise.
  * The renderer draws `boat`, then EntityView.fronts, then `rest`, so a raft's rim covers the feet of whoever stands in
- * it and nobody else. Both layers keep the fighters in port order (zIndex).
+ * it and nobody else. Both layers keep the fighters in port order (zIndex), except a fighter playing a Final Smash:
+ * it goes over everyone, at the top of `rest` and never under a rim, so its art can cover the others (Bob the Robber's
+ * Lights Out puts the lights out over the stage and every other fighter). This is the only place fighters are ordered.
  */
 export function layerFighters(
   state: MatchState,
@@ -188,8 +191,9 @@ export function layerFighters(
   state.fighters.forEach((f, i) => {
     const c = views[i];
     if (!c) return;
-    c.zIndex = i;
-    const layer = standsInFront(state, f) ? boat : rest;
+    const final = inFinalSmash(f);
+    c.zIndex = final ? state.fighters.length + i : i;
+    const layer = !final && standsInFront(state, f) ? boat : rest;
     if (c.parent !== layer) layer.addChild(c);
   });
 }
