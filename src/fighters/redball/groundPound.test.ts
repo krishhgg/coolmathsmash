@@ -94,7 +94,10 @@ describe("Red Ball: Ground Pound (down special) on Yoshi's Yoshi Bomb", () => {
     const slam = { damage: 15, angle: 80, bkb: 60, kbg: 72, radius: 6.8, hitlag: 0.7 };
     expect(moves.downB).toMatchObject({ air: 'downBAir', ledgeFrom: 27 });
     expect(moves.downB!.hits).toMatchObject([
-      { frames: [7, 7], boxes: [{ damage: 4, angle: 80, bkb: 0, kbg: 100, wbkb: 80, radius: 7, hitlag: 0.5 }] },
+      {
+        frames: [7, 7],
+        boxes: [{ damage: 4, angle: 80, bkb: 0, kbg: 100, wbkb: 80, radius: 7, hitlag: 0.5 }],
+      },
       { frames: [27, 34], rehit: true, boxes: [slam] },
     ]);
     const air = { damage: 12, angle: 80, bkb: 70, kbg: 68, radius: 6.4, hitlag: 0.7 };
@@ -106,7 +109,15 @@ describe("Red Ball: Ground Pound (down special) on Yoshi's Yoshi Bomb", () => {
     const star = { damage: 4, angle: 50, bkb: 50, kbg: 40, radius: 4, hitlag: 0, status: SQUARED };
     expect(moves.downBLand).toMatchObject({
       faf: 40,
-      hits: [{ frames: [3, 12], boxes: [{ ...star, x: 8, y: 1 }, { ...star, x: -8, y: 1, direction: 'back' }] }],
+      hits: [
+        {
+          frames: [3, 12],
+          boxes: [
+            { ...star, x: 8, y: 1 },
+            { ...star, x: -8, y: 1, direction: 'back' },
+          ],
+        },
+      ],
     });
   });
 
@@ -176,7 +187,13 @@ describe("Red Ball: Ground Pound (down special) on Yoshi's Yoshi Bomb", () => {
   it('rises through the top platform, slams Mario standing on it for 15%, and drops through it to the stage', () => {
     const { m, a, v } = versusMario();
     Object.assign(a, { pos: { x: 0, y: 0 }, prevPos: { x: 0, y: 0 }, facing: 1 });
-    Object.assign(v, { pos: { x: 0, y: 60 }, prevPos: { x: 0, y: 60 }, ground: null, action: 'fall', intangible: 0 });
+    Object.assign(v, {
+      pos: { x: 0, y: 60 },
+      prevPos: { x: 0, y: 60 },
+      ground: null,
+      action: 'fall',
+      intangible: 0,
+    });
     play(m, 60, () => v.ground !== null);
     expect(v.ground).toEqual({ kind: 'platform', index: TOP.index });
     runPorts(m, 1, [DOWN_B, {}]);
@@ -278,7 +295,13 @@ describe("Red Ball: Ground Pound (down special) on Yoshi's Yoshi Bomb", () => {
 
   it('a CPU reads it from the ground and uses it in a match without errors', () => {
     const probe = knowledge('redball', 'battlefield').ground.downB!;
-    expect(probe).toMatchObject({ first: POUND.takeoff - 1, damage: 15, endDx: 0, endDy: 0, endsGrounded: true });
+    expect(probe).toMatchObject({
+      first: POUND.takeoff - 1,
+      damage: 15,
+      endDx: 0,
+      endDy: 0,
+      endsGrounded: true,
+    });
     const m = createMatch({
       seed: 1,
       stage: 'battlefield',
