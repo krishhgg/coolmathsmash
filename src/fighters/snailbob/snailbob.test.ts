@@ -697,7 +697,7 @@ describe('Snail Bob: Shell Pound (down special)', () => {
    * late fall 40-; aerial clean 31-32, late 33-; landing hit 1-2, interruptible 55.
    */
   it("takes Bowser Bomb's frames, damage, angles, knockback and shield damage", () => {
-    const { downB, downBAir, downBLand } = moves as Record<string, NonNullable<(typeof moves)['downB']>>;
+    const { downB, downBAir, downBLand } = moves;
     expect(downB!.air).toBe('downBAir');
     expect(downB!.hits.map((w) => w.frames)).toEqual([
       [11, 11],
