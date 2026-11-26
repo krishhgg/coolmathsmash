@@ -27,21 +27,8 @@ export const FOX_ILLUSION = {
   airDriftAccel: 0.9,
 };
 
-/**
- * Units per frame through the burst. SmashWiki gives no dash speed, only that the move "can quickly cover about half
- * of the length of Final Destination" (Fox Illusion), which is 80 units of its 160-unit main stage
- * (docs/physics-reference.md, section 16). Five frames at 11.6 and the 22.1-unit slide out of 2.5 make 80.1.
- */
-export const DASH_SPEED = 11.6;
-
-/**
- * Where the afterimage trail's boxes sit (forward of her feet): from her feet back to where she stood two frames
- * earlier, 2 x 11.6 = 23.2 units. Fox's hitbox rides his afterimages, which "trail behind the character"
- * (ultimateframedata.com), and Ultimate sweeps hitboxes between frames. Boxes here stand still, so four of them
- * cover the ground she has burst over since her first active frame and catch whoever she passed, point blank
- * included.
- */
-export const TRAIL = [0, -7.7, -15.5, -23.2];
+/** The burst's speed and the afterimage trail's boxes, shared with the art (timing.ts). */
+export const { speed: DASH_SPEED, trail: TRAIL } = STRAFE_DASH;
 
 /** The trail's boxes with one hit's numbers: Fox's radius 4, 4 units up. */
 const trail = (hit: Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius'>): HitboxDef[] =>

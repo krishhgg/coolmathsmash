@@ -1,6 +1,6 @@
 import type { FighterScenarios, LabScenario } from '../../harness/scenarios';
 import { art } from './art';
-import { BOX_DROP, GRAVITY_SWITCH } from './timing';
+import { BOX_DROP, GRAVITY_SWITCH, STRAFE_DASH } from './timing';
 
 const RUN = 'characters/runner';
 
@@ -31,8 +31,9 @@ const sheet = (
 /**
  * The Runner's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
  * Fireboy, plus Gravity Switch on the underside of a platform, Tile Flip on the ground and in the air, the Jog Flurry,
- * Box Drop from the air and on the ground, and lab contact sheets of her key poses, every move on its first active
- * frame, and Box Drop's exit. References live in the Captain drive's refs/.
+ * Box Drop from the air and on the ground, Strafe Dash on the ground and in the air, and lab contact sheets of her key
+ * poses, every move on its first active frame, Box Drop's exit and Strafe Dash's afterimages. References live in the
+ * Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'runner',
@@ -187,6 +188,57 @@ export const scenarios: FighterScenarios = {
       refs: [`${RUN}/ingame-run2-*`, 'smash/attack-active-*'],
     },
     {
+      name: 'runner-strafe-dash',
+      description:
+        'Runner coils and bursts through Fireboy at 40% with Strafe Dash (side special), her afterimages strung out ' +
+        'behind her, then brakes and slides out.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'runner' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -50, y: 0 }, prevPos: { x: -50, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: -20, y: 0 }, prevPos: { x: -20, y: 0 }, facing: -1, damage: 40 } },
+      ],
+      script: [{ port: 0, from: 10, x: 100, buttons: ['special'] }],
+      capture: {
+        label: "P1 move 'sideB' and P2's damage rises",
+        when: (s, prev) =>
+          s.fighters[0]!.move === 'sideB' && s.fighters[1]!.damage > prev.fighters[1]!.damage,
+      },
+      motion: { before: 28, after: 32 },
+      requires: ['move:sideB'],
+      refs: ['smash/attack-active-*', `${RUN}/ingame-run1-*`, `${RUN}/sprite-runner-run-cycle-*`],
+    },
+    {
+      name: 'runner-strafe-dash-air',
+      description:
+        'Runner, in the air beside the stage, uses Strafe Dash: a near stall, a level burst through Fireboy at 40%, ' +
+        'then a short float into a normal fall.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'runner' }, { fighter: 'fireboy' }] },
+      patches: [
+        {
+          port: 0,
+          state: {
+            pos: { x: -50, y: 10 },
+            prevPos: { x: -50, y: 10 },
+            ground: null,
+            action: 'fall',
+            facing: 1,
+          },
+        },
+        { port: 1, state: { pos: { x: -20, y: 0 }, prevPos: { x: -20, y: 0 }, facing: -1, damage: 40 } },
+      ],
+      script: [{ port: 0, from: 0, x: 100, buttons: ['special'] }],
+      capture: {
+        label: "P1 move 'sideBAir' and P2's damage rises",
+        when: (s, prev) =>
+          s.fighters[0]!.move === 'sideBAir' && s.fighters[1]!.damage > prev.fighters[1]!.damage,
+      },
+      motion: { before: 28, after: 40 },
+      requires: ['move:sideBAir'],
+      refs: ['smash/attack-active-*', `${RUN}/sprite-runner-jump-*`],
+    },
+    {
       name: 'runner-key-poses',
       description: 'Close-up key poses for the dash, planted run, jump, dropkick and Tile Flip.',
       page: {
@@ -256,6 +308,13 @@ export const scenarios: FighterScenarios = {
         'downBAir',
       ].map(firstActive),
       ['smash/attack-active-*', `${RUN}/sprite-sheet-runner-*`, `${RUN}/ingame-run3-*`],
+    ),
+    sheet(
+      'strafe-dash',
+      "Strafe Dash's coil, then the burst on its first active frame on the ground and in the air, afterimages and all.",
+      5.2,
+      [`sideB@${STRAFE_DASH.dash[0] - 12}`, firstActive('sideB'), firstActive('sideBAir')],
+      ['smash/attack-active-*', `${RUN}/sprite-runner-run-cycle-*`, `${RUN}/official-art-runner-*`],
     ),
     {
       name: 'runner-box-drop-exit',

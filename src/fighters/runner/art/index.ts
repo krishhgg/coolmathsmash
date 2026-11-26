@@ -6,12 +6,13 @@ import { LEDGE_GRIP, clips } from './clips';
 import { costumeSwaps, palettes } from './palettes';
 import { iconAntennae } from './parts';
 import { rig } from './rig';
+import { strafeDashClips } from './strafe-dash';
 
 /** The Runner (Run, Run 2 and Run 3, Joseph Cloutier, 2008-2014), drawn from scratch. Plain data: no Pixi. */
 export const art: FighterArt = {
   height: 13,
   rig,
-  clips: { ...clips, ...attacks, ...boxDropClips },
+  clips: { ...clips, ...attacks, ...boxDropClips, ...strafeDashClips },
   palettes,
   costumeSwaps,
   ledgeGrip: LEDGE_GRIP,
