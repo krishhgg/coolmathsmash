@@ -2,17 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { createCpu } from '../../ai';
 import { knowledge } from '../../ai/knowledge';
 import { hashState } from '../../engine/hash';
+import { registerFighter } from '../registry';
 import { HITLAG, hitstunFrames, knockback, shieldstunFrames } from '../../sim/combat/formulas';
 import type { SimEvent } from '../../sim/events';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../../sim/match';
 import { hasStatus, statusOf } from '../../sim/statuses';
+import { counterTesterMarth } from '../../sim/testing/counter';
 import { koPercent } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
-import { input, placeInAir, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
+import { attack, input, placeInAir, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
 import { moves } from './moves';
 import { entities, MUZZLE, PARALYZED, SHOTS, STUN_GUN } from './entities';
 import { statuses } from './statuses';
+
+registerFighter(counterTesterMarth);
 
 /**
  * Zero Suit Samus's Paralyzer in Ultimate, the move Stun Gun copies: SmashWiki's Zero Suit Samus (SSBU)/Neutral
@@ -306,6 +310,44 @@ describe("Bob the Robber: Stun Gun (Zero Suit Samus's Paralyzer)", () => {
       expect(v.hitstun).toBe(stun);
       expect(shots(m)).toHaveLength(0);
     }
+  });
+
+  it('is caught by a counter like any hit: the shot is used up, the counter answers, and nobody is paralyzed', () => {
+    // The counter fixture is Fireboy with Marth's Counter on down special (catches on its frames 6-27).
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'bob-the-robber' }, { fighter: counterTesterMarth.id }],
+    });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    const place = (f: FighterState, x: number, facing: 1 | -1) =>
+      Object.assign(f, { pos: { x, y: 1 }, prevPos: { x, y: 1 }, facing, intangible: 0 });
+    place(a, -20, 1);
+    place(v, 10, -1);
+    runPorts(m, 20, []);
+    for (let i = 0; i < 100 && shots(m).length === 0; i++) runPorts(m, 1, [SPECIAL, {}]);
+    const shot = shots(m)[0]!;
+    expect(shot.kind).toBe('bob-the-robber/stunShotFull');
+    attack(m, 1, 'downB');
+    const events: SimEvent[] = [];
+    for (let i = 0; i < 20 && !events.some((e) => e.type === 'counter'); i++) {
+      runPorts(m, 1, []);
+      events.push(...m.events);
+    }
+    expect(events.find((e) => e.type === 'counter')).toMatchObject({ port: 1, attacker: 0, entity: shot.id });
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'entityDestroy', id: shot.id, reason: 'hit' }),
+    );
+    expect(events.some((e) => e.type === 'hit' || e.type === 'statusStart')).toBe(false);
+    for (let i = 0; i < 60; i++) {
+      runPorts(m, 1, []);
+      events.push(...m.events);
+    }
+    expect(events.some((e) => e.type === 'statusStart')).toBe(false);
+    expect(v.statuses).toEqual([]);
+    expect(v.damage).toBe(0);
+    expect(events).toContainEqual({ type: 'move', port: 1, move: 'downBHit' });
   });
 
   it('never KOs: its set knockback launches the same at 999% as at 0%', () => {
