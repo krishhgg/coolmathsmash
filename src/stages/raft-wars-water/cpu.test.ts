@@ -27,13 +27,16 @@ describe('CPUs on Raft War Lagoon', () => {
     }
   }, 120_000);
 
-  /** Off both ends, under the water at both ledges, and 8 units under the middle of the logs. */
+  /**
+   * Off both ends, under the water at both ledges, and under the logs near one end. Solid ground blocks fighters
+   * from below, so from under the logs the way back is out past the end and up, not through them.
+   */
   const spots: [number, number, number][] = [
     [-108, -8, 0],
     [112, 24, 75],
     [-96, WATER_Y - 30, 150],
     [100, WATER_Y - 22, 225],
-    [0, RAFT.bottom - 8, 110],
+    [60, RAFT.bottom - 14, 110],
   ];
   it.each(spots)('a level 7 CPU climbs back onto the raft from (%d, %d) at swell frame %d', (x, y, phase) => {
     const m = createMatch({
