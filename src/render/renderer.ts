@@ -19,7 +19,7 @@ import { placeholderStage } from './placeholderStage';
 import { ReticleView } from './reticle';
 import { drawStagePieces } from './stagePieces';
 import { TetherLineView } from './tetherLine';
-import { flipScreenY, viewFlip } from './viewFlip';
+import { flipScreenY, tagY, viewFlip } from './viewFlip';
 import { paint } from './vfx/paint';
 import { fighterFx, Vfx } from './vfx/system';
 import { VfxView } from './vfx/view';
@@ -248,8 +248,9 @@ export class Renderer {
           cpu: this.matchHud.cpus.has(f.port),
           visible: !!v?.container.visible,
           x: this.world.position.x + (at?.x ?? 0) * view.zoom,
-          y: flipScreenY(
+          y: tagY(
             this.world.position.y + ((at?.y ?? 0) - (v?.top ?? 0) - 1) * view.zoom,
+            this.world.position.y + ((at?.y ?? 0) + 1) * view.zoom,
             flip,
             VIEW_HEIGHT,
           ),

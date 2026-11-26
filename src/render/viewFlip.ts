@@ -45,3 +45,12 @@ export function viewFlip(state: MatchState, alpha = 1): number {
 /** A screen y (pixels, y down) seen through the flip `s` about the middle of a screen `height` tall. */
 export const flipScreenY = (y: number, s: number, height: number): number =>
   height / 2 + (y - height / 2) * s;
+
+/**
+ * Where a fighter's overhead tag points (screen y, pixels) through the flip `s`: just past whichever end of the fighter
+ * is higher on screen, from the unflipped screen ys of the points just past its `head` and just past its `feet`.
+ * Upright that is the head. Upside down it is the feet, so the tag still sits above the fighter pointing down at it,
+ * rather than over its head pointing away.
+ */
+export const tagY = (head: number, feet: number, s: number, height: number): number =>
+  Math.min(flipScreenY(head, s, height), flipScreenY(feet, s, height));

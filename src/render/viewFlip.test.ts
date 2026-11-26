@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createMatch, type MatchState } from '../sim/match';
 import { marioReference } from '../sim/testing/reference';
 import { registerFighter } from '../fighters/registry';
-import { FLIP_EDGE, flipScale, flipScreenY, viewFlip } from './viewFlip';
+import { placeTag, POINTER, TAG_H } from './hud/tags';
+import { FLIP_EDGE, flipScale, flipScreenY, tagY, viewFlip } from './viewFlip';
 import type { ViewFlip } from './rig/types';
 
 registerFighter(marioReference);
@@ -61,5 +62,23 @@ describe('view flip', () => {
     expect(viewFlip(m, 0.5)).toBe(flipScale(FLIP, 49.5));
     r.hitlag = 3;
     expect(viewFlip(m, 0.5)).toBe(flipScale(FLIP, 50));
+  });
+
+  it('keeps overhead tags above each fighter on screen, pointing down at it, upright and upside down', () => {
+    // A fighter standing low on a 720-pixel screen: the point just past its head at y 400, past its feet at 470.
+    const [head, feet] = [400, 470];
+    for (const s of [1, 0.6, 0.2, -0.2, -0.6, -1]) {
+      const y = tagY(head, feet, s, 720);
+      const ends = [flipScreenY(head, s, 720), flipScreenY(feet, s, 720)];
+      // The tag points at the end of the fighter that is higher on screen...
+      expect(y, `${s}`).toBe(Math.min(...ends));
+      const tag = placeTag(640, y, 38);
+      // ...from above it, the pointer down at the fighter and the pill clear of it.
+      expect(tag.side, `${s}`).toBe('down');
+      expect(tag.y + TAG_H / 2 + POINTER, `${s}`).toBeLessThanOrEqual(Math.min(...ends) + 1e-9);
+    }
+    // Upright it is the head's end; upside down the feet are the top of the fighter on screen.
+    expect(tagY(head, feet, 1, 720)).toBe(head);
+    expect(tagY(head, feet, -1, 720)).toBe(720 - feet);
   });
 });
