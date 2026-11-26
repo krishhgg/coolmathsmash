@@ -333,7 +333,7 @@ const DTILT_KICK = shoot(kneel({ body: { rot: 6, x: -0.3 }, ...bro(-8, -10, -120
 // ---------------------------------------------------------------------------------------------------------
 // Melee: the floaty.
 
-/** The ring lying flat under the belly, its centre on rig point `to`, squashed by `squash`. */
+/** The ring slipped off the hips: its centre on rig point `to`, turned to `deg` and stretched by `sx`, `sy`. */
 const ringAt = (pose: Pose, to: Pt, deg = 0, sx = 1, sy = 1): Pose =>
   placeAt(pose, 'ring', to, deg, { sx, sy });
 
