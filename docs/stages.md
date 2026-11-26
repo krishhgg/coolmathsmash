@@ -26,9 +26,16 @@ export interface StageView {
   world: Container; // game units at (x, -y); the renderer puts it inside its world container, under fighters
   foreground?: Container; // game units, drawn over fighters (keep it sparse: it hides fighters)
   update(frame: number, camera: StageCamera): void; // called every rendered frame
+  pieces?(stage: StageState, alpha: number): void; // optional: place the art of moving pieces
 }
 export function createStageView(): StageView;
 ```
+
+A stage whose solids or platforms move (docs/stage-geometry.md) draws them itself through `pieces`: the renderer
+passes the match's piece state (`MatchState.stage`) and its interpolation `alpha`, and `pieceOffset` in
+`src/render/stagePieces.ts` gives a piece's offset for that frame. A view with `pieces` replaces the renderer's
+placeholder shapes for solids and platforms. Raft War Lagoon (`src/stages/raft-wars-water/view.ts`) moves its whole
+raft by solid 0's offset.
 
 `StageView` and `StageCamera` are exported from `src/stages/battlefield/view.ts`; a new stage exports its own
 `createStageView` with the same shape.
