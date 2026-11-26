@@ -2,6 +2,7 @@ import type { HitboxDef, MoveDef } from '../types';
 import { stickX } from '../../sim/control';
 import { moves as fireboyMoves } from '../fireboy/moves';
 import { swap } from '../fireboy/swap';
+import { finalSmash, finalSmashAir } from './finalSmash';
 import { waterStream } from './waterStream';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -400,4 +401,7 @@ export const moves: Record<string, MoveDef> = {
   /** Swap (down special): Fireboy takes over. */
   downB: swap('fireboy'),
   ...templeMirror,
+  /** Tidal Wave, the Final Smash, on Mario Finale (finalSmash.ts). */
+  finalSmash,
+  finalSmashAir,
 };

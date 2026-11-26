@@ -1,6 +1,6 @@
 import { getFighter } from '../fighters/registry';
 import { compiledStage, posedStage } from '../sim/context';
-import type { FighterState } from '../sim/fighter';
+import type { FighterState, GroundRef } from '../sim/fighter';
 import { zoneAt } from '../sim/hazards';
 import type { MatchState } from '../sim/match';
 import { hazardsOn, scheduledOn } from '../sim/movingStage';
@@ -123,30 +123,49 @@ export function stageInfo(state: Readonly<MatchState>): StageInfo {
   return info;
 }
 
+/** A floor or platform under some x: its height there, its conveyor speed, and which piece it is (as in GroundRef). */
+interface Ground {
+  y: number;
+  belt: number;
+  kind: 'solid' | 'platform';
+  /** Edge index into CompiledStage.edges for solids, platform index for platforms. */
+  index: number;
+}
+
 /** The highest floor or platform at or below (x, y) that is there (and, with `steady`, stays), or null. */
-function groundAt(
-  info: StageInfo,
-  x: number,
-  y: number,
-  platforms: boolean,
-  steady: boolean,
-): { y: number; belt: number } | null {
+function groundAt(info: StageInfo, x: number, y: number, platforms: boolean, steady: boolean): Ground | null {
   const on = steady ? info.steady : info.c.present;
-  let best: { y: number; belt: number } | null = null;
-  for (const e of info.c.edges) {
+  let best: Ground | null = null;
+  const edges = info.c.edges;
+  for (let i = 0; i < edges.length; i++) {
+    const e = edges[i]!;
     if (e.kind !== 'floor' || !on.solids[e.solid] || x < edgeMinX(e) || x > edgeMaxX(e)) continue;
     const fy = floorY(e, x);
-    if (fy <= y + 0.01 && (best === null || fy > best.y)) best = { y: fy, belt: info.belts.solids[e.solid]! };
+    if (fy <= y + 0.01 && (best === null || fy > best.y)) {
+      best = { y: fy, belt: info.belts.solids[e.solid]!, kind: 'solid', index: i };
+    }
   }
   if (platforms) {
     const ps = info.c.geo.platforms;
     for (let i = 0; i < ps.length; i++) {
       const p = ps[i]!;
       if (!on.platforms[i] || x < p.x1 || x > p.x2 || p.y > y + 0.01) continue;
-      if (best === null || p.y > best.y) best = { y: p.y, belt: info.belts.platforms[i]! };
+      if (best === null || p.y > best.y) {
+        best = { y: p.y, belt: info.belts.platforms[i]!, kind: 'platform', index: i };
+      }
     }
   }
   return best;
+}
+
+/**
+ * The stage floor or platform there this frame that a fighter at (x, y) stands on or would land on falling straight
+ * down (the highest at or below it), as the sim refers to ground; null over a gap. Entities' platforms are not part
+ * of the stage, so this never finds them.
+ */
+export function groundUnder(info: StageInfo, x: number, y: number): GroundRef | null {
+  const g = groundAt(info, x, y, true, false);
+  return g && { kind: g.kind, index: g.index };
 }
 
 /**
