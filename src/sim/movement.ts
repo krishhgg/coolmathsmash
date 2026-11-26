@@ -1,8 +1,8 @@
 import {
-  DOWN_FLICK_THRESHOLD,
   HARD_LANDING_AIRTIME,
   HELPLESS_AIR_SPEED,
   LEDGE_MAX_GRABS,
+  PLATFORM_DROP_FLICK,
   PUSH_STIFFNESS,
 } from './constants';
 import { stickY } from './control';
@@ -295,7 +295,7 @@ function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
     if (crossing(prev.y - yPrev, f.pos.y - yNow)) return { kind: 'solid', index: stage.edges.indexOf(e) };
   }
   if (movingDown) {
-    const passing = stickY(x.c) <= -DOWN_FLICK_THRESHOLD;
+    const passing = stickY(x.c) <= -PLATFORM_DROP_FLICK.stick;
     for (let i = 0; i < stage.geo.platforms.length; i++) {
       const p = stage.geo.platforms[i]!;
       if (!stage.present.platforms[i]) continue;
