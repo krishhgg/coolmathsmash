@@ -4,8 +4,10 @@ import { allFighters, getFighter } from '../fighters/registry';
 import type { HitboxDef, MoveDef } from '../fighters/types';
 import { neutralInput } from '../input/types';
 import { createMatch, stepMatch } from '../sim/match';
+import { STAGES } from '../stages/registry';
+import { hintsFor } from './hints';
 import { createCpu } from './index';
-import { SPECIALS } from './inputs';
+import { AERIALS, SPECIALS } from './inputs';
 import { knowledge, type MoveProbe } from './knowledge';
 import { drill } from './testing/recovery';
 
@@ -119,4 +121,77 @@ describe('CPUs and air variants', () => {
     expect(uses[0]).toBeGreaterThan(0);
     expect(uses[1]).toBeGreaterThan(0);
   }, 60_000);
+});
+
+describe('air probes of moves that end in a helpless fall', () => {
+  // The air probe starts every move above the stage's middle. A helpless fall after a move drifts on with its speed,
+  // and from there Wheely's Ramp Jump, which carries him 65 units sideways, falls out past the side. Before, that KO
+  // dropped the move, so his CPU never knew it had an up special in the air. On smaller stages the same happened to
+  // Bloxorz's, Fireboy's and Johnny's on Bloxorz Platform and Duck's on Coolmath Planet, Run Tunnel and World's
+  // Hardest Game.
+  it('know every aerial and special a fighter has in the air, on every stage, unless the move itself KOs it', () => {
+    const missing: string[] = [];
+    for (const [id, def] of Object.entries(allFighters())) {
+      const avoid = new Set(hintsFor(id).avoid ?? []);
+      for (const stage of Object.keys(STAGES)) {
+        const k = knowledge(id, stage);
+        for (const name of [...AERIALS, ...SPECIALS]) {
+          if (def.moves?.[name] && !avoid.has(name) && !k.air[name])
+            missing.push(`${id} ${name} on ${stage}`);
+        }
+      }
+    }
+    // What is still dropped is carried out of the blast zone by the move itself, from where the probe starts it,
+    // 100 above the stage's middle: down specials plunge through the gap in Bloxorz Platform's middle to the bottom,
+    // and Fluffy's up special rises through the top on the three stages whose top blast zone is 180.
+    expect(missing.sort()).toEqual([
+      'bloxorz downB on bloxorz-platform',
+      'bloxorz-lying downB on bloxorz-platform',
+      'fluffy upB on coolmath-planet',
+      'fluffy upB on run-tunnel',
+      'fluffy upB on worlds-hardest-game',
+      'runner downB on bloxorz-platform',
+      'snailbob downB on bloxorz-platform',
+    ]);
+  });
+
+  it("keep Wheely's Ramp Jump in the air: where it carries him, and helpless after it", () => {
+    const k = knowledge('wheely', STAGE);
+    const p = k.air.upB!;
+    expect(p.plays).toBe('upB');
+    expect(p.helpless).toBe(true);
+    expect(p.endsGrounded).toBe(false);
+    expect(p.endDx).toBeGreaterThan(55);
+    expect(p.endDy).toBeGreaterThan(55);
+    // On the ground the CPU's attacks trust the probe to land them safely, so a fall out of the blast zone after the
+    // move still drops it there.
+    expect(k.ground.upB).toBeUndefined();
+  });
+
+  // 60 units beside either ledge, 20 and 50 under it, with the double jump left (src/ai/testing/recovery.ts). Before,
+  // a level 9 Wheely was KO'd from all four on every seed.
+  it.each([
+    [-140, -20],
+    [-140, -50],
+    [140, -20],
+    [140, -50],
+  ])('a level 9 Wheely Ramp Jumps back to the stage from (%d, %d) on every seed', (x, y) => {
+    const ends: string[] = [];
+    for (let seed = 1; seed <= 5; seed++) {
+      const m = drill(STAGE, x, y, 'wheely');
+      const f = m.fighters[0]!;
+      const cpu = createCpu({ port: 0, level: 9, seed });
+      let ramp = false;
+      let end = 'stuck';
+      for (let i = 0; i < 600; i++) {
+        stepMatch(m, [cpu.input(m), neutralInput()]);
+        if (f.move === 'upB') ramp = true;
+        if (f.stocks < 3) end = 'ko';
+        else if (f.ground !== null || f.action === 'ledgeHang') end = 'back';
+        if (end !== 'stuck') break;
+      }
+      ends.push(`seed ${seed}: ${end}${ramp ? ' with Ramp Jump' : ''}`);
+    }
+    expect(ends).toEqual([1, 2, 3, 4, 5].map((seed) => `seed ${seed}: back with Ramp Jump`));
+  });
 });
