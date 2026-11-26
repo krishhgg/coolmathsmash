@@ -649,9 +649,29 @@ hitlag:
 paralyzed: { frames: 1, perKnockback: 1, max: 90, freeze: true, endOnHit: true, color: '#f2c62a' },
 ```
 
+Papa Louie's Cheesed (`src/fighters/papa-louie/statuses.ts`) is Inkling's ink (SmashWiki, "Ink (status)"), on two
+more fields:
+
+```ts
+cheesed: {
+  frames: 120,                                   // the coat holds 120 frames after the last coating hit
+  coat: { add: 12, max: 300, decay: 0.25 },      // +12 a hit up to 300, then -0.25 a frame; lasts 120 + level / 0.25
+  damageTaken: (s) => 1 + (Math.min(s.level ?? 0, 180) * 0.5) / 180, // up to x1.5 damage taken
+  color: '#f2cf5b',
+},
+```
+
+- **Coats.** With `coat`, each application adds `add` to the status's `level` (or the `level` given to `applyStatus`),
+  up to `max`, and sets its length to `frames` + level / `decay`. The level holds for `frames` frames, then drops
+  `decay` a frame, and the status ends as it reaches 0. A new application starts the hold again. `perDamage`,
+  `perKnockback` and `stack` don't apply.
+- **Damage taken.** `damageTaken(status)` multiplies the % the fighter takes from any source (hits, throws, pummels,
+  status ticks) while it lasts, inside `addDamage`. Like the 1v1 multiplier, it changes the % added, not the hit's
+  knockback or the shield damage.
+
 - **State.** `FighterState.statuses` lists `{ kind, frames, age, since, source }`, oldest first. `frames` is what is
-  left, `age` counts ticks from 1 and `source` is the port credited (-1 for none). Use `hasStatus` and `statusOf`
-  to read it.
+  left, `age` counts ticks from 1 and `source` is the port credited (-1 for none). A coat also has its `level`. Use
+  `hasStatus` and `statusOf` to read it.
 
 Meters are declared in `FighterDef.meters`:
 
