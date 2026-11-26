@@ -1,4 +1,4 @@
-import { getFighter } from '../../fighters/registry';
+import { getFighter } from '../../fighters/lookup';
 import { Btn, type InputFrame } from '../../input/types';
 import { grabHoldFrames, hitlagFrames, isTumble } from '../combat/formulas';
 import { activeHitboxes, addDamage, applyHit, hittable, hurtbox, targetable, touches } from '../combat/hits';

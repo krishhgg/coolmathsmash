@@ -1,4 +1,4 @@
-import { getFighter } from '../fighters/registry';
+import { getFighter } from '../fighters/lookup';
 import type { FighterDef, FighterStats, TetherLatch } from '../fighters/types';
 import { SHIELD_MAX, TECH_LOCKOUT } from './constants';
 import type { ControlState } from './control';
