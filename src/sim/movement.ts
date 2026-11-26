@@ -499,6 +499,17 @@ export function pushOut(
   return true;
 }
 
+/**
+ * The fighter other than `f` holding ledge `i`: catching it or hanging from it. A getup keeps `ledge` set until it
+ * leaves the corner, but the fighter has let go, so another fighter can take the ledge without trumping it, as in
+ * Ultimate, where a getup buffered out of the catch escapes the trump (SmashWiki: Edgeguarding, Ledge trumping).
+ */
+export function ledgeHolder(m: MatchState, i: number, f: FighterState): FighterState | undefined {
+  return m.fighters.find(
+    (o) => o !== f && o.ledge === i && (o.action === 'ledgeCatch' || o.action === 'ledgeHang'),
+  );
+}
+
 /** Hands-near-ledge check while airborne and falling (or in an action that may grab while rising). */
 export function tryLedgeGrab(x: Ctx): void {
   const { f, s, m, stage, c } = x;
@@ -516,7 +527,7 @@ export function tryLedgeGrab(x: Ctx): void {
     const ry = L.y - f.pos.y;
     const frontReach = rx >= 0 ? reach : reach * 0.6;
     if (Math.abs(rx) > frontReach || ry < s.height * 0.4 || ry > s.height * 1.15) continue;
-    const holder = m.fighters.find((o) => o !== f && o.ledge === i && o.action.startsWith('ledge'));
+    const holder = ledgeHolder(m, i, f);
     if (holder) {
       holder.ledge = -1;
       holder.ledgeLock = 30;

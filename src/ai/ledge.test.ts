@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { getFighter } from '../fighters/registry';
 import { neutralInput } from '../input/types';
 import { createMatch, stepMatch } from '../sim/match';
 import { getStage } from '../stages/registry';
@@ -8,13 +9,20 @@ import { createCpu } from './index';
 /**
  * `fighter` catches Battlefield's ledge `side` with a Fireboy standing 20 units in, close enough that a level 9 CPU
  * taking over then mixes up its getup. Returns the getup it took and how the stock ended: back on the stage, or KO'd.
+ * With `catcher`, that fighter stands at the stage's middle instead, and on the first frame of a ledge jump it is put
+ * falling just outside the ledge, where it catches the ledge on the next frame.
  */
-function fromLedge(fighter: string, side: 0 | 1, seed: number): { option: string; end: string } {
+function fromLedge(
+  fighter: string,
+  side: 0 | 1,
+  seed: number,
+  catcher?: string,
+): { option: string; end: string } {
   const m = createMatch({
     seed: 1,
     stage: 'battlefield',
     stocks: 3,
-    ports: [{ fighter }, { fighter: 'fireboy' }],
+    ports: [{ fighter }, { fighter: catcher ?? 'fireboy' }],
   });
   for (let i = 0; i < 10; i++) stepMatch(m, [neutralInput(), neutralInput()]);
   const L = getStage('battlefield').ledges[side]!;
@@ -30,7 +38,7 @@ function fromLedge(fighter: string, side: 0 | 1, seed: number): { option: string
   });
   f.facing = -L.side as 1 | -1;
   const o = m.fighters[1]!;
-  o.pos.x = L.x - L.side * 20;
+  o.pos.x = catcher ? 0 : L.x - L.side * 20;
   o.prevPos = { ...o.pos };
   while (f.action === 'fall') stepMatch(m, [neutralInput(), neutralInput()]);
   expect(f.action).toBe('ledgeCatch');
@@ -38,6 +46,11 @@ function fromLedge(fighter: string, side: 0 | 1, seed: number): { option: string
   let option = '';
   for (let i = 0; i < 600; i++) {
     stepMatch(m, [cpu.input(m), neutralInput()]);
+    if (catcher && f.action === 'ledgeJump' && f.actionFrame === 1) {
+      const p = { x: L.x + L.side * 2, y: L.y - getFighter(catcher).stats.height * 0.7 };
+      Object.assign(o, { pos: p, prevPos: { ...p }, vel: { x: 0, y: 0 }, ground: null });
+      Object.assign(o, { action: 'fall', actionFrame: 1, jumpsUsed: 2, facing: -L.side, ledgeLock: 0 });
+    }
     if (!option && !f.action.startsWith('ledge')) option = 'drop';
     if (!option && f.action !== 'ledgeCatch' && f.action !== 'ledgeHang') {
       option = f.action.replace(/^ledge/, '').toLowerCase();
@@ -81,6 +94,28 @@ describe('CPU ledge getups', () => {
     },
     60_000,
   );
+
+  // Johnny catches the ledge Wheely is jumping from on the jump's second frame. On main the catch trumped Wheely:
+  // his ledge jump turned into a fall away from the stage while the CPU held toward it, and all 12 of these jumps
+  // KO'd him.
+  it('a level 9 Wheely ledge jumps back to the stage when Johnny catches the ledge behind him', () => {
+    const jumps: string[] = [];
+    for (const side of [0, 1] as const) {
+      for (let seed = 1; seed <= 40; seed++) {
+        const r = fromLedge('wheely', side, seed, 'johnny');
+        if (r.option === 'jump') jumps.push(`ledge ${side}, seed ${seed}: ${r.end}`);
+      }
+    }
+    expect(jumps.length).toBeGreaterThan(5);
+    expect(jumps.filter((j) => !j.endsWith(': stage'))).toEqual([]);
+  }, 60_000);
+
+  // Level 9 against level 9 on Battlefield. On main, Wheely self-destructs on frame 1447: Johnny catches the right
+  // ledge on frame 1318, the second frame of Wheely's ledge jump.
+  it('a level 9 Wheely does not self-destruct in bench match seed 2, Johnny against Wheely', () => {
+    const r = runCpuMatch({ seed: 2, levels: [9, 9], fighters: ['johnny', 'wheely'], maxFrames: 1447 + 60 });
+    expect(r.kos.filter((k) => k.selfDestruct)).toEqual([]);
+  }, 60_000);
 
   // Level 9 against level 9 on Battlefield (src/ai/bench.ts). On main, Bloxorz self-destructs on the frame given: it
   // drops from the ledge 190 frames before.
