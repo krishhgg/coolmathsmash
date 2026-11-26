@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { statusBadges } from '../../render/fighterView';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
-import type { MatchState } from '../../sim/match';
+import {
+  findScenario,
+  isLabScenario,
+  planScenario,
+  scenarioConfig,
+  scenarioInputs,
+  startScenario,
+} from '../../harness/scenarios';
+import { createMatch, stepMatch, type MatchState } from '../../sim/match';
 import { applyStatus, hasStatus, statusOf } from '../../sim/statuses';
 import { koPercent, kos } from '../../sim/testing/ko';
 import { attack, placeInAir, runPorts } from '../../sim/testing/sim';
@@ -70,10 +78,10 @@ describe("Papa Louie: Parmesan Shaker (side special, on the Ice Climbers' Blizza
   });
 
   it("puts each box where a shot flying 2.8 units a frame from the shaker's cap is halfway through its phase", () => {
-    expect(SHAKER.cap).toEqual({ x: 6.5, y: 8 });
+    expect(SHAKER.cap).toEqual({ x: 6.5, y: 7 });
     const out = move.hits.slice(0, 3).map((w) => w.boxes[0]!);
     expect(out.map((b) => b.x)).toEqual([6.5 + 1.4, 6.5 + 9.8, 6.5 + 19.6]);
-    expect(out.map((b) => b.y)).toEqual([8, 8, 8]);
+    expect(out.map((b) => b.y)).toEqual([7, 7, 7]);
     for (const [i, w] of move.hits.entries()) expect(w.boxes[0]!.x, `window ${i}`).toBe(out[i % 3]!.x);
   });
 
@@ -202,6 +210,20 @@ describe("Papa Louie: Cheesed (Inkling's ink)", () => {
   it('shows on the coated fighter as a Parmesan-yellow badge', () => {
     const { v } = strike('sideB', { x: 8 }, 0);
     expect(statusBadges(v, 0)).toEqual(['#f2cf5b']);
+  });
+});
+
+describe('Papa Louie: Parmesan Shaker capture scenario', () => {
+  it('papa-louie-parmesan reaches its capture with Fireboy Cheesed by the first five shots', () => {
+    const s = findScenario('papa-louie-parmesan');
+    if (isLabScenario(s)) throw new Error('expected a game scenario');
+    const plan = planScenario(s);
+    expect(plan.status).toBe('captured');
+    const m = createMatch(scenarioConfig(s));
+    startScenario(m, s);
+    while (m.frame < plan.captureFrame!) stepMatch(m, scenarioInputs(s, m));
+    expect(m.fighters[0]!.move).toBe('sideB');
+    expect(statusOf(m.fighters[1]!, CHEESED)!.level).toBe(5 * CHEESE.perShot);
   });
 });
 

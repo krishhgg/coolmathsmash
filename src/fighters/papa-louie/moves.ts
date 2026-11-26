@@ -33,7 +33,7 @@ const PROPELLER = { from: 6, lift: 1.7, burst: 28, to: 36, rise: 3, taper: 0.25,
  * mid 9.8 and the late 19.6.
  */
 export const SHAKER = {
-  cap: { x: 6.5, y: 8 },
+  cap: { x: 6.5, y: 7 },
   first: 16,
   every: 5,
   shots: 9,
