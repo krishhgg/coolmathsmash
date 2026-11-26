@@ -186,7 +186,7 @@ describe('snail bob art', () => {
     expect(samplePose(art, 'sideB', clip.length, clip.length).symbols.head).toBe('head');
   });
 
-  it('presses the remote as the crate spawns, and shows the remote in no other clip', () => {
+  it('presses the remote as the crate spawns, and shows the remote in no other clip but the Final Smash, which it calls', () => {
     const clip = art.clips.neutralB!;
     const spawn = moves.neutralB!.spawn![0]!.frame;
     expect(clip.length).toBe(moves.neutralB!.faf - 1);
@@ -196,7 +196,7 @@ describe('snail bob art', () => {
     expect(samplePose(art, 'neutralB', clip.length, clip.length).symbols.fx1).toBeNull();
     const remotes = new Set(['remote', 'remotePressed']);
     for (const [name, c] of Object.entries(art.clips)) {
-      if (name === 'neutralB') continue;
+      if (name === 'neutralB' || name === 'finalSmash' || name === 'finalSmashCinematic') continue;
       for (let f = 0; f <= c.length; f++)
         expect(remotes.has(samplePose(art, name, f, f).symbols.fx1 ?? ''), `${name}@${f}`).toBe(false);
     }
