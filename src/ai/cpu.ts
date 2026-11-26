@@ -76,7 +76,7 @@ const HORIZON = 45;
  */
 const SHOT_HORIZON = 110;
 const NEUTRAL = Object.freeze(neutralInput());
-/** Units inside the ends of its ground that a tech roll or getup roll the CPU picks must end. */
+/** Units inside the ends of its ground that a shield roll, tech roll or getup roll the CPU picks must end. */
 const ROLL_ROOM = 4;
 
 type Situation = 'combo' | 'punish' | 'neutral';
@@ -671,8 +671,14 @@ export class Cpu {
       return true;
     }
     const r = this.rand();
-    const roomBehind =
-      clampToStage(info, me.pos.x - dir * k.stats.rollDistance, 4) === me.pos.x - dir * k.stats.rollDistance;
+    // A shield roll away from the threat (a back roll facing it, a forward roll facing away) counts only if it ends
+    // ROLL_ROOM inside the ends of the ground the CPU is on. The sim stops a roll at those ends (groundSpan), so a
+    // longer one would end short there.
+    const reach =
+      me.facing === dir ? (k.stats.backRollDistance ?? k.stats.rollDistance) : k.stats.rollDistance;
+    const [lo, hi] = groundSpan(info.c, me.ground);
+    const end = me.pos.x - dir * reach;
+    const roomBehind = end >= lo + ROLL_ROOM && end <= hi - ROLL_ROOM;
     if (threat.t >= 3 && r < 0.2 * skill) {
       this.start(spotDodge());
       return true;
