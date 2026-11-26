@@ -10,7 +10,7 @@ import {
   TECH_ROLL,
 } from '../sim/constants';
 import type { FighterState } from '../sim/fighter';
-import { FIGHTERS } from './registry';
+import { allFighters } from './registry';
 
 /**
  * Timed ground actions shared by every fighter. Each ends on its FAF, so the clip the renderer draws for it
@@ -38,7 +38,7 @@ const WAITING = ['snailbob'];
  * no clip of its own or a stand-in is drawn with idle and has nothing to match.
  */
 function drift(id: string): string[] {
-  const def = FIGHTERS[id]!;
+  const def = allFighters()[id]!;
   const art = fighterArt(def)!;
   return Object.entries(ACTIONS).flatMap(([action, want]) => {
     const [name] = clipFor(def, art, { action, actionFrame: 0 } as FighterState);
@@ -51,7 +51,7 @@ function drift(id: string): string[] {
   });
 }
 
-const drawn = Object.keys(FIGHTERS).filter((id) => fighterArt(FIGHTERS[id]!));
+const drawn = Object.keys(allFighters()).filter((id) => fighterArt(allFighters()[id]!));
 
 describe.each(drawn)('%s', (id) => {
   const check = WAITING.includes(id) ? it.fails : it;

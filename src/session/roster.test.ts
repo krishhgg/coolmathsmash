@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FIGHTERS } from '../fighters/registry';
+import { allFighters } from '../fighters/registry';
 import { PLANNED_ROSTER, rosterTiles, selectableFighterIds } from './roster';
 
 const f = (id: string, name: string) => ({ id, name });
@@ -47,7 +47,7 @@ describe('roster grid', () => {
 
   it('places every selectable registered fighter exactly once', () => {
     const ids = rosterTiles().flatMap((t) => (t.id ? [t.id] : []));
-    const selectable = Object.values(FIGHTERS).filter((d) => d.selectable !== false);
+    const selectable = Object.values(allFighters()).filter((d) => d.selectable !== false);
     expect([...ids].sort()).toEqual(selectable.map((d) => d.id).sort());
     expect(ids).not.toContain('watergirl');
   });
@@ -56,7 +56,7 @@ describe('roster grid', () => {
 describe('selectableFighterIds', () => {
   it('leaves out forms reached only in a match', () => {
     expect(selectableFighterIds()).toEqual(
-      Object.values(FIGHTERS)
+      Object.values(allFighters())
         .filter((d) => d.selectable !== false)
         .map((d) => d.id),
     );
