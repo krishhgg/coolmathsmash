@@ -7,7 +7,7 @@ import type { Ctx, FighterState } from '../../sim/fighter';
 import type { MatchState } from '../../sim/match';
 import type { CompiledStage } from '../../sim/stage';
 import type { Vec } from '../../sim/vec';
-import { getFighter } from '../registry';
+import { getFighter } from '../lookup';
 import type { HitboxDef, MoveDef } from '../types';
 import { ARSENAL, BLAST, REACH, SHOTS } from './fullArsenalData';
 
