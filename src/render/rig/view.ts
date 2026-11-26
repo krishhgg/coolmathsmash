@@ -2,7 +2,7 @@ import { Color, Container, FillGradient, Graphics, GraphicsContext, GraphicsPath
 import { flattenPath } from './geometry';
 import { resolveColor } from './svg';
 import { resolveSymbol, samplePose } from './sample';
-import type { ArtSymbol, FighterArt, Paint, Palette } from './types';
+import type { ArtSymbol, FighterArt, Paint, Palette, PropArt } from './types';
 
 /**
  * Built geometry, shared by every view: one GraphicsContext per (symbols table, palette, symbol), so several
@@ -163,17 +163,34 @@ export interface PropView {
   update(globalFrame: number): void;
 }
 
-/** A projectile or prop from `art.projectiles`, drawn with the fighter's costume, facing right. */
-export function createPropView(art: FighterArt, name: string, palette = 'default'): PropView {
+/**
+ * A projectile or prop from `art.projectiles`, drawn with the fighter's costume, facing right: its `symbol`, or
+ * another of its symbols (its `front`).
+ */
+export function createPropView(
+  art: FighterArt,
+  name: string,
+  palette = 'default',
+  symbol?: string,
+): PropView {
   const prop = art.projectiles?.[name];
   if (!prop) throw new Error(`fighter has no projectile art ${name}`);
+  return propView(art, prop, palette, symbol);
+}
+
+/**
+ * One of the fighter's prop drawings (a projectile, its reticle), drawn with the fighter's costume, facing right: its
+ * `symbol`, or another of its symbols (a projectile's `front`).
+ */
+export function propView(art: FighterArt, prop: PropArt, palette = 'default', symbol?: string): PropView {
+  const shown = symbol ?? prop.symbol;
   const colors = art.palettes[palette] ?? art.palettes.default;
   const g = new Graphics(EMPTY);
   g.scale.set(prop.scale);
   const container = new Container();
   container.addChild(g);
   const update = (globalFrame: number) => {
-    const leaf = resolveSymbol(prop.symbols, prop.symbol, globalFrame);
+    const leaf = resolveSymbol(prop.symbols, shown, globalFrame);
     g.visible = leaf !== null;
     if (leaf) g.context = symbolContext(prop.symbols, leaf, colors);
   };

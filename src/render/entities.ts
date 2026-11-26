@@ -4,6 +4,7 @@ import { activeAbsorbers, activeReflectors } from '../sim/entities/contacts';
 import { entityDef, entityHitboxes, isHittable } from '../sim/entities/entities';
 import type { EntityState } from '../sim/entities/types';
 import { PLANET } from '../sim/items/planet';
+import type { FighterState } from '../sim/fighter';
 import type { MatchState } from '../sim/match';
 import { PORT_COLORS } from './debug/inputDisplay';
 import { fighterArt } from './fighterView';
@@ -75,16 +76,22 @@ function drawPlain(g: Graphics, e: EntityState, alpha: number, frame: number): v
  * The match's entities. Kinds with fighter art (`entityArt`) draw their fighter's prop in the owner's costume; the
  * rest draw into `discs` as before (the Coolmath Planet's drawing, else the placeholder disc). Each prop's view lives
  * as long as its entity and only swaps shared symbol geometry (docs/art.md, "Rendering"), with no filters, so `lite`
- * quality draws it as cheaply as a fighter. World units, y down.
+ * quality draws it as cheaply as a fighter. A prop with a `front` symbol draws its body into `back`, which the
+ * renderer puts under the fighters, and its front into `fronts`, which goes over only the fighters standing in it
+ * (layerFighters). World units, y down.
  */
 export class EntityView {
   readonly container = new Container();
+  /** Bodies of props with a `front` (Duck Raft's raft), drawn behind the fighters. */
+  readonly back = new Container();
+  /** Those props' fronts (the raft's rim), drawn over the fighters standing in them and under everyone else. */
+  readonly fronts = new Container();
   /** Entities without fighter art (the planet item and placeholder discs), redrawn every frame. */
   readonly discs = new Graphics();
   /** Prop views, drawn over the discs. */
   readonly props = new Container();
-  /** One view per entity id, built for its kind and costume. */
-  private readonly views = new Map<number, { key: string; view: PropView }>();
+  /** One view per entity id, built for its kind and costume, with its front view if the prop has one. */
+  private readonly views = new Map<number, { key: string; view: PropView; front: PropView | null }>();
 
   constructor() {
     this.container.addChild(this.discs, this.props);
@@ -105,24 +112,65 @@ export class EntityView {
       const key = `${e.kind}|${palette}`;
       let held = this.views.get(e.id);
       if (held?.key !== key) {
-        held?.view.container.destroy({ children: true });
-        held = { key, view: createPropView(found.art, found.name, palette) };
+        if (held) dispose(held);
+        const front = found.prop.front;
+        held = {
+          key,
+          view: createPropView(found.art, found.name, palette),
+          front: front ? createPropView(found.art, found.name, palette, front) : null,
+        };
         this.views.set(e.id, held);
-        this.props.addChild(held.view.container);
+        (held.front ? this.back : this.props).addChild(held.view.container);
+        if (held.front) this.fronts.addChild(held.front.container);
       }
       const at = propPlacement(e, found.prop, alpha);
-      const c = held.view.container;
-      c.position.set(at.x, at.y);
-      c.scale.x = at.scaleX;
-      c.rotation = at.rotation;
-      held.view.update(at.frame);
+      for (const view of held.front ? [held.view, held.front] : [held.view]) {
+        const c = view.container;
+        c.position.set(at.x, at.y);
+        c.scale.x = at.scaleX;
+        c.rotation = at.rotation;
+        view.update(at.frame);
+      }
     }
     for (const [id, held] of this.views) {
       if (seen.has(id)) continue;
-      held.view.container.destroy({ children: true });
+      dispose(held);
       this.views.delete(id);
     }
   }
+}
+
+/** Whether fighter `f` stands in an entity whose prop has a `front` (Duck Raft's raft). */
+export function standsInFront(state: MatchState, f: FighterState): boolean {
+  const g = f.ground;
+  if (g?.kind !== 'entity') return false;
+  const e = state.entities.find((other) => other.id === g.index);
+  return !!e && entityArt(e.kind)?.prop.front !== undefined;
+}
+
+/**
+ * Puts each fighter's view (by index) in `boat` while it stands in a prop with a `front`, and in `rest` otherwise.
+ * The renderer draws `boat`, then EntityView.fronts, then `rest`, so a raft's rim covers the feet of whoever stands in
+ * it and nobody else. Both layers keep the fighters in port order (zIndex).
+ */
+export function layerFighters(
+  state: MatchState,
+  views: readonly (Container | undefined)[],
+  boat: Container,
+  rest: Container,
+): void {
+  state.fighters.forEach((f, i) => {
+    const c = views[i];
+    if (!c) return;
+    c.zIndex = i;
+    const layer = standsInFront(state, f) ? boat : rest;
+    if (c.parent !== layer) layer.addChild(c);
+  });
+}
+
+function dispose(held: { view: PropView; front: PropView | null }): void {
+  held.view.container.destroy({ children: true });
+  held.front?.container.destroy({ children: true });
 }
 
 /**

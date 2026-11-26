@@ -5,11 +5,10 @@ import { allFighters } from './registry';
 
 /**
  * Clips drawn for a name the engine can't play yet, by fighter (`*` for every fighter). There is no taunt action
- * behind the Taunt button, and Fluffy has a neutral special clip but no `neutralB` move.
+ * behind the Taunt button.
  */
 const NOT_PLAYED_YET: Record<string, string[]> = {
   '*': ['taunt'],
-  fluffy: ['neutralB'],
 };
 
 /** Clips clipFor draws in place of an action's own: the back tech and getup rolls (BACK_ROLLS). */

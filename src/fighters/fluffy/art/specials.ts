@@ -26,22 +26,25 @@ import {
 
 const STAND: Ball = {};
 
-/** Point Grapple's default target: up and ahead, where the reticle starts. */
-const TARGET: Pt = [22, -19];
-/** How far the line still has to go as the engine pulls him in, by frames after the latch. */
-const toward = (t: number): Pt => [TARGET[0] * (1 - 0.6 * t), TARGET[1] * (1 - 0.6 * t)];
-const from: Pt = [1.5, -6.5];
+/**
+ * Point Grapple's typical target, up and ahead: where the lab shows the reticle and the line (art.reticle and
+ * art.tetherLine; in a match the renderer draws both from the real aim and line).
+ */
+export const TARGET: Pt = [22, -19];
 
 export const SPECIALS: Record<string, AnimClip> = {
-  /** Point Grapple: aims IQ Ball's reticle, fires the grabber at it, latches, and is reeled up the line. */
+  /**
+   * Point Grapple: aims, fires the grabber, latches, and is reeled up the line. The renderer draws IQ Ball's reticle
+   * at the aim and the grabber from his hand to the line's real end (src/render/reticle.ts, tetherLine.ts), so the
+   * clip draws neither. The line anchors by 23 at the latest (fired on 12, 12 frames out), so a long reel holds on
+   * 28, pulled along, until the reel arrives.
+   */
   neutralB: {
     length: 50,
+    reel: 28,
     swaps: FOCUS,
     keys: [
-      key(0, ball({ look: [0.3, -0.2], fx2: at(10, -9, 0.2) }), {
-        ease: 'out',
-        swaps: { ...FOCUS, reticle: 'reticle' },
-      }),
+      key(0, ball({ look: [0.3, -0.2] }), { ease: 'out' }),
       key(
         8,
         ball({
@@ -49,15 +52,14 @@ export const SPECIALS: Record<string, AnimClip> = {
           sy: 0.88,
           look: [0.5, -0.45],
           face: { y: 0.2 },
-          fx2: at(TARGET[0], TARGET[1], 1.15, 45),
         }),
         {
           ease: 'inOut',
         },
       ),
-      key(11, ball({ sx: 1.16, sy: 0.84, look: [0.5, -0.5], fx2: at(TARGET[0], TARGET[1], 1, 90) }), {
+      key(11, ball({ sx: 1.16, sy: 0.84, look: [0.5, -0.5] }), {
         ease: 'in',
-        swaps: { ...FOCUS, reticle: 'reticle', fur: 'furPuff' },
+        swaps: { ...FOCUS, fur: 'furPuff' },
       }),
       key(
         12,
@@ -66,12 +68,10 @@ export const SPECIALS: Record<string, AnimClip> = {
           sy: 1.06,
           tilt: -10,
           look: [0.5, -0.5],
-          grab: { from, to: [8, -12] },
-          fx2: at(TARGET[0], TARGET[1], 1, 90),
         }),
         {
           ease: 'linear',
-          swaps: { ...FOCUS, ...GRAB, reticle: 'reticle' },
+          swaps: FOCUS,
         },
       ),
       key(
@@ -81,8 +81,6 @@ export const SPECIALS: Record<string, AnimClip> = {
           sy: 1.06,
           tilt: -12,
           look: [0.5, -0.5],
-          grab: { from, to: [17, -18] },
-          fx2: at(TARGET[0], TARGET[1], 1, 90),
         }),
         {
           ease: 'linear',
@@ -95,12 +93,10 @@ export const SPECIALS: Record<string, AnimClip> = {
           sy: 1.08,
           tilt: -20,
           look: [0.5, -0.5],
-          grab: { from, to: TARGET },
-          fx2: at(TARGET[0], TARGET[1], 1.3, 90),
         }),
         {
           ease: 'out',
-          swaps: { ...SHOCK, ...GRAB, reticle: 'reticle' },
+          swaps: SHOCK,
         },
       ),
       key(
@@ -111,26 +107,14 @@ export const SPECIALS: Record<string, AnimClip> = {
           sy: 0.84,
           tilt: -40,
           look: [0.5, -0.5],
-          grab: { from, to: toward(0.2) },
-          fx2: at(...toward(0.2), 1.1, 90),
         }),
         {
           ease: 'linear',
-          swaps: { ...EFFORT, ...GRAB, ...RUN_FUR },
+          swaps: { ...EFFORT, ...RUN_FUR },
         },
       ),
-      key(
-        40,
-        ball({ float: true, sx: 1.2, sy: 0.82, tilt: -40, look: [0.5, -0.5], grab: { from, to: toward(1) } }),
-        {
-          ease: 'inOut',
-        },
-      ),
-      key(44, ball({ float: true, sx: 0.96, sy: 1.04, tilt: -10, grab: { from, to: [4, -9] } }), {
-        ease: 'out',
-        swaps: { ...HALF, ...WHIP },
-      }),
-      key(46, undefined, { swaps: HALF }),
+      key(40, ball({ float: true, sx: 1.2, sy: 0.82, tilt: -40, look: [0.5, -0.5] }), { ease: 'inOut' }),
+      key(44, ball({ float: true, sx: 0.96, sy: 1.04, tilt: -10 }), { ease: 'out', swaps: HALF }),
       key(50, ball({ float: true })),
     ],
   },
