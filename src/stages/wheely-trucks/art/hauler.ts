@@ -9,6 +9,13 @@ const CAB_W = 10;
 const CAB_BOTTOM = 6;
 const RAIL = 7;
 const WHEEL = 4.2;
+/**
+ * The brake lamps on the hauler's tail (its left end), 1.2 wide and 2.4 tall, by the Pixi y of their tops. The low
+ * one is on the chassis, behind the carrier's hull whenever the hauler is beside the carrier. The high one hangs
+ * under the upper deck, above the carrier's deck, so a brake tap always shows.
+ */
+const LAMP = { w: 1.2, h: 2.4 };
+const lampTops = (top: number) => [RAIL - 2.6, top + SLAB + 1.6];
 
 const HAZE_T = 0.42;
 const HAULER_WHEEL: WheelLook = {
@@ -66,7 +73,7 @@ function body(g: Graphics, x1: number, x2: number, top: number, paint: number[])
   for (let x = x1 + 1.5; x < cab - 1; x += 2.5) g.rect(x, RAIL + 0.35, 1.4, 0.6).fill(far(0x56636f, HAZE_T));
   g.rect(x1 + 0.5, RAIL + 1.3, x2 - x1 - 1, 1.1).fill(far(0x4a5560, HAZE_T));
   cabFront(g, cab, x2, top + SLAB + 1.4, paint, line);
-  g.rect(x1 - 0.2, RAIL - 2.6, 1.2, 2.4).fill(far(0x9c2a22, HAZE_T));
+  for (const y of lampTops(top)) g.rect(x1 - 0.2, y, LAMP.w, LAMP.h).fill(far(0x9c2a22, HAZE_T));
 }
 
 /** A cab-over cab under the front of the rack: visor, windscreen with eyes, mirror, door and grille. */
@@ -127,9 +134,13 @@ export function createHauler(index: number): Hauler {
   const container = new Container({ label: `hauler-${index}` });
   const g = new Graphics({ label: 'hauler-body' });
   body(g, p.x1, p.x2, top, PAINTS[index % PAINTS.length]!);
-  const brake = new Graphics({ label: 'hauler-brake' });
-  brake.circle(p.x1 + 0.4, RAIL - 1.4, 2.2).fill({ color: 0xff5a3c, alpha: 0.35 });
-  brake.rect(p.x1 - 0.2, RAIL - 2.6, 1.2, 2.4).fill(0xff3b2a);
+  const brake = new Container({ label: 'hauler-brake' });
+  for (const y of lampTops(top)) {
+    const lamp = new Graphics({ label: 'hauler-brake-lamp' });
+    lamp.circle(p.x1 + 0.4, y + LAMP.h / 2, 2.2).fill({ color: 0xff5a3c, alpha: 0.35 });
+    lamp.rect(p.x1 - 0.2, y, LAMP.w, LAMP.h).fill(0xff3b2a);
+    brake.addChild(lamp);
+  }
   container.addChild(g, brake);
   const wheelY = -ROAD.far - WHEEL;
   const rims: Graphics[] = [];

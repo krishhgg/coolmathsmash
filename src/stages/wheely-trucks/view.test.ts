@@ -1,10 +1,22 @@
-import { describe, expect, it } from 'vitest';
+import { Graphics, type Bounds, type Container } from 'pixi.js';
+import { describe, expect, it, vi } from 'vitest';
 import { CAMERA_LIMITS, layerRectOnScreen, REF_CAMERA, VIEW_H, VIEW_W } from '../battlefield/art/parallax';
 import { stageStateAt } from '../../sim/movingStage';
+import type * as Util from '../battlefield/art/util';
 import { MOUNTAINS, SKY, VALLEY } from './art/background';
 import { HIGHWAY } from './art/road';
 import { HAULERS, stage } from './geometry';
 import { haulerPoses } from './traffic';
+import { createStageView } from './view';
+
+/**
+ * Pixi paints a gradient onto a canvas, which the node test environment has no document for. These tests check
+ * shapes and transforms, so gradients become a flat colour here.
+ */
+vi.mock('../battlefield/art/util', async (importOriginal) => ({
+  ...(await importOriginal<typeof Util>()),
+  vGradient: () => 0x808080,
+}));
 
 const ZOOMS = [CAMERA_LIMITS.minZoom, REF_CAMERA.zoom, CAMERA_LIMITS.maxZoom];
 
@@ -43,6 +55,21 @@ describe('Truck Convoy backdrop', () => {
   });
 });
 
+/** Every visible Graphics under `root`, in the order Pixi draws them. */
+function drawOrder(root: Container): Graphics[] {
+  const out: Graphics[] = [];
+  const walk = (c: Container) => {
+    if (!c.visible) return;
+    if (c instanceof Graphics) out.push(c);
+    for (const child of c.children) walk(child);
+  };
+  walk(root);
+  return out;
+}
+
+const overlaps = (a: Bounds, b: Bounds) =>
+  a.minX < b.maxX && b.minX < a.maxX && a.minY < b.maxY && b.minY < a.maxY;
+
 describe('Truck Convoy haulers', () => {
   const states = (hazards: boolean) => {
     const out = [stageStateAt(stage, 0, undefined, hazards)];
@@ -74,5 +101,22 @@ describe('Truck Convoy haulers', () => {
     expect(traffic[first + HAULERS.warning - 1]!.platforms[0]!.x).toBeGreaterThanOrEqual(-HAULERS.creep);
     for (const [f, pieces] of traffic.entries()) expect(lit[f]).toBe(pieces.platforms[0]!.dx < 0);
     expect(lit.slice(960, 1080).some(Boolean)).toBe(false);
+  });
+
+  it('show a lit brake lamp on each hauler that nothing drawn later covers, all through the brake tap', () => {
+    const view = createStageView();
+    const traffic = states(true);
+    for (let f = 241; f <= 240 + HAULERS.warning; f++) {
+      view.pieces!(traffic[f]!, 1);
+      const drawn = drawOrder(view.world);
+      for (const hauler of view.world.children.filter((c) => c.label.startsWith('hauler-'))) {
+        const brake = hauler.getChildByLabel('hauler-brake')!;
+        const lamps = drawn.filter((g) => g === brake || g.parent === brake);
+        const clear = lamps.filter((lamp) =>
+          drawn.slice(drawn.indexOf(lamp) + 1).every((g) => !overlaps(lamp.getBounds(), g.getBounds())),
+        );
+        expect(clear.length, `${hauler.label} at frame ${f}`).toBeGreaterThan(0);
+      }
+    }
   });
 });
