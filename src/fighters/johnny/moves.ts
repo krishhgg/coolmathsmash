@@ -7,6 +7,7 @@ import { emit } from '../../sim/events';
 import type { Ctx } from '../../sim/fighter';
 import type { HitboxDef, MoveDef } from '../types';
 import { LASER, MUZZLE } from './entities';
+import { upgradable, upgradeMoves } from './upgrade';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -381,7 +382,8 @@ export const moves: Record<string, MoveDef> = {
    * Fox's because Fox's laser is flinchless and fires a held stream, a poke for a light, fast fighter; Falco's is one
    * aimed shot that makes the opponent flinch, which fits a sidearm drawn and fired once and gives a heavy rushdown
    * fighter a hit to dash in behind. The laser (entities.ts) leaves the muzzle on frame 8 and he can act on frame
-   * 42; pressing Special again on frames 2-17 fires again 26 frames later (laserRepeat).
+   * 42; pressing Special again on frames 2-17 fires again 26 frames later (laserRepeat). With a full upgrade meter
+   * it plays Upgraded Laser instead (upgrade.ts).
    */
   neutralB: {
     kind: 'other',
@@ -389,7 +391,7 @@ export const moves: Record<string, MoveDef> = {
     air: 'neutralBAir',
     hits: [],
     spawn: [{ frame: 8, entity: 'laser', x: MUZZLE.x, y: MUZZLE.y, vx: LASER.speed }],
-    script: laserRepeat(LASER_GUN.ground),
+    script: upgradable('neutralBUpgraded', laserRepeat(LASER_GUN.ground)),
   },
   /** Laser Gun in the air: Falco's aerial Blaster, frame 7 and FAF 39, 6 frames of landing lag, a shot per 23. */
   neutralBAir: {
@@ -398,7 +400,7 @@ export const moves: Record<string, MoveDef> = {
     landingLag: 6,
     hits: [],
     spawn: [{ frame: 7, entity: 'laser', x: MUZZLE.x, y: MUZZLE.airY, vx: LASER.speed }],
-    script: laserRepeat(LASER_GUN.air),
+    script: upgradable('neutralBUpgraded', laserRepeat(LASER_GUN.air)),
   },
   /**
    * Upgrade Dash (side special, Raptor Boost's role): a wind-up, a burst dash of about 40 units and a punch at the
@@ -461,4 +463,6 @@ export const moves: Record<string, MoveDef> = {
       f.vel.y = f.actionFrame <= 17 ? 2.4 : 3.85 - (f.actionFrame - 18) * 0.11;
     },
   },
+  /** Coin Magnet (down special) and Upgraded Laser: the upgrade meter's moves, in upgrade.ts. */
+  ...upgradeMoves,
 };

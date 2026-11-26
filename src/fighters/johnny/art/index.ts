@@ -38,5 +38,18 @@ export const art: FighterArt = {
         neutralBAir: { frame: 8, x: MUZZLE.x + LASER.speed, y: MUZZLE.airY, vx: LASER.speed },
       },
     },
+    /** Upgraded Laser's bolt, drawn like the laser's: from the frame after the shot, turned to its travel. */
+    megaLaser: {
+      symbols: rig.symbols,
+      symbol: 'megaBolt',
+      scale: 1,
+      align: true,
+      preview: {
+        neutralBUpgraded: { frame: 7, x: MUZZLE.x + LASER.speed, y: MUZZLE.y, vx: LASER.speed },
+        neutralBUpgradedAir: { frame: 6, x: MUZZLE.x + LASER.speed, y: MUZZLE.airY, vx: LASER.speed },
+      },
+    },
+    /** The burst the bolt becomes where it hits (art/burst.ts); it appears on contact, so the lab has no preview. */
+    laserBurst: { symbols: rig.symbols, symbol: 'laserBurst', scale: 1 },
   },
 };

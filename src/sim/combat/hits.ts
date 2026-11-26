@@ -241,6 +241,8 @@ function entityHits(m: MatchState, e: EntityState, hits: Connection[]): boolean 
       dir: launchDir(hit.box, e.facing, e.pos.x, v),
       at: { x: hit.x, y: hit.y },
       move: e.move,
+      // An entity's autolink hit follows the entity as a fighter's follows the fighter.
+      link: isAutolink(hit.box.angle) ? { vel: { ...e.vel }, at: { x: hit.x, y: hit.y } } : undefined,
     });
     if (!def.pierce) return true;
   }
@@ -409,7 +411,7 @@ export interface Strike {
    * adds `breakDamageMul` of its damage. Null without armor.
    */
   armor: { kb: number; damage: number; breakDamageMul: number } | null;
-  /** How an autolink or position-vector hit follows its attacker after hitlag; only a fighter's hits have one. */
+  /** How an autolink or position-vector hit follows its attacker (a fighter, or an entity for autolink) after hitlag. */
   link?: LaunchLink;
 }
 
