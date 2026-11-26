@@ -164,7 +164,7 @@ describe("Tunnel Flip's art in a match", () => {
       const kids = root.sortableChildren
         ? [...root.children].sort((a, b) => a.zIndex - b.zIndex)
         : root.children;
-      return kids.flatMap((c) => drawn(c as Container));
+      return kids.flatMap((c) => drawn(c));
     };
     const [runner, foe] = views as [FighterView, FighterView];
     const r = m.fighters[0]!;
