@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { registerFighter } from '../../fighters/registry';
 import { defineFighter, type HitboxDef } from '../../fighters/types';
-import { koPercent, kos, type KoHit } from './ko';
+import { koPercent, kos, type KoHit, type KoSetup } from './ko';
 import { marioReference } from './reference';
 
 /**
@@ -201,8 +201,9 @@ describe("koPercent lands a move's launching hit where it connects", () => {
   it("Captain Falcon's up smash, forward air and up air reproduce the calculator from the same contact point", () => {
     // SSBU-Calculator (233590e) on Mario at the Battlefield ledge with the target where each move's strongest box
     // meets it. Up smash hit 2 (14%, 83 deg, 80/70) at y 29 lifts Mario to 21.5, airborne; the knee (22%, 32 deg,
-    // 81/30) meets him standing; the up air's clean box (10%, 66 deg, 96/20) at y 22 lifts him to 14.5. Raw 62-70 deg
-    // hits run about 4 points late in the engine wherever they start, so the up air gets a 5-point tolerance.
+    // 81/30) meets him standing; the up air's clean box (10%, 66 deg, 96/20) at y 22 lifts him to 14.5. The up air
+    // dies off the top late in its hitstun, where the calculator's top-zone check reads a stale launch speed (see
+    // "with its KO check reading each frame's launch speed" below), so it gets a 5-point tolerance here.
     const falcon = (move: string) => koPercent({ hit: { fighter: 'reference-falcon', move } })!;
     expect(Math.abs(falcon('usmash') - 100.1)).toBeLessThanOrEqual(2.5);
     expect(Math.abs(falcon('fair') - 56.0)).toBeLessThanOrEqual(2);
@@ -231,5 +232,85 @@ describe("koPercent lands a move's launching hit where it connects", () => {
     expect(koPercent({ hit: { fighter: 'ko-shapes', move: 'behind' }, from: { x: -79.9, y: 0 } })).toBe(
       ahead,
     );
+  });
+});
+
+/**
+ * SSBU-Calculator's KO check (233590e, js/knockback.js Distance) indexes its vertical launch speeds by simulation step
+ * but its positions by displayed frame. Under balloon speed-up the two drift apart, so the top zone's 2.4 rule and the
+ * meteor blast line read a speed from up to 30 steps earlier than the position they check. That KOs late-hitstun top
+ * kills 1.5 to 6 points early, and meteors 6 to 8, against the calculator's own trajectory. These are the calculator's
+ * numbers with that one read fixed, run headless as in the table at the top: the speed is the launch speed recorded
+ * with each position. Meteors are offstage: Mario airborne 10 units past the ledge, where a downward hit can KO. The
+ * engine follows the same trajectory, so it lands within a point of each.
+ */
+describe("koPercent against SSBU-Calculator with its KO check reading each frame's launch speed", () => {
+  const cases: {
+    name: string;
+    hit: KoHit;
+    setup: Omit<KoSetup, 'hit'>;
+    calculator: number;
+    shipped: number;
+  }[] = [
+    {
+      name: "Mario's usmash",
+      hit: { damage: 14, angle: 83, kbg: 94, bkb: 32 },
+      setup: {},
+      calculator: 126.0,
+      shipped: 124.5,
+    },
+    {
+      name: "Mario's uair",
+      hit: { damage: 7, angle: 75, kbg: 135, bkb: 10 },
+      setup: { air: true },
+      calculator: 187.9,
+      shipped: 186.2,
+    },
+    {
+      name: "Mario's uthrow",
+      hit: { damage: 7, angle: 90, kbg: 72, bkb: 70 },
+      setup: {},
+      calculator: 243.8,
+      shipped: 240.6,
+    },
+    {
+      name: "Falcon's uair, lifted to y 14.5",
+      hit: { damage: 10, angle: 66, kbg: 96, bkb: 20 },
+      setup: { air: true, from: { x: 79.9, y: 14.5 } },
+      calculator: 185.0,
+      shipped: 180.8,
+    },
+    {
+      name: "Ridley's up Wing Blitz, at y 18.5",
+      hit: { damage: 18, angle: 64, kbg: 46, bkb: 85 },
+      setup: { air: true, from: { x: 79.9, y: 18.5 } },
+      calculator: 141.7,
+      shipped: 135.6,
+    },
+    {
+      name: "Mario's fair meteor, offstage",
+      hit: { damage: 14, angle: 280, kbg: 78, bkb: 32 },
+      setup: { air: true, from: { x: 90, y: 0 } },
+      calculator: 52.8,
+      shipped: 46.1,
+    },
+    {
+      name: "Min Min's dair meteor, offstage",
+      hit: { damage: 11, angle: 285, kbg: 90, bkb: 30 },
+      setup: { air: true, from: { x: 90, y: 0 } },
+      calculator: 62.1,
+      shipped: 54.6,
+    },
+    {
+      name: "K. Rool's dair meteor, offstage",
+      hit: { damage: 12, angle: 270, kbg: 90, bkb: 10 },
+      setup: { air: true, from: { x: 90, y: 0 } },
+      calculator: 74.9,
+      shipped: 69.2,
+    },
+  ];
+
+  it.each(cases)('$name: within a point of $calculator% (the shipped check says $shipped%)', (c) => {
+    expect(Math.abs(koPercent({ hit: c.hit, ...c.setup })! - c.calculator)).toBeLessThanOrEqual(1);
   });
 });
