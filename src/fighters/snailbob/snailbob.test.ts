@@ -6,6 +6,7 @@ import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../../sim/match';
 import { koPercent, type KoHit, type KoSetup } from '../../sim/testing/ko';
+import { registerStage } from '../../stages/registry';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
 import { CRATE_FRAMES, CRATE_RADIUS, entities } from './entities';
@@ -946,6 +947,32 @@ describe('Snail Bob: Shell Pound (down special)', () => {
     until(m, (g) => g.move === 'downBLand', { y: -100 });
     expect(f.ground).toMatchObject({ kind: 'platform' });
     expect(f.pos.y).toBeCloseTo(PLATFORM_Y, 2);
+  });
+
+  it('lands on a rising soft platform with the stick held down, as on a still one', () => {
+    // A soft platform that rises 2 units a frame through him while he hangs at the top of the aerial version: the
+    // moving-stage catch (movingStage.ts) must honour fallThrough as fighter movement does.
+    registerStage({
+      id: 'test-rising-platform',
+      name: 'test-rising-platform',
+      solids: [],
+      platforms: [{ x1: -30, x2: 30, y: 0, motion: (frame) => [0, frame * 2] }],
+      ledges: [],
+      blastZones: { left: -400, right: 400, top: 2000, bottom: -300 },
+      camera: { left: -170, right: 170, top: 130, bottom: -80 },
+      spawns: [[0, 30, 1]],
+      respawns: [[0, 80]],
+    });
+    const fall = (pound: boolean) => {
+      const m = testMatch({ fighter: 'snailbob', stage: 'test-rising-platform' });
+      const f = airborne(m, 0, 2 * m.frame + 6);
+      if (pound) run(m, 1, DOWN_B);
+      for (let i = 0; i < 20 && !f.ground; i++) run(m, 1, { y: -100 });
+      return f;
+    };
+    expect(fall(true).ground).toMatchObject({ kind: 'platform', index: 0 });
+    // A plain fall with down held passes through it.
+    expect(fall(false).ground).toBeNull();
   });
 
   it('grabs the ledge from the drop on', () => {
