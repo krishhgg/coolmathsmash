@@ -4,6 +4,8 @@ import { planScenario, type GameScenario } from '../../harness/scenarios';
 import { neutralInput } from '../../input/types';
 import { samplePose } from '../../render/rig/sample';
 import { knockback } from '../../sim/combat/formulas';
+import { compiledStage } from '../../sim/context';
+import { destroyEntity } from '../../sim/entities/entities';
 import type { EntityState } from '../../sim/entities/types';
 import type { SimEvent } from '../../sim/events';
 import type { FighterState } from '../../sim/fighter';
@@ -20,6 +22,7 @@ import {
   BLAST,
   REACH,
   SHOTS,
+  arcHeight,
   finalSmash,
   finalSmashAir,
   fullArsenalEntities as entities,
@@ -38,12 +41,12 @@ const MISSILE = { damage: 15, angle: 55, kbg: 80, bkb: 100 };
 
 /**
  * The kids at `kids` facing right and a Mario-weight fighter at each of `xs` facing them, on Battlefield, settled, the
- * foes at `percent`. With `air` the kids start 40 up. Activates the Final Smash and returns after that frame.
+ * foes at `percent`. With `air` the kids start `height` (default 40) up. Activates the Final Smash and returns after that frame.
  */
 function arsenal(
   kids: number,
   xs: number[],
-  opts: { percent?: number; air?: boolean; hold?: Hold[] } = {},
+  opts: { percent?: number; air?: boolean; height?: number; hold?: Hold[] } = {},
 ): { m: MatchState; k: FighterState; foes: FighterState[] } {
   const m = createMatch({
     seed: 1,
@@ -59,8 +62,14 @@ function arsenal(
   step(m, 30);
   const [k, ...foes] = m.fighters as [FighterState, ...FighterState[]];
   for (const f of foes) f.damage = opts.percent ?? 0;
+  const high = opts.height ?? 40;
   if (opts.air)
-    Object.assign(k, { pos: { x: kids, y: 40 }, prevPos: { x: kids, y: 40 }, ground: null, action: 'fall' });
+    Object.assign(k, {
+      pos: { x: kids, y: high },
+      prevPos: { x: kids, y: high },
+      ground: null,
+      action: 'fall',
+    });
   k.finalReady = true;
   step(m, 1, [SPECIAL, ...(opts.hold ?? [])]);
   return { m, k, foes };
@@ -285,6 +294,66 @@ describe('Full Arsenal (Final Smash), on Covering Fire', () => {
     expect(inMatch.start).toBeGreaterThan(10);
     expect(koFrom(40, 75).start).toBe(0);
   }, 60_000);
+
+  it('lobs a normal-height shot on the full arc: its control point 40 above the higher end', () => {
+    const { m } = arsenal(-40, [0]);
+    hunt(m);
+    step(m, ARSENAL.fire[0] - ARSENAL.hold + 1);
+    const shot = of(m, SHOTS[0])[0]!;
+    const [y0, ty, cy] = [shot.data.y0, shot.data.ty, shot.data.cy].map(Number) as [number, number, number];
+    expect(cy).toBe(Math.max(y0, ty) + ARSENAL.arc);
+  });
+
+  it('keeps every shot inside the top blast zone when used high up, so all five land and no mark is left', () => {
+    // In the air at y 180 on Battlefield (top blast zone 192) the muzzle is at 189.1: the full arc would peak far
+    // above the blast zone, where the shots would be destroyed before they land.
+    const top = compiledStage('battlefield').geo.blastZones.top;
+    const { m, k, foes } = arsenal(-40, [20], { air: true, height: 180 });
+    expect(k.move).toBe('finalSmashAir');
+    const v = foes[0]!;
+    const seen = hunt(m);
+    let highest = -Infinity;
+    for (let i = 0; i < ARSENAL.faf + ARSENAL.flight; i++) {
+      seen.push(...step(m, 1));
+      for (const e of m.entities)
+        if (SHOTS.some((s) => e.kind === `raftwars/${s}`)) highest = Math.max(highest, e.pos.y);
+    }
+    expect(highest).toBeLessThanOrEqual(top - ARSENAL.inset);
+    expect(seen.filter((e) => e.type === 'entityDestroy' && e.reason === 'blastZone')).toEqual([]);
+    expect(hits(seen, v.port)).toHaveLength(5);
+    expect(of(m, 'lockMark')).toEqual([]);
+  });
+
+  it('lowers the arc near the top so the curve peaks at the ceiling, and leaves it alone lower down', () => {
+    const peak = (y0: number, c: number, y1: number) =>
+      Math.max(
+        ...Array.from({ length: 1001 }, (_, i) => {
+          const t = i / 1000;
+          return (1 - t) ** 2 * y0 + 2 * t * (1 - t) * c + t * t * y1;
+        }),
+      );
+    // Battlefield's top blast zone is 192, so the ceiling is 180. From 120 up the full arc fits under it.
+    expect(arcHeight(129.1, 7, 180)).toBe(129.1 + ARSENAL.arc);
+    // From 170 up it would peak at 185.4: lowered, it peaks at the ceiling.
+    const c = arcHeight(179.1, 7, 180);
+    expect(c).toBeLessThan(179.1 + ARSENAL.arc);
+    expect(peak(179.1, c, 7)).toBeCloseTo(180, 3);
+    // With an end at the ceiling the curve rises no higher than that end.
+    expect(arcHeight(180, 7, 180)).toBe(180);
+  });
+
+  it('takes a lock mark away when its shot is gone without bursting', () => {
+    const { m } = arsenal(-40, [0]);
+    hunt(m);
+    step(m, ARSENAL.fire[0] - ARSENAL.hold + 1);
+    const shot = of(m, SHOTS[0])[0]!;
+    const mark = of(m, 'lockMark').find((e) => e.data.shot === shot.id)!;
+    expect(mark).toBeDefined();
+    destroyEntity(m, shot, 'stage');
+    step(m, 1);
+    expect(of(m, 'lockMark').map((e) => e.id)).not.toContain(mark.id);
+    expect(of(m, 'lockMark')).toHaveLength(4);
+  });
 
   it('in the air holds still through the hunt and the barrage, firing from higher up', () => {
     const { m, k } = arsenal(-40, [20], { air: true });

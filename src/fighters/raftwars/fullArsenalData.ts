@@ -54,8 +54,13 @@ export const ARSENAL = {
   fire: [44, 47, 50, 53, 56],
   /** Frames a shot flies, from the muzzle to its mark (an estimate). */
   flight: 30,
-  /** Height of the shot's arc: its control point this far above the higher of the muzzle and the mark. */
+  /**
+   * Height of the shot's arc: its control point this far above the higher of the muzzle and the mark, lowered when
+   * that would carry the shot within `inset` of the top blast zone.
+   */
   arc: 40,
+  /** How far inside the blast zones the crosshair and the shots stay, so neither leaves the stage. */
+  inset: 12,
   /** The kids act again on this frame: Snake's FinalEnd, interruptible on its frame 35, from the first shot. */
   faf: 44 + 34,
   /**

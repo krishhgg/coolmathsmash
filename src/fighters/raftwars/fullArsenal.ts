@@ -5,6 +5,7 @@ import { destroyEntity, spawnEntity } from '../../sim/entities/entities';
 import type { EntityCtx, EntityDef, EntityState } from '../../sim/entities/types';
 import type { Ctx, FighterState } from '../../sim/fighter';
 import type { MatchState } from '../../sim/match';
+import type { CompiledStage } from '../../sim/stage';
 import type { Vec } from '../../sim/vec';
 import { getFighter } from '../registry';
 import type { HitboxDef, MoveDef } from '../types';
@@ -89,13 +90,7 @@ function hunt(x: EntityCtx): void {
     destroyEntity(m, e, 'script');
     return;
   }
-  const b = stage.geo.blastZones;
-  const inset = ARSENAL.radius * 3;
-  const next = e.age > 1 ? steer(x) : { ...e.pos };
-  const to = {
-    x: Math.min(b.right - inset, Math.max(b.left + inset, next.x)),
-    y: Math.min(b.top - inset, Math.max(b.bottom + inset, next.y)),
-  };
+  const to = inside(stage, e.age > 1 ? steer(x) : e.pos);
   e.vel = { x: to.x - e.pos.x, y: to.y - e.pos.y };
 
   const locks = Number(e.data.locks ?? 0);
@@ -118,12 +113,46 @@ function hunt(x: EntityCtx): void {
   destroyEntity(m, e, 'script');
 }
 
-/** A mark rides on its fighter until the fighter leaves the match; a spot mark stays put. */
-function follow({ m, e }: EntityCtx): void {
+/**
+ * A mark rides on its fighter until the fighter leaves the match; a spot mark stays put. It goes with its shot when
+ * the shot is gone without bursting, or before any shot when the kids have left their Final Smash.
+ */
+function follow({ m, e, owner }: EntityCtx): void {
+  const shot = e.data.shot;
+  const left =
+    shot === undefined
+      ? !owner?.move?.startsWith('finalSmash')
+      : !m.entities.some((s) => s.id === shot && live(s));
+  if (left) {
+    destroyEntity(m, e, 'script');
+    return;
+  }
   const t = Number(e.data.target);
   const f = t >= 0 ? m.fighters.find((g) => g.port === t) : undefined;
   if (!f || gone(f)) return;
   e.pos = middle(f);
+}
+
+/** `at` held ARSENAL.inset inside the stage's blast zones. */
+function inside(stage: CompiledStage, at: Vec): Vec {
+  const b = stage.geo.blastZones;
+  const i = ARSENAL.inset;
+  return {
+    x: Math.min(b.right - i, Math.max(b.left + i, at.x)),
+    y: Math.min(b.top - i, Math.max(b.bottom + i, at.y)),
+  };
+}
+
+/**
+ * The control height of a shot's curve from height y0 to y1: ARSENAL.arc above the higher end, or lower, so that the
+ * curve peaks at `ceiling` at most. A quadratic curve with control height c > max(y0, y1) peaks at
+ * (y0 y1 - c^2) / (y0 + y1 - 2c), which is `ceiling` for c = ceiling + sqrt((ceiling - y0)(ceiling - y1)). With an
+ * end above the ceiling the curve rises no higher than that end.
+ */
+export function arcHeight(y0: number, y1: number, ceiling: number): number {
+  const high = Math.max(y0, y1);
+  if (ceiling <= high) return high;
+  return Math.min(high + ARSENAL.arc, ceiling + Math.sqrt((ceiling - y0) * (ceiling - y1)));
 }
 
 /** Where a shot is `t` of the way along its curve: from where it left (x0, y0) past (cx, cy) to its mark. */
@@ -147,7 +176,8 @@ function fly(x: EntityCtx): void {
   e.data.ty = to.y;
   if (e.age <= ARSENAL.flight) {
     if (e.age === 1) return;
-    const next = along(e, to, (e.age - 1) / ARSENAL.flight);
+    // Held inside the blast zones too, as the mark it flies to can move after the curve was set.
+    const next = inside(x.stage, along(e, to, (e.age - 1) / ARSENAL.flight));
     e.vel = { x: next.x - e.pos.x, y: next.y - e.pos.y };
     return;
   }
@@ -181,8 +211,9 @@ function lob(x: Ctx, n: number): void {
     .filter((k) => k.data.n === n && k.data.shot === undefined)
     .sort((a, b) => a.id - b.id)[0];
   const at = f.move === 'finalSmashAir' ? ARSENAL.airMuzzle : ARSENAL.muzzle;
-  const from = { x: f.pos.x + at.x * f.facing, y: f.pos.y + at.y };
+  const from = inside(x.stage, { x: f.pos.x + at.x * f.facing, y: f.pos.y + at.y });
   const to = target?.pos ?? { x: from.x + 60 * f.facing, y: f.pos.y };
+  const ceiling = x.stage.geo.blastZones.top - ARSENAL.inset;
   const e = spawnEntity(m, {
     kind: `${x.def.id}/${SHOTS[n]}`,
     owner: f.port,
@@ -198,7 +229,7 @@ function lob(x: Ctx, n: number): void {
     x0: from.x,
     y0: from.y,
     cx: (from.x + to.x) / 2,
-    cy: Math.max(from.y, to.y) + ARSENAL.arc,
+    cy: arcHeight(from.y, to.y, ceiling),
     tx: to.x,
     ty: to.y,
   });
