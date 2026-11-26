@@ -558,7 +558,7 @@ function ghost(x: number, y: number, alpha: number): PathShape[] {
 }
 
 /** Height of a dashing body's centre above the floor (rig space, so negative). */
-export const DASH_BODY_Y = -5.6;
+const DASH_BODY_Y = -5.6;
 
 /**
  * Strafe Dash's afterimages, on the fx bone at her feet: a ghost of her at each of the trail's boxes behind her

@@ -8,7 +8,7 @@ import { ecb } from '../../sim/movement';
 import { edgeMaxX, edgeMinX, floorY } from '../../sim/stage';
 import { boxDropMoves } from './box-drop';
 import { strafeDashMoves } from './strafe-dash';
-import { GRAVITY_SWITCH, RAPID_JAB, STRAFE_DASH } from './timing';
+import { GRAVITY_SWITCH, RAPID_JAB } from './timing';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -26,7 +26,7 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 /** Tile Flip's air hop: the upward speed it sets and on which frame. Less than a cycle of gravity, so no stall. */
 export const HOP = { frame: 3, speed: 0.8 };
 
-export { GRAVITY_SWITCH, RAPID_JAB, STRAFE_DASH };
+export { GRAVITY_SWITCH, RAPID_JAB };
 
 /** Downward-facing surfaces she can cling to: platform undersides and solid edges that face mostly down. */
 const CLING_NORMAL_Y = -0.25;

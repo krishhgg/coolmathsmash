@@ -310,7 +310,7 @@ export const scenarios: FighterScenarios = {
       ['smash/attack-active-*', `${RUN}/sprite-sheet-runner-*`, `${RUN}/ingame-run3-*`],
     ),
     sheet(
-      'strafe-dash',
+      'strafe-dash-afterimages',
       "Strafe Dash's coil, then the burst on its first active frame on the ground and in the air, afterimages and all.",
       5.2,
       [`sideB@${STRAFE_DASH.dash[0] - 12}`, firstActive('sideB'), firstActive('sideBAir')],
