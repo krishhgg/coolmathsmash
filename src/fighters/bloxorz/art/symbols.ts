@@ -446,6 +446,66 @@ const tile: PathShape[] = [
   },
 ];
 
+/**
+ * A level tile for the Final Smash: a cube's footprint (12 wide, with a hair of gap) drawn like the icon's slab, its
+ * top face going back along DEPTH as the block's own bevel does, centred on x 0 with its top surface on y 0.
+ */
+function levelTile(): PathShape[] {
+  const w = HALF_W - 0.2;
+  const t = 2.2;
+  const [dx, dy] = DEPTH;
+  const top: Pt[] = [
+    [-w, 0],
+    [w, 0],
+    [w + dx, dy],
+    [-w + dx, dy],
+  ];
+  const side: Pt[] = [
+    [w, 0],
+    [w + dx, dy],
+    [w + dx, dy + t],
+    [w, t],
+  ];
+  const front = rect(w, t / 2).map(([x, y]) => [x, y + t / 2] as Pt);
+  return [
+    {
+      d: poly(hull([...top, ...side, ...front])),
+      fill: 'line',
+      stroke: { color: 'line', width: OUTLINE * 0.7 },
+    },
+    { d: poly(top), fill: 'tileTop', stroke: { color: 'line', width: INNER } },
+    { d: poly(side), fill: 'tileSide', stroke: { color: 'line', width: INNER } },
+    { d: poly(front), fill: 'tile', stroke: { color: 'line', width: INNER } },
+    {
+      d: poly([
+        [-w + 0.5, -0.35],
+        [w - 0.3, -0.35],
+        [w - 0.3 + dx * 0.25, -0.35 + dy * 0.25],
+        [-w + 0.5 + dx * 0.25, -0.35 + dy * 0.25],
+      ]),
+      fill: 'spark',
+    },
+  ];
+}
+
+/** The split switch's sign, Bloxorz's "( )", in gold with a dark outline: two bold brackets 9 wide and 7 tall. */
+function splitGlyph(): PathShape[] {
+  const bracket = (dir: 1 | -1): Pt[] => {
+    const outer = Array.from({ length: 9 }, (_, i) => {
+      const a = ((-60 + (120 * i) / 8) * Math.PI) / 180;
+      return [dir * (-1.2 - 3.3 * Math.cos(a)), 3.5 * Math.sin(a)] as Pt;
+    });
+    const inner = Array.from({ length: 9 }, (_, i) => {
+      const a = ((60 - (120 * i) / 8) * Math.PI) / 180;
+      return [dir * (-1.2 - 2.1 * Math.cos(a)), 3.2 * Math.sin(a)] as Pt;
+    });
+    return [...outer, ...inner];
+  };
+  return ([1, -1] as const).flatMap((dir): PathShape[] => [
+    { d: poly(bracket(dir)), fill: 'star', stroke: { color: 'line', width: 0.32 } },
+  ]);
+}
+
 const moved = (shapes: PathShape[], dx: number, dy: number): PathShape[] =>
   shapes.map((s) => ({
     ...s,
@@ -500,6 +560,8 @@ export const symbols: Record<string, ArtSymbol> = {
   })),
   /** Switch Bridge's stone bridge tile, the icon's slab, flipping up on its hinge. */
   tile,
+  levelTile: levelTile(),
+  splitGlyph: splitGlyph(),
   star: [{ d: poly(star(5, 1.7, 0.75)), fill: 'star', stroke: { color: 'line', width: 0.22 } }],
   spark: [{ d: poly(star(4, 1.6, 0.45, 0)), fill: 'spark', stroke: { color: 'line', width: 0.18 } }],
 };

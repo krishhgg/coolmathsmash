@@ -228,6 +228,8 @@ export interface Frame {
   fx?: Partial<Record<FxSlot, Fx | undefined>>;
   /** Shown instead of the block: the two cubes it splits into. */
   cubes?: [Cube, Cube];
+  /** Bones and slots outside the block and its effects (the Final Smash's level tiles), posed as given. */
+  extra?: { pose: Record<string, BonePose>; swaps: Record<string, string | null> };
 }
 
 /** A dust puff `age` frames old, lasting `life`: it swells, drifts away along `dir` and shrinks to nothing. */
@@ -254,7 +256,7 @@ export function bake(length: number, loop: boolean, at: (frame: number) => Frame
   const keys: Key[] = [];
   let pivotRot: number | undefined;
   for (let f = 0; f <= (loop ? length - 1 : length); f++) {
-    const { block: p, fx = {}, cubes } = at(f);
+    const { block: p, fx = {}, cubes, extra } = at(f);
     pivotRot = unwrap(pivotRot, p.rot);
     const pose: Record<string, BonePose> = {
       pivot: { x: p.px, y: p.py, rot: pivotRot },
@@ -278,6 +280,10 @@ export function bake(length: number, loop: boolean, at: (frame: number) => Frame
       const e = fx[slot];
       swaps[slot] = e ? e.sym : null;
       if (e) pose[bone] = { x: e.x, y: e.y, rot: e.rot ?? 0, sx: e.sx ?? 1, sy: e.sy ?? 1 };
+    }
+    if (extra) {
+      Object.assign(pose, extra.pose);
+      Object.assign(swaps, extra.swaps);
     }
     keys.push({ frame: f, pose, ease: 'linear', swaps });
   }
