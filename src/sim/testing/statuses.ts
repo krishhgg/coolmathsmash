@@ -57,6 +57,15 @@ export const testStatus = defineFighter({
       endOnHit: true,
       mash: { stick: 4, button: 6 },
     },
+    /**
+     * Inkling's ink (SmashWiki, "Ink (status)"): 12 units a hit (Splattershot's) up to 300, held 120 frames after the
+     * last hit and then wearing off 0.25 units a frame; the fighter takes 1 + ink x 0.5 / 180 times the %, at most 1.5.
+     */
+    ink: {
+      frames: 120,
+      coat: { add: 12, max: 300, decay: 0.25 },
+      damageTaken: (s) => 1 + (Math.min(s.level ?? 0, 180) * 0.5) / 180,
+    },
   },
   meters: {
     /** Three shots, spent by neutralB. */
@@ -73,6 +82,8 @@ export const testStatus = defineFighter({
     jab: { kind: 'other', faf: 20, hits: [{ frames: [3, 4], boxes: [strike(5, 'test-status/flower')] }] },
     /** A 4% strike that warms. */
     ftilt: { kind: 'other', faf: 20, hits: [{ frames: [3, 4], boxes: [strike(4, 'test-status/warm')] }] },
+    /** A 2% strike that inks. */
+    utilt: { kind: 'other', faf: 20, hits: [{ frames: [3, 4], boxes: [strike(2, 'test-status/ink')] }] },
     /** A 4% strike with x0.5 hitlag that stuns. */
     dtilt: {
       kind: 'other',
