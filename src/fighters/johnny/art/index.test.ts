@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { poseBounds, shapesBounds, shapesContain, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
-import type { PathShape } from '../../../render/rig/types';
+import type { Paint, PathShape } from '../../../render/rig/types';
 import { MUZZLE_LEAD } from '../entities';
 import { moves } from '../moves';
 import { MEGA_LASER } from '../upgrade';
@@ -198,6 +198,39 @@ describe('johnny art', () => {
       }
       const [x0, y0, x1, y1] = shapesBounds(shapes).map((v) => v * prop.scale);
       expect(Math.max(-x0!, -y0!, x1!, y1!), name).toBeLessThanOrEqual(1.1 * R);
+    }
+  });
+
+  it('lets the fighters the burst holds at its centre show through its glow and star', () => {
+    /** The opacity `paint` gives at (x, y): 1 for a flat colour, the radial stops' alpha at that distance. */
+    const alphaAt = (paint: Paint, x: number, y: number): number => {
+      if (typeof paint === 'string') return 1;
+      if (paint.type !== 'radial') throw new Error('the burst only uses radial gradients');
+      const t = Math.min(1, Math.hypot(x - paint.cx, y - paint.cy) / paint.r);
+      const stops = paint.stops;
+      const i = Math.max(
+        1,
+        stops.findIndex((stop) => stop.offset >= t),
+      );
+      const [a, b] = [stops[i - 1]!, stops[i]!];
+      const u = b.offset > a.offset ? (t - a.offset) / (b.offset - a.offset) : 1;
+      return (a.alpha ?? 1) + ((b.alpha ?? 1) - (a.alpha ?? 1)) * Math.min(1, Math.max(0, u));
+    };
+    const prop = art.projectiles!.laserBurst!;
+    const loop = art.rig.symbols[prop.symbol];
+    if (!loop || Array.isArray(loop)) throw new Error('the burst is a symbol loop');
+    // The loops pull a held fighter's middle to the centre: a fighter-sized box there (Mario: 8 wide, 15 tall).
+    for (const name of loop.loop) {
+      const shapes = (art.rig.symbols[name] as PathShape[]).filter((shape) => shape.fill !== undefined);
+      let most = 0;
+      for (let x = -4; x <= 4; x += 0.5)
+        for (let y = -7.5; y <= 7.5; y += 0.5) {
+          const clear = shapes
+            .filter((shape) => shapesContain([shape], x / prop.scale, y / prop.scale))
+            .reduce((left, shape) => left * (1 - alphaAt(shape.fill!, x / prop.scale, y / prop.scale)), 1);
+          most = Math.max(most, 1 - clear);
+        }
+      expect(most, name).toBeLessThanOrEqual(0.7);
     }
   });
 

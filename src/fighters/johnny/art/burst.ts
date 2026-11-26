@@ -1,10 +1,11 @@
-import type { PathShape } from '../../../render/rig/types';
+import type { Paint, PathShape } from '../../../render/rig/types';
 import { ellipse, poly, star, type P } from './shapes';
 
 /**
- * Upgraded Laser's burst, in its own space with the hit's centre on the origin. A crackling energy ring marks the
- * edge of the 14-unit hit, glow fills it, and a spiky cyan star pulses inside, with coin-gold sparks riding the
- * ring. The match plays the loop on the burst's age at 12 fps, five frames a drawing, so its seven drawings cover the
+ * Upgraded Laser's burst, in its own space with the hit's centre on the origin. A solid crackling energy ring marks
+ * the edge of the 14-unit hit, with coin-gold sparks riding it. Inside, a faint glow and a see-through star with an
+ * inked outline pulse over the fighters the loops pull to the centre, so they still read: matches draw entities over
+ * fighters. The match plays the loop on the burst's age at 12 fps, five frames a drawing, so its seven drawings cover the
  * burst's 30 frames once: it opens, pulses through the looping hits (ages 1-28) and swells into the finisher (29-30).
  * The hit is the same size all through, so every drawing reaches it; art/index.test.ts checks that.
  */
@@ -48,9 +49,25 @@ function spark(angle: number, dist: number, size: number): PathShape {
   };
 }
 
+/** A flat see-through fill: the same colour and `alpha` from the centre out to `r` (flat fills are opaque). */
+function tint(color: string, alpha: number, r: number): Paint {
+  return {
+    type: 'radial',
+    cx: 0,
+    cy: 0,
+    r,
+    stops: [
+      { offset: 0, color, alpha },
+      { offset: 1, color, alpha },
+    ],
+  };
+}
+
 function burst({ star: reach, ring, turn, glow }: (typeof DRAWINGS)[number]): PathShape[] {
   const crackle = turn / 7;
+  const tip = R * reach;
   return [
+    // The glow: faintest at the centre, where the loops hold the fighters, stronger out to the ring.
     {
       d: ellipse(0, 0, R),
       fill: {
@@ -59,9 +76,9 @@ function burst({ star: reach, ring, turn, glow }: (typeof DRAWINGS)[number]): Pa
         cy: 0,
         r: R,
         stops: [
-          { offset: 0, color: 'laserHi', alpha: 0.75 * glow },
-          { offset: 0.6, color: 'laser', alpha: 0.4 * glow },
-          { offset: 1, color: 'laser', alpha: 0.25 * glow },
+          { offset: 0, color: 'laserHi', alpha: 0.12 * glow },
+          { offset: 0.55, color: 'laser', alpha: 0.2 * glow },
+          { offset: 1, color: 'laser', alpha: 0.35 * glow },
         ],
       },
     },
@@ -77,13 +94,23 @@ function burst({ star: reach, ring, turn, glow }: (typeof DRAWINGS)[number]): Pa
         poly(zigzag(R * (ring + 0.04), 0, 36, 0)),
       fill: 'laserHi',
     },
+    // The star: an inked outline over a see-through fill, so the fighters it holds show through.
     {
-      d: star(0, 0, R * reach, R * reach * 0.5, 10, turn - 90),
-      fill: 'laser',
+      d: star(0, 0, tip, tip * 0.5, 10, turn - 90),
+      fill: {
+        type: 'radial',
+        cx: 0,
+        cy: 0,
+        r: tip,
+        stops: [
+          { offset: 0, color: 'laserHi', alpha: 0.15 },
+          { offset: 0.5, color: 'laser', alpha: 0.25 },
+          { offset: 1, color: 'laser', alpha: 0.55 },
+        ],
+      },
       stroke: { color: 'laserLine', width: 0.14 },
     },
-    { d: star(0, 0, R * reach * 0.62, R * reach * 0.34, 10, turn - 72), fill: 'laserHi' },
-    { d: ellipse(0, 0, R * reach * 0.2), fill: 'shine' },
+    { d: star(0, 0, tip * 0.62, tip * 0.34, 10, turn - 72), fill: tint('laserHi', 0.2, tip * 0.62) },
     ...[0, 60, 120, 180, 240, 300].map((a, i) =>
       spark(a + turn * 2, R * (ring + 1) * 0.5, 0.6 + 0.15 * (i % 2)),
     ),
