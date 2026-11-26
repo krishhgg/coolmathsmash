@@ -36,7 +36,7 @@ r  = crouch-cancel 0.85 x rage (1.0-1.1) x launch rate x ...
 
 - **Constants.** 1.4 and 18 are `reaction_damage_mul` and `reaction_damage_add`. The knockback cap is 2500 (`reaction_max`) and damage caps at 999% ([param sheet, battle_object tab](https://docs.google.com/spreadsheets/d/1UdH2L0xi8dO6jyPCcO5e5-8j7SGzezxkeZuF1uP8uOw)).
 - **Set (weight-based) knockback.** Use p = 10 and d = WBKB, so kb = (((1 + wbkb/2)·200/(w+100)·1.4) + 18)·kbg/100 + bkb. It ignores %, staleness and rage ([SmashWiki: Knockback](https://www.ssbwiki.com/Knockback); [SmashWiki: Rage](https://www.ssbwiki.com/Rage)).
-- **1v1 multiplier.** In two-player itemless matches, damage *taken* is ×1.2 (param `0x1af80fd893` = 1.2). It changes the displayed %, but the knockback formula uses the un-multiplied damage of the current hit. A move that KOs at 120% does so with or without the multiplier. Hitstun, hitlag and shieldstun ignore it too ([SmashWiki: 1v1 multiplier](https://www.ssbwiki.com/1v1_multiplier)). The calculator does the same: it applies 1.2× only to earlier hits (`preDamage`) and to displayed damage. **All test vectors use `one_v_one_multiplier_applied: false`,** and `pre_percent` is the displayed % before the hit.
+- **1v1 multiplier.** In a match started with two players and items off, damage *taken* is ×1.2 (param `0x1af80fd893` = 1.2). A match started with three or more players never gets it, even once two are left. The sim's `addDamage` (`src/sim/combat/hits.ts`) applies it when the match has two ports and `MatchConfig.items` is off. It changes the displayed %, but the knockback formula uses the un-multiplied damage of the current hit. A move that KOs at 120% does so with or without the multiplier. Hitstun, hitlag and shieldstun ignore it too ([SmashWiki: 1v1 multiplier](https://www.ssbwiki.com/1v1_multiplier)). The calculator does the same: it applies 1.2× only to earlier hits (`preDamage`) and to displayed damage. **All test vectors use `one_v_one_multiplier_applied: false`,** and `pre_percent` is the displayed % before the hit.
 - **Crouch cancel.** Knockback ×0.85 (`squat_damage_reaction_mul`) and hitlag ×0.67 (`hit_stop_squat_mul`) (param sheet; [SmashWiki: Knockback](https://www.ssbwiki.com/Knockback)).
 - **Short-hop aerials.** Damage ×0.85 (`mini_jump_attack_mul`, param sheet).
 - **Rage.** r_rage = 1 + (clamp(attacker %, 35, 150) − 35)/115 × 0.1, so it runs from 1.0 to 1.1. It does not apply to set knockback ([SmashWiki: Rage](https://www.ssbwiki.com/Rage); params `damage_reaction_mul_max` 1.1, `_min_damage` 35, `_max_damage` 150).
@@ -378,7 +378,7 @@ Other cast extremes ([SmashWiki: Gravity](https://www.ssbwiki.com/Gravity)): Fox
 5. Update the knockback velocity: on the first frame set it to kb·0.03 along the launch angle, plus the gravity bonus. Each frame, reduce its magnitude by 0.051 along its direction. During tumble, step it by the speed-up multiplier.
 6. Move: position += own velocity + knockback velocity.
 7. Collide with the main stage, soft platforms (one-way) and ledges. Then apply tech checks, landing lag and the ledge snap rules.
-8. Resolve hitboxes: damage (×1.2 in 1v1 for the meter only), then hitlag, then knockback and hitstun.
+8. Resolve hitboxes: damage (×1.2 for the meter only in a 1v1 with items off), then hitlag, then knockback and hitstun.
 
 ## 20. Acceptance checks for build threads and judges
 
