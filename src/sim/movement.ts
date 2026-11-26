@@ -1,8 +1,8 @@
 import {
-  DOWN_FLICK_THRESHOLD,
   HARD_LANDING_AIRTIME,
   HELPLESS_AIR_SPEED,
   LEDGE_MAX_GRABS,
+  PLATFORM_DROP_FLICK,
   PUSH_STIFFNESS,
 } from './constants';
 import { stickY } from './control';
@@ -296,7 +296,7 @@ function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
   }
   if (movingDown) {
     const move = f.move ? getFighter(f.fighter).moves?.[f.move] : undefined;
-    const passing = stickY(x.c) <= -DOWN_FLICK_THRESHOLD && move?.fallThrough !== false;
+    const passing = stickY(x.c) <= -PLATFORM_DROP_FLICK.stick && move?.fallThrough !== false;
     for (let i = 0; i < stage.geo.platforms.length; i++) {
       const p = stage.geo.platforms[i]!;
       if (!stage.present.platforms[i]) continue;

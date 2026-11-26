@@ -1,7 +1,6 @@
 import { Btn, neutralInput, type InputFrame } from '../input/types';
 import {
   DIRECTION_THRESHOLD,
-  DOWN_FLICK_THRESHOLD,
   FLICK_NEUTRAL,
   FLICK_WINDOW,
   HOLD_BUFFER,
@@ -12,6 +11,7 @@ import {
   SPECIAL_STICK_Y,
   STICK_DEADZONE,
   TAP_JUMP_THRESHOLD,
+  type Flick,
 } from './constants';
 
 const BUTTON_BITS = [Btn.Attack, Btn.Special, Btn.Jump, Btn.Shield, Btn.Grab, Btn.Taunt, Btn.Start];
@@ -27,6 +27,8 @@ export interface ControlState {
   cur: InputFrame;
   prev: InputFrame;
   pressedAt: number[];
+  /** Last frame each button was down, for the hold buffer. */
+  heldAt: number[];
   consumed: boolean[];
   /** Last frame each stick axis/direction was near neutral. */
   neutralX: number;
@@ -50,6 +52,7 @@ export function createControl(): ControlState {
     cur: neutralInput(),
     prev: neutralInput(),
     pressedAt: BUTTON_BITS.map(() => NEVER),
+    heldAt: BUTTON_BITS.map(() => NEVER),
     consumed: BUTTON_BITS.map(() => true),
     neutralX: NEVER,
     neutralUp: NEVER,
@@ -76,7 +79,9 @@ export function feedControl(c: ControlState, input: InputFrame): void {
   c.cur = { x: input.x, y: input.y, cx: input.cx, cy: input.cy, buttons: input.buttons };
   for (let i = 0; i < BUTTON_BITS.length; i++) {
     const bit = BUTTON_BITS[i]!;
-    if (c.cur.buttons & bit && !(c.prev.buttons & bit)) {
+    if (!(c.cur.buttons & bit)) continue;
+    c.heldAt[i] = c.frame;
+    if (!(c.prev.buttons & bit)) {
       c.pressedAt[i] = c.frame;
       c.consumed[i] = false;
     }
@@ -122,12 +127,14 @@ export function justPressed(c: ControlState, bit: number): boolean {
   return c.pressedAt[bitIndex(bit)] === c.frame;
 }
 
-/** True while an unconsumed press is inside the buffer window (or still held, with the hold buffer). */
+/**
+ * True while an unconsumed press is inside the buffer window. With the hold buffer the window counts from the last
+ * frame the button was held, so a held button stays buffered and one let go stays buffered INPUT_BUFFER_FRAMES more.
+ */
 export function buffered(c: ControlState, bit: number): boolean {
   const i = bitIndex(bit);
   if (c.consumed[i]) return false;
-  if (c.frame - c.pressedAt[i]! < INPUT_BUFFER_FRAMES) return true;
-  return HOLD_BUFFER && isHeld(c, bit);
+  return c.frame - (HOLD_BUFFER ? c.heldAt[i]! : c.pressedAt[i]!) < INPUT_BUFFER_FRAMES;
 }
 
 export function consume(c: ControlState, bit: number): void {
@@ -159,8 +166,12 @@ export function consumeTapJump(c: ControlState): void {
   c.upFlickUsed = c.neutralUp;
 }
 
-export function flickDown(c: ControlState, threshold = DOWN_FLICK_THRESHOLD, window = FLICK_WINDOW): boolean {
-  return stickY(c) <= -threshold && c.frame - c.neutralDown <= window;
+/**
+ * A down flick: the stick reaches -`flick.stick` within `flick.frames` of neutral (FAST_FALL_FLICK,
+ * PLATFORM_DROP_FLICK, DODGE_FLICK).
+ */
+export function flickDown(c: ControlState, flick: Flick): boolean {
+  return stickY(c) <= -flick.stick && c.frame - c.neutralDown <= flick.frames;
 }
 
 export type Dir = 'neutral' | 'forward' | 'back' | 'up' | 'down';
