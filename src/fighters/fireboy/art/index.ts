@@ -30,6 +30,7 @@ export const art: FighterArt = {
       symbols: rig.symbols,
       symbol: 'fxBall',
       scale: 0.7,
+      align: true,
       preview: { neutralB: { frame: 14, x: 8.5, y: 4.6, vx: 1.4 } },
     },
     /** Fire Blast, the Final Smash's fire: drawn at world scale, as big as its radius-16 hitboxes. */
