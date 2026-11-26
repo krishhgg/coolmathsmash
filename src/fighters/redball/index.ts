@@ -4,6 +4,7 @@ import { moves } from './moves';
 import { stats } from './stats';
 import { actions } from './actions';
 import { statuses } from './statuses';
+import { ball } from './finalSmash';
 
 export const fighter = defineFighter({
   id: 'redball',
@@ -13,5 +14,6 @@ export const fighter = defineFighter({
   stats,
   moves,
   statuses,
+  entities: { ball },
   art,
 });
