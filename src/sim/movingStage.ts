@@ -1,13 +1,21 @@
 import { breakGrab } from './actions/grab';
 import { dropLedge } from './actions/ledge';
 import { actionDef, enterAction } from './actions/registry';
-import { PLATFORM_DROP_FLICK } from './constants';
 import { compiledStage, makeCtx } from './context';
-import { stickY } from './control';
 import { emit } from './events';
 import type { Ctx, GroundRef } from './fighter';
 import type { MatchState } from './match';
-import { crossing, ecb, land, leaveGround, pushOffCorner, pushOut, surfaceRange, surfaceY } from './movement';
+import {
+  crossing,
+  ecb,
+  land,
+  leaveGround,
+  passesPlatforms,
+  pushOffCorner,
+  pushOut,
+  surfaceRange,
+  surfaceY,
+} from './movement';
 import {
   edgeMaxX,
   edgeMinX,
@@ -259,7 +267,7 @@ function risesThroughFeet(x: Ctx, prev: Vec, e: Edge, rise: number): boolean {
  */
 function catchOnPlatform(x: Ctx, before: StageState, carry: Vec): void {
   const { f, m, stage } = x;
-  if (stickY(x.c) <= -PLATFORM_DROP_FLICK.stick) return;
+  if (passesPlatforms(x)) return;
   for (let i = 0; i < stage.geo.platforms.length; i++) {
     const p = m.stage.platforms[i]!;
     const plat = stage.geo.platforms[i]!;
