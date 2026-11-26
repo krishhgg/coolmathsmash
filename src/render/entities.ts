@@ -1,5 +1,5 @@
 import { Container, Graphics } from 'pixi.js';
-import { FIGHTERS } from '../fighters/registry';
+import { allFighters } from '../fighters/registry';
 import { activeAbsorbers, activeReflectors } from '../sim/entities/contacts';
 import { entityDef, entityHitboxes, isHittable } from '../sim/entities/entities';
 import type { EntityState } from '../sim/entities/types';
@@ -21,7 +21,7 @@ export interface EntityArt {
 export function entityArt(kind: string): EntityArt | null {
   const slash = kind.indexOf('/');
   if (slash < 0) return null;
-  const fighter = FIGHTERS[kind.slice(0, slash)];
+  const fighter = allFighters()[kind.slice(0, slash)];
   const art = fighter && fighterArt(fighter);
   const name = kind.slice(slash + 1);
   const prop = art?.projectiles?.[name];

@@ -1,6 +1,6 @@
 import type { Graphics } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
-import { FIGHTERS } from '../fighters/registry';
+import { allFighters, getFighter } from '../fighters/registry';
 import { spawnEntity } from '../sim/entities/entities';
 import type { EntityState } from '../sim/entities/types';
 import { createMatch, type MatchState } from '../sim/match';
@@ -33,7 +33,7 @@ describe('entityArt', () => {
   });
 
   it("every projectile drawing names one of its fighter's entities, so matches use it", () => {
-    for (const def of Object.values(FIGHTERS)) {
+    for (const def of Object.values(allFighters())) {
       for (const name of Object.keys(fighterArt(def)?.projectiles ?? {}))
         expect(def.entities?.[name], `${def.id}/${name}`).toBeDefined();
     }
@@ -119,7 +119,7 @@ describe('EntityView', () => {
   it("dresses a prop in its owner's costume and rebuilds it when a reflection changes owner", () => {
     const m = match();
     const fireball = spawnEntity(m, { kind: 'fireboy/fireball', owner: 0, pos: { x: 0, y: 5 } });
-    const palettes = Object.keys(fighterArt(FIGHTERS.fireboy!)!.palettes);
+    const palettes = Object.keys(fighterArt(getFighter('fireboy'))!.palettes);
     const alt = palettes.find((p) => p !== 'default')!;
     const view = new EntityView();
     view.draw(m, 1, [alt, 'default']);
