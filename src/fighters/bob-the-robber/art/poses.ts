@@ -15,6 +15,23 @@ export function key(frame: number, pose?: Pose, extra: Omit<Key, 'frame' | 'pose
   return pose ? { frame, pose, ...extra } : { frame, ...extra };
 }
 
+/** Keep equivalent limb and prop angles on the short side of the tween across an IK wrap. */
+export function continuous(keys: Key[]): Key[] {
+  const angles: Record<string, number> = {};
+  return keys.map((k) => {
+    if (!k.pose) return k;
+    const pose = { ...k.pose };
+    for (const { name } of rig.bones) {
+      const prev = angles[name];
+      let r = pose[name]?.rot ?? 0;
+      if (name !== 'body' && prev !== undefined) r += 360 * Math.round((prev - r) / 360);
+      if (r !== 0 || pose[name]?.rot !== undefined) pose[name] = { ...pose[name], rot: r };
+      angles[name] = r;
+    }
+    return { ...k, pose };
+  });
+}
+
 /** Merges poses bone by bone (later wins per field). */
 export function mix(...poses: Pose[]): Pose {
   const out: Pose = {};

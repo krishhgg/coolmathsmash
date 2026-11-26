@@ -127,7 +127,7 @@ export const downBHit: MoveDef = {
   hits: [
     {
       frames: afterFreeze(DOUBLE_TEAM.attack.hits),
-      boxes: [strike(0, 4.5, 8, 3.5), strike(1, 8.5, 7.5, 3.5), strike(2, 12, 7, 5)],
+      boxes: [strike(0, 4.5, 7, 3.5), strike(1, 8.5, 7, 3.5), strike(2, 12.5, 7, 5)],
     },
   ],
 };
