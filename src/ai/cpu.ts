@@ -429,23 +429,15 @@ export class Cpu {
     if (!this.ledgePlan) this.ledgePlan = this.pickLedgeOption(state, me);
     const { option, at } = this.ledgePlan;
     if (me.action !== 'ledgeHang' || me.actionFrame < at) return NEUTRAL;
-    const toward = me.facing;
-    switch (option) {
-      case 'climb':
-        return press({ x: STICK.tilt * toward });
-      case 'jump':
-        this.start(ledgeJump(toward));
-        return press({ buttons: Btn.Jump });
-      case 'roll':
-        return press({ buttons: Btn.Shield });
-      case 'attack':
-        return press({ buttons: Btn.Attack });
-      case 'drop':
-        this.start(dropJump(toward));
-        return press({ x: -STICK.tilt * toward });
-    }
+    const { input, then } = ledgeStart(option, me.facing);
+    if (then) this.start(then);
+    return input;
   }
 
+  /**
+   * A getup and the hang frame to take it on. A jump or a drop leaves the CPU in the air, so one picked is played out
+   * on a copy of the match first (ledgeReturns), and another option is drawn when it wouldn't bring the CPU back.
+   */
   private pickLedgeOption(
     state: Readonly<MatchState>,
     me: Readonly<FighterState>,
@@ -470,11 +462,20 @@ export class Cpu {
           ['attack', 0.13],
           ['drop', 0.1],
         ];
+    let left = weights;
     let r = this.rand();
-    for (const [option, w] of weights) {
-      if ((r -= w) < 0) return { option, at };
+    for (;;) {
+      let option: LedgeOption = 'climb';
+      for (const [o, w] of left) {
+        if ((r -= w) < 0) {
+          option = o;
+          break;
+        }
+      }
+      if (!AIR_GETUPS.has(option) || ledgeReturns(state, me, option, at)) return { option, at };
+      left = left.filter(([o]) => o !== option);
+      r = this.rand() * left.reduce((sum, [, w]) => sum + w, 0);
     }
-    return { option: 'climb', at };
   }
 
   // ---------------------------------------------------------------- recovery
@@ -1018,6 +1019,66 @@ const THROWS: [string, InputFrame][] = [
 /** The most damage one of the fighter's throws does (what a grab is worth). */
 function throwDamage(k: FighterKnowledge): number {
   return Math.max(0, ...THROWS.map(([name]) => k.def.moves?.[name]?.throw?.hit.damage ?? 0));
+}
+
+/** Ledge getups that leave the CPU in the air, to come down on the stage by itself. */
+const AIR_GETUPS = new Set<LedgeOption>(['jump', 'drop']);
+/** Frames after its press that an airborne getup has to land or catch a ledge again in (ledgeReturns). */
+const LEDGE_RETURN = 150;
+
+/** The press that starts ledge getup `option` facing the stage (`toward`), and the program that runs after it. */
+function ledgeStart(option: LedgeOption, toward: number): { input: InputFrame; then?: Program } {
+  switch (option) {
+    case 'climb':
+      return { input: press({ x: STICK.tilt * toward }) };
+    case 'jump':
+      return { input: press({ buttons: Btn.Jump }), then: ledgeJump(toward) };
+    case 'roll':
+      return { input: press({ buttons: Btn.Shield }) };
+    case 'attack':
+      return { input: press({ buttons: Btn.Attack }) };
+    case 'drop':
+      return { input: press({ x: -STICK.tilt * toward }), then: dropJump(toward) };
+  }
+}
+
+/**
+ * Whether ledge getup `option`, pressed on frame `at` of the hang, brings `me` back by itself. It plays out on a copy
+ * of the match: the press, the program after it, then the stick held toward the stage. It must land somewhere `me`
+ * can stand, or catch a ledge, within LEDGE_RETURN frames of the press. Bloxorz's block hangs 20 units under
+ * Battlefield's ledge, so its drop and double jump hits the stage's corner and falls short, and the recovery after it
+ * starts under the stage.
+ */
+function ledgeReturns(
+  state: Readonly<MatchState>,
+  me: Readonly<FighterState>,
+  option: LedgeOption,
+  at: number,
+): boolean {
+  const { input, then } = ledgeStart(option, me.facing);
+  const m = soloMatch(state, me, state.players[me.port]!.control);
+  let program = then ?? null;
+  let pressed = -1;
+  const drive: Driver = (t, g) => {
+    if (pressed < 0) {
+      if (g.action !== 'ledgeHang' || g.actionFrame < at) return NEUTRAL;
+      pressed = t;
+      return input;
+    }
+    const i = program?.step(t - pressed - 1, g, stageInfo(m)) ?? null;
+    if (i) return i;
+    program = null;
+    return press({ x: STICK.full * me.facing });
+  };
+  const back = (g: Readonly<FighterState>, t: number) =>
+    pressed >= 0 &&
+    t > pressed &&
+    (g.ground !== null || g.action === 'ledgeCatch' || t > pressed + LEDGE_RETURN);
+  // The press comes `at` frames into the hang, after the rest of the catch (19 frames at most).
+  run(m, at + 2 * LEDGE_RETURN, drive, back);
+  const g = m.fighters[0]!;
+  if (pressed < 0 || g.action === 'ledgeCatch') return true;
+  return g.ground !== null && standSafe(stageInfo(m), g.fighter, g.pos.x, g.pos.y);
 }
 
 /**
