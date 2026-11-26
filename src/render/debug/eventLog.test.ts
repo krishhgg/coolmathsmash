@@ -15,6 +15,19 @@ describe('EventLog', () => {
     expect(log.shown).toBe('   10 P1 jump full\n   12 P2 jump full');
   });
 
+  it("names a stage hazard's blocked or parried hit, which credits no port", () => {
+    const m = createMatch(DEFAULT_MATCH);
+    const log = new EventLog();
+    const hazard = { attacker: -1, victim: 0, move: null, x: -44, y: 0 };
+    log.record([{ type: 'shieldHit', ...hazard, damage: 12, shieldHp: 34.8 }], {
+      config: m.config,
+      frame: 16,
+    });
+    log.record([{ type: 'parry', ...hazard }], { config: m.config, frame: 40 });
+    log.update(m);
+    expect(log.shown).toBe("   16 stage hazard hit P1's shield  (34.8 left)\n   40 P1 parried stage hazard ");
+  });
+
   it('starts empty when a new match starts, even with the same settings', () => {
     const log = new EventLog();
     const first = createMatch(DEFAULT_MATCH);

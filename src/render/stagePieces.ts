@@ -35,7 +35,7 @@ export function drawStagePieces(
   placeholders = true,
 ): void {
   g.clear();
-  const { frame, stage: st } = state;
+  const { stageFrame: frame, stage: st } = state;
   const still = (piece: PieceOptions) => piece.hazard === true && state.config.hazards === false;
   const look = (piece: PieceOptions, p: PieceState) => ({
     ...pieceOffset(p, alpha),

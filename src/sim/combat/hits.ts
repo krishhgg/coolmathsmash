@@ -9,6 +9,7 @@ import { COUNTER, LEDGE_HIT_LOCK, PARRY } from '../constants';
 import { stickX, stickY } from '../control';
 import { inHitlag, type Ctx, type FighterState, type LaunchLink } from '../fighter';
 import { emit } from '../events';
+import { isFinalMove } from '../finalSmash';
 import type { MatchState } from '../match';
 import type { CompiledStage } from '../stage';
 import { destroyEntity, entityDef, entityHitboxes, sweepEntities } from '../entities/entities';
@@ -172,7 +173,7 @@ function connection(
   const move = a.move!;
   if (!box.pushOnly && a.moveStale === 0) a.moveStale = stale(a, move);
   return {
-    ...victim(v, frame),
+    ...victim(v, frame, moveOf(a)?.final !== undefined),
     a,
     attacker: a.port,
     fromX: a.pos.x,
@@ -228,7 +229,7 @@ function entityHits(m: MatchState, e: EntityState, hits: Connection[]): boolean 
     e.hitVictims.push(v.port);
     if (!hit.box.pushOnly && e.stale === 0) e.stale = owner && e.move ? stale(owner, e.move) : 1;
     hits.push({
-      ...victim(v, m.frame),
+      ...victim(v, m.frame, owner !== null && isFinalMove(owner.fighter, e.move)),
       a: null,
       attacker: e.owner,
       entity: e.id,
@@ -254,19 +255,24 @@ function stale(a: FighterState, move: string): number {
   return mult;
 }
 
-/** The victim's state before any of this frame's hits land (on match frame `frame`). */
+/**
+ * The victim's state before any of this frame's hits land (on match frame `frame`). An `unblockable` hit (a Final
+ * Smash's, src/sim/finalSmash.ts) goes through a shield, a parry or a counter as if none were up: SmashWiki
+ * ("Counterattack") says "unblockable attacks cannot be countered".
+ */
 function victim(
   v: FighterState,
   frame: number,
+  unblockable = false,
 ): Pick<Connection, 'v' | 'percent' | 'crouch' | 'shielding' | 'parry' | 'armor' | 'counter'> {
   return {
     v,
     percent: v.damage,
     crouch: v.action === 'crouch' && v.ground !== null,
-    shielding: v.action === 'shield' || v.action === 'shieldStun',
-    parry: parries(v, frame),
+    shielding: !unblockable && (v.action === 'shield' || v.action === 'shieldStun'),
+    parry: !unblockable && parries(v, frame),
     armor: armorOf(v),
-    counter: counterOf(v),
+    counter: unblockable ? null : counterOf(v),
   };
 }
 
@@ -549,9 +555,15 @@ function reappearBehind(stage: CompiledStage, f: FighterState, a: FighterState, 
   f.prevPos = { x: f.pos.x, y: f.pos.y };
 }
 
+/** What a shield or a parry reads from a hit: a fighter's, an entity's or a stage hazard's (`guardStageHit`). */
+type Guarded = Pick<
+  Connection,
+  'a' | 'attacker' | 'entity' | 'fromX' | 'v' | 'kind' | 'damage' | 'stale' | 'dir' | 'at' | 'move'
+> & { box: Pick<HitboxDef, 'hitlag' | 'effect' | 'shieldDamage'> };
+
 function shieldHit(
   m: MatchState,
-  { a, attacker, entity, fromX, v, box, kind, damage: base, stale, dir, at, move }: Connection,
+  { a, attacker, entity, fromX, v, box, kind, damage: base, stale, dir, at, move }: Guarded,
   again: boolean,
 ): void {
   const damage = base * stale;
@@ -587,7 +599,7 @@ function shieldHit(
  */
 function parry(
   m: MatchState,
-  { a, attacker, entity, fromX, v, box, damage: base, stale, dir, at, move }: Connection,
+  { a, attacker, entity, fromX, v, box, damage: base, stale, dir, at, move }: Guarded,
   again: boolean,
 ): void {
   const damage = base * stale;
@@ -612,6 +624,47 @@ function parry(
     x: at.x,
     y: at.y,
   });
+}
+
+/**
+ * A stage hazard's hit (src/sim/hazards.ts) on `v` meets its shield as any other hit does, read from `v`'s state as
+ * `resolveHits` reads a fighter's hit: parried in a shield drop's parry window, else blocked by a held shield with
+ * shield damage, shieldstun and pushback away from `fromX`. It credits nobody (`attacker` -1, no move), nobody else
+ * freezes, and a parry counts as an indirect hit's. Shieldstun uses the formula's general case (SHIELDSTUN_MULT
+ * 'other'), since a hazard is no smash attack, aerial or projectile. Returns what happened, or null, landing
+ * nothing, when `v` has no shield up, so the hazard strikes.
+ *
+ * A shield blocks a hazard as it blocks any hit. SmashWiki, Shield: "A shield protects the user from a majority of attacks;
+ * more specifically, any that are not grabs or determined to be unblockable". SmashWiki, Spear Pillar, on Dialga
+ * and Palkia's laser: "It can be shielded and, in Ultimate, reflected or absorbed." SmashWiki, Perfect shield:
+ * "Because it is technically a shield, it is ineffective against grabs and unblockable attacks", so whatever a
+ * shield blocks can be parried.
+ */
+export function guardStageHit(
+  m: MatchState,
+  v: FighterState,
+  hit: {
+    box: Pick<HitboxDef, 'damage' | 'hitlag' | 'effect' | 'shieldDamage'>;
+    fromX: number;
+    dir: 1 | -1;
+    at: { x: number; y: number };
+  },
+): 'parry' | 'shield' | null {
+  const { parry: parrying, shielding } = victim(v, m.frame);
+  if (!parrying && !shielding) return null;
+  const h: Guarded = {
+    ...hit,
+    a: null,
+    attacker: -1,
+    v,
+    kind: 'other',
+    damage: hit.box.damage,
+    stale: 1,
+    move: null,
+  };
+  if (parrying) parry(m, h, false);
+  else shieldHit(m, h, false);
+  return parrying ? 'parry' : 'shield';
 }
 
 /** The attacker's motion and the hitbox an autolink or position-vector hit needs after hitlag, captured on contact. */

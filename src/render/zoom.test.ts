@@ -12,7 +12,10 @@ import { inputsAt, type ScriptStep } from '../harness/script';
 import type { HitboxDef } from '../fighters/types';
 import { hitlagFrames } from '../sim/combat/formulas';
 import { applyHit } from '../sim/combat/hits';
+import { Btn, neutralInput } from '../input/types';
 import type { SimEvent } from '../sim/events';
+import { FINAL_SMASH } from '../sim/finalSmash';
+import { finalDirectTester, noFinalTester } from '../sim/testing/finalSmash';
 import { createMatch, DEFAULT_MATCH, stepMatch, type MatchState } from '../sim/match';
 import { getStage } from '../stages/registry';
 import { Camera } from './camera';
@@ -351,5 +354,68 @@ describe('determinism', () => {
       expect(hashState(zoomed)).toBe(hashState(plain));
     }
     expect(zoomedFrames).toBe(18 + 1);
+  });
+});
+
+describe('Final Smash zoom', () => {
+  /** P1 activates the direct test Final Smash at P2 (and P3, P4 standing further off), stepping a Zoom each frame. */
+  function activate(players: number, percent = 0, walk = 0, at = -10): { m: MatchState; frames: Frame[] } {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: Array.from({ length: players }, (_, i) => ({
+        fighter: i ? noFinalTester.id : finalDirectTester.id,
+      })),
+    });
+    const place = [-40, at, 50, 70];
+    m.fighters.forEach((f, i) => {
+      Object.assign(f, { pos: { x: place[i]!, y: 0 }, prevPos: { x: place[i]!, y: 0 }, facing: i ? -1 : 1 });
+    });
+    const idle = () => m.players.map(() => neutralInput());
+    for (let i = 0; i < 20; i++) stepMatch(m, idle());
+    m.fighters[1]!.damage = percent;
+    m.fighters[0]!.finalReady = true;
+    const moving = () => m.players.map((p) => ({ ...neutralInput(), x: p.port === 1 ? walk : 0 }));
+    const special = () => moving().map((i, port) => (port === 0 ? { ...i, buttons: Btn.Special } : i));
+    const start = m.frame;
+    const frames = play(m, (state) => (state.frame === start ? special() : moving()), 121);
+    return { m, frames };
+  }
+
+  it('zooms in gold on the user for exactly the activation freeze, with any number of players', () => {
+    for (const players of [2, 3, 4]) {
+      const { frames } = activate(players);
+      const first = frames[0]!;
+      const z = first.zoom!;
+      expect(z.kind).toBe('final');
+      expect([z.frame, z.until, z.victim, z.x]).toEqual([
+        first.frame,
+        first.frame + FINAL_SMASH.freeze,
+        0,
+        -40,
+      ]);
+      expect(z.y).toBeCloseTo(7.5, 6);
+      const zoomed = frames.filter((f) => f.zoom?.kind === 'final').length;
+      expect(zoomed).toBe(FINAL_SMASH.freeze + 1);
+      expect(ZOOM_FLASH.final.base).not.toBe(ZOOM_FLASH.finish.base);
+    }
+  });
+
+  it('matches the sim: the others hold still on every zoomed frame and move again on the first one after', () => {
+    const { frames } = activate(2, 0, -50, 30);
+    const last = frames.findIndex((f) => !f.zoom) - 1;
+    expect(last).toBe(FINAL_SMASH.freeze);
+    const xs = frames.map((f) => f.victim.x);
+    expect(new Set(xs.slice(1, last + 1)).size).toBe(1);
+    expect(xs[last + 1]).toBeLessThan(xs[last]!);
+  });
+
+  it('starts no Special or Finish Zoom from a hit during the Final Smash, even one that KOs', () => {
+    const { frames } = activate(2, 160);
+    const hit = frames.find((f) => f.hit);
+    expect(hit?.hit?.move).toBe('finalSmash');
+    expect(frames.some((f) => f.ko)).toBe(true);
+    expect(frames.filter((f) => f.zoom && f.zoom.kind !== 'final')).toEqual([]);
   });
 });
