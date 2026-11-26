@@ -2,7 +2,7 @@ import { getFighter } from '../fighters/registry';
 import { Btn, neutralInput, type InputFrame } from '../input/types';
 import type { FighterState } from '../sim/fighter';
 import { AIR_INPUTS, DASH_INPUTS, GROUND_INPUTS, STICK, press } from './inputs';
-import { actionable } from './knowledge';
+import { actionable, chargeInput } from './knowledge';
 import type { Attack } from './options';
 import {
   clampToStage,
@@ -205,8 +205,9 @@ export function dropJump(toward: number): Program {
 /**
  * A grounded move: wait until actionable on the ground (out of a shield drop), then input it facing `facing`. A grab
  * comes straight out of the shield instead (Grab with Shield still held), so it keeps holding Shield until then.
- * With `hold`, the move's buttons stay held once it starts until it has that many frames of charge (a charged
- * special, MoveProbe.charged).
+ * Once the move plays, chargeInput fires it with `hold` frames of charge as the knowledge probe did (0 for the tapped
+ * move, MoveProbe.held for a charged one): a held charge keeps its buttons held until then, and a tap-charged special
+ * gets its second press then.
  */
 export function groundMove(move: string, facing: 1 | -1, hold = 0): Program {
   const input = GROUND_INPUTS[move] ?? DASH_INPUTS[move];
@@ -215,10 +216,8 @@ export function groundMove(move: string, facing: 1 | -1, hold = 0): Program {
     interruptible: false,
     holds: move === 'grab',
     step(t, f) {
-      if (input && f.move === move && f.action === 'attack' && f.charge < hold) {
-        return press({ buttons: input.buttons ?? 0 });
-      }
-      if (t > 40 || (f.move === move && f.action === 'attack')) return null;
+      if (f.move === move && f.action === 'attack') return chargeInput(f, input?.buttons ?? 0, hold);
+      if (t > 40) return null;
       if (move === 'grab' && f.action === 'shieldStun') return press({ buttons: Btn.Shield });
       if (move === 'grab' && f.action === 'shield') return press({ buttons: Btn.Grab | Btn.Shield });
       if (!actionable(f) || f.ground === null) return neutralInput();

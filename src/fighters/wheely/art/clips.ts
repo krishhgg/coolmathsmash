@@ -2,6 +2,7 @@ import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import { stats, TURN_FLIP, TURN_FRAMES } from '../stats';
 import { attacks } from './attacks';
+import { revUp } from './revUp';
 import { BODY, EXHAUST, WHEEL_R, WHEEL_X, type Pt } from './parts';
 import {
   AIR,
@@ -701,6 +702,7 @@ export const authored: Record<string, AnimClip> = {
     ],
   },
   ...attacks,
+  ...revUp,
   respawn: {
     length: 60,
     loop: true,

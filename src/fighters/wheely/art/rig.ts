@@ -17,6 +17,7 @@ import {
   doorInside,
   eyes,
   flame,
+  flash,
   gravel,
   hood,
   hoodBay,
@@ -140,5 +141,6 @@ export const rig: Rig = {
     fxSpeed: speedLines,
     fxStars: stars,
     fxSpring: spring,
+    fxFlash: flash,
   },
 };
