@@ -3,6 +3,7 @@ import { Btn } from '../../input/types';
 import { startMove } from '../../sim/actions/attack';
 import { SMASH_CHARGE_FRAMES } from '../../sim/actions/charge';
 import { isHeld } from '../../sim/control';
+import { shellPound } from './shellPound';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -415,4 +416,6 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 20, hit: { damage: 6, angle: 65, kbg: 50, bkb: 70 } },
   },
+  /** Shell Pound (down special, Bowser's Bowser Bomb): shellPound.ts. */
+  ...shellPound,
 };

@@ -268,6 +268,13 @@ export interface MoveDef {
   continuesOnLanding?: boolean;
   /** Airborne moves: false turns off the stick's air drift (and air friction) while the move plays, for scripted paths. */
   drift?: boolean;
+  /** Airborne moves: false turns off gravity while the move plays, so the script alone sets the vertical speed. */
+  gravity?: boolean;
+  /**
+   * Airborne moves: false lands on soft platforms even with the stick held down, as Ultimate's aerial attacks and most
+   * specials do (SmashWiki, "Platform"). By default holding down falls through them.
+   */
+  fallThrough?: boolean;
   /**
    * Ground/air variants (Ultimate's SpecialN and SpecialAirN): started in the air, this move plays the move named
    * `air` instead, which is also the clip and the name in the `move` event.

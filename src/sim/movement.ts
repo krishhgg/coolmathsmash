@@ -295,7 +295,8 @@ function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
     if (crossing(prev.y - yPrev, f.pos.y - yNow)) return { kind: 'solid', index: stage.edges.indexOf(e) };
   }
   if (movingDown) {
-    const passing = stickY(x.c) <= -DOWN_FLICK_THRESHOLD;
+    const move = f.move ? getFighter(f.fighter).moves?.[f.move] : undefined;
+    const passing = stickY(x.c) <= -DOWN_FLICK_THRESHOLD && move?.fallThrough !== false;
     for (let i = 0; i < stage.geo.platforms.length; i++) {
       const p = stage.geo.platforms[i]!;
       if (!stage.present.platforms[i]) continue;
