@@ -11,7 +11,7 @@ import { STICK, TURNING_MOVES, press } from './inputs';
 import { actionable, knowledge, type FighterKnowledge } from './knowledge';
 import { cpuLevel, type CpuLevel } from './levels';
 import { overlaps, run, soloMatch, type Driver, type Sample } from './look';
-import { findAttacks, type Attack, type Self, type Target } from './options';
+import { carry, findAttacks, type Attack, type Self, type Target } from './options';
 import {
   airAerial,
   airDodge,
@@ -749,8 +749,9 @@ export class Cpu {
 
   /**
    * Whether a grounded move started here facing `facing` keeps the CPU somewhere safe, from its probe: every point it
-   * slides over and where it ends (a roll or charge special can carry the CPU into a gap or a damage zone). Moves
-   * that leave the ground only need a safe landing under where they end.
+   * slides over and where it ends (a roll or charge special can carry the CPU into a gap or a damage zone), shifted by
+   * the slide of any speed it still carries (a low-traction fighter landing from a drift). Moves that leave the
+   * ground only need a safe landing under where they end.
    */
   private groundMoveSafe(
     me: Readonly<FighterState>,
@@ -761,7 +762,8 @@ export class Cpu {
   ): boolean {
     const p = k.ground[move];
     if (!p) return true;
-    const end = me.pos.x + p.endDx * facing;
+    const slide = me.ground ? carry(me.vel.x + me.kb.x, k.stats.groundFriction, p.busy) : 0;
+    const end = me.pos.x + p.endDx * facing + slide;
     if (!p.endsGrounded || Math.abs(p.endDy) > 1) return landsSafe(info, k.id, end, me.pos.y + p.endDy + 1);
     const step = Math.sign(end - me.pos.x);
     for (let x = me.pos.x; step * (end - x) > 0; x += step) {

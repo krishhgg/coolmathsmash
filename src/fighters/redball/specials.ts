@@ -6,6 +6,7 @@ import { isHeld, stickX } from '../../sim/control';
 import type { Ctx } from '../../sim/fighter';
 import { leaveGround } from '../../sim/movement';
 import type { HitboxDef, MoveDef } from '../types';
+import { groundPoundMoves } from './groundPound';
 
 const box = (
   id: number,
@@ -120,7 +121,8 @@ function roll({ damage, speed, frames }: (typeof ROLLS)[number]): MoveDef {
  * spot, let go (or rev out) to roll into them; the longer the rev, the faster, longer and harder the roll, which
  * bounces off whatever it hits. Jump cancels the roll on the ground. Side special lashes his tongue out and, off
  * the stage, reels him in to a ledge it passes. Up special squashes him flat and springs him about 80 units up,
- * ending helpless.
+ * ending helpless. Down special is Ground Pound (groundPound.ts): a high hop and a slam whose landing shockwave
+ * leaves opponents Squared.
  */
 export const specials: Record<string, MoveDef> = {
   neutralB: {
@@ -175,4 +177,5 @@ export const specials: Record<string, MoveDef> = {
       f.vel.x = stickX(c) * 1.1;
     },
   },
+  ...groundPoundMoves,
 };
