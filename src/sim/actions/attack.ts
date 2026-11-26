@@ -12,6 +12,7 @@ import {
   type Dir,
 } from '../control';
 import { emit } from '../events';
+import { moveDef } from '../sharedMoves';
 import type { Ctx, FighterState } from '../fighter';
 import { HELPLESS_LANDING_LAG } from '../constants';
 import { spawnFromMove } from '../entities/entities';
@@ -24,18 +25,18 @@ import { glideAfterMove } from './mobility';
 import { enterAction, holdFrame, inWindow, setAction, type ActionDef } from './registry';
 
 export function moveOf(f: FighterState): MoveDef | undefined {
-  return f.move ? getFighter(f.fighter).moves?.[f.move] : undefined;
+  return f.move ? moveDef(getFighter(f.fighter), f.move) : undefined;
 }
 
 /**
- * Begin one of the fighter's moves now. Grounded moves play as 'attack', airborne ones as 'aerial', unless
- * `action` names another action that plays moves (the grab actions). An airborne start plays the move's `air`
- * variant instead when it has one.
+ * Begin one of the fighter's moves now (its own or a shared one, sharedMoves.ts). Grounded moves play as 'attack',
+ * airborne ones as 'aerial', unless `action` names another action that plays moves (the grab actions, the
+ * ledgeAttack getup). An airborne start plays the move's `air` variant instead when it has one.
  */
 export function startMove(x: Ctx, requested: string, action?: string): boolean {
   const air = x.f.ground ? undefined : x.def.moves?.[requested]?.air;
   const name = air ?? requested;
-  const move = x.def.moves?.[name];
+  const move = moveDef(x.def, name);
   if (!move) return false;
   if (x.f.ground && move.leavesGround) leaveGround(x);
   // Recoveries own their vertical motion: a fast fall carried into one would snap back once it ends.
