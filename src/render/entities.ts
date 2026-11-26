@@ -37,7 +37,7 @@ export function drawEntityBoxes(g: Graphics, state: MatchState): void {
   for (const e of state.entities) {
     const def = entityDef(e.kind);
     if (isHittable(def)) g.circle(e.pos.x, -e.pos.y, def.radius).fill({ color: '#ffe14a', alpha: 0.35 });
-    for (const b of entityHitboxes(e))
+    for (const b of entityHitboxes(state, e))
       g.circle(b.x, -b.y, b.box.radius).fill({ color: '#ff2a2a', alpha: 0.55 });
   }
   for (const f of state.fighters) {
