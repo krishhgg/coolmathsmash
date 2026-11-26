@@ -58,7 +58,8 @@ function roll(name: 'rollForward' | 'rollBack'): ActionDef {
     update(x) {
       const { f, s } = x;
       const k = f.actionFrame - spec.move[0];
-      f.vel.x = k >= 0 && k < weights.length ? f.dodgeDir.x * s.rollDistance * weights[k]! : 0;
+      const distance = name === 'rollBack' ? (s.backRollDistance ?? s.rollDistance) : s.rollDistance;
+      f.vel.x = k >= 0 && k < weights.length ? f.dodgeDir.x * distance * weights[k]! : 0;
       if (f.actionFrame >= spec.faf) {
         if (name === 'rollForward') f.facing = -f.facing as 1 | -1;
         setAction(x, 'idle');

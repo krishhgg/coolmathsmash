@@ -71,14 +71,24 @@ export const scene: LabScene = {
       view.container.parent?.addChild(g);
     };
 
-    /** The neutral special's projectile, which the engine spawns and moves in game. */
-    const fireball = (parent: Container, clip: string, frame: number, globalFrame: number, zoom: number) => {
-      if (clip !== 'neutralB' || frame < 14 || !art.projectiles?.fireball) return;
-      const ball = createPropView(art, 'fireball', palette);
-      ball.update(globalFrame);
-      ball.container.position.set((8.5 + (frame - 14) * 1.4) * zoom, -4.6 * zoom);
-      ball.container.scale.set(zoom);
-      parent.addChild(ball.container);
+    /** Projectiles over the clips that fire them (art.projectiles' previews); in game the engine spawns and moves them. */
+    const projectiles = (
+      parent: Container,
+      clip: string,
+      frame: number,
+      globalFrame: number,
+      zoom: number,
+    ) => {
+      for (const [prop, { preview }] of Object.entries(art.projectiles ?? {})) {
+        const at = preview?.[clip];
+        if (!at || frame < at.frame) continue;
+        const view = createPropView(art, prop, palette);
+        view.update(globalFrame);
+        const t = frame - at.frame;
+        view.container.position.set((at.x + t * (at.vx ?? 0)) * zoom, -(at.y + t * (at.vy ?? 0)) * zoom);
+        view.container.scale.set(zoom);
+        parent.addChild(view.container);
+      }
     };
 
     const show = (clip: string, frame: number, globalFrame = frame) => {
@@ -95,7 +105,7 @@ export const scene: LabScene = {
       view.pose(clip, frame, globalFrame);
       ledge(stage, clip, zoom);
       overlay(view, zoom);
-      fireball(stage, clip, frame, globalFrame, zoom);
+      projectiles(stage, clip, frame, globalFrame, zoom);
       const label = new Text({ text: `${name} · ${clip} · frame ${frame} · ${palette}`, style: LABEL });
       label.position.set(16, 12);
       root.addChild(label);
@@ -120,7 +130,7 @@ export const scene: LabScene = {
         view.pose(clip, frame, flicker ? frame : 0);
         cell.addChild(view.container);
         ledge(cell, clip, zoom);
-        fireball(cell, clip, frame, flicker ? frame : 0, zoom);
+        projectiles(cell, clip, frame, flicker ? frame : 0, zoom);
         cell.mask = cell.addChild(new Graphics().rect(-w * 0.4, -h * 0.8, w, h).fill('#ffffff'));
         const label = new Text({ text: state, style: LABEL });
         label.position.set(w * (i % cols) + 8, h * Math.floor(i / cols) + 6);

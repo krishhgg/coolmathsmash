@@ -25,7 +25,9 @@ How Smash inputs map to a keyboard:
 
 Rebinding (Controls screen) refuses layouts that would break a menu:
 
-- **Keyboard**: Enter, Num Enter and Backspace can only be Pause; Space can only be Attack (`menuKeyConflict`).
+- **Keyboard**: Enter, Num Enter, Esc and Backspace can only be Pause; Space can only be Attack (`menuKeyConflict`).
+  In a match Esc pauses whatever it is bound to, so Esc on Attack would pause on every attack. Esc also cancels a
+  capture, so the screen never binds it; a saved layout that breaks the rule loads that keyboard half as its defaults.
 - **Gamepad**: A cannot be Pause, because during a match the Pause buttons replace their menu jobs and A is the only
   pad button that selects Restart or Quit. Pause also keeps at least one button (`padMenuConflict`). Ultimate avoids
   both by never letting + be remapped. A saved mapping that breaks either rule loads as the defaults.

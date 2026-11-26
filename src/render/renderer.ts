@@ -179,7 +179,8 @@ export class Renderer {
     this.vfxView.screen.scale.set(1 / view.zoom);
     this.vfxView.screen.position.set(-this.world.x / view.zoom, -this.world.y / view.zoom);
     this.stageView?.update(state.frame, view);
-    drawStagePieces(this.stagePieces, this.stage!, state, alpha);
+    this.stageView?.pieces?.(state.stage, alpha);
+    drawStagePieces(this.stagePieces, this.stage!, state, alpha, !this.stageView?.pieces);
     state.fighters.forEach((f, i) =>
       this.fighters[i]?.update(
         f,
@@ -215,7 +216,7 @@ export class Renderer {
     this.inputDisplay.container.visible = this.overlays.inputs;
     if (this.overlays.inputs) this.inputDisplay.update(state.players);
     this.eventLog.container.visible = this.overlays.events;
-    if (this.overlays.events) this.eventLog.update();
+    if (this.overlays.events) this.eventLog.update(state);
     if (this.quality === 'full')
       this.app.renderer.render({ container: this.background, target: this.backdrop, clear: true });
     this.app.render();

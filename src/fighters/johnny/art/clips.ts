@@ -1,6 +1,7 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import { attacks } from './attacks';
+import { laser } from './laser';
 import { ledge } from './ledge';
 import {
   AIR,
@@ -688,5 +689,6 @@ export const clips: Record<string, AnimClip> = {
     ],
   },
   ...attacks,
+  ...laser,
   ...ledge,
 };
