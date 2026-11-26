@@ -267,7 +267,8 @@ export const ATTACK: Record<string, ActionDef> = {
     land(x) {
       const { f } = x;
       const move = moveOf(f)!;
-      if (move.continuesOnLanding) {
+      // A Final Smash has spent its charge: landing (a fall, or a platform rising under a still one) never ends it.
+      if (move.continuesOnLanding || move.final) {
         const { move: name, actionFrame } = f;
         enterAction(x, 'attack', actionFrame);
         f.move = name;

@@ -319,7 +319,8 @@ export interface MoveDef {
   absorbers?: AbsorberDef[];
   /**
    * Part of the fighter's Final Smash (src/sim/finalSmash.ts, docs/fighters.md): the move named `finalSmash`, its
-   * `air` variant and a trap's cinematic. The user is intangible and its hits can't be shielded.
+   * `air` variant and a trap's cinematic. The user is intangible, its hits can't be shielded, and landing doesn't end
+   * it (as continuesOnLanding).
    */
   final?: FinalSmashDef;
 }

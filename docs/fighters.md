@@ -456,6 +456,8 @@ finalSmashCinematic: {
 
 - **Catching.** The trap catches like any command grab: the nearest grabbable fighter in front, through shields. Ultimate
   traps every fighter its hitbox touches; this one holds the first.
+- **Landing.** A `final` move that lands carries on from the same frame, as with `continuesOnLanding`: the charge is
+  already spent, so a fall, or a moving platform rising under a `still` user, can't cut it short.
 - **CPUs.** A CPU holding the charge presses neutral special once an opponent is inside the Final Smash's reach in front
   (`finalReach`: its boxes, or `final.range` for one that spawns its blast), and otherwise leaves neutral special out of
   its attacks.
