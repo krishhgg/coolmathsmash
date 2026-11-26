@@ -52,10 +52,9 @@ export const HITSTUN: Record<string, ActionDef> = {
           f.hitstun = 0;
           return;
         }
-        const slow = speed <= HITSTUN_CANCEL_AIR_DODGE.maxSpeed;
         if (
-          f.actionFrame >= HITSTUN_CANCEL_AIR_DODGE.from &&
-          slow &&
+          f.actionFrame > HITSTUN_CANCEL_AIR_DODGE.after &&
+          speed < HITSTUN_CANCEL_AIR_DODGE.below &&
           !f.airDodgeUsed &&
           buffered(c, Btn.Shield)
         ) {
