@@ -10,6 +10,7 @@ import type { Vec } from '../vec';
 import { moveOf } from './attack';
 import { setAction } from './registry';
 import { anchorPiece, ledgeFree, releaseTether, tetherOrigin } from './tether';
+import * as SimMath from '../math';
 
 /**
  * Firing a tether: a move with `tether` fires a line on its `frame` (aimed ones wait for special to be
@@ -38,7 +39,7 @@ function aim(x: Ctx, t: TetherDef, aimed: NonNullable<TetherDef['aimed']>): void
   f.aim ??= { x: 0, y: 0 };
   if (isHeld(c, Btn.Special)) {
     const s = { x: stickX(c), y: stickY(c) };
-    const len = Math.max(1, Math.hypot(s.x, s.y));
+    const len = Math.max(1, SimMath.hypot(s.x, s.y));
     f.aim = clampLength(
       { x: f.aim.x + (s.x / len) * aimed.speed, y: f.aim.y + (s.y / len) * aimed.speed },
       t.range,
@@ -68,12 +69,12 @@ const EIGHT: Vec[] = [
 function eightWay(c: ControlState): Vec | null {
   const sx = stickX(c);
   const sy = stickY(c);
-  if (Math.hypot(sx, sy) < DIRECTION_THRESHOLD) return null;
-  return EIGHT[(Math.round(Math.atan2(sy, sx) / (Math.PI / 4)) + 8) % 8]!;
+  if (SimMath.hypot(sx, sy) < DIRECTION_THRESHOLD) return null;
+  return EIGHT[(Math.round(SimMath.atan2(sy, sx) / (Math.PI / 4)) + 8) % 8]!;
 }
 
 function clampLength(v: Vec, max: number): Vec {
-  const len = Math.hypot(v.x, v.y);
+  const len = SimMath.hypot(v.x, v.y);
   return len <= max ? v : { x: (v.x / len) * max, y: (v.y / len) * max };
 }
 
@@ -82,8 +83,8 @@ function fire(x: Ctx, t: TetherDef): void {
   const { f, c, m } = x;
   const bend = (t.stickAdjust ?? 0) * Math.max(-1, Math.min(1, stickX(c) * f.facing));
   const a = ((t.angle - bend) * Math.PI) / 180;
-  const target = t.aimed ? f.aim : { x: Math.cos(a) * t.range * f.facing, y: Math.sin(a) * t.range };
-  if (!target || Math.hypot(target.x, target.y) < 1) {
+  const target = t.aimed ? f.aim : { x: SimMath.cos(a) * t.range * f.facing, y: SimMath.sin(a) * t.range };
+  if (!target || SimMath.hypot(target.x, target.y) < 1) {
     f.aim = null;
     return;
   }

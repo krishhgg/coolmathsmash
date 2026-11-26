@@ -9,6 +9,7 @@ import { STICK, press } from './inputs';
 import type { CpuLevel } from './levels';
 import { run, soloMatch, type Driver, type Sample } from './look';
 import { floorBelow, type StageInfo } from './stage';
+import * as SimMath from '../sim/math';
 
 /**
  * Getting back to the stage. The CPU tries a set of recovery plans (drift, double jump at different times, up or
@@ -120,7 +121,7 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
     if (!dodged && t >= p.dodgeAt && !f.airDodgeUsed) {
       dodged = true;
       const ly = L ? L.y - f.pos.y : 0;
-      const n = Math.hypot(d, ly) || 1;
+      const n = SimMath.hypot(d, ly) || 1;
       return press({ x: Math.round((d / n) * 100), y: Math.round((ly / n) * 100), buttons: Btn.Shield });
     }
     return i;
@@ -184,7 +185,7 @@ function simulate(
   if (end?.action === 'ledgeCatch') outcome = 'ledge';
   else if (end?.grounded && floorBelow(info, end.x, end.y + 0.1) !== null) outcome = 'land';
   const L = targetLedge(info, f.pos.x);
-  const miss = L ? Math.min(...path.map((s) => Math.hypot(s.x - L.x, s.y - L.y))) : 0;
+  const miss = L ? Math.min(...path.map((s) => SimMath.hypot(s.x - L.x, s.y - L.y))) : 0;
   return { path, outcome, miss };
 }
 
@@ -233,8 +234,8 @@ export function chooseDI(
   const sticks: [number, number][] = [[0, 0]];
   for (let a = 0; a < 8; a++)
     sticks.push([
-      Math.round(Math.cos((a * Math.PI) / 4) * 100),
-      Math.round(Math.sin((a * Math.PI) / 4) * 100),
+      Math.round(SimMath.cos((a * Math.PI) / 4) * 100),
+      Math.round(SimMath.sin((a * Math.PI) / 4) * 100),
     ]);
   const b = info.blast;
   let best: InputFrame = neutralInput();
@@ -253,7 +254,7 @@ export function chooseDI(
     const room = Math.min(
       ...path.map((s) => Math.min(s.x - b.left, b.right - s.x, (b.top - s.y) * 1.2, s.y - b.bottom)),
     );
-    const away = attacker ? Math.hypot(end.x - attacker.x, end.y - attacker.y) : 0;
+    const away = attacker ? SimMath.hypot(end.x - attacker.x, end.y - attacker.y) : 0;
     return { x, y, ko, room, away };
   });
   const danger = scores.some((s) => s.ko || s.room < 45);

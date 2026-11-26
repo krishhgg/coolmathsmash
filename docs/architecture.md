@@ -18,6 +18,12 @@ flowchart LR
 - `stepMatch(state, inputs)` advances exactly one 1/60 s frame. Nothing else mutates the state.
 - Randomness comes from the seeded generator in `src/engine/rng.ts` whose state lives in `MatchState.rng`.
   ESLint bans `Math.random` so it cannot sneak in.
+- Trigonometry and other transcendental math come from `src/sim/math.ts` (`SimMath.sin`, `cos`, `atan`, `atan2`,
+  `asin`, `hypot`), built from `+ - * /` and `Math.sqrt`, which every engine rounds the same way. Engines round
+  `Math.sin` and the like differently in the last bit, so Node and Chromium would play the same match differently.
+  ESLint bans the `Math` versions, and `**` with exponents other than 2, in `src/sim`, `src/ai`, and fighter and
+  stage code outside `art/` and stage views. `e2e/determinism.spec.ts` plays CPU matches in Node and Chromium and
+  compares their state hashes on every frame.
 - Units follow Smash Ultimate: distances in game units (Battlefield's main platform is 160 wide), speeds in
   units per frame, time in frames. Reference numbers can then be used unchanged in code and tests.
 - Inputs are `InputFrame`s: integer sticks in [-100, 100] (y up) and a button bitmask. The sim turns them into

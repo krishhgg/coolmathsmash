@@ -528,7 +528,10 @@ the Blue Falcon's hits as `holdHits` and its final launch as the `throw`.
   traps every fighter its hitbox touches; this one holds the first. Papa Louie's Conveyor Oven
   (`src/fighters/papa-louie/finalSmash.ts`) is the roster example, on Steve's House of Boom, which traps only one too: its
   activation freeze is 23 frames so House of Boom's pushbox comes out on its frame 25, and its cinematic `pull`s the
-  catch along the belt (Command grabs, above).
+  catch along the belt (Command grabs, above). Bloxorz block's Split Switch (`src/fighters/bloxorz/finalSmash.ts`) is
+  Donkey Kong's Jungle Rush: its activation freeze is 27 frames so the punch's catch comes out on Jungle Rush's frame 29,
+  and the punch's 12% and the barrage's 31 rapid hits are the cinematic's `holdHits`, with Jungle Rush's hitlag
+  multipliers (x5 and x0.4). Lying, the block stands up on frame 4, so both forms share one cinematic.
 - **Landing.** A `final` move that lands carries on from the same frame, as with `continuesOnLanding`: the charge is
   already spent, so a fall, or a moving platform rising under a `still` user, can't cut it short.
 - **Losing the floor.** The same goes the other way (`finalSmashLeavesGround`): when a platform vanishes or moves out

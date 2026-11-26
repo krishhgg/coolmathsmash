@@ -1,6 +1,7 @@
 import { emit } from '../../sim/events';
 import type { Ctx } from '../../sim/fighter';
 import type { HitboxDef, MoveDef } from '../types';
+import { finalSmashMoves } from './finalSmash';
 import { specials } from './specials';
 import { isLying, setShape, STANDING, tipFrame } from './tip';
 
@@ -342,6 +343,7 @@ export const moves: Record<string, MoveDef> = {
     throw: { frame: 22, hit: { damage: 7, angle: 65, kbg: 50, bkb: 70 } },
   },
   ...specials,
+  ...finalSmashMoves,
 };
 
 /**

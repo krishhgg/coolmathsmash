@@ -3,6 +3,7 @@ import { spawnEntity } from '../../sim/entities/entities';
 import type { EntityDef } from '../../sim/entities/types';
 import type { Ctx } from '../../sim/fighter';
 import type { MoveDef } from '../types';
+import * as SimMath from '../../sim/math';
 
 /**
  * Aimed Shot (neutral special): Raft Wars' power shot. Hold Special to charge the launcher, release to fire a tennis
@@ -42,8 +43,8 @@ export const AIMED_SHOT = {
 } as const;
 
 const DEG = Math.PI / 180;
-const COS = Math.cos(AIMED_SHOT.elevation * DEG);
-const SIN = Math.sin(AIMED_SHOT.elevation * DEG);
+const COS = SimMath.cos(AIMED_SHOT.elevation * DEG);
+const SIN = SimMath.sin(AIMED_SHOT.elevation * DEG);
 
 /** Fires the ball on frame 16 at the speed the charge gives, carrying the charge level for its damage. */
 function fire(x: Ctx): void {

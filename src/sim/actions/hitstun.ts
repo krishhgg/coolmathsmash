@@ -8,6 +8,7 @@ import { airAttack } from './attack';
 import { breakShield } from './defense';
 import { tumbleLanding } from './knockdown';
 import { setAction, type ActionDef } from './registry';
+import * as SimMath from '../math';
 
 /** Count hitstun down (faster during balloon speed-up). True once the fighter can act. */
 function hitstunOver(x: Ctx): boolean {
@@ -43,7 +44,7 @@ export const HITSTUN: Record<string, ActionDef> = {
       const { f, c, m } = x;
       if (justPressed(c, Btn.Shield) && m.frame - f.techPressAt >= TECH_LOCKOUT) f.techPressAt = m.frame;
       if (f.hitstun > 0 && !hitstunOver(x)) {
-        const speed = Math.hypot(f.kb.x, f.kb.y);
+        const speed = SimMath.hypot(f.kb.x, f.kb.y);
         if (
           f.actionFrame > HITSTUN_CANCEL_AERIAL.after &&
           speed < HITSTUN_CANCEL_AERIAL.below &&
