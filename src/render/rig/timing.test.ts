@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MoveDef } from '../../fighters/types';
-import { moveClipFrame } from './timing';
+import { moveClipFrame, retimeClip } from './timing';
 import type { AnimClip } from './types';
 
 const clip = (length: number, active?: [number, number][]): AnimClip => ({ length, keys: [], active });
@@ -61,5 +61,31 @@ describe('moveClipFrame', () => {
     expect(moveClipFrame(c, 29, fthrow)).toBe(29);
     const pummel: MoveDef = { kind: 'other', faf: 6, hits: [], pummel: { frame: 1, damage: 1.3 } };
     expect(moveClipFrame(clip(17, [[2, 4]]), 1, pummel)).toBe(2);
+  });
+});
+
+describe('retimeClip', () => {
+  const keyed = (length: number, ...frames: number[]): AnimClip => ({
+    length,
+    keys: frames.map((frame) => ({ frame })),
+  });
+
+  it('scales every key onto the new length', () => {
+    const out = retimeClip({ ...keyed(30, 0, 10, 15, 30), active: [[10, 15]] }, 35);
+    expect(out.length).toBe(35);
+    expect(out.keys.map((k) => k.frame)).toEqual([0, 12, 18, 35]);
+    expect(out.active).toEqual([[12, 18]]);
+  });
+
+  it('keeps keys on their knots and stretches each span between them', () => {
+    const out = retimeClip(keyed(40, 0, 4, 16, 30, 33, 40), 35, [
+      [4, 4],
+      [30, 28],
+    ]);
+    expect(out.keys.map((k) => k.frame)).toEqual([0, 4, 15, 28, 30, 35]);
+  });
+
+  it('refuses to merge two keys onto one frame', () => {
+    expect(() => retimeClip(keyed(10, 0, 2, 3, 10), 4)).toThrow(/land on/);
   });
 });

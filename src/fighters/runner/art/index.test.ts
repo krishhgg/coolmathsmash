@@ -2,7 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
+import {
+  GETUP_ROLL,
+  GETUP_STAND,
+  ROLL_BACK,
+  ROLL_FORWARD,
+  SPOT_DODGE,
+  TECH_IN_PLACE,
+  TECH_ROLL,
+} from '../../../sim/constants';
 import { moves } from '../moves';
+import { BOX_DROP } from '../timing';
 import { art } from '.';
 
 /** Canonical clip lengths (loops: any length). */
@@ -21,9 +31,9 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   land: 4,
   shield: 'hold',
   shieldDrop: 11,
-  spotDodge: 27,
-  rollForward: 31,
-  rollBack: 31,
+  spotDodge: SPOT_DODGE.faf - 1,
+  rollForward: ROLL_FORWARD.faf - 1,
+  rollBack: ROLL_BACK.faf - 1,
   airDodge: 49,
   ledgeCatch: 8,
   ledgeHang: 'loop',
@@ -35,9 +45,10 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   tumble: 'loop',
   helpless: 'loop',
   down: 'loop',
-  getupStand: 30,
-  techInPlace: 26,
-  techRoll: 40,
+  getupStand: GETUP_STAND.faf - 1,
+  getupRoll: GETUP_ROLL.faf - 1,
+  techInPlace: TECH_IN_PLACE.faf - 1,
+  techRoll: TECH_ROLL.faf - 1,
   dizzy: 'loop',
   grabHold: 'loop',
   grabbed: 'loop',
@@ -45,6 +56,16 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
 };
 
 describe('runner art', () => {
+  it('reveals the Box Drop exit cue on the first cancellable frame and restores Runner on release', () => {
+    const poseAt = (frame: number) =>
+      samplePose(art, 'downB', moveClipFrame(art.clips.downB!, frame, moves.downB), frame).symbols;
+    expect(poseAt(BOX_DROP.cancelFrom - 1)).toMatchObject({ fx1: 'crate', body: null });
+    expect(poseAt(BOX_DROP.cancelFrom)).toMatchObject({ fx1: 'crateReady', body: null });
+    expect(poseAt(BOX_DROP.release)).toMatchObject({ fx1: 'crateReady', fxBack: 'contact' });
+    expect(poseAt(BOX_DROP.release + 3).fx1).toBeNull();
+    expect(poseAt(BOX_DROP.release + 3).body).toBe('body');
+  });
+
   it('has every canonical clip with its length, and a timed clip for every move', () => {
     for (const [name, len] of Object.entries(LENGTHS)) {
       const clip = art.clips[name];
