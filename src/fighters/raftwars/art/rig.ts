@@ -35,6 +35,14 @@ import {
   torso,
   type Part,
 } from './parts';
+import {
+  blastSymbols,
+  grenadeSpin,
+  lockSymbols,
+  reticleSymbols,
+  rocketSymbols,
+  spyglass,
+} from './arsenalParts';
 import { raftSymbols } from './raft';
 
 /** Ink slots for both segments of a limb, then their fills, so joints have no seam. */
@@ -175,6 +183,22 @@ export const rig: Rig = {
     shotBall: { loop: ['shotBallA', 'shotBallB'], fps: 20 },
     /** Duck Raft: the raft (art.projectiles) and the folded raft in the hand. */
     ...raftSymbols,
+    /** Full Arsenal (Final Smash): the brother's spyglass, and the props (art.projectiles) with their loops. */
+    spyglass,
+    ...reticleSymbols,
+    fxReticle: { loop: ['fxReticleA', 'fxReticleB', 'fxReticleC'], fps: 15 },
+    ...lockSymbols,
+    fxLock: { loop: ['fxLockA', 'fxLockB'], fps: 8 },
+    ...rocketSymbols,
+    volleyRocket: { loop: ['volleyRocketA', 'volleyRocketB'], fps: 20 },
+    ...grenadeSpin,
+    volleyGrenade: {
+      loop: ['volleyGrenadeA', 'volleyGrenadeB', 'volleyGrenadeC', 'volleyGrenadeD'],
+      fps: 20,
+    },
+    ...blastSymbols,
+    /** The burst plays once over its 20 frames: four drawings, five frames each. */
+    fxBlast: { loop: ['fxBlastA', 'fxBlastB', 'fxBlastC', 'fxBlastD'], fps: 12 },
   },
 };
 
