@@ -20,6 +20,7 @@ import {
   TECH_ROLL,
 } from '../../../sim/constants';
 import type { MoveDef } from '../../types';
+import { entities } from '../entities';
 import { moves } from '../moves';
 import { stats } from '../stats';
 import { art } from '.';
@@ -168,6 +169,14 @@ describe('papa louie art', () => {
     for (let f = 0; f <= art.clips.neutralB!.length; f++)
       expect(poseBounds(art, samplePose(art, 'neutralB', f, f))[3], `neutralB@${f}`).toBeLessThan(0.05);
     expect(art.projectiles?.pepperBomb?.preview?.neutralB?.frame).toBe(frame);
+  });
+
+  it('draws each of his entities with a prop named after its kind, the bomb as large as it is in his hand', () => {
+    expect(Object.keys(art.projectiles ?? {}).sort()).toEqual(Object.keys(entities).sort());
+    for (const [name, prop] of Object.entries(art.projectiles ?? {}))
+      expect(art.rig.symbols[prop.symbol], name).toBeDefined();
+    const held = samplePose(art, 'neutralB', 13, 13).world.prop!;
+    expect(Math.hypot(held.a, held.b)).toBeCloseTo(art.projectiles!.pepperBomb!.scale, 5);
   });
 
   it('stands 15 units tall to the top of his toque, feet on the ground', () => {

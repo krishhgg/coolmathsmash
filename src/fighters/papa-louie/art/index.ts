@@ -1,6 +1,7 @@
 import { symbolsToSvg } from '../../../render/rig/svg';
 import type { FighterArt } from '../../../render/rig/types';
 import { moves } from '../moves';
+import { PEPPER_SCALE } from './attacks';
 import { clips } from './clips';
 import { LEDGE_GRIP } from './movement';
 import { head, moved, faces, stache, hat } from './parts';
@@ -20,14 +21,19 @@ export const art: FighterArt = {
   palettes,
   costumeSwaps: { roy: { hat: 'cap', apron: 'royWaist' }, cori: { hat: 'captainHat' } },
   icon: symbolsToSvg({ iconHead }, ['iconHead'], palettes.default, [-3.9, -5.2, 7.2, 7]),
+  /** Named after his entity kinds (`papa-louie/pepperBomb`, `papa-louie/pepperBurst` in ../entities.ts). */
   projectiles: {
-    /** The lab draws the Pepper Bomb over neutralB from the frame the move spawns it, where it spawns. */
+    /**
+     * The Pepper Bomb in flight, as large as it is in his hand. The lab draws it over neutralB from the frame the
+     * move spawns it, where it spawns.
+     */
     pepperBomb: {
       symbols: rig.symbols,
       symbol: 'pepperBomb',
-      scale: 1,
+      scale: PEPPER_SCALE,
       preview: { neutralB: { frame: pepper.frame, x: pepper.x, y: pepper.y, vx: pepper.vx, vy: pepper.vy } },
     },
+    pepperBurst: { symbols: rig.symbols, symbol: 'pepperBurst', scale: 1 },
   },
   ledgeGrip: LEDGE_GRIP,
 };

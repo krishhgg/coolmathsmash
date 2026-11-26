@@ -608,6 +608,42 @@ export const oven = inked(
   ],
 );
 
+/** A star of `outer.length` spikes round the origin, each reaching its own radius, with notches at `inner`. */
+function star(outer: number[], inner: number, turn = 0): string {
+  const step = Math.PI / outer.length;
+  const at = (r: number, a: number) => `${n(Math.sin(a + turn) * r)} ${n(-Math.cos(a + turn) * r)}`;
+  return (
+    outer.map((r, i) => `${i ? 'L' : 'M'}${at(inner, 2 * i * step - step)}L${at(r, 2 * i * step)}`).join('') +
+    'Z'
+  );
+}
+
+/**
+ * The Pepper Bomb going off: a ragged orange blast with a hot yellow core and pepper flakes flying out, centred on
+ * the origin. It spans about 10 units, between the burst's 3.8 and 6.3 hit radii.
+ */
+export const pepperBurst: PathShape[] = [
+  ...inked(
+    [
+      [star([5.2, 4.5, 5.5, 4.7, 5.0, 4.4, 5.4, 4.8, 5.1, 4.5, 5.6, 4.6], 3.4), 'flame'],
+      [star([3.6, 3.1, 3.8, 3.2, 3.5, 3.0, 3.7, 3.3, 3.6, 3.1, 3.8, 3.2], 2.4, 0.26), 'flameHi'],
+    ],
+    [
+      { d: ellipse(0, 0, 1.5, 1.3), fill: 'cheese' },
+      ...[
+        [-2.6, -1.2, 0.4],
+        [1.9, -2.4, -0.6],
+        [2.8, 1.0, 0.9],
+        [-1.4, 2.6, -0.3],
+        [0.6, 2.2, 0.5],
+        [-3.0, 1.1, 1.1],
+        [0.2, -3.0, 0.2],
+        [3.4, -1.2, -1.0],
+      ].map(([x, y]) => ({ d: ellipse(x!, y!, 0.32, 0.2), fill: 'flakes' })),
+    ],
+  ),
+];
+
 /** A puff of pepper flakes shaken out of the shaker's cap at the origin, spreading down +y (the pummel). */
 export const pepperDust: PathShape[] = [
   {
