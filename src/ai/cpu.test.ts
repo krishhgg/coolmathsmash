@@ -229,6 +229,28 @@ describe('CPU grabs', () => {
     expect(l5).toBeLessThan(l1);
     expect(l9).toBeLessThan(l5);
   });
+
+  it('mash out of a shield-break dizzy faster as the level rises, and not at all at level 1', () => {
+    const dizzy = (level: number) => {
+      const m = match();
+      for (let i = 0; i < 120; i++) stepMatch(m, [neutralInput(), neutralInput()]);
+      const f = m.fighters[1]!;
+      Object.assign(f, { shieldHp: 1, damage: 0 });
+      const shield = { ...neutralInput(), buttons: Btn.Shield };
+      for (let i = 0; f.action !== 'dizzy' && i < 300; i++) stepMatch(m, [neutralInput(), shield]);
+      const cpu = createCpu({ port: 1, level, seed: 4 });
+      let frames = 1;
+      while (f.action === 'dizzy' && frames < 600) {
+        stepMatch(m, [neutralInput(), cpu.input(m)]);
+        if (f.action === 'dizzy') frames++;
+      }
+      return frames;
+    };
+    const [l1, l5, l9] = [dizzy(1), dizzy(5), dizzy(9)];
+    expect(l1).toBe(400);
+    expect(l5).toBeLessThan(l1);
+    expect(l9).toBeLessThan(l5);
+  });
 });
 
 describe('CPU recovery', () => {
