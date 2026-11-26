@@ -19,6 +19,8 @@ import {
   neckSkin,
   oven,
   paddle,
+  parmesanPuff,
+  parmesanSpray,
   pepperBomb,
   pepperBurst,
   pepperDust,
@@ -146,6 +148,12 @@ export const rig: Rig = {
     rotorTrail,
     oven,
     pepperDust,
+    parmesanPuff,
+    parmesanSpray0: parmesanSpray[0]!,
+    parmesanSpray1: parmesanSpray[1]!,
+    parmesanSpray2: parmesanSpray[2]!,
+    /** The spray's shreds streaming out, a third of a step every 3 frames. */
+    parmesanSpray: { loop: ['parmesanSpray0', 'parmesanSpray1', 'parmesanSpray2'], fps: 20 },
   },
 };
 
