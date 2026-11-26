@@ -81,6 +81,12 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
     const sx = Math.abs(ds) < 2 ? Math.round(ds * 30) : Math.sign(ds) * STICK.full;
     const i = neutralInput();
     i.x = Math.max(-100, Math.min(100, sx));
+    // A fuel hover (an up special with `action: 'hover'`) thrusts only while Special stays held, so keep holding
+    // it until a fall from here would land on the stage; letting go then drops onto it.
+    if (f.action === 'hover' && floorBelow(info, f.pos.x, f.pos.y) === null) {
+      i.buttons = Btn.Special;
+      return i;
+    }
     if (f.ground !== null || !actionable(f) || f.action === 'helpless') return i;
     const dir = (Math.sign(d) || 1) as 1 | -1;
     if (!jumped && t >= p.jumpAt && f.jumpsUsed < k.stats.jumps) {
