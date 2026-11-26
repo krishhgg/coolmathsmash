@@ -120,10 +120,14 @@ fsmash: {
   applies when it lands out of the helpless fall.
 - **Auto-cancel.** Landing in an aerial's `autoCancel` window costs only normal landing lag.
 - **Intangibility.** `intangible: [from, to]` makes the fighter intangible on those frames of the move.
-- **Armor.** `armor: { frames: [from, to], threshold?, damageThreshold? }` armours the fighter on those frames of the
-  move, as in Ultimate: hits still add damage and hitlag, but they don't launch, cause hitstun or interrupt the move.
-  A hit breaks through when its knockback reaches `threshold` (threshold armor) or its damage reaches
-  `damageThreshold` (Kirby's Stone); with neither it is heavy armor. Grabs and throws ignore armor.
+- **Armor.** `armor: { frames: [from, to], threshold?, damageThreshold?, breakDamageMul? }` armours the fighter on
+  those frames of the move, as in Ultimate: hits still add damage and hitlag, but they don't launch, cause hitstun or
+  interrupt the move. A hit breaks through when its knockback reaches `threshold` (threshold armor) or its damage
+  reaches `damageThreshold` (Kirby's Stone); with neither it is heavy armor. Grabs and throws ignore armor.
+  - `breakDamageMul` scales the % the breaking hit adds. Its knockback, its hitlag and the threshold check still use
+    the full damage. Set it only where the Ultimate analogue does it. SmashWiki ("Stone") documents it only for
+    Kirby's Stone, whose breaking hit deals half damage at full knockback (`breakDamageMul: 0.5`). Its "Armor" page
+    says most armor takes full damage, so leave it unset by default.
 - **Getup attack.** A move named `getupAttack` plays when a fighter lying down after a missed tech presses
   Attack. Give it `intangible: [1, 26]` (Ultimate's) and hits on both sides; without one, Attack just stands up.
 - **Specials.** `script(x)` runs every frame of the move before physics and sets velocity or facing. It must be
@@ -332,6 +336,10 @@ upB: {
 `castSegment(m, from, to, { platforms, fighters, ignore?, ledges? })` (`src/sim/cast.ts`) is the line test on its
 own, for projectiles too: it returns the nearest ledge, surface or fighter hurtbox the segment touches, with `t`
 (0 to 1 along it) and the point, or null.
+
+A tether that also hits gives its move ordinary `hits` beside the `tether`: Red Ball's Tongue Lash
+(`src/fighters/redball/specials.ts`) lashes with Ivysaur's Vine Whip boxes along the tongue and tethers to ledges
+only. The line passes through fighters, so the hit and the ledge pull stay independent.
 
 A tether ignores fighters unless it sets `targetsFighters: true`. If the line reaches a fighter before stage
 geometry, `onFighter(ctx, target, event)` can handle the contact in script or return `'pullSelf'` on
