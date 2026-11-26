@@ -22,7 +22,9 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 
 /**
  * Wheely's normals: a car with no fists, so every hit is the bumper, the wheels, the hood, the horn or the exhaust.
- * Damage and first active frames are the roster sheet's (handoffs/research/roster.md, "13. Wheely"). Angle, BKB and KBG
+ * Damage and first active frames are the roster sheet's (handoffs/research/roster.md, "13. Wheely"), except for the
+ * aerials and Charge Through, which take their analogue's damage because the roster's kept them more than 5 points
+ * off its kill percent (wheely.test.ts). Angle, BKB and KBG
  * come from each move's Ultimate analogue (13.0.x, SmashWiki hitbox tables): Luigi's jab, Captain Falcon's ftilt,
  * Incineroar's utilt and uair, Donkey Kong's dtilt and uthrow, Falco's dash attack, Mario's fsmash and usmash, Little
  * Mac's dsmash, Wario's getup attack, bair and Wario Bike, Kirby's nair, Bowser's fair, King K. Rool's dair and bthrow,
@@ -192,7 +194,7 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Barrel Roll: rolls over in the air, the whole car a hitbox; strong early, weak late. */
+  /** Barrel Roll: rolls over in the air, the whole car a hitbox; strong early, weak late. Kirby's nair, 10% clean. */
   nair: {
     kind: 'aerial',
     faf: 40,
@@ -204,7 +206,7 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [6, 9],
-        boxes: [box(0, 0, 5.5, 7.5, { damage: 9, angle: 46, kbg: 117, bkb: 35, direction: 'away' })],
+        boxes: [box(0, 0, 5.5, 7.5, { damage: 10, angle: 46, kbg: 117, bkb: 35, direction: 'away' })],
       },
       {
         frames: [10, 20],
@@ -212,7 +214,7 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Front Flip: flips forward and slams the front bumper down in front of him. */
+  /** Front Flip: flips forward and slams the front bumper down in front of him. Bowser's fair, 13% and 12%. */
   fair: {
     kind: 'aerial',
     faf: 44,
@@ -225,13 +227,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [10, 13],
         boxes: [
-          box(0, 10, 3, 5, { damage: 12, angle: 361, kbg: 80, bkb: 40 }),
-          box(1, 6, 9, 4.5, { damage: 10, angle: 361, kbg: 80, bkb: 40 }),
+          box(0, 10, 3, 5, { damage: 13, angle: 361, kbg: 80, bkb: 40 }),
+          box(1, 6, 9, 4.5, { damage: 12, angle: 361, kbg: 80, bkb: 40 }),
         ],
       },
     ],
   },
-  /** Backfire: the exhaust pipe bangs out a burst of flame behind him. His aerial kill move. */
+  /** Backfire: the exhaust pipe bangs out a burst of flame behind him. His aerial kill move: Wario's bair, 12%. */
   bair: {
     kind: 'aerial',
     faf: 36,
@@ -244,7 +246,7 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [9, 11],
         boxes: [
-          box(0, -12, 4, 5, { damage: 13, angle: 361, kbg: 106, bkb: 21, effect: 'fire', direction: 'back' }),
+          box(0, -12, 4, 5, { damage: 12, angle: 361, kbg: 106, bkb: 21, effect: 'fire', direction: 'back' }),
         ],
       },
       {
@@ -271,7 +273,10 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Wheel Stomp: drops wheels-first; the tyres meteor on the first frames, then a weaker landing hit. */
+  /**
+   * Wheel Stomp: drops wheels-first; the tyres meteor on the first frames, then a weaker landing hit. King K. Rool's
+   * dair: the 12% meteor, then the 9% hit.
+   */
   dair: {
     kind: 'aerial',
     faf: 50,
@@ -281,7 +286,7 @@ export const moves: Record<string, MoveDef> = {
       [41, 50],
     ],
     hits: [
-      { frames: [13, 16], boxes: [box(0, 0, -1, 6.5, { damage: 13, angle: 270, kbg: 90, bkb: 10 })] },
+      { frames: [13, 16], boxes: [box(0, 0, -1, 6.5, { damage: 12, angle: 270, kbg: 90, bkb: 10 })] },
       { frames: [17, 24], boxes: [box(0, 0, 0, 6, { damage: 9, angle: 361, kbg: 100, bkb: 20 })] },
     ],
   },
@@ -323,6 +328,7 @@ export const moves: Record<string, MoveDef> = {
   /**
    * Charge Through (side special): spins the tyres for a moment, then floors it straight through whoever is in
    * the way. In the air he drives level and ends helpless; landing mid-dash keeps the dash going on the ground.
+   * Wario Bike's 7% drive into someone.
    */
   sideB: {
     kind: 'other',
@@ -333,7 +339,7 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [14, 28],
-        boxes: [box(0, 3, 5, 7, { damage: 10, angle: 361, kbg: 70, bkb: 60 })],
+        boxes: [box(0, 3, 5, 7, { damage: 7, angle: 361, kbg: 70, bkb: 60 })],
       },
     ],
     script(x) {
