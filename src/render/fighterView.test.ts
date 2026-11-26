@@ -5,7 +5,7 @@ import { GETUP_ROLL, LEDGE_JUMP, SHIELD_MAX, TECH_ROLL } from '../sim/constants'
 import { createFighter } from '../sim/fighter';
 import { quickGrapple, tetherTester } from '../sim/testing/tethers';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../sim/testing/sim';
-import { clipFor, fighterArt, shieldRadius } from './fighterView';
+import { BADGE_BLINK_FRAMES, clipFor, fighterArt, shieldRadius, statusBadges } from './fighterView';
 
 describe('shieldRadius', () => {
   const fireboy = getFighter('fireboy');
@@ -36,6 +36,20 @@ describe('clipFor', () => {
     const jump = Array.from({ length: 20 - LEDGE_JUMP.rise }, (_, i) => `jump@${i + 1}`);
     expect(shown).toEqual([...rise, ...jump]);
     expect(f.action).toBe('jump');
+  });
+});
+
+describe('statusBadges', () => {
+  const squared = { kind: 'redball/squared', age: 1, since: 0, source: 0 };
+
+  it('draws one badge per status that has a colour, steady until its last second, then blinking', () => {
+    const f = createFighter(1, 'fireboy', [0, 0, 1], 3);
+    expect(statusBadges(f, 0)).toEqual([]);
+    f.statuses = [{ ...squared, frames: 300 }];
+    expect(statusBadges(f, 4)).toEqual(['#3b3b46']);
+    f.statuses = [{ ...squared, frames: BADGE_BLINK_FRAMES }];
+    expect(statusBadges(f, 0)).toEqual(['#3b3b46']);
+    expect(statusBadges(f, 4)).toEqual([]);
   });
 });
 

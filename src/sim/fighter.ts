@@ -3,9 +3,11 @@ import type { FighterDef, FighterStats, TetherLatch } from '../fighters/types';
 import { SHIELD_MAX, TECH_LOCKOUT } from './constants';
 import type { ControlState } from './control';
 import type { MatchState, PlayerState } from './match';
+import { createMeters } from './meters';
 import { createMobility, type MobilityState } from './mobility';
 import { jumpVelocity } from './physics';
 import type { CompiledStage } from './stage';
+import type { StatusState } from './statuses';
 import { vec, type Vec } from './vec';
 
 export interface GroundRef {
@@ -123,6 +125,10 @@ export interface FighterState {
   aim: Vec | null;
   /** Frames before stage hazards (damage zones, stage hitboxes) can hit this fighter again. */
   stageHitLock: number;
+  /** Timed statuses on this fighter, oldest first (src/sim/statuses.ts). */
+  statuses: StatusState[];
+  /** Meter values by name (FighterDef.meters, src/sim/meters.ts). */
+  meters: Record<string, number>;
 }
 
 export function createFighter(
@@ -184,6 +190,8 @@ export function createFighter(
     tether: null,
     aim: null,
     stageHitLock: 0,
+    statuses: [],
+    meters: createMeters(getFighter(fighterId)),
   };
 }
 
