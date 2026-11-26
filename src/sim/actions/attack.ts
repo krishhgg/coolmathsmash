@@ -1,4 +1,4 @@
-import { getFighter } from '../../fighters/registry';
+import { getFighter } from '../../fighters/lookup';
 import type { MoveDef } from '../../fighters/types';
 import { Btn } from '../../input/types';
 import {
