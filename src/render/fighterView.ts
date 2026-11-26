@@ -23,6 +23,9 @@ const STAND_INS: Record<string, string> = {
   getupRoll: 'techRoll',
 };
 
+/** The clip each roll action draws when it rolls away from the fighter's facing (backRoll). */
+const BACK_ROLLS: Record<string, string> = { techRoll: 'techRollBack', getupRoll: 'getupRollBack' };
+
 /**
  * A tether's reel and hang keep the move's name and play on its clip (clipFor), unless the art has a clip named
  * after the action: that plays from the reel's own first frame instead (Red Ball's tongue reel).
@@ -31,6 +34,16 @@ const REEL_ACTIONS = new Set(['tetherPull', 'tetherHang']);
 
 export function fighterArt(def: FighterDef): FighterArt | undefined {
   return def.art as FighterArt | undefined;
+}
+
+/**
+ * Tech roll and getup roll travel along `dodgeDir` and keep the fighter's facing, so one away from the facing is a
+ * back roll. A back roll draws the fighter's `techRollBack` or `getupRollBack`, else its `rollBack`.
+ */
+function backRoll(art: FighterArt, f: FighterState): string | undefined {
+  const back = BACK_ROLLS[f.action];
+  if (!back || f.dodgeDir.x * f.facing >= 0) return undefined;
+  return art.clips[back] ? back : art.clips.rollBack ? 'rollBack' : undefined;
 }
 
 /**
@@ -45,28 +58,26 @@ function moveFrame(f: FighterState): number {
   return f.actionFrame;
 }
 
-/**
- * While a move holds its charge frame (MoveDef.charge) with some charge built, the art's `<move>Charge` clip, if it has
- * one, at the frames charged so far: the drawing builds with the charge (Wheely's Rev Up). Else null, and the move
- * clip holds on its charge frame.
- */
-function chargeClip(def: FighterDef, art: FighterArt, f: FighterState): [string, number] | null {
-  const hold = f.move === null ? undefined : def.moves?.[f.move]?.charge;
-  if (hold === undefined || f.charge <= 0 || f.actionFrame >= hold) return null;
-  const name = `${f.move}Charge`;
-  return art.clips[name] ? [name, f.charge] : null;
+/** The clip that draws `move`'s charge, `<move>Charge`, when the art has one (docs/art.md). */
+export function chargeClipName(art: FighterArt | undefined, move: string): string | undefined {
+  const name = `${move}Charge`;
+  return art?.clips[name] ? name : undefined;
 }
 
 /**
- * The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. A charging move can play
- * its own charge clip (chargeClip). A tether move's clip plays on through the reel, held on the clip's `reel` frame
- * (AnimClip.reel) until the fighter arrives, unless the art has its own clip for the reel (REEL_ACTIONS).
+ * The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. A tech or getup roll
+ * away from the facing draws a back roll (backRoll). A tether move's clip plays on through the reel, held on the
+ * clip's `reel` frame (AnimClip.reel) until the fighter arrives, unless the art has its own clip for the reel
+ * (REEL_ACTIONS). A move waiting on its charge frame plays the art's charge clip, if it has one, on the frames
+ * charged so far.
  */
 export function clipFor(def: FighterDef, art: FighterArt, f: FighterState): [string, number] {
-  const charging = chargeClip(def, art, f);
-  if (charging) return charging;
+  const hold = f.move ? def.moves?.[f.move]?.charge : undefined;
+  const charging = hold !== undefined && f.charge > 0 && f.actionFrame === hold - 1;
+  const charge = charging ? chargeClipName(art, f.move!) : undefined;
+  if (charge) return [charge, f.charge];
   const reeling = REEL_ACTIONS.has(f.action);
-  const own = f.move && !(reeling && art.clips[f.action]) ? f.move : f.action;
+  const own = f.move && !(reeling && art.clips[f.action]) ? f.move : (backRoll(art, f) ?? f.action);
   const name = art.clips[own] ? own : (STAND_INS[own] ?? 'idle');
   const clip = art.clips[name];
   if (!clip || !f.move || name !== f.move) return [name, f.actionFrame];
