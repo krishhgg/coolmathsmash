@@ -1,5 +1,5 @@
 import { Btn } from '../../input/types';
-import { CROUCH_THRESHOLD, DASH_THRESHOLD } from '../constants';
+import { CROUCH_THRESHOLD, DASH_THRESHOLD, PLATFORM_DROP_FLICK } from '../constants';
 import {
   buffered,
   consume,
@@ -60,7 +60,7 @@ export function groundActionable(x: Ctx): boolean {
     setAction(x, 'shield');
     return true;
   }
-  if (onPlatform(x) && flickDown(c)) {
+  if (onPlatform(x) && flickDown(c, PLATFORM_DROP_FLICK)) {
     dropThroughPlatform(x);
     return true;
   }
