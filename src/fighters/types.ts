@@ -167,6 +167,11 @@ export interface TetherDef {
   aimed?: { speed: number; quick?: { frames: number } };
   /** What the line may anchor to; hitting anything else stops it. */
   latch: TetherLatch[];
+  /**
+   * Sky anchors allowed per airtime (FighterState.skyAnchorsUsed, shared by all the fighter's tether moves). With
+   * none left a sky shot whiffs. Landing, or a ledge or surface latch, gives them back. Unset: no limit.
+   */
+  skyAnchors?: number;
   /** Reel speed towards the anchor, units per frame. */
   pullSpeed: number;
   /** Holding this button when the reel arrives keeps the fighter hanging at the anchor. */
@@ -180,6 +185,14 @@ export interface TetherDef {
    * once in contact. Return nothing to retract the line and handle responses such as a grab or yank in script.
    */
   onFighter?: (x: Ctx, target: FighterState, event: TetherFighterEvent) => 'pullSelf' | void;
+  /**
+   * The hit a `pullSelf` reel lands when it reaches its fighter (Fluffy's Point Grapple kick), placed from the
+   * fighter like a move's hitbox. It is out on the arrival frame only and lands in that frame's hit pass
+   * (resolveHits), after every fighter has stepped, so shields, parries, counters and trades treat it as any hitbox
+   * whatever the ports. The fighter lets go into a fall on the next frame it steps. Without it the reel lets go on
+   * arrival.
+   */
+  arriveHit?: HitboxDef;
 }
 
 export type TetherFighterEvent =

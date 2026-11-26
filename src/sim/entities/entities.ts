@@ -1,6 +1,6 @@
 import { allFighters } from '../../fighters/registry';
 import { emit } from '../events';
-import { inHitlag, type Ctx } from '../fighter';
+import { inHitlag, type Ctx, type FighterState } from '../fighter';
 import { inFinalSmash } from '../finalSmash';
 import type { MatchState } from '../match';
 import type { Vec } from '../vec';
@@ -103,6 +103,18 @@ export function destroyEntity(m: MatchState, e: EntityState, reason: DestroyReas
 /** Drop destroyed entities. */
 export function sweepEntities(m: MatchState): void {
   if (m.entities.some((e) => e.dead)) m.entities = m.entities.filter((e) => !e.dead);
+}
+
+/** Where an entity's soft platform (EntityDef.platform) is this frame, or null if it has none or is gone. */
+export function entityPlatform(e: EntityState): { x1: number; x2: number; y: number } | null {
+  const p = entityDef(e.kind).platform;
+  if (!p || e.dead) return null;
+  return { x1: e.pos.x - p.width / 2, x2: e.pos.x + p.width / 2, y: e.pos.y + p.y };
+}
+
+/** The fighters standing on entity `e`'s platform, in port order. */
+export function standingOn(m: MatchState, e: EntityState): FighterState[] {
+  return m.fighters.filter((f) => f.ground?.kind === 'entity' && f.ground.index === e.id);
 }
 
 /** Hittable: fighters' attacks and other entities' hits damage it. */

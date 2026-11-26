@@ -113,7 +113,10 @@ function travel(x: Ctx, t: TetherDef): void {
   releaseTether(m, f);
 }
 
-/** Anchor where the line stopped, if `latch` takes it, the ledge is free and `onAnchor` agrees; else whiff. */
+/**
+ * Anchor where the line stopped, if `latch` takes it, the ledge is free, a sky anchor is left and `onAnchor`
+ * agrees; else whiff. A sky anchor spends one of the airtime's `skyAnchors`, and a ledge or surface gives them back.
+ */
 function anchor(x: Ctx, t: TetherDef, hit: TetherHit): void {
   const { f, m } = x;
   const { kind, point } = hit;
@@ -136,9 +139,14 @@ function anchor(x: Ctx, t: TetherDef, hit: TetherHit): void {
     startPull(x);
     return;
   }
+  const skyLeft = kind !== 'sky' || t.skyAnchors === undefined || f.skyAnchorsUsed < t.skyAnchors;
   const ok =
-    t.latch.includes(kind) && (kind !== 'ledge' || ledgeFree(x, hit.ledge)) && t.onAnchor?.(x, hit) !== false;
+    t.latch.includes(kind) &&
+    (kind !== 'ledge' || ledgeFree(x, hit.ledge)) &&
+    skyLeft &&
+    t.onAnchor?.(x, hit) !== false;
   if (!ok) return releaseTether(m, f);
+  f.skyAnchorsUsed = kind === 'sky' ? f.skyAnchorsUsed + 1 : 0;
   const surface = hit.kind === 'surface' ? hit.surface : undefined;
   const piece = surface ? anchorPiece(m, surface) : undefined;
   const local = piece ? { x: hit.point.x - piece.x, y: hit.point.y - piece.y } : undefined;

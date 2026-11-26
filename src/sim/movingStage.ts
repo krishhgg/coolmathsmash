@@ -172,7 +172,7 @@ function followStage(x: Ctx, before: StageState): void {
     if (hit.pressed) {
       if (f.ground.kind === 'solid') squeezed = true;
       else {
-        f.dropPlatform = f.ground.index;
+        if (f.ground.kind === 'platform') f.dropPlatform = f.ground.index;
         loseGround(x);
       }
       continue;
@@ -236,6 +236,8 @@ function ride(x: Ctx): Vec {
   const { f, m, stage } = x;
   if (f.ground) {
     const g = f.ground;
+    // An entity's platform is not part of the stage and stays put.
+    if (g.kind === 'entity') return ZERO;
     const p = g.kind === 'solid' ? m.stage.solids[stage.edges[g.index]!.solid]! : m.stage.platforms[g.index]!;
     if (!p.on) {
       loseGround(x);
@@ -299,6 +301,16 @@ function standOn(x: Ctx, g: GroundRef): void {
   if (!f.ground && !f.launch) return land(x, g);
   f.ground = g;
   f.pos.y = surfaceY(x.stage, g, f.pos.x);
+}
+
+/**
+ * A fighter standing on an entity's platform (EntityDef.platform) loses the ground once the entity is gone (it broke,
+ * expired or was taken away), as when a stage platform vanishes. stepFighter checks it before the fighter acts.
+ */
+export function keepEntityFooting(x: Ctx): void {
+  const g = x.f.ground;
+  if (g?.kind !== 'entity' || x.m.entities.some((e) => e.id === g.index && !e.dead)) return;
+  loseGround(x);
 }
 
 /** The stage left the fighter without ground: a grab it is in ends, and it falls unless launched or in hitstun. */

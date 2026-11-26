@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { clipFor } from '../../../render/fighterView';
 import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import { placeInAir, run, testMatch } from '../../../sim/testing/sim';
+import { fighter } from '..';
 import { moves } from '../moves';
 import { art } from '.';
 
@@ -77,6 +80,39 @@ describe('fluffy art', () => {
     expect(-y0).toBeLessThan(11.5);
     expect(x1 - x0).toBeGreaterThan(9.5);
     expect(x1 - x0).toBeLessThan(11.5);
+  });
+
+  it("plays Point Grapple's clip on through a long sky reel, holding on its reel frame", () => {
+    const m = testMatch({ fighter: 'fluffy' });
+    const f = placeInAir(m, -80, 80);
+    run(m, 1, { buttons: ['special'] });
+    run(m, 2, { x: 100, buttons: ['special'] });
+    run(m, 1, { x: 100 });
+    const reel: number[] = [];
+    for (let i = 0; i < 80 && (f.action !== 'fall' || reel.length === 0); i++) {
+      run(m, 1);
+      const [clip, frame] = clipFor(fighter, art, f);
+      if (f.action !== 'tetherPull') continue;
+      expect(clip).toBe('neutralB');
+      reel.push(frame);
+    }
+    const hold = art.clips.neutralB!.reel!;
+    expect(reel.length).toBeGreaterThan(30);
+    expect(reel[0]).toBeLessThan(hold);
+    expect(reel.at(-1)).toBe(hold);
+  });
+
+  it("leaves Point Grapple's reticle and grabber to the renderer, which draws them from the real aim and line", () => {
+    const clip = art.clips.neutralB!;
+    for (let f = 0; f <= clip.length; f++) {
+      const { symbols } = samplePose(art, 'neutralB', f, f);
+      expect(Object.values(symbols), `neutralB@${f}`).not.toContain('reticle');
+      expect([symbols.grabLine ?? null, symbols.tip ?? null], `neutralB@${f}`).toEqual([null, null]);
+    }
+    expect(art.reticle?.symbol).toBe('reticle');
+    expect(art.reticle?.preview?.neutralB).toMatchObject({ frame: 0, to: 23 });
+    expect(art.tetherLine).toMatchObject({ line: 'line', tip: 'tip', moves: ['neutralB'] });
+    expect(art.tetherLine?.preview?.neutralB).toMatchObject({ frame: 12, to: 40, travel: 12 });
   });
 
   it('never sinks into the floor while grounded', () => {
