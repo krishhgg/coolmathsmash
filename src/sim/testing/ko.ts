@@ -74,9 +74,9 @@ function launcherOf(hit: KoSetup['hit']): Launcher {
 const positioned = (hit: KoHit | HitboxDef): hit is HitboxDef => 'radius' in hit;
 
 /**
- * True when `hit` KOs the target from `percent`: it crosses a blast zone before its hitstun ends, with no input but
- * the DI stick. This is the community KO-calculator definition (SSBU-Calculator's kocalc): once hitstun is over the
- * target could act.
+ * True when `hit` KOs the target from `percent`: it crosses a blast zone (or, launched downward, Ultimate's meteor
+ * blast line, sim/blastZones.ts) before its hitstun ends, with no input but the DI stick. This is the community
+ * KO-calculator definition (SSBU-Calculator's kocalc): once hitstun is over the target could act.
  */
 function kosWith(setup: KoSetup, launcher: Launcher, hit: KoHit | HitboxDef, percent: number): boolean {
   const stage = setup.stage ?? 'battlefield';
