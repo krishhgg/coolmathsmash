@@ -1,7 +1,7 @@
 import { breakGrab } from './actions/grab';
 import { dropLedge } from './actions/ledge';
 import { actionDef, enterAction } from './actions/registry';
-import { DOWN_FLICK_THRESHOLD } from './constants';
+import { PLATFORM_DROP_FLICK } from './constants';
 import { compiledStage, makeCtx } from './context';
 import { stickY } from './control';
 import { emit } from './events';
@@ -259,7 +259,7 @@ function risesThroughFeet(x: Ctx, prev: Vec, e: Edge, rise: number): boolean {
  */
 function catchOnPlatform(x: Ctx, before: StageState, carry: Vec): void {
   const { f, m, stage } = x;
-  if (stickY(x.c) <= -DOWN_FLICK_THRESHOLD) return;
+  if (stickY(x.c) <= -PLATFORM_DROP_FLICK.stick) return;
   for (let i = 0; i < stage.geo.platforms.length; i++) {
     const p = m.stage.platforms[i]!;
     const plat = stage.geo.platforms[i]!;
