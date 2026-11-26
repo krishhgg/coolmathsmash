@@ -4,6 +4,7 @@ import { isHeld, stickX } from '../../sim/control';
 import type { Ctx } from '../../sim/fighter';
 import { aimedShot, aimedShotAir } from './aimedShot';
 import { duckRaft } from './duckRaft';
+import { finalSmash, finalSmashAir } from './fullArsenal';
 import { grenade } from './grenade';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -326,6 +327,9 @@ export const moves: Record<string, MoveDef> = {
   neutralBAir: aimedShotAir,
   sideB: grenade,
   downB: duckRaft,
+  /** Full Arsenal, their Final Smash: Snake's Covering Fire (fullArsenal.ts). */
+  finalSmash,
+  finalSmashAir,
   /**
    * Rocket Ride (up special): Simon's brother rides a rocket about 110 units up and forward, steerable 30 degrees
    * either side of vertical, and it explodes at the end. The ride clips whoever it touches; the explosion is the

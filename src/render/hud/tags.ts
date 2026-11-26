@@ -15,6 +15,8 @@ export interface TagTarget {
 export type TagSide = 'down' | 'up' | 'left' | 'right';
 
 export const TAG_H = 22;
+/** World units between the top of a fighter's head and its tag's pointer (the renderer's TagTarget). */
+export const TAG_LIFT = 1;
 export const POINTER = 7;
 const MARGIN = 6;
 

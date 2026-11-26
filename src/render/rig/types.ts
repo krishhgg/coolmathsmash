@@ -175,6 +175,18 @@ export interface PropArt {
    */
   behind?: boolean;
   /**
+   * Drawings by rank for props of this kind and owner on one spot: the k-th still there, in spawn order, draws
+   * `stack[k]` (the last one for any past the end) instead of `symbol` (propSymbol, src/render/entities.ts), so the
+   * stack shows how many there are and counts down as they go. The Raft Wars kids' Full Arsenal marks: a ring and a
+   * diamond each for the first three on one foe, a diamond for the rest.
+   */
+  stack?: string[];
+  /**
+   * Draw the prop above every other prop (EntityView.over), so bursts and projectiles never hide it: Full Arsenal's
+   * marks stay readable while the bursts on their foe burn.
+   */
+  above?: boolean;
+  /**
    * Where the lab's fighter scene draws it over the clips that fire it (in a match the engine spawns and moves it),
    * keyed by clip name.
    */

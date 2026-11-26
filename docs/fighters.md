@@ -536,6 +536,12 @@ the Blue Falcon's hits as `holdHits` and its final launch as the `throw`.
 - **Projectiles.** An entity a `final` move puts out is marked at spawn (`EntityState.final`), so it stays unblockable
   however long it lasts, after its owner acts again or turns into another fighter (the twins' Swap). The charge
   carries through a Swap too, and neutral special spends it on whichever twin presses it.
+- **Holding a frame.** A Final Smash of no fixed length holds one frame from its script with `holdFrame`, as a charge
+  holds its charge frame, and its clip shows the frame before it meanwhile. The Raft Wars kids' Full Arsenal
+  (`src/fighters/raftwars/fullArsenal.ts`, Snake's Covering Fire) holds frame 43 while its crosshair, an entity steered
+  by the owner's stick (`EntityCtx.c`), hunts for up to 300 frames, then plays on and fires at the marks it left. Its
+  marks are entities that ride on their foe, drawn by rank with `PropArt.stack` and over the bursts with
+  `PropArt.above` (docs/art.md), so a foe with two shots coming shows two rings and two diamonds.
 - **CPUs.** A CPU holding the charge presses neutral special once an opponent is inside the Final Smash's reach in front
   (`finalReach`: its boxes, or `final.range` for one that spawns its blast), and otherwise leaves neutral special out of
   its attacks.

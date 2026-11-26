@@ -41,6 +41,11 @@ export function fighterArt(def: FighterDef): FighterArt | undefined {
   return def.art as FighterArt | undefined;
 }
 
+/** Height of `def`'s head above its feet, in world units (FighterView.top): the overhead tag points just above it. */
+export function headTop(def: FighterDef): number {
+  return fighterArt(def)?.height ?? def.stats.height;
+}
+
 /**
  * Tech roll and getup roll travel along `dodgeDir` and keep the fighter's facing, so one away from the facing is a
  * back roll. A back roll draws the fighter's `techRollBack` or `getupRollBack`, else its `rollBack`.
@@ -231,7 +236,7 @@ export class FighterView {
     this.shieldColor = PORT_COLORS[port % PORT_COLORS.length]!;
     this.label.anchor.set(0.5, 1);
     this.label.scale.set(0.12);
-    this.top = this.art?.height ?? h;
+    this.top = headTop(def);
     this.label.position.set(0, -this.top - 5);
     this.label.visible = false;
     this.container.addChild(this.glow, this.body, this.shield, this.parryFlash, this.badges, this.label);

@@ -66,7 +66,11 @@ rig point `(6, -6)`.
   only the fighters standing on that entity, with everyone else over it (`layerFighters` in
   `src/render/entities.ts`): the Raft Wars kids' Duck Raft sits behind fighters, and its rim band covers the feet of
   whoever stands in it and nobody else. Set `behind: true` to draw the whole prop behind the fighters, for one big
-  enough to cover whoever it hits: Red Ball's Ball Rain balls are as wide as their radius-16 hitboxes.
+  enough to cover whoever it hits: Red Ball's Ball Rain balls are as wide as their radius-16 hitboxes. Set `stack` to a
+  list of symbols to draw props of one kind and owner on the same spot by their rank there: the k-th still there, in
+  spawn order, draws `stack[k]` (`propSymbol`), so the count shows and drops as they go. Set `above: true` to draw a
+  prop over every other prop, so bursts never hide it. The Raft Wars kids' Full Arsenal marks use both: each of the
+  first three marks on a foe draws a ring and later ones only a diamond, and the diamonds count the shots coming.
   Kinds without art draw the placeholder disc (`src/render/entities.ts`).
 - **Reticles.** `reticle` is a `PropArt` the renderer draws at the fighter's aim (`FighterState.aim`) during an
   aimed tether move (`TetherDef.aimed`), from the press until the line anchors or misses, in the port's costume

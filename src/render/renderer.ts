@@ -14,7 +14,7 @@ import { drawEntityBoxes, EntityView, layerFighters } from './entities';
 import { InputDisplay } from './debug/inputDisplay';
 import { drawMobility } from './debug/mobility';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
-import { MatchHud, OverheadTags } from './hud';
+import { MatchHud, OverheadTags, TAG_LIFT } from './hud';
 import { placeholderStage } from './placeholderStage';
 import { ReticleView } from './reticle';
 import { drawStagePieces } from './stagePieces';
@@ -255,8 +255,8 @@ export class Renderer {
           visible: !!v?.container.visible,
           x: this.world.position.x + (at?.x ?? 0) * view.zoom,
           y: tagY(
-            this.world.position.y + ((at?.y ?? 0) - (v?.top ?? 0) - 1) * view.zoom,
-            this.world.position.y + ((at?.y ?? 0) + 1) * view.zoom,
+            this.world.position.y + ((at?.y ?? 0) - (v?.top ?? 0) - TAG_LIFT) * view.zoom,
+            this.world.position.y + ((at?.y ?? 0) + TAG_LIFT) * view.zoom,
             flip,
             VIEW_HEIGHT,
           ),
