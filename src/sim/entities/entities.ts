@@ -4,6 +4,7 @@ import { inHitlag, type Ctx } from '../fighter';
 import type { MatchState } from '../match';
 import type { Vec } from '../vec';
 import type { PlacedHitbox } from '../combat/hits';
+import { chargeLevel, chargeScale } from '../actions/charge';
 import { inWindow } from '../actions/registry';
 import type { DestroyReason, EntityDef, EntityState, SpawnDef } from './types';
 
@@ -30,6 +31,8 @@ export interface SpawnOptions {
   facing?: 1 | -1;
   /** The owner's move it belongs to, for staleness. */
   move?: string | null;
+  /** That move's charge level (0 to 1, default 0): its hits deal up to EntityDef.chargeDamage times their damage. */
+  charge?: number;
 }
 
 /** Put a new entity into the match. Its frame 1 is this frame: it shows and hits at `pos` and starts moving next frame. */
@@ -53,7 +56,7 @@ export function spawnEntity(m: MatchState, o: SpawnOptions): EntityState {
     hitlagAt: -1,
     move: o.move ?? null,
     stale: 0,
-    damageMul: 1,
+    damageMul: chargeScale(o.charge ?? 0, def.chargeDamage ?? 1),
     reflects: 0,
     hitVictims: [],
     hitEntities: [],
@@ -65,7 +68,10 @@ export function spawnEntity(m: MatchState, o: SpawnOptions): EntityState {
   return e;
 }
 
-/** A move's spawn on its frame: the entity appears at the offset from the fighter's feet, moving forward. */
+/**
+ * A move's spawn on its frame: the entity appears at the offset from the fighter's feet, moving forward, with the
+ * move's charge level.
+ */
 export function spawnFromMove(x: Ctx, s: SpawnDef): void {
   const { m, f } = x;
   const kind = s.entity.includes('/') ? s.entity : `${x.def.id}/${s.entity}`;
@@ -78,6 +84,7 @@ export function spawnFromMove(x: Ctx, s: SpawnDef): void {
     vel: { x: (s.vx ?? 0) * f.facing, y: s.vy ?? 0 },
     facing: f.facing,
     move: f.move,
+    charge: chargeLevel(f),
   });
 }
 
