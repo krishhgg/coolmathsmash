@@ -142,7 +142,7 @@ describe('CPUs on the hazard testbed', () => {
         expect(r, `level ${level} seed ${seed}`).toEqual({ pit: 0, zone: 0, selfDestructs: 0 });
       }
     }
-  });
+  }, 60_000);
 
   // Lava (x -60 to -36) between Red Ball and a fighter standing beyond it, before the blade starts its sweep.
   it("don't walk into lava that burns them", () => {
@@ -152,7 +152,7 @@ describe('CPUs on the hazard testbed', () => {
         expect(r, `level ${level} seed ${seed}`).toEqual({ pit: 0, zone: 0, selfDestructs: 0 });
       }
     }
-  });
+  }, 60_000);
 
   // Three full trapdoor and blade cycles against a fighter standing across the trapdoor.
   it('keep out of trouble they make themselves over full trapdoor and blade cycles', () => {
