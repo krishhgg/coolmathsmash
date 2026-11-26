@@ -17,7 +17,8 @@ export const marioReference = defineFighter({
     walkAccelAdd: 0.105,
     groundFriction: 0.102,
     dashInitialSpeed: 1.936,
-    dashFrames: 11,
+    /** Initial dash length (UFD stats: Mario's Dash Frames 10, so he runs from frame 11). */
+    dashFrames: 10,
     runSpeed: 1.76,
     runAccelBase: 0.044,
     runAccelAdd: 0.10978,

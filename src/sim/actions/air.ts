@@ -46,8 +46,11 @@ const directional = (x: Ctx) => x.f.dodgeDir.x !== 0 || x.f.dodgeDir.y !== 0;
 
 function airDodgeFaf(x: Ctx): number {
   if (!directional(x)) return AIR_DODGE_NEUTRAL.faf;
-  const y = x.f.dodgeDir.y;
-  return AIR_DODGE_DIRECTIONAL.faf + Math.round(y > 0 ? 22 * y : 10 * y);
+  const { x: dx, y: dy } = x.f.dodgeDir;
+  const table = AIR_DODGE_DIRECTIONAL.fafByAngle;
+  const t = ((Math.atan2(dy, Math.abs(dx)) + Math.PI / 2) / Math.PI) * (table.length - 1);
+  const i = Math.min(Math.floor(t), table.length - 2);
+  return Math.round(table[i]! + (table[i + 1]! - table[i]!) * (t - i));
 }
 
 export const AIR: Record<string, ActionDef> = {
