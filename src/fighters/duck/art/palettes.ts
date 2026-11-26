@@ -18,6 +18,8 @@ const yellow: Palette = {
   crownLo: '#a89a00',
   puff: '#ffffff',
   puffLine: '#c3ccd8',
+  puffShade: '#e4e9f0',
+  rock: '#9a6b3c',
   swoosh: '#ffffff',
   star: '#fff36b',
   starCore: '#ffffff',

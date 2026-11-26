@@ -1,4 +1,5 @@
-import type { FighterScenarios } from '../../harness/scenarios';
+import type { FighterScenarios, GameScenario } from '../../harness/scenarios';
+import { STOMP, WAVE } from './finalSmash';
 
 const DL = 'characters/duck-life';
 
@@ -15,6 +16,31 @@ export const refs: FighterScenarios['refs'] = {
   'ledge-hang': ['smash/ledge-hang-*', `${DL}/ingame-climb-*`],
   sheet: [`${DL}/official-art-*`, `${DL}/ingame-*`, `${DL}/video-roster-art-*`],
 };
+
+/**
+ * Evolved Stomp (Final Smash): the Duck holds the charge 40 units from Fireboy and uses it on frame 10; capture on
+ * the move frame `at`.
+ */
+function evolvedStomp(name: string, description: string, at: number, label: string): GameScenario {
+  return {
+    name,
+    description,
+    page: { kind: 'game' },
+    match: { ports: [{ fighter: 'duck' }, { fighter: 'fireboy' }] },
+    patches: [
+      { port: 0, state: { pos: { x: -40, y: 0 }, facing: 1, finalReady: true } },
+      { port: 1, state: { pos: { x: 0, y: 0 }, facing: -1 } },
+    ],
+    script: [{ port: 0, from: 10, buttons: ['special'] }],
+    capture: {
+      label,
+      when: (s) => s.fighters[0]!.move === 'finalSmash' && s.fighters[0]!.actionFrame >= at,
+    },
+    motion: { before: 50, after: 30 },
+    requires: ['move:finalSmash'],
+    refs: [`${DL}/official-art-*`, 'smash/attack-active-*'],
+  };
+}
 
 export const scenarios: FighterScenarios = {
   fighter: 'duck',
@@ -185,6 +211,18 @@ export const scenarios: FighterScenarios = {
       requires: ['move:sideB'],
       refs: [`${DL}/ingame-run-*`, 'smash/attack-active-*'],
     },
+    evolvedStomp(
+      'duck-final-smash-stomp',
+      'The Duck uses Evolved Stomp (Final Smash) by Fireboy; capture the evolved Duck stamping as the burst pins Fireboy.',
+      STOMP.frame + 2,
+      `P1 move 'finalSmash', frame >= ${STOMP.frame + 2} (the first stomp's burst)`,
+    ),
+    evolvedStomp(
+      'duck-final-smash-wave',
+      "The Duck's Evolved Stomp sends its shockwave along the floor; capture it running with Fireboy launched.",
+      WAVE.frame + 12,
+      `P1 move 'finalSmash', frame >= ${WAVE.frame + 12} (the shockwave running)`,
+    ),
     {
       name: 'duck-crown',
       description: "The Duck's crown costume (Duck Life's champion Crown hat) in key poses.",
