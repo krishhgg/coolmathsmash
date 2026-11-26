@@ -5,12 +5,13 @@ import ref from '../../sim/reference/physics-constants.json';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../../sim/match';
-import { koPercent, type KoHit } from '../../sim/testing/ko';
+import { koPercent, type KoHit, type KoSetup } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
 import { CRATE_FRAMES, CRATE_RADIUS, entities } from './entities';
 import { fighter } from '.';
 import { DAIR_PLUNGE_FROM, SPIN_ROLL, moves } from './moves';
+import { POUND } from './shellPound';
 import { stats } from './stats';
 
 const snail = () => testMatch({ fighter: 'snailbob' });
@@ -673,6 +674,314 @@ describe('Snail Bob: Rocket Hover (up special)', () => {
       expect(safe).toBe(true);
       // Rode the tank up instead of tapping it: a tap burns one frame of fuel and falls.
       expect(fighter.hover.fuel - fuel).toBeGreaterThan(30);
+    },
+  );
+});
+
+describe('Snail Bob: Shell Pound (down special)', () => {
+  const DOWN_B: Hold = { y: -100, buttons: ['special'] };
+  const hit = (name: string, w: number, b = 0) => moves[name]!.hits[w]!.boxes[b]!;
+  /** Battlefield's left side platform: y 24.119 from x -59.422 to -24.789. */
+  const PLATFORM_Y = 24.119;
+
+  /** Snail Bob at (x, y), airborne, falling still, facing right, his midair jump spent. */
+  function airborne(m: MatchState, x: number, y: number) {
+    const f = placeInAir(m, x, y, 1);
+    f.jumpsUsed = stats.jumps;
+    return f;
+  }
+
+  /**
+   * Bowser Bomb's 13.0.1 boxes (ultimate-hitboxes.com, RSN-Bran/ultimate-hitboxes server/data/14_bowser.json; the same
+   * values as SmashWiki's Bowser (SSBU)/Down special tables) and SmashWiki's timing: grounded jump 11, clean fall 37-39,
+   * late fall 40-; aerial clean 31-32, late 33-; landing hit 1-2, interruptible 55.
+   */
+  it("takes Bowser Bomb's frames, damage, angles, knockback and shield damage", () => {
+    const { downB, downBAir, downBLand } = moves as Record<string, NonNullable<(typeof moves)['downB']>>;
+    expect(downB!.air).toBe('downBAir');
+    expect(downB!.hits.map((w) => w.frames)).toEqual([
+      [11, 11],
+      [37, 39],
+      [40, 40],
+    ]);
+    expect(downB!.hits[0]!.boxes.map((b) => [b.id, b.damage, b.angle, b.kbg, b.bkb, b.wbkb])).toEqual([
+      [0, 4, 80, 100, 0, 60],
+      [1, 4, 100, 100, 0, 60],
+      [2, 4, 90, 100, 0, 60],
+    ]);
+    expect(downB!.hits[1]!.rehit).toBe(true);
+    expect(downBAir!.hits.map((w) => w.frames)).toEqual([
+      [31, 32],
+      [33, 33],
+    ]);
+    const clean = { damage: 20, angle: 290, kbg: 65, bkb: 13, shieldDamage: 5 };
+    const late = { damage: 20, angle: 76, kbg: 75, bkb: 45, shieldDamage: 5 };
+    for (const [name, w, want] of [
+      ['downB', 1, clean],
+      ['downB', 2, late],
+      ['downBAir', 0, clean],
+      ['downBAir', 1, late],
+    ] as const)
+      expect(hit(name, w), `${name} window ${w}`).toMatchObject(want);
+    expect(downBLand!.faf).toBe(55);
+    expect(downBLand!.hits.map((w) => w.frames)).toEqual([[1, 2]]);
+    for (const b of downBLand!.hits[0]!.boxes)
+      expect(b).toMatchObject({
+        damage: 11,
+        angle: 76,
+        kbg: 72,
+        bkb: 60,
+        shieldDamage: 5,
+        targets: 'ground',
+      });
+    // Only the landing hit is ground-only in Ultimate: every other box hits grounded and airborne foes.
+    for (const name of ['downB', 'downBAir'])
+      for (const w of moves[name]!.hits) for (const b of w.boxes) expect(b.targets, name).toBeUndefined();
+  });
+
+  it('comes out as downB on the ground and downBAir in the air', () => {
+    expect(moveFrom(DOWN_B)).toBe('downB');
+    const m = snail();
+    const f = airborne(m, 0, 60);
+    run(m, 1, DOWN_B);
+    expect(f.move).toBe('downBAir');
+  });
+
+  /** One row per frame from the input on: [move, frame, y, vy, active box ids]. */
+  function timeline(m: MatchState, frames: number, hold: Hold = {}) {
+    const f = m.fighters[0]!;
+    const rows: { move: string | null; frame: number; y: number; vy: number; boxes: number }[] = [];
+    run(m, 1, DOWN_B);
+    for (let i = 0; i < frames; i++) {
+      rows.push({
+        move: f.move,
+        frame: f.actionFrame,
+        y: f.pos.y,
+        vy: f.vel.y,
+        boxes: activeHitboxes(f).length,
+      });
+      run(m, 1, hold);
+    }
+    return rows;
+  }
+
+  it('on the ground: the rising hit on frame 11 as he hops, the drop on 37 at 9 units a frame, then the landing', () => {
+    const m = snail();
+    const rows = timeline(m, 95);
+    const at = (move: string, frame: number) => rows.find((r) => r.move === move && r.frame === frame)!;
+    expect(rows.filter((r) => r.move === 'downB' && r.boxes === 3).map((r) => r.frame)).toEqual([11]);
+    expect(at('downB', 10).y).toBe(0);
+    expect(at('downB', 11).y).toBeGreaterThan(0);
+    // The hop tops out at his short-hop height just before the drop.
+    expect(at('downB', 36).y).toBeCloseTo(stats.shortHopHeight, 0);
+    expect(at('downB', 37).vy).toBe(-9);
+    expect(at('downB', 36).y - at('downB', 37).y).toBeCloseTo(9, 6);
+    expect(at('downBLand', 1).boxes).toBe(3);
+    expect(at('downBLand', 2).boxes).toBe(3);
+    expect(at('downBLand', 3).boxes).toBe(0);
+  });
+
+  it('lands into 54 frames of lag: actionable on frame 55 of the landing, from the ground and from the air', () => {
+    for (const start of ['ground', 'air'] as const) {
+      const m = snail();
+      const f = m.fighters[0]!;
+      if (start === 'air') airborne(m, 0, 40);
+      run(m, 1, DOWN_B);
+      until(m, (g) => g.move === 'downBLand');
+      const lag = until(m, (g) => g.action !== 'attack');
+      expect(lag, start).toBe(54);
+      expect(f.action, start).toBe('idle');
+    }
+  });
+
+  it('in the air: slows to 0.8 across and half his fall, hangs falling at most 0.4 a frame, then drops on frame 31', () => {
+    const m = snail();
+    const f = airborne(m, 0, 80);
+    f.vel = { x: 0.5, y: -0.6 };
+    run(m, 1, DOWN_B);
+    expect(f.vel.x).toBeCloseTo(0.4, 9);
+    expect(f.vel.y).toBeCloseTo(-0.3, 9);
+    const ys: number[] = [];
+    while (f.actionFrame < 30) {
+      run(m, 1);
+      ys.push(f.vel.y);
+    }
+    expect(Math.min(...ys)).toBeCloseTo(-0.4, 9);
+    expect(f.vel.x).toBe(0);
+    run(m, 1);
+    expect([f.actionFrame, f.vel.y]).toEqual([31, -9]);
+  });
+
+  it('a down flick or a held stick during the hang and the drop does not change his path', () => {
+    const path = (hold: (i: number) => Hold) => {
+      const m = snail();
+      const f = airborne(m, 0, 100);
+      run(m, 1, DOWN_B);
+      const ys: number[] = [];
+      for (let i = 0; i < 36; i++) {
+        run(m, 1, hold(i));
+        ys.push(f.pos.y);
+      }
+      return ys;
+    };
+    const still = path(() => ({}));
+    expect(path((i) => (i === 5 || i === 31 ? { y: -100 } : {}))).toEqual(still);
+    expect(path(() => ({ x: 100 }))).toEqual(still);
+  });
+
+  it('holds the late hit from frame 33 until he lands, however far he falls', () => {
+    const m = snail();
+    const f = airborne(m, 0, 200);
+    run(m, 1, DOWN_B);
+    until(m, (g) => g.actionFrame === POUND.lateAir);
+    let late = 0;
+    while (!f.ground) {
+      expect([f.move, f.actionFrame]).toEqual(['downBAir', POUND.lateAir]);
+      expect(activeHitboxes(f).map((h) => h.box.angle)).toEqual([76]);
+      late++;
+      run(m, 1);
+    }
+    expect(late).toBeGreaterThan(10);
+  });
+
+  it('meteors a fighter under him with the clean drop', () => {
+    const { m, a, v } = vsMario();
+    // Clear of Battlefield's platforms, which the drop would land on.
+    place(a, 70, 60);
+    Object.assign(a, { vel: { x: 0, y: 0 }, ground: null, action: 'fall', facing: 1, jumpsUsed: 1 });
+    Object.assign(v, { ground: null, action: 'fall', intangible: 0, damage: 50 });
+    runPorts(m, 1, [DOWN_B, {}]);
+    // Hold Mario in the air under the hanging shell until the drop reaches him.
+    for (let i = 0; i < 40 && v.damage === 50; i++) {
+      Object.assign(place(v, 70, a.pos.y - 18), { vel: { x: 0, y: 0 } });
+      runPorts(m, 1, [{}, {}]);
+    }
+    expect([a.move, a.actionFrame]).toEqual(['downBAir', POUND.dropAir]);
+    expect(v.damage).toBeCloseTo(50 + 20 * 1.05 * 1.2, 6);
+    for (let i = 0; i < 40 && v.kb.y === 0; i++) runPorts(m, 1, [{}, {}]);
+    expect(v.kb.y).toBeLessThan(0);
+  });
+
+  it("the landing hit sends grounded foes but passes airborne ones (Bowser Bomb's is grounded-only)", () => {
+    const landOn = (vAir: boolean) => {
+      const { m, a, v } = vsMario();
+      place(a, 0, 20);
+      Object.assign(a, { vel: { x: 0, y: 0 }, ground: null, action: 'fall', facing: 1, jumpsUsed: 1 });
+      place(v, 12, vAir ? 4 : 0);
+      Object.assign(v, {
+        intangible: 0,
+        ...(vAir ? { ground: null, action: 'fall', vel: { x: 0, y: 0 } } : {}),
+      });
+      runPorts(m, 1, [DOWN_B, {}]);
+      for (let i = 0; i < 60 && a.move !== 'downBLand'; i++) {
+        if (vAir) Object.assign(v, { pos: { x: 12, y: 4 }, vel: { x: 0, y: 0 } });
+        runPorts(m, 1, [{}, {}]);
+      }
+      if (vAir) Object.assign(v, { pos: { x: 12, y: 4 }, vel: { x: 0, y: 0 } });
+      runPorts(m, 2, [{}, {}]);
+      return v.damage;
+    };
+    expect(landOn(false)).toBeCloseTo(11 * 1.05 * 1.2, 6);
+    expect(landOn(true)).toBe(0);
+  });
+
+  it('the rising hit is set knockback: it launches the same at 0% and 150%, and never KOs', () => {
+    const scoop = (damage: number) => {
+      const { m, a, v } = vsMario();
+      place(a, 0).facing = 1;
+      place(v, 7);
+      Object.assign(v, { ground: a.ground, action: 'idle', intangible: 0, damage });
+      runPorts(m, 1, [DOWN_B, {}]);
+      for (let i = 0; i < 12 && !v.launch; i++) runPorts(m, 1, [{}, {}]);
+      return v.launch!.kb;
+    };
+    expect(scoop(0)).toBeCloseTo(scoop(150), 9);
+    expect(koPercent({ hit: hit('downB', 0) })).toBeNull();
+  });
+
+  it('the drop can still hit a fighter the rising hit struck: the two hits combo, as the grounded Bowser Bomb does', () => {
+    const { m, a, v } = vsMario();
+    place(a, 0).facing = 1;
+    place(v, 7);
+    Object.assign(v, { ground: a.ground, action: 'idle', intangible: 0 });
+    runPorts(m, 1, [DOWN_B, {}]);
+    for (let i = 0; i < 12 && !v.damage; i++) runPorts(m, 1, [{}, {}]);
+    expect(v.damage).toBeCloseTo(4 * 1.05 * 1.2, 6);
+    const scooped = v.damage;
+    // Hold Mario under the hanging shell until the drop reaches him.
+    for (let i = 0; i < 40 && v.damage === scooped; i++) {
+      Object.assign(v, {
+        pos: { x: a.pos.x, y: Math.max(a.pos.y - 14, 0) },
+        vel: { x: 0, y: 0 },
+        kb: { x: 0, y: 0 },
+      });
+      runPorts(m, 1, [{}, {}]);
+    }
+    expect(v.damage - scooped).toBeGreaterThan(20);
+  });
+
+  it('lands on a soft platform with the stick held down, from the air and from a hop off it', () => {
+    // From the air above Battlefield's left platform, holding down the whole way.
+    let m = snail();
+    let f = airborne(m, -42, 70);
+    run(m, 1, DOWN_B);
+    until(m, (g) => g.ground !== null, { y: -100 });
+    expect(f.ground).toMatchObject({ kind: 'platform' });
+    expect(f.pos.y).toBeCloseTo(PLATFORM_Y, 2);
+    run(m, 1, { y: -100 });
+    expect(f.move).toBe('downBLand');
+    // A plain fall from the same place with down held drops through it to the stage.
+    m = snail();
+    f = airborne(m, -42, 70);
+    until(m, (g) => g.ground !== null, { y: -100 });
+    expect(f.ground).toMatchObject({ kind: 'solid' });
+    // Standing on the platform, the hop comes back down onto it.
+    m = snail();
+    f = airborne(m, -42, PLATFORM_Y + 1);
+    until(m, (g) => g.ground !== null);
+    expect(f.ground).toMatchObject({ kind: 'platform' });
+    run(m, 20);
+    run(m, 1, DOWN_B);
+    expect(f.move).toBe('downB');
+    until(m, (g) => g.move === 'downBLand', { y: -100 });
+    expect(f.ground).toMatchObject({ kind: 'platform' });
+    expect(f.pos.y).toBeCloseTo(PLATFORM_Y, 2);
+  });
+
+  it('grabs the ledge from the drop on', () => {
+    const m = snail();
+    const f = airborne(m, 84, 20);
+    f.facing = -1;
+    run(m, 1, { x: -30, y: -100, buttons: ['special'] });
+    expect(f.move).toBe('downBAir');
+    until(m, (g) => g.action !== 'aerial');
+    expect(f.action).toBe('ledgeCatch');
+    expect(f.stocks).toBe(3);
+  });
+
+  /**
+   * Bowser Bomb's own hits through koPercent from the same setup (Mario at the Battlefield ledge, fresh, no rage, no
+   * DI): the landing (11%, 76°, BKB 60, KBG 72) and the late fall (20%, 76°, BKB 45, KBG 75). The meteor (20%, 290°,
+   * BKB 13, KBG 65) KOs only off the stage, so it is held to Bowser's from 10 units past the ledge, airborne, as
+   * Wheely's down air is.
+   */
+  it.each([
+    ['landing', { fighter: 'snailbob', move: 'downBLand' }, { damage: 11, angle: 76, kbg: 72, bkb: 60 }, {}],
+    ['late fall', hit('downBAir', 1), { damage: 20, angle: 76, kbg: 75, bkb: 45 }, { air: true }],
+    [
+      'meteor',
+      hit('downBAir', 0),
+      { damage: 20, angle: 290, kbg: 65, bkb: 13 },
+      { air: true, from: { x: 90, y: 0 } },
+    ],
+  ] as [string, KoSetup['hit'], KoHit, Partial<KoSetup>][])(
+    "Shell Pound's %s KOs within 5 points of Bowser Bomb's",
+    (_, ours, bowser, setup) => {
+      const bob = koPercent({ hit: ours, ...setup });
+      const analogue = koPercent({ hit: bowser, ...setup });
+      expect(bob).not.toBeNull();
+      expect(analogue).not.toBeNull();
+      expect(Math.abs(bob! - analogue!)).toBeLessThanOrEqual(5);
     },
   );
 });
