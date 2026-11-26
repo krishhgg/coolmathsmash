@@ -9,7 +9,7 @@ import {
   speedUp,
   VERTICAL_LAUNCH_FALL_SPEED,
 } from '../sim/combat/formulas';
-import { TOP_KO_MARGIN, TOP_KO_MIN_SPEED } from '../sim/constants';
+import { blastZoneCrossed } from '../sim/blastZones';
 import type { MatchState } from '../sim/match';
 import { getStage } from '../stages/registry';
 
@@ -33,8 +33,9 @@ const MAX_SUBSTEP = 1.5;
  * formulas.ts with the stick neutral, then the sim's tumble physics frame by frame (launch speed decaying 0.051 a
  * frame, gravity on the fighter's own speed, DamageFlyTop for 70-110 degree launches, balloon speed-up) with no
  * stage collision, until hitstun runs out. A KO is crossing a blast zone before then, the definition SSBU-Calculator's
- * KO calculator uses and src/sim/testing/ko.ts reproduces; the top zone needs a vertical speed of 2.4 or 30 units of
- * overshoot (TOP_KO_MIN_SPEED). Null when it survives, when nothing is pending, for an autolink hit (it follows the
+ * KO calculator uses and src/sim/testing/ko.ts reproduces, with the sim's own check (sim/blastZones.ts): the top zone
+ * needs a vertical speed of 2.4 or 30 units of overshoot, and a fast meteor dies at Ultimate's meteor blast line, 25
+ * units under the camera. Null when it survives, when nothing is pending, for an autolink hit (it follows the
  * attacker instead of flying) and for a grounded launch that slides along the floor.
  *
  * Reads the state and never writes it. With the stick neutral and a clear flight path it agrees with the sim frame
@@ -64,7 +65,7 @@ export function predictKo(state: MatchState, port: number): KoPrediction | null 
   const stun = hitstunFrames(pending.kb);
   const faf = l.tumble && !pending.setKnockback ? stun + 1 : 0;
   const steps = faf ? speedUp(faf).steps : [];
-  const zones = getStage(state.config.stage).blastZones;
+  const { blastZones: zones, camera } = getStage(state.config.stage);
   const vel = { x: 0, y: 0 };
   const pos = { x: f.pos.x, y: f.pos.y };
   let hitstun = stun + 1;
@@ -82,11 +83,8 @@ export function predictKo(state: MatchState, port: number): KoPrediction | null 
     }
     integrate(s, fly, vel, kb, t);
     // step.ts checkBlastZones.
-    const pastTop = pos.y >= zones.top + TOP_KO_MARGIN || (pos.y >= zones.top && kb.y >= TOP_KO_MIN_SPEED);
-    if (pos.x > zones.left && pos.x < zones.right && pos.y > zones.bottom && !pastTop) continue;
-    const side =
-      pos.x <= zones.left ? 'left' : pos.x >= zones.right ? 'right' : pos.y >= zones.top ? 'top' : 'bottom';
-    return { frames: frame, side, x: pos.x, y: pos.y };
+    const side = blastZoneCrossed(zones, camera, pos, kb, vel);
+    if (side) return { frames: frame, side, x: pos.x, y: pos.y };
   }
   return null;
 }

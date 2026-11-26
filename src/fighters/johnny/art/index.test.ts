@@ -29,6 +29,18 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   helpless: 'loop',
 };
 
+/** Moves named as another move's `air` variant: startMove only plays them when the move starts in the air. */
+const AIR_VARIANTS = new Set(Object.values(moves).flatMap((move) => (move.air ? [move.air] : [])));
+
+/**
+ * The moves he plays standing on the floor, picked the way the sim starts them (startMove in
+ * src/sim/actions/attack.ts): aerials and air variants start in the air, and a move that leaves the ground takes
+ * off on its first frame.
+ */
+const GROUNDED_MOVES = Object.entries(moves)
+  .filter(([name, move]) => move.kind !== 'aerial' && !move.leavesGround && !AIR_VARIANTS.has(name))
+  .map(([name]) => name);
+
 describe('johnny art', () => {
   it('has every canonical clip with its length', () => {
     for (const [name, len] of Object.entries(LENGTHS)) {
@@ -75,8 +87,7 @@ describe('johnny art', () => {
       ['shinF', 0, 0.5],
       ['footF', 2, 0.35],
     ];
-    for (const [name, move] of Object.entries(moves)) {
-      if (move.kind === 'aerial' || move.leavesGround) continue;
+    for (const name of GROUNDED_MOVES) {
       for (let f = 0; f <= art.clips[name]!.length; f++) {
         const { world } = samplePose(art, name, f, f);
         for (const [bone, x, y] of joints) {
