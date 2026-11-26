@@ -99,12 +99,15 @@ describe('move probes', () => {
     expect(ac.shot!.x2).toBeGreaterThan(a.shot!.x2 + 50);
 
     // Smash attacks charge on Attack, not Special, and are left tapped; so is every move without a charge frame.
+    // Wheely's Rev Up charges by itself (`storeCharge.tap`): its charged probe is pressed again after 40 frames of
+    // charge (src/fighters/wheely/revUp.test.ts).
     const charged = Object.keys(allFighters()).flatMap((id) =>
       Object.entries(knowledge(id, STAGE).ground)
         .filter(([, q]) => q.charged)
         .map(([name]) => `${id} ${name}`),
     );
-    expect(charged).toEqual(['bob-the-robber neutralB', 'raftwars neutralB']);
+    expect(charged).toEqual(['bob-the-robber neutralB', 'raftwars neutralB', 'wheely neutralB']);
+    expect(knowledge('wheely', STAGE).ground.neutralB!.charged!.held).toBe(40);
   });
 
   it("report a back air shot's own facing and position as it hits, which it launches from", () => {
