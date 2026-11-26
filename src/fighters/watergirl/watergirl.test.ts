@@ -7,6 +7,7 @@ import { attack, placeInAir, run, runPorts, testMatch, until } from '../../sim/t
 import { moves as fireboyMoves } from '../fireboy/moves';
 import type { MoveDef } from '../types';
 import { moves } from './moves';
+import { waterStream } from './waterStream';
 
 const watergirl = () => testMatch({ fighter: 'watergirl' });
 
@@ -126,11 +127,12 @@ describe("Watergirl: frame data (Mario's moves; Toon Link's fair)", () => {
     expect(play('dsmash').active).toEqual([5, 6, 14]);
   });
 
-  it("her grabs are Fireboy's, and she keeps his Temple Mirror but not his fireball", () => {
+  it("her grabs are Fireboy's, and she keeps his Temple Mirror but sprays Water Stream instead of his fireball", () => {
     for (const move of ['grab', 'dashGrab', 'pivotGrab', 'pummel'])
       expect(moves[move]).toEqual(fireboyMoves[move]);
     expect(moves.sideB).toBe(fireboyMoves.sideB);
-    expect(moves.neutralB).toBeUndefined();
+    expect(moves.neutralB).toBe(waterStream.neutralB);
+    expect(moves.neutralB?.spawn).toBeUndefined();
   });
 });
 
