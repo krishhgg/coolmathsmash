@@ -79,6 +79,11 @@ export function hasStatus(f: FighterState, kind: string): boolean {
   return statusOf(f, kind) !== undefined;
 }
 
+/** A freezing status (StatusDef.freeze) holds `f`: like a fighter in hitlag, it isn't pushed by others. */
+export function isFrozen(f: FighterState): boolean {
+  return f.statuses.some((s) => statusDef(s.kind).freeze);
+}
+
 /**
  * Put status `kind` on `f`, or apply it again (StatusDef.stack). Its length comes from the StatusDef, `damage` (the %
  * the applying hit added) and `knockback` (the hit's knockback scaled like its hitlag, StatusDef.perKnockback) unless

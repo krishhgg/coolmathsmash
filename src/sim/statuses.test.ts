@@ -395,6 +395,21 @@ describe('statuses: freezing', () => {
       expect(hasStatus(v, STUN), order).toBe(false);
     }
   });
+
+  it("can't be shoved: a fighter walking into a frozen one doesn't push it", () => {
+    const { m, a, v } = versus(3);
+    applyStatus(m, v, STUN, { frames: 60 });
+    runPorts(m, 1, []);
+    expect(v.hitlag).toBe(0);
+    Object.assign(a, { pos: { x: v.pos.x - 5, y: v.pos.y } });
+    a.prevPos = { ...a.pos };
+    const at = { ...v.pos };
+    for (let i = 0; i < 20; i++) {
+      runPorts(m, 1, [{ x: 100 }, {}]);
+      expect(v.pos, `frame ${i}`).toEqual(at);
+    }
+    expect(hasStatus(v, STUN)).toBe(true);
+  });
 });
 
 describe('statuses: a KO from a ledge hang', () => {
