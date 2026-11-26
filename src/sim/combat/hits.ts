@@ -1,6 +1,7 @@
 import { getFighter } from '../../fighters/registry';
 import type { FighterStats, HitboxDef, MoveKind } from '../../fighters/types';
-import { chargeMultiplier, moveOf } from '../actions/attack';
+import { moveOf } from '../actions/attack';
+import { chargeMultiplier } from '../actions/charge';
 import { parries } from '../actions/defense';
 import { findGrabs, grabArmour, resolveGrabs } from '../actions/grab';
 import { inWindow, isIntangible } from '../actions/registry';
