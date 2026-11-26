@@ -4,7 +4,7 @@ import { samplePose, type RigPose } from '../../../render/rig/sample';
 import { art } from '.';
 
 /** Swings checked frame by frame. Bob's other grounded clips still dip into the floor, so they join once fixed. */
-const SWINGS = ['fsmash'];
+const SWINGS = ['jab', 'jab2', 'jab3', 'ftilt', 'utilt', 'dtilt', 'dashAttack', 'fsmash'];
 
 /** How far a drawn part may reach below the floor (rig y 0), as in Fireboy's rolls and Runner's getup attack. */
 const SINK = 0.2;
@@ -16,6 +16,16 @@ const SINK = 0.2;
  * going backwards.
  */
 const TURN = 60;
+
+/**
+ * The most a part may turn per frame while a swing strikes, from two frames before a hit window opens until it
+ * closes. Jabs and tilts reach their hit two frames after the wind-up, so the forward tilt turns its baton 118
+ * degrees into the hit and the up tilt twirls it 90 a frame. Anything under half a turn still reads the right way.
+ */
+const STRIKE = 120;
+
+const striking = (name: string, f: number) =>
+  (art.clips[name]!.active ?? []).some(([from, to]) => f >= from - 2 && f <= to);
 
 /** Where the baton's tip sits along its bone (as `tipOf` in poses.ts). */
 const TIP = 7.5;
@@ -41,23 +51,24 @@ describe("bob's baton swings", () => {
         const pose = samplePose(art, name, f, f);
         const bottom = poseBounds(art, pose)[3];
         const m = pose.world.baton!;
-        const tip = m.b * TIP + m.ty;
+        const tip = pose.symbols.baton ? m.b * TIP + m.ty : -Infinity;
         if (bottom > SINK || tip > SINK)
           sunk.push(`${name}@${f} ${bottom.toFixed(2)}${tip > SINK ? ` (tip ${tip.toFixed(2)})` : ''}`);
       }
     expect(sunk).toEqual([]);
   });
 
-  it(`turns no drawn part more than ${TURN} degrees between frames`, () => {
+  it(`turns no drawn part more than ${TURN} degrees between frames, or ${STRIKE} as it strikes`, () => {
     const spun: string[] = [];
     for (const name of SWINGS) {
       let prev = samplePose(art, name, 0, 0);
       for (let f = 1; f <= art.clips[name]!.length; f++) {
         const pose = samplePose(art, name, f, f);
         const before = drawn(prev);
+        const limit = striking(name, f) ? STRIKE : TURN;
         for (const bone of drawn(pose)) {
           const deg = turn(pose, bone) - turn(prev, bone);
-          if (before.has(bone) && Math.abs(deg) > TURN) spun.push(`${name}@${f} ${bone} ${deg.toFixed(0)}`);
+          if (before.has(bone) && Math.abs(deg) > limit) spun.push(`${name}@${f} ${bone} ${deg.toFixed(0)}`);
         }
         prev = pose;
       }

@@ -15,19 +15,41 @@ export function key(frame: number, pose?: Pose, extra: Omit<Key, 'frame' | 'pose
   return pose ? { frame, pose, ...extra } : { frame, ...extra };
 }
 
-/** Keep equivalent limb and prop angles on the short side of the tween across an IK wrap. */
-export function continuous(keys: Key[]): Key[] {
-  const angles: Record<string, number> = {};
+/**
+ * Keeps equivalent limb and prop angles on the short side of the tween across an IK wrap: each bone takes the
+ * whole turns that leave its own turn nearest the last key's.
+ *
+ * Short turns can still add up along a limb: the upper arm, forearm and baton can each turn the short way while
+ * the baton goes most of the way round on screen. With `onScreen`, each bone instead takes the whole turns that
+ * leave its angle on screen (its own turn plus its parents') nearest the last key's. The body is never wrapped,
+ * so a flip still spins and carries the rest with it.
+ */
+export function continuous(keys: Key[], { onScreen = false } = {}): Key[] {
+  const last: Record<string, number> = {};
+  let body: number | undefined;
   return keys.map((k) => {
     if (!k.pose) return k;
     const pose = { ...k.pose };
-    for (const { name } of rig.bones) {
-      const prev = angles[name];
+    const now: Record<string, number> = {};
+    for (const { name, parent } of rig.bones) {
+      const above = parent ? now[parent]! : 0;
       let r = pose[name]?.rot ?? 0;
-      if (name !== 'body' && prev !== undefined) r += 360 * Math.round((prev - r) / 360);
+      if (name === 'body') {
+        // Only the body's lean since the last key counts against what it carries, not its whole turns (a flip).
+        const lean = body === undefined ? 0 : r - body - 360 * Math.round((r - body) / 360);
+        now[name] = body === undefined ? above + r : last[name]! + lean;
+        body = r;
+        continue;
+      }
+      const was = last[name];
+      if (was !== undefined) {
+        const [from, to] = onScreen ? [was, above + r] : [was - (parent ? last[parent]! : 0), r];
+        r += 360 * Math.round((from - to) / 360);
+      }
       if (r !== 0 || pose[name]?.rot !== undefined) pose[name] = { ...pose[name], rot: r };
-      angles[name] = r;
+      now[name] = above + r;
     }
+    Object.assign(last, now);
     return { ...k, pose };
   });
 }
