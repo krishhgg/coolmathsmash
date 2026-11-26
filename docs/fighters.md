@@ -518,6 +518,10 @@ detection box as grab circles on frames 29-34, the catch's 12% and the 31-hit ba
 as the throw on frame 139. Its box comes out before frame 42, so it sets `final.freeze` to 27, the longest hold that
 lets the box out on its own frame.
 
+Wheely's Full Throttle (`src/fighters/wheely/finalSmash.ts`) is another, on Captain Falcon's Blue Falcon: its
+boxes come out on frame 28, so it sets `final.freeze: 26` to free the others just before them, and its cinematic lands
+the Blue Falcon's hits as `holdHits` and its final launch as the `throw`.
+
 - **Catching.** The trap catches like any command grab: the nearest grabbable fighter in front, through shields. Ultimate
   traps every fighter its hitbox touches; this one holds the first. Papa Louie's Conveyor Oven
   (`src/fighters/papa-louie/finalSmash.ts`) is the roster example, on Steve's House of Boom, which traps only one too: its

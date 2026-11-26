@@ -1408,3 +1408,150 @@ export const spring: PathShape[] = (() => {
   pts.push([0, -1]);
   return [ink(poly(pts, false), 'pipeLine', 0.16), ink(poly(pts, false), 'chrome', 0.07)];
 })();
+
+// ---------------------------------------------------------------- Full Throttle (the Final Smash)
+
+/**
+ * The turbo jet out of the exhaust when he floors it for Full Throttle: a long ragged flame blasting back (towards
+ * -x) from the pipe at the origin, about 6.5 long, orange outside, yellow, then a blue-hot core.
+ */
+export function turbo(seed: number): PathShape[] {
+  const j = (i: number) => Math.sin(seed * 2.9 + i * 1.3) * 0.22;
+  const outer: Node[] = [
+    C(0, -0.42),
+    [-1.2, -0.95 + j(1)],
+    [-2.6, -1.18 + j(2)],
+    [-3.9, -0.98 + j(3)],
+    [-5.2, -0.62 + j(4)],
+    [-6.6 + j(5), -0.12],
+    [-5.5, 0.28 + j(6)],
+    [-6.1 + j(7), 0.72],
+    [-4.5, 0.98 + j(8)],
+    [-2.9, 1.08 + j(9)],
+    [-1.3, 0.86 + j(10)],
+    C(0, 0.42),
+  ];
+  const inner: Node[] = [
+    C(0, -0.28),
+    [-1.4, -0.66 + j(2)],
+    [-3.1, -0.64 + j(4)],
+    [-4.5 + j(6), -0.18],
+    [-3.9, 0.32 + j(8)],
+    [-2.5, 0.62 + j(3)],
+    [-1.1, 0.56],
+    C(0, 0.28),
+  ];
+  const core: Node[] = [
+    C(0, -0.17),
+    [-1.3, -0.32 + j(5)],
+    [-2.8 + j(7), -0.06],
+    [-2.3, 0.2],
+    [-1.0, 0.3],
+    C(0, 0.17),
+  ];
+  const hot: Node[] = [C(0, -0.08), [-0.8, -0.13], [-1.4 + j(9), 0], [-0.8, 0.13], C(0, 0.08)];
+  return [
+    fill(curve(outer), 'flame', 'flameLine', 0.1),
+    fill(curve(inner), 'flameHi'),
+    fill(curve(core), 'turbo', 'turboLine', 0.04),
+    fill(curve(hot), 'turboCore'),
+  ];
+}
+
+/** The bow wave's size as drawn: from the ground under the bumper out to its front, and its height over the bumper. */
+export const BOOM = { length: 20, height: 14 };
+
+/**
+ * The bow wave a car shoves ahead of it at full throttle: a faint dome of pressed air from the ground under his front
+ * bumper (the origin) out to its front BOOM.length ahead, BOOM.height tall over the bumper, with three arcs of wind
+ * spreading out from the bumper like his horn waves, each taller than the last. The air and the arcs fade in from the
+ * bumper and are brightest at their fronts; the outermost arc is the dome's inked edge, so the drawing ends exactly at
+ * its front.
+ */
+export const boom: PathShape[] = (() => {
+  const { length: L, height: H } = BOOM;
+  /** A quarter ellipse from the ground ahead (0 degrees) up over the bumper (90). */
+  const quarter = (rx: number, ry: number) => ellipsePts(0, 0, rx, ry, 0, 0, 90, 6);
+  /** An arc of wind along the quarter ellipse at `k` of the way out, `thick` at its middle and thinner at its ends. */
+  const arcOf = (k: number, thick: number) => {
+    const out = quarter(k * L, (0.55 + 0.45 * k) * H);
+    const inner = out.map(([x, y], i): Pt => {
+      const a = (i / (out.length - 1)) * (Math.PI / 2);
+      const t = thick * (0.3 + 0.7 * Math.sin(2 * a));
+      const r = Math.hypot(x, y);
+      return [x * (1 - t / r), y * (1 - t / r)];
+    });
+    return curve([
+      C(...out[0]!),
+      ...out.slice(1, -1),
+      C(...out[out.length - 1]!),
+      C(...inner[inner.length - 1]!),
+      ...inner.slice(1, -1).reverse(),
+      C(...inner[0]!),
+    ]);
+  };
+  const streak = (y: number, x0: number, len: number) =>
+    fill(curve([C(x0, y - 0.12), C(x0 + len, y), C(x0, y + 0.12)]), {
+      type: 'linear',
+      x0,
+      y0: 0,
+      x1: x0 + len,
+      y1: 0,
+      stops: [
+        { offset: 0, color: 'speed', alpha: 0 },
+        { offset: 1, color: 'speed', alpha: 0.9 },
+      ],
+    });
+  /** `color` fading in from the bumper to `to` units ahead. */
+  const ahead = (color: string, to: number, from: number, alpha: number): Paint => ({
+    type: 'linear',
+    x0: 0,
+    y0: 0,
+    x1: to,
+    y1: 0,
+    stops: [
+      { offset: 0, color, alpha: from },
+      { offset: 1, color, alpha },
+    ],
+  });
+  const dome = quarter(L, H);
+  return [
+    fill(
+      curve([C(0, 0), C(...dome[0]!), ...dome.slice(1, -1), C(...dome[dome.length - 1]!)]),
+      ahead('turbo', L, 0, 0.2),
+    ),
+    streak(-2.2, 1.5, 9),
+    streak(-6.2, 0.8, 7),
+    streak(-10, 0.5, 4.5),
+    fill(arcOf(0.42, 0.4), ahead('speed', 0.42 * L, 0.05, 0.8)),
+    fill(arcOf(0.7, 0.5), ahead('speed', 0.7 * L, 0.05, 0.85)),
+    fill(arcOf(1, 0.65), ahead('speed', L, 0.15, 0.95), 'turboLine', 0.08),
+  ];
+})();
+
+/**
+ * A crash: a comic burst of twelve uneven spikes (radius 1, centred), yellow with an orange heart and a white-hot
+ * middle, and three chips of paint flying off it.
+ */
+export const crash: PathShape[] = (() => {
+  const SPIKES = [1, 0.62, 0.9, 0.7, 1.08, 0.6, 0.86, 0.74, 1.02, 0.64, 0.94, 0.68];
+  const burst = (r: number, waist: number, turn: number): Pt[] =>
+    SPIKES.flatMap((len, i): Pt[] => {
+      const a = (((i * 360) / SPIKES.length + turn) * Math.PI) / 180;
+      const b = ((((i + 0.5) * 360) / SPIKES.length + turn) * Math.PI) / 180;
+      return [
+        [r * len * Math.cos(a), r * len * Math.sin(a)],
+        [r * waist * Math.cos(b), r * waist * Math.sin(b)],
+      ];
+    });
+  const chip = (x: number, y: number, s: number, rot: number) =>
+    fill(ellipse(x, y, 0.13 * s, 0.07 * s, rot), 'paint', 'line', 0.03);
+  return [
+    fill(poly(burst(1, 0.5, -84)), 'star', 'starLine', 0.06),
+    fill(poly(burst(0.62, 0.52, -71)), 'flame'),
+    fill(ellipse(0, 0, 0.3, 0.27), 'glint'),
+    chip(1.25, -0.55, 1.2, -30),
+    chip(1.05, 0.7, 1, 25),
+    chip(-0.2, -1.25, 0.9, 70),
+  ];
+})();
