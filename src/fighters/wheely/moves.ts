@@ -1,5 +1,8 @@
 import type { HitboxDef, MoveDef } from '../types';
+import { chargeLerp } from '../../sim/actions/charge';
 import { stickX } from '../../sim/control';
+import type { Ctx } from '../../sim/fighter';
+import { stats } from './stats';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -19,6 +22,62 @@ const box = (
 /** A grab box: catches instead of hitting, so it carries no damage or knockback. */
 const grabBox = (id: number, x: number, y: number, radius: number) =>
   box(id, x, y, radius, { damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true });
+
+/**
+ * Rev Up's timing (neutral special). Ultimate analogue: Donkey Kong's Giant Punch, read from SmashWiki ("Giant Punch",
+ * "Donkey Kong (SSBU)/Neutral special") and ultimateframedata.com/donkey_kong.
+ *
+ * - `charge`: the move pauses on frame 7 while he revs ("Entering charge window takes 7 frames").
+ * - `chargeFrames`: 110 frames to full revs ("The charge duration lasts 110 Frames as of 6.0.0").
+ * - `hit`, `faf`: the fully charged punch's timing, a hitbox from frame 19 and FAF 48, so a stored full charge
+ *   comes out on Giant Punch's frame. The uncharged punch hits 19 frames after the release with FAF 70 in Ultimate.
+ *   One timeline can't hold both, and the stored full blast is the one that decides whether the move is safe.
+ * - `drive`: the punch moves Donkey Kong only a little, so the blast forward is Wheely's own. He pops the clutch 2
+ *   frames before the hit and drives through the hit window.
+ * - `speed`: his drive speed uncharged and at full revs. Uncharged is his top run speed (Little Mac's). Full revs
+ *   cover about 75 units, from Little Mac's Straight Lunge, Ultimate's other tap-charged lunge. SmashWiki says the
+ *   full lunge sends him "almost half the distance of Final Destination", whose main stage is 160 wide.
+ */
+export const REV_UP = {
+  charge: 7,
+  chargeFrames: 110,
+  hit: [19, 26] as [number, number],
+  drive: [17, 26] as [number, number],
+  faf: 48,
+  speed: [stats.runSpeed, 5.2] as [number, number],
+};
+
+/** Rev Up's drive: brake into the rev, floor it at a speed set by the revs, then skid to a stop. */
+function revUpDrive(x: Ctx): void {
+  const { f } = x;
+  const [from, to] = REV_UP.drive;
+  if (f.actionFrame < from) {
+    if (f.ground) f.vel.x *= 0.8;
+  } else if (f.actionFrame <= to) {
+    f.vel.x = f.facing * chargeLerp(f, ...REV_UP.speed);
+  } else {
+    f.vel.x *= 0.85;
+  }
+}
+
+/**
+ * Rev Up, grounded or aerial: Giant Punch's input model and hit (`damage` uncharged, `chargeDamage` up to full, BKB
+ * and KBG of the fully charged punch). Both boxes are the car: the front bumper (Giant Punch's 5.5 fist) and the cab
+ * (its 4.0 arm).
+ */
+function revUp(damage: number, chargeDamage: number, bkb: number, kbg: number): MoveDef {
+  const hit = { damage, angle: 361, kbg, bkb };
+  return {
+    kind: 'other',
+    faf: REV_UP.faf,
+    charge: REV_UP.charge,
+    chargeFrames: REV_UP.chargeFrames,
+    chargeDamage,
+    storeCharge: { tap: true, storeAtFull: true },
+    hits: [{ frames: REV_UP.hit, boxes: [box(0, 8, 5, 5.5, hit), box(1, 2, 5.5, 4, hit)] }],
+    script: revUpDrive,
+  };
+}
 
 /**
  * Wheely's normals: a car with no fists, so every hit is the bumper, the wheels, the hood, the horn or the exhaust.
@@ -379,4 +438,21 @@ export const moves: Record<string, MoveDef> = {
       }
     },
   },
+  /**
+   * Rev Up (neutral special): parks and revs the engine, then pops the clutch and blasts forward bumper first.
+   * Giant Punch's input model (`{ tap: true, storeAtFull: true }`): tap Special and he revs by himself; Special or
+   * Attack again lets go. Shield, a roll or spot dodge out of it, an air dodge or a jump keeps the revs for next time,
+   * and at full revs he keeps them and stops revving. A full charge kept that way blasts off at once next time. Like
+   * any stored charge it is lost on a KO. SmashWiki's "Charge" page lists only Oil Panic and Wario Waft as kept
+   * after a KO.
+   *
+   * Grounded Giant Punch: 10% uncharged to 28% at full ("base damage + 18 * (charge frames / 110)"), Sakurai angle,
+   * BKB 35 and KBG 73 (the full punch's; uncharged it is 45 and 70, and the engine scales only the damage).
+   */
+  neutralB: { ...revUp(10, 2.8, 35, 73), air: 'neutralBAir' },
+  /**
+   * Rev Up in the air: aerial Giant Punch, 6% to 25% with the full punch's BKB 40 and KBG 72. It shares the stored
+   * revs with the grounded one (as Samus's Charge Shot does) and carries on when it lands.
+   */
+  neutralBAir: { ...revUp(6, 25 / 6, 40, 72), continuesOnLanding: true },
 };

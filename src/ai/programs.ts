@@ -2,7 +2,7 @@ import { getFighter } from '../fighters/registry';
 import { Btn, neutralInput, type InputFrame } from '../input/types';
 import type { FighterState } from '../sim/fighter';
 import { AIR_INPUTS, DASH_INPUTS, GROUND_INPUTS, STICK, press } from './inputs';
-import { actionable } from './knowledge';
+import { actionable, tapToFire } from './knowledge';
 import type { Attack } from './options';
 import {
   clampToStage,
@@ -204,7 +204,8 @@ export function dropJump(toward: number): Program {
 
 /**
  * A grounded move: wait until actionable on the ground (out of a shield drop), then input it facing `facing`. A grab
- * comes straight out of the shield instead (Grab with Shield still held), so it keeps holding Shield until then.
+ * comes straight out of the shield instead (Grab with Shield still held), so it keeps holding Shield until then. A
+ * tap-charged special gets its second press (tapToFire), so it fires as the knowledge probe saw it.
  */
 export function groundMove(move: string, facing: 1 | -1): Program {
   const input = GROUND_INPUTS[move] ?? DASH_INPUTS[move];
@@ -213,7 +214,8 @@ export function groundMove(move: string, facing: 1 | -1): Program {
     interruptible: false,
     holds: move === 'grab',
     step(t, f) {
-      if (t > 40 || (f.move === move && f.action === 'attack')) return null;
+      if (f.move === move && f.action === 'attack') return tapToFire(f);
+      if (t > 40) return null;
       if (move === 'grab' && f.action === 'shieldStun') return press({ buttons: Btn.Shield });
       if (move === 'grab' && f.action === 'shield') return press({ buttons: Btn.Grab | Btn.Shield });
       if (!actionable(f) || f.ground === null) return neutralInput();

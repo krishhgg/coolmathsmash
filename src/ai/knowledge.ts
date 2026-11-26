@@ -1,6 +1,6 @@
 import { getFighter } from '../fighters/registry';
 import type { FighterDef, FighterStats, HitboxDef, MoveDef } from '../fighters/types';
-import { neutralInput, type InputFrame } from '../input/types';
+import { Btn, neutralInput, type InputFrame } from '../input/types';
 import { activeHitboxes } from '../sim/combat/hits';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { hintsFor, type CpuHints } from './hints';
@@ -87,6 +87,21 @@ const ACTIONABLE = new Set([
   'turn',
   'runBrake',
 ]);
+
+/**
+ * A tap-charged special (MoveDef.storeCharge.tap) charges by itself until Special is pressed again. The input to send
+ * while `f` plays it before its charge frame: Special on the frame before, so it fires uncharged, else neutral. Null
+ * when it isn't one, or is past its charge frame.
+ */
+export function tapToFire(f: {
+  fighter: string;
+  move: string | null;
+  actionFrame: number;
+}): InputFrame | null {
+  const def = f.move === null ? undefined : getFighter(f.fighter).moves?.[f.move];
+  if (!def?.storeCharge?.tap || def.charge === undefined || f.actionFrame >= def.charge) return null;
+  return f.actionFrame === def.charge - 1 ? press({ buttons: Btn.Special }) : neutralInput();
+}
 
 /** The fighter can start something new this frame (Smash's "actionable"). */
 export function actionable(f: { action: string; hitstun: number }): boolean {
@@ -180,7 +195,7 @@ function probe(def: FighterDef, stageId: string, move: string, start: MoveProbe[
   let busy = PROBE_LIMIT;
   let helpless = false;
   for (let t = 0; t < PROBE_LIMIT; t++) {
-    if (t > 0) step(neutralInput());
+    if (t > 0) step((f.move === move && tapToFire(f)) || neutralInput());
     if (f.action === 'helpless') helpless = true;
     const boxes = f.move === move ? activeHitboxes(f) : [];
     if (boxes.length) {
