@@ -136,6 +136,8 @@ fsmash: {
     the full damage. Set it only where the Ultimate analogue does it. SmashWiki ("Stone") documents it only for
     Kirby's Stone, whose breaking hit deals half damage at full knockback (`breakDamageMul: 0.5`). Its "Armor" page
     says most armor takes full damage, so leave it unset by default.
+- **Counter.** `counter: { window, move }` blocks hits on those frames and plays the counterattack `move` (see
+  Counters below).
 - **Getup attack.** A move named `getupAttack` plays when a fighter lying down after a missed tech presses
   Attack. Give it `intangible: [1, 26]` (Ultimate's) and hits on both sides; without one, Attack just stands up.
 - **Specials.** `script(x)` runs every frame of the move before physics and sets velocity or facing. It must be
@@ -318,6 +320,66 @@ beastChew: {
 - **`holdHits: [{ frame, damage, hitlag? }]`** land in order like pummels: damage and hitlag, no knockback. Their
   damage counts towards the release's knockback.
 - **Third parties.** Hits from others break the victim free after 10%, as in any grab.
+
+### Counters
+
+A move with `counter` blocks hits and answers them with a counterattack. Marth's Counter in Ultimate, from the test
+fixtures in `src/sim/testing/counter.ts` until Bob's Shadow Step exists:
+
+```ts
+downB: {
+  kind: 'other',
+  faf: 65,
+  hits: [],
+  intangible: [5, 6],
+  counter: { window: [6, 27], move: 'downBHit' },
+},
+downBHit: {
+  kind: 'other',
+  faf: 42,
+  intangible: [1, 8],
+  hits: [
+    {
+      frames: [5, 7],
+      boxes: [{ id: 0, x: 9, y: 8, radius: 8, damage: 8, angle: 361, kbg: 60, bkb: 90 }],
+    },
+  ],
+},
+```
+
+- **The catch.** A hit whose box touches the fighter on a `window` frame (inclusive) is blocked: no damage, knockback,
+  hitstun or `status`. Every hit on it that frame is blocked, and the first in the frame's order (attackers by port,
+  then projectiles) sets the counter off. Grabs, command grabs and stage hazards go through, even on the frame the
+  counter catches a hit: then the grab or the hazard wins, the counterattack doesn't start and nobody freezes. A
+  windbox (`pushOnly`) pushes the counterer without setting it off. An intangible fighter is never touched, so it
+  can't counter: Marth is intangible on frames 5 and 6, and his first catch is on frame 7.
+- **The freeze.** The counterer goes straight into the counterattack `move` and freezes with the attacker for
+  `freeze` frames (default 21, Marth's). The counterattack's frame 1 is the last frozen frame, so its frame numbers
+  are Ultimate's and Marth's swing lands 25 frames after the catch. The counterer is intangible through the freeze,
+  and the counterattack's own `intangible` takes over from frame 1.
+- **Facing.** The counterer turns to face the hit. With `behind` it reappears that many units behind the attacker
+  instead, facing their back, as Lucario's Double Team does: on the attacker's floor (held to its ends), or in the
+  air beside an airborne attacker.
+- **Damage.** The counterattack's boxes deal the caught hit's damage (after staleness, as a shield takes it) times
+  `multiplier` (default 1.2), capped at `max` (default 50%), or their own damage when that is more. Marth's 8% box is
+  his counter's minimum, as in Ultimate's data. `multiplier: 0` always deals the boxes' own damage (Double Team's
+  fixed 12.5%). The boxes deal the same on hittable entities and in clanks with projectiles (`hitboxDamage`,
+  `src/sim/combat/hits.ts`). Otherwise the counterattack is a normal move: it can miss, it stales, and rage and DI
+  apply.
+- **Projectiles.** A caught projectile is used up as if it hit. The counterer answers in place, even with `behind`,
+  and nobody else freezes.
+- **Events.** A catch reports `counter` with what the caught hit would have dealt, then `move` for the counterattack
+  (`docs/sim-events.md`).
+
+The defaults (`COUNTER`, `src/sim/constants.ts`) and the fixture are SmashWiki's Marth (SSBU)/Down special: counter
+6-27, x1.2, 8% to 50%, "Counter hitlag on activation: 21 frames", the counterattack's frames and its knockback. The
+rules are SmashWiki's Counterattack page: blockable hits during the counter are blocked, grabs are immune, and
+counters don't trigger while the fighter is invincible. Not modelled: a freeze scaled from the caught hit and the
+slowdown (Double Team, Greninja's Substitute), and choosing the counterattack's direction with the stick.
+
+`?harness` registers both fixtures, so you can try them:
+`__smash.newMatch({ ports: [{ fighter: 'fireboy' }, { fighter: 'test-counter' }] })` (or `test-counter-behind`), then
+down special.
 
 ### Tethers
 
@@ -503,6 +565,62 @@ the fuel left. Fuel refills only on the ground, from empty to full in `refillFra
 floated this airtime; equal to the float's `frames` once spent), `floating`, `glideUsed`, `glideAngle` and
 `glideSpeed`. Midair jumps left are `stats.jumps - jumpsUsed`.
 
+## Statuses and meters
+
+A **status** is a condition that sits on a fighter for a number of frames, like Ultimate's flower. A **meter** is a
+named number a fighter's moves fill and spend: charge, ammo, coins, a once-per-airtime count. Both are plain data on
+the FighterDef; the engine code is `src/sim/statuses.ts` and `src/sim/meters.ts`. The test fighter in
+`src/sim/testing/statuses.ts` uses every field, and its tests are `src/sim/statuses.test.ts`. Red Ball's Squared
+(`src/fighters/redball/statuses.ts`) is the roster example:
+
+```ts
+// statuses.ts: Ultimate's flower (SmashWiki, "Flower (effect)")
+squared: {
+  frames: 20, perDamage: 40, max: 3000,  // floor(20 + 40 x the % the hit added) frames, at most 3000
+  stack: 'add',                          // squaring a squared fighter adds the new length
+  tick: { every: 21, damage: 1 },        // 1% on every 21st frame
+  mash: { stick: 16, button: 28.8 },     // frames cut per new stick direction and per button press
+  color: '#3b3b46',                      // badge beside the head
+},
+// moves.ts: the down throw applies it
+dthrow: { ..., throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55, status: 'redball/squared' } } },
+```
+
+- **Kinds.** `FighterDef.statuses` names a fighter's statuses; in state and on hitboxes the kind is
+  `"<fighter id>/<name>"`, like entities, so any fighter can inflict any status.
+- **Applying.** A hitbox, throw or projectile with `status` applies it when it hits, after the `hit` event. A shield
+  stops it. Its length is floor(`frames` + `perDamage` x the % the hit added), so the 1v1 multiplier counts, as it
+  does for Ultimate's flower; `max` caps it. A script calls `applyStatus(x.m, fighter, kind, opts)` instead, where
+  `opts` may give `damage`, `frames` and `source`. Applying a status that is already on adds the new length
+  (`stack: 'add'`) or keeps the longer of the two (`refresh`, the default).
+- **Ticking.** Every status ticks once on each frame the fighter acts, from the frame after it went on. Hitlag pauses
+  it. Each tick, in order: `mash` cuts frames for a new stick direction or a button press (pressing doesn't use up the
+  input), `script(x, status)` runs (after the action, before physics), and `tick` adds `damage` % on every `every`th
+  frame with no hitlag or knockback, reported as `statusDamage` so the results count it for the victim and the
+  source. Then it counts down one frame and ends at 0. Ending emits `statusEnd`.
+- **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status.
+- **State.** `FighterState.statuses` lists `{ kind, frames, age, since, source }`, oldest first. `frames` is what is
+  left, `age` counts ticks from 1 and `source` is the port credited (-1 for none). Use `hasStatus` and `statusOf`
+  to read it.
+
+Meters are declared in `FighterDef.meters`:
+
+```ts
+meters: {
+  ammo: { max: 3, start: 3 },                         // spent by a move: spendMeter(x.f, 'ammo', 1)
+  hop: { max: 1, start: 1, regen: 1, grounded: true }, // one per airtime, refilled on the ground
+  coins: { max: 99, onKo: 'keep' },                   // kept into the next stock
+},
+```
+
+- `FighterState.meters` holds the values by name, starting at `start` (default 0). `meter`, `setMeter`, `addMeter`
+  and `spendMeter` read and change them, clamped to 0..`max`. `spendMeter` takes `cost` only when the meter holds
+  that much, and returns whether it did. An unknown meter name throws.
+- `regen` changes the value every frame the fighter acts (not while KO'd), negative to drain. With `grounded` it only regenerates on
+  the ground.
+- A KO puts a meter back to `start` unless it has `onKo: 'keep'`.
+- Meters have no events. The HUD reads the values from state.
+
 ## Stages
 
 Stages can move (docs/stage-geometry.md): a fighter standing on a moving platform or solid rides it, one hanging from a
@@ -578,6 +696,9 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   never hit or clank with entities.
 - **Order of a frame.** Fighters act (spawning), the stage moves, entities move, then reflectors, absorbers and clanks, then every hit
   from fighters and entities lands at once, then grabs (an attack or projectile beats a grab on the same frame).
+- **Items.** Items are entities registered as `item/<name>`. `onBreak(m, e, by)` runs when a hittable entity breaks,
+  with the port that landed the last hit. `pickup(m, f, e)` makes an entity something an idle fighter picks up with
+  Attack. The Items rule, spawning and the Coolmath Planet are in docs/items.md.
 - **Events.** Entities report `entitySpawn`, `entityDestroy` (with the reason), `reflect`, `absorb` and `entityHit`,
   and their hits are `hit` and `shieldHit` events carrying the `entity` id (`docs/sim-events.md`).
 
