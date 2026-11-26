@@ -15,6 +15,7 @@ import {
   fxBoom,
   fxFlames,
   fxPop,
+  fxPowers,
   fxPuff,
   fxSpark,
   fxSpeed,
@@ -30,6 +31,7 @@ import {
   ringFront,
   rocket,
   shoes,
+  shotBalls,
   torso,
   type Part,
 } from './parts';
@@ -164,6 +166,12 @@ export const rig: Rig = {
     ...fxFlames,
     /** The rocket's exhaust flickering on the match clock. */
     fxFlame: { loop: ['fxFlameA', 'fxFlameB'], fps: 20 },
+    ...fxPowers,
+    /** Aimed Shot's charge twinkling at the muzzle while they hold it. */
+    fxPower: { loop: ['fxPowerA', 'fxPowerB', 'fxPowerC'], fps: 15 },
+    ...shotBalls,
+    /** Aimed Shot's ball spinning in flight (art.projectiles). */
+    shotBall: { loop: ['shotBallA', 'shotBallB'], fps: 20 },
   },
 };
 
