@@ -6,6 +6,9 @@ import { CROUCH_THRESHOLD, DASH_THRESHOLD, DIRECTION_THRESHOLD } from '../../sim
 import { flickX, stickX, stickY } from '../../sim/control';
 import { emit } from '../../sim/events';
 import type { Ctx, FighterState } from '../../sim/fighter';
+import { DASH, RUN, WALK, tipSpeed } from './tipping';
+
+export { DASH, RUN, TIP_DISTANCE, WALK, tipSpeed } from './tipping';
 
 /**
  * Bloxorz block moves the way it does in Bloxorz: it tips end over end. Every tip turns the block 90 degrees about
@@ -16,26 +19,8 @@ import type { Ctx, FighterState } from '../../sim/fighter';
 export const STANDING = 'bloxorz';
 export const LYING = 'bloxorz-lying';
 
-/** One tip moves the block's centre half a cube plus a cube. */
-export const TIP_DISTANCE = 18;
-
-/**
- * Tip timing in frames: a tip every `period` frames, rotating for the first `tip` of them and resting for the rest.
- * Walk averages 18 / 20 = 0.9 units a frame, the dash's single tip and the run 18 / 12 = 1.5.
- */
-export const WALK = { period: 20, tip: 14 } as const;
-export const DASH = { period: 12, tip: 12 } as const;
-export const RUN = { period: 12, tip: 10 } as const;
-
 /** Every tip lands with a small screen shake (the video's "screen shake effect with every movement"). */
 export const TIP_SHAKE = { amplitude: 2, frames: 4 } as const;
-
-/** Horizontal speed on frame `t` (from 0) of a tip lasting `frames`: eased in and out, summing to exactly 18. */
-export function tipSpeed(t: number, frames: number): number {
-  let total = 0;
-  for (let k = 0; k < frames; k++) total += Math.sin((Math.PI * (k + 0.5)) / frames);
-  return (TIP_DISTANCE * Math.sin((Math.PI * (t + 0.5)) / frames)) / total;
-}
 
 export function isLying(f: FighterState): boolean {
   return f.fighter === LYING;
