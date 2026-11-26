@@ -5,7 +5,6 @@ import type { HitboxDef, MoveDef } from '../fighters/types';
 import { neutralInput } from '../input/types';
 import { createMatch, stepMatch } from '../sim/match';
 import { STAGES } from '../stages/registry';
-import { runCpuMatch } from './bench';
 import { hintsFor } from './hints';
 import { createCpu } from './index';
 import { AERIALS, SPECIALS } from './inputs';
@@ -206,12 +205,57 @@ describe('air probes of moves that end in a helpless fall', () => {
 });
 
 describe('a recovery that carries the CPU back over the stage', () => {
-  // Level 9 against level 9 on Battlefield (src/ai/bench.ts). Wheely drifts past the right edge and Ramp Jumps, which
-  // carries him back over the stage at 2.2 units a frame. The CPU used to drop its recovery plan once there was stage
-  // under him and give no input in the helpless fall over the stage's middle, so he drifted off the left side and
-  // self-destructed on frame 5156. The plan steers through that fall, as the planner checked it.
-  it('keeps steering its helpless fall, so a level 9 Wheely does not self-destruct in seed 1 against Johnny', () => {
-    const r = runCpuMatch({ seed: 1, levels: [9, 9], fighters: ['wheely', 'johnny'], maxFrames: 5156 + 60 });
-    expect(r.kos.filter((k) => k.selfDestruct)).toEqual([]);
-  }, 60_000);
+  // Wheely as he was in a level 9 match (seed 1 against Johnny, frame 4983): 0.6 units past Battlefield's right edge,
+  // falling, his double jump used, and Johnny in the air above the stage, both with the stage's state patched in. On
+  // these CPU seeds he Ramp Jumps, which carries him back over the stage at 2 units a frame and leaves him helpless.
+  // The CPU used to drop its recovery plan once there was stage under him and give no input over the middle, so he
+  // drifted off the left side; the plan steers that fall, as the planner checked it.
+  it.each([11, 24, 31, 76])(
+    'keeps steering the helpless fall after Ramp Jump onto the stage (CPU seed %d)',
+    (seed) => {
+      const m = createMatch({
+        seed: 1,
+        stage: STAGE,
+        stocks: 3,
+        ports: [{ fighter: 'wheely' }, { fighter: 'johnny' }],
+      });
+      for (let i = 0; i < 30; i++) stepMatch(m, [neutralInput(), neutralInput()]);
+      const [w, j] = m.fighters;
+      Object.assign(w!, {
+        pos: { x: 80.64, y: 23.71 },
+        prevPos: { x: 80.26, y: 24.39 },
+        vel: { x: 0.381, y: -0.802 },
+        ground: null,
+        action: 'fall',
+        actionFrame: 6,
+        facing: 1,
+        jumpsUsed: 1,
+        airFrames: 27,
+        damage: 48.7,
+      });
+      Object.assign(j!, {
+        pos: { x: 62.59, y: 64.38 },
+        prevPos: { x: 62.84, y: 64.45 },
+        vel: { x: -0.252, y: -0.068 },
+        ground: null,
+        action: 'doubleJump',
+        actionFrame: 25,
+        facing: -1,
+        jumpsUsed: 2,
+        damage: 62.8,
+      });
+      const cpu = createCpu({ port: 0, level: 9, seed });
+      let ramp = false;
+      let end = 'stuck';
+      for (let i = 0; i < 400 && end === 'stuck'; i++) {
+        stepMatch(m, [cpu.input(m), neutralInput()]);
+        if (w!.move === 'upB') ramp = true;
+        if (w!.stocks < 3) end = 'ko';
+        else if (w!.ground !== null || w!.action === 'ledgeHang') end = 'back';
+      }
+      expect(ramp).toBe(true);
+      expect(end).toBe('back');
+      expect(Math.abs(w!.pos.x)).toBeLessThan(30);
+    },
+  );
 });
