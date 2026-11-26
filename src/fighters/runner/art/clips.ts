@@ -1,6 +1,8 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
+import { poseBounds } from '../../../render/rig/geometry';
+import { samplePose } from '../../../render/rig/sample';
 import { retimeClip } from '../../../render/rig/timing';
-import type { AnimClip, Key } from '../../../render/rig/types';
+import type { AnimClip, FighterArt, Key } from '../../../render/rig/types';
 import { LEDGE_CATCH_FRAMES, LEDGE_ROLL } from '../../../sim/constants';
 import { FORE_ARM, UPPER_ARM } from './parts';
 import {
@@ -211,6 +213,52 @@ export function pull(frame: number, moveEnd: number, progress: number): Pose {
   });
 }
 
+/** How far the lowest drawn part of `pose` reaches below the floor (negative: how far above it). */
+function sink(pose: Pose): number {
+  const probe: FighterArt = {
+    rig,
+    clips: { probe: { length: 0, keys: [key(0, pose)] } },
+    palettes: { default: {} },
+    height: 0,
+    icon: '',
+  };
+  return poseBounds(probe, samplePose(probe, 'probe', 0, 0))[3];
+}
+
+/** `pose` with the body raised or lowered until its lowest drawn part rests on the floor. */
+function onFloor(pose: Pose): Pose {
+  return mix(pose, { body: { y: (pose.body?.y ?? 0) - sink(pose) } });
+}
+
+/**
+ * The ball the floor rolls turn on: the tuck with the hips pulled up into the body and the arms wrapped further
+ * round it, so no limb sticks out more than 0.1 past the body's outline as it turns.
+ */
+const ROLL_BALL = mix(TUCK, { hip: { y: -2 }, armB: { rot: -115 }, armF: { rot: 115 } });
+
+/**
+ * Keys for the ball rolling along the floor from `from` to `to`, turning `turns` times (negative rolls
+ * backwards). Her body is wider than it is tall, so each key sets the ball's height for its turn to keep the
+ * lowest point on the floor, and the antennae turn against the spin, trailing behind her instead of sweeping
+ * under the floor. The keys sit two frames apart, so the getup roll's retime (which squeezes the tech roll)
+ * keeps each on its own frame. Keys after the roll start from `spun`, so the ball doesn't turn back.
+ */
+function floorRoll(from: number, to: number, turns: number): Key[] {
+  // The tuck trails the antennae back; rolling backwards, swing them as far the other way.
+  const ball = turns < 0 ? ants(ROLL_BALL, -48, -36) : ROLL_BALL;
+  const frames = Array.from({ length: Math.ceil((to - from) / 2) + 1 }, (_, i) => Math.min(from + 2 * i, to));
+  return frames.map((f) => {
+    const rot = (360 * turns * (f - from)) / (to - from);
+    const turned = turn(ball, { body: rot, antB: -rot, antF: -rot });
+    return key(f, onFloor(turned), { ease: 'linear' });
+  });
+}
+
+/** `pose` a whole `turns` further round, antennae included, to follow a floor roll without turning back. */
+function spun(pose: Pose, turns: number): Pose {
+  return turn(pose, { body: 360 * turns, antB: -360 * turns, antF: -360 * turns });
+}
+
 /** Rolling ball keys from `from` to `to` (turning `turns` times; negative rolls backwards). */
 function roll(from: number, to: number, turns: number, extra: (f: number) => Pose = () => ({})): Key[] {
   const steps = 4 * Math.abs(turns);
@@ -261,17 +309,19 @@ const SPREAD = P({
 });
 
 /** Flat on her back, feet towards her front. */
-const DOWN = P({
-  x: -1.6,
-  y: 2.25,
-  rot: -88,
-  raw: { thighB: { rot: -20 }, shinB: { rot: 10 }, thighF: { rot: 10 }, shinF: { rot: 15 } },
-  arms: [
-    [-1.0, -0.6],
-    [-5.6, -0.6],
-  ],
-  ant: [-30, -10],
-});
+const DOWN = onFloor(
+  P({
+    x: -1.6,
+    y: 2.25,
+    rot: -88,
+    raw: { thighB: { rot: -20 }, shinB: { rot: 10 }, thighF: { rot: 10 }, shinF: { rot: 15 } },
+    arms: [
+      [-1.0, -0.6],
+      [-5.6, -0.6],
+    ],
+    ant: [-30, -10],
+  }),
+);
 
 /** The map from Run 3's title art, held up in front of her face while she looks for the way. */
 const MAP_UP: Pose = { fx1: { x: 0.2, y: -5.0 } };
@@ -771,11 +821,11 @@ export const clips: Record<string, AnimClip> = {
   },
   rollForward: {
     length: 29,
-    keys: [key(0, READY, { ease: 'out' }), ...roll(4, 24, 1), key(29, READY)],
+    keys: [key(0, READY, { ease: 'out' }), ...floorRoll(4, 24, 1), key(29, spun(READY, 1))],
   },
   rollBack: {
     length: 34,
-    keys: [key(0, READY, { ease: 'out' }), ...roll(4, 24, -1), key(34, READY)],
+    keys: [key(0, READY, { ease: 'out' }), ...floorRoll(4, 24, -1), key(34, spun(READY, -1))],
   },
   airDodge: {
     length: 49,
@@ -868,28 +918,65 @@ export const clips: Record<string, AnimClip> = {
     length: 60,
     loop: true,
     swaps: HURT,
-    keys: [key(0, DOWN), key(30, mix(DOWN, { body: { sx: 1.03, sy: 0.97 } }))],
+    keys: [key(0, DOWN), key(30, onFloor(mix(DOWN, { body: { sx: 1.03, sy: 0.97 } })))],
   },
   getupStand: {
     length: 29,
     swaps: ANGRY,
     keys: [
       key(0, DOWN),
+      // Legs swing down with the knees up, so the feet come to the floor in front of her instead of through it.
+      key(
+        4,
+        P({
+          x: -1.2,
+          y: 1.8,
+          rot: -66,
+          legs: [
+            [3.4, -1.4],
+            [2.0, -1.0],
+          ],
+          arms: [
+            [0.4, -1.0],
+            [-5.2, -1.2],
+          ],
+          ant: [-26, -10],
+        }),
+      ),
+      // Sat up on her feet with a hand flat behind her, hips high enough that the folded legs clear the floor.
       key(
         8,
         P({
           x: -0.6,
-          y: 2.0,
-          rot: -40,
+          y: 1.2,
+          rot: -34,
           legs: [
             [2.4, 0],
             [0.4, 0],
           ],
           arms: [
             [1.4, -1.2],
-            [-4.6, -0.4],
+            [-4.6, -1.2],
           ],
           ant: [-20, -10],
+        }),
+      ),
+      // Rocks forward onto her feet, the near foot already back where the crouch plants it.
+      key(
+        11,
+        P({
+          x: -0.3,
+          y: 1.1,
+          rot: -8,
+          legs: [
+            [2.4, 0],
+            [-1.2, 0],
+          ],
+          arms: [
+            [3.1, -2.0],
+            [-4.6, -1.9],
+          ],
+          ant: [-10, -5],
         }),
       ),
       key(16, CROUCH, { swaps: FACE }),
@@ -899,12 +986,12 @@ export const clips: Record<string, AnimClip> = {
   techInPlace: {
     length: 26,
     swaps: ANGRY,
-    keys: [key(0, mix(TUCK, { body: { y: BALL_Y } })), key(8, CROUCH), key(26, READY)],
+    keys: [key(0, onFloor(ROLL_BALL)), key(8, CROUCH), key(26, READY)],
   },
   techRoll: {
     length: 40,
     swaps: ANGRY,
-    keys: [...roll(0, 26, 1), key(32, CROUCH), key(40, READY)],
+    keys: [...floorRoll(0, 26, 1), key(32, spun(CROUCH, 1)), key(40, spun(READY, 1))],
   },
   respawn: {
     length: 60,
