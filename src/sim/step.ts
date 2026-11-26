@@ -23,7 +23,7 @@ export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): voi
   f.prevPos = { x: f.pos.x, y: f.pos.y };
   dropLostTether(m, f);
   rideAnchor(m, f);
-  const frozen = !heldStill(m, f) && tickFreezes(x);
+  const frozen = tickFreezes(x, heldStill(m, f));
   if (f.hitlag > 0) {
     f.hitlag--;
     f.hitlagAt = m.frame;

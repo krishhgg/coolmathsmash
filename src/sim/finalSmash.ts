@@ -61,8 +61,8 @@ export interface FinalHold {
 }
 
 /**
- * `f` is held by a Final Smash on this frame of `m`. stepFighter skips its freezing statuses then, which otherwise
- * count down through hitlag, so a paralysis waits out the freeze like every other status.
+ * `f` is held by a Final Smash on this frame of `m`. Its freezing statuses, which otherwise count down through hitlag,
+ * don't count down then (tickFreezes), so a paralysis waits out the hold like every other status.
  */
 export function heldStill(m: MatchState, f: Readonly<FighterState>): boolean {
   return m.finalHold?.fighters.includes(f.port) ?? false;
