@@ -517,7 +517,7 @@ const uair: AnimClip = {
   ],
 };
 
-/** Shell Pound: curls up and flips dome-down, hangs, then plunges with speed lines. */
+/** Shell Plunge: curls up and flips dome-down, hangs, then plunges with speed lines. */
 const POUND: Pose = mix(SHELL_DOWN, { shell: { x: 1.3, y: 1.4, rot: 180 }, fx1: at(0, -5.4) });
 const dair: AnimClip = {
   length: 49,
@@ -540,7 +540,7 @@ const dair: AnimClip = {
   ],
 };
 
-/** The pound's landing: the shell slams down, a shockwave and dust burst out both sides. */
+/** The plunge's landing: the shell slams down, a shockwave and dust burst out both sides. */
 const SLAM: Pose = mix(SHELL_DOWN, {
   shell: { x: 1.3, y: 2.6, rot: 180, sx: 1.2, sy: 0.82 },
   fx1: at(7.6, 0, 0, [1.25, 1.15]),
