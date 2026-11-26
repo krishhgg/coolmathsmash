@@ -29,6 +29,11 @@ flowchart LR
   import must not import `step.ts`: through that cycle, an action file loaded first would reach the registry
   before its own actions exist, and they would never be registered. `compiledStage`, `posedStage` and `makeCtx`
   live in `src/sim/context.ts` for that reason.
+- Sim code looks fighters up in `src/fighters/lookup.ts`, which imports no fighter. `src/fighters/registry.ts`
+  finds every fighter and hands them to it; `step.ts` and code outside `src/sim` import the registry. Sim code must
+  not import the registry: a fighter's moves, entities and art import sim code, so whichever of them loaded first
+  would reach the registry, which would build that fighter before the module finished, without it.
+  `src/fighters/importOrder.test.ts` imports each of them first to check.
 
 ## Loop (`src/engine/loop.ts`)
 

@@ -25,10 +25,10 @@ function box(move: string, hit = 0, id = 0): Pt {
 }
 
 /** The aim angle (0 down, -90 forward, 180 up, 90 back) from one rig point to another. */
-const toward = (from: Pt, to: Pt): number => Math.atan2(from[0] - to[0], to[1] - from[1]) / DEG;
+export const toward = (from: Pt, to: Pt): number => Math.atan2(from[0] - to[0], to[1] - from[1]) / DEG;
 
 /** The point `d` units from `from` along aim angle `deg`. */
-const ahead = (from: Pt, deg: number, d: number): Pt => [
+export const ahead = (from: Pt, deg: number, d: number): Pt => [
   from[0] - Math.sin(deg * DEG) * d,
   from[1] + Math.cos(deg * DEG) * d,
 ];
@@ -36,7 +36,14 @@ const ahead = (from: Pt, deg: number, d: number): Pt => [
 const mirror = ([x, y]: Pt): Pt => [-x, y];
 
 /** Feet planted with the ankles at x = back and front, the body moved by (x, y) and leaning `rot` degrees forwards. */
-function stance(x: number, y: number, rot: number, back: number, front: number, extra: Pose = {}): Pose {
+export function stance(
+  x: number,
+  y: number,
+  rot: number,
+  back: number,
+  front: number,
+  extra: Pose = {},
+): Pose {
   return feet(mix({ body: { x, y, rot } }, extra), [back, -1], [front, -1]);
 }
 
@@ -48,7 +55,7 @@ function stretchTo(pose: Pose, side: 'F' | 'B', to: Pt): Pose {
 }
 
 /** Wrists on rig points (null leaves an arm alone), arms stretched where they fall short. */
-function arms(pose: Pose, back: Pt | null, front: Pt | null): Pose {
+export function arms(pose: Pose, back: Pt | null, front: Pt | null): Pose {
   let p = pose;
   if (back) p = stretchTo(p, 'B', back);
   if (front) p = stretchTo(p, 'F', front);
@@ -56,22 +63,23 @@ function arms(pose: Pose, back: Pt | null, front: Pt | null): Pose {
 }
 
 /** The front wrist at `wrist`, the paddle pointing along `deg`; `back` places the back hand. */
-const grip = (pose: Pose, wrist: Pt, deg: number, back: Pt | null = null): Pose =>
+export const grip = (pose: Pose, wrist: Pt, deg: number, back: Pt | null = null): Pose =>
   swing(arms(pose, back, wrist), deg);
 
 /** Both hands on the handle, the back hand just above the front one (the paddle's own two-handed grip). */
-const both = (pose: Pose, wrist: Pt, deg: number): Pose => grip(pose, wrist, deg, ahead(wrist, deg, 0.9));
+export const both = (pose: Pose, wrist: Pt, deg: number): Pose =>
+  grip(pose, wrist, deg, ahead(wrist, deg, 0.9));
 
 /** The paddle along `deg` with the point `along` units from the grip on `at` (handle to 3, blade 3.3-8.6). */
-const peel = (pose: Pose, deg: number, at: Pt, along = 6, back: Pt | null = null): Pose =>
+export const peel = (pose: Pose, deg: number, at: Pt, along = 6, back: Pt | null = null): Pose =>
   grip(pose, ahead(at, deg, -(along + 0.6)), deg, back);
 
 /** The paddle laid on the line from `near` to `far`, `far` sitting `along` units down it. */
-const lay = (pose: Pose, near: Pt, far: Pt, along: number, back: Pt | null = null): Pose =>
+export const lay = (pose: Pose, near: Pt, far: Pt, along: number, back: Pt | null = null): Pose =>
   peel(pose, toward(near, far), far, along, back);
 
 /** The body turned to face backwards, mirrored about the feet's centre (so a pose authored facing right hits behind). */
-const flip = (pose: Pose): Pose =>
+export const flip = (pose: Pose): Pose =>
   mix(pose, { body: { x: -(pose.body?.x ?? 0), rot: -(pose.body?.rot ?? 0), sx: -1 } });
 
 /** A frame of turning round: the pose squeezed side-on (`sx` < 0 is already facing back). */
@@ -88,7 +96,7 @@ function turning(pose: Pose, sx: number): Pose {
 }
 
 /** The back hand's prop held up at `at` (the hand points at it), its +y axis along `deg`, scaled by `s`. */
-function propAt(pose: Pose, at: Pt, deg = 0, s: [number, number] = [1, 1]): Pose {
+export function propAt(pose: Pose, at: Pt, deg = 0, s: [number, number] = [1, 1]): Pose {
   const w = pointOf(pose, 'handB');
   const p = aim(pose, 'handB', toward(w, at));
   return aim(
@@ -102,7 +110,7 @@ function propAt(pose: Pose, at: Pt, deg = 0, s: [number, number] = [1, 1]): Pose
  * The swoosh smear on an fx bone, pivoting at `at`: its thick edge sits on aim angle `end` (where the paddle is)
  * and it trails 90 degrees back the way the swing came, clockwise (`cw`) or not. `s` scales its radius (7.2-9.2).
  */
-function smear(at: Pt, end: number, cw: boolean, s = 1): BonePose {
+export function smear(at: Pt, end: number, cw: boolean, s = 1): BonePose {
   return { x: at[0], y: at[1], rot: end, sx: cw ? s : -s, sy: s };
 }
 
@@ -130,7 +138,7 @@ const done = (frame: number) => key(frame, undefined, { swaps: {}, z: {} });
  * Turns each bone by whole turns where that keeps its direction in rig space within half a turn of the previous
  * posed key, so every limb and the paddle tween the short way round (never a full spin through the floor).
  */
-function unwrap(clip: AnimClip): AnimClip {
+export function unwrap(clip: AnimClip): AnimClip {
   let prev: Record<string, number> | undefined;
   const keys = clip.keys.map((k) => {
     if (!k.pose) return k;
@@ -210,7 +218,7 @@ function plantFeet(pose: Pose, back: Pt, front: Pt, aims: [number, number] = [0,
  * Where a tween runs between two poses with both feet on the floor, re-plants the feet on every in-between frame
  * (following the tween's own easing), so the shoes stay on the floor instead of dipping through it.
  */
-function plant(clip: AnimClip): AnimClip {
+export function plant(clip: AnimClip): AnimClip {
   const posed = clip.keys.filter((k) => k.pose);
   const extra: Key[] = [];
   const linear = new Set<Key>();
@@ -238,18 +246,18 @@ function plant(clip: AnimClip): AnimClip {
 }
 
 /** The peel tipped towards the floor, so its face shows narrower (pushes and sweeps along the ground). */
-const SLANT: Pose = { paddle: { sx: 0.6 } };
+export const SLANT: Pose = { paddle: { sx: 0.6 } };
 /** The peel lying flat on the floor, seen edge on. */
-const EDGE: Pose = { paddle: { sx: 0.3 } };
+export const EDGE: Pose = { paddle: { sx: 0.3 } };
 
-const ANGRY: Swaps = { face: 'faceAngry' };
-const GRIT: Swaps = { face: 'faceAngry', stache: 'stacheGrit' };
-const SHOUT: Swaps = { face: 'faceAngry', stache: 'stacheShout' };
+export const ANGRY: Swaps = { face: 'faceAngry' };
+export const GRIT: Swaps = { face: 'faceAngry', stache: 'stacheGrit' };
+export const SHOUT: Swaps = { face: 'faceAngry', stache: 'stacheShout' };
 
 /** Draw orders: the paddle behind his body (wind-ups behind his back). */
-const PADDLE_BEHIND = { paddle: 0.5 };
+export const PADDLE_BEHIND = { paddle: 0.5 };
 /** The back arm and its prop in front of his body (shaking pepper over the held opponent). */
-const BACK_ARM_FRONT = {
+export const BACK_ARM_FRONT = {
   armBLine: 24.1,
   foreBLine: 24.2,
   armB: 24.3,
