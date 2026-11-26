@@ -275,6 +275,8 @@ export interface MoveDef {
    * specials do (SmashWiki, "Platform"). By default holding down falls through them.
    */
   fallThrough?: boolean;
+  /** Airborne moves: false stops a down flick from fast-falling while the move plays (Ultimate's specials). */
+  fastFall?: boolean;
   /**
    * Ground/air variants (Ultimate's SpecialN and SpecialAirN): started in the air, this move plays the move named
    * `air` instead, which is also the clip and the name in the `move` event.
