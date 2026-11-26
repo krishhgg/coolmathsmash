@@ -369,9 +369,10 @@ function windPush({ v, box, shielding, percent, crouch, dir, rage }: Connection)
   if (!v.ground) v.kb.y += Math.sin(theta) * speed;
 }
 
-/** Add `damage` to a fighter's meter: x1.2 in 1v1 (the meter only), capped at 999%. */
+/** Add `damage` to a fighter's meter: x1.2 in a 1v1 with items off (the meter only), capped at 999%. */
 export function addDamage(m: MatchState, v: FighterState, damage: number): void {
-  v.damage = Math.min(DAMAGE_MAX, v.damage + damage * (m.players.length === 2 ? ONE_V_ONE_DAMAGE : 1));
+  const oneVOne = m.players.length === 2 && !m.config.items;
+  v.damage = Math.min(DAMAGE_MAX, v.damage + damage * (oneVOne ? ONE_V_ONE_DAMAGE : 1));
 }
 
 /** What a hit does to its victim, whoever or whatever dealt it (a fighter's move, a stage hazard). */
