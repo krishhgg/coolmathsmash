@@ -189,11 +189,11 @@ describe("Johnny Upgrade: Coin Magnet (Cloud's Limit Charge)", () => {
   });
 
   it.each([
-    ['shield', { buttons: ['shield', 'special'] }, 'shield'],
-    ['jump', { buttons: ['jump', 'special'] }, 'jumpSquat'],
-  ] as [string, Hold, string][])(
-    'a %s press ends it into the same lag, and the %s comes out when it ends',
-    (_name, press, action) => {
+    ['shield', 'shield', { buttons: ['shield', 'special'] }],
+    ['jump', 'jumpSquat', { buttons: ['jump', 'special'] }],
+  ] as [string, string, Hold][])(
+    'a %s press ends it into the same lag, and %s comes out when it ends',
+    (_name, action, press) => {
       const { acts, f } = magnet(10, press);
       expect(acts).toBe(11 + CLOUD.limitCharge.cancelLag - 1);
       expect(f.action).toBe(action);
