@@ -32,6 +32,8 @@ import {
   LAUNCH_SPEED_PER_KB,
   ONE_V_ONE_DAMAGE,
   rageMultiplier,
+  SAKURAI,
+  sakuraiAngle,
   SHIELD_DAMAGE_MULT,
   shieldPushback,
   shieldstunFrames,
@@ -141,7 +143,7 @@ function connection(
   frame: number,
 ): Connection {
   const move = a.move!;
-  if (a.moveStale === 0) a.moveStale = stale(a, move);
+  if (!box.pushOnly && a.moveStale === 0) a.moveStale = stale(a, move);
   return {
     ...victim(v, frame),
     a,
@@ -189,7 +191,7 @@ function entityHits(e: EntityState, fighters: FighterState[], hits: Connection[]
     const hit = boxes.filter((h) => touches(h, body)).sort((p, q) => p.box.id - q.box.id)[0];
     if (!hit) continue;
     e.hitVictims.push(v.port);
-    if (e.stale === 0) e.stale = owner && e.move ? stale(owner, e.move) : 1;
+    if (!hit.box.pushOnly && e.stale === 0) e.stale = owner && e.move ? stale(owner, e.move) : 1;
     hits.push({
       ...victim(v, frame),
       a: null,
@@ -250,7 +252,9 @@ export function applyHit(
   again = false,
 ): void {
   const at = { x: v.pos.x, y: v.pos.y + getFighter(v.fighter).stats.height / 2 };
-  hit(m, connection(a, v, box, at, m.frame), again);
+  const contact = connection(a, v, box, at, m.frame);
+  if (box.pushOnly) windPush(contact);
+  else hit(m, contact, again);
 }
 
 /**
@@ -282,6 +286,10 @@ export function resolveHits(m: MatchState, stage?: (struck: Set<FighterState>) =
   const used = m.entities.filter((e) => entityHits(e, m.fighters, hits, m.frame));
   const struck = new Set<FighterState>();
   for (const h of hits) {
+    if (h.box.pushOnly) {
+      windPush(h);
+      continue;
+    }
     const again = struck.has(h.v);
     struck.add(h.v);
     if (h.parry) parry(m, h, again);
@@ -292,6 +300,25 @@ export function resolveHits(m: MatchState, stage?: (struck: Set<FighterState>) =
   sweepEntities(m);
   stage?.(struck);
   resolveGrabs(m, grabs, struck);
+}
+
+function windPush({ v, box, shielding, percent, crouch, dir, rage }: Connection): void {
+  if (shielding) return;
+  const kb = knockback({
+    percent,
+    damage: 0,
+    kbg: box.kbg,
+    bkb: box.bkb,
+    wbkb: box.wbkb,
+    weight: getFighter(v.fighter).stats.weight,
+    rage,
+    crouch,
+  });
+  const angle = box.angle === SAKURAI ? sakuraiAngle(kb, v.ground === null) : box.angle;
+  const theta = (angle * Math.PI) / 180;
+  const speed = kb * LAUNCH_SPEED_PER_KB;
+  v.kb.x += Math.cos(theta) * speed * dir;
+  if (!v.ground) v.kb.y += Math.sin(theta) * speed;
 }
 
 /** Add `damage` to a fighter's meter: x1.2 in 1v1 (the meter only), capped at 999%. */
