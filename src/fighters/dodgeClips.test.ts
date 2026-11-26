@@ -6,6 +6,7 @@ import {
   GETUP_ROLL,
   GETUP_STAND,
   GRAB,
+  LEDGE_ATTACK,
   ROLL_BACK,
   ROLL_FORWARD,
   SPOT_DODGE,
@@ -16,10 +17,11 @@ import type { FighterState } from '../sim/fighter';
 import { allFighters } from './registry';
 
 /**
- * Timed actions shared by every fighter. Each ends on its FAF, so the clip the renderer draws for it (its own or a
- * stand-in) lasts FAF - 1 frames, with its last key on the last frame (docs/art.md). Grab release ends after frame
- * GRAB.releaseLag (src/sim/actions/grab.ts), so its clip lasts GRAB.releaseLag frames. An air dodge clip lasts the
- * neutral dodge; a directional one plays the same clip over its own length (DIRECTIONS).
+ * Timed actions shared by every fighter: the air dodge, the ground dodges, techs and getups, grab release and the
+ * ledge attack. Each ends on its FAF, so the clip the renderer draws for it (its own or a stand-in) lasts FAF - 1
+ * frames, with its last key on the last frame (docs/art.md). Grab release ends after frame GRAB.releaseLag
+ * (src/sim/actions/grab.ts), so its clip lasts GRAB.releaseLag frames. An air dodge clip lasts the neutral dodge; a
+ * directional one plays the same clip over its own length (DIRECTIONS).
  */
 const ACTIONS: Record<string, number> = {
   airDodge: AIR_DODGE_NEUTRAL.faf - 1,
@@ -31,6 +33,7 @@ const ACTIONS: Record<string, number> = {
   getupStand: GETUP_STAND.faf - 1,
   getupRoll: GETUP_ROLL.faf - 1,
   grabRelease: GRAB.releaseLag,
+  ledgeAttack: LEDGE_ATTACK.faf - 1,
 };
 
 /** Actions drawn with a back roll when they roll away from the facing (clipFor). */
@@ -91,7 +94,7 @@ function directionalDrift(id: string): string[] {
 const drawn = Object.keys(allFighters()).filter((id) => fighterArt(allFighters()[id]!));
 
 describe.each(drawn)('%s', (id) => {
-  it('draws every dodge, roll, tech, getup and grab release over the whole action', () => {
+  it('draws every dodge, roll, tech, getup, grab release and ledge attack over the whole action', () => {
     expect(drift(id)).toEqual([]);
   });
 
