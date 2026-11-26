@@ -199,6 +199,32 @@ export const LEDGE_HANG_MAX = 360;
  */
 export const LEDGE_REGRAB_LOCK = 44;
 /**
+ * A ledge trump (Ultimate's CliffRobbed): a fighter catching a ledge another fighter hangs from pushes that fighter
+ * off (movement.ts tryLedgeGrab, action `trumped`). SmashWiki (Edgeguarding, "Ledge trumping") says the catch will
+ * "gently remove them from the ledge", so they "automatically let go of the ledge and they cannot take any action
+ * for a moment". It gives no numbers, so they come from the params (physics-reference section 8,
+ * physics-constants.json ledge.trump). Frames count in the trumped fighter's own steps, frame 1 being its first
+ * after the trump.
+ */
+export const LEDGE_TRUMP = {
+  /** Pushed straight out from the stage at this speed (param cliff_robbed_speed_x 0.9). */
+  speedX: 0.9,
+  /** No vertical speed: the sheet has no cliff_robbed speed for y, and SmashWiki's "gently" suggests no launch. */
+  speedY: 0,
+  /**
+   * Frames without control (param cliff_robbed_no_control_frame 0x1C = 28): the stick and buttons do nothing, so it
+   * slows by air friction and falls, then acts on frame 29.
+   */
+  noControl: 28,
+  /** It let go of the ledge, so it catches none for the same 44 frames as any let-go (cliff_no_catch_frame). */
+  regrabLock: LEDGE_REGRAB_LOCK,
+  /**
+   * Intangible frames: none, and it loses what was left of its hang intangibility. SmashWiki: "the removal of ledge
+   * regrab invincibility can be exploited by a ledge trump edgeguard", Sheik's back air on the trumped fighter.
+   */
+  intangible: 0,
+};
+/**
  * The catch lasts 19 frames counting the grab frame, so the hang acts on frame 20 (physics-reference section 8;
  * SmashWiki Edge, "lasts 19 frames by default, preventing action until frame 20"; data viewer cliff_catch
  * CancelFrame 20).
