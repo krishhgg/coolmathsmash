@@ -30,7 +30,7 @@ const PARALYZER = {
   full: { shot: 43, faf: 71, lifetime: 48 },
   hit: {
     uncharged: { damage: 4, angle: 361, kbg: 100, bkb: 0, wbkb: 21, radius: 1.3 },
-    full: { damage: 6, angle: 60, kbg: 100, bkb: 0, wbkb: 70, radius: 2.0, hitlag: 0.7 },
+    full: { damage: 6, kbg: 100, bkb: 0, wbkb: 70, radius: 2.0, hitlag: 0.7 },
   },
   shieldstun: { uncharged: 2, full: 3 },
   maxParalysis: 90,
@@ -143,8 +143,15 @@ describe("Bob the Robber: Stun Gun (Zero Suit Samus's Paralyzer)", () => {
       { frames: [2, 24], boxes: [{ ...status, ...PARALYZER.hit.uncharged, hitlag: 0.7 }] },
     ]);
     expect(entities.stunShotFull).toMatchObject({ radius: 2.0, lifetime: PARALYZER.full.lifetime });
+    // SmashWiki's IDs 2 (airborne targets only, 60 degrees) and 3 (grounded targets only, 315).
     expect(entities.stunShotFull!.hits).toEqual([
-      { frames: [1, 48], boxes: [{ ...status, ...PARALYZER.hit.full }] },
+      {
+        frames: [1, 48],
+        boxes: [
+          { ...status, ...PARALYZER.hit.full, angle: 60, targets: 'air' },
+          { ...status, ...PARALYZER.hit.full, id: 1, angle: 315, targets: 'ground' },
+        ],
+      },
     ]);
     expect(statuses.paralyzed).toMatchObject({
       frames: 1,
@@ -263,6 +270,37 @@ describe("Bob the Robber: Stun Gun (Zero Suit Samus's Paralyzer)", () => {
     expect(v.pos).not.toEqual(at);
   });
 
+  it('a full charge slides a grounded target along the floor at 315 degrees and sends an airborne one up at 60', () => {
+    const grounded = duel(30);
+    shoot(grounded.m, 300);
+    expect(grounded.v.launch!.angle).toBe(315);
+    frozenFor(grounded.m, grounded.v);
+    expect(grounded.v.ground).not.toBeNull();
+    expect(grounded.v.kb.y).toBe(0);
+    expect(grounded.v.kb.x).toBeGreaterThan(0);
+    const from = grounded.v.pos.x;
+    for (let i = 0; i < 26; i++) {
+      runPorts(grounded.m, 1, []);
+      expect(grounded.v.ground, `frame ${i}`).not.toBeNull();
+    }
+    expect(grounded.v.pos.x).toBeGreaterThan(from + 5);
+
+    const aloft = duel(30);
+    const v = aloft.v;
+    Object.assign(v, { ground: null, action: 'fall' });
+    for (let i = 0; i < 120 && !hasStatus(v, PARALYZED); i++) {
+      v.pos = { x: 10, y: 7 };
+      v.prevPos = { x: 10, y: 7 };
+      v.vel = { x: 0, y: 0 };
+      runPorts(aloft.m, 1, [i < 60 ? SPECIAL : {}, {}]);
+    }
+    expect(shots(aloft.m)).toHaveLength(0);
+    expect(v.ground).toBeNull();
+    expect(v.launch!.angle).toBe(60);
+    expect(frozenFor(aloft.m, v)).toBe(49);
+    expect((Math.atan2(v.kb.y, v.kb.x) * 180) / Math.PI).toBeCloseTo(60, 9);
+  });
+
   it("can't be mashed out of: stick and buttons every frame leave it as long (SmashWiki gives no mash rule)", () => {
     const mash = (i: number): Hold => ({ x: i % 2 ? 100 : -100, buttons: i % 2 ? ['attack'] : ['jump'] });
     const { m, v } = duel(30);
@@ -371,7 +409,7 @@ describe("Bob the Robber: Stun Gun (Zero Suit Samus's Paralyzer)", () => {
   });
 
   it('never KOs: its set knockback launches the same at 999% as at 0%', () => {
-    for (const box of [entities.stunShot!.hits![1]!.boxes[0]!, entities.stunShotFull!.hits![0]!.boxes[0]!]) {
+    for (const box of [entities.stunShot!.hits![1]!.boxes[0]!, ...entities.stunShotFull!.hits![0]!.boxes]) {
       expect(koPercent({ hit: box })).toBeNull();
       expect(koPercent({ hit: box, from: 'centre', air: true })).toBeNull();
     }
