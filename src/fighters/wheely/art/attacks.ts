@@ -718,8 +718,3 @@ export const attacks: Record<string, AnimClip> = {
     ],
   },
 };
-
-/** The same clips under docs/art.md's canonical names. */
-attacks.jab1 = attacks.jab!;
-attacks.sideSpecial = attacks.sideB!;
-attacks.upSpecial = attacks.upB!;
