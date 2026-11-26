@@ -1,6 +1,7 @@
+import { STALE_QUEUE_LENGTH, staleMultiplier } from '../../sim/combat/formulas';
 import { spawnEntity } from '../../sim/entities/entities';
 import type { EntityCtx, EntityDef, EntityState } from '../../sim/entities/types';
-import type { Ctx } from '../../sim/fighter';
+import type { Ctx, FighterState } from '../../sim/fighter';
 import type { HitboxDef, MoveDef } from '../types';
 
 /**
@@ -25,9 +26,10 @@ import type { HitboxDef, MoveDef } from '../types';
  *   as one radius-16 circle's, and the ball is one circle the size of its drawing. Ness's is a Flame hit; a rubber
  *   ball's is a normal one.
  * - Staleness: SmashWiki's stale-move article says "each projectile fired will have its staleness set to the move's
- *   staleness" and "only one projectile produced per animation can count in the queue". The first ball to connect
- *   stales the move once, and every ball of the same use (useOf) takes its multiplier (shareStale), so each deals 8%
- *   x1.05 fresh, and all 16 together 128% before it.
+ *   staleness" and "only one projectile produced per animation can count in the queue". Every ball of a use carries
+ *   the move's multiplier from Red Ball's queue at the first drop, set as it drops, so the engine never stales a ball
+ *   on its own and balls connecting on the same frame deal the same: 8% x1.05 fresh, all 16 together 128% before
+ *   it. The move enters the queue once, from the first ball to connect (queueOnce).
  */
 export const RAIN = {
   /** Move frame of the first ball, and the last frame of the move. */
@@ -70,13 +72,18 @@ export const STARSTORM_HIT = { damage: 8, angle: 42, kbg: 110, bkb: 67 } as cons
 
 const BALL_HIT: HitboxDef = { id: 0, x: 0, y: 0, radius: RAIN.radius, ...STARSTORM_HIT };
 
-/** A ball not yet connected takes the stale multiplier of a ball from the same use that has (see RAIN). */
-function shareStale({ m, e }: EntityCtx): void {
-  if (e.stale !== 0) return;
-  const fired = m.entities.find(
-    (o) => o.kind === e.kind && o.owner === e.owner && o.data.use === e.data.use && o.stale !== 0,
-  );
-  if (fired) e.stale = fired.stale;
+const sameUse = (o: EntityState, e: EntityState) =>
+  o.kind === e.kind && o.owner === e.owner && o.data.use === e.data.use;
+
+/**
+ * Enters the rain in its owner's stale queue once per use, from the first ball to hit a fighter (the engine stales an
+ * entity's hits on fighters only), on the frame after the hit, since entity scripts run before hits land. Every ball
+ * already carries the use's multiplier, so the entry changes no hit of this rain, only the next use of the move.
+ */
+function queueOnce({ m, e, owner }: EntityCtx): void {
+  if (e.data.queued || e.hitVictims.length === 0) return;
+  for (const o of m.entities) if (sameUse(o, e)) o.data.queued = true;
+  if (owner && e.move) owner.staleQueue = [e.move, ...owner.staleQueue].slice(0, STALE_QUEUE_LENGTH);
 }
 
 /** One of Ball Rain's balls: it falls through the stage and everyone under it, hitting each fighter once. */
@@ -90,7 +97,7 @@ export const ball: EntityDef = {
   reflectable: false,
   absorbable: false,
   hits: [{ frames: [1, RAIN.lifetime], boxes: [BALL_HIT] }],
-  script: shareStale,
+  script: queueOnce,
 };
 
 /** The velocity of ball `i`: from the drop point towards its lane on y = 0, faster for later balls. */
@@ -116,22 +123,25 @@ function drop(x: Ctx, i: number): void {
     move: f.move,
     final: true,
   });
+  const before = i > 0 ? previousBall(m, e, i) : undefined;
   e.data.n = i;
-  e.data.use = useOf(m, e, i);
+  e.data.use = typeof before?.data.use === 'number' ? before.data.use : e.id;
+  e.stale = before ? before.stale : staleNow(f);
+  if (before?.data.queued) e.data.queued = true;
 }
 
 /**
- * Which use of Ball Rain ball `i` belongs to: the first ball's id, handed down from the ball dropped before it, which
- * is still falling (drops are at most 23 frames apart and a ball takes over 60 to leave the stage). Not a clock: while
- * another fighter's Final Smash holds Red Ball still, his move frame stops and the match frame doesn't.
+ * The ball dropped before ball `i`, still falling (drops are at most 23 frames apart and a ball takes over 60 to leave
+ * the stage). Ball `i` takes its use (the first ball's id), stale multiplier and queue mark from it. None of them is a
+ * clock: while another fighter's Final Smash holds Red Ball still, his move frame stops and the match frame doesn't.
  */
-function useOf(m: Ctx['m'], e: EntityState, i: number): number {
-  if (i === 0) return e.id;
-  const before = m.entities
-    .filter((o) => o.kind === e.kind && o.owner === e.owner && o.data.n === i - 1)
-    .at(-1);
-  return typeof before?.data.use === 'number' ? before.data.use : e.id;
+function previousBall(m: Ctx['m'], e: EntityState, i: number): EntityState | undefined {
+  return m.entities.filter((o) => o.kind === e.kind && o.owner === e.owner && o.data.n === i - 1).at(-1);
 }
+
+/** The multiplier `f`'s current move would stale with now, from its stale queue, without entering it. */
+const staleNow = (f: FighterState) =>
+  staleMultiplier(f.staleQueue.flatMap((name, k) => (name === f.move ? [k + 1] : [])));
 
 /**
  * Ball Rain. Red Ball stays where he is, grounded or in the air (`still`; SmashWiki says nothing of Ness moving), calls

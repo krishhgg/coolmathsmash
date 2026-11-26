@@ -235,7 +235,7 @@ describe('Ball Rain (Final Smash), on PK Starstorm', () => {
     expect(m.entities.filter((e) => e.kind === 'redball/ball')).toEqual([]);
   });
 
-  it('hands every ball of the rain the first hit’s stale multiplier: 8.4% from each, 128% raw from all 16', () => {
+  it('gives every ball the move’s staleness as the rain starts and stales it once: 128% raw from all 16', () => {
     expect(STARSTORM_HIT.damage * RAIN_FRAMES.length).toBe(128);
     const { m, a, step } = rain({ targetX: 40 });
     a.staleQueue = ['finalSmash', 'jab'];
@@ -263,6 +263,35 @@ describe('Ball Rain (Final Smash), on PK Starstorm', () => {
     const hits = hitsOn(seen, v.port);
     expect(hits.length).toBeGreaterThanOrEqual(2);
     for (const h of hits) expect(h.damage).toBeCloseTo(8 * 1.05, 9);
+    expect(a.staleQueue.filter((n) => n === 'finalSmash')).toEqual(['finalSmash']);
+  });
+
+  it('deals the same 8.4% from two balls that first connect on the same frame, staling the move once', () => {
+    const { m, a, step } = rain({ targetX: 70 });
+    step(99);
+    expect(a.actionFrame).toBe(100);
+    const [first, second] = balls(m);
+    // Two airborne targets, each with its middle on a ball's next position, so both balls first connect on one frame.
+    for (const [f, e] of [
+      [m.fighters[1]!, first!],
+      [m.fighters[2]!, second!],
+    ] as const) {
+      const at = { x: e.pos.x + e.vel.x, y: e.pos.y + e.vel.y - marioReference.stats.height / 2 };
+      Object.assign(f, {
+        pos: { ...at },
+        prevPos: { ...at },
+        vel: { x: 0, y: 0 },
+        ground: null,
+        action: 'fall',
+      });
+    }
+    const hits = step(1).filter((e): e is Hit => e.type === 'hit' && e.attacker === 0);
+    expect(hits.map((h) => [h.victim, h.entity])).toEqual([
+      [1, first!.id],
+      [2, second!.id],
+    ]);
+    for (const h of hits) expect(h.damage).toBeCloseTo(8 * 1.05, 9);
+    step(finalSmash.faf + RAIN.lifetime);
     expect(a.staleQueue.filter((n) => n === 'finalSmash')).toEqual(['finalSmash']);
   });
 
