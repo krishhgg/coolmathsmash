@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { runCpuMatch } from '../../ai/bench';
 import { stage } from './geometry';
 
-/** CPUs read the authored layout; the haulers' home spans sit over the deck, so moving them never misleads them. */
+/** CPUs read the stage as posed on the frame they decide (src/ai/stage.ts), so they see the haulers where they are. */
 describe('CPUs on Truck Convoy', () => {
   it.each([true, false])(
     'fight a 2-stock match without self-destructing (hazards %s)',
