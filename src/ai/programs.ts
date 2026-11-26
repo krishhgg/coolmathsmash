@@ -139,12 +139,16 @@ export function roll(dir: number): Program {
   };
 }
 
-/** A neutral air dodge: it keeps momentum, so it never carries the CPU off the stage. */
-export function airDodge(): Program {
+/**
+ * An air dodge: neutral with the stick at rest, else toward (`x`, `y`). A neutral one keeps the fighter's momentum and
+ * falls for its 52 frames, so from a dash off a platform or a hop toward the ledge it can carry the CPU off the stage;
+ * the CPU plays it out first (airReturns in cpu.ts).
+ */
+export function airDodge(x = 0, y = 0): Program {
   return {
     name: 'airDodge',
     interruptible: false,
-    step: (t) => (t === 0 ? press({ buttons: Btn.Shield }) : null),
+    step: (t) => (t === 0 ? press({ x, y, buttons: Btn.Shield }) : null),
   };
 }
 
