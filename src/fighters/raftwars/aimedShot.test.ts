@@ -100,7 +100,7 @@ describe('Raft Wars kids: Aimed Shot (neutral special)', () => {
     ['no', 0, 0, 1.6, 5],
     ['half', AIMED_SHOT.chargeFrames / 2, 0.5, 2.45, 16.5],
     ['full', AIMED_SHOT.chargeFrames, 1, 3.3, 28],
-  ])('at %s charge (%i frames) flies at %f and hits for %f%', (_, frames, level, speed, damage) => {
+  ])('at %s charge (%i frames, level %f) flies at %f and hits for %f%', (_, frames, level, speed, damage) => {
     const { m, a } = setup();
     charge(m, a, frames);
     const ball = fired(m);
