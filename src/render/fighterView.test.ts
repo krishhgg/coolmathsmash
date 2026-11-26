@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { getFighter, registerFighter } from '../fighters/registry';
+import { allFighters, getFighter, registerFighter } from '../fighters/registry';
 import { defineFighter, type FighterDef } from '../fighters/types';
-import { LEDGE_JUMP, SHIELD_MAX } from '../sim/constants';
+import { GETUP_ROLL, LEDGE_JUMP, SHIELD_MAX, TECH_ROLL } from '../sim/constants';
+import { createFighter } from '../sim/fighter';
 import { quickGrapple, tetherTester } from '../sim/testing/tethers';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../sim/testing/sim';
 import { clipFor, fighterArt, shieldRadius } from './fighterView';
@@ -36,6 +37,43 @@ describe('clipFor', () => {
     expect(shown).toEqual([...rise, ...jump]);
     expect(f.action).toBe('jump');
   });
+});
+
+describe('clipFor on tech and getup rolls', () => {
+  const ROLLS = { techRoll: TECH_ROLL, getupRoll: GETUP_ROLL };
+  const rolling = Object.values(allFighters()).filter((def) => fighterArt(def)?.clips.techRoll);
+
+  /** The clip and clip frame for `action` on `frame`, facing `facing` and rolling `dir` times the facing. */
+  function pick(def: FighterDef, action: string, facing: 1 | -1, dir: 1 | -1, frame: number) {
+    const f = createFighter(0, def.id, [0, 0, facing], 3);
+    Object.assign(f, { action, actionFrame: frame, move: null, dodgeDir: { x: dir * facing, y: 0 } });
+    return clipFor(def, fighterArt(def)!, f);
+  }
+
+  it('covers every fighter with art that has roll clips', () => {
+    const without = Object.values(allFighters()).filter(
+      (def) => fighterArt(def) && !fighterArt(def)!.clips.techRoll,
+    );
+    for (const def of without) expect(fighterArt(def)!.clips.rollBack, def.id).toBeUndefined();
+    expect(rolling.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it.each(rolling.map((def) => [def.id, def] as const))(
+    '%s draws a backward tech or getup roll with its back roll, as long as the action',
+    (_, def) => {
+      for (const [action, { faf }] of Object.entries(ROLLS))
+        for (const facing of [1, -1] as const)
+          for (const [dir, want] of [
+            [1, action],
+            [-1, `${action}Back`],
+          ] as const) {
+            const label = `${def.id} ${action} facing ${facing} rolling ${dir * facing}`;
+            expect(pick(def, action, facing, dir, 1)[0], label).toBe(want);
+            expect(fighterArt(def)!.clips[want]!.length, label).toBe(faf - 1);
+            expect(pick(def, action, facing, dir, faf - 1), label).toEqual([want, faf - 1]);
+          }
+    },
+  );
 });
 
 describe('clipFor through a tether reel', () => {

@@ -474,3 +474,12 @@ STATES.getupRoll = retimeClip(STATES.techRoll!, 35, [
   [4, 4],
   [30, 28],
 ]);
+/** Tech and getup rolls away from the facing: the back roll with its frames moved onto each action's travel. */
+STATES.techRollBack = retimeClip(STATES.rollBack!, 40, [
+  [4, 4],
+  [20, 30],
+]);
+STATES.getupRollBack = retimeClip(STATES.rollBack!, 35, [
+  [4, 4],
+  [20, 28],
+]);
