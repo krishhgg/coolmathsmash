@@ -34,6 +34,7 @@ import {
   type Pt,
 } from './poses';
 import { attacks, ledgeSweep } from './attacks';
+import { finalSmashClips } from './finalSmash';
 import { FORE_ARM, SHIN, THIGH, UPPER_ARM, shoe } from './parts';
 import { rig } from './rig';
 import { shadowStepClips } from './shadowStep';
@@ -928,6 +929,7 @@ export const clips: Record<string, AnimClip> = {
   ...attacks,
   ...stunGunClips,
   ...shadowStepClips,
+  ...finalSmashClips,
 };
 
 /**
