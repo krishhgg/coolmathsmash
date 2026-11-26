@@ -19,6 +19,7 @@ import {
   tongue,
   tongueTip,
 } from './parts';
+import { rainBallSymbols } from './rainBall';
 
 /**
  * Red Ball's skeleton. He is all body, so the bones are about squash, stretch and spin:
@@ -78,5 +79,6 @@ export const rig: Rig = {
     tongue,
     tongueTip,
     ...effects,
+    ...rainBallSymbols,
   },
 };

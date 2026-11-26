@@ -78,11 +78,14 @@ function drawPlain(g: Graphics, e: EntityState, alpha: number, frame: number): v
  * as long as its entity and only swaps shared symbol geometry (docs/art.md, "Rendering"), with no filters, so `lite`
  * quality draws it as cheaply as a fighter. A prop with a `front` symbol draws its body into `back`, which the
  * renderer puts under the fighters, and its front into `fronts`, which goes over only the fighters standing in it
- * (layerFighters). World units, y down.
+ * (layerFighters). A `behind` prop draws whole into `back` (Ball Rain's balls). World units, y down.
  */
 export class EntityView {
   readonly container = new Container();
-  /** Bodies of props with a `front` (Duck Raft's raft), drawn behind the fighters. */
+  /**
+   * Bodies of props with a `front` (Duck Raft's raft), and whole `behind` props (Ball Rain's balls), drawn behind the
+   * fighters.
+   */
   readonly back = new Container();
   /** Those props' fronts (the raft's rim), drawn over the fighters standing in them and under everyone else. */
   readonly fronts = new Container();
@@ -120,7 +123,7 @@ export class EntityView {
           front: front ? createPropView(found.art, found.name, palette, front) : null,
         };
         this.views.set(e.id, held);
-        (held.front ? this.back : this.props).addChild(held.view.container);
+        (held.front || found.prop.behind ? this.back : this.props).addChild(held.view.container);
         if (held.front) this.fronts.addChild(held.front.container);
       }
       const at = propPlacement(e, found.prop, alpha);

@@ -459,7 +459,11 @@ A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned b
 (`src/fighters/fireboy/finalSmash.ts`) is the roster example: Mario Finale's frame data, damage and knockback on a
 `fireboy/blast` entity that crosses the stage and keeps burning after Fireboy can act, as Mario's fireballs do.
 Watergirl's Tidal Wave (`src/fighters/watergirl/finalSmash.ts`) builds a `watergirl/wave` entity from the same table
-(`MARIO_FINALE`, `marioFinaleHits`), so the twins share one copy of Mario Finale. The test fighter's is a plain hitbox:
+(`MARIO_FINALE`, `marioFinaleHits`), so the twins share one copy of Mario Finale. Red Ball's Ball Rain
+(`src/fighters/redball/finalSmash.ts`) covers the whole stage instead, on PK Starstorm: its script drops `redball/ball`
+entities with `spawnEntity` from the top of the stage's middle rather than from his feet, passing `final: true` and the
+move, and `final.range` tells CPUs how far ahead it reaches. Its balls draw behind the fighters (`PropArt.behind`), so
+whoever one falls on still shows. The test fighter's is a plain hitbox:
 
 ```ts
 finalSmash: {
