@@ -299,7 +299,7 @@ export function contactHit(
   const h = connection(a, v, box, at, m.frame);
   if (h.parry) parry(m, h, false);
   else if (h.shielding) shieldHit(m, h, false);
-  else hit(m, h, false);
+  else hit(m, h, false, new Map());
 }
 
 /**
