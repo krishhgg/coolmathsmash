@@ -387,6 +387,61 @@ const takeoff = (f: number, b: number): Pose =>
     1.15,
   );
 
+/**
+ * Running Ram (sideB), Skull Bash's crouch and launch: squatting low with the head down and forwards to ram, wings
+ * raised and back, feet dug in (BRACE). The charge itself plays `sideBCharge`, with the feathers fluffed up behind
+ * him and a glow that grows with the charge. On release he springs off both feet and flies flat out headfirst with
+ * the wings swept back, belly-flops into a slide as the ram dies, then rocks back up onto his feet. A hit or a
+ * shield bounces him straight to frame 75, the rock back up.
+ */
+const brace = (quiver = 0): Pose =>
+  wings(
+    strike({
+      lean: 26 + quiver * 0.3,
+      shift: -0.7,
+      drop: 1.4,
+      squash: [1.16, 0.82],
+      head: [2.9, -4.0 - quiver * 0.03],
+      aim: 18,
+      feet: [-1.8, 1.2],
+    }),
+    [-146 + quiver, 1.0],
+    [-122 - quiver, 1.0],
+  );
+const BRACE = brace();
+/** The ruffled feathers on the fx1 bone, centred on and squashed with the belly in `pose`, grown by `s`. */
+const fluff = (pose: Pose, s: number): Pose => {
+  const [x, y] = at(pose, 'body');
+  const b = pose.body ?? {};
+  return { fx1: fx(x, y, (b.sx ?? 1) * s, b.rot ?? 0, (b.sy ?? 1) * s) };
+};
+/** The ruffle draws behind the belly's outline, so only the tufts' tips show round his back. */
+const FLUFF_BEHIND = { fx1: 5.5 };
+/** The charge glow on the fxBack bone, centred between belly and head, radius `r`. */
+const glowAt = (r: number): Pose => ({ fx3: fx(0.6, -4.6, r) });
+const fly = (flutter: number, lines: number): Pose =>
+  mix(
+    wings(
+      trail(
+        strike({
+          lean: 74,
+          shift: 1.6,
+          drop: 0.3,
+          squash: [1.18, 0.88],
+          head: [5.9, -5.2],
+          aim: 10,
+          feet: null,
+        }),
+        -1.6 + flutter * 0.02,
+        -0.3 - flutter * 0.03,
+        192 + flutter,
+      ),
+      [-176 + flutter, 1.12],
+      [-168 - flutter, 1.06],
+    ),
+    { fx3: fx(-3.2, -4.8, lines) },
+  );
+
 export const attacks: Record<string, AnimClip> = {
   jab: {
     length: 17,
@@ -1115,6 +1170,130 @@ export const attacks: Record<string, AnimClip> = {
       key(66, undefined, { swaps: BLINK }),
       key(69, undefined, { swaps: {} }),
       key(71, STAND),
+    ],
+  },
+  sideB: {
+    length: 96,
+    active: [
+      [18, 25],
+      [26, 52],
+    ],
+    swaps: ANGRY,
+    keys: [
+      key(0, STAND, { ease: 'out' }),
+      key(4, mix(CROUCH, { head: { rot: 8 } }), { ease: 'inOut', swaps: { ...ANGRY, ...WINGS } }),
+      key(9, mix(BRACE, fluff(BRACE, 0.85)), {
+        ease: 'inOut',
+        swaps: { ...ANGRY, ...WINGS, fx1: 'fxRuffle' },
+        z: FLUFF_BEHIND,
+      }),
+      key(13, mix(BRACE, fluff(BRACE, 0.9)), { ease: 'in' }),
+      key(
+        15,
+        mix(
+          strike({
+            lean: 34,
+            shift: -0.9,
+            drop: 1.9,
+            squash: [1.24, 0.72],
+            head: [2.6, -3.2],
+            aim: 14,
+            feet: [-2.0, 1.2],
+          }),
+          { fx2: fx(-2.6, -0.4, 0.6) },
+        ),
+        { ease: 'out', swaps: { ...ANGRY, ...WINGS, fx2: 'fxPuff' }, z: {} },
+      ),
+      key(
+        16,
+        mix(
+          strike({
+            lean: 52,
+            shift: 0.6,
+            drop: 0.4,
+            squash: [0.92, 1.1],
+            head: [4.6, -5.4],
+            aim: 0,
+            feet: [-3.0, 0.2],
+          }),
+          { fx2: fx(-3.2, -0.5, 0.9) },
+        ),
+        {
+          ease: 'linear',
+          swaps: { ...SHOUT, ...WINGS, fx2: 'fxPuff' },
+        },
+      ),
+      key(17, fly(0, 0.9), {
+        ease: 'linear',
+        swaps: { ...SHOUT, ...WINGS, ...WEB, fxBack: 'fxSpeed' },
+      }),
+      ...[19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49].map((f, i) =>
+        key(f, fly(i % 2 ? -8 : 8, i % 2 ? 1.1 : 1.35), {
+          ...(i === 0 && { swaps: { ...SHOUT, ...WINGS, ...WEB, fxBack: 'fxSpeed' } }),
+        }),
+      ),
+      key(52, fly(0, 1.2), { ease: 'linear' }),
+      key(53, mix(slide(1.3, 0.6), { body: { sy: 0.66, sx: 1.34, y: 2.7 } }), {
+        ease: 'out',
+        swaps: { ...SHOUT, ...WINGS, ...WEB, fxBack: 'fxSpeed', fx1: 'fxPuff', fx2: 'fxPuff' },
+      }),
+      key(57, mix(slide(1.2, 0.85), { body: { sy: 0.8, sx: 1.18, y: 2.0 } }), { ease: 'inOut' }),
+      key(64, slide(0.9, 1.0), { ease: 'inOut' }),
+      key(70, slide(0.5, 1.1), {
+        ease: 'inOut',
+        swaps: { ...ANGRY, ...WINGS, ...WEB, fx1: 'fxPuff', fx2: 'fxPuff' },
+      }),
+      key(
+        72,
+        trail(
+          strike({
+            lean: 22,
+            shift: 0.7,
+            drop: 0.3,
+            squash: [1.1, 0.9],
+            head: [4.0, -5.0],
+            aim: 4,
+            feet: null,
+          }),
+          -1.3,
+          -0.6,
+          185,
+        ),
+        { ease: 'inOut', swaps: { ...ANGRY, ...WINGS } },
+      ),
+      key(75, tucked({ body: { rot: -28, sx: 1.06, sy: 0.96 } }), {
+        ease: 'out',
+        swaps: { ...BLINK, ...WINGS },
+      }),
+      key(78, undefined, { swaps: ANGRY }),
+      key(84, mix(CROUCH, { body: { rot: -6 } }), { ease: 'inOut' }),
+      key(90, strike({ lean: -4, shift: 0.1, head: [0.6, -8.0], aim: -4 }), { ease: 'inOut', swaps: ANGRY }),
+      key(96, STAND),
+    ],
+  },
+  /**
+   * Running Ram's charge, one clip frame per charge frame (80 for a full charge): the renderer plays it while the move
+   * waits on its charge frame. He quivers in the crouch, the feathers stay fluffed up and the glow behind him swells
+   * and brightens, flashing a star at the beak once it is full.
+   */
+  sideBCharge: {
+    length: 80,
+    swaps: { ...ANGRY, ...WINGS, fx1: 'fxRuffle', fxBack: 'fxGlow1' },
+    keys: [
+      ...Array.from({ length: 20 }, (_, i) => {
+        const f = i * 4;
+        const level = f / 80;
+        const pose = brace((i % 2 ? 1 : -1) * (2 + 5 * level));
+        const glow = f >= 52 ? 'fxGlow3' : f >= 28 ? 'fxGlow2' : 'fxGlow1';
+        return key(f, mix(pose, fluff(pose, 0.9 + 0.35 * level), glowAt(4 + 5.5 * level)), {
+          ease: 'inOut',
+          swaps: { ...ANGRY, ...WINGS, fx1: 'fxRuffle', fxBack: glow },
+          ...(i === 0 && { z: FLUFF_BEHIND }),
+        });
+      }),
+      key(80, mix(BRACE, fluff(BRACE, 1.25), glowAt(9.5), { fx2: fx(7.3, -4.3, 1.0) }), {
+        swaps: { ...SHOUT, ...WINGS, fx1: 'fxRuffle', fxBack: 'fxGlow3', fx2: 'fxStar' },
+      }),
     ],
   },
 };
