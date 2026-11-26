@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { hashState } from '../engine/hash';
 import { registerFighter } from '../fighters/registry';
+import { registerStage } from '../stages/registry';
 import { HITLAG, hitlagFrames, knockback } from './combat/formulas';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
 import { createMatch, type MatchState } from './match';
 import { addMeter, meter, setMeter, spendMeter } from './meters';
 import { applyStatus, clearStatus, hasStatus, statusOf } from './statuses';
-import { attack, runPorts, type Hold } from './testing/sim';
+import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from './testing/sim';
 import { testStatus } from './testing/statuses';
 
 registerFighter(testStatus);
@@ -349,6 +350,58 @@ describe('statuses: freezing', () => {
     expect(m.events).toContainEqual({ type: 'statusEnd', port: 1, status: STUN, reason: 'hit' });
     expect(m.events.some((e) => e.type === 'statusStart')).toBe(false);
     expect(hasStatus(v, STUN)).toBe(false);
+  });
+});
+
+describe('statuses: a KO from a ledge hang', () => {
+  /** A block whose left ledge holds still for 2 seconds, then sinks 400 units, through the bottom blast zone. */
+  registerStage({
+    id: 'test-sinking-ledge',
+    name: 'test-sinking-ledge',
+    solids: [
+      {
+        points: [
+          [-20, -10],
+          [20, -10],
+          [20, 0],
+          [-20, 0],
+        ],
+        motion: {
+          period: 6000,
+          keys: [
+            [0, 0, 0],
+            [120, 0, 0],
+            [300, 0, -400],
+            [5999, 0, -400],
+          ],
+        },
+      },
+    ],
+    platforms: [],
+    ledges: [{ x: -20, y: 0, side: -1, solid: 0 }],
+    blastZones: { left: -240, right: 240, top: 192, bottom: -140 },
+    camera: { left: -170, right: 170, top: 130, bottom: -80 },
+    spawns: [[0, 0, 1]],
+    respawns: [[0, 80]],
+  });
+
+  it('clears every status and resets meters when the ledge carries a hanging fighter out', () => {
+    const m = testMatch({ fighter: 'test-status', stage: 'test-sinking-ledge' });
+    const f = placeInAir(m, -25, 4, 1);
+    until(m, (g) => g.action === 'ledgeHang');
+    while (m.frame < 160) run(m, 1);
+    expect(f.action).toBe('ledgeHang');
+    applyStatus(m, f, WARM);
+    applyStatus(m, f, FLOWER, { damage: 5 });
+    setMeter(f, 'ammo', 1);
+    for (let i = 0; i < 400 && f.action === 'ledgeHang'; i++) run(m, 1);
+    expect(f.action).toBe('ko');
+    expect(f.statuses).toEqual([]);
+    expect(f.meters).toMatchObject({ ammo: 3 });
+    expect(m.events.filter((e) => e.type === 'statusEnd')).toEqual([
+      { type: 'statusEnd', port: 0, status: WARM, reason: 'ko' },
+      { type: 'statusEnd', port: 0, status: FLOWER, reason: 'ko' },
+    ]);
   });
 });
 

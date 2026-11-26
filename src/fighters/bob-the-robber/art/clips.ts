@@ -744,11 +744,11 @@ export const clips: Record<string, AnimClip> = {
     ],
   },
   ledgeCatch: {
-    length: 8,
+    length: 19,
     swaps: { ...GRIP, face: 'face3qWide' },
     keys: continuous(
-      Array.from({ length: 9 }, (_, frame) => {
-        const t = 1 - smooth(frame / 8);
+      Array.from({ length: 20 }, (_, frame) => {
+        const t = 1 - smooth(frame / 19);
         return key(
           frame,
           hang({
@@ -756,7 +756,7 @@ export const clips: Record<string, AnimClip> = {
             thighF: { rot: -22 - 36 * t },
             thighB: { rot: 19 + 28 * t },
           }),
-          { ease: 'linear', ...(frame === 0 ? { z: GRIP_ORDER } : frame === 8 ? { swaps: GRIP } : {}) },
+          { ease: 'linear', ...(frame === 0 ? { z: GRIP_ORDER } : frame === 19 ? { swaps: GRIP } : {}) },
         );
       }),
     ),
@@ -788,7 +788,7 @@ export const clips: Record<string, AnimClip> = {
     keys: continuous([...climbKeys(30, LEDGE_INWARD, 30), key(34, READY, { z: {} })]),
   },
   ledgeRoll: {
-    length: 50,
+    length: 45,
     swaps: GRIP,
     keys: continuous([
       ...climbKeys(40, 25, 9, 12 / 9),
@@ -805,7 +805,7 @@ export const clips: Record<string, AnimClip> = {
         };
       }),
       key(39, mix(grounded(CROUCH), { body: { rot: 368 } }), { ease: 'out' }),
-      key(50, mix(READY, { body: { rot: 364 } })),
+      key(45, mix(READY, { body: { rot: 364 } })),
     ]),
   },
   ledgeJump: {
