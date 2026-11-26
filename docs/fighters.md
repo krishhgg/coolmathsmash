@@ -729,7 +729,10 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   into (a bomb's burst). `src/ai/shots.ts` puts those entities out on a copy of the match and plays their flight
   against the opponent's predicted path, so a CPU fires when the shot would meet the opponent. Its own controller is
   neutral in that copy, so a minion steered by the stick is predicted badly; list such a move in the fighter's
-  `ai.ts` `avoid`.
+  `ai.ts` `avoid`. A special with a `charge` frame is probed twice, tapped and with Special held to a full charge,
+  and the CPU picks either (Bob the Robber's Stun Gun). A shot is worth less the longer it leaves the CPU busy after
+  the opponent could run in, unless it lands first or would meet the runner before the runner's quickest hit; then
+  it holds the opponent up for its hitstun plus any freezing status (paralysis).
 
 ## Art
 

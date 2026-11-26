@@ -91,7 +91,7 @@ export function shotHit(
     const hurt = { ...s.hurt, x: s.hurt.x + target.errX };
     for (const e of live) {
       const b = entityHitboxes(e).find(
-        (b) => !b.box.pushOnly && overlaps(b.x, b.y, b.box.radius, hurt, MARGIN),
+        (b) => !b.box.pushOnly && targets(b.box, s) && overlaps(b.x, b.y, b.box.radius, hurt, MARGIN),
       );
       if (!b) continue;
       struck.add(e.id);
@@ -101,6 +101,12 @@ export function shotHit(
     if (hit && p.spawns.length === 1) break;
   }
   return hit;
+}
+
+/** Whether `box` can hit the target where it is predicted to be: on the ground, or airborne (HitboxDef.targets). */
+function targets(box: HitboxDef, s: Sample): boolean {
+  const only = box.targets ?? 'both';
+  return only === 'both' || (only === 'ground') === s.grounded;
 }
 
 /**

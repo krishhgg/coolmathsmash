@@ -42,7 +42,13 @@ export interface Attack {
    * Connects with an entity the move spawns (a projectile) rather than with the fighter's own hitboxes: `box` is the
    * first entity's hitbox, and this adds up the damage of every entity of a volley that connects.
    */
-  shot?: { damage: number };
+  shot?: {
+    damage: number;
+    /** It would also meet the target running in (Target.rush) before the target's quickest hit could land. */
+    stops?: true;
+  };
+  /** Hold Special until the move is fully charged (MoveProbe.charged), rather than tapping it. */
+  held?: true;
   score: number;
 }
 
@@ -58,6 +64,12 @@ export interface Target {
    * long after the CPU's own hitboxes are gone. Shots are tested against `path` when it is absent.
    */
   far?: Sample[];
+  /**
+   * The target running straight at the CPU from the first frame it can act, stopping within striking distance: the
+   * frame it gets there (`arrive`, how soon it could punish a shot) and the frame its quickest grounded hit could land
+   * (`strikes`). A shot that meets the runner before `strikes` stops the approach.
+   */
+  rush?: { path: Sample[]; arrive: number; strikes: number };
 }
 
 export interface Self {
@@ -126,13 +138,17 @@ function carry(v: number, friction: number, frames: number): number {
 /** The earlier of a fighter-hitbox hit and a projectile hit, and the projectile's when it is the one. */
 function earlier(
   hit: { t: number; box: HitboxDef } | null,
-  shot: ShotHit | null,
-): { t: number; box: HitboxDef; shot?: ShotHit } | null {
+  shot: (ShotHit & { stops?: true }) | null,
+): { t: number; box: HitboxDef; shot?: ShotHit & { stops?: true } } | null {
   if (!shot || (hit && hit.t <= shot.t)) return hit;
   return { ...shot, shot };
 }
 
-/** First projectile hit of `p` input `offset` frames from now, when the CPU can play projectiles and `p` has one. */
+/**
+ * First projectile hit of `p` input `offset` frames from now, when the CPU can play projectiles and `p` has one. When
+ * it lands after the target could run in (Target.rush), the flight is played again against the runner to see
+ * whether it stops the approach.
+ */
 function shotOf(
   me: Self,
   p: MoveProbe,
@@ -140,12 +156,13 @@ function shotOf(
   facing: 1 | -1,
   place: Place,
   target: Target,
-): ShotHit | null {
+): (ShotHit & { stops?: true }) | null {
   if (!me.state || !p.shot) return null;
-  return shotHit(me.state, me.f, p, offset, facing, place, {
-    path: target.far ?? target.path,
-    errX: target.errX,
-  });
+  const { errX, rush } = target;
+  const hit = shotHit(me.state, me.f, p, offset, facing, place, { path: target.far ?? target.path, errX });
+  if (!hit || !rush || hit.t <= rush.arrive) return hit;
+  const met = shotHit(me.state, me.f, p, offset, facing, place, { path: rush.path, errX });
+  return met && met.t < rush.strikes ? { ...hit, stops: true } : hit;
 }
 
 function landing(a: Arc, info: StageInfo, from: number): number {
@@ -161,7 +178,7 @@ function groundAttacks(me: Self, target: Target, out: Attack[]): void {
   const { f, k } = me;
   if (me.groundDelay === Infinity) return;
   const dashing = f.action === 'dash' || f.action === 'run';
-  for (const p of Object.values(k.ground)) {
+  for (const p of Object.values(k.ground).flatMap((p) => (p.charged ? [p, p.charged] : [p]))) {
     if (p.first < 0 && !(me.state && p.shot)) continue;
     const delay = p.move === 'grab' ? (me.grabDelay ?? me.groundDelay) : me.groundDelay;
     if (p.start === 'dash' && (!dashing || delay > 0)) continue;
@@ -204,7 +221,10 @@ function groundAttacks(me: Self, target: Target, out: Attack[]): void {
         busy: delay + p.busy,
         endX: f.pos.x + p.endDx * facing,
         endY: f.pos.y + p.endDy,
-        ...(hit.shot && { shot: { damage: hit.shot.damage } }),
+        ...(hit.shot && {
+          shot: { damage: hit.shot.damage, ...(hit.shot.stops && { stops: true as const }) },
+        }),
+        ...(p.held && { held: true as const }),
         score: 0,
       });
     }
@@ -264,7 +284,7 @@ function aerialHits(
       endX: a.x[end]!,
       endY: a.y[end]!,
       landX: a.x[Math.min(land, a.x.length - 1)]!,
-      ...(hit.shot && { shot: { damage: hit.shot.damage } }),
+      ...(hit.shot && { shot: { damage: hit.shot.damage, ...(hit.shot.stops && { stops: true as const }) } }),
       score: 0,
     });
   }

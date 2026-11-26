@@ -5,6 +5,7 @@ import { Btn, neutralInput, type InputFrame } from '../input/types';
 import { hurtbox } from '../sim/combat/hits';
 import { hitstunFrames, knockback, shieldstunFrames } from '../sim/combat/formulas';
 import { GRAB, SHIELD_DROP_FRAMES } from '../sim/constants';
+import { statusDef, statusLength } from '../sim/statuses';
 import type { FighterState } from '../sim/fighter';
 import { stepMatch, type MatchState } from '../sim/match';
 import { STICK, TURNING_MOVES, press } from './inputs';
@@ -495,6 +496,7 @@ export class Cpu {
       errX: (this.rand() * 2 - 1) * this.lv.spacingError,
       grabbableIn: snap.grabbableFrom - state.frame,
       ...(far && { far }),
+      ...(k.shoots && { rush: rush(far ?? path, me.pos.x, knowledge(snap.fighter, state.config.stage)) }),
     };
     const now = path[0]!;
     const dir = (Math.sign(now.x - me.pos.x) || me.facing) as 1 | -1;
@@ -654,9 +656,7 @@ export class Cpu {
     const opp = getFighter(snap.fighter).stats;
     const me = state.fighters[this.port]!;
     const offstageOk = edgeguarding && this.lv.level >= 6;
-    const arrive = attacks.some((a) => a.shot)
-      ? arrival(target.far ?? target.path, me.pos.x, opp.runSpeed)
-      : 0;
+    const arrive = target.rush?.arrive ?? 0;
     const out: Attack[] = [];
     for (const a of attacks) {
       const s = (target.far ?? target.path)[a.tHit]!;
@@ -692,7 +692,7 @@ export class Cpu {
       } else if (s.action !== 'hitstun' && s.action !== 'tumble') {
         v -= Math.max(0, a.busy - a.tHit) * 0.06;
       }
-      if (a.shot) v -= exposure(a, arrive, kb) * SHOT_EXPOSURE;
+      if (a.shot) v -= exposure(a, arrive, holdUp(box, kb)) * SHOT_EXPOSURE;
       v /= 1 + a.tHit / 30;
       out.push({ ...a, score: v });
     }
@@ -739,7 +739,7 @@ export class Cpu {
     const ff =
       this.rand() < this.lv.fastFall && floorBelow(info, pick.endX, pick.endY + 1, true, true) !== null;
     if (pick.kind === 'ground') {
-      this.start(groundMove(pick.move, TURNING_MOVES.has(pick.move) ? pick.facing : me.facing));
+      this.start(groundMove(pick.move, TURNING_MOVES.has(pick.move) ? pick.facing : me.facing, pick.held));
       return true;
     }
     const make = () => (pick.kind === 'jump' ? jumpAerial(pick, ff, info) : airAerial(pick, ff, info));
@@ -971,24 +971,50 @@ function throwDamage(k: FighterKnowledge): number {
  * the opening the opponent punishes.
  */
 const SHOT_EXPOSURE = 0.25;
-/** How close the opponent must get to strike, for `arrival`. */
+/** How close the opponent must get to strike, for `rush`. */
 const STRIKE = 15;
 
 /**
- * Frames the target needs to get within striking distance of x: from the first frame it can act on its path, at its
- * run speed.
+ * The target (`opp`) running straight at x from the first frame it can act on its path, at its run speed, until it is
+ * within striking distance: its path doing so (rising and falling as predicted), the frame it gets there and the
+ * frame its quickest grounded hit could land from there (Target.rush).
  */
-function arrival(path: Sample[], x: number, speed: number): number {
+function rush(path: Sample[], x: number, opp: FighterKnowledge): NonNullable<Target['rush']> {
+  const speed = opp.stats.runSpeed;
+  const startup = Math.min(...Object.values(opp.ground).map((p) => (p.first < 0 ? Infinity : p.first)));
   const free = path.findIndex((s) => actionable(s));
-  const t = free < 0 ? path.length : free;
-  const s = path[Math.min(t, path.length - 1)]!;
-  return t + Math.max(0, Math.abs(s.x - x) - STRIKE) / speed;
+  const t0 = free < 0 ? path.length : free;
+  const from = path[Math.min(t0, path.length - 1)]!.x;
+  const gap = Math.max(0, Math.abs(from - x) - STRIKE);
+  const dir = Math.sign(x - from);
+  const ran = path.map((s, t) => {
+    if (t < t0) return s;
+    const nx = from + dir * Math.min(gap, speed * (t - t0));
+    return { ...s, x: nx, hurt: { ...s.hurt, x: s.hurt.x + nx - s.x } };
+  });
+  const arrive = t0 + gap / speed;
+  return { path: ran, arrive, strikes: arrive + (Number.isFinite(startup) ? startup : 0) };
 }
 
-/** Frames a shot leaves the CPU busy after the target could arrive; a shot that lands first holds it up by its hitstun. */
-function exposure(a: Attack, arrive: number, kb: number): number {
-  const at = a.tHit <= arrive ? arrive + hitstunFrames(kb) : arrive;
+/**
+ * Frames a shot leaves the CPU busy after the target could arrive. A shot that lands first, or that would meet the
+ * target on its way in (Attack.shot.stops), holds it up for `hold` frames.
+ */
+function exposure(a: Attack, arrive: number, hold: number): number {
+  const at = a.tHit <= arrive || a.shot?.stops ? arrive + hold : arrive;
   return Math.max(0, a.busy - at);
+}
+
+/**
+ * Frames a hit with `box` at knockback `kb` holds the target up: its hitstun, after the freeze of a status that
+ * freezes (Bob the Robber's paralysis, which lasts longer than the hitstun it comes before).
+ */
+function holdUp(box: HitboxDef, kb: number): number {
+  const def = box.status ? statusDef(box.status) : null;
+  const freeze = def?.freeze
+    ? statusLength(def, { damage: box.damage, knockback: kb * (box.hitlag ?? 1) })
+    : 0;
+  return hitstunFrames(kb) + freeze;
 }
 
 /** Frames of hitlag a pummel adds on top of its own length (an estimate, for the escape margin). */

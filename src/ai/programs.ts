@@ -1,5 +1,6 @@
 import { getFighter } from '../fighters/registry';
 import { Btn, neutralInput, type InputFrame } from '../input/types';
+import { SMASH_CHARGE_FRAMES } from '../sim/actions/charge';
 import type { FighterState } from '../sim/fighter';
 import { AIR_INPUTS, DASH_INPUTS, GROUND_INPUTS, STICK, press } from './inputs';
 import { actionable } from './knowledge';
@@ -205,14 +206,18 @@ export function dropJump(toward: number): Program {
 /**
  * A grounded move: wait until actionable on the ground (out of a shield drop), then input it facing `facing`. A grab
  * comes straight out of the shield instead (Grab with Shield still held), so it keeps holding Shield until then.
+ * With `held`, the move's buttons stay held once it starts until its charge is full (a charged special).
  */
-export function groundMove(move: string, facing: 1 | -1): Program {
+export function groundMove(move: string, facing: 1 | -1, held = false): Program {
   const input = GROUND_INPUTS[move] ?? DASH_INPUTS[move];
   return {
-    name: `ground:${move}`,
+    name: `ground:${move}${held ? ':held' : ''}`,
     interruptible: false,
     holds: move === 'grab',
     step(t, f) {
+      if (held && input && f.move === move && f.action === 'attack' && f.charge < chargeFull(f, move)) {
+        return press({ buttons: input.buttons ?? 0 });
+      }
       if (t > 40 || (f.move === move && f.action === 'attack')) return null;
       if (move === 'grab' && f.action === 'shieldStun') return press({ buttons: Btn.Shield });
       if (move === 'grab' && f.action === 'shield') return press({ buttons: Btn.Grab | Btn.Shield });
@@ -220,6 +225,11 @@ export function groundMove(move: string, facing: 1 | -1): Program {
       return input ? press(input, facing) : null;
     },
   };
+}
+
+/** The charge frames that fully charge `move` for `f`'s fighter (MoveDef.chargeFrames). */
+function chargeFull(f: Readonly<FighterState>, move: string): number {
+  return getFighter(f.fighter).moves?.[move]?.chargeFrames ?? SMASH_CHARGE_FRAMES;
 }
 
 /**

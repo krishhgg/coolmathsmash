@@ -48,8 +48,54 @@ describe('move probes', () => {
     expect(s[0]!.max).toBe(2);
   });
 
+  it("record Bob the Robber's Stun Gun tapped and held to a full charge, and charge no other move", () => {
+    const p = knowledge('bob-the-robber', STAGE).ground.neutralB!;
+    const tap = p.spawns[0]!;
+    expect(p.held).toBeUndefined();
+    expect([p.spawns.length, tap.kind, tap.t, tap.vx, tap.lifetime, tap.box?.damage, p.busy]).toEqual([
+      1,
+      'bob-the-robber/stunShot',
+      20,
+      2.2,
+      24,
+      4,
+      48,
+    ]);
+    expect(p.shot!.x2).toBeCloseTo(61.5, 1);
+    const c = p.charged!;
+    const full = c.spawns[0]!;
+    expect(c.held).toBe(true);
+    expect([c.spawns.length, full.kind, full.t, full.vx, full.lifetime, full.box?.damage, c.busy]).toEqual([
+      1,
+      'bob-the-robber/stunShotFull',
+      42,
+      1.8,
+      48,
+      6,
+      70,
+    ]);
+    expect(c.shot!.x2).toBeGreaterThan(95);
+    // Smash attacks charge on Attack, not Special, and are left tapped; so is every move without a charge frame.
+    for (const id of Object.keys(allFighters())) {
+      const k = knowledge(id, STAGE);
+      for (const [name, q] of Object.entries(k.ground)) {
+        if (id !== 'bob-the-robber' || name !== 'neutralB')
+          expect(q.charged, `${id} ${name}`).toBeUndefined();
+      }
+    }
+  });
+
   it('find every fighter whose moves shoot, and nothing on moves that spawn nothing', () => {
-    expect(SHOOTERS).toEqual(['duck', 'fireboy', 'fluffy', 'johnny', 'papa-louie', 'raftwars', 'snailbob']);
+    expect(SHOOTERS).toEqual([
+      'bob-the-robber',
+      'duck',
+      'fireboy',
+      'fluffy',
+      'johnny',
+      'papa-louie',
+      'raftwars',
+      'snailbob',
+    ]);
     const k = knowledge('redball', STAGE);
     expect(k.shoots).toBe(false);
     for (const p of [...Object.values(k.ground), ...Object.values(k.air)]) {
@@ -63,7 +109,8 @@ describe('CPU projectiles', () => {
   it('fire at an opponent standing 60-120 units away', () => {
     for (const id of SHOOTERS) {
       // As far as its shot reaches, within 60-120. Shots shorter than 60 (Duck's Seeds, Fluffy's candy, Snail Bob's
-      // crate) need the CPU to walk in first, and Fluffy's 64-unit forward smash outreaches its candy.
+      // crate) need the CPU to walk in first, and Fluffy's 64-unit forward smash outreaches its candy. Bob the
+      // Robber's reach is his tapped Stun Gun's (61 units); the charged one is tested on its own below.
       const reach = shotReach(id);
       const d = Math.round(Math.min(120, Math.max(60, reach - 4)));
       for (const seed of [1, 2]) {
@@ -87,11 +134,69 @@ describe('CPU projectiles', () => {
     }
   });
 
+  it("tap Bob the Robber's Stun Gun in its reach and charge it at an opponent who can't close in first", () => {
+    /** The first shot Bob fires at a Red Ball `d` away, stuck in `lag` frames of landing lag, and its paralysis. */
+    function firstShot(
+      d: number,
+      lag: number,
+      seed: number,
+    ): { shot: string; at: number; paralysis: number } {
+      const m = facingOff('bob-the-robber', -d / 2, d, seed);
+      if (lag) Object.assign(m.fighters[1]!, { action: 'land', actionFrame: 1, landingLag: lag });
+      const cpu = createCpu({ port: 0, level: 9, seed });
+      const out = { shot: '', at: -1, paralysis: 0 };
+      for (let i = 0; i < 200 && !out.paralysis; i++) {
+        stepMatch(m, [cpu.input(m), neutralInput()]);
+        for (const e of m.events) {
+          if (e.type === 'entitySpawn' && e.owner === 0 && !out.shot)
+            Object.assign(out, { shot: e.kind, at: i });
+          if (e.type === 'statusStart' && e.port === 1) out.paralysis = e.frames;
+        }
+      }
+      return out;
+    }
+    for (const seed of [1, 2]) {
+      // A standing opponent who runs in meets the tapped shot (out on frame 21) before its jab can land.
+      expect(firstShot(60, 0, seed), `60, seed ${seed}`).toEqual({
+        shot: 'bob-the-robber/stunShot',
+        at: 20,
+        paralysis: 25,
+      });
+      // Past the tap's 61 units, an opponent stuck landing can't reach him before the full charge is out.
+      expect(firstShot(80, 20, seed), `80, seed ${seed}`).toEqual({
+        shot: 'bob-the-robber/stunShotFull',
+        at: 42,
+        paralysis: 52,
+      });
+    }
+  });
+
+  it("drop Snail Bob's crate on an opponent standing 60 or 90 units away", () => {
+    // Crate Drop is 10% since #257. Without his CPU's 1.2 preference his down air outscores it, and at 60 units he
+    // never drops it.
+    for (const d of [60, 90]) {
+      for (const seed of [1, 2]) {
+        const m = facingOff('snailbob', -d / 2, d, seed);
+        const cpu = createCpu({ port: 0, level: 9, seed });
+        let dropped = -1;
+        for (let i = 0; i < 300 && dropped < 0; i++) {
+          stepMatch(m, [cpu.input(m), neutralInput()]);
+          if (
+            m.events.some((e) => e.type === 'entitySpawn' && e.owner === 0 && e.kind === 'snailbob/crateFall')
+          ) {
+            dropped = i;
+          }
+        }
+        expect(dropped, `${d}, seed ${seed}`).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
   /**
    * Eight 30-second matches per level against a level 5 Red Ball. Snail Bob's crate is slow and lands only 20 units
    * ahead, so he throws it a few times a match: with three seeds he had 3 hits at level 9 against 1 at level 3, and
-   * #217 (solid ceilings) shifted two of those matches to 1 against 1. Over eight seeds he has 5-6 against 1 on
-   * either side of that change, and every other shooter's gap is wider.
+   * #217 (solid ceilings) shifted two of those matches to 1 against 1. Over eight seeds he has 8 against 1 (5 against
+   * 1 before his CPU's crate preference), and every other shooter's gap is wider.
    */
   it.each(SHOOTERS)(
     'hit with them more often at level 9 than at level 3: %s',

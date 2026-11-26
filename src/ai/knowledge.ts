@@ -1,6 +1,7 @@
 import { getFighter } from '../fighters/registry';
 import type { FighterDef, FighterStats, HitboxDef, MoveDef } from '../fighters/types';
 import { neutralInput, type InputFrame } from '../input/types';
+import { SMASH_CHARGE_FRAMES } from '../sim/actions/charge';
 import { activeHitboxes } from '../sim/combat/hits';
 import { entityHitboxes } from '../sim/entities/entities';
 import type { EntityState } from '../sim/entities/types';
@@ -113,6 +114,13 @@ export interface MoveProbe {
   spawns: ProbeSpawn[];
   /** Where those entities' hitboxes went; null when they never had any. */
   shot: ShotReach | null;
+  /**
+   * A chargeable special (MoveDef.charge, not a smash attack) probed a second time with Special held until the charge
+   * is full: Bob the Robber's Stun Gun fires a stronger shot that flies further. This probe is the tapped move.
+   */
+  charged?: MoveProbe;
+  /** This probe held Special until the charge was full (it is another probe's `charged`). */
+  held?: true;
 }
 
 export interface FighterKnowledge {
@@ -161,7 +169,9 @@ export function knowledge(fighterId: string, stageId: string): FighterKnowledge 
   for (const name of GROUND_MOVES) {
     if (!moves[name] || avoid.has(name)) continue;
     const p = probe(def, stageId, name, 'ground');
-    if (p) ground[name] = p;
+    if (!p) continue;
+    const charged = chargeable(moves[name]!) ? probe(def, stageId, name, 'ground', true) : null;
+    ground[name] = charged ? { ...p, charged } : p;
   }
   for (const name of Object.keys(DASH_INPUTS)) {
     if (!moves[name] || avoid.has(name)) continue;
@@ -197,7 +207,19 @@ function settle(def: FighterDef, stageId: string): MatchState {
   return m;
 }
 
-function probe(def: FighterDef, stageId: string, move: string, start: MoveProbe['start']): MoveProbe | null {
+/** A special that charges while Special is held (src/sim/actions/charge.ts); smash attacks charge on Attack instead. */
+function chargeable(move: MoveDef): boolean {
+  return move.charge !== undefined && move.kind !== 'smash';
+}
+
+/** Probe `move` from `start`; with `held`, Special stays held after the press until the move's charge is full. */
+function probe(
+  def: FighterDef,
+  stageId: string,
+  move: string,
+  start: MoveProbe['start'],
+  held = false,
+): MoveProbe | null {
   const m = settle(def, stageId);
   const f = m.fighters[0]!;
   const info = staticStage(stageId);
@@ -238,8 +260,10 @@ function probe(def: FighterDef, stageId: string, move: string, start: MoveProbe[
   const active: ProbeFrame[] = [];
   let busy = PROBE_LIMIT;
   let helpless = false;
+  const full = (def.moves ?? {})[move]?.chargeFrames ?? SMASH_CHARGE_FRAMES;
   for (let t = 0; t < PROBE_LIMIT; t++) {
-    if (t > 0) step(neutralInput());
+    if (t > 0)
+      step(held && f.move === move && f.charge < full ? press({ buttons: input.buttons }) : neutralInput());
     shots.see(t, f.move === move, x0, y0);
     if (f.action === 'helpless') helpless = true;
     const boxes = f.move === move ? activeHitboxes(f) : [];
@@ -284,6 +308,7 @@ function probe(def: FighterDef, stageId: string, move: string, start: MoveProbe[
     },
     spawns: shots.spawns,
     shot: shots.reach(),
+    ...(held && { held: true as const }),
   };
 }
 

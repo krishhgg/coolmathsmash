@@ -88,6 +88,17 @@ export function isFrozen(f: FighterState): boolean {
 }
 
 /**
+ * Frames a status lasts when a hit puts it on: from `damage` (the % the hit added) and `knockback` (the hit's
+ * knockback scaled like its hitlag), capped at its `max`.
+ */
+export function statusLength(def: StatusDef, opts: { damage?: number; knockback?: number }): number {
+  const length = Math.floor(
+    def.frames + (def.perDamage ?? 0) * (opts.damage ?? 0) + (def.perKnockback ?? 0) * (opts.knockback ?? 0),
+  );
+  return Math.min(def.max ?? Infinity, length);
+}
+
+/**
  * Put status `kind` on `f`, or apply it again (StatusDef.stack). Its length comes from the StatusDef, `damage` (the %
  * the applying hit added) and `knockback` (the hit's knockback scaled like its hitlag, StatusDef.perKnockback) unless
  * `frames` gives one. A length under one frame applies nothing.
@@ -100,15 +111,7 @@ export function applyStatus(
 ): StatusState | null {
   const def = statusDef(kind);
   const max = def.max ?? Infinity;
-  const length = Math.min(
-    max,
-    opts.frames ??
-      Math.floor(
-        def.frames +
-          (def.perDamage ?? 0) * (opts.damage ?? 0) +
-          (def.perKnockback ?? 0) * (opts.knockback ?? 0),
-      ),
-  );
+  const length = opts.frames === undefined ? statusLength(def, opts) : Math.min(max, opts.frames);
   if (length < 1) return null;
   const on = statusOf(f, kind);
   if (on) {
