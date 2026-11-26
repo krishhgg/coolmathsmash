@@ -94,7 +94,8 @@ export const SHADOW_STEP_BEHIND = 11;
  * Shadow Step (down special): Bob ducks into the shadows. A hit that lands on frames 5-24 is caught, and he steps
  * out of the shadow behind the attacker with a baton strike (downBHit). Intangible on frame 4 only
  * (ultimateframedata's), because an intangible fighter can't counter in this engine and SmashWiki's 4-13 would
- * close the window until 14. A grab or a hit before 4 or after 24 goes through.
+ * close the window until 14. A grab or a hit before 4 or after 24 goes through. In the air it carries on when he
+ * lands, as the strike does; neither source says what Double Team does there.
  */
 export const downB: MoveDef = {
   kind: 'other',
