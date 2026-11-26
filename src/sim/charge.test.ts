@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { registerFighter } from '../fighters/registry';
 import { defineFighter } from '../fighters/types';
-import { chargeMultiplier } from './actions/charge';
+import { chargeMultiplier, chargeScale } from './actions/charge';
+import { spawnEntity } from './entities/entities';
+import type { EntityDef } from './entities/types';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
 import type { MatchState } from './match';
@@ -29,9 +31,44 @@ const withAirVariant = defineFighter({
 });
 registerFighter(withAirVariant);
 
+/** A 4% projectile; `chargeDamage` scales it with the charge of the move that spawns it. */
+const shot = (chargeDamage?: number): EntityDef => ({
+  radius: 1,
+  lifetime: 60,
+  chargeDamage,
+  hits: [{ frames: [1, 60], boxes: [{ ...hit4, x: 0, y: 0, radius: 1.5 }] }],
+});
+const hit4 = { id: 0, damage: 4, angle: 361, kbg: 50, bkb: 40 };
+
+/**
+ * The test charger with a held-charge projectile for a neutral special (Charge Shot's shape without storage): hold
+ * Special for up to 60 frames from frame 6, and the shot on frame 9 deals up to 3x its 4%.
+ */
+const shooter = defineFighter({
+  ...testCharger,
+  id: 'test-charge-shot',
+  name: 'Test: charged shot',
+  moves: {
+    neutralB: {
+      kind: 'other',
+      faf: 30,
+      charge: 6,
+      hits: [],
+      spawn: [{ frame: 9, entity: 'shot', x: 6, y: 7, vx: 2 }],
+    },
+  },
+  entities: { shot: shot(3), plain: shot() },
+});
+registerFighter(shooter);
+
 /** The % a move adds to a fighter standing 8 units ahead: `press` starts it, then `hold` for `frames` frames. */
-function damageDealt(press: (facing: number) => Hold, hold: Hold, frames: number): number {
-  const m = testMatch({ fighter: testCharger.id, players: 2 });
+function damageDealt(
+  press: (facing: number) => Hold,
+  hold: Hold,
+  frames: number,
+  fighter = testCharger.id,
+): number {
+  const m = testMatch({ fighter, players: 2 });
   const [a, v] = m.fighters as [FighterState, FighterState];
   const x = a.pos.x + 8 * a.facing;
   Object.assign(v, { pos: { x, y: a.pos.y }, prevPos: { x, y: a.pos.y }, ground: a.ground, action: 'idle' });
@@ -269,5 +306,47 @@ describe('stored charge', () => {
     run(m, 1);
     expect(f.action).toBe('ko');
     expect(f.storedCharge).toEqual({ fighter: testCharger.id, move: 'neutralB', frames: 30 });
+  });
+});
+
+describe('charged projectiles', () => {
+  it('scale damage linearly from 1 uncharged to the full-charge multiplier (chargeScale)', () => {
+    expect(chargeScale(0, 3)).toBe(1);
+    expect(chargeScale(0.5, 3)).toBe(2);
+    expect(chargeScale(1, 3)).toBe(3);
+    expect(chargeScale(1, 1)).toBe(1);
+    expect(chargeScale(0.25, 5.6)).toBeCloseTo(2.15, 12);
+  });
+
+  it("hit for the entity's chargeDamage times their damage at the spawning move's charge level", () => {
+    /** The % the shot adds to a fighter 8 units ahead after charging exactly `frames` frames. */
+    const fired = (frames: number) => {
+      const m = testMatch({ fighter: shooter.id, players: 2 });
+      const [a, v] = m.fighters as [FighterState, FighterState];
+      const x = a.pos.x + 8 * a.facing;
+      Object.assign(v, { pos: { x, y: a.pos.y }, prevPos: { x, y: a.pos.y }, action: 'idle' });
+      if (frames > 0) chargeTo(m, neutralB, frames);
+      else run(m, 1, neutralB);
+      until(m, () => m.events.some((e) => e.type === 'hit'), {}, 60);
+      expect(a.charge).toBe(frames);
+      return m.events.find((e): e is Hit => e.type === 'hit')!.damage;
+    };
+    const uncharged = fired(0);
+    expect(fired(30) / uncharged).toBeCloseTo(2, 12);
+    expect(fired(60) / uncharged).toBeCloseTo(3, 12);
+    const m = testMatch({ fighter: shooter.id });
+    chargeTo(m, neutralB, 30);
+    until(m, () => m.entities.length > 0, {}, 60);
+    expect(m.entities[0]!.damageMul).toBe(2);
+  });
+
+  it('take a charge level from a script spawn, and ignore it without chargeDamage', () => {
+    const m = testMatch();
+    const at = (kind: string, charge?: number) =>
+      spawnEntity(m, { kind: `${shooter.id}/${kind}`, owner: 0, pos: { x: 0, y: 20 }, charge }).damageMul;
+    expect(at('shot')).toBe(1);
+    expect(at('shot', 0.5)).toBe(2);
+    expect(at('shot', 1)).toBe(3);
+    expect(at('plain', 1)).toBe(1);
   });
 });
