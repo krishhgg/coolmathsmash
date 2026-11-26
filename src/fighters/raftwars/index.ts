@@ -1,4 +1,5 @@
 import { defineFighter } from '../types';
+import { aimedShotEntities } from './aimedShot';
 import { art } from './art';
 import { entities } from './entities';
 import { grenadeEntities } from './grenade';
@@ -11,6 +12,6 @@ export const fighter = defineFighter({
   series: 'Raft Wars (2007)',
   stats,
   moves,
-  entities: { ...entities, ...grenadeEntities },
+  entities: { ...entities, ...grenadeEntities, ...aimedShotEntities },
   art,
 });

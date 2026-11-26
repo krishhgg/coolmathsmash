@@ -10,7 +10,7 @@ import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
 import { drawChargeGlows } from './chargeGlow';
 import { EventLog } from './debug/eventLog';
-import { drawEntities, drawEntityBoxes } from './entities';
+import { drawEntityBoxes, EntityView } from './entities';
 import { InputDisplay } from './debug/inputDisplay';
 import { drawMobility } from './debug/mobility';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
@@ -77,7 +77,7 @@ export class Renderer {
     antialias: true,
   });
   private readonly boxes = new Graphics();
-  private readonly entities = new Graphics();
+  private readonly entities = new EntityView();
   private readonly glows = new Graphics();
   private fighters: FighterView[] = [];
   /** Fighter id each view was built for; a transform swaps the view. */
@@ -101,7 +101,7 @@ export class Renderer {
       this.vfxView.behind,
       this.glows,
       this.fighterLayer,
-      this.entities,
+      this.entities.container,
       this.vfxView.front,
       this.foregroundLayer,
       this.boxes,
@@ -206,7 +206,7 @@ export class Renderer {
         fx ? fighterFx(fx, f, state.frame) : {},
       ),
     );
-    drawEntities(this.entities, state, alpha);
+    this.entities.draw(state, alpha, this.costumes);
     this.vfxView.draw(fx, state, view, alpha);
     this.drawBoxes(state);
     this.tags.update(
