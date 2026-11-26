@@ -1,7 +1,7 @@
 import { getFighter } from '../../fighters/registry';
 import { Btn, type InputFrame } from '../../input/types';
 import { grabHoldFrames, hitlagFrames, isTumble } from '../combat/formulas';
-import { activeHitboxes, addDamage, applyHit, hittable, hurtbox, touches } from '../combat/hits';
+import { activeHitboxes, addDamage, applyHit, hittable, hurtbox, targetable, touches } from '../combat/hits';
 import { DIRECTION_THRESHOLD, GRAB } from '../constants';
 import { emit } from '../events';
 import {
@@ -181,8 +181,11 @@ export function findGrabs(m: MatchState): GrabContact[] {
       if (v === a || !grabbable(m, v) || (v.pos.x - a.pos.x) * a.facing < 0) continue;
       const body = hurtbox(v, getFighter(v.fighter).stats);
       const scale = v.ground || command ? 1 : GRAB.airborneRadius;
-      if (!boxes.some((h) => touches({ ...h, box: { ...h.box, radius: h.box.radius * scale } }, body)))
-        continue;
+      const caught = boxes.some(
+        (h) =>
+          targetable(h.box, v) && touches({ ...h, box: { ...h.box, radius: h.box.radius * scale } }, body),
+      );
+      if (!caught) continue;
       if (!best || Math.abs(v.pos.x - a.pos.x) < Math.abs(best.pos.x - a.pos.x)) best = v;
     }
     if (best) contacts.push({ a, v: best });
