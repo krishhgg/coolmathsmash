@@ -464,6 +464,9 @@ finalSmashCinematic: {
   traps every fighter its hitbox touches; this one holds the first.
 - **Landing.** A `final` move that lands carries on from the same frame, as with `continuesOnLanding`: the charge is
   already spent, so a fall, or a moving platform rising under a `still` user, can't cut it short.
+- **Losing the floor.** The same goes the other way (`finalSmashLeavesGround`): when a platform vanishes or moves out
+  from under the user, or a conveyor belt carries it off an end, a grounded `final` move plays on in the air from the
+  same frame, and a trap's cinematic keeps its catch, whichever of the two loses the floor first.
 - **CPUs.** A CPU holding the charge presses neutral special once an opponent is inside the Final Smash's reach in front
   (`finalReach`: its boxes, or `final.range` for one that spawns its blast), and otherwise leaves neutral special out of
   its attacks.
