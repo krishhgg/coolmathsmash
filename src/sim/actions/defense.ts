@@ -4,13 +4,13 @@ import {
   PARRY,
   ROLL_BACK,
   ROLL_FORWARD,
-  SHIELD_BREAK_DIZZY,
   SHIELD_DEPLETION,
   SHIELD_DROP_FRAMES,
   SHIELD_HP_AFTER_BREAK,
   SHIELD_MIN_HOLD,
   SPOT_DODGE,
 } from '../constants';
+import { shieldBreakStun } from '../combat/formulas';
 import { flickDown, flickX, isHeld } from '../control';
 import { emit } from '../events';
 import type { Ctx, FighterState } from '../fighter';
@@ -125,11 +125,12 @@ export const DEFENSE: Record<string, ActionDef> = {
     },
   },
 
+  /** Shield-break stun: 400 - % frames (shieldBreakStun; SmashWiki: Stun), then the shield is back at 37.5 HP. */
   dizzy: {
     physics: 'ground',
     update(x) {
       const { f } = x;
-      if (f.actionFrame >= Math.max(120, SHIELD_BREAK_DIZZY - Math.floor(f.damage))) {
+      if (f.actionFrame >= shieldBreakStun(Math.floor(f.damage))) {
         f.shieldHp = SHIELD_HP_AFTER_BREAK;
         setAction(x, 'idle');
       }
