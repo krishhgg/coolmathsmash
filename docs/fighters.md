@@ -532,7 +532,25 @@ dthrow: { ..., throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55
   input), `script(x, status)` runs (after the action, before physics), and `tick` adds `damage` % on every `every`th
   frame with no hitlag or knockback, reported as `statusDamage` so the results count it for the victim and the
   source. Then it counts down one frame and ends at 0. Ending emits `statusEnd`.
-- **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status.
+- **Length from knockback.** `perKnockback` adds frames for each unit of the applying hit's knockback, scaled the way
+  the hit's hitlag is (the box's `hitlag` multiplier, x0.67 on a crouch cancel), before the length is floored.
+- **Freezing.** A `freeze` status holds the fighter as hitlag does: no action, physics or timers, and the launch waits
+  for it. It ticks on every frame from the one after it went on, hitlag included, so a hit that applies one freezes the
+  victim for the longer of its hitlag and the status. Other statuses pause while it lasts. The renderer shakes the
+  fighter and flickers it in the status's `color`.
+- **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status. With `endOnHit`, a later
+  hit that lands (not on a shield) takes it off, reported as `statusEnd` with reason `hit`. That hit's hitlag and
+  launch take over, and it can't put the same status back on. A status that went on this frame stays, so hits landing
+  together give the same result in any port order.
+
+Bob the Robber's paralysis (`src/fighters/bob-the-robber/statuses.ts`) uses all three. It is Ultimate's paralysis
+(SmashWiki, "Paralyze"): floor(1 + knockback x hitlag multiplier x crouch) frames, at most 90, in place of the hit's
+hitlag:
+
+```ts
+paralyzed: { frames: 1, perKnockback: 1, max: 90, freeze: true, endOnHit: true, color: '#f2c62a' },
+```
+
 - **State.** `FighterState.statuses` lists `{ kind, frames, age, since, source }`, oldest first. `frames` is what is
   left, `age` counts ticks from 1 and `source` is the port credited (-1 for none). Use `hasStatus` and `statusOf`
   to read it.
