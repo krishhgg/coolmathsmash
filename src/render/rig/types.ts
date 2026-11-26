@@ -153,6 +153,11 @@ export interface PropArt {
   /** Uniform scale applied to the symbol. */
   scale: number;
   /**
+   * Turn the drawing to its direction of travel in a match, for a streak or a comet whose tail trails behind it.
+   * Without it the drawing only mirrors with the entity's facing.
+   */
+  align?: boolean;
+  /**
    * Where the lab's fighter scene draws it over the clips that fire it (in a match the engine spawns and moves it),
    * keyed by clip name.
    */
