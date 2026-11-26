@@ -240,7 +240,9 @@ function lob(x: Ctx, n: number): void {
 function arsenal(x: Ctx): void {
   const { m, f } = x;
   if (f.actionFrame === ARSENAL.reticle) {
-    const at = { x: f.pos.x + ARSENAL.start.x * f.facing, y: f.pos.y + ARSENAL.start.y };
+    // Inside the blast zones from its first frame, on which entities don't move: started high up, it would
+    // otherwise appear past the top blast zone and go at once.
+    const at = inside(x.stage, { x: f.pos.x + ARSENAL.start.x * f.facing, y: f.pos.y + ARSENAL.start.y });
     const e = spawnEntity(m, {
       kind: RETICLE,
       owner: f.port,

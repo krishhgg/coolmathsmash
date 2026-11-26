@@ -324,6 +324,22 @@ describe('Full Arsenal (Final Smash), on Covering Fire', () => {
     expect(of(m, 'lockMark')).toEqual([]);
   });
 
+  it('puts the crosshair inside the top blast zone when used high up, so it hunts and marks the foe below', () => {
+    // Feet at y 185 on Battlefield would put the crosshair at 197, past the top blast zone at 192.
+    const top = compiledStage('battlefield').geo.blastZones.top;
+    const { m, foes } = arsenal(-40, [20], { air: true, height: 185 });
+    const v = foes[0]!;
+    const seen = step(m, ARSENAL.reticle - 1);
+    const reticle = of(m, 'reticle')[0];
+    expect(reticle).toBeDefined();
+    expect(reticle!.pos.y).toBeLessThanOrEqual(top - ARSENAL.inset);
+    seen.push(...hunt(m));
+    expect(seen.filter((e) => e.type === 'entityDestroy' && e.reason === 'blastZone')).toEqual([]);
+    expect(seen.filter((e) => e.type === 'entitySpawn' && e.kind === 'raftwars/lockMark')).toHaveLength(5);
+    seen.push(...step(m, ARSENAL.faf + ARSENAL.flight));
+    expect(hits(seen, v.port)).toHaveLength(5);
+  });
+
   it('lowers the arc near the top so the curve peaks at the ceiling, and leaves it alone lower down', () => {
     const peak = (y0: number, c: number, y1: number) =>
       Math.max(
