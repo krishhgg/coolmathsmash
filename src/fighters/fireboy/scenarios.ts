@@ -58,5 +58,37 @@ export const scenarios: FighterScenarios = {
       requires: ['move:downB'],
       refs: ['smash/jump-apex-*'],
     },
+    {
+      name: 'fireboy-upb-under-hull',
+      description:
+        "Fireboy up-specials from under Construction Site's hull by its left corner, steering in, with his ledge grab held off so only the stage stops him: he slides off the corner, rises beside the wall and comes onto the deck over the ledge, never up through the hull.",
+      page: { kind: 'game' },
+      match: { stage: 'snail-bob-construction', ports: [{ fighter: 'fireboy' }, { fighter: 'watergirl' }] },
+      patches: [
+        {
+          port: 0,
+          state: {
+            pos: { x: -88, y: -36 },
+            ground: null,
+            action: 'fall',
+            actionFrame: 1,
+            jumpsUsed: 2,
+            facing: 1,
+            ledgeLock: 600,
+          },
+        },
+        { port: 1, state: { pos: { x: 40, y: 0 }, facing: -1 } },
+      ],
+      script: [
+        { port: 0, from: 2, to: 3, y: 100, buttons: ['special'] },
+        { port: 0, from: 4, to: 70, x: 100 },
+      ],
+      capture: {
+        label: 'P1 up special frame 20',
+        when: (s) => s.fighters[0]!.move === 'upB' && s.fighters[0]!.actionFrame === 20,
+      },
+      motion: { before: 20, after: 30 },
+      requires: ['move:upB'],
+    },
   ],
 };
