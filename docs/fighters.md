@@ -161,6 +161,11 @@ fsmash: {
   - `action` plays the move in another action with its own physics instead of `attack`/`aerial`: `'hover'`.
   - `drift: false` turns off air drift (and air friction) while an airborne move plays, so a scripted path such
     as Bob the Robber's Grappling Hook zip (his `upB`) is not bent by the stick.
+  - `gravity: false` turns off gravity while an airborne move plays, so its script alone sets the vertical speed.
+  - `fallThrough: false` lands on soft platforms even with the stick held down. Ultimate's aerial attacks and most
+    specials can't fall through them (SmashWiki, "Platform"), but the engine lets any airborne fighter holding down
+    drop through unless the move opts out. Snail Bob's Shell Pound (`src/fighters/snailbob/shellPound.ts`, Bowser
+    Bomb) uses both, with `drift: false`, for a stall and a 9-unit-a-frame drop that land on platforms.
   - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
     `neutralB: { ..., air: 'neutralBAir' }`. The variant is its own move, so it has its own frame data and clip,
     and the `move` event carries its name.
