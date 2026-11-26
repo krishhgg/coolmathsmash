@@ -17,7 +17,9 @@ import {
 } from './constants';
 import { isIntangible } from './actions/registry';
 import { ledgeIntangibility } from './combat/formulas';
-import type { FighterState } from './fighter';
+import { compiledStage } from './context';
+import type { FighterState, GroundRef } from './fighter';
+import { groundSpan, surfaceY } from './movement';
 import { marioReference as mario } from './testing/reference';
 import { placeInAir, run, testMatch, until, type Hold } from './testing/sim';
 import { apexHeight, jumpVelocity } from './physics';
@@ -641,5 +643,41 @@ describe('walls and ceilings', () => {
     run(m, 3);
     expect(f.kb.x).toBe(0);
     expect(f.pos.x).toBeGreaterThan(80);
+  });
+});
+
+describe('groundSpan', () => {
+  const span = (stage: string, g: GroundRef) => groundSpan(compiledStage(stage), g);
+
+  it("covers the floors a slide carries a fighter onto, and no further than the ground's ends", () => {
+    // Forest Temple's floor dips 6 units in the middle, over three more floors of the same solid.
+    expect(span('forest-temple', { kind: 'solid', index: 0 })).toEqual([-85, 85]);
+    expect(span('forest-temple', { kind: 'solid', index: 2 })).toEqual([-85, 85]);
+    // Johnny Upgrade's floor steps down 6 at x 28.3.
+    expect(span('johnny-upgrade-boss', { kind: 'solid', index: 5 })).toEqual([-85, 85]);
+    // Bloxorz's two halves have a gap between them.
+    expect(span('bloxorz-platform', { kind: 'solid', index: 0 })).toEqual([-88, -8]);
+    expect(span('bloxorz-platform', { kind: 'solid', index: 4 })).toEqual([8, 88]);
+    expect(span('battlefield', { kind: 'platform', index: 2 })).toEqual([24.79, 59.42]);
+    expect(span('battlefield', { kind: 'entity', index: 7, x1: -7, x2: 7, y: 3.5 })).toEqual([-7, 7]);
+  });
+
+  it('ends where the sim stops a roll', () => {
+    /** A getup roll toward `dir` from lying at x on `g`, to where it ends. */
+    const roll = (stage: string, x: number, g: GroundRef, dir: 1 | -1) => {
+      const m = testMatch({ stage });
+      const f = fighter(m);
+      const y = surfaceY(compiledStage(stage), g, x);
+      Object.assign(f, { pos: { x, y }, prevPos: { x, y }, vel: { x: 0, y: 0 }, ground: g });
+      Object.assign(f, { action: 'getupRoll', actionFrame: 0, dodgeDir: { x: dir, y: 0 } });
+      until(m, () => f.action === 'idle', {}, 60);
+      return f.pos.x;
+    };
+    const floor0: GroundRef = { kind: 'solid', index: 0 };
+    // Across Forest Temple's dip, a roll runs its full length; at the floor's end it stops there.
+    expect(roll('forest-temple', -20, floor0, 1)).toBeCloseTo(-20 + S.rollDistance, 9);
+    expect(roll('forest-temple', -75, floor0, -1)).toBe(span('forest-temple', floor0)[0]);
+    expect(roll('bloxorz-platform', -20, floor0, 1)).toBe(span('bloxorz-platform', floor0)[1]);
+    expect(roll('battlefield', 50, { kind: 'platform', index: 2 }, 1)).toBe(59.42);
   });
 });
