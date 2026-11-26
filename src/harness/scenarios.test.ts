@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { registerFighter } from '../fighters/registry';
-import { createMatch } from '../sim/match';
-import { marioReference } from '../sim/testing/reference';
+// Keep the harness the first import, so it loads before the fighter registry, as in any script that starts from the
+// harness. In that order a fighter whose scenarios.ts imports its own moves is registered before they finish loading,
+// never performs them, and fails the capture check below. Importing the registry first hides that.
 import {
   FIGHTER_STATES,
   SCENARIOS,
@@ -17,7 +17,28 @@ import {
   type FighterScenarios,
   type GameScenario,
 } from './scenarios';
-import { stepMatch } from '../sim/match';
+import { registerFighter } from '../fighters/registry';
+import { createMatch, stepMatch } from '../sim/match';
+import { marioReference } from '../sim/testing/reference';
+
+/**
+ * Game scenarios that do not capture today, each with the reason. Every other game scenario must capture, and a listed
+ * one that captures again fails until it is taken off, so the list can only shrink.
+ */
+const NOT_CAPTURING: Record<string, string> = Object.fromEntries(
+  [
+    'runner-attack-active',
+    'runner-launch-high-percent',
+    'runner-gravity-switch',
+    'runner-tile-flip',
+    'runner-jog-flurry',
+    'runner-box-drop',
+  ].map((name) => [
+    name,
+    "Runner's scenarios.ts imports GRAVITY_SWITCH from her moves.ts, so with the harness loaded first she is " +
+      'registered before her moves exist and never performs one. #245 moves it to timing.ts.',
+  ]),
+);
 
 const game = (name: string) => {
   const s = findScenario(name);
@@ -147,12 +168,19 @@ describe('fighter scenarios (src/fighters/<id>/scenarios.ts)', () => {
   });
 
   it.each(SCENARIOS.filter((s) => !isLabScenario(s)).map((s) => [s.name, s] as const))(
-    '%s reaches its capture frame or names what it is waiting for',
-    (_, s) => {
+    '%s reaches its capture frame',
+    (name, s) => {
       const plan = planScenario(s as GameScenario, () => true);
-      expect(plan.status, plan.reason).not.toBe('missed');
+      if (!(name in NOT_CAPTURING)) expect(plan.status, plan.reason).toBe('captured');
+      else if (plan.status === 'captured') expect.fail(`${name} captures now; take it off NOT_CAPTURING`);
+      else expect(plan.status, plan.reason).toBe('pending');
     },
   );
+
+  it('NOT_CAPTURING names only existing game scenarios', () => {
+    const names = new Set(SCENARIOS.filter((s) => !isLabScenario(s)).map((s) => s.name));
+    expect(Object.keys(NOT_CAPTURING).filter((name) => !names.has(name))).toEqual([]);
+  });
 });
 
 describe('applyPatch', () => {
