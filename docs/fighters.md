@@ -510,6 +510,11 @@ with a dark sheet in a `decor` slot: a fighter playing a Final Smash draws over 
 (`layerFighters` in `src/render/entities.ts`), and never shows the intangibility blink (`intangibleBlink` in
 `src/render/fighterView.ts`).
 
+Fluffy's Fuzz Frenzy (`src/fighters/fluffy/finalSmash.ts`) is another, on Donkey Kong's Jungle Rush: the
+detection box as grab circles on frames 29-34, the catch's 12% and the 31-hit barrage as hold hits, and the final hit
+as the throw on frame 139. Its box comes out before frame 42, so it sets `final.freeze` to 27, the longest hold that
+lets the box out on its own frame.
+
 Wheely's Full Throttle (`src/fighters/wheely/finalSmash.ts`) is another, on Captain Falcon's Blue Falcon: its
 boxes come out on frame 28, so it sets `final.freeze: 26` to free the others just before them, and its cinematic lands
 the Blue Falcon's hits as `holdHits` and its final launch as the `throw`.
