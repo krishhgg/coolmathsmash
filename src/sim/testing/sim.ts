@@ -26,15 +26,26 @@ export function input(h: Hold = {}): InputFrame {
   return i;
 }
 
-/** A 1-player (or n-player) match on Battlefield (or `stage`) with the Mario reference fighter, settled on the ground. */
+/**
+ * A 1-player (or n-player) match on Battlefield (or `stage`) with the Mario reference fighter, settled on the ground.
+ * `items` sets the Items rule (off by default).
+ */
 export function testMatch(
-  opts: { fighter?: string; players?: number; x?: number; stage?: string; stocks?: number } = {},
+  opts: {
+    fighter?: string;
+    players?: number;
+    x?: number;
+    stage?: string;
+    stocks?: number;
+    items?: boolean;
+  } = {},
 ): MatchState {
   const fighter = opts.fighter ?? marioReference.id;
   const m = createMatch({
     seed: 1,
     stage: opts.stage ?? 'battlefield',
     stocks: opts.stocks ?? 3,
+    ...(opts.items === undefined ? {} : { items: opts.items }),
     ports: Array.from({ length: opts.players ?? 1 }, () => ({ fighter })),
   });
   if (opts.x !== undefined) m.fighters[0]!.pos.x = opts.x;

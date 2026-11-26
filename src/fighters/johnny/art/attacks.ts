@@ -34,10 +34,10 @@ import {
 type Swaps = Record<string, string | null>;
 
 /** Impact star of radius `r` on rig point `at` (fx1). */
-const star = ([x, y]: Pt, r: number, rot = 0): BonePose => ({ x, y, rot, sx: r, sy: r });
+export const star = ([x, y]: Pt, r: number, rot = 0): BonePose => ({ x, y, rot, sx: r, sy: r });
 
 /** Motion smear (fx2) whose blunt head sits on `to` and whose tail trails back to `from`, half-width `w`. */
-function trail(from: Pt, to: Pt, w: number): BonePose {
+export function trail(from: Pt, to: Pt, w: number): BonePose {
   const rot = (Math.atan2(from[1] - to[1], from[0] - to[0]) * 180) / Math.PI;
   return { x: to[0], y: to[1], rot, sx: Math.hypot(from[0] - to[0], from[1] - to[1]), sy: w };
 }
@@ -54,7 +54,7 @@ const swing = ([x, y]: Pt, r: number, deg: number, flip = false): BonePose => ({
 /** A leg folded short under the hip while it swings from one side of the body to the other, passing in front. */
 const pass = (pose: Pose, side: 'B' | 'F', ankle: Pt) => tuck(pose, side, ankle, 20, 0.55);
 
-const HIT = { fx1: 'impact', fx2: 'smear' };
+export const HIT = { fx1: 'impact', fx2: 'smear' };
 
 /** Holds `pose` from `from` to `to` (the active window), with the strike's swaps and draw order. */
 function strike(from: number, to: number, pose: Pose, swaps: Swaps, z?: Record<string, number>): Key[] {
