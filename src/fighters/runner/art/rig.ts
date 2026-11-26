@@ -25,6 +25,8 @@ import {
   streak,
   swoosh,
   tile,
+  tunnel,
+  tunnelFaint,
   type Part,
 } from './parts';
 
@@ -118,6 +120,8 @@ export const rig: Rig = {
     ...limbSlots('armF', 'foreF', 'upperArm', 'hand'),
     { name: 'fx1', bone: 'fx1', symbol: null },
     { name: 'fx2', bone: 'fx2', symbol: null },
+    /** Tunnel Flip's tunnel: under every fighter, so the ones inside it draw over it (Slot.under). */
+    { name: 'fxUnder', bone: 'fx3', symbol: null, decor: true, under: true },
   ],
   symbols: {
     afterimages,
@@ -137,6 +141,8 @@ export const rig: Rig = {
     streak,
     swoosh,
     tile,
+    tunnel,
+    tunnelFaint,
     ...faces,
     ...partSymbols(limbs),
   },

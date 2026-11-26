@@ -73,3 +73,20 @@ export const STRAFE_DASH = {
    */
   trail: [0, -6.4, -12.8, -19.2],
 };
+
+/**
+ * Tunnel Flip's timeline (the Final Smash, finalSmash.ts), on Peach Blossom's frames in Ultimate 13.0.1 (SmashWiki,
+ * "Peach (SSBU)/Final Smash": damaging hit 40-61, clean sleep 62-140, late sleep 141-230, interruptible 248). The
+ * others are held through the activation on frames 2 to `freeze` + 1, so the turn's hit comes out on Peach Blossom's
+ * own frame 40. The view turns upside down over `turn` (the hit's frames) and back over `back`, ending upright on the
+ * frame before she can act; both are render only (src/render/viewFlip.ts).
+ */
+export const TUNNEL_FLIP = {
+  freeze: 38,
+  hit: [40, 61] as [number, number],
+  clean: [62, 140] as [number, number],
+  late: [141, 230] as [number, number],
+  faf: 248,
+  turn: [40, 61] as [number, number],
+  back: [231, 247] as [number, number],
+};

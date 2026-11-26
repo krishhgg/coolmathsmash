@@ -74,7 +74,11 @@ export const boxDropActions: Record<string, ActionDef> = {
     get intangible() {
       return ATTACK.aerial!.intangible;
     },
-    gravity: ({ f }) => f.move !== 'downBAir',
+    /** The shared aerial's gravity (off for a `still` Final Smash in the air), and none for Box Drop's plunge. */
+    gravity(x) {
+      const shared = ATTACK.aerial!.gravity;
+      return x.f.move !== 'downBAir' && (typeof shared === 'function' ? shared(x) : (shared ?? true));
+    },
     update(x) {
       ATTACK.aerial!.update(x);
     },

@@ -81,6 +81,12 @@ export interface Slot {
   symbol: string | null;
   /** Decoration such as a glow: drawn and counted in bounds, but left out of hit tests. */
   decor?: boolean;
+  /**
+   * Drawn under every fighter instead of in the fighter's own layer (RigView.under), placed and mirrored with the
+   * fighter, so other fighters draw over it while the fighter itself stays on top: Runner's Tunnel Flip tunnel, which
+   * stands around the fighters inside it. Draw order among a fighter's `under` slots is their slot order.
+   */
+  under?: boolean;
 }
 
 export interface Rig {
@@ -256,4 +262,16 @@ export interface FighterArt {
   tetherLine?: TetherLineArt;
   /** Where the hands hold the ledge in ledge clips (rig space): the ledge's top corner belongs here. */
   ledgeGrip?: [number, number];
+  /** Moves that turn the whole view upside down while they play, by move name (ViewFlip). Render only. */
+  viewFlips?: Record<string, ViewFlip>;
+}
+
+/**
+ * The whole view turning upside down during a move (src/render/viewFlip.ts): over the move's `turn` frames the world
+ * and its backdrop mirror top to bottom about the middle of the screen, hold there, and turn upright again over
+ * `back`. Move frames, inclusive. Only the renderer reads it; the HUD stays upright.
+ */
+export interface ViewFlip {
+  turn: [number, number];
+  back: [number, number];
 }
