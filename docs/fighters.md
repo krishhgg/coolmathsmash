@@ -470,6 +470,8 @@ finalSmashCinematic: {
 - **Losing the floor.** The same goes the other way (`finalSmashLeavesGround`): when a platform vanishes or moves out
   from under the user, or a conveyor belt carries it off an end, a grounded `final` move plays on in the air from the
   same frame, and a trap's cinematic keeps its catch, whichever of the two loses the floor first.
+- **Projectiles.** An entity a `final` move puts out is marked at spawn (`EntityState.final`), so it stays unblockable
+  however long it lasts, after its owner acts again or turns into another fighter (Fireboy's Swap).
 - **CPUs.** A CPU holding the charge presses neutral special once an opponent is inside the Final Smash's reach in front
   (`finalReach`: its boxes, or `final.range` for one that spawns its blast), and otherwise leaves neutral special out of
   its attacks.

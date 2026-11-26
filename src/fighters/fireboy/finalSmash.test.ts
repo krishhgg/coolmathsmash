@@ -167,6 +167,27 @@ describe('Fire Blast (Final Smash), on Mario Finale', () => {
     ]);
   });
 
+  it('stays unblockable after Fireboy swaps to Watergirl while it still burns: the blast keeps its own Final Smash', () => {
+    const { m, a } = blastMatch();
+    const w = m.fighters[2]!;
+    const shield: Hold = { buttons: ['shield'] };
+    step(m, finalSmash.faf - 1, [{}, {}, shield]);
+    expect(a.action).toBe('idle');
+    step(m, 1, [{ y: -100, buttons: ['special'] }, {}, shield]);
+    for (let i = 0; i < 30 && a.fighter === 'fireboy'; i++) step(m, 1, [{}, {}, shield]);
+    expect([a.fighter, w.action]).toEqual(['watergirl', 'shield']);
+    const fire = m.entities.find((e) => e.kind === 'fireboy/blast')!;
+    // By now the fire has flown past Battlefield's edge: bring it back over the shielding fighter.
+    Object.assign(fire.pos, { x: w.pos.x, y: w.pos.y + BLAST.y });
+    fire.prevPos = { ...fire.pos };
+    const seen = step(m, BLAST.rehit, [{}, {}, shield]).filter(
+      (e) => (e.type === 'hit' || e.type === 'shieldHit' || e.type === 'parry') && e.victim === w.port,
+    );
+    expect(seen).toEqual([
+      expect.objectContaining({ type: 'hit', attacker: 0, victim: 2, move: 'finalSmash' }),
+    ]);
+  });
+
   it('starts from neutral special with the charge and puts the fire out on frame 65 and sends it further than Battlefield is wide', () => {
     const { m, a } = blastMatch();
     expect([a.move, a.finalReady]).toEqual(['finalSmash', false]);
