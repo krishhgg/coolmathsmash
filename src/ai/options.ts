@@ -44,6 +44,9 @@ export interface Attack {
    */
   shot?: {
     damage: number;
+    /** The first entity's facing and x as it hits (ShotHit), which its launch direction comes from. */
+    facing: 1 | -1;
+    x: number;
     /** It would also meet the target running in (Target.rush) before the target's quickest hit could land. */
     stops?: true;
   };
@@ -165,6 +168,11 @@ function shotOf(
   return met && met.t < rush.strikes ? { ...hit, stops: true } : hit;
 }
 
+/** What an Attack keeps of the shot that hits. */
+function shotOut(h: ShotHit & { stops?: true }): NonNullable<Attack['shot']> {
+  return { damage: h.damage, facing: h.facing, x: h.x, ...(h.stops && { stops: true as const }) };
+}
+
 function landing(a: Arc, info: StageInfo, from: number): number {
   for (let t = Math.max(1, from); t < a.y.length; t++) {
     if (a.y[t]! >= a.y[t - 1]!) continue;
@@ -222,7 +230,7 @@ function groundAttacks(me: Self, target: Target, out: Attack[]): void {
         endX: f.pos.x + p.endDx * facing,
         endY: f.pos.y + p.endDy,
         ...(hit.shot && {
-          shot: { damage: hit.shot.damage, ...(hit.shot.stops && { stops: true as const }) },
+          shot: shotOut(hit.shot),
         }),
         ...(p.held && { held: true as const }),
         score: 0,
@@ -284,7 +292,7 @@ function aerialHits(
       endX: a.x[end]!,
       endY: a.y[end]!,
       landX: a.x[Math.min(land, a.x.length - 1)]!,
-      ...(hit.shot && { shot: { damage: hit.shot.damage, ...(hit.shot.stops && { stops: true as const }) } }),
+      ...(hit.shot && { shot: shotOut(hit.shot) }),
       score: 0,
     });
   }

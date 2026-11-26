@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { allFighters } from '../fighters/registry';
-import { neutralInput } from '../input/types';
+import { Btn, neutralInput } from '../input/types';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { createCpu } from './index';
+import { press } from './inputs';
 import { knowledge } from './knowledge';
+import { run, soloMatch } from './look';
+import { shotHit } from './shots';
 
 const STAGE = 'battlefield';
 /** Every fighter with a move whose entity has hitboxes, found by probing, not listed by hand. */
@@ -83,6 +86,21 @@ describe('move probes', () => {
           expect(q.charged, `${id} ${name}`).toBeUndefined();
       }
     }
+  });
+
+  it("report a back air shot's own facing and position as it hits, which it launches from", () => {
+    // Raft Wars' back air fires its recoil shot behind him: facing right, the shot faces left.
+    const m = facingOff('raftwars', 0, -30);
+    const [me, opp] = m.fighters;
+    const p = knowledge('raftwars', STAGE).air.bair!;
+    const path = run(soloMatch(m, opp!), 60);
+    const hit = shotHit(m, me!, p, 0, 1, (s) => ({ x: me!.pos.x + s.dx, y: me!.pos.y + s.dy }), {
+      path,
+      errX: 0,
+    });
+    expect(hit?.box.direction ?? 'forward').toBe('forward');
+    expect(hit?.facing).toBe(-1);
+    expect(hit!.x).toBeLessThan(-8);
   });
 
   it('find every fighter whose moves shoot, and nothing on moves that spawn nothing', () => {
@@ -230,6 +248,25 @@ describe('CPU projectiles', () => {
     },
     60_000,
   );
+
+  it('stop shooting a held shield once they see it, even when the shot would KO', () => {
+    // A Red Ball at 200% shielding 80-100 units from a level 9 Raft Wars, whose jab, tilts and aerials are all shots.
+    // The first shot can come before the CPU's reaction lag shows it the shield; after that it walks in for the grab.
+    for (const d of [80, 100]) {
+      for (const seed of [1, 2]) {
+        const m = facingOff('raftwars', -d / 2, d, seed);
+        m.fighters[1]!.damage = 200;
+        const cpu = createCpu({ port: 0, level: 9, seed });
+        const late: number[] = [];
+        for (let i = 0; i < 90; i++) {
+          stepMatch(m, [cpu.input(m), press({ buttons: Btn.Shield })]);
+          const far = Math.abs(m.fighters[1]!.pos.x - m.fighters[0]!.pos.x) > 45;
+          if (i >= 30 && far && m.events.some((e) => e.type === 'entitySpawn' && e.owner === 0)) late.push(i);
+        }
+        expect(late, `${d}, seed ${seed}`).toEqual([]);
+      }
+    }
+  });
 
   it('shoot an opponent recovering from beside the stage', () => {
     for (const id of ['raftwars', 'papa-louie']) {

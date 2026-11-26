@@ -30,11 +30,17 @@ export interface ShotTarget {
   errX: number;
 }
 
-/** A shot that meets the target: the first frame and hitbox it does, and the damage of every entity of it that does. */
+/**
+ * A shot that meets the target: the first frame and hitbox it does, and the damage of every entity of it that does.
+ * `facing` and `x` are that first entity's facing and position as it hits, which the sim launches from
+ * (`launchDir` in src/sim/combat/hits.ts): a back aerial's shot faces away from its fighter.
+ */
 export interface ShotHit {
   t: number;
   box: HitboxDef;
   damage: number;
+  facing: 1 | -1;
+  x: number;
 }
 
 /**
@@ -95,7 +101,7 @@ export function shotHit(
       );
       if (!b) continue;
       struck.add(e.id);
-      hit ??= { t, box: b.box, damage: 0 };
+      hit ??= { t, box: b.box, damage: 0, facing: e.facing, x: e.pos.x };
       hit.damage += b.box.damage;
     }
     if (hit && p.spawns.length === 1) break;

@@ -680,12 +680,12 @@ export class Cpu {
         wbkb: box.wbkb,
         weight: opp.weight,
       });
+      // A shot into a held shield chips it and nothing more; walking in for the grab is worth more. Dropped here, so
+      // the KO bonus below can't bring it back.
+      if (s.action === 'shield' && a.shot) continue;
       const damage = a.shot?.damage ?? box.damage;
       let v = damage * (k.hints.prefer?.[a.move] ?? 1) * (1 + Math.min(1.5, kb / 110));
-      if (s.action === 'shield' && a.shot) {
-        // A shot into a held shield chips it and nothing more; walking in for the grab is worth more.
-        v = 0;
-      } else if (s.action === 'shield') {
+      if (s.action === 'shield') {
         const kind = k.def.moves?.[a.move]?.kind ?? 'other';
         const unsafe = a.busy - a.tHit - shieldstunFrames(box.damage, kind) - 5;
         v = box.damage * 0.2 - Math.max(0, unsafe) * 0.6;
@@ -713,12 +713,15 @@ export class Cpu {
 
   private wouldKill(state: Readonly<MatchState>, a: Attack, target: Target, snap: FighterState): boolean {
     const s = (target.far ?? target.path)[a.tHit]!;
+    // A shot launches from its entity's facing and position, as the sim's launchDir does.
+    const facing = a.shot?.facing ?? a.facing;
+    const from = a.shot?.x ?? a.endX;
     const dir =
       a.box.direction === 'back'
-        ? -a.facing
+        ? -facing
         : a.box.direction === 'away'
-          ? Math.sign(s.x - a.endX) || a.facing
-          : a.facing;
+          ? Math.sign(s.x - from) || facing
+          : facing;
     return launchKills(state, snap, s, a.box, dir as 1 | -1);
   }
 
