@@ -1,4 +1,4 @@
-import { Graphics } from 'pixi.js';
+import type { Graphics } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import { FIGHTERS } from '../fighters/registry';
 import { spawnEntity } from '../sim/entities/entities';
