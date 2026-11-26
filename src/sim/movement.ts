@@ -325,11 +325,13 @@ function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
       if (passing || f.pos.x < p.x1 || f.pos.x > p.x2) continue;
       if (crossing(prev.y - p.y, f.pos.y - p.y)) return { kind: 'platform', index: i };
     }
-    // Entities' soft platforms (EntityDef.platform), in spawn order. One its owner put down this frame (age 0, since
-    // fighters act before entities age) catches them even while they hold down, as Create Block puts Steve on his block.
+    // Entities' soft platforms (EntityDef.platform), in spawn order. One its owner put down while airborne catches them
+    // even while they hold down, until they first touch ground after it appeared (their air frames outnumber its age,
+    // as fighters act before entities age): Create Block puts Steve on his block, at once when he is falling and as he
+    // comes back down when he placed it rising, since the block is solid.
     for (const e of x.m.entities) {
       const p = entityPlatform(e);
-      if (!p || (passing && !(e.age === 0 && e.owner === f.port))) continue;
+      if (!p || (passing && !(e.owner === f.port && f.airFrames > e.age))) continue;
       if (f.pos.x < p.x1 || f.pos.x > p.x2) continue;
       if (crossing(prev.y - p.y, f.pos.y - p.y)) return { kind: 'entity', index: e.id, ...p };
     }

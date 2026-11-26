@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { placeInAir, run, testMatch } from '../testing/sim';
+import { placeInAir, run, testMatch, until } from '../testing/sim';
 import { destroyEntity, entityPlatform, registerEntity, spawnEntity, standingOn } from './entities';
 
 /** A 16-wide soft platform 2 above the entity's centre, which stays put (no velocity, gravity or weight). */
@@ -70,6 +70,25 @@ describe('entity platforms', () => {
       if (owner === 0) expect(f.ground).toMatchObject({ kind: 'entity', index: e.id });
       else expect(f.ground).toBeNull();
     }
+  });
+
+  it('catches its owner coming back down onto it while they hold down, until they first touch ground', () => {
+    const m = testMatch();
+    const f = placeInAir(m, 120, 40);
+    f.vel.y = 1.5;
+    const e = spawnEntity(m, { kind: 'test/deck', owner: 0, pos: { x: 120, y: 38 } });
+    until(m, (k) => k.ground !== null || k.pos.y < 30, { y: -100 });
+    expect(f.ground).toMatchObject({ kind: 'entity', index: e.id });
+
+    // Touching ground anywhere ends it: dropped onto the stage and back up over the deck, holding down passes.
+    const n = testMatch();
+    const g = n.fighters[0]!;
+    const deck = spawnEntity(n, { kind: 'test/deck', owner: 0, pos: { x: 40, y: 10 } });
+    run(n, 5);
+    placeInAir(n, 40, 30);
+    run(n, 40, { y: -100 });
+    expect(g.ground?.kind).not.toBe('entity');
+    expect(deck.dead).toBe(false);
   });
 
   it('drops a standing fighter through it on a down flick', () => {

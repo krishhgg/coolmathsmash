@@ -103,6 +103,35 @@ describe('Raft Wars Kids: Duck Raft (down special)', () => {
     expect(f.pos.y).toBeLessThan(entityPlatform(raft)!.y);
   });
 
+  it('keeps the rise of a jump, then catches the kids on their raft as they come down still holding down', () => {
+    const m = testMatch({ fighter: 'raftwars' });
+    const f = m.fighters[0]!;
+    run(m, 1, { buttons: ['jump'] });
+    until(m, (k) => k.action === 'jump' && k.actionFrame === 6, { buttons: ['jump'] });
+    run(m, DUCK_RAFT.place, DOWN_B);
+    const raft = rafts(m)[0]!;
+    // Create Block keeps Steve's momentum: the kids rise on off the raft that just appeared under them.
+    expect([f.ground, f.vel.y > 0]).toEqual([null, true]);
+    const deck = entityPlatform(raft)!.y;
+    expect(f.pos.y).toBeGreaterThan(deck);
+    until(m, (k) => k.ground !== null || k.pos.y < deck - 5, { y: -100 });
+    expect(f.ground).toMatchObject({ kind: 'entity', index: raft.id });
+    expect(f.pos.y).toBe(deck);
+  });
+
+  it('lets the kids hold down through a raft once they have touched ground since it appeared', () => {
+    const m = testMatch({ fighter: 'raftwars' });
+    const f = m.fighters[0]!;
+    const raft = throwRaft(m);
+    until(m, (k) => k.action === 'idle');
+    // Thrown from the stage: hop up over it and come down holding down, and they pass through.
+    Object.assign(f, { pos: { x: raft.pos.x, y: 30 }, prevPos: { x: raft.pos.x, y: 30 } });
+    run(m, 1, { buttons: ['jump'] });
+    run(m, 80, { y: -100 });
+    expect(f.ground?.kind).toBe('solid');
+    expect(raft.dead).toBe(false);
+  });
+
   it('holds another fighter, who lands on it, stands, and drops through it with down', () => {
     const m = duel();
     const raft = throwRaft(m);
