@@ -8,7 +8,7 @@ import { koPercent } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { input, type Hold } from '../../sim/testing/sim';
 import { samplePose } from '../../render/rig/sample';
-import { registerFighter } from '../registry';
+import { getFighter, registerFighter } from '../registry';
 import { art, lyingArt } from './art';
 import { LEVEL_TILES } from './art/rig';
 import { BARRAGE, REACH, SPLIT, finalSmash, finalSmashCinematic } from './finalSmash';
@@ -32,13 +32,18 @@ const BEFORE_LAUNCH = 12 + 18 * 1.2 + 13 * 1.1;
  */
 function splitMatch(
   gap: number,
-  { percent = 0, third = 70, form = STANDING }: { percent?: number; third?: number; form?: string } = {},
+  {
+    percent = 0,
+    third = 70,
+    form = STANDING,
+    foe = MARIO,
+  }: { percent?: number; third?: number; form?: string; foe?: string } = {},
 ): { m: MatchState; a: FighterState; v: FighterState; w: FighterState } {
   const m = createMatch({
     seed: 1,
     stage: 'battlefield',
     stocks: 3,
-    ports: [{ fighter: STANDING }, { fighter: MARIO }, { fighter: MARIO }],
+    ports: [{ fighter: STANDING }, { fighter: foe }, { fighter: MARIO }],
   });
   const xs = [BLOCK_X, BLOCK_X + gap, third];
   m.fighters.forEach((f, i) => {
@@ -205,10 +210,52 @@ describe('Split Switch (Final Smash), on Jungle Rush', () => {
     }
   });
 
-  it('holds the catch in front of the block through the barrage, whatever it mashes', () => {
-    const { m, a, v } = splitMatch(36);
+  it('slides the catch in at 1.5 units a frame, near or far, and has it in place before the cubes split on frame 2', () => {
+    expect(finalSmashCinematic.pull).toBe(BARRAGE.pull);
+    expect(BARRAGE.pull).toBe(1.5);
+    // Mario next to the block, Mario at the farthest a standing one is caught (45 out), and the farthest catch on the
+    // roster: the Duck 42 out and 15 up.
+    for (const { foe, gap, up } of [
+      { foe: MARIO, gap: 12, up: 0 },
+      { foe: MARIO, gap: 45, up: 0 },
+      { foe: 'duck', gap: 42, up: 15 },
+    ]) {
+      const { m, a, v } = splitMatch(gap, { foe });
+      step(m, 1, [SPECIAL]);
+      step(m, SPLIT.catch[0] - 3);
+      if (up)
+        Object.assign(v, {
+          pos: { x: v.pos.x, y: up },
+          prevPos: { x: v.pos.x, y: up },
+          vel: { x: 0, y: 0 },
+          ground: null,
+          action: 'fall',
+        });
+      const held = { x: BLOCK_X + (12 + getFighter(foe).stats.width) / 2 + 1, y: a.pos.y };
+      let from = { ...v.pos };
+      let far = 0;
+      let steps = 0;
+      while (a.move !== 'finalSmashCinematic' || a.actionFrame < 2) {
+        step(m, 1);
+        if (v.action === 'grabbed') {
+          far ||= Math.hypot(from.x - held.x, from.y - held.y);
+          expect(Math.hypot(v.pos.x - from.x, v.pos.y - from.y), `${foe} ${gap}`).toBeLessThanOrEqual(
+            BARRAGE.pull + 1e-9,
+          );
+          steps++;
+        }
+        from = { ...v.pos };
+        expect(steps).toBeLessThan(60);
+      }
+      expect([v.pos.x, v.pos.y, v.ground !== null], `${foe} ${gap}`).toEqual([held.x, held.y, true]);
+      if (gap > 40) expect(far, `${foe} ${gap}`).toBeGreaterThan(33);
+    }
+  });
+
+  it('holds the catch in front of the block from the split to the fling, whatever it mashes', () => {
+    const { m, a, v } = splitMatch(45);
     step(m, 1, [SPECIAL]);
-    stepUntil(m, () => a.move === 'finalSmashCinematic');
+    stepUntil(m, () => a.move === 'finalSmashCinematic' && a.actionFrame >= 2);
     for (let f = 0; a.actionFrame < BARRAGE.finish; f++) {
       step(m, 1, [{}, { x: f % 2 ? 100 : -100, buttons: f % 3 ? ['attack', 'jump'] : ['shield'] }]);
       if (a.actionFrame < BARRAGE.finish) expect([v.action, v.pos.x]).toEqual(['grabbed', BLOCK_X + HELD]);

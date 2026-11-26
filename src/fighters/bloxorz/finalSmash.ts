@@ -50,13 +50,17 @@ export const finalSmash: MoveDef = {
   },
 };
 
-/** The cinematic: the punch, the split cubes' barrage, and the bridge tile's fling (Jungle Rush's final hit). */
+/**
+ * The cinematic: the punch, the split cubes' barrage, and the bridge tile's fling (Jungle Rush's final hit). The catch
+ * slides in under the toppled block to the hold point at BARRAGE.pull units a frame through the punch's hitlag.
+ */
 export const finalSmashCinematic: MoveDef = {
   kind: 'other',
   faf: BARRAGE.faf,
   final: { still: true },
   hits: [],
   holdHits,
+  pull: BARRAGE.pull,
   throw: { frame: BARRAGE.finish, hit: { damage: 14, angle: 70, kbg: 96, bkb: 90, hitlag: 1 } },
 };
 

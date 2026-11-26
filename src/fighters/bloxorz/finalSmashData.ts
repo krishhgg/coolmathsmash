@@ -47,6 +47,12 @@ export const BARRAGE = {
   finish: 139,
   /** First actionable frame: Hit's animation length 209, plus 1. */
   faf: 210,
+  /**
+   * Units a frame the catch slides in to the block's hold point (MoveDef.pull) instead of jumping there. The
+   * farthest catch on the roster is 35 units away (the Duck 43 out and 15 up), so at 1.5 it arrives in 24 frames,
+   * inside the punch's 30 frames of hitlag (12% at x5): every catch is in place before the cubes split on frame 2.
+   */
+  pull: 1.5,
 } as const;
 
 /** How far in front the punch reaches (finalReach): its far circle's edge. */
