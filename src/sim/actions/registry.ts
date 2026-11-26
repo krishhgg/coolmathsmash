@@ -58,11 +58,29 @@ export function enterAction(x: Ctx, name: string, frame = 0): void {
   x.f.move = null;
 }
 
+/** The frame contexts (one per fighter per simulated frame) whose action held its frame with holdFrame. */
+const held = new WeakSet<Ctx>();
+
+/**
+ * Play the current action frame again next frame, as a move held on its charge frame does. The frame's work is
+ * done: unlike a switch to another action or frame, runAction doesn't update the action a second time.
+ */
+export function holdFrame(x: Ctx): void {
+  x.f.actionFrame--;
+  held.add(x);
+}
+
+/**
+ * Update the fighter's action once, and again each time that update switches to another action or frame, so the new
+ * one starts this frame. A frame held with holdFrame isn't new.
+ */
 export function runAction(x: Ctx): void {
   for (let i = 0; i < 8; i++) {
     const { action, actionFrame } = x.f;
     actionDef(x.f).update(x);
-    if (x.f.action === action && x.f.actionFrame === actionFrame) return;
+    if (x.f.action !== action) continue;
+    if (x.f.actionFrame === actionFrame) return;
+    if (x.f.actionFrame === actionFrame - 1 && held.has(x)) return;
   }
 }
 
