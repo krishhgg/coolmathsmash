@@ -76,7 +76,13 @@
   "mvs_gamesfuze": "https://gamesfuze.com/guides/multiversus-movement-and-recovery-guide/",
   "verify_script": "physics_verify.py, printed in full in physics-reference.md section 'Verification script'; cross-checked against the calc JS (45 vectors, 0 numeric mismatches)",
   "estimate": "ESTIMATE by the researcher; reasoning given in physics-reference.md",
-  "proposal": "DESIGN PROPOSAL for Coolmath Smash, not a measured Ultimate value"
+  "proposal": "DESIGN PROPOSAL for Coolmath Smash, not a measured Ultimate value",
+  "param_motion": "https://github.com/fudgepop01/amiibo_research/blob/523374aaf3f1b7fa67370f83bec4a53b256ac944/research/paramDecoding/common/param/fighter_param_motion.xml (per-fighter motion params)",
+  "fighter_prc": "https://github.com/fudgepop01/amiibo_research/blob/523374aaf3f1b7fa67370f83bec4a53b256ac944/research/paramDecoding/common/param/fighter_param.xml (per-fighter attributes)",
+  "energy_id": "https://github.com/blu-dev/energy_id/blob/412138bdec8a9704bae38559226e244c0ad8a555/src (decompiled kinetic energies: stop.rs, control.rs)",
+  "acmd_dump": "https://github.com/WuBoytH/SSBU-Dumped-Scripts/tree/5596690b278c474d91a75d25a4b74c2b79d584fa/smashline (dumped game scripts, <fighter>/<fighter>/EscapeAirSlide.txt)",
+  "mod_hdr": "https://github.com/HDR-Development/HewDraw-Remix/blob/c8408343c15bc840ae9e759731751951187e2a41/fighters/common/src/general_statuses/airdodge.rs (exec_escape_air_slide hand-off)",
+  "mod_wubor": "https://github.com/WuBoytH/The-WuBor-Patch/blob/9d5e5cf90d7d686f5ab367a92789019c05574dec/fighters/common/src/status/escape/escape_air.rs (exec_escape_air_slide hand-off)"
  },
  "knockback": {
   "formula": "kb = ((((p/10 + p*d/20) * 200/(w+100) * 1.4) + 18) * (kbg/100) + bkb) * r",
@@ -960,6 +966,16 @@
    ],
    "distance_fresh": 20,
    "distance_fully_stale": 13.3333,
+   "slide": {
+    "speed_fresh": 4.2,
+    "speed_fully_stale": 2.8,
+    "end_speed": 1.3,
+    "gravity_flag_frame": 14,
+    "control_flag_frame": 24,
+    "mario_air_brake_x": 0.015,
+    "_note": "the slide starts at speed_fresh and the stop energy brakes it by a constant amount a frame along the dodge; distance_fresh and end_speed say it is down to 1.3 after 20 u. Script frame 14 sets SLIDE_ENABLE_GRAVITY in 48 of the 64 dumped EscapeAirSlide game scripts (Mario's has no gravity flag) and frame 24 sets SLIDE_ENABLE_CONTROL in all 64; the mods hand the slide's speed to the control energy (FALL_ADJUST_NO_CAP, so above air speed too) and to gravity",
+    "_source": "param_motion (escape_air_slide_speed, escape_air_slide_penalty_speed, escape_air_slide_end_speed); energy_id (stop.rs, EscapeAirSlide reset); acmd_dump; mod_hdr; mod_wubor; fighter_prc (Mario air_brake_x)"
+   },
    "stick_threshold": 0.66,
    "waveland_speed_cap": 2.0,
    "ends_in": "not helpless: the fighter can act again from total + 1, but gets no second air dodge before landing, a hit or a ledge grab",
