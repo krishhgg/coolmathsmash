@@ -43,6 +43,8 @@ import {
 
 /** Where the held victim's middle is drawn: a hold's reach in front of Bob (Mario's width), half a Mario up. */
 const VICTIM: Pt = [11, -7];
+/** The ram's blast: on the victim's far side, so it doesn't cover Bob's face. */
+const BLAST_AT: Pt = [14, -7];
 
 /** How big the ship flies: about the height of the Blue Falcon's boxes, 31 units nose to tail. */
 const SHIP_SIZE = 1.3;
@@ -252,18 +254,20 @@ function cinematic(): AnimClip {
     [82, remote(FOLLOW, 8.8, -4.4, -4), { ...STARTLED, ...REMOTE_ON }],
     [
       B,
-      mix(remote(FLINCH, 8.2, -4.3, -14), { fx3: at(...VICTIM, 0, 0.9) }),
+      mix(remote(FLINCH, 8.2, -4.3, -14), { fx3: at(...BLAST_AT, 0, 0.85) }),
       { ...STARTLED, ...REMOTE_ON, fx3: 'shipBlast' },
     ],
-    [B + 2, mix(remote(FLINCH, 8.2, -4.3, -14), { fx3: at(...VICTIM, 10, 1.25) })],
+    [B + 2, mix(remote(FLINCH, 8.2, -4.3, -14), { fx3: at(...BLAST_AT, 10, 1.1) })],
     [
       B + 4,
-      mix(remote(CHEER, 8.6, -7.2, -18), { fx3: at(...VICTIM, 16, 1.3) }),
+      mix(remote(CHEER, 8.6, -7.2, -18), { fx3: at(BLAST_AT[0] + 1, BLAST_AT[1] - 1, 16, 1.0) }),
       { ...GLEE, ...REMOTE_ON, fx3: 'shipBlastFade' },
     ],
     [
       B + 10,
-      mix(remote(add(CHEER, { body: { sy: 0.97 } }), 8.6, -6.6, -10), { fx3: at(...VICTIM, 30, 1.6) }),
+      mix(remote(add(CHEER, { body: { sy: 0.97 } }), 8.6, -6.6, -10), {
+        fx3: at(BLAST_AT[0] + 2, BLAST_AT[1] - 2.5, 30, 1.15),
+      }),
     ],
     [B + 12, remote(CHEER, 8.6, -7.2, -18), { ...GLEE, ...REMOTE_ON, fx3: null }],
     [B + 16, remote(add(CHEER, { body: { sy: 0.97 } }), 8.6, -6.6, -10)],
