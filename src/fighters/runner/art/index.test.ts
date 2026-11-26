@@ -6,6 +6,7 @@ import {
   AIR_DODGE_NEUTRAL,
   GETUP_ROLL,
   GETUP_STAND,
+  GRAB,
   ROLL_BACK,
   ROLL_FORWARD,
   SPOT_DODGE,
@@ -53,6 +54,7 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   dizzy: 'loop',
   grabHold: 'loop',
   grabbed: 'loop',
+  grabRelease: GRAB.releaseLag,
   taunt: 60,
 };
 
