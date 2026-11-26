@@ -2,6 +2,7 @@ import type { FighterPatch, FighterScenarios, GameScenario, LabScenario } from '
 import type { ScriptStep } from '../../harness/script';
 import type { MoveDef } from '../types';
 import { PARALYZED, STUN_GUN } from './entities';
+import { ALL_OUT_ATTACK, SCENE } from './finalSmash';
 // Through the fighter, not './moves': his moves import sim code that imports the fighter registry, so loading them
 // first (as the harness does) registers Bob before his moves exist. Entering by index.ts finishes them first.
 import { fighter } from './index';
@@ -11,6 +12,30 @@ const BOB = 'characters/bob-the-robber';
 const ART = [`${BOB}/official-art-0*`, `${BOB}/official-art-chase-*`];
 /** Shadow Step's strike: the counterattack's first active frame. */
 const STRIKE = fighter.moves.downBHit!.hits[0]!.frames[0];
+
+/**
+ * Lights Out (the Final Smash) on Fireboy (P2, 30%) 20 units ahead: Bob holds the charge and presses neutral special
+ * on frame 10, so the dash catches Fireboy on its first frame. `state` names the scenario; it captures the first
+ * frame of the cinematic at or past `at`.
+ */
+const lightsOut = (state: string, description: string, label: string, at: number): GameScenario => ({
+  name: `${ID}-${state}`,
+  description,
+  page: { kind: 'game' },
+  match: { ports: [{ fighter: ID }, { fighter: 'fireboy' }] },
+  patches: [
+    { port: 0, state: { pos: { x: -30, y: 0 }, facing: 1, finalReady: true } },
+    { port: 1, state: { pos: { x: -10, y: 0 }, facing: -1, damage: 30 } },
+  ],
+  script: [{ port: 0, from: 10, to: 11, buttons: ['special'] }],
+  capture: {
+    label,
+    when: (s) => s.fighters[0]!.move === 'finalSmashCinematic' && s.fighters[0]!.actionFrame >= at,
+  },
+  motion: { before: 40, after: 40 },
+  requires: ['move:finalSmash', 'move:finalSmashCinematic'],
+  refs: ['smash/attack-active-*', ...ART],
+});
 
 /** Airborne and falling at (x, y), with the first jump spent. */
 const air = (x: number, y: number, facing: 1 | -1): FighterPatch => ({
@@ -76,7 +101,17 @@ const firstActive = (move: MoveDef): number =>
   move.counter?.window[0] ??
   STUN_GUN.shot;
 
-const AIR_MOVES = new Set(['nair', 'fair', 'bair', 'uair', 'dair', 'neutralBAir', 'sideB', 'upB']);
+const AIR_MOVES = new Set([
+  'nair',
+  'fair',
+  'bair',
+  'uair',
+  'dair',
+  'neutralBAir',
+  'sideB',
+  'upB',
+  'finalSmashAir',
+]);
 const atFirstActive = (pick: (name: string) => boolean) =>
   Object.entries(fighter.moves)
     .filter(([name]) => pick(name))
@@ -294,6 +329,18 @@ export const scenarios: FighterScenarios = {
       requires: ['move:downB'],
       refs: ['smash/attack-active-*', ...ART],
     },
+    lightsOut(
+      'final-smash',
+      "Lights Out (Final Smash): Bob dashes in and catches Fireboy, the lights go out, and in the dark only his eyes and baton flashes show from the fight cloud; capture the third of the scene's hits.",
+      "P1's Lights Out reaches its third hit in the dark",
+      SCENE.one + ALL_OUT_ATTACK.sceneHits[2]!,
+    ),
+    lightsOut(
+      'final-smash-launch',
+      "Lights Out (Final Smash): after the spotlight bow, the lights come back on as Bob's baton launches Fireboy; capture the launch.",
+      "P1's Lights Out launches with the lights back on",
+      SCENE.launch,
+    ),
     moveShot(
       'up-special',
       'Grappling Hook (up special) from below the left ledge: the hook flies, then Bob zips up after it.',

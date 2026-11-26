@@ -12,7 +12,15 @@ import {
 import { createFighter } from '../sim/fighter';
 import { quickGrapple, tetherTester } from '../sim/testing/tethers';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../sim/testing/sim';
-import { BADGE_BLINK_FRAMES, clipFor, fighterArt, shieldRadius, statusBadges } from './fighterView';
+import { finalTrapTester } from '../sim/testing/finalSmash';
+import {
+  BADGE_BLINK_FRAMES,
+  clipFor,
+  fighterArt,
+  intangibleBlink,
+  shieldRadius,
+  statusBadges,
+} from './fighterView';
 
 describe('shieldRadius', () => {
   const fireboy = getFighter('fireboy');
@@ -240,5 +248,22 @@ describe('clipFor while a move charges', () => {
     expect(f.charge).toBeGreaterThan(0);
     const [clip] = clipFor(fireboy, fighterArt(fireboy)!, f);
     expect(clip).toBe('fsmash');
+  });
+});
+
+describe('a Final Smash user', () => {
+  it('never shows the intangibility blink, which an intangible fighter otherwise shows', () => {
+    const user = createFighter(0, finalTrapTester.id, [0, 0, 1], 3);
+    const dodger = createFighter(1, finalTrapTester.id, [0, 0, -1], 3);
+    Object.assign(user, {
+      action: 'grabThrow',
+      move: 'finalSmashCinematic',
+      actionFrame: 30,
+      grabPartner: 1,
+    });
+    Object.assign(dodger, { action: 'spotDodge', actionFrame: 5, intangible: 10 });
+    const blinks = (f: typeof user) => [0, 1, 2, 3, 4, 5, 6, 7].filter((frame) => intangibleBlink(f, frame));
+    expect(blinks(user)).toEqual([]);
+    expect(blinks(dodger)).toEqual([0, 1, 2, 3]);
   });
 });
