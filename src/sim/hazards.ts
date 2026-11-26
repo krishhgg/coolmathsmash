@@ -1,7 +1,7 @@
 import { getFighter } from '../fighters/registry';
 import { armorOf, hittable, hurtbox, strike, targetable, touches, type PlacedHitbox } from './combat/hits';
 import { emit } from './events';
-import type { FighterState } from './fighter';
+import { inHitlag, type FighterState } from './fighter';
 import type { MatchState } from './match';
 import { hazardsOn, motionOffset, scheduledOn } from './movingStage';
 import type { DamageZone, HazardHit, StageGeometry, StageHitbox, TerrainElement } from './stage';
@@ -124,7 +124,7 @@ export function stageHits(m: MatchState, struck: Set<FighterState>): void {
   if (!geo.zones && !geo.hitboxes) return;
   const frame = m.frame + 1;
   for (const v of m.fighters) {
-    if (v.stageHitLock > 0 || v.hitlag > 0 || !hittable(v)) continue;
+    if (v.stageHitLock > 0 || inHitlag(m, v) || !hittable(v)) continue;
     const c = zoneContact(geo, v, frame) ?? hitboxContact(geo, v, frame);
     if (!c) continue;
     const { kb, added } = strike(

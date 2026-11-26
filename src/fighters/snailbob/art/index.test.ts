@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { flattenPath, poseBounds, shapesBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import {
+  GETUP_ROLL,
+  GETUP_STAND,
+  ROLL_BACK,
+  ROLL_FORWARD,
+  SPOT_DODGE,
+  TECH_IN_PLACE,
+  TECH_ROLL,
+} from '../../../sim/constants';
 import { moveClipFrame } from '../../../render/rig/timing';
 import type { PathShape } from '../../../render/rig/types';
 import { CRATE_RADIUS, entities } from '../entities';
@@ -28,9 +37,9 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   shieldDrop: 11,
   shieldBreak: 40,
   dizzy: 'loop',
-  spotDodge: 26,
-  rollForward: 30,
-  rollBack: 30,
+  spotDodge: SPOT_DODGE.faf - 1,
+  rollForward: ROLL_FORWARD.faf - 1,
+  rollBack: ROLL_BACK.faf - 1,
   airDodge: 49,
   ledgeCatch: 19,
   ledgeHang: 'loop',
@@ -42,10 +51,10 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   tumble: 'loop',
   down: 'loop',
   downBound: 26,
-  getupStand: 29,
-  techInPlace: 26,
-  techRoll: 40,
-  getupRoll: 35,
+  getupStand: GETUP_STAND.faf - 1,
+  techInPlace: TECH_IN_PLACE.faf - 1,
+  techRoll: TECH_ROLL.faf - 1,
+  getupRoll: GETUP_ROLL.faf - 1,
   respawn: 'loop',
   grabbed: 'loop',
   grabHold: 'loop',
