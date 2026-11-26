@@ -160,7 +160,7 @@ describe('hitbox targets (HitboxDef.targets)', () => {
     ['ground', 'airborne', false],
     ['air', 'grounded', false],
     ['air', 'airborne', true],
-  ] as const)('targets %s on a %s fighter: hits %s', (name, p2, hits) => {
+  ] as const)('targets %s, fighter %s: hits %s', (name, p2, hits) => {
     const { m, a, v } = swing(name, p2);
     expect(v.ground === null).toBe(p2 === 'airborne');
     expect(m.events.some((e) => e.type === 'hit' && e.victim === 1)).toBe(hits);
