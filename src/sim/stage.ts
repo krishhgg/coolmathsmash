@@ -1,5 +1,6 @@
 import type { HitboxDef } from '../fighters/types';
 import type { Vec } from './vec';
+import * as SimMath from './math';
 
 /**
  * Offset of a moving piece from its authored position, as a deterministic function of the match frame (see
@@ -154,7 +155,7 @@ export function compileStage(geo: StageGeometry): CompiledStage {
       const [bx, by] = pts[(i + 1) % pts.length]!;
       const dx = bx - ax;
       const dy = by - ay;
-      const len = Math.hypot(dx, dy);
+      const len = SimMath.hypot(dx, dy);
       if (len < 1e-9) continue;
       const n = ccw ? { x: dy / len, y: -dx / len } : { x: -dy / len, y: dx / len };
       const kind: EdgeKind = n.y >= FLOOR_NORMAL_Y ? 'floor' : n.y <= -FLOOR_NORMAL_Y ? 'ceiling' : 'wall';
@@ -168,7 +169,7 @@ export function compileStage(geo: StageGeometry): CompiledStage {
       // Convex: this edge heads away from the outward side of the edge before it.
       const convex = before.n.x * (e.b.x - e.a.x) + before.n.y * (e.b.y - e.a.y) < -1e-9;
       if (convex && (e.kind !== 'floor' || before.kind !== 'floor')) e.corner = before.n;
-      const tol = EDGE_TOLERANCE / Math.hypot(e.b.x - e.a.x, e.b.y - e.a.y);
+      const tol = EDGE_TOLERANCE / SimMath.hypot(e.b.x - e.a.x, e.b.y - e.a.y);
       e.span = [before.kind === 'floor' ? tol : -tol, after.kind === 'floor' ? 1 - tol : 1 + tol];
     });
   });

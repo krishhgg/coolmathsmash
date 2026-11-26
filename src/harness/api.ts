@@ -1,3 +1,4 @@
+import { createCpu, type CpuPlayer } from '../ai/index';
 import { registerFighter } from '../fighters/registry';
 import type { Game } from '../game';
 import type { InputFrame } from '../input/types';
@@ -39,8 +40,14 @@ export interface HarnessApi {
   version: 1;
   /** Stop (true) or resume (false) real-time stepping. The harness always runs manual. */
   setManual(on: boolean): void;
+  /** Start a match. It has no CPUs until setCpu puts them on. */
   newMatch(config?: Partial<MatchConfig>): number;
-  /** Advance `frames` frames holding `inputs` (one InputFrame per port; neutral when omitted). */
+  /** Put a CPU on `port` (null takes it off). It plays that port in `step` calls that pass no inputs. */
+  setCpu(port: number, cpu: { level: number; seed: number } | null): void;
+  /**
+   * Advance `frames` frames holding `inputs` (one InputFrame per port). When omitted, CPU ports play their CPU and
+   * the rest are neutral.
+   */
   step(frames?: number, inputs?: InputFrame[]): number;
   /** Advance until match frame `until` (default: the script's end) feeding scripted inputs. */
   runScript(steps: ScriptStep[], until?: number): number;
@@ -79,6 +86,11 @@ export function installHarness(game: Game): HarnessApi {
   for (const def of FINAL_SMASH_TEST_FIGHTERS) registerFighter(def);
   const ports = () => game.state.players.length;
   let active: GameScenario | null = null;
+  let cpus: (CpuPlayer | undefined)[] = [];
+  const cpuInputs = () =>
+    game.state.players.map(
+      (p) => cpus[p.port]?.input(game.state) ?? { x: 0, y: 0, cx: 0, cy: 0, buttons: 0 },
+    );
   const advance = (s: GameScenario) => game.step(scenarioInputs(s, game.state));
   const api: HarnessApi = {
     version: 1,
@@ -87,11 +99,14 @@ export function installHarness(game: Game): HarnessApi {
     },
     newMatch: (config) => {
       game.newMatch({ ...DEFAULT_MATCH, ...config });
+      cpus = [];
       return game.state.frame;
     },
+    setCpu: (port, cpu) => {
+      cpus[port] = cpu ? createCpu({ port, ...cpu }) : undefined;
+    },
     step: (frames = 1, inputs) => {
-      for (let i = 0; i < frames; i++)
-        game.step(inputs ?? game.state.players.map(() => ({ x: 0, y: 0, cx: 0, cy: 0, buttons: 0 })));
+      for (let i = 0; i < frames; i++) game.step(inputs ?? cpuInputs());
       return game.state.frame;
     },
     runScript: (steps, until = scriptLength(steps)) => {
