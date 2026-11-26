@@ -473,7 +473,9 @@ finalSmashCinematic: {
   already spent, so a fall, or a moving platform rising under a `still` user, can't cut it short.
 - **Losing the floor.** The same goes the other way (`finalSmashLeavesGround`): when a platform vanishes or moves out
   from under the user, or a conveyor belt carries it off an end, a grounded `final` move plays on in the air from the
-  same frame, and a trap's cinematic keeps its catch, whichever of the two loses the floor first.
+  same frame, and a trap's cinematic keeps its catch, whichever of the two loses the floor first. A `still` one,
+  cinematic included, stops where it left the floor (`stopInPlace`), as one started in the air does, so speed from a
+  dash doesn't carry it away.
 - **Projectiles.** An entity a `final` move puts out is marked at spawn (`EntityState.final`), so it stays unblockable
   however long it lasts, after its owner acts again or turns into another fighter (Fireboy's Swap).
 - **CPUs.** A CPU holding the charge presses neutral special once an opponent is inside the Final Smash's reach in front
@@ -853,6 +855,16 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   Attack. The Items rule, spawning and the Coolmath Planet are in docs/items.md.
 - **Events.** Entities report `entitySpawn`, `entityDestroy` (with the reason), `reflect`, `absorb` and `entityHit`,
   and their hits are `hit` and `shieldHit` events carrying the `entity` id (`docs/sim-events.md`).
+- **CPUs.** CPUs need nothing extra to use a projectile. The move probe (`src/ai/knowledge.ts`) records each entity
+  a move puts out: kind, frame, offset, velocity, lifetime and the strongest hitbox of the entity or what it turns
+  into (a bomb's burst). `src/ai/shots.ts` puts those entities out on a copy of the match and plays their flight
+  against the opponent's predicted path, so a CPU fires when the shot would meet the opponent. Its own controller is
+  neutral in that copy, so a minion steered by the stick is predicted badly; list such a move in the fighter's
+  `ai.ts` `avoid`. A special with a `charge` frame is probed twice, tapped and with Special held for its charge
+  up to 40 frames, and the CPU picks either (Bob the Robber's Stun Gun at full charge, Raft Wars' Aimed Shot at 40 of
+  its 112 frames). The flight copy keeps a charged entity's damage multiplier. A shot is worth less the longer it leaves the CPU busy after
+  the opponent could run in, unless it lands first or would meet the runner before the runner's quickest hit; then
+  it holds the opponent up for its hitstun plus any freezing status (paralysis).
 
 ## Art
 

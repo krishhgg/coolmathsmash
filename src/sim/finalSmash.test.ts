@@ -205,6 +205,49 @@ describe('Final Smash activation', () => {
     expect([a.move, a.actionFrame, activeHitboxes(a).length]).toEqual(['finalSmash', 42, 2]);
   });
 
+  it('holds a still one where its platform vanished, though it came out of a dash', () => {
+    const m = matchOn(testbed([DIRECT, NONE]), [
+      [-8, 58],
+      [60, 0],
+    ]);
+    const [a] = m.fighters as [FighterState, FighterState];
+    stepTo(m, VANISHES - 3);
+    step(m, 1, [{ x: 100 }]);
+    expect(a.action).toBe('dash');
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    expect([a.move, a.vel.x > 0]).toEqual(['finalSmash', true]);
+    step(m, 1);
+    expect([a.action, a.ground]).toEqual(['aerial', null]);
+    const at = { ...a.pos };
+    for (let i = 0; i < 30; i++) {
+      step(m, 1);
+      expect(a.pos).toEqual(at);
+    }
+  });
+
+  it("holds a still trap's cinematic where its platform vanished, whatever speed the user had", () => {
+    const m = matchOn(testbed([STILL_TRAP, NONE]), [
+      [-8, 58],
+      [6, 58],
+    ]);
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    stepTo(m, VANISHES - 60);
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    stepTo(m, VANISHES - 1);
+    expect([a.action, a.grabPartner]).toEqual(['grabThrow', v.port]);
+    // Speed left on the floor's last frame, as a slide or a push would leave it.
+    a.vel.x = 1.5;
+    step(m, 1);
+    expect(a.ground).toBe(null);
+    const at = { ...a.pos };
+    for (let i = 0; i < 30; i++) {
+      step(m, 1);
+      expect([a.pos, v.action]).toEqual([at, 'grabbed']);
+    }
+  });
+
   it("keeps a trap's catch when its platform vanishes mid-cinematic: both fall and the throw still lands", () => {
     // Both port orders: whichever of the two loses the floor first, the grab holds.
     for (const order of [
