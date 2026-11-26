@@ -193,6 +193,19 @@ describe('Runner: kill % against Mario at the Battlefield ledge (fresh, no rage,
   it('forward throw is not a kill throw: Mario survives it at the ledge at 150%', () => {
     expect(kos({ hit: { fighter: 'runner', move: 'fthrow' }, from }, 150)).toBe(false);
   });
+
+  /**
+   * Measured, not sourced. Tile Flip (neutral special) names no Ultimate analogue, and no Ultimate hit has its
+   * damage, angle, BKB and KBG (8%, 90 degrees, BKB 50, KBG 90; searched in the 13.0.1 hitbox data of
+   * ultimate-hitboxes.com), so there is no Ultimate kill percent to hold it to. 198.4% is what koPercent gave on main
+   * when this was written. Box Drop has its own kill tests (box-drop.test.ts); the air kick and Gravity Switch KO
+   * only from 591.3% and 457.4%.
+   */
+  it('Tile Flip launches Mario straight up to a KO within 5 points of its measured 198.4%', () => {
+    const percent = koPercent({ hit: { fighter: 'runner', move: 'neutralB' }, from });
+    expect(percent).not.toBeNull();
+    expect(Math.abs(percent! - 198.4)).toBeLessThanOrEqual(5);
+  });
 });
 
 describe('Runner: combo tools', () => {

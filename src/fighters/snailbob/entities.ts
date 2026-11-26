@@ -14,8 +14,9 @@ const crateBody = { radius: CRATE_RADIUS, gravity: 0.2, maxFall: 3.5, floor: 'la
  */
 export const entities: Record<string, EntityDef> = {
   /**
-   * The falling crate: 12% (roster) with Steve's falling anvil's knockback, its grounded angle (70°; the anvil sends
-   * airborne targets at 58°). Too heavy to swat, reflect or absorb, and it keeps falling through whoever it hits.
+   * The falling crate: Steve's lone falling anvil, 10% with its knockback and its grounded angle (70°; the anvil sends
+   * airborne targets at 58°). The roster's 12% KOd 27.7 points before the anvil (snailbob.test.ts). Too heavy to
+   * swat, reflect or absorb, and it keeps falling through whoever it hits.
    */
   crateFall: {
     ...crateBody,
@@ -26,7 +27,7 @@ export const entities: Record<string, EntityDef> = {
     hits: [
       {
         frames: [1, 600],
-        boxes: [{ id: 0, x: 0, y: 0, radius: CRATE_RADIUS, damage: 12, angle: 70, kbg: 78, bkb: 62 }],
+        boxes: [{ id: 0, x: 0, y: 0, radius: CRATE_RADIUS, damage: 10, angle: 70, kbg: 78, bkb: 62 }],
       },
     ],
     script({ m, e }) {
