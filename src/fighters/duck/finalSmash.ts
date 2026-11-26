@@ -2,7 +2,7 @@ import { destroyEntity, spawnFromMove } from '../../sim/entities/entities';
 import type { EntityDef } from '../../sim/entities/types';
 import { PARALYZED } from '../bob-the-robber/entities';
 import type { HitboxDef, MoveDef } from '../types';
-import { FAF, REACH, STOMP, WAVE } from './finalSmashData';
+import { FAF, REACH, STOMP, WAVE, WAVE_BOXES } from './finalSmashData';
 
 export { FAF, REACH, STOMP, WAVE } from './finalSmashData';
 
@@ -30,14 +30,10 @@ const slamBoxes: HitboxDef[] = [STOMP.to, (STOMP.from + STOMP.to) / 2, STOMP.fro
 const charge = { angle: 42, kbg: 25, bkb: 122, hitlag: 0 } as const;
 
 /**
- * The charge's boxes from the floor (y up): the 45% front box, then each 35% capsule as three circles along it. The
- * body circle sits WAVE.radius above the floor, so the boxes are lowered by that much.
+ * The charge's boxes (WAVE_BOXES, from the floor) on the shockwave: its body circle sits WAVE.radius above the floor,
+ * so the boxes are lowered by that much.
  */
-const waveBoxes: HitboxDef[] = [
-  { x: 25, y: 12, radius: 10, damage: 45 },
-  ...[5, -7.5, -20].map((x) => ({ x, y: 12, radius: 15, damage: 35 })),
-  ...[13, -2.5, -18].map((x) => ({ x, y: 30, radius: 18, damage: 35 })),
-].map((b, id) => ({ id, ...b, y: b.y - WAVE.radius, ...charge }));
+const waveBoxes: HitboxDef[] = WAVE_BOXES.map((b, id) => ({ id, ...b, y: b.y - WAVE.radius, ...charge }));
 
 const finalEntity = {
   floor: 'pass',

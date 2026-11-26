@@ -1,5 +1,5 @@
 import type { PathShape, SymbolLoop } from '../../../render/rig/types';
-import { STOMP, WAVE } from '../finalSmashData';
+import { STOMP, WAVE, WAVE_BOXES } from '../finalSmashData';
 import { BODY_R, HEAD_R, LINE, blob, circle, place, poly } from './parts';
 
 /**
@@ -136,9 +136,9 @@ function dust(rise: number, g: number): PathShape[] {
 }
 
 /**
- * The burst, drawn for the entity's 24 frames as six drawings of four frames each: the flash fills the slam's dome
- * with paralysing bolts on its five active frames, then its rim spreads and fades while dust rolls out along the
- * floor and settles.
+ * The burst, drawn for the entity's 23 frames as six drawings (the first for three frames, the rest for four): the
+ * flash fills the slam's dome with paralysing bolts on its five active frames, then its rim spreads and fades while
+ * dust rolls out along the floor and settles.
  */
 const bursts: PathShape[][] = [
   [
@@ -190,7 +190,7 @@ const bursts: PathShape[][] = [
 export const burstSymbols: Record<string, PathShape[]> = Object.fromEntries(
   bursts.map((shapes, i) => [`fxBurst${i}`, shapes]),
 );
-/** Plays once over the burst's life (STOMP.lifetime): six drawings at 15 a second. */
+/** Plays once over the burst's life (STOMP.lifetime, 23 frames): six drawings at 15 a second. */
 export const fxBurst: SymbolLoop = { loop: bursts.map((_, i) => `fxBurst${i}`), fps: 15 };
 
 /**
@@ -218,65 +218,70 @@ function clod(x: number, y: number, r: number, deg: number): PathShape {
   return { d: poly(place(lump, deg, x, y, r)), fill: 'rock', stroke: { color: 'line', width: 0.45 } };
 }
 
+/** The shockwave's hitboxes as circles in its drawing (y down, centre at the origin, floor WAVE.radius below). */
+const WAVE_CIRCLES = WAVE_BOXES.map((b) => [b.x, WAVE.radius - b.y, b.radius] as const);
+
 /**
- * The shockwave at world scale around its centre (y down, the floor WAVE.radius below it): a wall of dust as big as
- * its hitboxes, tall over the middle where the 35% boxes reach 48 up and low in front over the 45% box, with a band
- * of shock bowed round its leading edge, clods of earth flung up and speed lines trailing off behind. `j` churns the
- * puffs and the clods for the three drawings; `g` below 1 draws the wall still rising out of the floor at its front.
+ * How far forward the hitboxes reach at drawing height `y` (y down), each shrunk by `inset` first, so a point on that
+ * edge is at least `inset` inside them: the front edge the shockwave is drawn to.
+ */
+function frontAt(y: number, inset = 0): number {
+  return Math.max(
+    ...WAVE_CIRCLES.map(([cx, cy, r]) =>
+      Math.abs(y - cy) < r - inset ? cx + Math.sqrt((r - inset) ** 2 - (y - cy) ** 2) : -Infinity,
+    ),
+  );
+}
+
+/**
+ * The shockwave at world scale around its centre (y down, the floor WAVE.radius below it), drawn inside its
+ * hitboxes so nobody sees it reach them before it hits: a wall of dust over the boxes, tall over the middle where
+ * the 35% boxes reach 48 up and nosing forwards over the 45% box, with a band of shock along the boxes' own front
+ * edge (frontAt) and clods of earth flung up inside. `j` churns the puffs and the clods for the three drawings;
+ * `g` below 1 draws the wall still rising, shrunk towards the floor under its middle.
  */
 function waveDrawing(j: number, g = 1): PathShape[] {
   const f = WAVE.radius;
-  const w = (i: number) => sin(rad(j * 120 + i * 67)) * 0.9;
+  const w = (i: number) => sin(rad(j * 120 + i * 67)) * 0.6;
+  /** Puffs as (x, height above the floor, radius): every one with its ink ring inside the boxes (index.test.ts). */
   const puffs: [number, number, number][] = [
-    [-30, f - 3, 3.5],
-    [-22, f - 5.5, 5.5],
-    [-13, f - 9, 8.5],
-    [-8, f - 16, 11],
-    [-9, f - 33, 9],
-    [3, f - 38, 8],
-    [6, f - 25, 10.5],
-    [14, f - 12, 10],
-    [16, f - 31, 7],
-    [21, f - 20, 7],
-    [24, f - 9, 8.5],
-    [30, f - 4.5, 5],
+    [-27, 7, 3.8],
+    [-18, 9, 6.5],
+    [-8, 11, 8.5],
+    [5, 10, 9],
+    [-12, 26, 8.5],
+    [-1, 34, 8.5],
+    [9, 27, 10],
+    [15, 13, 7.5],
+    [17, 33, 6.5],
+    [21, 22, 5.2],
+    [26, 13, 6],
   ];
-  // Churned a little, and while rising squeezed down towards the floor at the front.
-  const churned = puffs.map(([x, y, r], i): [number, number, number] => [
-    32 - (32 - x - w(i)) * g,
-    f - (f - y - w(i + 3)) * g,
-    (r + w(i + 5) * 0.6) * g,
-  ]);
-  // The shock: a crescent round the wall's front, from high on it down to the floor ahead, drawn behind the dust so
-  // only its outer edge shows, bowed round the wall like a rim of light.
-  const arcPts = (cx: number, r: number, from: number, to: number): P[] =>
-    Array.from({ length: 9 }, (_, i): P => {
-      const a = rad(from + ((to - from) * i) / 8);
-      return [cx + r * cos(a), f + r * sin(a) * g];
-    });
-  const shock: P[] = [...arcPts(5.5, 34.5, -64, 0), ...arcPts(2, 26, 0, -62)];
-  const streak = (y: number, x0: number, x1: number): PathShape => ({
-    d: poly([
-      [x0, y - 0.5],
-      [x1, y - 0.3],
-      [x1, y + 0.3],
-      [x0, y + 0.5],
-    ]),
-    fill: 'swoosh',
+  // The wall rising: everything shrunk towards (PIVOT, the floor) while g < 1.
+  const PIVOT = 5;
+  const at = (x: number, y: number): P => [PIVOT + (x - PIVOT) * g, f + (y - f) * g];
+  const churned = puffs.map(([x, h, r], i): [number, number, number] => {
+    const [px, py] = at(x + w(i), f - h + w(i + 3));
+    return [px, py, (r + w(i + 5) * 0.5) * g];
   });
-  const full = g === 1;
+  // The shock: a band along the boxes' front edge from the 45% box's foot, 2.8 up, to 40 up, its outer edge 0.6
+  // inside the boxes so its ink stays in them, swelling to 5 thick in the middle; drawn behind the dust so only its rim
+  // shows. While rising it starts higher, so shrinking it towards the floor keeps its foot inside the 45% box.
+  const steps = 18;
+  const foot = 2.8 + (1 - g) * 6;
+  const ys = Array.from({ length: steps + 1 }, (_, i) => f - foot - (i / steps) * (40 - foot));
+  const outer = ys.map((y): P => [frontAt(y, 0.6), y]);
+  const inner = ys.map((y, i): P => [frontAt(y, 0.6) - 5 * Math.sin((PI * i) / steps), y]);
+  const shock = [...outer, ...inner.reverse()].map(([x, y]) => at(x, y));
   return [
-    ...(full
-      ? [streak(f - 40 + j, -50, -28), streak(f - 26 - j, -54, -36), streak(f - 12 + j, -50, -38)]
-      : []),
     { d: poly(shock), fill: 'star', stroke: { color: 'line', width: 0.8 } },
     ...shadedCloud(churned, 0.9),
-    ...(full
+    ...(g === 1
       ? [
-          clod(-4 + j * 2, f - 44 + j * 2, 1.6, j * 50),
-          clod(12 - j, f - 42 + j * 3, 1.2, 40 + j * 70),
-          clod(-16 + j * 1.5, f - 33 - j, 1.3, 90 + j * 45),
-          clod(22 + j, f - 24 - j * 2, 1.0, 20 + j * 60),
+          clod(-4 + j * 2, f - 41 + j, 1.4, j * 50),
+          clod(11 - j, f - 40 + j * 2, 1.1, 40 + j * 70),
+          clod(-16 + j * 1.5, f - 31 - j, 1.2, 90 + j * 45),
+          clod(21 + j, f - 26 - j, 0.9, 20 + j * 60),
         ]
       : []),
   ];
@@ -290,15 +295,15 @@ export const waveSymbols: Record<string, PathShape[]> = {
   fxWave2: waveDrawing(2),
 };
 /**
- * The shockwave over its life at 15 drawings a second (four frames each): the wall rises out of the floor over its
- * first eight frames, as it pulls away from the Duck's feet, then churns through three drawings. WAVE.lifetime is
- * sixteen drawings, so it plays once.
+ * The shockwave over its life at 15 drawings a second: the wall rises out of the floor over its first frames, as it
+ * pulls away from the Duck's feet, then churns through three drawings. A prop's loop counts from age 1, so its ages
+ * 1 to WAVE.lifetime (64) reach drawing floor(64 / 4) = 16: the loop has 17, and never wraps back to the first.
  */
 export const fxWave: SymbolLoop = {
   loop: [
     'fxWaveRise0',
     'fxWaveRise1',
-    ...Array.from({ length: WAVE.lifetime / 4 - 2 }, (_, i) => `fxWave${i % 3}`),
+    ...Array.from({ length: Math.floor(WAVE.lifetime / 4) + 1 - 2 }, (_, i) => `fxWave${i % 3}`),
   ],
   fps: 15,
 };

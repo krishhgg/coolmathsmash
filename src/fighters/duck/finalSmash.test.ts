@@ -11,6 +11,8 @@ import { statusOf } from '../../sim/statuses';
 import { koPercent } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { input, type Hold } from '../../sim/testing/sim';
+import { resolveSymbol } from '../../render/rig/sample';
+import type { SymbolLoop } from '../../render/rig/types';
 import { PARALYZED } from '../bob-the-robber/entities';
 import { registerFighter } from '../registry';
 import { art } from './art';
@@ -324,13 +326,19 @@ describe('Evolved Stomp (Final Smash), on Ganon, The Demon King', () => {
       'fxWave',
       'fxWave',
     ]);
+    // A prop plays its loop on the entity's age, from 1 on its first frame to its lifetime on its last: each one
+    // reaches its last drawing then and never wraps round to its first.
     for (const [symbol, life] of [
       ['fxBurst', STOMP.lifetime],
       ['fxWave', WAVE.lifetime],
     ] as const) {
-      const loop = art.rig.symbols[symbol] as { loop: string[]; fps: number };
-      expect(loop.loop.length * (60 / loop.fps)).toBe(life);
+      const loop = art.rig.symbols[symbol] as SymbolLoop;
       for (const name of loop.loop) expect(art.rig.symbols[name]).toBeDefined();
+      const shown = Array.from({ length: life }, (_, i) => resolveSymbol(art.rig.symbols, symbol, i + 1));
+      expect(shown[0]).toBe(loop.loop[0]);
+      expect(shown.at(-1), `${symbol} on its last frame`).toBe(loop.loop.at(-1));
+      const moved = shown.findIndex((name) => name !== loop.loop[0]);
+      expect(shown.slice(moved), `${symbol} wraps`).not.toContain(loop.loop[0]);
     }
   });
 

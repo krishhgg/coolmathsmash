@@ -39,8 +39,11 @@ export const STOMP = {
   frame: 54,
   /** Frames the slam's hitbox is out (its frames 50 to 54). */
   active: 5,
-  /** Frames the burst stays drawn after it lands. */
-  lifetime: 24,
+  /**
+   * Frames the burst stays drawn after it lands: its six drawings at 15 a second, the first for three frames (a prop's
+   * loop counts from age 1) and the rest for four.
+   */
+  lifetime: 23,
   /** The slam's stretch: from 18 to 50 units in front, 25 up, radius 25. */
   from: 18,
   to: 50,
@@ -58,6 +61,16 @@ export const WAVE = {
   /** Its body circle, resting on the floor; the hitboxes are placed from the floor under it. */
   radius: 2,
 };
+
+/**
+ * The charge's boxes, the shockwave's hitboxes, from the floor under its centre (x forward, y up): Ganon's 45% front
+ * box, then each 35% capsule as three circles along it. The art draws the shockwave inside them.
+ */
+export const WAVE_BOXES: { x: number; y: number; radius: number; damage: number }[] = [
+  { x: 25, y: 12, radius: 10, damage: 45 },
+  ...[5, -7.5, -20].map((x) => ({ x, y: 12, radius: 15, damage: 35 })),
+  ...[13, -2.5, -18].map((x) => ({ x, y: 30, radius: 18, damage: 35 })),
+];
 
 /** The Duck can act again on this frame (an estimate, see above). */
 export const FAF = 226;

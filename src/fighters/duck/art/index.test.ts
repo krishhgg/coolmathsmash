@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
+import { flattenPath, poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import type { PathShape, SymbolLoop } from '../../../render/rig/types';
 import {
   AIR_DODGE_NEUTRAL,
   GETUP_ROLL,
@@ -12,6 +13,7 @@ import {
   TECH_ROLL,
 } from '../../../sim/constants';
 import { placeInAir, run, testMatch, until } from '../../../sim/testing/sim';
+import { entities } from '../entities';
 import { moves } from '../moves';
 import { stats } from '../stats';
 import { art } from '.';
@@ -108,6 +110,33 @@ describe('duck art', () => {
             if (!slotsCovering(art, pose, x, -y).length) misses.push(`${name}@${f} (${x}, ${y})`);
         }
     expect(misses).toEqual([]);
+  });
+
+  it("draws Evolved Stomp's shockwave inside its hitboxes, so nobody sees it reach them before it hits", () => {
+    const boxes = entities.wave!.hits!.flatMap((w) => w.boxes);
+    const loop = art.rig.symbols.fxWave as SymbolLoop;
+    const misses: string[] = [];
+    for (const name of new Set(loop.loop))
+      for (const shape of art.rig.symbols[name] as PathShape[]) {
+        // The prop is drawn around the entity's centre, y down; the boxes sit round the same centre, y up. A stroke
+        // reaches half its width past the path.
+        const ink = (shape.stroke?.width ?? 0) / 2;
+        for (const p of flattenPath(shape.d))
+          for (let i = 0; i < p.length; i += 2) {
+            const [x, y] = [p[i]!, p[i + 1]!];
+            const out = Math.min(...boxes.map((b) => Math.hypot(x - b.x, y + b.y) - b.radius)) + ink;
+            if (out > 1e-6) misses.push(`${name} (${x.toFixed(1)}, ${y.toFixed(1)}) by ${out.toFixed(2)}`);
+          }
+      }
+    expect(misses).toEqual([]);
+    // Its yellow front follows the 45% box's own edge: it reaches to within a unit of it, 12 above the floor.
+    const front = Math.max(...boxes.map((b) => b.x + b.radius));
+    const reach = Math.max(
+      ...(art.rig.symbols.fxWave0 as PathShape[])
+        .filter((s) => s.fill === 'star')
+        .flatMap((s) => flattenPath(s.d).flatMap((p) => p.filter((_, i) => i % 2 === 0))),
+    );
+    expect(front - reach).toBeLessThan(1);
   });
 
   it("stands as tall and wide as the Duck's stats, feet on the ground", () => {
