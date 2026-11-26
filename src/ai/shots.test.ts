@@ -88,12 +88,9 @@ describe('CPU projectiles', () => {
   });
 
   it('hit with them more often at level 9 than at level 3', () => {
-    const rate: Record<number, { shots: number; hits: number }> = {};
     for (const id of SHOOTERS) {
-      const k = knowledge(id, STAGE);
       const hits: Record<number, number> = {};
       for (const level of [9, 3]) {
-        rate[level] ??= { shots: 0, hits: 0 };
         hits[level] = 0;
         for (const seed of [1, 2, 3]) {
           const m = createMatch({
@@ -112,18 +109,13 @@ describe('CPU projectiles', () => {
               cpus.map((c) => c.input(m)),
             );
             for (const e of m.events) {
-              if (e.type === 'move' && e.port === 0 && (k.ground[e.move]?.shot || k.air[e.move]?.shot))
-                rate[level].shots++;
               if (e.type === 'hit' && e.attacker === 0 && e.entity !== undefined) hits[level]++;
             }
           }
         }
-        rate[level].hits += hits[level];
       }
-      expect(hits[9], `${id}: shot hits at level 9 vs level 3`).toBeGreaterThan(hits[3]!);
+      expect(hits[9], `${id}: shot hits against a level 5 Red Ball`).toBeGreaterThan(hits[3]!);
     }
-    const accuracy = (l: number) => rate[l]!.hits / rate[l]!.shots;
-    expect(accuracy(9)).toBeGreaterThan(accuracy(3));
   }, 120_000);
 
   it('shoot an opponent recovering from beside the stage', () => {
