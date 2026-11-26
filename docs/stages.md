@@ -117,6 +117,10 @@ variety comes from `hash01(n)` (a fixed integer hash). Build Graphics once and o
 4. Add a coverage test like `parallax.test.ts` and pin the geometry numbers the art uses.
 5. Capture the stage at the default camera and zoomed in on a platform for the PR and the judge panel.
 
+Hazards (damage zones, stage hitboxes, conveyors, trapdoors) are geometry and are documented in
+`docs/stage-geometry.md`, including how a hazard's hit meets shields, parries, counters and armor: shields block it
+and parries parry it as they do any hit, armor takes it as any hit, and counters are an open question.
+
 ## Coolmath Battlefield
 
 `src/stages/battlefield/`: Battlefield's exact layout as a floating sandstone temple island under the Coolmath
