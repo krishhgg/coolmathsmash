@@ -223,6 +223,14 @@ export const DOUBLE_JUMP_FRAMES = 30;
  */
 export const TOP_KO_MIN_SPEED = 2.4;
 export const TOP_KO_MARGIN = 30;
+/**
+ * Ultimate's meteor blast line (SmashWiki, "Meteor smash": a fighter meteor smashed "with their total launch speed
+ * being 3 units per frame ... or higher when they reach about 25 units below the camera boundary" is KO'd before the
+ * lower blast line). The speed is the downward launch speed plus the fighter's own, as SSBU-Calculator's KO check
+ * (knockback.js, "Meteor smash KO") adds them.
+ */
+export const METEOR_KO_DEPTH = 25;
+export const METEOR_KO_MIN_SPEED = 3;
 
 /** Respawn (Ultimate): wait on the platform up to 5 s, then 2 s of invincibility after leaving it. */
 export const RESPAWN_DELAY = 60;

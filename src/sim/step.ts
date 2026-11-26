@@ -4,14 +4,8 @@ import { actionDef, runAction } from './actions/registry';
 import { dropLostTether, rideAnchor } from './actions/tether';
 import { stepTetherMove } from './actions/tetherCast';
 import { applyLaunch, stepLaunchMotion } from './combat/hits';
-import {
-  INFINITE_STOCKS,
-  RESPAWN_DELAY,
-  SHIELD_MAX,
-  SHIELD_REGEN,
-  TOP_KO_MARGIN,
-  TOP_KO_MIN_SPEED,
-} from './constants';
+import { blastZoneCrossed } from './blastZones';
+import { INFINITE_STOCKS, RESPAWN_DELAY, SHIELD_MAX, SHIELD_REGEN } from './constants';
 import { makeCtx } from './context';
 import { emit } from './events';
 import type { Ctx, FighterState } from './fighter';
@@ -60,14 +54,11 @@ export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): voi
 function checkBlastZones(x: Ctx): void {
   const { f, stage } = x;
   if (f.action === 'ko' || f.action === 'out' || f.action === 'respawn') return;
-  const b = stage.geo.blastZones;
-  const pastTop = f.pos.y >= b.top + TOP_KO_MARGIN || (f.pos.y >= b.top && f.kb.y >= TOP_KO_MIN_SPEED);
-  if (f.pos.x > b.left && f.pos.x < b.right && f.pos.y > b.bottom && !pastTop) return;
+  const side = blastZoneCrossed(stage.geo.blastZones, stage.geo.camera, f.pos, f.kb, f.vel);
+  if (!side) return;
   if (x.m.config.stocks < INFINITE_STOCKS) f.stocks--;
   clearStatusesOnKo(x.m, f);
   resetMetersOnKo(f);
-  const side =
-    f.pos.x <= b.left ? 'left' : f.pos.x >= b.right ? 'right' : f.pos.y >= b.top ? 'top' : 'bottom';
   emit(x.m, { type: 'ko', port: f.port, stocks: f.stocks, side, x: f.pos.x, y: f.pos.y });
   f.respawnTimer = RESPAWN_DELAY;
   f.action = 'ko';
