@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createCpu } from '../../ai/index';
 import { planScenario, type GameScenario } from '../../harness/scenarios';
 import { neutralInput } from '../../input/types';
+import { propStack } from '../../render/entities';
 import { samplePose } from '../../render/rig/sample';
 import { knockback } from '../../sim/combat/formulas';
 import { compiledStage } from '../../sim/context';
@@ -16,7 +17,7 @@ import { marioReference } from '../../sim/testing/reference';
 import { input, type Hold } from '../../sim/testing/sim';
 import { registerFighter } from '../registry';
 import { art } from './art';
-import { shotMuzzle } from './art/fullArsenal';
+import { LOCK_STACK, shotMuzzle } from './art/fullArsenal';
 import {
   ARSENAL,
   BLAST,
@@ -356,6 +357,29 @@ describe('Full Arsenal (Final Smash), on Covering Fire', () => {
     expect(peak(179.1, c, 7)).toBeCloseTo(180, 3);
     // With an end at the ceiling the curve rises no higher than that end.
     expect(arcHeight(180, 7, 180)).toBe(180);
+  });
+
+  it('draws two marks on one foe as two rings and one as one, losing a ring as each shot lands', () => {
+    const { m, foes } = arsenal(-40, [0, 40, -78]);
+    hunt(m);
+    const prop = art.projectiles!.lockMark!;
+    expect(prop.stack).toBe(LOCK_STACK);
+    const marks = (port: number) => of(m, 'lockMark').filter((e) => e.data.target === port);
+    const rings = (port: number) => marks(port).map((e) => propStack(m, e, prop));
+    const counts = foes.map((f) => marks(f.port).length);
+    expect([...counts].sort()).toEqual([1, 2, 2]);
+    foes.forEach((f, i) => expect(rings(f.port)).toEqual(counts[i] === 2 ? [1, 1 + LOCK_STACK] : [1]));
+    // Each foe's drawn rings, frame by frame, as the shots land: one fewer each time, to none.
+    const seen = foes.map((f) => [rings(f.port).length]);
+    for (let i = 0; i < ARSENAL.faf + ARSENAL.flight; i++) {
+      step(m, 1);
+      foes.forEach((f, k) => {
+        const now = rings(f.port);
+        expect(now).toEqual(now.map((_, j) => 1 + j * LOCK_STACK));
+        if (now.length !== seen[k]!.at(-1)) seen[k]!.push(now.length);
+      });
+    }
+    expect(seen).toEqual(counts.map((n) => (n === 2 ? [2, 1, 0] : [1, 0])));
   });
 
   it('takes a lock mark away when its shot is gone without bursting', () => {

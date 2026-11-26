@@ -55,6 +55,27 @@ export function propPlacement(e: EntityState, prop: PropArt, alpha: number): Pro
   return { x, y, scaleX, rotation, frame: e.age };
 }
 
+/** Two props closer than this on both axes are on one spot, for `stack`. */
+const ONE_SPOT = 0.01;
+
+/**
+ * How large `e`'s drawing is for a `stack` prop (PropArt.stack), from the match state alone: 1 for the first of its
+ * kind and owner still on its spot, then `stack` larger for each one before it in spawn order. 1 for other props.
+ */
+export function propStack(state: MatchState, e: EntityState, prop: PropArt): number {
+  if (!prop.stack) return 1;
+  const before = state.entities.filter(
+    (o) =>
+      o.id < e.id &&
+      !o.dead &&
+      o.kind === e.kind &&
+      o.owner === e.owner &&
+      Math.abs(o.pos.x - e.pos.x) <= ONE_SPOT &&
+      Math.abs(o.pos.y - e.pos.y) <= ONE_SPOT,
+  ).length;
+  return 1 + before * prop.stack;
+}
+
 /**
  * Entities drawn straight into `g` in spawn order: items with art (the Coolmath Planet, src/render/items.ts) as drawn,
  * everything else as the placeholder: projectiles as discs, hittable entities as rounded squares, ringed in the
@@ -78,7 +99,8 @@ function drawPlain(g: Graphics, e: EntityState, alpha: number, frame: number): v
  * as long as its entity and only swaps shared symbol geometry (docs/art.md, "Rendering"), with no filters, so `lite`
  * quality draws it as cheaply as a fighter. A prop with a `front` symbol draws its body into `back`, which the
  * renderer puts under the fighters, and its front into `fronts`, which goes over only the fighters standing in it
- * (layerFighters). A `behind` prop draws whole into `back` (Ball Rain's balls). World units, y down.
+ * (layerFighters). A `behind` prop draws whole into `back` (Ball Rain's balls), and a `stack` prop draws larger for
+ * each one of its kind already on its spot (propStack). World units, y down.
  */
 export class EntityView {
   readonly container = new Container();
@@ -127,10 +149,11 @@ export class EntityView {
         if (held.front) this.fronts.addChild(held.front.container);
       }
       const at = propPlacement(e, found.prop, alpha);
+      const size = propStack(state, e, found.prop);
       for (const view of held.front ? [held.view, held.front] : [held.view]) {
         const c = view.container;
         c.position.set(at.x, at.y);
-        c.scale.x = at.scaleX;
+        c.scale.set(at.scaleX * size, size);
         c.rotation = at.rotation;
         view.update(at.frame);
       }

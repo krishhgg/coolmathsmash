@@ -169,6 +169,12 @@ export interface PropArt {
    */
   behind?: boolean;
   /**
+   * Props of this kind and owner on one spot draw nested: the k-th still there, in spawn order, at `1 + k * stack`
+   * times its size (propStack, src/render/entities.ts), so the stack shows how many there are and shrinks as they go.
+   * The Raft Wars kids' Full Arsenal marks: two on one foe draw two bracket rings.
+   */
+  stack?: number;
+  /**
    * Where the lab's fighter scene draws it over the clips that fire it (in a match the engine spawns and moves it),
    * keyed by clip name.
    */
