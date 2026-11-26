@@ -50,8 +50,8 @@ export interface Attack {
     /** It would also meet the target running in (Target.rush) before the target's quickest hit could land. */
     stops?: true;
   };
-  /** Hold Special until the move is fully charged (MoveProbe.charged), rather than tapping it. */
-  held?: true;
+  /** Hold Special until the move has this many frames of charge (MoveProbe.charged), rather than tapping it. */
+  held?: number;
   score: number;
 }
 
@@ -232,7 +232,7 @@ function groundAttacks(me: Self, target: Target, out: Attack[]): void {
         ...(hit.shot && {
           shot: shotOut(hit.shot),
         }),
-        ...(p.held && { held: true as const }),
+        ...(p.held && { held: p.held }),
         score: 0,
       });
     }

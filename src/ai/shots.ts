@@ -84,6 +84,7 @@ export function shotHit(
         vel: { x: s.vx * facing, y: s.vy },
         facing: (s.facing * facing) as 1 | -1,
         lifetime: s.lifetime,
+        damageMul: s.damageMul,
         data: { ...s.data },
       });
     }
@@ -101,8 +102,10 @@ export function shotHit(
       );
       if (!b) continue;
       struck.add(e.id);
-      hit ??= { t, box: b.box, damage: 0, facing: e.facing, x: e.pos.x };
-      hit.damage += b.box.damage;
+      // The sim deals the box's damage times the entity's multiplier (a charged Aimed Shot), and knockback follows.
+      const box = e.damageMul === 1 ? b.box : { ...b.box, damage: b.box.damage * e.damageMul };
+      hit ??= { t, box, damage: 0, facing: e.facing, x: e.pos.x };
+      hit.damage += box.damage;
     }
     if (hit && p.spawns.length === 1) break;
   }

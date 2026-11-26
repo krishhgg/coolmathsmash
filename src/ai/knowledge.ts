@@ -65,6 +65,8 @@ export interface ProbeSpawn {
   data: EntityState['data'];
   /** Frames it lives (0 = until something destroys it). */
   lifetime: number;
+  /** Its hits' damage multiplier from the move's charge (EntityState.damageMul; Raft Wars' Aimed Shot). */
+  damageMul: number;
   /**
    * The strongest hitbox it or what it turns into (a bomb's burst) put out during the probe; null when none did.
    * Windboxes (`pushOnly`) don't count: a shot here is something that hurts.
@@ -115,12 +117,13 @@ export interface MoveProbe {
   /** Where those entities' hitboxes went; null when they never had any. */
   shot: ShotReach | null;
   /**
-   * A chargeable special (MoveDef.charge, not a smash attack) probed a second time with Special held until the charge
-   * is full: Bob the Robber's Stun Gun fires a stronger shot that flies further. This probe is the tapped move.
+   * A chargeable special (MoveDef.charge, not a smash attack) probed a second time with Special held for its charge,
+   * up to CHARGE_HOLD frames of it: Bob the Robber's Stun Gun at full charge, Raft Wars' Aimed Shot part of the way.
+   * This probe is the tapped move.
    */
   charged?: MoveProbe;
-  /** This probe held Special until the charge was full (it is another probe's `charged`). */
-  held?: true;
+  /** Frames of charge this probe held Special for (it is another probe's `charged`). */
+  held?: number;
 }
 
 export interface FighterKnowledge {
@@ -170,7 +173,8 @@ export function knowledge(fighterId: string, stageId: string): FighterKnowledge 
     if (!moves[name] || avoid.has(name)) continue;
     const p = probe(def, stageId, name, 'ground');
     if (!p) continue;
-    const charged = chargeable(moves[name]) ? probe(def, stageId, name, 'ground', true) : null;
+    const hold = chargeHold(moves[name]);
+    const charged = hold > 0 ? probe(def, stageId, name, 'ground', hold) : null;
     ground[name] = charged ? { ...p, charged } : p;
   }
   for (const name of Object.keys(DASH_INPUTS)) {
@@ -207,18 +211,31 @@ function settle(def: FighterDef, stageId: string): MatchState {
   return m;
 }
 
-/** A special that charges while Special is held (src/sim/actions/charge.ts); smash attacks charge on Attack instead. */
-function chargeable(move: MoveDef): boolean {
-  return move.charge !== undefined && move.kind !== 'smash';
+/**
+ * The most charge frames a CPU holds Special for. A charge that holds the CPU in place longer gives the opponent that
+ * long to close in, and leaves too little of its 110-frame look-ahead (cpu.ts, SHOT_HORIZON) for the shot to fly:
+ * Aimed Shot fires 3 frames after its charge ends, so a full 112-frame charge comes out on frame 128.
+ */
+const CHARGE_HOLD = 40;
+
+/**
+ * Frames of charge the CPU can hold a special for: up to its full charge and CHARGE_HOLD, 0 when it has no charge
+ * that Special holds (src/sim/actions/charge.ts). Smash attacks charge on Attack instead, and a stored charge that
+ * charges by itself (`storeCharge.tap`, Samus's Charge Shot) fires on the next press, not on a release, so the CPU
+ * taps both.
+ */
+function chargeHold(move: MoveDef): number {
+  if (move.charge === undefined || move.kind === 'smash' || move.storeCharge?.tap) return 0;
+  return Math.min(move.chargeFrames ?? SMASH_CHARGE_FRAMES, CHARGE_HOLD);
 }
 
-/** Probe `move` from `start`; with `held`, Special stays held after the press until the move's charge is full. */
+/** Probe `move` from `start`; with `hold`, Special stays held after the press until the move has that much charge. */
 function probe(
   def: FighterDef,
   stageId: string,
   move: string,
   start: MoveProbe['start'],
-  held = false,
+  hold = 0,
 ): MoveProbe | null {
   const m = settle(def, stageId);
   const f = m.fighters[0]!;
@@ -260,10 +277,8 @@ function probe(
   const active: ProbeFrame[] = [];
   let busy = PROBE_LIMIT;
   let helpless = false;
-  const full = (def.moves ?? {})[move]?.chargeFrames ?? SMASH_CHARGE_FRAMES;
   for (let t = 0; t < PROBE_LIMIT; t++) {
-    if (t > 0)
-      step(held && f.move === move && f.charge < full ? press({ buttons: input.buttons }) : neutralInput());
+    if (t > 0) step(f.move === move && f.charge < hold ? press({ buttons: input.buttons }) : neutralInput());
     shots.see(t, f.move === move, x0, y0);
     if (f.action === 'helpless') helpless = true;
     const boxes = f.move === move ? activeHitboxes(f) : [];
@@ -308,7 +323,7 @@ function probe(
     },
     spawns: shots.spawns,
     shot: shots.reach(),
-    ...(held && { held: true as const }),
+    ...(hold > 0 && { held: hold }),
   };
 }
 
@@ -362,6 +377,7 @@ class Shots {
           facing: e.facing,
           data: { ...e.data },
           lifetime: e.lifetime,
+          damageMul: e.damageMul,
           box: null,
           max: this.cap(e.kind),
         };

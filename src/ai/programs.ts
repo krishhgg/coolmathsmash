@@ -1,6 +1,5 @@
 import { getFighter } from '../fighters/registry';
 import { Btn, neutralInput, type InputFrame } from '../input/types';
-import { SMASH_CHARGE_FRAMES } from '../sim/actions/charge';
 import type { FighterState } from '../sim/fighter';
 import { AIR_INPUTS, DASH_INPUTS, GROUND_INPUTS, STICK, press } from './inputs';
 import { actionable } from './knowledge';
@@ -206,16 +205,17 @@ export function dropJump(toward: number): Program {
 /**
  * A grounded move: wait until actionable on the ground (out of a shield drop), then input it facing `facing`. A grab
  * comes straight out of the shield instead (Grab with Shield still held), so it keeps holding Shield until then.
- * With `held`, the move's buttons stay held once it starts until its charge is full (a charged special).
+ * With `hold`, the move's buttons stay held once it starts until it has that many frames of charge (a charged
+ * special, MoveProbe.charged).
  */
-export function groundMove(move: string, facing: 1 | -1, held = false): Program {
+export function groundMove(move: string, facing: 1 | -1, hold = 0): Program {
   const input = GROUND_INPUTS[move] ?? DASH_INPUTS[move];
   return {
-    name: `ground:${move}${held ? ':held' : ''}`,
+    name: `ground:${move}${hold ? `:held${hold}` : ''}`,
     interruptible: false,
     holds: move === 'grab',
     step(t, f) {
-      if (held && input && f.move === move && f.action === 'attack' && f.charge < chargeFull(f, move)) {
+      if (input && f.move === move && f.action === 'attack' && f.charge < hold) {
         return press({ buttons: input.buttons ?? 0 });
       }
       if (t > 40 || (f.move === move && f.action === 'attack')) return null;
@@ -225,11 +225,6 @@ export function groundMove(move: string, facing: 1 | -1, held = false): Program 
       return input ? press(input, facing) : null;
     },
   };
-}
-
-/** The charge frames that fully charge `move` for `f`'s fighter (MoveDef.chargeFrames). */
-function chargeFull(f: Readonly<FighterState>, move: string): number {
-  return getFighter(f.fighter).moves?.[move]?.chargeFrames ?? SMASH_CHARGE_FRAMES;
 }
 
 /**

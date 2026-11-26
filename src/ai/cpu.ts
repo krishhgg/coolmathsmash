@@ -742,7 +742,9 @@ export class Cpu {
     const ff =
       this.rand() < this.lv.fastFall && floorBelow(info, pick.endX, pick.endY + 1, true, true) !== null;
     if (pick.kind === 'ground') {
-      this.start(groundMove(pick.move, TURNING_MOVES.has(pick.move) ? pick.facing : me.facing, pick.held));
+      this.start(
+        groundMove(pick.move, TURNING_MOVES.has(pick.move) ? pick.facing : me.facing, pick.held ?? 0),
+      );
       return true;
     }
     const make = () => (pick.kind === 'jump' ? jumpAerial(pick, ff, info) : airAerial(pick, ff, info));

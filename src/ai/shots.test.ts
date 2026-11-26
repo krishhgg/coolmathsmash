@@ -51,7 +51,7 @@ describe('move probes', () => {
     expect(s[0]!.max).toBe(2);
   });
 
-  it("record Bob the Robber's Stun Gun tapped and held to a full charge, and charge no other move", () => {
+  it('record charged specials tapped and held: the Stun Gun to its full charge, Aimed Shot to 40 frames', () => {
     const p = knowledge('bob-the-robber', STAGE).ground.neutralB!;
     const tap = p.spawns[0]!;
     expect(p.held).toBeUndefined();
@@ -67,7 +67,7 @@ describe('move probes', () => {
     expect(p.shot!.x2).toBeCloseTo(61.5, 1);
     const c = p.charged!;
     const full = c.spawns[0]!;
-    expect(c.held).toBe(true);
+    expect(c.held).toBe(22);
     expect([c.spawns.length, full.kind, full.t, full.vx, full.lifetime, full.box?.damage, c.busy]).toEqual([
       1,
       'bob-the-robber/stunShotFull',
@@ -78,18 +78,37 @@ describe('move probes', () => {
       70,
     ]);
     expect(c.shot!.x2).toBeGreaterThan(95);
+
+    // Raft Wars' Aimed Shot charges for up to 112 frames and fires 3 after the release. The CPU holds it for 40: the
+    // ball comes out on frame 56 with 13.2% (2.64 times the tap's 5%), flying further and faster.
+    const a = knowledge('raftwars', STAGE).ground.neutralB!;
+    const ball = a.spawns[0]!;
+    expect([a.held, ball.kind, ball.t, ball.damageMul, ball.box?.damage, a.busy]).toEqual([
+      undefined,
+      'raftwars/aimedShot',
+      15,
+      1,
+      5,
+      44,
+    ]);
+    const ac = a.charged!;
+    const held = ac.spawns[0]!;
+    expect([ac.held, held.kind, held.t, ac.busy]).toEqual([40, 'raftwars/aimedShot', 55, 84]);
+    expect(held.damageMul * held.box!.damage).toBeCloseTo(5 + (23 * 40) / 112, 5);
+    expect(held.vx).toBeGreaterThan(ball.vx);
+    expect(ac.shot!.x2).toBeGreaterThan(a.shot!.x2 + 50);
+
     // Smash attacks charge on Attack, not Special, and are left tapped; so is every move without a charge frame.
-    for (const id of Object.keys(allFighters())) {
-      const k = knowledge(id, STAGE);
-      for (const [name, q] of Object.entries(k.ground)) {
-        if (id !== 'bob-the-robber' || name !== 'neutralB')
-          expect(q.charged, `${id} ${name}`).toBeUndefined();
-      }
-    }
+    const charged = Object.keys(allFighters()).flatMap((id) =>
+      Object.entries(knowledge(id, STAGE).ground)
+        .filter(([, q]) => q.charged)
+        .map(([name]) => `${id} ${name}`),
+    );
+    expect(charged).toEqual(['bob-the-robber neutralB', 'raftwars neutralB']);
   });
 
   it("report a back air shot's own facing and position as it hits, which it launches from", () => {
-    // Raft Wars' back air fires its recoil shot behind him: facing right, the shot faces left.
+    // Raft Wars' back air fires its recoil shot behind the kids: facing right, the shot faces left.
     const m = facingOff('raftwars', 0, -30);
     const [me, opp] = m.fighters;
     const p = knowledge('raftwars', STAGE).air.bair!;
@@ -251,17 +270,22 @@ describe('CPU projectiles', () => {
 
   it('stop shooting a held shield once they see it, even when the shot would KO', () => {
     // A Red Ball at 200% shielding 80-100 units from a level 9 Raft Wars, whose jab, tilts and aerials are all shots.
-    // The first shot can come before the CPU's reaction lag shows it the shield; after that it walks in for the grab.
+    // The move on frame 0 comes before the CPU's reaction lag shows it the shield (a charged Aimed Shot started then
+    // fires on frame 55); no shot started after that, while it is still far off, as it walks in for the grab.
     for (const d of [80, 100]) {
       for (const seed of [1, 2]) {
         const m = facingOff('raftwars', -d / 2, d, seed);
         m.fighters[1]!.damage = 200;
         const cpu = createCpu({ port: 0, level: 9, seed });
         const late: number[] = [];
+        let started = -1;
         for (let i = 0; i < 90; i++) {
           stepMatch(m, [cpu.input(m), press({ buttons: Btn.Shield })]);
           const far = Math.abs(m.fighters[1]!.pos.x - m.fighters[0]!.pos.x) > 45;
-          if (i >= 30 && far && m.events.some((e) => e.type === 'entitySpawn' && e.owner === 0)) late.push(i);
+          for (const e of m.events) {
+            if (e.type === 'move' && e.port === 0) started = i;
+            if (e.type === 'entitySpawn' && e.owner === 0 && started >= 30 && far) late.push(started);
+          }
         }
         expect(late, `${d}, seed ${seed}`).toEqual([]);
       }
