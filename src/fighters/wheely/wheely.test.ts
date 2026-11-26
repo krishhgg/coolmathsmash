@@ -200,9 +200,9 @@ describe('Wheely: kill percents (Mario at the Battlefield ledge, fresh, no DI)',
 
   /**
    * The down air's meteor, on Mario airborne 10 units past the ledge, where a downward hit can KO. The calculator
-   * puts King K. Rool's meteor (12%, 270°, BKB 10, KBG 90) at 69.2% there, but the engine KOs every meteor about 7 to
-   * 8 points later than the calculator from that point, K. Rool's own hit included (77.0%), so the meteor is held to
-   * K. Rool's hit through koPercent from the same setup instead.
+   * puts King K. Rool's meteor (12%, 270°, BKB 10, KBG 90) at 69.2% there, but under balloon speed-up its KO check
+   * reads a launch speed from earlier in the launch, which KOs meteors 6 to 8 points early (#263). So the meteor is
+   * held to K. Rool's hit through koPercent from the same setup instead.
    */
   it("dair's meteor KOs within 5 points of King K. Rool's meteor 10 units past the ledge", () => {
     const setup = { air: true, from: { x: 90, y: 0 } };
