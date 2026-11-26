@@ -351,6 +351,50 @@ describe('statuses: freezing', () => {
     expect(m.events.some((e) => e.type === 'statusStart')).toBe(false);
     expect(hasStatus(v, STUN)).toBe(false);
   });
+
+  it('a stunning hit landing with a hit that ends the stun does not stun again, in either port order', () => {
+    for (const stunFirst of [true, false]) {
+      // The fixture on both sides of the stunned Mario (P2): P1 swings first, P3 second, on the same frame.
+      const m = createMatch({
+        seed: 1,
+        stage: 'battlefield',
+        stocks: 3,
+        ports: [{ fighter: 'test-status' }, { fighter: 'reference-mario' }, { fighter: 'test-status' }],
+      });
+      runPorts(m, 10, []);
+      const [a, v, b] = m.fighters as [FighterState, FighterState, FighterState];
+      for (const [f, x, facing] of [
+        [a, 0, 1],
+        [v, 10, -1],
+        [b, 20, -1],
+      ] as const) {
+        Object.assign(f, {
+          pos: { x, y: a.pos.y },
+          ground: a.ground,
+          action: 'idle',
+          actionFrame: 1,
+          facing,
+        });
+        f.prevPos = { ...f.pos };
+      }
+      applyStatus(m, v, STUN, { frames: 60 });
+      runPorts(m, 2, []);
+      attack(m, 0, stunFirst ? 'dtilt' : 'ftilt');
+      attack(m, 2, stunFirst ? 'ftilt' : 'dtilt');
+      const events = stepUntil(m, 'hit');
+      const order = `stun ${stunFirst ? 'first' : 'second'}`;
+      expect(
+        events.filter((e) => e.type === 'hit').map((e) => (e as { attacker: number }).attacker),
+        order,
+      ).toEqual([0, 2]);
+      expect(events, order).toContainEqual({ type: 'statusEnd', port: 1, status: STUN, reason: 'hit' });
+      expect(
+        events.some((e) => e.type === 'statusStart' && e.status === STUN),
+        order,
+      ).toBe(false);
+      expect(hasStatus(v, STUN), order).toBe(false);
+    }
+  });
 });
 
 describe('statuses: a KO from a ledge hang', () => {

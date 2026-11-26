@@ -281,7 +281,7 @@ export function applyHit(
   const at = { x: v.pos.x, y: v.pos.y + getFighter(v.fighter).stats.height / 2 };
   const contact = connection(a, v, box, at, m.frame);
   if (box.pushOnly) windPush(contact);
-  else hit(m, contact, again);
+  else hit(m, contact, again, new Map());
 }
 
 /**
@@ -322,6 +322,7 @@ export function resolveHits(
   const used = m.entities.filter((e) => entityHits(e, m.fighters, hits, m.frame));
   const caught: Connection[] = [];
   const struck = new Set<FighterState>();
+  const ended: EndedOnHit = new Map();
   for (const h of hits) {
     // A windbox deals nothing, so it pushes a fighter in an open counter without setting it off.
     if (h.box.pushOnly) {
@@ -336,7 +337,7 @@ export function resolveHits(
     struck.add(h.v);
     if (h.parry) parry(m, h, again);
     else if (h.shielding) shieldHit(m, h, again);
-    else hit(m, h, again);
+    else hit(m, h, again, ended);
   }
   for (const e of used) destroyEntity(m, e, 'hit');
   sweepEntities(m);
@@ -440,10 +441,19 @@ export function strike(
 /**
  * Damage always adds up; a fighter attacker freezes for hitlag, but an entity and its owner do not. A box with a
  * `status` puts it on the victim after the hit event, its length taken from the % the hit added and its knockback
- * scaled like its hitlag, unless this hit just took that status off (StatusDef.endOnHit).
+ * scaled like its hitlag, unless a hit in the same batch took that status off (StatusDef.endOnHit).
  */
-function hit(m: MatchState, h: Connection, again: boolean): void {
-  const { kb, lag, added, ended } = strike(m, h.v, h, again);
+/**
+ * The kinds of status each victim's hits have taken off in one batch of hits (StatusDef.endOnHit), so no hit in the
+ * batch puts back one that another just took off, whichever lands first.
+ */
+type EndedOnHit = Map<FighterState, string[]>;
+
+function hit(m: MatchState, h: Connection, again: boolean, batch: EndedOnHit): void {
+  const struck = strike(m, h.v, h, again);
+  const { kb, lag, added } = struck;
+  const ended = [...(batch.get(h.v) ?? []), ...struck.ended];
+  batch.set(h.v, ended);
   // One swing can connect several times a frame (a parry among them): the attacker keeps the longest freeze.
   if (h.a) h.a.hitlag = Math.max(h.a.hitlag, lag);
   emit(m, {
