@@ -13,7 +13,7 @@ import type { MatchState } from './match';
  *   Side, up and down special stay specials. A fighter without a `finalSmash` move keeps the charge.
  * - The user. Final Smashes "are unblockable, make the user fully intangible" (Final Smash, "In competitive play"):
  *   every move marked `final` is intangible on all its frames, and its hits and its projectiles' hits go through
- *   shields and parries.
+ *   shields and parries, and counters, since "unblockable attacks cannot be countered" (Counterattack).
  * - The freeze. "Most Final Smashes cause the camera to temporarily zoom in on the user when activated" (Final
  *   Smash). SmashWiki gives no length, so FINAL_SMASH.freeze is an estimate: for that many frames after activation
  *   everyone else is held still while the user's move plays, and the renderer zooms in over the same frames

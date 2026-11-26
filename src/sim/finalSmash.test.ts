@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { hashState } from '../engine/hash';
+import { registerFighter } from '../fighters/registry';
 import type { InputFrame } from '../input/types';
 import { isIntangible } from './actions/registry';
 import { knockback } from './combat/formulas';
@@ -18,11 +19,13 @@ import {
   finalTrapTester,
   noFinalTester,
 } from './testing/finalSmash';
+import { counterTesterMarth, marthCounter } from './testing/counter';
 import { input, type Hold } from './testing/sim';
 
 const DIRECT = finalDirectTester.id;
 const TRAP = finalTrapTester.id;
 const NONE = noFinalTester.id;
+registerFighter(counterTesterMarth);
 const FREEZE = FINAL_SMASH.freeze;
 const SPECIAL: Hold = { buttons: ['special'] };
 
@@ -240,6 +243,29 @@ describe('Final Smash rules', () => {
     step(m, 60);
     expect(v.pos.x).toBeGreaterThan(40);
     expect(v.pos.y).toBeGreaterThan(20);
+  });
+
+  it('goes through an open counter: unblockable attacks cannot be countered (SmashWiki, Counterattack)', () => {
+    const m = match([DIRECT, counterTesterMarth.id], [-30, 0]);
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    const [open, close] = marthCounter.counter!.window;
+    const [from, to] = finalBlast.hits[0]!.frames;
+    // The counterer is held through the freeze, so it counters first: its window is open when the blast comes out.
+    step(m, 1, [{}, { y: -100, buttons: ['special'] }]);
+    expect([v.move, v.actionFrame]).toEqual(['downB', 1]);
+    step(m, open - 2);
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    const seen = step(m, from - 2);
+    expect([a.actionFrame, v.move]).toEqual([from - 1, 'downB']);
+    expect(v.actionFrame).toBeGreaterThanOrEqual(open);
+    expect(v.actionFrame).toBeLessThan(close);
+    seen.push(...step(m, to - from + 1));
+    expect(seen.filter((e) => e.type === 'counter')).toEqual([]);
+    expect(seen.filter((e) => e.type === 'hit')).toEqual([
+      expect.objectContaining({ attacker: 0, victim: 1 }),
+    ]);
+    expect(v.action).toBe('tumble');
   });
 
   it('traps the first fighter its reach catches, holds everyone else still through the cinematic, then launches it', () => {

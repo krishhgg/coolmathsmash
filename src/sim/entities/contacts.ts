@@ -1,7 +1,6 @@
 import { moveOf } from '../actions/attack';
-import { chargeMultiplier } from '../actions/charge';
 import { inWindow } from '../actions/registry';
-import { activeHitboxes, type PlacedHitbox } from '../combat/hits';
+import { activeHitboxes, hitboxDamage, type PlacedHitbox } from '../combat/hits';
 import { GRAVITY_BONUS_BASE, hitlagFrames, knockback, launch } from '../combat/formulas';
 import type { FighterState } from '../fighter';
 import { emit } from '../events';
@@ -130,7 +129,7 @@ function attackEntity(m: MatchState, f: FighterState, e: EntityState): number {
     .sort((p, q) => p.box.id - q.box.id)[0];
   if (!hit) return 0;
   f.hitEntities.push(e.id);
-  const damage = hit.box.damage * chargeMultiplier(f);
+  const damage = hitboxDamage(f, hit.box);
   const def = entityDef(e.kind);
   if (isHittable(def))
     return damageEntity(m, e, hit, damage, Math.sign(e.pos.x - f.pos.x) || f.facing, f.port);

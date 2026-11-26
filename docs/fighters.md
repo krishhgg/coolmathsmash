@@ -136,6 +136,8 @@ fsmash: {
     the full damage. Set it only where the Ultimate analogue does it. SmashWiki ("Stone") documents it only for
     Kirby's Stone, whose breaking hit deals half damage at full knockback (`breakDamageMul: 0.5`). Its "Armor" page
     says most armor takes full damage, so leave it unset by default.
+- **Counter.** `counter: { window, move }` blocks hits on those frames and plays the counterattack `move` (see
+  Counters below).
 - **Getup attack.** A move named `getupAttack` plays when a fighter lying down after a missed tech presses
   Attack. Give it `intangible: [1, 26]` (Ultimate's) and hits on both sides; without one, Attack just stands up.
 - **Specials.** `script(x)` runs every frame of the move before physics and sets velocity or facing. It must be
@@ -319,6 +321,66 @@ beastChew: {
   damage counts towards the release's knockback.
 - **Third parties.** Hits from others break the victim free after 10%, as in any grab.
 
+### Counters
+
+A move with `counter` blocks hits and answers them with a counterattack. Marth's Counter in Ultimate, from the test
+fixtures in `src/sim/testing/counter.ts` until Bob's Shadow Step exists:
+
+```ts
+downB: {
+  kind: 'other',
+  faf: 65,
+  hits: [],
+  intangible: [5, 6],
+  counter: { window: [6, 27], move: 'downBHit' },
+},
+downBHit: {
+  kind: 'other',
+  faf: 42,
+  intangible: [1, 8],
+  hits: [
+    {
+      frames: [5, 7],
+      boxes: [{ id: 0, x: 9, y: 8, radius: 8, damage: 8, angle: 361, kbg: 60, bkb: 90 }],
+    },
+  ],
+},
+```
+
+- **The catch.** A hit whose box touches the fighter on a `window` frame (inclusive) is blocked: no damage, knockback,
+  hitstun or `status`. Every hit on it that frame is blocked, and the first in the frame's order (attackers by port,
+  then projectiles) sets the counter off. Grabs, command grabs and stage hazards go through, even on the frame the
+  counter catches a hit: then the grab or the hazard wins, the counterattack doesn't start and nobody freezes. A
+  windbox (`pushOnly`) pushes the counterer without setting it off. An intangible fighter is never touched, so it
+  can't counter: Marth is intangible on frames 5 and 6, and his first catch is on frame 7.
+- **The freeze.** The counterer goes straight into the counterattack `move` and freezes with the attacker for
+  `freeze` frames (default 21, Marth's). The counterattack's frame 1 is the last frozen frame, so its frame numbers
+  are Ultimate's and Marth's swing lands 25 frames after the catch. The counterer is intangible through the freeze,
+  and the counterattack's own `intangible` takes over from frame 1.
+- **Facing.** The counterer turns to face the hit. With `behind` it reappears that many units behind the attacker
+  instead, facing their back, as Lucario's Double Team does: on the attacker's floor (held to its ends), or in the
+  air beside an airborne attacker.
+- **Damage.** The counterattack's boxes deal the caught hit's damage (after staleness, as a shield takes it) times
+  `multiplier` (default 1.2), capped at `max` (default 50%), or their own damage when that is more. Marth's 8% box is
+  his counter's minimum, as in Ultimate's data. `multiplier: 0` always deals the boxes' own damage (Double Team's
+  fixed 12.5%). The boxes deal the same on hittable entities and in clanks with projectiles (`hitboxDamage`,
+  `src/sim/combat/hits.ts`). Otherwise the counterattack is a normal move: it can miss, it stales, and rage and DI
+  apply.
+- **Projectiles.** A caught projectile is used up as if it hit. The counterer answers in place, even with `behind`,
+  and nobody else freezes.
+- **Events.** A catch reports `counter` with what the caught hit would have dealt, then `move` for the counterattack
+  (`docs/sim-events.md`).
+
+The defaults (`COUNTER`, `src/sim/constants.ts`) and the fixture are SmashWiki's Marth (SSBU)/Down special: counter
+6-27, x1.2, 8% to 50%, "Counter hitlag on activation: 21 frames", the counterattack's frames and its knockback. The
+rules are SmashWiki's Counterattack page: blockable hits during the counter are blocked, grabs are immune, and
+counters don't trigger while the fighter is invincible. Not modelled: a freeze scaled from the caught hit and the
+slowdown (Double Team, Greninja's Substitute), and choosing the counterattack's direction with the stick.
+
+`?harness` registers both fixtures, so you can try them:
+`__smash.newMatch({ ports: [{ fighter: 'fireboy' }, { fighter: 'test-counter' }] })` (or `test-counter-behind`), then
+down special.
+
 ### Final Smash
 
 A move named `finalSmash` is the fighter's Final Smash. Neutral special plays it while the fighter holds a charge
@@ -335,6 +397,7 @@ The rules follow SmashWiki's Final Smash and Smash Ball articles:
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | "unleashed at any time by pressing the input for a neutral special move" (Smash Ball)          | neutral special with `finalReady`, grounded or airborne                                    |
 | Final Smashes "are unblockable, make the user fully intangible"                                | a `final` move is intangible on every frame; its hits and its projectiles' ignore shields  |
+| "unblockable attacks cannot be countered" (Counterattack)                                      | its hits and its projectiles' go through parries and counters too                          |
 | "Most Final Smashes cause the camera to temporarily zoom in on the user when activated"        | everyone else holds still for `FINAL_SMASH.freeze` (40) frames; the renderer zooms in gold |
 | a cinematic's hitbox traps an opponent and "the game effectively pauses" while the scene plays | a trap holds its catch through the cinematic; everyone and everything else holds still     |
 | direct Final Smashes play out in normal time                                                   | past the freeze, others move and act as usual                                              |

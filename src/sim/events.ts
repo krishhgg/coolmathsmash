@@ -67,6 +67,20 @@ export type SimEvent =
   /** A fighter transformed into another fighter (Fireboy and Watergirl's swap). */
   | { type: 'transform'; port: number; from: string; to: string }
   /**
+   * `port`'s counter caught a hit at (x, y) and its counterattack `move` starts. `attacker` is credited with the
+   * caught hit (an entity's owner, -1 for nobody) and `damage` is what that hit would have dealt.
+   */
+  | {
+      type: 'counter';
+      port: number;
+      attacker: number;
+      entity?: number;
+      move: string;
+      damage: number;
+      x: number;
+      y: number;
+    }
+  /**
    * A move's charge reached full, was stored for later (stored charge) or was let go; `level` is how charged it is
    * (0-1). An uncharged move fires without an event.
    */

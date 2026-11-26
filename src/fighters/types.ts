@@ -180,6 +180,24 @@ export type TetherFighterEvent =
 /** Where a tether line stopped: a cast hit, or empty air at full range. */
 export type TetherHit = CastHit | { kind: 'sky'; t: number; point: Vec };
 
+/**
+ * A counter (Marth's Counter, Lucario's Double Team): a hit that touches the fighter while `window` is open is
+ * blocked, and the fighter plays the counterattack `move`. See docs/fighters.md.
+ */
+export interface CounterDef {
+  /** Move frames (inclusive) on which a hit is caught. */
+  window: [number, number];
+  /** The counterattack played on a catch; its boxes deal at least their own damage (Marth's: 8%). */
+  move: string;
+  /** The counterattack deals the caught hit's damage times this (default 1.2), capped at `max` (default 50%). */
+  multiplier?: number;
+  max?: number;
+  /** Frames the counterer and the attacker freeze on the catch (default 21, Marth's). */
+  freeze?: number;
+  /** Reappear this many units behind the attacker, facing their back (Double Team). Omit to answer in place. */
+  behind?: number;
+}
+
 /** A window of frames (inclusive) during which a set of hitboxes is out. */
 export interface HitWindow {
   frames: [number, number];
@@ -271,6 +289,8 @@ export interface MoveDef {
   commandGrab?: string;
   /** Tethers: fire a line on `tether.frame` that anchors and reels the fighter in (see TetherDef). */
   tether?: TetherDef;
+  /** Counters: a hit caught inside the window is blocked and answered by a counterattack (see CounterDef). */
+  counter?: CounterDef;
   /**
    * The action that plays this move instead of 'attack' / 'aerial', for moves with their own physics:
    * 'hover' (fuel hover, FighterDef.hover).

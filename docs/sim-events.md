@@ -39,6 +39,7 @@ feeds back into the simulation.
 | `action`        | `port`, `from`, `to`                                                                              | a fighter's action changed this frame                                                                                                              |
 | `grab`          | `attacker`, `victim`, `move`                                                                      | a grab catches someone (`move`: `grab`, `dashGrab` or `pivotGrab`)                                                                                 |
 | `commandGrab`   | `attacker`, `victim`, `move`                                                                      | a command grab catches someone; its throw starts at once, without a `move` event                                                                   |
+| `counter`       | `port`, `attacker`, `move`, `damage`, `x`, `y` (+ `entity`)                                       | a counter catches a hit at (`x`, `y`) and its counterattack `move` starts; `damage` is what the caught hit would have dealt                        |
 | `pummel`        | `attacker`, `victim`, `damage`                                                                    | a pummel or a throw's hold hit (a command grab's chew) lands; `damage` is what it added to the held fighter's %                                    |
 | `throw`         | `attacker`, `victim`, `move`                                                                      | a throw lets go; the `hit` that launches the victim follows                                                                                        |
 | `grabRelease`   | `holder`, `held`                                                                                  | a grab ends without a throw (held too long, or a hit broke it); `holder` is -1 if already gone                                                     |
@@ -67,6 +68,9 @@ feeds back into the simulation.
 `x` and `y` are world units with y up. `action` events come last in a frame, one per fighter whose action
 differs from the frame before, which also covers states without their own event: `shield`, `spotDodge`,
 `rollForward`, `airDodge`, `ledgeHang`, `techInPlace`, `techRoll`, `downBound`, `tumble` and so on.
+
+A `counter` event names the counterer as `port` and credits the caught hit to `attacker` (an entity's owner, -1 for
+nobody), as `hit` does. The counterattack's `move` event follows it on the same frame.
 
 `tetherFighterHit` carries the casting `port`, the `target` port and the contact point `x`, `y`. It reports
 line contact, not arrival or damage.

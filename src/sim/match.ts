@@ -93,7 +93,7 @@ export function stepMatch(state: MatchState, inputs: readonly InputFrame[]): voi
   stepItems(state);
   stepEntities(state);
   const owed = resolveEntityContacts(state);
-  resolveHits(state, (struck) => stageHits(state, struck));
+  resolveHits(state, posedStage(state), (struck) => stageHits(state, struck));
   state.fighters.forEach((f, i) => (f.hitlag = Math.max(f.hitlag, owed[i]!)));
   holdStill(state);
   state.fighters.forEach((f, i) => {
