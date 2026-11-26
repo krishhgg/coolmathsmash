@@ -108,7 +108,23 @@ export interface Edge {
   /** Outward unit normal. */
   n: Vec;
   kind: EdgeKind;
+  /**
+   * When `a` is a convex corner of the solid with a wall or ceiling on at least one side (a ledge corner, the
+   * corner where a side wall meets the underside): the outward normal of the edge before it. Fighters' collision
+   * boxes are pushed off the corner in a direction between that normal and `n` (movement.ts pushOffCorner).
+   */
+  corner: Vec | null;
+  /**
+   * Where along the edge (0 at `a`, 1 at `b`) a point crossing it counts (movement.ts pushOut): the edge itself,
+   * EDGE_TOLERANCE units past an end that meets another wall or ceiling so a point crossing exactly at that seam
+   * is not missed, and EDGE_TOLERANCE units short of an end that meets a floor, so a wall never reaches above the
+   * floor it holds up.
+   */
+  span: [number, number];
 }
+
+/** Rounding allowance at the ends of an edge, in units (see Edge.span). */
+export const EDGE_TOLERANCE = 0.001;
 
 export interface CompiledStage {
   geo: StageGeometry;
@@ -132,6 +148,7 @@ export function compileStage(geo: StageGeometry): CompiledStage {
       area += x1 * y2 - x2 * y1;
     }
     const ccw = area > 0;
+    const first = edges.length;
     for (let i = 0; i < pts.length; i++) {
       const [ax, ay] = pts[i]!;
       const [bx, by] = pts[(i + 1) % pts.length]!;
@@ -141,8 +158,19 @@ export function compileStage(geo: StageGeometry): CompiledStage {
       if (len < 1e-9) continue;
       const n = ccw ? { x: dy / len, y: -dx / len } : { x: -dy / len, y: dx / len };
       const kind: EdgeKind = n.y >= FLOOR_NORMAL_Y ? 'floor' : n.y <= -FLOOR_NORMAL_Y ? 'ceiling' : 'wall';
-      edges.push({ solid: s, index: i, a: { x: ax, y: ay }, b: { x: bx, y: by }, n, kind });
+      const b = { x: bx, y: by };
+      edges.push({ solid: s, index: i, a: { x: ax, y: ay }, b, n, kind, corner: null, span: [0, 1] });
     }
+    const own = edges.slice(first);
+    own.forEach((e, k) => {
+      const before = own[(k + own.length - 1) % own.length]!;
+      const after = own[(k + 1) % own.length]!;
+      // Convex: this edge heads away from the outward side of the edge before it.
+      const convex = before.n.x * (e.b.x - e.a.x) + before.n.y * (e.b.y - e.a.y) < -1e-9;
+      if (convex && (e.kind !== 'floor' || before.kind !== 'floor')) e.corner = before.n;
+      const tol = EDGE_TOLERANCE / Math.hypot(e.b.x - e.a.x, e.b.y - e.a.y);
+      e.span = [before.kind === 'floor' ? tol : -tol, after.kind === 'floor' ? 1 - tol : 1 + tol];
+    });
   });
   const ledgeSolid = geo.ledges.map(
     (l) =>
