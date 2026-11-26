@@ -40,7 +40,10 @@ rig point `(6, -6)`.
 - **Slots** `{ name, bone, symbol, decor? }` are the layers, back to front. Limbs use two slots per segment
   (outline symbols first, then fills) so the joint has no visible seam, the way Flash artists inked tubes.
   `decor` slots (a glow or shadow) are left out of hitbox-coverage checks, but `poseBounds` counts them, since
-  the renderer draws them like any other slot.
+  the renderer draws them like any other slot. `under` slots draw in a layer under every fighter (`RigView.under`,
+  `FighterView.under`), placed, mirrored and blinked with the fighter, so other fighters draw over them while the
+  fighter itself stays on top, Final Smash or not. Runner's Tunnel Flip tunnel is one, so the foes inside it stand in
+  front of its walls.
 - **Clips** are Flash-style timelines with two layers per key. The pose layer: a key with `pose` is a full
   pose (bones it does not mention return to rest) and tweens to the next posed key with its `ease`. The symbol
   layer: `swaps` (slot -> symbol, or `null` to hide) and `z` (slot -> draw order; slot _i_ draws at _i_, so

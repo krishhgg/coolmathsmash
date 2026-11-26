@@ -69,6 +69,8 @@ export class Renderer {
   /** The Special and Finish Zoom flash, in screen pixels behind the fighters (like the KO blast). */
   private readonly zoomFlash = new Graphics();
   private readonly fighterLayer = new Container({ sortableChildren: true });
+  /** Every fighter's `under` slots (FighterView.under), drawn under all the fighters. */
+  private readonly underLayer = new Container();
   /** Fighters standing in a raft, under its rim (EntityView.fronts); layerFighters moves them in and out. */
   private readonly boatLayer = new Container({ sortableChildren: true });
   private readonly foregroundLayer = new Container();
@@ -111,6 +113,7 @@ export class Renderer {
       this.glows,
       this.tetherLines.behind,
       this.entities.back,
+      this.underLayer,
       this.boatLayer,
       this.entities.fronts,
       this.fighterLayer,
@@ -163,6 +166,7 @@ export class Renderer {
       this.matchKey = state.config;
       this.fighterLayer.removeChildren();
       this.boatLayer.removeChildren();
+      this.underLayer.removeChildren();
       this.fighters = [];
       this.fighterIds = [];
       this.costumes = pickCostumes(state.config, (id) => fighterArt(getFighter(id)));
@@ -180,6 +184,8 @@ export class Renderer {
       const parent = old?.container.parent;
       if (old && parent) parent.replaceChild(old.container, view.container);
       else this.fighterLayer.addChild(view.container);
+      if (old?.under.parent) this.underLayer.replaceChild(old.under, view.under);
+      else this.underLayer.addChild(view.under);
       this.fighters[i] = view;
       this.fighterIds[i] = f.fighter;
     });

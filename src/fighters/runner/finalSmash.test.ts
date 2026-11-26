@@ -296,7 +296,7 @@ describe('Tunnel Flip (Final Smash), on Peach Blossom', () => {
     expect(clip.active).toEqual([F.hit, F.clean, F.late]);
     expect(art.rig.symbols.tunnel).toBeDefined();
     expect(art.rig.symbols.tunnelFaint).toBeDefined();
-    const shown = (f: number) => clip.keys.filter((k) => k.frame <= f && k.swaps).at(-1)?.swaps?.fxBack;
+    const shown = (f: number) => clip.keys.filter((k) => k.frame <= f && k.swaps).at(-1)?.swaps?.fxUnder;
     expect([shown(39), shown(40), shown(61), shown(70), shown(231), shown(247)]).toEqual([
       undefined,
       'tunnel',

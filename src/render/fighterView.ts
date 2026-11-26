@@ -183,6 +183,12 @@ export const intangibleBlink = (f: Readonly<FighterState>, frame: number): boole
 export class FighterView {
   readonly container = new Container();
   private readonly body = new Container();
+  /**
+   * The rig's `under` slots (Slot.under), placed, mirrored and blinked with the body: the renderer draws it in a layer
+   * under every fighter.
+   */
+  readonly under = new Container();
+  private readonly underBody = new Container();
   private readonly art: FighterArt | undefined;
   private readonly rig: RigView | null;
   private readonly shield = new Graphics();
@@ -229,6 +235,8 @@ export class FighterView {
     this.label.position.set(0, -this.top - 5);
     this.label.visible = false;
     this.container.addChild(this.glow, this.body, this.shield, this.parryFlash, this.badges, this.label);
+    if (this.rig) this.underBody.addChild(this.rig.under);
+    this.under.addChild(this.underBody);
   }
 
   /** Start the parry flash; `frame` is the match frame after the parry. */
@@ -239,19 +247,21 @@ export class FighterView {
   /** `fx`: the jitter, flash and latest shield hit the effects put on this fighter (src/render/vfx). */
   update(f: FighterState, alpha: number, frame: number, debug: boolean, fx: FighterFx = {}): void {
     const out = f.action === 'ko' || f.action === 'out';
-    this.container.visible = !out;
+    this.container.visible = this.under.visible = !out;
     if (out) return;
     const x = f.prevPos.x + (f.pos.x - f.prevPos.x) * alpha;
     const y = f.prevPos.y + (f.pos.y - f.prevPos.y) * alpha;
     this.container.position.set(x, -y);
+    this.under.position.set(x, -y);
     const jx = fx.jitter?.x ?? 0;
     const jy = -(fx.jitter?.y ?? 0);
     this.body.position.set(jx, jy);
+    this.underBody.position.set(jx, jy);
     this.shield.position.set(jx, jy);
-    this.body.scale.x = f.facing;
+    this.body.scale.x = this.underBody.scale.x = f.facing;
     if (this.rig && this.art) this.rig.pose(...clipFor(this.def, this.art, f), frame);
     const flash = this.lite ? undefined : fx.flash;
-    this.body.alpha = !flash && intangibleBlink(f, frame) ? 0.55 : 1;
+    this.body.alpha = this.underBody.alpha = !flash && intangibleBlink(f, frame) ? 0.55 : 1;
     const k = flash?.amount ?? 0;
     if (flash && k > 0) {
       this.flash ??= new ColorMatrixFilter();

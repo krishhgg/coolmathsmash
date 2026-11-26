@@ -20,7 +20,10 @@ const { hit, clean, late, faf, turn, back } = TUNNEL_FLIP;
 /** The view flip the renderer plays over the move (src/render/viewFlip.ts). */
 export const tunnelFlipView: ViewFlip = { turn, back };
 
-/** The tunnel on fx3 (slot fxBack, behind her), centred on her middle: `size` units to each side, turned `rot`. */
+/**
+ * The tunnel on fx3 (slot fxUnder, drawn under every fighter), centred on her middle: `size` units to each side, turned
+ * `rot`.
+ */
 const ring = (size: number, rot: number): Pose => ({ fx3: { x: 0, y: BODY_Y, rot, sx: size, sy: size } });
 
 /**
@@ -150,9 +153,9 @@ const hop = (side: 1 | -1): Pose =>
 
 /** Swap sets: each key's swaps name everything shown from then on. */
 const TILES = { ...SHOUT, fx1: 'tile', fx2: 'tile' };
-const TUNNEL = { ...SHOUT, fxBack: 'tunnel' };
-const TUNNEL_FADE = { ...HAPPY, fxBack: 'tunnelFaint' };
-const BACK_FADE = { ...SHOUT, fxBack: 'tunnelFaint' };
+const TUNNEL = { ...SHOUT, fxUnder: 'tunnel' };
+const TUNNEL_FADE = { ...HAPPY, fxUnder: 'tunnelFaint' };
+const BACK_FADE = { ...SHOUT, fxUnder: 'tunnelFaint' };
 
 /**
  * How far the tunnel reaches from her middle: from just around her out to TUNNEL_SIZE. The camera always keeps 55

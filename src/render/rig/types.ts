@@ -81,6 +81,12 @@ export interface Slot {
   symbol: string | null;
   /** Decoration such as a glow: drawn and counted in bounds, but left out of hit tests. */
   decor?: boolean;
+  /**
+   * Drawn under every fighter instead of in the fighter's own layer (RigView.under), placed and mirrored with the
+   * fighter, so other fighters draw over it while the fighter itself stays on top: Runner's Tunnel Flip tunnel, which
+   * stands around the fighters inside it. Draw order among a fighter's `under` slots is their slot order.
+   */
+  under?: boolean;
 }
 
 export interface Rig {

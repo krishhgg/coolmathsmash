@@ -475,11 +475,17 @@ const TUNNEL_GAP = 0.022;
 /** How far the tunnel's outer edge reaches from its centre, in units of the fx bone's scale. */
 export const TUNNEL_EDGE = 1 + TUNNEL_GAP;
 
+/** A tunnel ring's palette keys: its frame, its tiles and the tiles' lower shade. */
+type RingColors = [line: string, tile: string, lo: string];
+const NEAR_RING: RingColors = ['tileLine', 'tile', 'tileLo'];
+const MID_RING: RingColors = ['tileMidLine', 'tileMid', 'tileMidLo'];
+const DEEP_RING: RingColors = ['tileDeepLine', 'tileDeep', 'tileDeepLo'];
+
 /**
  * One ring of Run's tunnel seen end on: a square frame of floor tiles `k` units from its centre to each side, with a
- * few tiles missing to show the dark of space through the gaps, at `alpha`.
+ * few tiles missing to show the dark of space through the gaps, in `colors` at `alpha`.
  */
-function tunnelRing(k: number, alpha: number): PathShape[] {
+function tunnelRing(k: number, alpha: number, [line, tile, lo]: RingColors = NEAR_RING): PathShape[] {
   const at = (v: number) => n(v * k);
   const rect = (x0: number, y0: number, x1: number, y1: number) =>
     `M${at(x0)} ${at(y0)}L${at(x1)} ${at(y0)}L${at(x1)} ${at(y1)}L${at(x0)} ${at(y1)}Z`;
@@ -499,20 +505,21 @@ function tunnelRing(k: number, alpha: number): PathShape[] {
   const o = TUNNEL_EDGE;
   const h = 1 - cell - gap;
   return [
-    { d: rect(-o, -o, o, o) + rect(-h, -h, h, h), fill: faded('tileLine', alpha) },
-    { d: tiles.join(''), fill: faded('tile', alpha) },
-    { d: shades.join(''), fill: faded('tileLo', alpha) },
+    { d: rect(-o, -o, o, o) + rect(-h, -h, h, h), fill: faded(line, alpha) },
+    { d: tiles.join(''), fill: faded(tile, alpha) },
+    { d: shades.join(''), fill: faded(lo, alpha) },
   ];
 }
 
 /**
  * Run's tunnel seen end on, for Tunnel Flip: the near ring of tiles one unit from its centre to each side, and two
- * fainter rings further down the tunnel inside it, smaller with distance, so it reads as a tunnel and not a frame.
- * Scale it up around her to grow the tunnel and turn it to roll it. `alpha` fades all of it.
+ * rings further down the tunnel inside it, smaller and darker with distance as Run's tunnel fades into space, so it
+ * reads as a tunnel and not a frame. Flat colours, as Flash drew them. Scale it up around her to grow the tunnel and
+ * turn it to roll it. `alpha` fades all of it.
  */
 const tunnelOf = (alpha: number): PathShape[] => [
-  ...tunnelRing(0.44, alpha * 0.35),
-  ...tunnelRing(0.67, alpha * 0.6),
+  ...tunnelRing(0.44, alpha, DEEP_RING),
+  ...tunnelRing(0.67, alpha, MID_RING),
   ...tunnelRing(1, alpha),
 ];
 
