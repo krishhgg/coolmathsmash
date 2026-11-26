@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { registerFighter } from '../fighters/registry';
-import { createMatch } from '../sim/match';
-import { marioReference } from '../sim/testing/reference';
+// Keep the harness the first import, so it loads before the fighter registry, as in any script that starts from the
+// harness. In that order a fighter whose scenarios.ts imports its own moves is registered before they finish loading,
+// never performs them, and fails the capture check below. Importing the registry first hides that.
 import {
   FIGHTER_STATES,
   SCENARIOS,
@@ -17,7 +17,9 @@ import {
   type FighterScenarios,
   type GameScenario,
 } from './scenarios';
-import { stepMatch } from '../sim/match';
+import { registerFighter } from '../fighters/registry';
+import { createMatch, stepMatch } from '../sim/match';
+import { marioReference } from '../sim/testing/reference';
 
 const game = (name: string) => {
   const s = findScenario(name);
@@ -146,11 +148,12 @@ describe('fighter scenarios (src/fighters/<id>/scenarios.ts)', () => {
     expect(names).toContain('redball-dair-bounce');
   });
 
+  // Every game scenario must capture. A pending one, such as a move no fighter performs, fails like a missed one.
   it.each(SCENARIOS.filter((s) => !isLabScenario(s)).map((s) => [s.name, s] as const))(
-    '%s reaches its capture frame or names what it is waiting for',
+    '%s reaches its capture frame',
     (_, s) => {
       const plan = planScenario(s as GameScenario, () => true);
-      expect(plan.status, plan.reason).not.toBe('missed');
+      expect(plan.status, plan.reason).toBe('captured');
     },
   );
 });

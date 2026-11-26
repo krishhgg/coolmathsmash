@@ -600,7 +600,7 @@ export function actionClips(form: Form): Record<string, AnimClip> {
       const p = air(F, -12 * f, 1, 1.03);
       return { block: p, fx: { back: { sym: 'trail', x: 0, y: 0, rot: -f * 12 } } };
     }),
-    knockdown: bake(40, true, down),
+    down: bake(40, true, down),
     getupStand: bake(GETUP_STAND.faf - 1, false, (f) => {
       if (F === STAND) {
         const deg = tl(f, [
@@ -840,5 +840,5 @@ export function actionClips(form: Form): Record<string, AnimClip> {
     };
   }
 
-  return { ...clips, down: clips.knockdown! };
+  return clips;
 }
