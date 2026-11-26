@@ -21,9 +21,10 @@ import {
 } from '../../../sim/constants';
 import type { MoveDef } from '../../types';
 import { entities } from '../entities';
-import { moves } from '../moves';
+import { SHAKER, moves } from '../moves';
 import { stats } from '../stats';
 import { art } from '.';
+import { SHAKER_TIP } from './parts';
 
 /**
  * Canonical clip lengths (loops: any length; hold: not looping). A clip for a timed engine action lasts until the
@@ -171,6 +172,22 @@ describe('papa louie art', () => {
     for (let f = 0; f <= art.clips.neutralB!.length; f++)
       expect(poseBounds(art, samplePose(art, 'neutralB', f, f))[3], `neutralB@${f}`).toBeLessThan(0.05);
     expect(art.projectiles?.pepperBomb?.preview?.neutralB?.frame).toBe(frame);
+  });
+
+  it("holds the Parmesan shaker's cap where the shots come from on each shot frame, and sprays from there", () => {
+    for (let shot = 0; shot < SHAKER.shots; shot++) {
+      const f = SHAKER.first + shot * SHAKER.every;
+      const pose = samplePose(art, 'sideB', f, f);
+      expect(pose.symbols.prop, `sideB@${f}`).toBe('shaker');
+      const m = pose.world.prop!;
+      const tip = [m.c * -SHAKER_TIP + m.tx, m.d * -SHAKER_TIP + m.ty];
+      expect(Math.hypot(tip[0]! - SHAKER.cap.x, tip[1]! + SHAKER.cap.y), `sideB@${f}`).toBeLessThan(0.01);
+      expect(pose.symbols.fx2, `sideB@${f}`).toMatch(/^parmesanSpray\d$/);
+      expect(pose.symbols.fx1, `sideB@${f}`).toBe('parmesanPuff');
+      const spray = pose.world.fx2!;
+      expect([spray.tx, spray.ty]).toEqual([SHAKER.cap.x, -SHAKER.cap.y]);
+    }
+    expect(samplePose(art, 'sideB', 84, 84).symbols.prop).toBeNull();
   });
 
   it('draws each of his entities with a prop named after its kind, the bomb as large as it is in his hand', () => {
