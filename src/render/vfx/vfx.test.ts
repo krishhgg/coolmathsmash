@@ -7,6 +7,7 @@ import {
   startScenario,
   type GameScenario,
 } from '../../harness/scenarios';
+import { neutralInput } from '../../input/types';
 import type { SimEvent } from '../../sim/events';
 import { DEFAULT_MATCH, createMatch, stepMatch, type MatchState } from '../../sim/match';
 import { ATTACKER_JITTER, hitlagOffset, SHIELD_JITTER, VICTIM_JITTER } from './hitlag';
@@ -16,7 +17,17 @@ import { rand, seedOf } from './random';
 import { mix, type Shape } from './shapes';
 import { SHIELD_HIT_LIFE, shieldBubbleShapes } from './shield';
 import { puffShapes, TRAIL_CUT, trailPuffs } from './smoke';
-import { emptyVfx, fighterFx, freezeOf, shieldPulse, stepVfx, Vfx, type VfxState } from './system';
+import { applyStatus } from '../../sim/statuses';
+import {
+  emptyVfx,
+  fighterFx,
+  FREEZE_JITTER,
+  freezeOf,
+  shieldPulse,
+  stepVfx,
+  Vfx,
+  type VfxState,
+} from './system';
 
 const scenario = (name: string) => findScenario(name) as GameScenario;
 
@@ -166,6 +177,27 @@ describe('stepping effects from the simulation', () => {
     expect(fx.some((f) => f.flash!.amount > 0) && fx.some((f) => f.flash!.amount === 0)).toBe(true);
     expect(fx[0]!.jitter!.x).toBeCloseTo(-fx[1]!.jitter!.x);
     expect(fighterFx(vfx.state, m.fighters[1]!, m.frame).flash).toBeUndefined();
+  });
+
+  it("shakes a paralyzed fighter and flickers it in the status's colour until the paralysis ends", () => {
+    const m = createMatch({
+      ...DEFAULT_MATCH,
+      ports: [{ fighter: 'bob-the-robber' }, { fighter: 'fireboy' }],
+    });
+    const vfx = new Vfx();
+    const f = m.fighters[1]!;
+    applyStatus(m, f, 'bob-the-robber/paralyzed', { frames: 10 });
+    const fx = Array.from({ length: 4 }, () => {
+      stepMatch(m, [neutralInput(), neutralInput()]);
+      vfx.step(m);
+      return fighterFx(vfx.state, f, m.frame);
+    });
+    expect(fx.map((x) => x.flash!.color)).toEqual(Array(4).fill(0xf2c62a));
+    expect(new Set(fx.map((x) => x.flash!.amount)).size).toBe(2);
+    expect(Math.abs(fx[0]!.jitter!.x)).toBeCloseTo(FREEZE_JITTER, 9);
+    expect(fx[0]!.jitter!.x).toBeCloseTo(-fx[1]!.jitter!.x, 9);
+    for (let i = 0; i < 10; i++) stepMatch(m, [neutralInput(), neutralInput()]);
+    expect(fighterFx(vfx.state, f, m.frame).flash).toBeUndefined();
   });
 
   it('flashes the shield on a shield hit and shatters it on a break', () => {
