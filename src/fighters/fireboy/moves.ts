@@ -319,12 +319,19 @@ export const moves: Record<string, MoveDef> = {
   },
   /**
    * Temple Mirror (side special): Mario's Cape in Ultimate. The mirror reflects projectiles on frames 9-20 with the
-   * Cape's multipliers (SmashWiki, Reflection: damage x1.5, speed x1, lifespan x0.75) and hits for 7% on 12-14.
+   * Cape's multipliers (SmashWiki, Reflection: damage x1.5, speed x1, lifespan x0.75) and hits for 7% on 12-14 with
+   * the Cape's hit (13.0.1 data from ultimate-hitboxes.com): 110 degrees, set knockback 80 (KBG 100, BKB 0) and 4
+   * extra shield damage, so it never KOs. The Cape also turns the opponent around, which the engine can't do yet.
    */
   sideB: {
     kind: 'other',
     faf: 36,
-    hits: [{ frames: [12, 14], boxes: [box(0, 7, 8, 6, { damage: 7, angle: 110, kbg: 100, bkb: 0 })] }],
+    hits: [
+      {
+        frames: [12, 14],
+        boxes: [box(0, 7, 8, 6, { damage: 7, angle: 110, kbg: 100, bkb: 0, wbkb: 80, shieldDamage: 4 })],
+      },
+    ],
     reflectors: [{ frames: [9, 20], x: 7, y: 8, radius: 7, damage: 1.5, speed: 1, lifetime: 0.75 }],
   },
   /**
