@@ -25,7 +25,9 @@ const templeMirror = fireboyMoves.sideB && { sideB: fireboyMoves.sideB };
 
 /**
  * Watergirl's moves: Mario's kit in Ultimate (the roster's "Mario frame" list), with her own damage from the roster
- * sheet and her extra range in hitbox size and position. Angle, BKB, KBG and frame data come from each move's
+ * sheet and her extra range in hitbox size and position. The forward and up smash, back throw and Geyser's finisher
+ * take Mario's damage instead, because the roster's kept them more than 5 points off Mario's kill percent
+ * (watergirl.test.ts). Angle, BKB, KBG and frame data come from each move's
  * Ultimate analogue (SmashWiki hitbox tables, UFD); a sourspot keeps the analogue's damage ratio to its sweetspot.
  * Frame windows are inclusive and faf is the first actionable frame; move names double as animation clip names.
  */
@@ -126,7 +128,10 @@ export const moves: Record<string, MoveDef> = {
       { frames: [10, 25], boxes: [box(0, 6, 3.5, 4, { damage: 6, angle: 48, kbg: 30, bkb: 100 })] },
     ],
   },
-  /** Element Palm: Mario's forward smash (angled forward), the water burst reaching farther than Fireboy's flames. */
+  /**
+   * Element Palm: Mario's forward smash (angled forward), with his 17.8% and 14.7% hits, the water burst reaching
+   * farther than Fireboy's flames.
+   */
   fsmash: {
     kind: 'smash',
     faf: 48,
@@ -135,13 +140,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [15, 17],
         boxes: [
-          box(0, 14, 8.5, 6, { damage: 15, angle: 361, kbg: 99, bkb: 25 }),
-          box(1, 7, 8.5, 3.5, { damage: 12.4, angle: 361, kbg: 105, bkb: 25 }),
+          box(0, 14, 8.5, 6, { damage: 17.8, angle: 361, kbg: 99, bkb: 25 }),
+          box(1, 7, 8.5, 3.5, { damage: 14.7, angle: 361, kbg: 105, bkb: 25 }),
         ],
       },
     ],
   },
-  /** Pillar Headbutt: Mario's up smash. */
+  /** Pillar Headbutt: Mario's up smash, 14%. */
   usmash: {
     kind: 'smash',
     faf: 40,
@@ -150,8 +155,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [9, 12],
         boxes: [
-          box(0, 1, 16, 5.5, { damage: 13, angle: 83, kbg: 94, bkb: 32, direction: 'away' }),
-          box(1, 0.5, 10.5, 4, { damage: 13, angle: 83, kbg: 94, bkb: 32, direction: 'away' }),
+          box(0, 1, 16, 5.5, { damage: 14, angle: 83, kbg: 94, bkb: 32, direction: 'away' }),
+          box(1, 0.5, 10.5, 4, { damage: 14, angle: 83, kbg: 94, bkb: 32, direction: 'away' }),
         ],
       },
     ],
@@ -316,12 +321,12 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 13, hit: { damage: 8, angle: 45, kbg: 65, bkb: 60 } },
   },
-  /** Twin Swing: Mario's back throw, swung round and let go behind. */
+  /** Twin Swing: Mario's back throw (11%), swung round and let go behind. */
   bthrow: {
     kind: 'other',
     faf: 60,
     hits: [],
-    throw: { frame: 44, hit: { damage: 10, angle: 45, kbg: 66, bkb: 70, direction: 'back' } },
+    throw: { frame: 44, hit: { damage: 11, angle: 45, kbg: 66, bkb: 70, direction: 'back' } },
   },
   /** Pillar Toss: Mario's up throw, a water pillar overhead. */
   uthrow: {
@@ -339,8 +344,8 @@ export const moves: Record<string, MoveDef> = {
   },
   /**
    * Geyser (up special): Mario's Super Jump Punch timing and knockback (a 2% opener, three set-knockback hits that
-   * carry the opponent up, a 2% finisher), riding a geyser about 20% higher than Fireboy's Flame Jump. Steerable,
-   * ends helpless, and can grab the ledge on the way up.
+   * carry the opponent up, and Super Jump Punch's 3% finisher), riding a geyser about 20% higher than Fireboy's Flame
+   * Jump. Steerable, ends helpless, and can grab the ledge on the way up.
    */
   upB: {
     kind: 'other',
@@ -374,7 +379,7 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [17, 18],
         rehit: true,
-        boxes: [box(0, 0, 12, 7, { damage: 2, angle: 60, kbg: 145, bkb: 50 })],
+        boxes: [box(0, 0, 12, 7, { damage: 3, angle: 60, kbg: 145, bkb: 50 })],
       },
     ],
     script(x) {
