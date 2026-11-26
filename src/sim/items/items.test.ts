@@ -4,6 +4,7 @@ import { neutralInput } from '../../input/types';
 import { defaultSetup, resolveMatch } from '../../session/setup';
 import { hashState } from '../../engine/hash';
 import { registerEntity, spawnEntity } from '../entities/entities';
+import { stepEntities } from '../entities/step';
 import type { EntityState } from '../entities/types';
 import type { SimEvent } from '../events';
 import type { FighterState } from '../fighter';
@@ -18,7 +19,7 @@ import {
   PLANET_SPEED,
   trailingFighter,
 } from './planet';
-import { ITEM_TIMER, SMASH_BALL, createItems, planetChance } from './spawn';
+import { ITEM_TIMER, SMASH_BALL, createItems, planetChance, stepItems } from './spawn';
 
 registerFighter(gadgets);
 
@@ -43,11 +44,26 @@ function step(m: MatchState, frames: number, holds: Hold[] = [], seen?: SimEvent
   }
 }
 
+/** One frame of neutral play. */
+const matchFrame = (m: MatchState) => stepMatch(m, [neutralInput(), neutralInput()]);
+
+/**
+ * One frame of only the Items rule and the entities, in stepMatch's order, with the fighters left where they stand.
+ * In neutral play nothing else touches the item timer or the planet, so this gives the same spawns and departures as
+ * `matchFrame` (checked below) for a small part of its cost.
+ */
+function itemFrame(m: MatchState): void {
+  m.events = [];
+  stepItems(m);
+  stepEntities(m);
+  m.frame++;
+}
+
 /** Every planet spawn and departure in `frames` frames of neutral play. */
-function itemLog(m: MatchState, frames: number) {
+function itemLog(m: MatchState, frames: number, frame = matchFrame) {
   const log: { frame: number; event: string; x: number; y: number }[] = [];
   for (let i = 0; i < frames; i++) {
-    stepMatch(m, [neutralInput(), neutralInput()]);
+    frame(m);
     for (const e of m.events) {
       if (e.type === 'entitySpawn' && e.kind === PLANET)
         log.push({ frame: m.frame, event: 'spawn', x: e.x, y: e.y });
@@ -112,6 +128,10 @@ describe('the Items rule', () => {
     expect(hashState(third)).toBe(hashState(again));
     expect(first.filter((l) => l.event === 'spawn').length).toBeGreaterThan(1);
     expect(itemLog(createMatch(config(13, true)), SEVEN_MINUTES)).not.toEqual(first);
+    // Stepping only the items gives the same spawn and departure frames (the planet drifts a little differently, as
+    // the fighters it hovers over don't move), so the cadence test below can use it.
+    const when = (log: typeof first) => log.map(({ frame, event }) => ({ frame, event }));
+    expect(when(itemLog(createMatch(config(12, true)), SEVEN_MINUTES, itemFrame))).toEqual(when(first));
   });
 
   it('follows Ultimate: a 500-800 frame item timer, nothing in the first 900 frames, one planet at a time, 4800 frames between', () => {
@@ -120,9 +140,10 @@ describe('the Items rule', () => {
       const m = createMatch(config(seed, true));
       let last = -1;
       let prev = m.items.timer;
+      let most = 0;
       const log: { frame: number; event: string }[] = [];
       for (let i = 0; i < SEVEN_MINUTES; i++) {
-        stepMatch(m, [neutralInput(), neutralInput()]);
+        itemFrame(m);
         if (m.items.timer > prev) {
           if (last >= 0) gaps.add(m.frame - last);
           last = m.frame;
@@ -131,8 +152,9 @@ describe('the Items rule', () => {
         for (const e of m.events)
           if ((e.type === 'entitySpawn' || e.type === 'entityDestroy') && e.kind === PLANET)
             log.push({ frame: m.frame, event: e.type });
-        expect(m.entities.filter((e) => e.kind === PLANET).length).toBeLessThanOrEqual(1);
+        most = Math.max(most, m.entities.filter((e) => e.kind === PLANET).length);
       }
+      expect(most, `seed ${seed}`).toBe(1);
       const spawns = log.filter((l) => l.event === 'entitySpawn');
       expect(spawns.length, `seed ${seed}`).toBeGreaterThan(0);
       expect(spawns[0]!.frame).toBeGreaterThan(SMASH_BALL.startLockout);
