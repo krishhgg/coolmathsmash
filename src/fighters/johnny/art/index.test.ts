@@ -4,7 +4,7 @@ import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
 import { MUZZLE_LEAD } from '../entities';
 import { moves } from '../moves';
-import { GUN_MUZZLE } from './parts';
+import { GUN_MUZZLE, MAGNET_POLES } from './parts';
 import { HAND } from './rig';
 import { art } from '.';
 
@@ -150,6 +150,28 @@ describe('johnny art', () => {
       const m = samplePose(art, name, moveClipFrame(art.clips[name]!, frame, move), frame).world.foreF!;
       expect(m.a * lx + m.c * ly + m.tx, `${name} x`).toBeCloseTo(x - MUZZLE_LEAD, 1);
       expect(m.b * lx + m.d * ly + m.ty, `${name} y`).toBeCloseTo(-y, 1);
+    }
+  });
+
+  it('keys Coin Magnet and Upgraded Laser on their moves: FAF - 1 long, with the shot on its spawn frame', () => {
+    for (const name of ['downB', 'neutralBUpgraded', 'neutralBUpgradedAir']) {
+      const move = moves[name]!;
+      expect(art.clips[name]!.length, name).toBe(move.faf - 1);
+      const shot = move.spawn?.[0]?.frame;
+      expect(art.clips[name]!.active, name).toEqual(shot === undefined ? [] : [[shot, shot]]);
+    }
+  });
+
+  it("holds the coins on the magnet's poles through Coin Magnet's charge cycle", () => {
+    // Gun space (x out along the magnet, y down) to forearm space, as for the Laser Gun.
+    const [lx, ly] = [-MAGNET_POLES[1], HAND + MAGNET_POLES[0]];
+    for (let f = 5; f <= 16; f++) {
+      const { world, symbols } = samplePose(art, 'downB', f, f);
+      const hand = world.foreF!;
+      expect(symbols.foreF, `downB@${f}`).toBe('magnet');
+      expect(symbols.fx1, `downB@${f}`).toMatch(/^coins\d$/);
+      expect(world.fx1!.tx, `downB@${f} x`).toBeCloseTo(hand.a * lx + hand.c * ly + hand.tx, 1);
+      expect(world.fx1!.ty, `downB@${f} y`).toBeCloseTo(hand.b * lx + hand.d * ly + hand.ty, 1);
     }
   });
 

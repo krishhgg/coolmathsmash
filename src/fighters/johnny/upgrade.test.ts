@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { statusBadges } from '../../render/fighterView';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, type MatchState } from '../../sim/match';
 import { meter, setMeter } from '../../sim/meters';
@@ -128,6 +129,17 @@ describe("Johnny Upgrade: the upgrade meter (Cloud's Limit Gauge)", () => {
     run(m, 1);
     expect(m.events).toContainEqual({ type: 'statusEnd', port: 0, status: UPGRADED, reason: 'expired' });
     expect([hasStatus(f, UPGRADED), meter(f, UPGRADE_METER)]).toEqual([false, 0]);
+  });
+
+  it('shows as a coin-gold badge by his head while full', () => {
+    const m = testMatch({ fighter: 'johnny' });
+    const f = m.fighters[0]!;
+    setMeter(f, UPGRADE_METER, 99);
+    run(m, 1);
+    expect(statusBadges(f, m.frame)).toEqual([]);
+    setMeter(f, UPGRADE_METER, 100);
+    run(m, 1);
+    expect(statusBadges(f, m.frame)).toEqual(['#ffd21a']);
   });
 
   it('a KO ends Limit Break and empties the meter', () => {
