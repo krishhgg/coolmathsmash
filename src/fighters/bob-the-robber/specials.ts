@@ -55,6 +55,83 @@ export const sideB: MoveDef = {
   },
 };
 
+/**
+ * Lucario's Double Team in Ultimate, the counter Shadow Step copies. SmashWiki, Lucario (SSBU)/Down special
+ * (oldid 2033209): the stance is intangible on 4-13, counters on 5-24 and is interruptible from 71; the attack has
+ * hitboxes on 17-28, intangibility on 1-29 and is interruptible from 60, counting from the catch, because Lucario
+ * "immediately transitions into the attack without undergoing any self-freeze frames" while the attacker freezes for
+ * 6 to 30 frames (by the move countered) and is slowed after. The kick: 12.5% at base aura, 70 degrees, BKB 50,
+ * KBG 105, hitlag x2.2, boxes of radius 3.5, 3.5 and 5. ultimateframedata.com/lucario: the stance is "Invulnerable on
+ * frame 4. Counters on frame 5-24", 70 frames in all; the counterattack is "Invulnerable on frame 1-17 in addition to
+ * counter freeze frames", 47 frames in all. Against SmashWiki's 1-29 and 60 those counter freeze frames are 12.
+ */
+export const DOUBLE_TEAM = {
+  intangible: [4, 4] as [number, number],
+  window: [5, 24] as [number, number],
+  faf: 71,
+  freeze: 12,
+  attack: { hits: [17, 28] as [number, number], intangible: [1, 29] as [number, number], faf: 60 },
+  kick: { damage: 12.5, angle: 70, kbg: 105, bkb: 50, hitlag: 2.2 },
+};
+
+/**
+ * The engine freezes the counterer with the attacker, and the counterattack's frame 1 is the last frozen frame, so
+ * Double Team's attack frames (counted from the catch) are this many frames later on the counterattack's clock.
+ */
+const FROZEN = DOUBLE_TEAM.freeze - 1;
+const afterFreeze = ([from, to]: [number, number]): [number, number] => [
+  Math.max(1, from - FROZEN),
+  to - FROZEN,
+];
+
+/**
+ * How far behind the attacker Bob reappears. Not in either source: an ESTIMATE that puts the middle of the baton on
+ * the attacker's back and its tip past their front.
+ */
+export const SHADOW_STEP_BEHIND = 11;
+
+/**
+ * Shadow Step (down special): Bob ducks into the shadows. A hit that lands on frames 5-24 is caught, and he steps
+ * out of the shadow behind the attacker with a baton strike (downBHit). Intangible on frame 4 only
+ * (ultimateframedata's), because an intangible fighter can't counter in this engine and SmashWiki's 4-13 would
+ * close the window until 14. A grab or a hit before 4 or after 24 goes through.
+ */
+export const downB: MoveDef = {
+  kind: 'other',
+  faf: DOUBLE_TEAM.faf,
+  hits: [],
+  intangible: DOUBLE_TEAM.intangible,
+  continuesOnLanding: true,
+  counter: {
+    window: DOUBLE_TEAM.window,
+    move: 'downBHit',
+    multiplier: 0,
+    freeze: DOUBLE_TEAM.freeze,
+    behind: SHADOW_STEP_BEHIND,
+  },
+};
+
+const strike = (id: number, x: number, y: number, radius: number) => box(id, x, y, radius, DOUBLE_TEAM.kick);
+
+/**
+ * Shadow Step's strike: Double Team's kick on the baton, a fixed 12.5% (`multiplier: 0`) whatever it caught. Its
+ * frames are Double Team's moved onto the counterattack's clock: hitboxes on 6-17, intangible on 1-18 (plus the
+ * freeze before it) and actionable from 49, so the strike lands 17 frames after the catch and Bob can act 60
+ * frames after it, as Lucario does. In the air it carries on when he lands.
+ */
+export const downBHit: MoveDef = {
+  kind: 'other',
+  faf: DOUBLE_TEAM.attack.faf - FROZEN,
+  intangible: afterFreeze(DOUBLE_TEAM.attack.intangible),
+  continuesOnLanding: true,
+  hits: [
+    {
+      frames: afterFreeze(DOUBLE_TEAM.attack.hits),
+      boxes: [strike(0, 4.5, 8, 3.5), strike(1, 8.5, 7.5, 3.5), strike(2, 12, 7, 5)],
+    },
+  ],
+};
+
 /** Grappling Hook's zip: units per frame along the rope, from frame ZIP_FROM to ZIP_TO. */
 const ZIP_SPEED = 2.8;
 const ZIP_FROM = 14;
