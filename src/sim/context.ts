@@ -1,4 +1,4 @@
-import { getFighter } from '../fighters/registry';
+import { getFighter } from '../fighters/lookup';
 import { getStage } from '../stages/registry';
 import { SHIELD_BREAK_HEIGHT } from './constants';
 import { derived, type Ctx, type FighterState } from './fighter';

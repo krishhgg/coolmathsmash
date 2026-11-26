@@ -2,10 +2,11 @@ import { getFighter } from '../fighters/registry';
 import type { FighterStats } from '../fighters/types';
 import { neutralInput, type InputFrame } from '../input/types';
 import { isIntangible } from '../sim/actions/registry';
-import { activeHitboxes, hurtbox, type Hurtbox, type PlacedHitbox } from '../sim/combat/hits';
+import { activeHitboxes, hurtbox, oneVOne, type Hurtbox, type PlacedHitbox } from '../sim/combat/hits';
 import { LAUNCH_DECAY } from '../sim/combat/formulas';
-import type { ControlState } from '../sim/control';
-import type { FighterState } from '../sim/fighter';
+import { createControl, type ControlState } from '../sim/control';
+import type { EntityState } from '../sim/entities/types';
+import { createFighter, type FighterState } from '../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
 
 /**
@@ -41,7 +42,8 @@ const idle: Driver = () => neutralInput();
 
 /**
  * A one-fighter copy of the match holding a clone of `f` (and of its controller, when given), on the same frame of
- * the stage with the same hazards setting, so moving pieces, schedules and hazards play out as they will.
+ * the stage and of its clock with the same hazards setting, so moving pieces, schedules and hazards play out as they
+ * will. It keeps the match's 1v1 damage rule (MatchConfig.oneVOne), which counts players.
  */
 export function soloMatch(
   state: Readonly<MatchState>,
@@ -54,12 +56,87 @@ export function soloMatch(
     stocks: Math.max(1, f.stocks),
     ports: [{ fighter: f.fighter, tapJump: state.players[f.port]?.tapJump ?? true }],
     hazards: state.config.hazards,
+    oneVOne: oneVOne(state),
   });
   m.frame = state.frame;
   m.stage = state.stage;
+  m.stageFrame = state.stageFrame;
   m.fighters[0] = { ...structuredClone(f as FighterState), port: 0 };
   if (control) m.players[0]!.control = structuredClone(control as ControlState);
   return m;
+}
+
+/** The port that stands in for the owner of the entities setEntities puts into a look-ahead. */
+const OWNER = 1;
+/**
+ * Where setEntities files an entity's hit on a fighter the look-ahead doesn't hold: real port p becomes ABSENT + p,
+ * a port no fighter there has, so the hit still counts (an entity that pierces doesn't hit that fighter again, and
+ * one that reacts to having hit, like Johnny's upgraded laser bursting, still does) without touching anyone.
+ */
+const ABSENT = OWNER + 1;
+
+/**
+ * Make `entities` (fighter `owner`'s, as they were on some frame of the match) the ones `owner` has out in `m`, a
+ * soloMatch of another fighter (`victim`, its port in the match), in place of any it had, so their hits land on that
+ * fighter as they will: a grenade bursts on it, a shot already in the air connects. The first call adds a port
+ * standing in for the owner, out of play (as with no stocks left), so nothing hits, grabs or pushes it; each call
+ * sets it to `owner` as given. It gives the entities what they read from their owner: its rage, its stale queue, and
+ * where it is for one that flies home. The copies keep their ids and their hits so far, those on other fighters
+ * under ports the look-ahead doesn't hold (ABSENT). Nothing changes while the owner has nothing out.
+ */
+export function setEntities(
+  m: MatchState,
+  owner: Readonly<FighterState>,
+  entities: readonly Readonly<EntityState>[],
+  victim: number,
+): void {
+  if (m.fighters.length <= OWNER) {
+    if (!entities.length) return;
+    m.config.ports.push({ fighter: owner.fighter });
+    m.players.push({ port: OWNER, tapJump: true, control: createControl() });
+    m.fighters.push({ ...createFighter(OWNER, owner.fighter, [0, 0, 1], 0), action: 'out' });
+  }
+  Object.assign(m.fighters[OWNER]!, {
+    pos: { ...owner.pos },
+    prevPos: { ...owner.pos },
+    facing: owner.facing,
+    damage: owner.damage,
+    staleQueue: [...owner.staleQueue],
+  });
+  m.entities = m.entities.filter((e) => e.owner !== OWNER);
+  for (const e of entities) {
+    const hitVictims = e.hitVictims.map((p) => (p === victim ? 0 : ABSENT + p));
+    m.entities.push({ ...structuredClone(e as EntityState), owner: OWNER, hitVictims });
+    m.nextEntityId = Math.max(m.nextEntityId, e.id + 1);
+  }
+}
+
+/** A fighter and the entities it had out, on one frame of a match (what the CPU remembers of itself). */
+export interface OwnFrame {
+  f: Readonly<FighterState>;
+  entities: readonly Readonly<EntityState>[];
+}
+
+/**
+ * `run` for `m`, a soloMatch of a fighter (`victim`, its port in the match) as it was `lag` frames ago, with another
+ * fighter's entities playing out too, so their hits move it. `mine` holds that fighter's last frames, the latest
+ * last. Its entities start as they were `lag` frames ago, with the fighter as it was then standing in as their owner,
+ * so one that has hit since still hits, staled and raged as it was. When the run reaches the latest frame, the
+ * entities out then replace them and the stand-in takes the fighter as it is.
+ */
+export function runAmong(
+  m: MatchState,
+  frames: number,
+  drive: Driver,
+  lag: number,
+  mine: readonly OwnFrame[],
+  victim: number,
+): Sample[] {
+  const at = (back: number) => mine[mine.length - 1 - back]!;
+  return run(m, frames, (t, f) => {
+    if (t === 0 || t === lag) setEntities(m, at(lag - t).f, at(lag - t).entities, victim);
+    return drive(t, f);
+  });
 }
 
 export function sample(f: Readonly<FighterState>, stats: FighterStats): Sample {
