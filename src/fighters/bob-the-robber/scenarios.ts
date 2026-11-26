@@ -6,12 +6,11 @@ import { PARALYZED, STUN_GUN } from './entities';
 // first (as the harness does) registers Bob before his moves exist. Entering by index.ts finishes them first.
 import { fighter } from './index';
 
-/** Shadow Step's strike: the counterattack's first active frame. */
-const STRIKE = moves.downBHit!.hits[0]!.frames[0];
-
 const ID = 'bob-the-robber';
 const BOB = 'characters/bob-the-robber';
 const ART = [`${BOB}/official-art-0*`, `${BOB}/official-art-chase-*`];
+/** Shadow Step's strike: the counterattack's first active frame. */
+const STRIKE = fighter.moves.downBHit!.hits[0]!.frames[0];
 
 /** Airborne and falling at (x, y), with the first jump spent. */
 const air = (x: number, y: number, facing: 1 | -1): FighterPatch => ({
