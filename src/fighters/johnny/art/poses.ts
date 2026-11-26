@@ -227,6 +227,18 @@ export const STANCE = hands(
   1,
 );
 
+/** Turnaround pivot: squared up to the camera, fists on his hips, boots splayed; nearly the same drawing either way round. */
+export const PIVOT = hands(
+  mix(
+    feet({ hip: { y: 0.45 }, armF: { x: -0.35 }, armB: { x: 0.35 }, neck: { y: 0.15 } }, [3.5, 0], [-3.1, 0]),
+    { footF: { sx: -1 } },
+  ),
+  [4.3, -4.6],
+  [-3.6, -4.7],
+  -1,
+  1,
+);
+
 /** Standing tall, arms at his sides (turnarounds and getups pass through it). */
 export const STAND = hands(feet({}, [2.0, 0], [-1.6, 0]), [4.6, -4.9], [-3.6, -4.9], 1, -1);
 

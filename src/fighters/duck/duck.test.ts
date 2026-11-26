@@ -305,6 +305,28 @@ describe('The Duck: kill percents (koPercent vs Ultimate analogues)', () => {
   });
 });
 
+/**
+ * Measured, not sourced. Dive Ram (down special) names no Ultimate analogue, and no Ultimate hit has its dive's
+ * damage, angle, BKB and KBG (13%, 300 degrees, BKB 40, KBG 70; searched in the 13.0.1 hitbox data of
+ * ultimate-hitboxes.com), so there is no Ultimate kill percent to hold it to. These are the percents koPercent gave
+ * on main when this was written, with the Mario reference fresh, no rage, no DI: the dive's semi-spike on an
+ * airborne Mario 10 units past Battlefield's ledge, where a downward hit can KO, and the dive landing on Mario
+ * standing at the ledge. The belly-flop slide KOs only from 212.2%.
+ */
+describe('The Duck: Dive Ram kill percents (measured, no Ultimate analogue)', () => {
+  it.each([
+    ['the dive spikes Mario 10 units past the ledge', 66, { air: true, from: { x: 90, y: 0 } }],
+    ['the dive lands on Mario standing at the ledge', 195.8, {}],
+  ] satisfies [string, number, Pick<KoSetup, 'air' | 'from'>][])(
+    '%s: within 5 points of its measured %s%%',
+    (_, measured, setup) => {
+      const percent = koPercent({ hit: { fighter: 'duck', move: 'downB' }, ...setup });
+      expect(percent).not.toBeNull();
+      expect(Math.abs(percent! - measured)).toBeLessThanOrEqual(5);
+    },
+  );
+});
+
 describe('The Duck: throws', () => {
   it('down throw at 0% leaves the Duck free to act before the opponent: a combo starter', () => {
     const m = createMatch({
