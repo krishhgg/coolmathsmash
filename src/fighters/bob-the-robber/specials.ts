@@ -1,5 +1,6 @@
 import type { HitboxDef, MoveDef } from '../types';
 import { stickX } from '../../sim/control';
+import * as SimMath from '../../sim/math';
 
 const box = (
   id: number,
@@ -165,14 +166,14 @@ export const upB: MoveDef = {
     if (f.actionFrame === ZIP_FROM) {
       const lean = stickX(c) * f.facing;
       const rad = ((lean > 0.3 ? 55 : lean < -0.3 ? 85 : 70) * Math.PI) / 180;
-      f.vel.x = f.facing * ZIP_SPEED * Math.cos(rad);
-      f.vel.y = ZIP_SPEED * Math.sin(rad);
+      f.vel.x = f.facing * ZIP_SPEED * SimMath.cos(rad);
+      f.vel.y = ZIP_SPEED * SimMath.sin(rad);
       return;
     }
     if (f.actionFrame > ZIP_TO) return;
     // Gravity is the only thing that touched the velocity since last frame: undo it and keep the line's speed.
     const vy = f.vel.y + s.gravity;
-    const scale = (ZIP_SPEED * (f.actionFrame > ZIP_TO - 4 ? 0.6 : 1)) / Math.hypot(f.vel.x, vy);
+    const scale = (ZIP_SPEED * (f.actionFrame > ZIP_TO - 4 ? 0.6 : 1)) / SimMath.hypot(f.vel.x, vy);
     f.vel.x *= scale;
     f.vel.y = vy * scale;
   },

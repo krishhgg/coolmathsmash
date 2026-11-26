@@ -5,6 +5,8 @@
  * Angles are in degrees, measured from the attacker's facing direction (0 = away from the attacker, 90 = up).
  */
 
+import * as SimMath from '../math';
+
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const RAD = Math.PI / 180;
 
@@ -164,16 +166,16 @@ export function launch(l: LaunchParams): Launch {
   const bonus =
     tumble && !l.setKnockback && !vertical ? GRAVITY_BONUS_MULT * (l.gravity - GRAVITY_BONUS_BASE) : 0;
   let speed = l.kb * LAUNCH_SPEED_PER_KB;
-  let vx = speed * Math.cos(angle * RAD);
-  let vy = speed * Math.sin(angle * RAD) + bonus;
-  let effective = Math.atan2(vy, vx);
+  let vx = speed * SimMath.cos(angle * RAD);
+  let vy = speed * SimMath.sin(angle * RAD) + bonus;
+  let effective = SimMath.atan2(vy, vx);
   const stick = l.stick ?? { x: 0, y: 0 };
   if (tumble && Math.abs(effective) >= DI_MAX && (stick.x !== 0 || stick.y !== 0)) {
-    speed = Math.hypot(vx, vy);
+    speed = SimMath.hypot(vx, vy);
     effective = directionalInfluence(vx, vy, stick.x, stick.y);
     speed *= launchSpeedInfluence(stick.y, effective / RAD);
-    vx = speed * Math.cos(effective);
-    vy = speed * Math.sin(effective);
+    vx = speed * SimMath.cos(effective);
+    vy = speed * SimMath.sin(effective);
   }
   if (groundedFlat) {
     vx *= 0.8;
@@ -185,8 +187,8 @@ export function launch(l: LaunchParams): Launch {
 
 /** DI: rotate the launch by up to 0.17 rad toward the stick's component perpendicular to it. Returns radians. */
 export function directionalInfluence(vx: number, vy: number, sx: number, sy: number): number {
-  const speed = Math.hypot(vx, vy);
-  const angle = Math.atan2(vy, vx);
+  const speed = SimMath.hypot(vx, vy);
+  const angle = SimMath.atan2(vy, vx);
   if (speed < 1e-5 || Math.abs(angle) < DI_MAX) return angle;
   const di = (DI_MAX * Math.abs(sx * vy - sy * vx)) / speed;
   return sy * vx - sx * vy < 0 ? angle - di : angle + di;

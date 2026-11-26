@@ -5,6 +5,7 @@ import type { MatchState } from './match';
 import { posedStage } from './movingStage';
 import { ledgePresent } from './stage';
 import type { Vec } from './vec';
+import * as SimMath from './math';
 
 /** The first thing a segment touches (castSegment). */
 interface CastContact {
@@ -113,7 +114,7 @@ function capsuleEntry(from: Vec, d: Vec, h: Hurtbox): number | null {
     const p = { x: from.x + d.x * t, y: from.y + d.y * t };
     const x = Math.min(Math.max(p.x, h.x - hw), h.x + hw);
     const y = Math.min(Math.max(p.y, h.y1), h.y2);
-    return Math.hypot(p.x - x, p.y - y);
+    return SimMath.hypot(p.x - x, p.y - y);
   };
   if (dist(0) <= h.r) return 0;
   let lo = 0;

@@ -55,6 +55,7 @@ import {
   standSafe,
   type StageInfo,
 } from './stage';
+import * as SimMath from '../sim/math';
 
 /**
  * One CPU player. Every frame it reads the match (its own fighter as it is, opponents as they were `reaction`
@@ -291,7 +292,7 @@ export class Cpu {
       this.diStick = chooseDI(state, me, control, stageInfo(state), attacker && attacker.pos);
     } else if (r < this.lv.di + (1 - this.lv.di) * 0.5) {
       const a = this.rand() * Math.PI * 2;
-      this.diStick = press({ x: Math.round(Math.cos(a) * 100), y: Math.round(Math.sin(a) * 100) });
+      this.diStick = press({ x: Math.round(SimMath.cos(a) * 100), y: Math.round(SimMath.sin(a) * 100) });
     } else {
       this.diStick = neutralInput();
     }
@@ -528,7 +529,7 @@ export class Cpu {
     const plan = this.recovery;
     const t = plan ? state.frame - plan.start : 0;
     const expected = plan?.path[t - 1];
-    const drifted = expected !== undefined && Math.hypot(expected.x - me.pos.x, expected.y - me.pos.y) > 2;
+    const drifted = expected !== undefined && SimMath.hypot(expected.x - me.pos.x, expected.y - me.pos.y) > 2;
     if (!plan || !this.recoveryDrive || drifted || t >= plan.path.length) {
       if (me.action !== 'helpless' && !actionable(me) && plan) return this.recoveryDrive!(t, me);
       const control = state.players[this.port]!.control;
@@ -1326,7 +1327,7 @@ function nearestOpponent(
   for (const f of state.fighters) {
     if (f.port === me.port || GONE.has(f.action)) continue;
     const g = seen ? seen(f.port, lag) : f;
-    const d = Math.hypot(g.pos.x - me.pos.x, g.pos.y - me.pos.y);
+    const d = SimMath.hypot(g.pos.x - me.pos.x, g.pos.y - me.pos.y);
     if (d < bestD) {
       bestD = d;
       best = f;

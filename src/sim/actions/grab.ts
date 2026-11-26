@@ -20,6 +20,7 @@ import { restoreAirOptions } from '../movement';
 import { endStatusesOnHit, isFrozen } from '../statuses';
 import { moveOf, playMove, startMove, stopInPlace } from './attack';
 import { setAction, type ActionDef } from './registry';
+import * as SimMath from '../math';
 
 /**
  * Grabs, pummels and throws, Ultimate style. A grab is a grounded move whose grab boxes (HitboxDef.grab) catch a
@@ -375,7 +376,7 @@ function hold(a: FighterState, v: FighterState): void {
   const reach = (getFighter(a.fighter).stats.width + getFighter(v.fighter).stats.width) / 2 + GRAB.holdGap;
   const to = { x: a.pos.x + reach * a.facing, y: a.pos.y };
   const pull = a.action === 'grabThrow' ? moveOf(a)?.pull : undefined;
-  const gap = Math.hypot(to.x - v.pos.x, to.y - v.pos.y);
+  const gap = SimMath.hypot(to.x - v.pos.x, to.y - v.pos.y);
   v.facing = -a.facing as 1 | -1;
   if (pull !== undefined && gap > pull) {
     v.pos.x += ((to.x - v.pos.x) * pull) / gap;
