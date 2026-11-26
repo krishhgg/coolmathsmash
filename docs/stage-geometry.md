@@ -39,6 +39,13 @@ export const stage: StageGeometry = {
 Solid edges are floors, walls or ceilings by their outward normal (floors face up within about 45°). A ledge
 belongs to the solid with a corner at its point; set `solid` (an index into `solids`) to say otherwise.
 
+A fighter's collision box (a diamond from the feet to three quarters of its height, half its width wide) never
+enters a solid, as in Ultimate. Floors catch the feet (a landing). Walls and ceilings push back any point of the
+box that crosses them, and a convex corner with a wall or ceiling on one side (a ledge corner, the corner where a
+side wall meets the underside) pushes back the side of the box it runs into. A fighter rising into the underside
+stops against it or slides along it, and one rising past a corner slides off it. Soft platforms only catch the
+feet from above, so fighters pass up through them.
+
 ## Moving platforms and solids
 
 Any solid or platform can move and can appear and vanish. Both are pure functions of the match frame, so they
@@ -84,9 +91,8 @@ zones never move.
    of it.
 
 Collision uses each fighter's movement relative to each solid, so a piece can move any distance per frame
-without tunnelling through anyone. The pushes act on the fighter's collision box (a diamond from the feet to
-three quarters of its height, half its width wide), so a moving solid lower than half a fighter's height
-slides under their sides; make movers taller, or make them platforms.
+without tunnelling through anyone. The pushes act on the fighter's whole collision box, so even a mover lower
+than half a fighter's height shoves them at the feet.
 
 Grounded movement does not collide with walls (see `groundMove`), so stages should not put walls on top of
 floors that fighters walk along.

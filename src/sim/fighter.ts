@@ -3,9 +3,11 @@ import type { FighterDef, FighterStats, TetherLatch } from '../fighters/types';
 import { SHIELD_MAX, TECH_LOCKOUT } from './constants';
 import type { ControlState } from './control';
 import type { MatchState, PlayerState } from './match';
+import { createMeters } from './meters';
 import { createMobility, type MobilityState } from './mobility';
 import { jumpVelocity } from './physics';
 import type { CompiledStage } from './stage';
+import type { StatusState } from './statuses';
 import { vec, type Vec } from './vec';
 
 export interface GroundRef {
@@ -72,6 +74,8 @@ export interface FighterState {
   moveStale: number;
   /** Frames the current move has charged (0 to its chargeFrames). */
   charge: number;
+  /** A counterattack's damage (MoveDef.counter): its boxes deal at least this. 0 outside a counterattack. */
+  counterDamage: number;
   /**
    * A charge kept for the next use of `move` by the form `fighter` (stored charge), spent when that move fires; lost
    * on a KO as that form.
@@ -123,6 +127,12 @@ export interface FighterState {
   aim: Vec | null;
   /** Frames before stage hazards (damage zones, stage hitboxes) can hit this fighter again. */
   stageHitLock: number;
+  /** Timed statuses on this fighter, oldest first (src/sim/statuses.ts). */
+  statuses: StatusState[];
+  /** Meter values by name (FighterDef.meters, src/sim/meters.ts). */
+  meters: Record<string, number>;
+  /** Holds a Final Smash charge: broke the Coolmath Planet (src/sim/items/planet.ts) and has not lost it yet. */
+  finalReady: boolean;
 }
 
 export function createFighter(
@@ -166,6 +176,7 @@ export function createFighter(
     hitEntities: [],
     moveStale: 0,
     charge: 0,
+    counterDamage: 0,
     storedCharge: null,
     staleQueue: [],
     intangible: 0,
@@ -184,6 +195,9 @@ export function createFighter(
     tether: null,
     aim: null,
     stageHitLock: 0,
+    statuses: [],
+    meters: createMeters(getFighter(fighterId)),
+    finalReady: false,
   };
 }
 
