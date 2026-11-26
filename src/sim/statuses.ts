@@ -46,6 +46,18 @@ export interface StatusDef {
    * landing with it can put it back on (Ultimate's paralysis).
    */
   endOnHit?: boolean;
+  /**
+   * A coat that builds up and wears off, like Inkling's ink (SmashWiki, "Ink (status)"). Each application adds `add` to
+   * the status's `level` (or the `level` applyStatus is given), up to `max`, and sets its length to `frames` + level /
+   * `decay`: the level holds for `frames` frames, then drops `decay` a frame, and the status ends as it reaches 0.
+   * `perDamage`, `perKnockback` and `stack` don't apply to it.
+   */
+  coat?: { add: number; max: number; decay: number };
+  /**
+   * Multiplies the % the fighter takes from any source while the status is on (Inkling's ink: 1 + level x 0.5 / 180).
+   * Like the 1v1 multiplier, it changes the % added, not the hit's knockback.
+   */
+  damageTaken?: (status: StatusState) => number;
   /** Presentation only: the colour of its badge over the fighter's head. */
   color?: string;
 }
@@ -62,6 +74,8 @@ export interface StatusState {
   since: number;
   /** Port credited with it: the fighter whose hit applied it, or that entity's owner (-1 for nobody). */
   source: number;
+  /** A coat's level now (StatusDef.coat); only coats have one. */
+  level?: number;
 }
 
 export type StatusEndReason = 'expired' | 'ko' | 'cleared' | 'hit';
@@ -82,27 +96,37 @@ export function hasStatus(f: FighterState, kind: string): boolean {
   return statusOf(f, kind) !== undefined;
 }
 
+/** The multiplier on the % `f` takes from any source: the product of its statuses' `damageTaken`, 1 with none. */
+export function damageTaken(f: FighterState): number {
+  let k = 1;
+  for (const s of f.statuses) k *= statusDef(s.kind).damageTaken?.(s) ?? 1;
+  return k;
+}
+
 /**
- * A freezing status (StatusDef.freeze) holds `f` on this frame of `m`: like a fighter in hitlag, it isn't pushed by
- * others. tickFreezes ends a freeze inside the fighter's step, before the frame's pushes run, so on its last frozen
- * frame the status is already off; `frozenAt` keeps that frame frozen too.
+ * A freezing status (StatusDef.freeze) holds `f` on this frame of `m`: like a fighter in hitlag, it isn't pushed and
+ * lands no hitbox or grab, but it can still be hit. tickFreezes marks each frame it holds the fighter in `frozenAt`,
+ * so the last frozen frame counts though the status is already off, and the frame a freeze goes on doesn't: the
+ * fighter acts on that one.
  */
 export function isFrozen(m: MatchState, f: FighterState): boolean {
-  return f.frozenAt === m.frame || f.statuses.some((s) => statusDef(s.kind).freeze);
+  return f.frozenAt === m.frame;
 }
 
 /**
  * Put status `kind` on `f`, or apply it again (StatusDef.stack). Its length comes from the StatusDef, `damage` (the %
  * the applying hit added) and `knockback` (the hit's knockback scaled like its hitlag, StatusDef.perKnockback) unless
- * `frames` gives one. A length under one frame applies nothing.
+ * `frames` gives one; a coat's comes from its level, `level` adding that much coat in place of StatusDef.coat.add. A
+ * length under one frame applies nothing.
  */
 export function applyStatus(
   m: MatchState,
   f: FighterState,
   kind: string,
-  opts: { damage?: number; knockback?: number; source?: number; frames?: number } = {},
+  opts: { damage?: number; knockback?: number; source?: number; frames?: number; level?: number } = {},
 ): StatusState | null {
   const def = statusDef(kind);
+  if (def.coat) return applyCoat(m, f, kind, def, opts);
   const max = def.max ?? Infinity;
   const length = Math.min(
     max,
@@ -123,6 +147,30 @@ export function applyStatus(
   const status: StatusState = { kind, frames: length, age: 0, since: m.frame, source: opts.source ?? -1 };
   f.statuses.push(status);
   emit(m, { type: 'statusStart', port: f.port, status: kind, frames: length, source: status.source });
+  return status;
+}
+
+/** A coat (StatusDef.coat): add to its level, up to the max, and hold it `frames` frames before it wears off again. */
+function applyCoat(
+  m: MatchState,
+  f: FighterState,
+  kind: string,
+  def: StatusDef,
+  opts: { source?: number; level?: number },
+): StatusState | null {
+  const coat = def.coat!;
+  const on = statusOf(f, kind);
+  const level = Math.min(coat.max, (on?.level ?? 0) + (opts.level ?? coat.add));
+  if (level <= 0) return on ?? null;
+  const frames = def.frames + level / coat.decay;
+  if (on) {
+    Object.assign(on, { level, frames });
+    if (opts.source !== undefined) on.source = opts.source;
+    return on;
+  }
+  const status: StatusState = { kind, frames, age: 0, since: m.frame, source: opts.source ?? -1, level };
+  f.statuses.push(status);
+  emit(m, { type: 'statusStart', port: f.port, status: kind, frames, source: status.source });
   return status;
 }
 
@@ -202,6 +250,7 @@ function tick(x: Ctx, freezing: boolean): void {
       });
     }
     s.frames--;
+    if (def.coat) s.level = Math.max(0, Math.min(s.level ?? 0, s.frames * def.coat.decay));
     if (s.frames <= 0) end(m, f, s, 'expired');
   }
 }

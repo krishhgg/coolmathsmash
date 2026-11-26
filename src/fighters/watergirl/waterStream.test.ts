@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { knockback, LAUNCH_SPEED_PER_KB } from '../../sim/combat/formulas';
 import { createMatch } from '../../sim/match';
-import { placeInAir, run, runPorts } from '../../sim/testing/sim';
+import { placeInAir, run, runPorts, testMatch } from '../../sim/testing/sim';
 import type { FighterState } from '../../sim/fighter';
 import type { MatchState } from '../../sim/match';
 import { stats as fireboy } from '../fireboy/stats';
+import { registerFighter } from '../registry';
+import { defineFighter, type MoveDef } from '../types';
+import { fighter } from '.';
 import { entities, PUMP } from './entities';
-import { pumpTier, STREAM } from './waterStream';
+import { pumpTier, STREAM, waterStream } from './waterStream';
 
 /** Watergirl at x = -40 facing Fireboy at `gap` units in front of her, both standing on Battlefield. */
 function duel(gap = 18): { m: MatchState; w: FighterState; v: FighterState } {
@@ -42,6 +45,27 @@ function stream(m: MatchState, hold = 1, others: { buttons?: 'shield'[] } = {}, 
   } while (w.move === 'neutralB' || w.move === 'neutralBHeavy');
   return { pumps, frames };
 }
+
+/** Watergirl with Water Stream counting the runs of its script in `scriptRuns`. */
+let scriptRuns = 0;
+const counted = (move: MoveDef): MoveDef => ({
+  ...move,
+  script: (x) => {
+    scriptRuns++;
+    move.script!(x);
+  },
+});
+const counter = defineFighter({
+  ...fighter,
+  id: 'test-watergirl-runs',
+  name: 'Test: Water Stream runs',
+  moves: {
+    ...fighter.moves,
+    neutralB: counted(waterStream.neutralB!),
+    neutralBHeavy: counted(waterStream.neutralBHeavy!),
+  },
+});
+registerFighter(counter);
 
 const range = (from: number, to: number, step = 1) =>
   Array.from({ length: Math.floor((to - from) / step) + 1 }, (_, i) => from + i * step);
@@ -150,5 +174,21 @@ describe('Watergirl Water Stream (neutral special, F.L.U.D.D. in Ultimate)', () 
     expect(w.charge).toBe(charge);
     // The release frame's air friction takes back at most 0.015 of the 0.8 recoil.
     expect(w.vel.x - before).toBeCloseTo(-STREAM.recoil * charge, 1);
+  });
+
+  it('runs its script once a frame while it charges, into the heavy shoot too', () => {
+    const m = testMatch({ fighter: counter.id });
+    const w = m.fighters[0]!;
+    run(m, 1, { buttons: ['special'] });
+    expect(w.move).toBe('neutralB');
+    const runs: number[] = [];
+    while (w.charge < STREAM.heavyFrom + 5) {
+      const before = scriptRuns;
+      run(m, 1, { buttons: ['special'] });
+      runs.push(scriptRuns - before);
+    }
+    expect(w.actionFrame).toBe(STREAM.chargeFrame - 1);
+    expect(w.move).toBe('neutralBHeavy');
+    expect(runs).toEqual(runs.map(() => 1));
   });
 });

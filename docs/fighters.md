@@ -39,7 +39,7 @@ Donkey Kong, Bowser, Fox, Jigglypuff) and adjust.
 | `height`, `width`                                        | body size: the hurtbox capsule and the environment box (feet at the origin) | 15, 8            | 15, 8               | (estimate)       |
 | `walkSpeed`, `walkAccelBase`, `walkAccelAdd`             | max walk speed; acceleration = base + add × stick                           | 1.1              | 1.155               | 0.62–1.575       |
 | `groundFriction`                                         | traction: speed lost per frame when not accelerating                        | 0.1              | 0.102               | 0.076–0.138      |
-| `dashInitialSpeed`, `dashFrames`                         | initial dash speed and length (dash-dance window)                           | 1.95, 11         | 1.936, 10           | 1.45–2.45        |
+| `dashInitialSpeed`, `dashFrames`                         | initial dash speed and length; a flick back after frame 5 turns at its end  | 1.95, 11         | 1.936, 10           | 1.45–2.45        |
 | `runSpeed`, `runAccelBase`, `runAccelAdd`                | run speed and acceleration                                                  | 1.85             | 1.76                | 1.18–3.85        |
 | `airSpeed`, `airAccelBase`, `airAccelAdd`, `airFriction` | air drift                                                                   | 1.15             | 1.208               | 0.735–1.344      |
 | `gravity`, `fallSpeed`, `fastFallSpeed`                  | per-frame gravity and terminal speeds                                       | 0.09, 1.55, 2.48 | 0.087, 1.5, 2.4     | 0.053–0.23       |
@@ -161,6 +161,8 @@ fsmash: {
   - `action` plays the move in another action with its own physics instead of `attack`/`aerial`: `'hover'`.
   - `drift: false` turns off air drift (and air friction) while an airborne move plays, so a scripted path such
     as Bob the Robber's Grappling Hook zip (his `upB`) is not bent by the stick.
+  - `fastFall: false` stops a down flick from fast-falling while an airborne move plays, as in Ultimate's specials
+    (the Duck's Running Ram).
   - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
     `neutralB: { ..., air: 'neutralBAir' }`. The variant is its own move, so it has its own frame data and clip,
     and the `move` event carries its name.
@@ -221,7 +223,8 @@ or reaching full charge, carries on with the move.
 - **`chargeFrames`** is the hold for a full charge (default 60, Ultimate's smash attacks).
 - **`chargeDamage`** is the damage multiplier at full charge (default 1.4, Ultimate's smash attacks). Less charge
   scales linearly from 1, and knockback grows through the damage. The test charger's side special sets
-  `chargeDamage: 2.2`, so its 10% hitbox reaches 22%.
+  `chargeDamage: 2.2`, so its 10% hitbox reaches 22%. The Duck's Running Ram (`src/fighters/duck/ram.ts`, Pikachu's
+  Skull Bash) charges for 80 frames from 6.2% to 21.4% and speeds up its dash with `chargeLerp`.
 - **Speeds and distances.** A move script reads `chargeLerp(f, uncharged, full)` for a value at the current charge
   level (a dash speed), or `chargeLevel(f)` (0 to 1).
 - **Projectiles.** An entity whose EntityDef sets `chargeDamage` hits for up to that many times its damage at the
@@ -240,7 +243,8 @@ or reaching full charge, carries on with the move.
   of the same name starts uncharged, and the charge is back after transforming again. Only a KO as the storing form
   loses it (Ultimate: Squirtle keeps Water Gun's charge through Pokemon Change).
 - A charging move, and a fighter holding a stored charge for its current form, glow behind the fighter
-  (`src/render/chargeGlow.ts`, placeholder art).
+  (`src/render/chargeGlow.ts`, placeholder art). A move whose art draws its own charge with a `<move>Charge` clip
+  (docs/art.md) gets no placeholder while it charges.
 - `src/sim/testing/charge.ts` (`test-charger`, registered for tests and `?harness`) has one move of each kind.
 - Charging emits `charge` events (`full`, `store`, `fire`) with the charge level (`docs/sim-events.md`).
 
@@ -429,10 +433,11 @@ upB: {
   by up to `stickAdjust` degrees towards the stick's forward or back. Its tip reaches full range evenly over
   `travel` frames, and each frame the line from the hand to the tip is cast through the stage (`castSegment`).
 - **Aiming.** With `aimed: { speed }` a reticle starts on the fighter and walks with the stick at `speed` units a
-  frame while special is held, clamped to `range`; the move waits on the frame before `frame`, the fighter keeps
-  drifting (aimed tethers don't fast-fall), and releasing special fires at the reticle. With
-  `aimed.quick: { frames }`, releasing special within `frames` of pressing it while the stick points somewhere
-  fires at full range in that 8-way direction instead. A reticle still on the fighter fires nothing.
+  frame while special is held, clamped to `range`; the move waits on the frame before `frame`, running its script
+  once a frame there as a charging move does, the fighter keeps drifting (aimed tethers don't fast-fall), and
+  releasing special fires at the reticle. With `aimed.quick: { frames }`, releasing special within `frames` of
+  pressing it while the stick points somewhere fires at full range in that 8-way direction instead. A reticle still
+  on the fighter fires nothing.
 - **Anchoring.** The first thing the line touches anchors it if `latch` lists it: `ledge` (any ledge the line
   passes within `TETHER.ledgeSnap`, 10 units, of from off the stage, if nobody holds it and the fighter still has
   ledge grabs), `surface` (any solid edge or platform, from either side) or `sky` (empty air at full range).
@@ -482,7 +487,8 @@ It returns the lowest % (to 0.1) from which the hit KOs the target: the target c
 blast line below, **before its hitstun ends**, with no input other than the optional DI stick, which is the definition
 the community KO calculator uses. Defaults: the Mario reference (weight 98) standing at Battlefield's ledge
 (`from: 'ledge'`, launched toward the near blast zone), fresh (×1.05), no rage, no DI. `from` also takes `'centre'` or
-a point, `target` another fighter id, `attackerPercent` adds rage.
+a point, `target` another fighter id, `attackerPercent` adds rage, `charge` charges a `{ fighter, move }` hit for that
+many frames.
 
 A `{ fighter, move }` hit lands the way the real hit connects:
 
@@ -626,7 +632,10 @@ dthrow: { ..., throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55
 - **Freezing.** A `freeze` status holds the fighter as hitlag does: no action, physics or timers, and the launch waits
   for it. It ticks on every frame from the one after it went on, hitlag included, so a hit that applies one freezes the
   victim for the longer of its hitlag and the status. Other statuses pause while it lasts, and other fighters can't
-  push it, on the frame it runs out too. The renderer shakes the fighter and flickers it in the status's `color`.
+  push it, on the frame it runs out too. Its own hitboxes, grab boxes, reflectors and absorbers do nothing while it is
+  frozen, as in hitlag, so a move it was frozen in (armor took the hit) goes on when the freeze ends. It can still be
+  hit by fighters, projectiles and stage hazards. On the frame a freeze goes on the fighter still acts, so it can be
+  pushed and land hits then. The renderer shakes the fighter and flickers it in the status's `color`.
 - **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status. With `endOnHit`, a later
   hit that lands (not on a shield), a pummel or a throw's hold hit included, takes it off, reported as `statusEnd` with
   reason `hit`. That hit's hitlag and launch take over, and no hit landing on the same frame can put the same status
@@ -640,9 +649,29 @@ hitlag:
 paralyzed: { frames: 1, perKnockback: 1, max: 90, freeze: true, endOnHit: true, color: '#f2c62a' },
 ```
 
+Papa Louie's Cheesed (`src/fighters/papa-louie/statuses.ts`) is Inkling's ink (SmashWiki, "Ink (status)"), on two
+more fields:
+
+```ts
+cheesed: {
+  frames: 120,                                   // the coat holds 120 frames after the last coating hit
+  coat: { add: 12, max: 300, decay: 0.25 },      // +12 a hit up to 300, then -0.25 a frame; lasts 120 + level / 0.25
+  damageTaken: (s) => 1 + (Math.min(s.level ?? 0, 180) * 0.5) / 180, // up to x1.5 damage taken
+  color: '#f2cf5b',
+},
+```
+
+- **Coats.** With `coat`, each application adds `add` to the status's `level` (or the `level` given to `applyStatus`),
+  up to `max`, and sets its length to `frames` + level / `decay`. The level holds for `frames` frames, then drops
+  `decay` a frame, and the status ends as it reaches 0. A new application starts the hold again. `perDamage`,
+  `perKnockback` and `stack` don't apply.
+- **Damage taken.** `damageTaken(status)` multiplies the % the fighter takes from any source (hits, throws, pummels,
+  status ticks) while it lasts, inside `addDamage`. Like the 1v1 multiplier, it changes the % added, not the hit's
+  knockback or the shield damage.
+
 - **State.** `FighterState.statuses` lists `{ kind, frames, age, since, source }`, oldest first. `frames` is what is
-  left, `age` counts ticks from 1 and `source` is the port credited (-1 for none). Use `hasStatus` and `statusOf`
-  to read it.
+  left, `age` counts ticks from 1 and `source` is the port credited (-1 for none). A coat also has its `level`. Use
+  `hasStatus` and `statusOf` to read it.
 
 Meters are declared in `FighterDef.meters`:
 

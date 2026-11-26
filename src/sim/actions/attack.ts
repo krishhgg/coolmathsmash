@@ -6,6 +6,7 @@ import {
   cStickDir,
   consume,
   consumeCStick,
+  isHeld,
   smashDir,
   specialDir,
   stickDir,
@@ -161,11 +162,17 @@ export function airAttack(x: Ctx, specials = true): boolean {
   return startMove(x, AERIAL[stickDir(c, f.facing)]);
 }
 
+/** An aimed tether's line waits to leave while Special is held (tetherCast.ts walks the reticle meanwhile). */
+function aiming(x: Ctx, move: MoveDef): boolean {
+  const t = move.tether;
+  return t?.aimed !== undefined && t.frame === x.f.actionFrame && !x.f.tether && isHeld(x.c, Btn.Special);
+}
+
 /**
- * Per-frame move bookkeeping: hold the charge frame while the move charges, reopen `rehit` windows, spawn the
- * frame's entities, run the move's script. Returns the move, or null when a stored charge cancelled it into
- * another action. A held frame runs the script once, on the frame before the charge frame, whose windows, spawns
- * and transform already happened on the way in.
+ * Per-frame move bookkeeping: hold the charge frame while the move charges, and an aimed tether's frame while it
+ * aims; reopen `rehit` windows, spawn the frame's entities, run the move's script. Returns the move, or null when
+ * a stored charge cancelled it into another action. While a frame is held the script runs once a frame on the
+ * frame before it, whose windows, spawns and transform already happened on the way in.
  */
 export function playMove(x: Ctx): MoveDef | null {
   const { f } = x;
@@ -175,8 +182,9 @@ export function playMove(x: Ctx): MoveDef | null {
     const hold = chargeHold(x, move);
     if (hold === 'cancel') return null;
     held = hold === 'hold';
-    if (held) holdFrame(x);
   }
+  held ||= aiming(x, move);
+  if (held) holdFrame(x);
   if (!held && move.hits.some((w) => w.rehit && w.frames[0] === f.actionFrame)) {
     f.hitVictims = [];
     f.hitEntities = [];
@@ -232,7 +240,7 @@ export const ATTACK: Record<string, ActionDef> = {
       const { f } = x;
       const move = playMove(x);
       if (!move) return;
-      if (!move.helpless && !move.tether?.aimed) fastFallCheck(x);
+      if (!move.helpless && !move.tether?.aimed && move.fastFall !== false) fastFallCheck(x);
       if (f.actionFrame < move.faf) return;
       if (glideAfterMove(x, move)) return;
       if (!move.helpless) return setAction(x, 'fall');
