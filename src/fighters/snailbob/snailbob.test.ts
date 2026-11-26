@@ -147,7 +147,7 @@ describe('Snail Bob: frame data', () => {
     expect(Math.max(...move.hits.flatMap((w) => w.boxes.map((b) => b.damage)))).toBe(damage);
   });
 
-  it('pummel, throws and the Shell Pound landing deal their damage', () => {
+  it('pummel, throws and the Shell Plunge landing deal their damage', () => {
     expect(moves.pummel!.pummel!.damage).toBe(1.2);
     expect(moves.fthrow!.throw!.hit.damage).toBe(8);
     expect(moves.bthrow!.throw!.hit.damage).toBe(11);
@@ -190,9 +190,9 @@ describe('Snail Bob: frame data', () => {
   });
 });
 
-describe('Snail Bob: Shell Pound (dair)', () => {
+describe('Snail Bob: Shell Plunge (dair)', () => {
   /** Bob in the air at height `y` over the stage; Mario `below` units under him, airborne. */
-  function pound(y: number, below?: number) {
+  function plunge(y: number, below?: number) {
     const { m, a, v } = vsMario();
     place(a, 0, y);
     Object.assign(a, { vel: { x: 0, y: 0 }, ground: null, action: 'fall', facing: 1, jumpsUsed: 1 });
@@ -205,7 +205,7 @@ describe('Snail Bob: Shell Pound (dair)', () => {
   }
 
   it('hangs, then plunges faster than his fast fall', () => {
-    const { m, a } = pound(60);
+    const { m, a } = plunge(60);
     runPorts(m, DAIR_PLUNGE_FROM - 1, [{}, {}]);
     expect(a.pos.y).toBeGreaterThan(59);
     const y = a.pos.y;
@@ -215,7 +215,7 @@ describe('Snail Bob: Shell Pound (dair)', () => {
 
   it('a down flick during the hang or the plunge does not change his path', () => {
     const path = (flick: boolean) => {
-      const { m, a } = pound(100);
+      const { m, a } = plunge(100);
       const ys: number[] = [];
       for (let i = 1; i <= 30; i++) {
         const down = flick && (i === 6 || i === 20);
@@ -228,13 +228,13 @@ describe('Snail Bob: Shell Pound (dair)', () => {
   });
 
   it('meteors a fighter under him on frames 16-20', () => {
-    const { m, v } = pound(40, 10);
+    const { m, v } = plunge(40, 10);
     for (let i = 0; i < 40 && v.kb.y === 0; i++) runPorts(m, 1, [{}, {}]);
     expect(v.kb.y).toBeLessThan(0);
   });
 
   it('landing during the plunge sends out the shockwave on both sides', () => {
-    const { m, a, v } = pound(30);
+    const { m, a, v } = plunge(30);
     until(m, (f) => f.ground !== null);
     run(m, 1);
     expect(a.move).toBe('dairLand');
@@ -243,8 +243,8 @@ describe('Snail Bob: Shell Pound (dair)', () => {
     expect(v.damage).toBe(0);
   });
 
-  it('started just above the floor, the hang lifts him and he still pounds into the shockwave', () => {
-    const { m, a } = pound(1);
+  it('started just above the floor, the hang lifts him and he still plunges into the shockwave', () => {
+    const { m, a } = plunge(1);
     until(m, (f) => f.ground !== null);
     expect(a.actionFrame).toBeGreaterThanOrEqual(DAIR_PLUNGE_FROM);
     run(m, 1);
@@ -256,7 +256,7 @@ describe('Snail Bob: Shell Pound (dair)', () => {
 
 describe('Snail Bob: kill percents (koPercent: Mario at the Battlefield ledge, fresh, no rage, no DI)', () => {
   const ko = (move: string) => koPercent({ hit: { fighter: 'snailbob', move } })!;
-  /** Shell Pound's late plunge, the hit that KOs off the side; it shares its box id with the meteor, so pass it raw. */
+  /** Shell Plunge's late drop, the hit that KOs off the side; it shares its box id with the meteor, so pass it raw. */
   const dairLate = () => koPercent({ hit: moves.dair!.hits[1]!.boxes[0]!, air: true })!;
 
   /**

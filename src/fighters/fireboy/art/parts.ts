@@ -245,3 +245,59 @@ export const balls: PathShape[][] = FLICKER.map(([l, m]) => [
   { d: comet(2.5, m), fill: 'fxHot' },
   { d: ellipse(0.5, 0, 1.3, 1.3), fill: 'fxCore' },
 ]);
+
+/**
+ * Fire Blast's fire (src/fighters/fireboy/finalSmash.ts), at world scale: one flame as big as the blast's two
+ * radius-16 hitboxes, its round front leading towards +x and three swept tongues trailing back, with the two
+ * fireballs (fire1 and fire2, as in Mario Finale) rolling round each other inside it. `tips` nudges the top, middle
+ * and bottom tongues for the flicker drawings.
+ */
+function blastFlame(s: number, dx: number, [t, m, b]: [number, number, number]): string {
+  const p = (x: number, y: number) => `${n(x * s + dx)} ${n(y * s)}`;
+  return [
+    `M${p(0, -18)}`,
+    `C${p(10, -18)} ${p(18, -10)} ${p(18, 0)}`,
+    `C${p(18, 10)} ${p(10, 18)} ${p(0, 18)}`,
+    `C${p(-8, 18)} ${p(-15, 16)} ${p(-24 - b * 1.5, 13 + b)}`,
+    `C${p(-18, 11)} ${p(-15, 9)} ${p(-12, 6.5)}`,
+    `C${p(-18, 5.5)} ${p(-24, 3)} ${p(-30 - m * 1.5, m)}`,
+    `C${p(-24, -3)} ${p(-18, -5.5)} ${p(-12, -6.5)}`,
+    `C${p(-15, -9)} ${p(-18, -11)} ${p(-24 - t * 1.5, -13 - t)}`,
+    `C${p(-15, -16)} ${p(-8, -18)} ${p(0, -18)}Z`,
+  ].join('');
+}
+
+/** A swirl line curling round the front of the blast, from angle a0 to a1 (degrees) at radius r. */
+function swirl(r: number, a0: number, a1: number): string {
+  const at = (a: number) => {
+    const t = (a * Math.PI) / 180;
+    return `${n(Math.cos(t) * r + 2)} ${n(Math.sin(t) * r)}`;
+  };
+  const mid = (a0 + a1) / 2;
+  return `M${at(a0)} Q${at(mid)} ${at(a1)}`;
+}
+
+/** The whole blast with its fireballs rolled `turn` degrees round the centre line (y down). */
+function blastDrawing(turn: number, tips: [number, number, number]): PathShape[] {
+  const ball = (a: number): PathShape[] => {
+    const t = ((turn + a) * Math.PI) / 180;
+    const x = Math.cos(t) * 4 + 3;
+    const y = Math.sin(t) * 7.5;
+    return [
+      { d: ellipse(x, y, 7.2, 7.2), fill: 'fxHot', stroke: { color: 'fxLine', width: 0.45 } },
+      { d: ellipse(x + 1.4, y, 4.2, 4.2), fill: 'fxCore' },
+    ];
+  };
+  const back = Math.sin((turn * Math.PI) / 180) > 0 ? 0 : 180;
+  return [
+    { d: blastFlame(1, 0, tips), fill: 'fx', stroke: { color: 'fxLine', width: 0.7 } },
+    { d: blastFlame(0.7, 3.5, tips), fill: 'fxHot' },
+    ...ball(back),
+    { d: swirl(12.5, turn - 70, turn + 40), stroke: { color: 'fxLine', width: 0.5 } },
+    { d: swirl(12.5, turn + 110, turn + 220), stroke: { color: 'fxLine', width: 0.5 } },
+    ...ball(back + 180),
+  ];
+}
+
+/** Fire Blast drawings: the pair rolls a third of a turn between drawings. */
+export const blasts: PathShape[][] = FLICKER.map((tips, i) => blastDrawing(30 + i * 120, tips));

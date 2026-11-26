@@ -441,7 +441,10 @@ too: "All stage hazards are paused during a Final Smash" (SmashWiki, Stage hazar
 belt acts until the hold ends. SmashWiki also says platforms only slow down during some Final Smashes; here they stop
 for the hold and run at full speed after it.
 
-A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned beams (Mario Finale):
+A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned beams. Fireboy's Fire Blast
+(`src/fighters/fireboy/finalSmash.ts`) is the roster example: Mario Finale's frame data, damage and knockback on a
+`fireboy/blast` entity that crosses the stage and keeps burning after Fireboy can act, as Mario's fireballs do. The
+test fighter's is a plain hitbox:
 
 ```ts
 finalSmash: {
@@ -481,6 +484,8 @@ finalSmashCinematic: {
   from under the user after the freeze, or a conveyor belt carries it off an end, a grounded `final` move plays on in
   the air from the same frame. A `still` one stops where it left the floor (`stopInPlace`), as one started in the air
   does. A trap's cinematic never loses its floor, since the stage stands still while it holds the others.
+- **Projectiles.** An entity a `final` move puts out is marked at spawn (`EntityState.final`), so it stays unblockable
+  however long it lasts, after its owner acts again or turns into another fighter (Fireboy's Swap).
 - **CPUs.** A CPU holding the charge presses neutral special once an opponent is inside the Final Smash's reach in front
   (`finalReach`: its boxes, or `final.range` for one that spawns its blast), and otherwise leaves neutral special out of
   its attacks.

@@ -9,7 +9,6 @@ import { COUNTER, LEDGE_HIT_LOCK, PARRY } from '../constants';
 import { stickX, stickY } from '../control';
 import { inHitlag, type Ctx, type FighterState, type LaunchLink } from '../fighter';
 import { emit } from '../events';
-import { isFinalMove } from '../finalSmash';
 import type { MatchState } from '../match';
 import type { CompiledStage } from '../stage';
 import { destroyEntity, entityDef, entityHitboxes, sweepEntities } from '../entities/entities';
@@ -229,7 +228,7 @@ function entityHits(m: MatchState, e: EntityState, hits: Connection[]): boolean 
     e.hitVictims.push(v.port);
     if (!hit.box.pushOnly && e.stale === 0) e.stale = owner && e.move ? stale(owner, e.move) : 1;
     hits.push({
-      ...victim(v, m.frame, owner !== null && isFinalMove(owner.fighter, e.move)),
+      ...victim(v, m.frame, e.final),
       a: null,
       attacker: e.owner,
       entity: e.id,

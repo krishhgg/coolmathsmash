@@ -1,4 +1,5 @@
 import type { EntityDef } from '../../sim/entities/types';
+import { blast } from './finalSmash';
 
 /**
  * Fireboy's projectiles. The fireball is Mario's Fire Ball (Ultimate: 2.4-unit radius, angle 361, 70 frames of life,
@@ -23,4 +24,6 @@ export const entities: Record<string, EntityDef> = {
       },
     ],
   },
+  /** Fire Blast's fire, Mario Finale's fireballs (finalSmash.ts). */
+  blast,
 };
