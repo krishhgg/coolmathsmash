@@ -77,6 +77,9 @@ const effects: Palette = {
   speed: '#ffffff',
   star: '#ffe14a',
   starLine: '#b07800',
+  turbo: '#8fdcff',
+  turboCore: '#f2fcff',
+  turboLine: '#2f78c8',
 };
 
 const base = { ...original, ...effects };

@@ -40,7 +40,10 @@ rig point `(6, -6)`.
 - **Slots** `{ name, bone, symbol, decor? }` are the layers, back to front. Limbs use two slots per segment
   (outline symbols first, then fills) so the joint has no visible seam, the way Flash artists inked tubes.
   `decor` slots (a glow or shadow) are left out of hitbox-coverage checks, but `poseBounds` counts them, since
-  the renderer draws them like any other slot.
+  the renderer draws them like any other slot. `under` slots draw in a layer under every fighter (`RigView.under`,
+  `FighterView.under`), placed, mirrored and blinked with the fighter, so other fighters draw over them while the
+  fighter itself stays on top, Final Smash or not. Runner's Tunnel Flip tunnel is one, so the foes inside it stand in
+  front of its walls.
 - **Clips** are Flash-style timelines with two layers per key. The pose layer: a key with `pose` is a full
   pose (bones it does not mention return to rest) and tweens to the next posed key with its `ease`. The symbol
   layer: `swaps` (slot -> symbol, or `null` to hide) and `z` (slot -> draw order; slot _i_ draws at _i_, so
@@ -63,12 +66,20 @@ rig point `(6, -6)`.
   only the fighters standing on that entity, with everyone else over it (`layerFighters` in
   `src/render/entities.ts`): the Raft Wars kids' Duck Raft sits behind fighters, and its rim band covers the feet of
   whoever stands in it and nobody else. Set `behind: true` to draw the whole prop behind the fighters, for one big
-  enough to cover whoever it hits: Red Ball's Ball Rain balls are as wide as their radius-16 hitboxes.
+  enough to cover whoever it hits: Red Ball's Ball Rain balls are as wide as their radius-16 hitboxes. Set `stack` to a
+  list of symbols to draw props of one kind and owner on the same spot by their rank there: the k-th still there, in
+  spawn order, draws `stack[k]` (`propSymbol`), so the count shows and drops as they go. Set `above: true` to draw a
+  prop over every other prop, so bursts never hide it. The Raft Wars kids' Full Arsenal marks use both: each of the
+  first three marks on a foe draws a ring and later ones only a diamond, and the diamonds count the shots coming.
   Kinds without art draw the placeholder disc (`src/render/entities.ts`).
 - **Reticles.** `reticle` is a `PropArt` the renderer draws at the fighter's aim (`FighterState.aim`) during an
   aimed tether move (`TetherDef.aimed`), from the press until the line anchors or misses, in the port's costume
   (`src/render/reticle.ts`). Keep it out of the move's clip, which can't know where the stick aims. Its `preview`
   shows it in lab sheets of the clip, up to clip frame `to` (Fluffy's IQ Ball reticle on `neutralB`, frames 0-23).
+- **View flips.** `viewFlips` maps a move to the frames over which the whole view turns upside down (`turn`) and
+  back (`back`), for a Final Smash that turns the stage over (Runner's Tunnel Flip). The renderer mirrors the
+  backdrop and world top to bottom about the screen's middle (`src/render/viewFlip.ts`), cosine eased and never
+  thinner than `FLIP_EDGE`; the HUD stays upright. Draw the clip as usual: the fighter turns over with the world.
 - **Tether lines.** `tetherLine` draws a tether's line from game state on the moves it lists
   (`src/render/tetherLine.ts`): its `line` drawing, one unit long along +x, stretched from the hand (`tetherOrigin`)
   to the line's end (`FighterState.tether.anchor`), with `tip` at the end. The end is the tip while the line flies

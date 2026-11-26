@@ -34,6 +34,12 @@ const base: Palette = {
   tile: '#9fcde8',
   tileLo: '#7aaed0',
   tileLine: '#3d5f78',
+  tileMid: '#6f97b4',
+  tileMidLo: '#5a809e',
+  tileMidLine: '#2d4659',
+  tileDeep: '#47657d',
+  tileDeepLo: '#3b566c',
+  tileDeepLine: '#22343f',
 };
 
 export const palettes: { default: Palette } & Record<string, Palette> = {

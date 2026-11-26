@@ -1,6 +1,6 @@
 import type { FighterScenarios, LabScenario } from '../../harness/scenarios';
 import { art } from './art';
-import { BOX_DROP, GRAVITY_SWITCH, STRAFE_DASH } from './timing';
+import { BOX_DROP, GRAVITY_SWITCH, STRAFE_DASH, TUNNEL_FLIP } from './timing';
 
 const RUN = 'characters/runner';
 
@@ -31,8 +31,9 @@ const sheet = (
 /**
  * The Runner's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
  * Fireboy, plus Gravity Switch on the underside of a platform, Tile Flip on the ground and in the air, the Jog Flurry,
- * Box Drop from the air and on the ground, Strafe Dash on the ground and in the air, and lab contact sheets of her key
- * poses, every move on its first active frame, Box Drop's exit and Strafe Dash's afterimages. References live in the
+ * Box Drop from the air and on the ground, Strafe Dash on the ground and in the air, Tunnel Flip (her Final Smash) turning
+ * the view over, and lab contact sheets of her key poses, every move on its first active frame, Box Drop's exit, Strafe
+ * Dash's afterimages and Tunnel Flip's activation. References live in the
  * Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
@@ -239,6 +240,29 @@ export const scenarios: FighterScenarios = {
       refs: ['smash/attack-active-*', `${RUN}/sprite-runner-jump-*`],
     },
     {
+      name: 'runner-final-smash',
+      description:
+        'Runner holds the Final Smash charge and uses Tunnel Flip between Red Ball and Bob the Robber: the tunnel grows ' +
+        'around her and the view turns upside down; Red Ball, near her, takes 30% and Bob, further out, 10%, and both ' +
+        'are left dazed in their dizzy clips while she hops about on what is now the ceiling.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'runner' }, { fighter: 'redball' }, { fighter: 'bob-the-robber' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -30, y: 0 }, prevPos: { x: -30, y: 0 }, facing: 1, finalReady: true } },
+        { port: 1, state: { pos: { x: -15, y: 0 }, prevPos: { x: -15, y: 0 }, facing: -1 } },
+        { port: 2, state: { pos: { x: 35, y: 0 }, prevPos: { x: 35, y: 0 }, facing: -1 } },
+      ],
+      script: [{ port: 0, from: 10, buttons: ['special'] }],
+      capture: {
+        label: "P1 move 'finalSmash', upside down with P2 and P3 stuck",
+        when: (s) =>
+          s.fighters[0]!.move === 'finalSmash' && s.fighters[0]!.actionFrame === TUNNEL_FLIP.clean[0] + 14,
+      },
+      motion: { before: 40, after: 30 },
+      requires: ['move:finalSmash'],
+      refs: [`${RUN}/ingame-run2-*`, `${RUN}/ingame-run3-*`, 'smash/attack-active-*'],
+    },
+    {
       name: 'runner-key-poses',
       description: 'Close-up key poses for the dash, planted run, jump, dropkick and Tile Flip.',
       page: {
@@ -289,8 +313,16 @@ export const scenarios: FighterScenarios = {
       ['smash/attack-active-*', `${RUN}/sprite-sheet-runner-*`, `${RUN}/official-art-runner-*`],
     ),
     sheet(
+      'tunnel-flip',
+      "Tunnel Flip's activation (wind-up, backflip, the two-handed slap that flips the tiles up), the tunnel on its " +
+        'first frame, her hop while the others are stuck, and her stance on the last frame.',
+      6.5,
+      [6, 12, 18, 22, 32, 39, TUNNEL_FLIP.hit[0], 76, 86, TUNNEL_FLIP.faf - 1].map((f) => `finalSmash@${f}`),
+      [`${RUN}/ingame-run2-*`, `${RUN}/sprite-sheet-runner-*`, `${RUN}/official-art-runner-*`],
+    ),
+    sheet(
       'grabs-specials',
-      'The first active frame of the grabs, pummel, the four throws, Tile Flip and Box Drop on the ground and in the air, and Gravity Switch.',
+      'The first active frame of the grabs, pummel, the four throws, Tile Flip and Box Drop on the ground and in the air, Gravity Switch and Tunnel Flip.',
       9,
       [
         'grab',
@@ -306,6 +338,7 @@ export const scenarios: FighterScenarios = {
         'upB',
         'downB',
         'downBAir',
+        'finalSmash',
       ].map(firstActive),
       ['smash/attack-active-*', `${RUN}/sprite-sheet-runner-*`, `${RUN}/ingame-run3-*`],
     ),
