@@ -64,16 +64,20 @@ export interface ProbeSpawn {
   data: EntityState['data'];
   /** Frames it lives (0 = until something destroys it). */
   lifetime: number;
-  /** The strongest hitbox it or what it turns into (a bomb's burst) put out during the probe; null when none did. */
+  /**
+   * The strongest hitbox it or what it turns into (a bomb's burst) put out during the probe; null when none did.
+   * Windboxes (`pushOnly`) don't count: a shot here is something that hurts.
+   */
   box: HitboxDef | null;
   /** The move's cap on how many of this kind the fighter can have out at once. */
   max?: number;
 }
 
 /**
- * Where the move's entities had hitboxes during the probe, from the first spawn until the last of them was gone:
- * the frames after the input frame of the first and last one, and their envelope from where the fighter was when the
- * first entity appeared, facing right. Entities fly on after the fighter can act again, so this outlasts `busy`.
+ * Where the move's entities had hitboxes (windboxes aside) during the probe, from the first spawn until the last of
+ * them was gone: the frames after the input frame of the first and last one, and their envelope from where the
+ * fighter was when the first entity appeared, facing right. Entities fly on after the fighter can act again, so this
+ * outlasts `busy`.
  */
 export interface ShotReach {
   from: number;
@@ -346,6 +350,7 @@ class Shots {
       const s = this.root.get(e.id);
       if (!s || !this.base) continue;
       for (const b of entityHitboxes(e)) {
+        if (b.box.pushOnly) continue;
         if (!s.box || b.box.damage > s.box.damage) s.box = b.box;
         const r = b.box.radius;
         const x = b.x - this.base.x;
