@@ -1,5 +1,6 @@
 import { symbolsToSvg } from '../../../render/rig/svg';
 import type { FighterArt } from '../../../render/rig/types';
+import { CONVEYOR } from '../finalSmash';
 import { moves } from '../moves';
 import { PEPPER_SCALE } from './attacks';
 import { clips } from './clips';
@@ -34,6 +35,16 @@ export const art: FighterArt = {
       preview: { neutralB: { frame: pepper.frame, x: pepper.x, y: pepper.y, vx: pepper.vx, vy: pepper.vy } },
     },
     pepperBurst: { symbols: rig.symbols, symbol: 'pepperBurst', scale: 1 },
+    /**
+     * Conveyor Oven's brick oven, one drawing per frame of the cinematic (art/conveyor.ts): the lab draws it over the
+     * cinematic from its first frame, where it bursts up.
+     */
+    oven: {
+      symbols: rig.symbols,
+      symbol: 'ovenFlipbook',
+      scale: 1,
+      preview: { finalSmashCinematic: { frame: 1, x: CONVEYOR.ovenX, y: 0 } },
+    },
   },
   ledgeGrip: LEDGE_GRIP,
 };

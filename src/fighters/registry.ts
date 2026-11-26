@@ -1,37 +1,22 @@
+import { provideFighters } from './lookup';
 import type { FighterDef } from './types';
 
 /**
- * Every src/fighters/<id>/index.ts. A fighter module imports sim code that imports this file, so when a fighter is
- * imported first its `fighter` export is not set yet while this file loads. Read the exports on the first lookup
- * instead, once every module has finished loading.
+ * Every src/fighters/<id>/index.ts, handed to the lookup in lookup.ts. Sim code looks fighters up there, not here, so
+ * a fighter's own modules never load this file. The exports are read on the first lookup all the same, in case a
+ * fighter module ever reaches this file while it is still loading.
  */
 const modules = import.meta.glob<{ fighter: FighterDef }>('./*/index.ts', { eager: true });
 
-const registered: Record<string, FighterDef> = {};
-let table: Record<string, FighterDef> | undefined;
+provideFighters(() =>
+  Object.keys(modules)
+    .sort()
+    .map((path) => {
+      const fighter = modules[path]!.fighter;
+      if (!fighter)
+        throw new Error(`${path} is still loading: look fighters up inside functions, not at module load`);
+      return fighter;
+    }),
+);
 
-/** Every fighter: the discovered ones in id order, then the registered ones in the order they were registered. */
-export function allFighters(): Readonly<Record<string, FighterDef>> {
-  if (table) return table;
-  const found: Record<string, FighterDef> = {};
-  for (const path of Object.keys(modules).sort()) {
-    const fighter = modules[path]!.fighter;
-    if (!fighter)
-      throw new Error(`${path} is still loading: look fighters up inside functions, not at module load`);
-    found[fighter.id] = fighter;
-  }
-  table = Object.assign(found, registered);
-  return table;
-}
-
-/** Test-only fighters (e.g. the Mario reference) are registered at runtime. */
-export function registerFighter(def: FighterDef): void {
-  registered[def.id] = def;
-  if (table) table[def.id] = def;
-}
-
-export function getFighter(id: string): FighterDef {
-  const def = (table ?? allFighters())[id];
-  if (!def) throw new Error(`unknown fighter "${id}" (have: ${Object.keys(allFighters()).join(', ')})`);
-  return def;
-}
+export { allFighters, getFighter, registerFighter } from './lookup';

@@ -4,7 +4,7 @@
  * the values. See docs/fighters.md, "Statuses and meters".
  */
 
-import { getFighter } from '../fighters/registry';
+import { getFighter } from '../fighters/lookup';
 import type { FighterDef } from '../fighters/types';
 import type { SimEvent } from './events';
 import type { Ctx, FighterState } from './fighter';
