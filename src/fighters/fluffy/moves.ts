@@ -1,3 +1,4 @@
+import { HELPLESS_LANDING_LAG } from '../../sim/constants';
 import type { HitboxDef, MoveDef } from '../types';
 import { CANDY_SPEED } from './entities';
 
@@ -15,6 +16,9 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
   box(id, x, y, radius, { damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true });
 
 type Hit = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius'>;
+
+/** Quick Grapple's last airborne stall frame: the shot on 8 plus its 10 travel frames, when the line has landed or missed. */
+const QUICK_GRAPPLE_STALL = 18;
 
 /**
  * The grabber line: count boxes evenly spaced from the tip at to back to from (forward units) at height y. The tip
@@ -450,5 +454,33 @@ export const moves: Record<string, MoveDef> = {
     faf: 46,
     hits: [],
     spawn: [{ frame: 14, entity: 'candy', x: 8.5, y: 5.5, vx: CANDY_SPEED, max: 1 }],
+  },
+  /**
+   * Quick Grapple (up special, roster sheet 8): the grabber fires straight up on frame 8 and reaches 120 units in 10
+   * frames, bent up to 30 degrees by the stick. A ledge it passes reels him into a ledge grab; a floor, wall or
+   * platform reels him to it, and holding Jump there hangs from the line. It is his recovery, so letting go of the
+   * line or a shot that finds nothing in range ends in helpless fall, as an up special does in Ultimate. In the air
+   * he stops falling while the grabber flies (QUICK_GRAPPLE_STALL), so a shot from below the ledge still reaches it.
+   */
+  upB: {
+    kind: 'other',
+    faf: 41,
+    helpless: true,
+    // Touching down before frame 41 (a missed shot just above the floor) still costs the helpless landing lag.
+    landingLag: HELPLESS_LANDING_LAG,
+    hits: [],
+    tether: {
+      frame: 8,
+      range: 120,
+      travel: 10,
+      angle: 90,
+      stickAdjust: 30,
+      latch: ['ledge', 'surface'],
+      pullSpeed: 4,
+      hang: 'jump',
+    },
+    script({ f }) {
+      if (!f.ground && f.actionFrame <= QUICK_GRAPPLE_STALL) f.vel.y = Math.max(f.vel.y * 0.5, 0);
+    },
   },
 };

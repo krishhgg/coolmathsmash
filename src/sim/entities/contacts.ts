@@ -1,4 +1,5 @@
-import { chargeMultiplier, moveOf } from '../actions/attack';
+import { moveOf } from '../actions/attack';
+import { chargeMultiplier } from '../actions/charge';
 import { inWindow } from '../actions/registry';
 import { activeHitboxes, type PlacedHitbox } from '../combat/hits';
 import { GRAVITY_BONUS_BASE, hitlagFrames, knockback, launch } from '../combat/formulas';

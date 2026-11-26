@@ -1,5 +1,32 @@
+import type { CountdownCallout } from '../../session/match';
+
 /** The big slanted announcements over the match: 3, 2, 1, GO!, GAME! and TIME!. */
 export type CalloutStyle = 'steel' | 'count' | 'game' | 'time';
+
+/**
+ * How far right of its place GO! starts its slide in, in screen pixels: just past the right edge of the screen. In
+ * the Ultimate capture (see session/match.ts) it crosses the screen at a near-steady 160 px a frame.
+ */
+export const GO_SLIDE_PX = 980;
+/** How much GO! has grown by the time its burst has faded out. */
+export const GO_BURST_SCALE = 0.35;
+
+/**
+ * The countdown callout's CSS transform and opacity on its frame, so it moves with the simulation (it freezes on
+ * pause and steps with the capture harness). A number unfolds upward from a sliver on its baseline, as fast as
+ * Ultimate's (28%, 48%, 65%, 83% and 95% of its height over frames 1 to 5), then fades out. GO! slides in from the
+ * right, then grows and fades. Both use only transform and opacity, so the browser moves an already drawn picture
+ * instead of painting the SVG (and its turbulence filter) again.
+ */
+export function calloutPose(c: CountdownCallout): { transform: string; opacity: number } {
+  const opacity = 1 - c.leave;
+  if (c.label !== 'GO!') {
+    const unfold = 0.1 + 0.9 * (1 - (1 - c.enter) ** 1.5);
+    return { transform: c.enter < 1 ? `scaleY(${unfold})` : 'none', opacity };
+  }
+  if (c.enter < 1) return { transform: `translateX(${(1 - c.enter) * GO_SLIDE_PX}px)`, opacity };
+  return { transform: c.leave > 0 ? `scale(${1 + GO_BURST_SCALE * c.leave})` : 'none', opacity };
+}
 
 interface Look {
   stops: [offset: number, color: string][];

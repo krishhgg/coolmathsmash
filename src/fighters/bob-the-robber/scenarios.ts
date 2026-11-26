@@ -1,5 +1,7 @@
-import type { FighterPatch, FighterScenarios, GameScenario } from '../../harness/scenarios';
+import type { FighterPatch, FighterScenarios, GameScenario, LabScenario } from '../../harness/scenarios';
 import type { ScriptStep } from '../../harness/script';
+import type { MoveDef } from '../types';
+import { moves } from './moves';
 
 const ID = 'bob-the-robber';
 const BOB = 'characters/bob-the-robber';
@@ -46,6 +48,28 @@ const moveShot = (
   refs: ['smash/attack-active-*', ...ART],
 });
 
+/** A lab contact sheet of Bob's rig at `states` (clip@frame). */
+const sheet = (name: string, description: string, states: string[]): LabScenario => ({
+  name: `${ID}-${name}`,
+  description,
+  page: {
+    kind: 'lab',
+    scene: 'fighter',
+    params: { fighter: ID, sheet: '1', states: states.join(','), zoom: '9' },
+  },
+  refs: ART,
+});
+
+/** The frame a move's clip is checked on: its first active frame, or its throw or pummel frame. */
+const firstActive = (move: MoveDef): number =>
+  move.hits[0]?.frames[0] ?? move.throw?.frame ?? move.pummel?.frame ?? 1;
+
+const AIR_MOVES = new Set(['nair', 'fair', 'bair', 'uair', 'dair', 'sideB', 'upB']);
+const atFirstActive = (pick: (name: string) => boolean) =>
+  Object.entries(moves)
+    .filter(([name]) => pick(name))
+    .map(([name, move]) => `${name}@${firstActive(move)}`);
+
 /**
  * Bob the Robber's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
  * Fireboy, plus his tippers, twirls, sack meteor, kill throw and specials. References live in the Captain drive's
@@ -64,6 +88,31 @@ export const scenarios: FighterScenarios = {
     sheet: [`${BOB}/official-art-*`, `${BOB}/ingame-*`, `${BOB}/title-logo-*`],
   },
   extra: [
+    sheet(
+      'moves-ground',
+      'Every grounded attack and grab at its first active frame (the pummel at its hit frame).',
+      atFirstActive((name) => !AIR_MOVES.has(name) && !name.endsWith('throw')),
+    ),
+    sheet(
+      'moves-air',
+      'Every aerial, throw and special at its first active frame (throws at their release frame).',
+      atFirstActive((name) => AIR_MOVES.has(name) || name.endsWith('throw')),
+    ),
+    sheet('reactions', 'Hit, knockdown, tech, grab, shield-break and ledge-attack clips.', [
+      'hitstun@4',
+      'tumble@8',
+      'down@0',
+      'getupStand@12',
+      'techInPlace@6',
+      'techRoll@12',
+      'grabbed@0',
+      'grabRelease@6',
+      'shieldBreak@12',
+      'dizzy@0',
+      'ledgeAttack@6',
+      'ledgeAttack@22',
+      'respawn@0',
+    ]),
     moveShot(
       'fsmash-tip',
       'Bob swings Home-Run Bonk (forward smash) with the baton tip on Fireboy at 60%.',

@@ -23,8 +23,8 @@ type Moment = keyof typeof MOMENTS;
 
 /**
  * The real match screen over the real renderer at a chosen moment, for captures:
- * `?scene=match&at=countdown|go|pause|game&players=2|4`. Frames are stepped by hand with a fixed seed, so every run
- * draws the same picture.
+ * `?scene=match&at=countdown|go|pause|game|<frame>&players=2|4`, where a number steps to that match frame. Frames are
+ * stepped by hand with a fixed seed, so every run draws the same picture.
  */
 export const scene: LabScene = {
   title: 'Match overlays',
@@ -61,7 +61,7 @@ export const scene: LabScene = {
     const step = (frames: number) => {
       for (let i = 0; i < frames; i++) game.step(game.inputSource?.());
     };
-    step(MOMENTS[at] ?? MOMENTS.countdown);
+    step(/^\d+$/.test(at) ? Number(at) : (MOMENTS[at] ?? MOMENTS.countdown));
     if (at === 'pause') screen.input({ device: 'kb1', action: 'start' });
     if (at === 'game') {
       const loser = game.state.fighters[1]!;

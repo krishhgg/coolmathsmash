@@ -70,8 +70,13 @@ export interface FighterState {
   hitEntities: number[];
   /** Stale multiplier of the current move activation, fixed when it first connects (0 = not connected yet). */
   moveStale: number;
-  /** Frames the current smash attack was charged (0-60). */
+  /** Frames the current move has charged (0 to its chargeFrames). */
   charge: number;
+  /**
+   * A charge kept for the next use of `move` by the form `fighter` (stored charge), spent when that move fires; lost
+   * on a KO as that form.
+   */
+  storedCharge: { fighter: string; move: string; frames: number } | null;
   /** Names of the last moves that hit, most recent first (stale-move negation). */
   staleQueue: string[];
   /** Intangibility from outside the current action (ledge grab, respawn), counting down. */
@@ -93,12 +98,16 @@ export interface FighterState {
   grabbableFrom: number;
   /** First match frame a shield grab can come out (GRAB.shieldGrabLock frames after shieldstun). */
   shieldGrabFrom: number;
+  /** First match frame a shield drop can start and still parry (PARRY.lockout frames after shieldstun ends). */
+  parryFrom: number;
   /** Glide, float and hover state (src/sim/mobility.ts). */
   mobility: MobilityState;
   /**
    * The fighter's tether line (null = none): `out` while it travels, with `anchor` at its tip, then where it
    * anchored. `frame` is the match frame it fired or anchored; `ledge` the ledge index of a ledge anchor; a
    * surface anchor also keeps that surface and the anchor within it, so a moving piece carries the line along.
+   * `moveFrame` is the move's frame on the first frame of tetherPull (the frame the line anchored) or tetherHang
+   * (the frame the reel arrived), so the renderer plays the move's clip on through the reel instead of restarting it.
    */
   tether: {
     anchor: Vec;
@@ -108,6 +117,7 @@ export interface FighterState {
     frame: number;
     surface?: GroundRef;
     local?: Vec;
+    moveFrame?: number;
   } | null;
   /** A tether's target as an offset from the fighter: the reticle while aiming, then where the line is going. */
   aim: Vec | null;
@@ -156,6 +166,7 @@ export function createFighter(
     hitEntities: [],
     moveStale: 0,
     charge: 0,
+    storedCharge: null,
     staleQueue: [],
     intangible: 0,
     ledge: -1,
@@ -168,6 +179,7 @@ export function createFighter(
     grabDamage: 0,
     grabbableFrom: 0,
     shieldGrabFrom: 0,
+    parryFrom: 0,
     mobility: createMobility(getFighter(fighterId)),
     tether: null,
     aim: null,

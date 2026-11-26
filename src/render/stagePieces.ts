@@ -16,19 +16,29 @@ function vanishesSoon(piece: Moving, frame: number): boolean {
   return false;
 }
 
+/** A piece's offset `alpha` of the way from the previous frame to the current one. */
+export function pieceOffset(p: PieceState, alpha: number): { x: number; y: number } {
+  return { x: p.x - p.dx * (1 - alpha), y: p.y - p.dy * (1 - alpha) };
+}
+
 /**
  * Placeholder drawing of the stage's moving and scheduled pieces (the renderer draws the static ones once),
  * interpolated between the last two frames: absent pieces show as faint ghosts and pieces about to vanish
  * blink. With hazards on, damage zones are tinted by element and stage hitboxes are grey discs, solid while
- * active.
+ * active. `placeholders` false leaves out the solids and platforms, for a stage view that draws its own.
  */
-export function drawStagePieces(g: Graphics, geo: StageGeometry, state: MatchState, alpha: number): void {
+export function drawStagePieces(
+  g: Graphics,
+  geo: StageGeometry,
+  state: MatchState,
+  alpha: number,
+  placeholders = true,
+): void {
   g.clear();
   const { frame, stage: st } = state;
   const still = (piece: PieceOptions) => piece.hazard === true && state.config.hazards === false;
   const look = (piece: PieceOptions, p: PieceState) => ({
-    x: p.x - p.dx * (1 - alpha),
-    y: p.y - p.dy * (1 - alpha),
+    ...pieceOffset(p, alpha),
     alpha: !p.on
       ? 0.15
       : !still(piece) && vanishesSoon(piece, frame) && Math.floor(frame / 5) % 2 === 0
@@ -36,12 +46,12 @@ export function drawStagePieces(g: Graphics, geo: StageGeometry, state: MatchSta
         : 1,
   });
   geo.solids.forEach((s, i) => {
-    if (!isMoving(s)) return;
+    if (!placeholders || !isMoving(s)) return;
     const o = look(s, st.solids[i]!);
     g.poly(s.points.flatMap(([x, y]) => [x + o.x, -(y + o.y)])).fill({ color: '#56688f', alpha: o.alpha });
   });
   geo.platforms.forEach((p, i) => {
-    if (!isMoving(p)) return;
+    if (!placeholders || !isMoving(p)) return;
     const o = look(p, st.platforms[i]!);
     g.roundRect(p.x1 + o.x, -(p.y + o.y), p.x2 - p.x1, 2.2, 1.1).fill({ color: '#b9d0ff', alpha: o.alpha });
   });

@@ -49,6 +49,22 @@ export const SHIELD_REGEN = 0.08;
 export const SHIELD_MIN_HOLD = 3;
 export const SHIELD_DROP_FRAMES = 11;
 export const SHIELD_HP_AFTER_BREAK = 37.5;
+/**
+ * Parry (Ultimate's perfect shield; physics-reference sections 5 and 6, SmashWiki "Perfect shield"). A hit landing
+ * on frames 1-5 of the 11-frame shield drop (`shield_just_frame` 5) is parried: no shield damage, no shieldstun.
+ * A drop starting less than 3 frames after a shieldstun ends can't parry. On a fighter's (direct) hit the attacker
+ * freezes 14 frames longer (`just_shield_hitstop_frame_add` 0xE) and the defender 11 longer, so the defender acts
+ * 3 frames first; on an entity's (indirect projectile) hit the owner is unaffected and the defender freezes 1 frame
+ * less. physics-reference caps the attacker's freeze at 30, the normal hitlag cap; the defender's cap is ours.
+ */
+export const PARRY = {
+  window: 5,
+  lockout: 3,
+  attackerHitlag: 14,
+  defenderHitlag: 11,
+  projectileDefenderHitlag: -1,
+  maxHitlag: 30,
+};
 /** Height a broken shield launches its owner to, and how long they stay dizzy after landing (approximate). */
 export const SHIELD_BREAK_HEIGHT = 40;
 export const SHIELD_BREAK_DIZZY = 300;
@@ -75,6 +91,7 @@ export const ROLL_FORWARD = {
   intangible: [4, 15] as [number, number],
   move: [4, 20] as [number, number],
 };
+/** Mario's back roll travels 30.63 u (SmashWiki: Roll); fighters set it as `backRollDistance`. */
 export const ROLL_BACK = {
   faf: 35,
   intangible: [5, 16] as [number, number],
@@ -202,3 +219,9 @@ export const TOP_KO_MARGIN = 30;
 export const RESPAWN_DELAY = 60;
 export const RESPAWN_PLATFORM_MAX = 300;
 export const RESPAWN_INVINCIBILITY = 120;
+
+/**
+ * `MatchConfig.stocks` for the Infinite rule, which plays like Ultimate's Time battle: a KO costs no stock, so nobody
+ * is ever eliminated and only the clock (or quitting) ends the match.
+ */
+export const INFINITE_STOCKS = 99;

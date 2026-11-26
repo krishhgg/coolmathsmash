@@ -1,4 +1,4 @@
-import { FIGHTERS } from '../../fighters/registry';
+import { allFighters } from '../../fighters/registry';
 import { emit } from '../events';
 import type { Ctx } from '../fighter';
 import type { MatchState } from '../match';
@@ -17,7 +17,7 @@ export function registerEntity(kind: string, def: EntityDef): void {
 /** The definition behind a kind: "<fighter id>/<name>" looks in that fighter's `entities`, anything else is registered. */
 export function entityDef(kind: string): EntityDef {
   const slash = kind.indexOf('/');
-  const def = FIGHTERS[kind.slice(0, slash)]?.entities?.[kind.slice(slash + 1)] ?? ENGINE_ENTITIES[kind];
+  const def = allFighters()[kind.slice(0, slash)]?.entities?.[kind.slice(slash + 1)] ?? ENGINE_ENTITIES[kind];
   if (!def) throw new Error(`unknown entity kind "${kind}"`);
   return def;
 }
