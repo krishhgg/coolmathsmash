@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { flattenPath, poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
-import { moveClipFrame } from '../../../render/rig/timing';
 import {
   GETUP_ROLL,
   GETUP_STAND,
@@ -11,6 +10,7 @@ import {
   TECH_IN_PLACE,
   TECH_ROLL,
 } from '../../../sim/constants';
+import { moveClipFrame } from '../../../render/rig/timing';
 import { moves } from '../moves';
 import { stats } from '../stats';
 import { art } from '.';
