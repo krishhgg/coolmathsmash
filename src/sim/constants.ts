@@ -162,6 +162,13 @@ export const GRAB = {
   holdGap: 1,
 };
 
+/**
+ * Counter defaults (MoveDef.counter), Marth's Counter in Ultimate (SmashWiki, Marth (SSBU)/Down special,
+ * Parameters): the counterattack deals 1.2x the caught hit's damage, at most 50%, and both fighters freeze for 21
+ * frames on the catch ("Counter hitlag on activation"). Every counter in SmashWiki's Counterattack table caps at 50%.
+ */
+export const COUNTER = { multiplier: 1.2, max: 50, freeze: 21 };
+
 /** Hitstun cancel (Ultimate): air dodge out of tumble from frame 40 once the launch has slowed to 2.5 u/frame. */
 export const HITSTUN_CANCEL_AIR_DODGE = { from: 40, maxSpeed: 2.5 };
 /** Frames a fighter that was just hit cannot grab ledges. */
@@ -173,6 +180,15 @@ export const HELPLESS_AIR_SPEED = 0.8;
 /** Landing out of helpless fall when the move gives none: Mario's landing_fall_special, FAF 30. */
 export const HELPLESS_LANDING_LAG = 29;
 export const RUN_BRAKE_FRAMES = 14;
+/**
+ * Ultimate's dash_speed_keep_frame (common params: 6): an initial dash holds its dash speed for its first 6 frames,
+ * whatever the stick does. From frame 7 the dash moves on run physics (GROUND.dash), so the slide after a released
+ * stick and the ease down to run speed both brake at the fighter's traction. Source: the decompiled control energy
+ * for the Dash status, FighterKineticEnergyControl::update in github.com/blu-dev/energy_id (src/control.rs), which
+ * zeroes the dash's acceleration and brake while its frame counter is below dash_speed_keep_frame. The param value
+ * is from the common.prc dump in github.com/fudgepop01/amiibo_research and docs/physics-reference.md section 10.
+ */
+export const DASH_SPEED_KEEP_FRAMES = 6;
 
 /**
  * Tech (Ultimate): Shield pressed within TECH_WINDOW frames before a tumble landing techs it, and a press locks
