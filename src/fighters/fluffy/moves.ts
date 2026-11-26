@@ -1,6 +1,7 @@
 import { HELPLESS_LANDING_LAG, TETHER } from '../../sim/constants';
 import type { HitboxDef, MoveDef } from '../types';
 import { CANDY_SPEED } from './entities';
+import { finalSmash, finalSmashCinematic } from './finalSmash';
 import { stats } from './stats';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -538,4 +539,7 @@ export const moves: Record<string, MoveDef> = {
       if (!f.ground && f.actionFrame <= QUICK_GRAPPLE_STALL) f.vel.y = Math.max(f.vel.y * 0.5, 0);
     },
   },
+  /** Fuzz Frenzy, the Final Smash, on Donkey Kong's Jungle Rush (finalSmash.ts). */
+  finalSmash,
+  finalSmashCinematic,
 };

@@ -1679,3 +1679,225 @@ export const shadows: Record<string, PathShape[] | { loop: string[]; fps: number
   ...churn(shadowVeil, 'shadowVeil'),
   shadowBurst,
 };
+
+// ---------------------------------------------------------------------------------------------------------
+// Lights Out (Final Smash): the dark that falls over the stage, the iris that closes on him first, the
+// spotlight he takes his bow in, and the fight cloud the beatdown happens in
+
+/** The dark: his shadow colour at 88%, so the stage and the fighters under it still show as dim shapes. */
+const dark = (alpha: number): PathShape['fill'] => ({
+  type: 'linear',
+  x0: 0,
+  y0: -1,
+  x1: 0,
+  y1: 1,
+  stops: [
+    { offset: 0, color: 'shadow', alpha },
+    { offset: 1, color: 'shadow', alpha },
+  ],
+});
+const DARK = 0.88;
+
+/**
+ * Half the sheet's size round his feet: wider than any stage's camera bounds (at most 360 by 237 units), so it
+ * covers the view from wherever he stands.
+ */
+const SHEET = { x: 420, y: 330 };
+const sheet = poly([
+  [-SHEET.x, -SHEET.y],
+  [SHEET.x, -SHEET.y],
+  [SHEET.x, SHEET.y],
+  [-SHEET.x, SHEET.y],
+]);
+
+/** The spotlight's opening: round him from his soles to over his beanie, a little behind his middle. */
+const SPOT = { x: -0.8, y: -7.4, rx: 7.2, ry: 10.2 };
+const spotRing = (k: number) => ellipse(SPOT.x, SPOT.y, SPOT.rx * k, SPOT.ry * k);
+
+/** A fist or a shoe in silhouette, poking out of the cloud at (x, y) turned `a` degrees. */
+function limbOut(x: number, y: number, a: number, shoeShape: boolean): PathShape[] {
+  const outline = shoeShape
+    ? place(
+        [
+          [-1.5, -0.7],
+          [0.5, -0.95],
+          [1.75, -0.5],
+          [1.95, 0.35],
+          [0.8, 0.75],
+          [-1.5, 0.7],
+        ],
+        a,
+        x,
+        y,
+      )
+    : place(
+        Array.from({ length: 10 }, (_, i): P => {
+          const t = (i / 10) * Math.PI * 2;
+          const r = i % 2 ? 1.05 : 1.15;
+          return [r * Math.cos(t) * 1.05, r * Math.sin(t)];
+        }),
+        a,
+        x,
+        y,
+      );
+  const knuckles = place(
+    [
+      [0.35, -0.45],
+      [0.6, 0],
+      [0.35, 0.45],
+    ],
+    a,
+    x,
+    y,
+  );
+  return [
+    { d: blob(outline, 0.85), fill: 'shadowHi', stroke: { color: 'smearEdge', width: 0.16 } },
+    ...(shoeShape ? [] : [stroke(curve(knuckles), 0.08, 'shadowHi')]),
+  ];
+}
+
+/** A little impact star at (x, y), radius r. */
+const pop = (x: number, y: number, r: number, turn: number): PathShape =>
+  ink(
+    poly(
+      place(
+        Array.from({ length: 12 }, (_, i): P => {
+          const k = i % 2 ? r * 0.42 : r;
+          const t = (i / 12) * Math.PI * 2;
+          return [k * Math.cos(t), k * Math.sin(t)];
+        }),
+        turn,
+        x,
+        y,
+      ),
+    ),
+    'zap',
+    0.1,
+  );
+
+/**
+ * The fight cloud, a cartoon dust-up drawn in the dark's colours (fx space, centred on the origin, about 22 by 18
+ * units): round puffs of shadow lit along their outer edge by moonlight, swirls churning inside, a fist and a shoe
+ * thrown out of it, impact stars and motion arcs. Each puff's rim is drawn first and every fill over them, so only
+ * the outside scallops keep a line, and all the fills share one gradient, so they read as one cloud. Drawing `k`
+ * turns the puffs and moves every limb and star, so the loop boils.
+ */
+const fightCloud = (k: number): PathShape[] => {
+  const j = (a: number, b: number, c: number) => [a, b, c][k]!;
+  const ring = 10;
+  const puffs: [number, number, number][] = [
+    ...Array.from({ length: ring }, (_, i): [number, number, number] => {
+      const t = (i / ring) * Math.PI * 2 + k * 0.21;
+      return [7.3 * Math.cos(t), 5.5 * Math.sin(t), [3.6, 3.0, 3.3][(i + k) % 3]!];
+    }),
+    [-2.2, -0.8, 5.2],
+    [2.6, 0.9, 4.9],
+  ];
+  const body: PathShape['fill'] = {
+    type: 'radial',
+    cx: -2.6,
+    cy: -4.2,
+    r: 14,
+    stops: [
+      { offset: 0, color: 'shadowHi', alpha: 1 },
+      { offset: 0.65, color: 'shadowHi', alpha: 1 },
+      { offset: 1, color: 'shadow', alpha: 1 },
+    ],
+  };
+  const swirl = (cx: number, cy: number, r: number, t0: number): PathShape =>
+    stroke(
+      curve(
+        Array.from({ length: 5 }, (_, i): P => {
+          const t = t0 + i * 0.55;
+          const rr = r * (1 - i * 0.12);
+          return [cx + rr * Math.cos(t), cy + rr * Math.sin(t) * 0.8];
+        }),
+      ),
+      0.18,
+      'shadow',
+    );
+  const arc = (r: number, t0: number, t1: number): PathShape => ({
+    d: curve(
+      Array.from({ length: 4 }, (_, i): P => {
+        const t = t0 + ((t1 - t0) * i) / 3;
+        return [r * 1.08 * Math.cos(t), r * 0.86 * Math.sin(t)];
+      }),
+    ),
+    stroke: { color: 'smearEdge', width: 0.2 },
+  });
+  return [
+    ...limbOut(j(-11.2, 10.6, -6.8), j(-5.6, 5.0, 8.2), j(200, -20, 120), true),
+    ...limbOut(j(11.0, -11.4, 9.4), j(-3.8, 1.8, -6.8), j(-30, 190, -60), false),
+    ...puffs.map(([x, y, r]) => stroke(ellipse(x, y, r, r), 0.5, 'smearEdge')),
+    ...puffs.map(([x, y, r]) => fill(ellipse(x, y, r, r), body)),
+    // Curls off to the sides, clear of the middle, where his glowing eyes go.
+    swirl(j(-6.4, -5.8, -6.8), j(2.6, 1.8, 3.2), 2.2, j(0.4, 1.6, 2.9)),
+    swirl(j(6.2, 6.8, 5.6), j(-2.8, -1.6, -3.4), 2.0, j(3.4, 4.6, 0.9)),
+    swirl(j(2.8, 1.6, 3.6), j(5.2, 5.8, 4.8), 1.5, j(5.2, 0.2, 2.6)),
+    arc(12.2, j(-2.6, -1.9, -2.2), j(-1.9, -1.2, -1.5)),
+    arc(11.8, j(0.4, 1.1, 0.8), j(1.1, 1.8, 1.5)),
+    arc(12.6, j(2.5, 2.9, 3.4), j(3.2, 3.6, 4.1)),
+    pop(j(7.4, -7.6, -1.4), j(-7.2, -6.4, -9.0), 1.4, j(0, 15, 30)),
+    pop(j(-8.8, 2.6, 8.2), j(4.0, 7.8, 4.8), 1.0, j(10, 25, 5)),
+  ];
+};
+
+export const lightsOut: Record<string, PathShape[] | { loop: string[]; fps: number }> = {
+  /** The dark, centred on his feet. */
+  dark: [fill(sheet, dark(DARK))],
+  /**
+   * The iris that closes on him as the lights go out: the dark with a round hole of radius 10, inside a square
+   * 4000 across, so scaled down to a pinhole (a hole of 3 units at 0.3) it still covers the screen.
+   */
+  darkIris: [
+    fill(
+      poly([
+        [-4000, -4000],
+        [4000, -4000],
+        [4000, 4000],
+        [-4000, 4000],
+      ]) + ellipse(0, 0, 10, 10),
+      dark(DARK),
+    ),
+  ],
+  /** The dark with the spotlight's opening round him, its edge softened in two rings. */
+  darkSpot: [
+    fill(sheet + spotRing(1.3), dark(DARK)),
+    fill(spotRing(1.3) + spotRing(1.14), dark(DARK * 0.62)),
+    fill(spotRing(1.14) + spotRing(1), dark(DARK * 0.3)),
+  ],
+  /** The spotlight's beam, falling from far overhead onto a pool of light at his feet. */
+  spotBeam: [
+    fill(
+      poly([
+        [SPOT.x - 2.4, -160],
+        [SPOT.x + 2.4, -160],
+        [SPOT.x + SPOT.rx, 0.6],
+        [SPOT.x - SPOT.rx, 0.6],
+      ]),
+      {
+        type: 'linear',
+        x0: 0,
+        y0: -160,
+        x1: 0,
+        y1: 0.6,
+        stops: [
+          { offset: 0, color: 'glow', alpha: 0 },
+          { offset: 0.8, color: 'glow', alpha: 0.1 },
+          { offset: 1, color: 'glow', alpha: 0.2 },
+        ],
+      },
+    ),
+    fill(ellipse(SPOT.x, 0.35, SPOT.rx, 1.3), {
+      type: 'radial',
+      cx: SPOT.x,
+      cy: 0.35,
+      r: SPOT.rx,
+      stops: [
+        { offset: 0, color: 'glow', alpha: 0.45 },
+        { offset: 1, color: 'glow', alpha: 0 },
+      ],
+    }),
+  ],
+  ...churn(fightCloud, 'fightCloud'),
+};
