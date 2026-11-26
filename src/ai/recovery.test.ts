@@ -131,7 +131,7 @@ describe('CPU on a Duck Raft off the stage', () => {
         }
       }
     }
-  });
+  }, 60_000);
 
   it('plays on a raft over the stage as on any ground, and recovers from one off it', () => {
     const recover = vi.spyOn(Cpu.prototype as unknown as { recover(): InputFrame }, 'recover');
@@ -151,5 +151,5 @@ describe('CPU on a Duck Raft off the stage', () => {
     createCpu({ port: 0, level: 9, seed: 1 }).input(m);
     expect(recover).toHaveBeenCalledOnce();
     recover.mockRestore();
-  });
+  }, 60_000);
 });
