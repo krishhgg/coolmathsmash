@@ -26,7 +26,7 @@ const STAND_INS: Record<string, string> = {
 };
 
 /** The clip each roll action draws when it rolls away from the fighter's facing (backRoll). */
-const BACK_ROLLS: Record<string, string> = { techRoll: 'techRollBack', getupRoll: 'getupRollBack' };
+export const BACK_ROLLS: Record<string, string> = { techRoll: 'techRollBack', getupRoll: 'getupRollBack' };
 
 /**
  * A tether's reel and hang keep the move's name and play on its clip (clipFor), unless the art has a clip named
