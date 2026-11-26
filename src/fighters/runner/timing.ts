@@ -44,3 +44,17 @@ export const GRAVITY_SWITCH = {
   /** Special ends it from this frame. */
   cancelFrom: 10,
 };
+
+/**
+ * Strafe Dash's timeline (Fox Illusion, strafe-dash.ts). She coils until `dash[0]`, bursts forward through `dash`
+ * and slides out from `end`; the afterimage trail that hits is out on `active`, Fox's 25-29. A shield stops the
+ * burst and skips to `end`. Fox Illusion's FAF is 56 on the ground and 73 in the air, with 16 frames of landing lag.
+ */
+export const STRAFE_DASH = {
+  dash: [24, 28] as [number, number],
+  active: [25, 29] as [number, number],
+  end: 29,
+  groundFaf: 56,
+  airFaf: 73,
+  landingLag: 16,
+};
