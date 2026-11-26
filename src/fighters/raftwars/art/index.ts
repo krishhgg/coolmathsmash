@@ -1,6 +1,7 @@
 import { shapesBounds } from '../../../render/rig/geometry';
 import { symbolsToSvg } from '../../../render/rig/svg';
 import type { FighterArt, PropArt } from '../../../render/rig/types';
+import { aimedShotClips, aimedShotProp } from './aimedShot';
 import { attacks, frameData } from './attacks';
 import { LEDGE_GRIP, clips } from './clips';
 import { hat, head } from './parts';
@@ -50,9 +51,9 @@ const projectiles: Record<string, PropArt> = Object.fromEntries(
 export const art: FighterArt = {
   height: 13,
   rig,
-  clips: { ...clips, ...attacks },
+  clips: { ...clips, ...attacks, ...aimedShotClips },
   palettes,
   ledgeGrip: LEDGE_GRIP,
-  projectiles,
+  projectiles: { ...projectiles, aimedShot: aimedShotProp },
   icon: symbolsToSvg(rig.symbols, ['head', 'face', 'hat'], palettes.default, iconBox()),
 };

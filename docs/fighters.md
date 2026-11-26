@@ -39,7 +39,7 @@ Donkey Kong, Bowser, Fox, Jigglypuff) and adjust.
 | `height`, `width`                                        | body size: the hurtbox capsule and the environment box (feet at the origin) | 15, 8            | 15, 8               | (estimate)       |
 | `walkSpeed`, `walkAccelBase`, `walkAccelAdd`             | max walk speed; acceleration = base + add × stick                           | 1.1              | 1.155               | 0.62–1.575       |
 | `groundFriction`                                         | traction: speed lost per frame when not accelerating                        | 0.1              | 0.102               | 0.076–0.138      |
-| `dashInitialSpeed`, `dashFrames`                         | initial dash speed and length (dash-dance window)                           | 1.95, 11         | 1.936, 11           | 1.45–2.45        |
+| `dashInitialSpeed`, `dashFrames`                         | initial dash speed and length (dash-dance window)                           | 1.95, 11         | 1.936, 10           | 1.45–2.45        |
 | `runSpeed`, `runAccelBase`, `runAccelAdd`                | run speed and acceleration                                                  | 1.85             | 1.76                | 1.18–3.85        |
 | `airSpeed`, `airAccelBase`, `airAccelAdd`, `airFriction` | air drift                                                                   | 1.15             | 1.208               | 0.735–1.344      |
 | `gravity`, `fallSpeed`, `fastFallSpeed`                  | per-frame gravity and terminal speeds                                       | 0.09, 1.55, 2.48 | 0.087, 1.5, 2.4     | 0.053–0.23       |
@@ -224,6 +224,10 @@ or reaching full charge, carries on with the move.
   `chargeDamage: 2.2`, so its 10% hitbox reaches 22%.
 - **Speeds and distances.** A move script reads `chargeLerp(f, uncharged, full)` for a value at the current charge
   level (a dash speed), or `chargeLevel(f)` (0 to 1).
+- **Projectiles.** An entity whose EntityDef sets `chargeDamage` hits for up to that many times its damage at the
+  spawning move's full charge, linearly from 1 (`chargeScale(level, full)`), so its knockback grows too. A move's
+  `spawn` passes the move's charge level; a script passes `charge: chargeLevel(f)` to `spawnEntity`. The multiplier
+  goes into the entity's `damageMul`, so reflections stack on it. The Raft Wars kids' Aimed Shot is the example.
 - **Scripts while charging.** The script runs once a frame while the move is held, with `actionFrame` on the frame
   before the charge frame. That frame's spawns, `rehit` windows and `transform` happen once, on the way in.
 - **Stored charge.** `storeCharge: {}` lets shield, an air dodge or a jump cancel the charge and keep it in
@@ -335,7 +339,7 @@ beastChew: {
 ### Counters
 
 A move with `counter` blocks hits and answers them with a counterattack. Marth's Counter in Ultimate, from the test
-fixtures in `src/sim/testing/counter.ts` until Bob's Shadow Step exists:
+fixtures in `src/sim/testing/counter.ts`:
 
 ```ts
 downB: {
@@ -367,7 +371,10 @@ downBHit: {
 - **The freeze.** The counterer goes straight into the counterattack `move` and freezes with the attacker for
   `freeze` frames (default 21, Marth's). The counterattack's frame 1 is the last frozen frame, so its frame numbers
   are Ultimate's and Marth's swing lands 25 frames after the catch. The counterer is intangible through the freeze,
-  and the counterattack's own `intangible` takes over from frame 1.
+  and the counterattack's own `intangible` takes over from frame 1. A counter whose Ultimate analogue doesn't freeze
+  the counterer counts its counterattack frames from the catch; take `freeze - 1` off them so the hit lands on the
+  same frame after the catch. Bob the Robber's Shadow Step (`src/fighters/bob-the-robber/specials.ts`) does this
+  with Double Team's frames and a 12-frame freeze.
 - **Facing.** The counterer turns to face the hit. With `behind` it reappears that many units behind the attacker
   instead, facing their back, as Lucario's Double Team does: on the attacker's floor (held to its ends), or in the
   air beside an airborne attacker.
