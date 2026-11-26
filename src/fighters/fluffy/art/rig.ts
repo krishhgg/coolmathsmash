@@ -88,7 +88,6 @@ export const rig: Rig = {
     { name: 'lids', bone: 'face', symbol: null },
     { name: 'mouth', bone: 'face', symbol: null },
     { name: 'prop', bone: 'fx1', symbol: null },
-    { name: 'reticle', bone: 'fx2', symbol: null, decor: true },
     { name: 'fx', bone: 'fx3', symbol: null, decor: true },
     { name: 'sweat', bone: 'face', symbol: null, decor: true },
   ],

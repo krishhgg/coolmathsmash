@@ -541,8 +541,10 @@ upB: {
 - **Anchoring.** The first thing the line touches anchors it if `latch` lists it: `ledge` (any ledge the line
   passes within `TETHER.ledgeSnap`, 10 units, of from off the stage, if nobody holds it and the fighter still has
   ledge grabs), `surface` (any solid edge or platform, from either side) or `sky` (empty air at full range).
-  Anything else stops the line and the move plays out. `onAnchor(x, hit)` can veto an anchor by returning false
-  (Fluffy's limited sky anchors).
+  Anything else stops the line and the move plays out. `onAnchor(x, hit)` can veto an anchor by returning false.
+- **Sky anchors.** `skyAnchors` limits sky anchors per airtime. `FighterState.skyAnchorsUsed` counts them across
+  all of the fighter's tether moves, so give each move the same limit. With none left, a sky shot whiffs. Landing
+  or a ledge or surface latch resets the count. Fluffy's Point Grapple and Quick Grapple share 3.
 - **Reeling.** An anchored fighter goes into `tetherPull`: no gravity or drift, straight at `pullSpeed` towards
   the anchor. A ledge anchor ends in a ledge grab once he is within `TETHER.ledgeArrive` (6 units) of the hang
   position, which is tether recovery. Another anchor ends with his hand on it: holding `hang` keeps him there
@@ -564,8 +566,11 @@ only. The line passes through fighters, so the hit and the ledge pull stay indep
 
 A tether ignores fighters unless it sets `targetsFighters: true`. If the line reaches a fighter before stage
 geometry, `onFighter(ctx, target, event)` can handle the contact in script or return `'pullSelf'` on
-`event.phase === 'hit'` to reel the user in. The same hook receives `'arrive'` on contact, where the move can
-apply its own hit. Grab and yank behavior is left to the move script.
+`event.phase === 'hit'` to reel the user in. The same hook receives `'arrive'` on contact. A hit on arrival goes
+in `arriveHit`, a hitbox placed from the fighter like a move's: the reel holds still on the arrival frame with it out,
+and `resolveHits` lands it after every fighter has stepped, so a shield pressed that frame blocks it on either port
+and parries, counters and trades work as for any hitbox (Fluffy's Point Grapple kick). The fighter lets go into a fall
+the next frame it steps. Grab and yank behavior is left to the move script.
 
 ### Kill percentages
 
