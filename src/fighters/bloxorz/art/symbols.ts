@@ -488,6 +488,27 @@ function levelTile(): PathShape[] {
   ];
 }
 
+/**
+ * The swing of a toppling block's far end, about the edge it falls over (the origin): a band 27 units out, from
+ * straight up round to just above the floor, thickening towards its head.
+ */
+function swing(): PathShape[] {
+  const band = (r: number, width: number): Pt[] => {
+    const n = 16;
+    const at = (i: number, out: number): Pt => {
+      const a = ((-95 + (83 * i) / n) * Math.PI) / 180;
+      return [Math.cos(a) * out, Math.sin(a) * out];
+    };
+    const outer = Array.from({ length: n + 1 }, (_, i) => at(i, r));
+    const inner = Array.from({ length: n + 1 }, (_, i) => at(n - i, r - (width * (n - i)) / n));
+    return [...outer, ...inner];
+  };
+  return [
+    { d: poly(band(27, 3.4)), fill: 'star' },
+    { d: poly(band(26.4, 1.6)), fill: 'spark' },
+  ];
+}
+
 /** The split switch's sign, Bloxorz's "( )", in gold with a dark outline: two bold brackets 9 wide and 7 tall. */
 function splitGlyph(): PathShape[] {
   const bracket = (dir: 1 | -1): Pt[] => {
@@ -562,6 +583,7 @@ export const symbols: Record<string, ArtSymbol> = {
   tile,
   levelTile: levelTile(),
   splitGlyph: splitGlyph(),
+  swing: swing(),
   star: [{ d: poly(star(5, 1.7, 0.75)), fill: 'star', stroke: { color: 'line', width: 0.22 } }],
   spark: [{ d: poly(star(4, 1.6, 0.45, 0)), fill: 'spark', stroke: { color: 'line', width: 0.18 } }],
 };

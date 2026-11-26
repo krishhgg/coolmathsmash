@@ -121,7 +121,7 @@ function level(f: number): Frame['extra'] {
     const k = i - 5;
     const from = 2 + 2 * Math.abs(k);
     const drop = 158 + 3 * (6 - Math.abs(k));
-    if (f < from || f >= drop + 16) {
+    if (f < from || f >= drop + 10) {
       swaps[name] = null;
       return;
     }
@@ -151,9 +151,9 @@ function level(f: number): Frame['extra'] {
     // Falling away into the void, turning and shrinking.
     const t = f - drop;
     if (t >= 0) {
-      y += 0.12 * t * t;
-      rot += side * 1.5 * t;
-      s = 1 - t / 20;
+      y += 0.08 * t * t;
+      rot += side * 2 * t;
+      s = 1 - t / 10;
     }
     pose[name] = { x: cx + arm - arm * Math.cos(r), y, rot, sx: s, sy: s };
     swaps[name] = 'levelTile';
@@ -192,9 +192,9 @@ function activation(f: number): Frame {
   const shudder = f >= 9 && f <= 21 ? (f % 2 ? 0.22 : -0.22) : 0;
   const sx = f < 27 ? 1 + (1 - press) * 0.6 : slam;
   const sy = f < 27 ? press : 1 + (1 - slam) * 0.3;
-  const glyph = f >= 3 && f <= 26;
-  const pulse = (at: number) => (f >= at && f < at + 8 ? (f - at) / 8 : -1);
-  const ring = [5, 13, 21].map(pulse).find((u) => u >= 0);
+  const glyph = f >= 3 && f <= 24;
+  const pulse = (at: number) => (f >= at && f < at + 7 ? (f - at) / 7 : -1);
+  const ring = [4, 11, 18].map(pulse).find((u) => u >= 0);
   const block = rock(F, deg, { sx, sy, x: shudder });
   return {
     block,
@@ -216,7 +216,7 @@ function activation(f: number): Frame {
             : undefined,
       dustA: puff(31, 0, f - 28, 1, 1.3, 14),
       dustB: puff(7, 0, f - 28, -1, 0.9, 12),
-      back: f >= 25 && f <= 28 ? { sym: 'sweep', x: 6, y: 0, sx: 1.5, sy: 1.5 } : undefined,
+      back: f >= 25 && f <= 28 ? { sym: 'swing', x: HALF_W, y: 0 } : undefined,
     },
   };
 }
@@ -316,9 +316,7 @@ function cinematic(f: number): Frame {
           ? { sym: 'ring', x: 12, y: 0, sx: 0.8 + flare * 0.3, sy: 0.3 + flare * 0.1 }
           : undefined,
       hitB:
-        flare >= 0 && flare < 12
-          ? { sym: 'lines', x: 12, y: -14, sx: 1.6, sy: 1.1 + flare * 0.12 }
-          : undefined,
+        flare >= 0 && flare < 7 ? { sym: 'lines', x: 13, y: -14 - 4 * flare, sx: 1.4, sy: 1.2 } : undefined,
       ...landing(0, F.hw, flare, 1.3, 14),
     },
     extra,
