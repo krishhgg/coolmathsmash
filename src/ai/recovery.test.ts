@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { neutralInput } from '../input/types';
-import { stepMatch } from '../sim/match';
+import { describe, expect, it, vi } from 'vitest';
+import { neutralInput, type InputFrame } from '../input/types';
+import { entityPlatform, spawnEntity } from '../sim/entities/entities';
+import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { compiledStage } from '../sim/step';
+import { Cpu } from './cpu';
 import { createCpu } from './index';
 import {
   canRecover,
@@ -62,4 +64,92 @@ describe('CPU recovery from under and beside the stage', () => {
     expect(upAt).not.toBeNull();
     expect(Math.abs(upAt!)).toBeGreaterThan(ledge / 2);
   });
+});
+
+describe('CPU on a Duck Raft off the stage', () => {
+  /**
+   * Port 0, a `fighter`, standing on a Duck Raft centred at (x, y): its own, or that of port 1, a Raft Wars standing
+   * in the middle of Battlefield.
+   */
+  function onRaft(fighter: string, own: boolean, x: number, y: number): { m: MatchState; raft: number } {
+    const ports = [{ fighter }, { fighter: own ? 'fireboy' : 'raftwars' }];
+    const m = createMatch({ seed: 1, stage: 'battlefield', stocks: 3, ports });
+    const raft = spawnEntity(m, { kind: 'raftwars/duckRaft', owner: own ? 0 : 1, pos: { x, y } });
+    const deck = entityPlatform(raft)!;
+    Object.assign(m.fighters[0]!, {
+      pos: { x, y: deck.y },
+      prevPos: { x, y: deck.y },
+      vel: { x: 0, y: 0 },
+      kb: { x: 0, y: 0 },
+      ground: { kind: 'entity', index: raft.id, ...deck },
+      action: 'idle',
+      actionFrame: 1,
+      facing: x > 0 ? -1 : 1,
+    });
+    Object.assign(m.fighters[1]!, { pos: { x: 0, y: 0 }, prevPos: { x: 0, y: 0 } });
+    return { m, raft: raft.id };
+  }
+
+  it("gets back to the stage from its own raft or an opponent's off either side, while the raft is still out", () => {
+    // Beside the stage from 9 to 89 units under the ledge, and under the stage. Stood on, a raft lasts 75 frames, and
+    // a CPU that waited that long fell from 89 under. Leaving at once, it jumps from the raft with its double jump and
+    // up special still to come.
+    const spots = [
+      [95, -10],
+      [105, -30],
+      [100, -60],
+      [100, -90],
+      [48, -60],
+    ];
+    for (const [fighter, own] of [
+      ['raftwars', true],
+      ['fireboy', false],
+    ] as const) {
+      for (const [x, y] of spots) {
+        for (const side of [1, -1]) {
+          for (const seed of [1, 2, 3, 4]) {
+            const { m, raft } = onRaft(fighter, own, side * x!, y!);
+            const f = m.fighters[0]!;
+            const cpu = createCpu({ port: 0, level: 9, seed });
+            let stood = 0;
+            let end = '';
+            for (let i = 0; i < 400 && !end; i++) {
+              stepMatch(m, [cpu.input(m), neutralInput()]);
+              if (f.ground?.kind === 'entity') stood++;
+              if (f.stocks < 3) end = 'KO';
+              else if (f.action === 'ledgeCatch' || (f.ground !== null && f.ground.kind !== 'entity'))
+                end = 'back';
+            }
+            const at = `${fighter} from (${side * x!}, ${y}), seed ${seed}`;
+            expect(end, at).toBe('back');
+            expect(stood, at).toBeLessThan(15);
+            expect(
+              m.entities.some((e) => e.id === raft && !e.dead),
+              at,
+            ).toBe(true);
+          }
+        }
+      }
+    }
+  }, 60_000);
+
+  it('plays on a raft over the stage as on any ground, and recovers from one off it', () => {
+    const recover = vi.spyOn(Cpu.prototype as unknown as { recover(): InputFrame }, 'recover');
+    for (const [x, y] of [
+      [0, 12],
+      [-60, 5],
+      [70, 30],
+    ]) {
+      for (const seed of [1, 2, 3, 4]) {
+        const { m } = onRaft('fireboy', false, x!, y!);
+        const cpu = createCpu({ port: 0, level: 9, seed });
+        for (let i = 0; i < 60; i++) stepMatch(m, [cpu.input(m), neutralInput()]);
+      }
+    }
+    expect(recover).not.toHaveBeenCalled();
+    const { m } = onRaft('fireboy', false, 100, -10);
+    createCpu({ port: 0, level: 9, seed: 1 }).input(m);
+    expect(recover).toHaveBeenCalledOnce();
+    recover.mockRestore();
+  }, 60_000);
 });
