@@ -47,7 +47,7 @@ export function reachF(pose: Pose, wrist: Pt, slack = 1): Pose {
 }
 
 /** Stretches the back arm the same way, for the sack. */
-function reachB(pose: Pose, wrist: Pt): Pose {
+export function reachB(pose: Pose, wrist: Pt): Pose {
   const [sx, sy] = pointOf(rig, pose, 'armB');
   const k = Math.max(1, Math.hypot(wrist[0] - sx, wrist[1] - sy) / 2.68);
   return mix(pose, { armB: { sy: k }, foreB: { sy: k } });
