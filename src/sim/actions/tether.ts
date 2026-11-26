@@ -145,6 +145,8 @@ export const TETHER_ACTIONS: Record<string, ActionDef> = {
           return letGo(x, false);
         }
         if (!t.hang || !isHeld(c, buttonBit(t.hang))) return letGo(x, false);
+        // The held button is spent on the hang, so the hold buffer doesn't turn letting go of it into a jump.
+        consume(c, buttonBit(t.hang));
         const move = f.move;
         tether.moveFrame = (tether.moveFrame ?? 1) + f.actionFrame - 1;
         setAction(x, 'tetherHang');
