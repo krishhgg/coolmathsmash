@@ -158,6 +158,12 @@ export interface PropArt {
    */
   align?: boolean;
   /**
+   * A symbol drawn over the fighters standing on this entity and under every other fighter, on top of `symbol`,
+   * which then draws behind all of them. Duck Raft's rim (`src/fighters/raftwars/art/raft.ts`) covers the feet of
+   * whoever stands in the raft and nobody else. Without it the whole prop draws over fighters, as a projectile should.
+   */
+  front?: string;
+  /**
    * Where the lab's fighter scene draws it over the clips that fire it (in a match the engine spawns and moves it),
    * keyed by clip name.
    */

@@ -46,6 +46,10 @@ side wall meets the underside) pushes back the side of the box it runs into. A f
 stops against it or slides along it, and one rising past a corner slides off it. Soft platforms only catch the
 feet from above, so fighters pass up through them.
 
+An entity can carry a soft platform too (`EntityDef.platform`, docs/fighters.md), such as the Raft Wars kids' Duck
+Raft. Fighters land on it, drop through it and walk off it as on a stage platform, but it is not part of the stage: it
+is not in `MatchState.stage`, it never moves or carries anyone, and it has no ledges.
+
 ## Moving platforms and solids
 
 Any solid or platform can move and can appear and vanish. Both are pure functions of the stage's clock

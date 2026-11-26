@@ -793,7 +793,8 @@ meters: {
   and `spendMeter` read and change them, clamped to 0..`max`. `spendMeter` takes `cost` only when the meter holds
   that much, and returns whether it did. An unknown meter name throws.
 - `regen` changes the value every frame the fighter acts (not while KO'd), negative to drain. With `grounded` it only regenerates on
-  the ground.
+  the ground, and with `grounded: 'stage'` only on the stage itself, not on an entity's platform (the Raft Wars kids'
+  `raft` meter gives one raft per trip to the stage, so rafts can't chain into an endless recovery).
 - `dealt` and `taken` fill a meter from damage: that much per % the fighter's hits, projectiles, pummels, throw hold hits
   and statuses add to another fighter, and per % it takes from anything. The % counts as added, 1v1 multiplier
   included. Shields and entities don't count. The gain lands at the end of the frame, after every hit.
@@ -872,6 +873,17 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
 - **Hittable entities.** Give `hp` and fighters' attacks and other owners' projectiles damage it (once per move);
   attacker and entity share the hitlag, it breaks at 0 HP, and with a `weight` it is launched by Ultimate's
   knockback formula using the % it has taken. A fighter cannot hit its own entities.
+- **Platforms.** `platform: { width, y }` puts a soft platform on top of an entity, `width` wide and its surface `y`
+  above the entity's centre. Fighters treat it like a stage's drop-through platform: they land on it from above, pass
+  up through it, drop through it with a down flick or by holding down as they fall, and walk off its ends. A fighter
+  standing on it has `ground: { kind: 'entity', index: <entity id>, x1, x2, y }`, and `standingOn(m, e)` lists who
+  does. It carries nobody and has no ledges, so give the entity no velocity, gravity or weight, and `floor` and `wall`
+  `'pass'`. Whoever stands on it falls on their next frame once the entity is gone (expired, broken or destroyed).
+  One put down while its owner is airborne catches them even while they hold down, until they first touch ground after
+  it appears: at once if they are falling, and as they come back down if they were rising, as Steve lands on a block
+  he places under himself. A down special that puts one under the fighter lands them on it.
+  Other entities don't land on it, and CPUs don't count it as ground. The Raft Wars kids' Duck Raft
+  (`src/fighters/raftwars/duckRaft.ts`) is the example.
 - **Reflectors.** A move's `reflectors` are bubbles (`frames`, `x`, `y`, `radius`) that turn a touching projectile
   away from the fighter, make it his, and multiply its damage, speed and remaining lifetime. Defaults are Fox's
   Reflector in Ultimate: damage x1.4, speed x1.4, lifespan x1, up to 50% (SmashWiki, Reflection); Mario's Cape is

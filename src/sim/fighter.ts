@@ -10,11 +10,21 @@ import type { CompiledStage } from './stage';
 import type { StatusState } from './statuses';
 import { vec, type Vec } from './vec';
 
-export interface GroundRef {
-  kind: 'solid' | 'platform';
-  /** Edge index into CompiledStage.edges for solids, platform index for platforms. */
-  index: number;
-}
+export type GroundRef =
+  | {
+      kind: 'solid' | 'platform';
+      /** Edge index into CompiledStage.edges for solids, platform index for platforms. */
+      index: number;
+    }
+  | {
+      /** An entity's soft platform (EntityDef.platform), which stays put: its surface is kept on the reference. */
+      kind: 'entity';
+      /** The entity's id. */
+      index: number;
+      x1: number;
+      x2: number;
+      y: number;
+    };
 
 /**
  * One fighter's complete simulation state. Plain data; the renderer reads it, harness scenarios query it.
