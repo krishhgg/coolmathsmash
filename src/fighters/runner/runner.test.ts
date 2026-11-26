@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isIntangible } from '../../sim/actions/registry';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, type MatchState } from '../../sim/match';
@@ -262,6 +263,72 @@ describe('Runner: combo tools', () => {
     };
     expect(side(8.5)).toEqual({ frame: 6, dir: 1 });
     expect(side(-8.5)).toEqual({ frame: 6, dir: -1 });
+  });
+});
+
+/**
+ * Kirby's Ultimate face-up getup attack (https://dragdown.wiki/wiki/SSBU/Kirby/Data): 7%, 48°, BKB 80, KBG 48,
+ * active 16-21, 45 frames. Intangible 1-26 is the engine's shared getup attack value.
+ */
+describe("Runner: getup attack (Kirby's)", () => {
+  /** Runner lying on her back at x 0 facing right, with Mario standing `offset` units away facing her. */
+  function lying(offset: number) {
+    const { m, a, v } = vsMario();
+    put(a, 0, 1, v.ground);
+    put(v, offset, offset > 0 ? -1 : 1, v.ground);
+    Object.assign(a, { action: 'down', actionFrame: 30 });
+    return { m, a, v };
+  }
+
+  it("has Kirby's numbers on both of its boxes, one in front and one behind", () => {
+    const move = moves.getupAttack!;
+    expect(move.faf).toBe(46);
+    expect(move.intangible).toEqual([1, 26]);
+    expect(move.hits.map((h) => h.frames)).toEqual([[16, 21]]);
+    const boxes = move.hits[0]!.boxes;
+    expect(boxes.map((b) => [b.x, b.direction])).toEqual([
+      [8, undefined],
+      [-8, 'back'],
+    ]);
+    for (const b of boxes) expect(b).toMatchObject({ damage: 7, angle: 48, bkb: 80, kbg: 48 });
+  });
+
+  it('Attack while lying down plays it: hitboxes out on frames 16-21, intangible 1-26, actionable on 46', () => {
+    const { m, a } = lying(40);
+    runPorts(m, 1, [{ buttons: ['attack'] }, {}]);
+    expect(a.move).toBe('getupAttack');
+    const active: number[] = [];
+    const intangible: number[] = [];
+    let last = 0;
+    while (a.move === 'getupAttack') {
+      last = a.actionFrame;
+      if (activeHitboxes(a).length > 0) active.push(a.actionFrame);
+      if (isIntangible(a)) intangible.push(a.actionFrame);
+      runPorts(m, 1, [{}, {}]);
+    }
+    expect(active).toEqual([16, 17, 18, 19, 20, 21]);
+    expect(intangible).toEqual(Array.from({ length: 26 }, (_, i) => i + 1));
+    expect(last).toBe(45);
+    expect(a.action).toBe('idle');
+  });
+
+  it('kicks both sides on frame 16, launching Mario away at 48° for 7%', () => {
+    const side = (offset: number) => {
+      const { m, a, v } = lying(offset);
+      runPorts(m, 1, [{ buttons: ['attack'] }, {}]);
+      for (let i = 0; i < 30 && v.damage === 0; i++) runPorts(m, 1, [{}, {}]);
+      return { frame: a.actionFrame, damage: v.damage, angle: v.launch?.angle, dir: v.launch?.dir };
+    };
+    for (const [offset, dir] of [
+      [8, 1],
+      [-8, -1],
+    ] as const) {
+      const hit = side(offset);
+      expect(hit.frame, `Mario at ${offset}`).toBe(16);
+      expect(hit.damage, `Mario at ${offset}`).toBeCloseTo(7 * 1.05 * 1.2, 6);
+      expect(hit.angle, `Mario at ${offset}`).toBe(48);
+      expect(hit.dir, `Mario at ${offset}`).toBe(dir);
+    }
   });
 });
 
