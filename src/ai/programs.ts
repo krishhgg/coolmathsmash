@@ -108,12 +108,17 @@ export function drift(x: number, fastFall: boolean, frames: number, info: StageI
   };
 }
 
+/**
+ * Hold Shield for `frames` frames, and on through any shield stun left then. Hitlag stretches a stun past the frames
+ * the CPU counted, and letting go during it means pressing Shield again to keep the shield: a new press the shield
+ * never takes, so a jump out of the shield air dodges with it on its first frame in the air.
+ */
 export function shield(frames: number): Program {
   return {
     name: 'shield',
     interruptible: true,
     holds: true,
-    step: (t) => (t < frames ? press({ buttons: Btn.Shield }) : null),
+    step: (t, f) => (t < frames || f.action === 'shieldStun' ? press({ buttons: Btn.Shield }) : null),
   };
 }
 
