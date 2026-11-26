@@ -1106,5 +1106,5 @@ clips.getupRollBack = retimeClip(clips.rollBack!, 35, [
   [20, 28],
 ]);
 
-export { BALL_Y, GX, GY, SHIELD, belowFloor, roll, runCycle, strideAt };
+export { BALL_Y, DOWN, GX, GY, SHIELD, belowFloor, roll, runCycle, strideAt };
 export const swapsFor = { SHOUT, AWAY, turn };
