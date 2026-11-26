@@ -572,6 +572,12 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   from fighters and entities lands at once, then grabs (an attack or projectile beats a grab on the same frame).
 - **Events.** Entities report `entitySpawn`, `entityDestroy` (with the reason), `reflect`, `absorb` and `entityHit`,
   and their hits are `hit` and `shieldHit` events carrying the `entity` id (`docs/sim-events.md`).
+- **CPUs.** CPUs need nothing extra to use a projectile. The move probe (`src/ai/knowledge.ts`) records each entity
+  a move puts out: kind, frame, offset, velocity, lifetime and the strongest hitbox of the entity or what it turns
+  into (a bomb's burst). `src/ai/shots.ts` puts those entities out on a copy of the match and plays their flight
+  against the opponent's predicted path, so a CPU fires when the shot would meet the opponent. Its own controller is
+  neutral in that copy, so a minion steered by the stick is predicted badly; list such a move in the fighter's
+  `ai.ts` `avoid`.
 
 ## Art
 

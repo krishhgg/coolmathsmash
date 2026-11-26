@@ -30,10 +30,18 @@ export interface ShotTarget {
   errX: number;
 }
 
+/** A shot that meets the target: the first frame and hitbox it does, and the damage of every entity of it that does. */
+export interface ShotHit {
+  t: number;
+  box: HitboxDef;
+  damage: number;
+}
+
 /**
  * First frame (from now) and hitbox with which an entity of move `p`, input `offset` frames from now facing `facing`,
- * touches the target; null when none does within the path. Entities over the move's `max` that the CPU already has
- * out are not spawned, as the sim skips them.
+ * touches the target; null when none does within the path. A volley (several spawns) plays on to add up every entity
+ * that would also connect. Entities over the move's `max` that the CPU already has out are not spawned, as the sim
+ * skips them.
  */
 export function shotHit(
   state: Readonly<MatchState>,
@@ -43,7 +51,7 @@ export function shotHit(
   facing: 1 | -1,
   place: Place,
   target: ShotTarget,
-): { t: number; box: HitboxDef } | null {
+): ShotHit | null {
   const first = p.spawns[0];
   if (!p.shot || !first) return null;
   const at = place(first, offset + first.t);
@@ -53,6 +61,8 @@ export function shotHit(
     if (e.owner === me.port && !e.dead) out.set(e.kind, (out.get(e.kind) ?? 0) + 1);
   const m = soloMatch(state, me);
   const end = target.path.length;
+  const struck = new Set<number>();
+  let hit: ShotHit | null = null;
   let next = 0;
   for (let t = 0; t < end; t++) {
     stepMatch(m, NEUTRAL);
@@ -71,20 +81,24 @@ export function shotHit(
         data: { ...s.data },
       });
     }
-    if (!m.entities.length) {
-      if (next >= p.spawns.length) return null;
+    const live = m.entities.filter((e) => !struck.has(e.id));
+    if (!live.length) {
+      if (next >= p.spawns.length) break;
       continue;
     }
     const s = target.path[t]!;
     if (s.intangible || GONE.has(s.action)) continue;
     const hurt = { ...s.hurt, x: s.hurt.x + target.errX };
-    for (const e of m.entities) {
-      for (const b of entityHitboxes(e)) {
-        if (overlaps(b.x, b.y, b.box.radius, hurt, MARGIN)) return { t, box: b.box };
-      }
+    for (const e of live) {
+      const b = entityHitboxes(e).find((b) => overlaps(b.x, b.y, b.box.radius, hurt, MARGIN));
+      if (!b) continue;
+      struck.add(e.id);
+      hit ??= { t, box: b.box, damage: 0 };
+      hit.damage += b.box.damage;
     }
+    if (hit && p.spawns.length === 1) break;
   }
-  return null;
+  return hit;
 }
 
 /**

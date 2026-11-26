@@ -5,7 +5,7 @@ import type { MatchState } from '../sim/match';
 import type { FighterKnowledge, MoveProbe, ProbeFrame } from './knowledge';
 import { AERIALS, TURNING_MOVES } from './inputs';
 import { arc, overlaps, type Arc, type Sample } from './look';
-import { shotHit, type Place } from './shots';
+import { shotHit, type Place, type ShotHit } from './shots';
 import { floorBelow, type StageInfo } from './stage';
 
 /**
@@ -38,8 +38,11 @@ export interface Attack {
   endY: number;
   /** Aerials: where the drift comes down, which can be past endX when the move ends in the air. */
   landX?: number;
-  /** Connects with an entity the move spawns (a projectile) rather than with the fighter's own hitboxes. */
-  shot?: true;
+  /**
+   * Connects with an entity the move spawns (a projectile) rather than with the fighter's own hitboxes: `box` is the
+   * first entity's hitbox, and this adds up the damage of every entity of a volley that connects.
+   */
+  shot?: { damage: number };
   score: number;
 }
 
@@ -120,13 +123,13 @@ function carry(v: number, friction: number, frames: number): number {
   return d * Math.sign(v);
 }
 
-/** The earlier of a fighter-hitbox hit and a projectile hit, with which one it was. */
+/** The earlier of a fighter-hitbox hit and a projectile hit, and the projectile's when it is the one. */
 function earlier(
   hit: { t: number; box: HitboxDef } | null,
-  shot: { t: number; box: HitboxDef } | null,
-): { t: number; box: HitboxDef; shot?: true } | null {
+  shot: ShotHit | null,
+): { t: number; box: HitboxDef; shot?: ShotHit } | null {
   if (!shot || (hit && hit.t <= shot.t)) return hit;
-  return { ...shot, shot: true };
+  return { ...shot, shot };
 }
 
 /** First projectile hit of `p` input `offset` frames from now, when the CPU can play projectiles and `p` has one. */
@@ -137,7 +140,7 @@ function shotOf(
   facing: 1 | -1,
   place: Place,
   target: Target,
-): { t: number; box: HitboxDef } | null {
+): ShotHit | null {
   if (!me.state || !p.shot) return null;
   return shotHit(me.state, me.f, p, offset, facing, place, {
     path: target.far ?? target.path,
@@ -201,7 +204,7 @@ function groundAttacks(me: Self, target: Target, out: Attack[]): void {
         busy: delay + p.busy,
         endX: f.pos.x + p.endDx * facing,
         endY: f.pos.y + p.endDy,
-        ...(hit.shot && { shot: true }),
+        ...(hit.shot && { shot: { damage: hit.shot.damage } }),
         score: 0,
       });
     }
@@ -261,7 +264,7 @@ function aerialHits(
       endX: a.x[end]!,
       endY: a.y[end]!,
       landX: a.x[Math.min(land, a.x.length - 1)]!,
-      ...(hit.shot && { shot: true }),
+      ...(hit.shot && { shot: { damage: hit.shot.damage } }),
       score: 0,
     });
   }

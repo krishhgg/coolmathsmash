@@ -3,7 +3,7 @@ import { nextRandom } from '../engine/rng';
 import type { HitboxDef, ThrowHitDef } from '../fighters/types';
 import { Btn, neutralInput, type InputFrame } from '../input/types';
 import { hurtbox } from '../sim/combat/hits';
-import { knockback, shieldstunFrames } from '../sim/combat/formulas';
+import { hitstunFrames, knockback, shieldstunFrames } from '../sim/combat/formulas';
 import { GRAB, SHIELD_DROP_FRAMES } from '../sim/constants';
 import type { FighterState } from '../sim/fighter';
 import { stepMatch, type MatchState } from '../sim/match';
@@ -650,6 +650,7 @@ export class Cpu {
   ): Attack[] {
     const opp = getFighter(snap.fighter).stats;
     const offstageOk = edgeguarding && this.lv.level >= 6;
+    const arrive = arrival(target.far ?? target.path, state.fighters[this.port]!.pos.x, opp.runSpeed);
     const out: Attack[] = [];
     for (const a of attacks) {
       const s = (target.far ?? target.path)[a.tHit]!;
@@ -672,7 +673,8 @@ export class Cpu {
         wbkb: box.wbkb,
         weight: opp.weight,
       });
-      let v = box.damage * (k.hints.prefer?.[a.move] ?? 1) * (1 + Math.min(1.5, kb / 110));
+      const damage = a.shot?.damage ?? box.damage;
+      let v = damage * (k.hints.prefer?.[a.move] ?? 1) * (1 + Math.min(1.5, kb / 110));
       if (s.action === 'shield' && a.shot) {
         // A shot into a held shield chips it and nothing more; walking in for the grab is worth more.
         v = 0;
@@ -683,6 +685,7 @@ export class Cpu {
       } else if (s.action !== 'hitstun' && s.action !== 'tumble') {
         v -= Math.max(0, a.busy - a.tHit) * 0.06;
       }
+      if (a.shot) v -= exposure(a, arrive, kb) * SHOT_EXPOSURE;
       v /= 1 + a.tHit / 30;
       out.push({ ...a, score: v });
     }
@@ -930,6 +933,32 @@ const THROWS: [string, InputFrame][] = [
 /** The most damage one of the fighter's throws does (what a grab is worth). */
 function throwDamage(k: FighterKnowledge): number {
   return Math.max(0, ...THROWS.map(([name]) => k.def.moves?.[name]?.throw?.hit.damage ?? 0));
+}
+
+/**
+ * Score lost per frame a shot leaves the CPU busy after the opponent could be on it. A shot hits long after it is
+ * thrown, so unlike a melee hit it does not stop an opponent who is already close: a slow one thrown up close is
+ * the opening the opponent punishes.
+ */
+const SHOT_EXPOSURE = 0.25;
+/** How close the opponent must get to strike, for `arrival`. */
+const STRIKE = 15;
+
+/**
+ * Frames the target needs to get within striking distance of x: from the first frame it can act on its path, at its
+ * run speed.
+ */
+function arrival(path: Sample[], x: number, speed: number): number {
+  const free = path.findIndex((s) => actionable(s));
+  const t = free < 0 ? path.length : free;
+  const s = path[Math.min(t, path.length - 1)]!;
+  return t + Math.max(0, Math.abs(s.x - x) - STRIKE) / speed;
+}
+
+/** Frames a shot leaves the CPU busy after the target could arrive; a shot that lands first holds it up by its hitstun. */
+function exposure(a: Attack, arrive: number, kb: number): number {
+  const at = a.tHit <= arrive ? arrive + hitstunFrames(kb) : arrive;
+  return Math.max(0, a.busy - at);
 }
 
 /** Frames of hitlag a pummel adds on top of its own length (an estimate, for the escape margin). */
