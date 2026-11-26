@@ -319,6 +319,75 @@ beastChew: {
   damage counts towards the release's knockback.
 - **Third parties.** Hits from others break the victim free after 10%, as in any grab.
 
+### Final Smash
+
+A move named `finalSmash` is the fighter's Final Smash. Neutral special plays it while the fighter holds a charge
+from breaking the Coolmath Planet (`FighterState.finalReady`, docs/items.md), on the ground or in the air, from any
+state a special can start from, and the charge is spent. Side, up and down special stay specials, and a fighter
+without a `finalSmash` move keeps the charge. Every move of a Final Smash carries `final` (its `air` variant, a
+trap's cinematic). The engine is `src/sim/finalSmash.ts`; the test fighters in `src/sim/testing/finalSmash.ts`
+(`test-final-direct`, `test-final-trap`, `test-final-none`, also under `?harness`) show both shapes, and
+`src/sim/finalSmash.test.ts` drives them.
+
+The rules follow SmashWiki's Final Smash and Smash Ball articles:
+
+| Ultimate (SmashWiki)                                                                           | Here                                                                                       |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| "unleashed at any time by pressing the input for a neutral special move" (Smash Ball)          | neutral special with `finalReady`, grounded or airborne                                    |
+| Final Smashes "are unblockable, make the user fully intangible"                                | a `final` move is intangible on every frame; its hits and its projectiles' ignore shields  |
+| "Most Final Smashes cause the camera to temporarily zoom in on the user when activated"        | everyone else holds still for `FINAL_SMASH.freeze` (40) frames; the renderer zooms in gold |
+| a cinematic's hitbox traps an opponent and "the game effectively pauses" while the scene plays | a trap holds its catch through the cinematic; everyone and everything else holds still     |
+| direct Final Smashes play out in normal time                                                   | past the freeze, others move and act as usual                                              |
+| a KO in standby loses the Final Smash                                                          | `stepItems` clears `finalReady` on a KO                                                    |
+
+SmashWiki gives no length for the activation freeze, so 40 frames is an estimate; `final.freeze` overrides it per
+move. The others are held on the move's frames 2 to `freeze` + 1, so nothing in the activation move may come out
+before frame `freeze` + 2 (`fighters.test.ts` checks it). The freeze is a frame of hitlag added to every other
+fighter and entity at the end of each frame it lasts, so actions, launches, statuses, lifetimes and hitboxes all wait,
+the same way whatever the port order.
+
+A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned beams (Mario Finale):
+
+```ts
+finalSmash: {
+  kind: 'other',
+  faf: 90,
+  final: { still: true },  // in the air: stop, no gravity or drift, as Mario holds still in Mario Finale
+  hits: [{ frames: [42, 51], boxes: [{ id: 0, x: 32, y: 8, radius: 18, damage: 30, angle: 40, kbg: 70, bkb: 80 }] }],
+},
+```
+
+A **trapping** Final Smash is a command grab (above) whose cinematic is `final` too. The first fighter its boxes catch
+is held through the cinematic's `holdHits` and launched by its `throw`; nobody else moves until the release:
+
+```ts
+finalSmash: {
+  kind: 'other',
+  faf: 80,
+  final: {},
+  commandGrab: 'finalSmashCinematic',
+  hits: [{ frames: [42, 51], boxes: [{ id: 0, x: 12, y: 7, radius: 10, damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true }] }],
+},
+finalSmashCinematic: {
+  kind: 'other',
+  faf: 130,
+  final: {},
+  hits: [],
+  holdHits: [{ frame: 20, damage: 8 }, { frame: 40, damage: 8 }, { frame: 60, damage: 8 }],
+  throw: { frame: 100, hit: { damage: 16, angle: 45, kbg: 70, bkb: 90 } },
+},
+```
+
+- **Catching.** The trap catches like any command grab: the nearest grabbable fighter in front, through shields. Ultimate
+  traps every fighter its hitbox touches; this one holds the first.
+- **CPUs.** A CPU holding the charge presses neutral special once an opponent is inside the Final Smash's reach in front
+  (`finalReach`: its boxes, or `final.range` for one that spawns its blast), and otherwise leaves neutral special out of
+  its attacks.
+- **Events.** Activation emits `finalSmash` after the `move` event, with the freeze length; a trap's catch is a
+  `commandGrab` event (docs/sim-events.md).
+- **Not built.** Ultimate's Final Smash Meter, the height boost after an aerial Final Smash, the solid-colour background
+  for the whole move, and the close-up of the user's eyes.
+
 ### Tethers
 
 A move with `tether` fires a line from the hand (`TETHER.handHeight` up the body) that travels out, anchors, and

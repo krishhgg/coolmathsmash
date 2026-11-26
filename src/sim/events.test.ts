@@ -6,7 +6,9 @@ import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
 import { PLANET } from './items/planet';
 import { createMatch, type MatchState } from './match';
+import { FINAL_SMASH } from './finalSmash';
 import { lungeTester } from './testing/beast';
+import { finalDirectTester } from './testing/finalSmash';
 import { gadgets } from './testing/gadgets';
 import { MOBILITY_TEST_FIGHTERS, testFloater, testHover } from './testing/mobility';
 import { testCharger } from './testing/charge';
@@ -445,6 +447,25 @@ describe('entity events', () => {
     expect(of(m, 'finalReady')).toEqual([{ type: 'finalReady', port: 0, x: planet.pos.x, y: planet.pos.y }]);
     const types = m.events.map((e) => e.type);
     expect(types.indexOf('entityDestroy')).toBeLessThan(types.indexOf('finalReady'));
+  });
+
+  it('neutral special with the charge reports finalSmash after its move event, with the freeze length', () => {
+    const m = testMatch({ fighter: finalDirectTester.id });
+    const f = m.fighters[0]!;
+    f.finalReady = true;
+    runPorts(m, 1, [{ buttons: ['special'] }]);
+    expect(of(m, 'finalSmash')).toEqual([
+      {
+        type: 'finalSmash',
+        port: 0,
+        move: 'finalSmash',
+        freeze: FINAL_SMASH.freeze,
+        x: f.pos.x,
+        y: f.pos.y + 7.5,
+      },
+    ]);
+    const types = m.events.map((e) => e.type);
+    expect(types.indexOf('move')).toBeLessThan(types.indexOf('finalSmash'));
   });
 });
 

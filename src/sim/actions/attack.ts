@@ -209,7 +209,7 @@ export function playMove(x: Ctx): MoveDef | null {
 }
 
 /** Intangible on the move's `intangible` frames, and on every frame of a Final Smash. */
-export function moveIntangible(f: FighterState): boolean {
+function moveIntangible(f: FighterState): boolean {
   const move = moveOf(f);
   if (move?.final) return true;
   return move?.intangible !== undefined && inWindow(f.actionFrame, move.intangible);

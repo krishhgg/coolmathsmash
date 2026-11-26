@@ -530,15 +530,7 @@ export class Cpu {
 
     const self: Self = { f: me, k, info, groundDelay: me.ground ? 0 : Infinity, jumpDelay: 0 };
     const edgeguarding = this.isEdgeguarding(state, me, snap, info);
-    const attacks = this.rank(
-      state,
-      saveFinal(me, findAttacks(self, target)),
-      target,
-      snap,
-      k,
-      info,
-      edgeguarding,
-    );
+    const attacks = this.rank(state, attacksFor(self, target), target, snap, k, info, edgeguarding);
     const chance =
       situation === 'combo' ? this.lv.followUp : situation === 'punish' ? this.lv.punish : this.lv.aggression;
     if (attacks.length && this.rand() < chance && this.startAttack(state, attacks, me, info)) return;
@@ -546,8 +538,7 @@ export class Cpu {
       const facing = (move: string) => (TURNING_MOVES.has(move) ? dir : me.facing);
       const any = Object.keys(k.ground).filter(
         (move) =>
-          saveFinal(me, [{ move }]).length > 0 &&
-          (info.calm || this.groundMoveSafe(me, k, info, move, facing(move))),
+          !savesFinal(me, move) && (info.calm || this.groundMoveSafe(me, k, info, move, facing(move))),
       );
       if (any.length && me.ground && actionable(me)) {
         const move = any[Math.floor(this.rand() * any.length)]!;
@@ -609,9 +600,7 @@ export class Cpu {
     }
     if (!actionable(me)) return false;
     const self: Self = { f: me, k, info, groundDelay: 0, jumpDelay: 0 };
-    const counters = saveFinal(me, findAttacks(self, target)).filter(
-      (a) => a.kind === 'ground' && a.tHit < threat.t - 1,
-    );
+    const counters = attacksFor(self, target).filter((a) => a.kind === 'ground' && a.tHit < threat.t - 1);
     if (counters.length && this.rand() < 0.35 * skill) {
       counters.sort((a, b) => a.tHit - b.tHit);
       this.startAttack(state, [counters[0]!], me, info);
@@ -656,15 +645,9 @@ export class Cpu {
     };
     const freeAt = target.path.findIndex((s) => actionable(s) || (s.grounded && s.action === 'shield'));
     const window = freeAt < 0 ? target.path.length : freeAt;
-    const attacks = this.rank(
-      state,
-      saveFinal(me, findAttacks(self, target)),
-      target,
-      snap,
-      k,
-      info,
-      false,
-    ).filter((a) => a.tHit < window);
+    const attacks = this.rank(state, attacksFor(self, target), target, snap, k, info, false).filter(
+      (a) => a.tHit < window,
+    );
     if (attacks.length && situation !== 'neutral' && this.rand() < this.lv.punish) {
       this.startAttack(state, attacks, me, info);
       return;
@@ -1063,12 +1046,14 @@ function samplesFallback(snap: FighterState): Sample {
 const GONE = new Set(['ko', 'out']);
 
 /**
- * Holding the charge, neutral special is the Final Smash: leave it out of the attack options, so the CPU saves it for
- * an opponent in its reach (Cpu.finalSmash).
+ * Holding the charge, neutral special is the Final Smash, which the CPU saves for an opponent in its reach
+ * (Cpu.finalSmash), so it is left out of the attack options.
  */
-function saveFinal<T extends { move: string }>(me: Readonly<FighterState>, options: T[]): T[] {
-  return me.finalReady && finalReach(me.fighter) ? options.filter((a) => a.move !== 'neutralB') : options;
-}
+const savesFinal = (me: Readonly<FighterState>, move: string) =>
+  move === 'neutralB' && me.finalReady && finalReach(me.fighter) !== null;
+
+const attacksFor = (self: Self, target: Target) =>
+  findAttacks(self, target).filter((a) => !savesFinal(self.f, a.move));
 
 function nearestOpponent(
   state: Readonly<MatchState>,

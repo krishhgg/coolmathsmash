@@ -48,9 +48,8 @@ first one appeared between frames 1782 and 10884.
   shifting rainbow aura and three sparkles (`drawFinalGlow`, `src/render/items.ts`).
 - **Losing the charge.** A KO clears `finalReady`, as in Ultimate, and starts the 4800-frame lockout.
 
-There is no Final Smash yet. A Final Smash PR should start from `finalReady`. Neutral special while it is set
-should play the fighter's Final Smash, clear the flag and start the 4800-frame lockout. Clearing the flag starts
-the lockout through `stepItems` on the next frame.
+Neutral special while it is set plays the fighter's Final Smash and clears the flag (docs/fighters.md, "Final
+Smash"); `stepItems` then starts the 4800-frame lockout on the same frame.
 
 ## Pickup
 
@@ -62,7 +61,7 @@ Holding, throwing and dropping items are not built yet. The planet is broken, ne
 
 ## Not built yet
 
-- Final Smashes, and Ultimate's Final Smash Meter.
+- Ultimate's Final Smash Meter, and Final Smashes for the roster (the framework and its test fighters are in).
 - Items other than the planet, and the item list and frequency settings.
 - Ultimate's heavy Smash Ball that rolls along the ground, losing the charge to a strong hit, glancing hits that push
   the ball without damaging it, and the damage multiplier from KO score.

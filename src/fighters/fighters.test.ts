@@ -115,10 +115,10 @@ describe.each(Object.values(allFighters()).map((f) => [f.id, f] as const))('figh
     if (move.final && move.action !== 'grabThrow') {
       for (const next of [move.air, move.commandGrab])
         if (next) expect(def.moves?.[next]?.final, `${next} is part of the Final Smash`).toBeDefined();
-      // Nothing comes out while the others are frozen for the activation (src/sim/finalSmash.ts).
+      // Nothing comes out while the others are held for the activation: the move's frames 2 to freeze + 1.
       const opens = [...move.hits.map((w) => w.frames[0]), ...(move.spawn ?? []).map((s) => s.frame)];
       const cinematic = Object.values(def.moves ?? {}).some((m) => m.commandGrab === name);
-      if (!cinematic) for (const f of opens) expect(f).toBeGreaterThan(freezeOf(move.final));
+      if (!cinematic) for (const f of opens) expect(f).toBeGreaterThan(freezeOf(move.final) + 1);
     }
     if (move.action === 'hover') expect(def.hover, 'hover moves need FighterDef.hover').toBeDefined();
     if (move.glide) expect(def.glide, 'glide moves need FighterDef.glide').toBeDefined();

@@ -36,7 +36,7 @@ export const finalBlast: MoveDef = {
   final: { still: true },
   hits: [
     {
-      frames: [41, 50],
+      frames: [42, 51],
       boxes: [
         { id: 0, x: 10, y: 8, radius: 10, damage: 30, angle: 40, kbg: 70, bkb: 80 },
         { id: 1, x: 32, y: 8, radius: 18, damage: 30, angle: 40, kbg: 70, bkb: 80 },
@@ -56,7 +56,7 @@ export const finalTrap: MoveDef = {
   commandGrab: 'finalSmashCinematic',
   hits: [
     {
-      frames: [41, 50],
+      frames: [42, 51],
       boxes: [{ id: 0, x: 12, y: 7, radius: 10, damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true }],
     },
   ],
