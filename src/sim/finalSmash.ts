@@ -1,4 +1,4 @@
-import { getFighter } from '../fighters/registry';
+import { getFighter } from '../fighters/lookup';
 import type { FinalSmashDef } from '../fighters/types';
 import type { FighterState } from './fighter';
 import type { MatchState } from './match';

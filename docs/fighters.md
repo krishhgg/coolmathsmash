@@ -4,9 +4,10 @@ A fighter is one directory, `src/fighters/<id>/`, whose `index.ts` exports `figh
 (`src/fighters/registry.ts`) finds it with `import.meta.glob`, so adding a fighter edits no shared file. Fireboy
 (`src/fighters/fireboy/`) is the worked example; copy it.
 
-A fighter's files may import sim code, and the sim imports the registry, so the registry reads the fighter
-modules on the first `getFighter` or `allFighters` call. Look fighters up inside functions, never at module
-load: a lookup while a fighter module is still loading throws.
+A fighter's files may import sim code. The sim looks fighters up through `src/fighters/lookup.ts`, which imports
+no fighter, so a fighter's moves, entities or art can be imported first and the fighter still gets all of them
+(`docs/architecture.md`). A fighter's own files should import the lookup too, not the registry. Look fighters up
+inside functions, never at module load: a lookup while a fighter module is still loading throws.
 
 ```
 src/fighters/<id>/
@@ -456,8 +457,11 @@ for the hold and run at full speed after it.
 
 A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned beams. Fireboy's Fire Blast
 (`src/fighters/fireboy/finalSmash.ts`) is the roster example: Mario Finale's frame data, damage and knockback on a
-`fireboy/blast` entity that crosses the stage and keeps burning after Fireboy can act, as Mario's fireballs do. The
-test fighter's is a plain hitbox:
+`fireboy/blast` entity that crosses the stage and keeps burning after Fireboy can act, as Mario's fireballs do. Red
+Ball's Ball Rain (`src/fighters/redball/finalSmash.ts`) covers the whole stage instead, on PK Starstorm: its script drops
+`redball/ball` entities with `spawnEntity` from the top of the stage's middle rather than from his feet, passing
+`final: true` and the move, and `final.range` tells CPUs how far ahead it reaches. Its balls draw behind the fighters
+(`PropArt.behind`), so whoever one falls on still shows. The test fighter's is a plain hitbox:
 
 ```ts
 finalSmash: {
