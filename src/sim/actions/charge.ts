@@ -21,9 +21,14 @@ export function chargeLerp(f: FighterState, uncharged: number, full: number): nu
   return uncharged + (full - uncharged) * chargeLevel(f);
 }
 
+/** The damage multiplier at charge `level` (0 to 1) for a full-charge multiplier `full`: linear from 1 uncharged. */
+export function chargeScale(level: number, full: number): number {
+  return 1 + (full - 1) * level;
+}
+
 /** Damage multiplier from charging: from 1 uncharged up to the move's `chargeDamage` (default 1.4) at full charge. */
 export function chargeMultiplier(f: FighterState): number {
-  return chargeLerp(f, 1, moveOf(f)?.chargeDamage ?? SMASH_CHARGE_MAX);
+  return chargeScale(chargeLevel(f), moveOf(f)?.chargeDamage ?? SMASH_CHARGE_MAX);
 }
 
 function report(x: Ctx, phase: 'full' | 'store' | 'fire'): void {
