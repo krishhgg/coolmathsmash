@@ -17,7 +17,6 @@ import {
   BADGE_BLINK_FRAMES,
   clipFor,
   fighterArt,
-  fighterLayer,
   intangibleBlink,
   shieldRadius,
   statusBadges,
@@ -253,7 +252,7 @@ describe('clipFor while a move charges', () => {
 });
 
 describe('a Final Smash user', () => {
-  it('draws over the other fighters and without the intangibility blink, which an intangible fighter otherwise shows', () => {
+  it('never shows the intangibility blink, which an intangible fighter otherwise shows', () => {
     const user = createFighter(0, finalTrapTester.id, [0, 0, 1], 3);
     const dodger = createFighter(1, finalTrapTester.id, [0, 0, -1], 3);
     Object.assign(user, {
@@ -266,6 +265,5 @@ describe('a Final Smash user', () => {
     const blinks = (f: typeof user) => [0, 1, 2, 3, 4, 5, 6, 7].filter((frame) => intangibleBlink(f, frame));
     expect(blinks(user)).toEqual([]);
     expect(blinks(dodger)).toEqual([0, 1, 2, 3]);
-    expect([fighterLayer(user), fighterLayer(dodger)]).toEqual([1, 0]);
   });
 });

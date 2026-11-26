@@ -163,12 +163,6 @@ export const PARRY_FLASH_FRAMES = 12;
 export const intangibleBlink = (f: Readonly<FighterState>, frame: number): boolean =>
   isIntangible(f) && !inFinalSmash(f) && frame % 8 < 4;
 
-/**
- * Draw order among the fighters: one playing a Final Smash draws over the others, so its art can cover them (Bob the
- * Robber's Lights Out puts the lights out over everyone), and the rest keep their port order.
- */
-export const fighterLayer = (f: Readonly<FighterState>): number => (inFinalSmash(f) ? 1 : 0);
-
 /** One fighter: its rig posed from the action and frame, plus shield and debug label. World units, y down. */
 export class FighterView {
   readonly container = new Container();
@@ -234,7 +228,6 @@ export class FighterView {
     const x = f.prevPos.x + (f.pos.x - f.prevPos.x) * alpha;
     const y = f.prevPos.y + (f.pos.y - f.prevPos.y) * alpha;
     this.container.position.set(x, -y);
-    this.container.zIndex = fighterLayer(f);
     const jx = fx.jitter?.x ?? 0;
     const jy = -(fx.jitter?.y ?? 0);
     this.body.position.set(jx, jy);
