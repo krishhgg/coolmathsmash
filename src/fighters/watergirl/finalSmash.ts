@@ -20,8 +20,10 @@ import type { HitboxDef, MoveDef } from '../types';
  *   Battlefield's ledge from 243.7% (aerial row, 23 degrees) and 288.5% (grounded row, 50 degrees) on SSBU-Calculator's
  *   KO calculator (rubendal/SSBU-Calculator 233590e, run headless on these values, fresh, no rage, no DI).
  *
- * SmashWiki gives no speed for the fireballs. Her wave sits higher than Fireboy's fire, its body on the floor, and
- * rolls at WAVE.speed (finalSmash.test.ts has the sweep).
+ * SmashWiki gives no speed for the fireballs. Swept from 0.9 to 1.6 units a frame with the centre 10 or 13 up, the
+ * wave lands the most hits on a Mario-weight fighter standing 30 units in front, summed over 0 to 150%, at 1.1 and 13
+ * up: 89 hits, where Fireboy's fire (1.1, 10 up) lands 85. So hers rises higher than his, its body along the floor,
+ * and rolls 176 units, past the far ledge of Battlefield (160 wide).
  */
 export const WAVE = {
   /** Move frame the wave breaks forward: Mario Finale's first hit. */
