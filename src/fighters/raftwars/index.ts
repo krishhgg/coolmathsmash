@@ -3,6 +3,7 @@ import { aimedShotEntities } from './aimedShot';
 import { art } from './art';
 import { duckRaftEntities, raftMeters } from './duckRaft';
 import { entities } from './entities';
+import { fullArsenalEntities } from './fullArsenal';
 import { grenadeEntities } from './grenade';
 import { moves } from './moves';
 import { stats } from './stats';
@@ -13,7 +14,13 @@ export const fighter = defineFighter({
   series: 'Raft Wars (2007)',
   stats,
   moves,
-  entities: { ...entities, ...grenadeEntities, ...aimedShotEntities, ...duckRaftEntities },
+  entities: {
+    ...entities,
+    ...grenadeEntities,
+    ...aimedShotEntities,
+    ...duckRaftEntities,
+    ...fullArsenalEntities,
+  },
   meters: raftMeters,
   art,
 });

@@ -452,6 +452,80 @@ export const tile: PathShape[] = [
   { d: `M-2.95 0.1L2.95 0.1L2.95 0.48L-2.95 0.48Z`, fill: 'tileLo' },
 ];
 
+/** A flat palette colour at `alpha` (a gradient whose two stops match), for effects that fade out. */
+const faded = (color: string, alpha: number): Paint =>
+  alpha >= 1
+    ? color
+    : {
+        type: 'linear',
+        x0: -1,
+        y0: 0,
+        x1: 1,
+        y1: 0,
+        stops: [
+          { offset: 0, color, alpha },
+          { offset: 1, color, alpha },
+        ],
+      };
+
+/** Cells along each side of the tunnel's square frame, and the gaps where tiles are missing (column, row). */
+const TUNNEL_CELLS = 10;
+const TUNNEL_GAPS = new Set(['3,0', '7,0', '9,4', '0,6', '6,9']);
+const TUNNEL_GAP = 0.022;
+/** How far the tunnel's outer edge reaches from its centre, in units of the fx bone's scale. */
+export const TUNNEL_EDGE = 1 + TUNNEL_GAP;
+
+/** A tunnel ring's palette keys: its frame, its tiles and the tiles' lower shade. */
+type RingColors = [line: string, tile: string, lo: string];
+const NEAR_RING: RingColors = ['tileLine', 'tile', 'tileLo'];
+const MID_RING: RingColors = ['tileMidLine', 'tileMid', 'tileMidLo'];
+const DEEP_RING: RingColors = ['tileDeepLine', 'tileDeep', 'tileDeepLo'];
+
+/**
+ * One ring of Run's tunnel seen end on: a square frame of floor tiles `k` units from its centre to each side, with a
+ * few tiles missing to show the dark of space through the gaps, in `colors` at `alpha`.
+ */
+function tunnelRing(k: number, alpha: number, [line, tile, lo]: RingColors = NEAR_RING): PathShape[] {
+  const at = (v: number) => n(v * k);
+  const rect = (x0: number, y0: number, x1: number, y1: number) =>
+    `M${at(x0)} ${at(y0)}L${at(x1)} ${at(y0)}L${at(x1)} ${at(y1)}L${at(x0)} ${at(y1)}Z`;
+  const cell = 2 / TUNNEL_CELLS;
+  const gap = TUNNEL_GAP;
+  const tiles: string[] = [];
+  const shades: string[] = [];
+  for (let i = 0; i < TUNNEL_CELLS; i++)
+    for (let j = 0; j < TUNNEL_CELLS; j++) {
+      const edge = i === 0 || j === 0 || i === TUNNEL_CELLS - 1 || j === TUNNEL_CELLS - 1;
+      if (!edge || TUNNEL_GAPS.has(`${i},${j}`)) continue;
+      const [x0, y0] = [-1 + i * cell + gap, -1 + j * cell + gap];
+      const [x1, y1] = [x0 + cell - 2 * gap, y0 + cell - 2 * gap];
+      tiles.push(rect(x0, y0, x1, y1));
+      shades.push(rect(x0, y1 - (y1 - y0) * 0.32, x1, y1));
+    }
+  const o = TUNNEL_EDGE;
+  const h = 1 - cell - gap;
+  return [
+    { d: rect(-o, -o, o, o) + rect(-h, -h, h, h), fill: faded(line, alpha) },
+    { d: tiles.join(''), fill: faded(tile, alpha) },
+    { d: shades.join(''), fill: faded(lo, alpha) },
+  ];
+}
+
+/**
+ * Run's tunnel seen end on, for Tunnel Flip: the near ring of tiles one unit from its centre to each side, and two
+ * rings further down the tunnel inside it, smaller and darker with distance as Run's tunnel fades into space, so it
+ * reads as a tunnel and not a frame. Flat colours, as Flash drew them. Scale it up around her to grow the tunnel and
+ * turn it to roll it. `alpha` fades all of it.
+ */
+const tunnelOf = (alpha: number): PathShape[] => [
+  ...tunnelRing(0.44, alpha, DEEP_RING),
+  ...tunnelRing(0.67, alpha, MID_RING),
+  ...tunnelRing(1, alpha),
+];
+
+export const tunnel = tunnelOf(1);
+export const tunnelFaint = tunnelOf(0.4);
+
 export const crate: PathShape[] = [
   { d: 'M-6.3 -0.2L-6.3 -8.25L-3.55 -10.65L4.2 -10.65L6.3 -8.35L6.3 -0.2Z', fill: 'tileLine' },
   { d: 'M-5.7 -0.8L-5.7 -7.95L2.7 -7.95L2.7 -0.8Z', fill: 'tile' },

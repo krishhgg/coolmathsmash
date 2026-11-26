@@ -117,6 +117,13 @@ export const scene: LabScene = {
       parent.addChild(front);
     };
 
+    /** Puts the rig in `parent` at `zoom`, with its `under` slots (Slot.under) behind the body, as the game draws them. */
+    const place = (parent: Container, view: RigView, zoom: number) => {
+      view.under.scale.set(zoom);
+      view.container.scale.set(zoom);
+      parent.addChild(view.under, view.container);
+    };
+
     const show = (clip: string, frame: number, globalFrame = frame) => {
       redraw = () => show(clip, frame, globalFrame);
       root.removeChildren().forEach((c) => c.destroy({ children: true }));
@@ -126,8 +133,7 @@ export const scene: LabScene = {
       root.addChild(stage);
       if (!clip.startsWith('ledge')) stage.addChild(ground(new Graphics(), 0, 0, VIEW_WIDTH));
       const view = createRigView(art, palette);
-      view.container.scale.set(zoom);
-      stage.addChild(view.container);
+      place(stage, view, zoom);
       view.pose(clip, frame, globalFrame);
       ledge(stage, clip, zoom);
       overlay(view, zoom);
@@ -153,9 +159,8 @@ export const scene: LabScene = {
         root.addChild(cell);
         if (!clip.startsWith('ledge')) cell.addChild(ground(new Graphics(), 0, 0, w * 0.8));
         const view = createRigView(art, palette);
-        view.container.scale.set(zoom);
+        place(cell, view, zoom);
         view.pose(clip, frame, flicker ? frame : 0);
-        cell.addChild(view.container);
         ledge(cell, clip, zoom);
         projectiles(cell, clip, frame, flicker ? frame : 0, zoom);
         tetherLine(cell, view.container, clip, frame, zoom);
