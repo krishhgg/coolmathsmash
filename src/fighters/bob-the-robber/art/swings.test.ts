@@ -83,16 +83,27 @@ function bounds(pose: RigPose, slot: string): [number, number, number, number] {
 const covers = (pose: RigPose, slot: string, x: number, y: number) =>
   shapesContain(drawing(pose, slot)!, ...toLocal(pose.world[slots[slot]!.bone]!, x, y));
 
-/** Whether the drawings in slots `a` and `b` overlap by more than OVERLAP in `pose`, measured on a CELL grid. */
-function overlaps(pose: RigPose, a: string, b: string): boolean {
-  const [a0, a1, a2, a3] = bounds(pose, a);
-  const [b0, b1, b2, b3] = bounds(pose, b);
+/**
+ * Whether `slot`'s drawing covers more than OVERLAP of the rig points inside `box` that pass `inside`, in `pose`,
+ * measured on a CELL grid.
+ */
+function overlapsRegion(
+  pose: RigPose,
+  slot: string,
+  box: [number, number, number, number],
+  inside: (x: number, y: number) => boolean,
+): boolean {
+  const [a0, a1, a2, a3] = bounds(pose, slot);
   let cells = 0;
-  for (let x = Math.max(a0, b0) + CELL / 2; x < Math.min(a2, b2); x += CELL)
-    for (let y = Math.max(a1, b1) + CELL / 2; y < Math.min(a3, b3); y += CELL)
-      if (covers(pose, a, x, y) && covers(pose, b, x, y) && ++cells * CELL * CELL > OVERLAP) return true;
+  for (let x = Math.max(a0, box[0]) + CELL / 2; x < Math.min(a2, box[2]); x += CELL)
+    for (let y = Math.max(a1, box[1]) + CELL / 2; y < Math.min(a3, box[3]); y += CELL)
+      if (covers(pose, slot, x, y) && inside(x, y) && ++cells * CELL * CELL > OVERLAP) return true;
   return false;
 }
+
+/** Whether the drawings in slots `a` and `b` overlap by more than OVERLAP in `pose`. */
+const overlaps = (pose: RigPose, a: string, b: string) =>
+  overlapsRegion(pose, a, bounds(pose, b), (x, y) => covers(pose, b, x, y));
 
 /** Each slot's place in the draw order, back to front. */
 function layers(pose: RigPose): Record<string, number> {
@@ -158,5 +169,20 @@ describe("bob's baton swings", () => {
       }
     }
     expect(popped).toEqual([]);
+  });
+
+  it("keeps the dash attack's sack off his face", () => {
+    const covered: string[] = [];
+    for (let f = 0; f <= art.clips.dashAttack!.length; f++) {
+      const pose = samplePose(art, 'dashAttack', f, f);
+      const order = layers(pose);
+      if (!drawing(pose, 'sack') || order.sack! < order.head!) continue;
+      // His face: his head as drawn, below the bottom of his hat.
+      const [x0, , x1, y1] = bounds(pose, 'head');
+      const face = (x: number, y: number) => covers(pose, 'head', x, y) || covers(pose, 'face', x, y);
+      if (overlapsRegion(pose, 'sack', [x0, bounds(pose, 'hat')[3], x1, y1], face))
+        covered.push(`dashAttack@${f}`);
+    }
+    expect(covered).toEqual([]);
   });
 });

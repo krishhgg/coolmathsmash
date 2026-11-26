@@ -185,11 +185,17 @@ const SLIDE = feet(
 const DASH_WIND = aim(hands(SLIDE, [-2.6, -7.4], [2.4, -5.4]), 'sackH', 130);
 const DASH_HIT = aim(reachB(hands(SLIDE, [5.0, -5.9], [2.6, -4.4]), [5.0, -5.9]), 'sackH', -84);
 const DASH_LATE = aim(reachB(hands(SLIDE, [4.7, -5.5], [2.6, -4.4]), [4.7, -5.5]), 'sackH', -66);
+/** Standing out of the slide, back foot still back, for the swing over his head. */
+const RISEN = feet(STANCE, floor(-2.4), floor(1.8));
+/** The arm flung forward and up, sack and all, clear of his face on its way over. */
+const DASH_UP = aim(reachB(hands(RISEN, [6.4, -9.0], null), [6.4, -9.0]), 'sackH', -100);
+/** The sack held up over his hat. */
+const DASH_OVER = aim(reachB(hands(RISEN, [0.4, -13.6], null), [0.4, -13.6]), 'sackH', -140);
 /**
- * The sack lifted over his head and hanging behind it from his raised back hand, clear of his head and body, so it
- * can go behind his back without jumping.
+ * The sack come down over his head and hanging behind it from his raised back hand, clear of his head and body, so
+ * it can go behind his back without jumping.
  */
-const DASH_SLUNG = aim(hands(feet(STANCE, floor(-2.4), floor(1.8)), [-4.4, -6.6], null), 'sackH', 80);
+const DASH_SLUNG = aim(hands(RISEN, [-4.4, -6.6], null), 'sackH', 80);
 
 // Smashes ----------------------------------------------------------------------------------------------------
 
@@ -437,6 +443,8 @@ export const attacks: Record<string, AnimClip> = {
         strikeKey(9, DASH_HIT, { ...SHOUT, ...SACK }, { z: { ...BACK_ARM_IN_FRONT, ...SACK_IN_FRONT } }),
         key(12, DASH_HIT, { ease: 'linear' }),
         key(20, DASH_LATE, { ease: 'inOut', swaps: { ...GRIN, ...SACK } }),
+        key(22, DASH_UP, { ease: 'linear' }),
+        key(24, DASH_OVER, { ease: 'inOut' }),
         key(28, DASH_SLUNG, { ease: 'inOut', z: {} }),
         key(39, aim(READY, 'sackH', 130), { swaps: { ...SIDE, sack: null } }),
       ],
