@@ -87,12 +87,19 @@ describe('CPU projectiles', () => {
     }
   });
 
-  it('hit with them more often at level 9 than at level 3', () => {
-    for (const id of SHOOTERS) {
+  /**
+   * Eight 30-second matches per level against a level 5 Red Ball. Snail Bob's crate is slow and lands only 20 units
+   * ahead, so he throws it a few times a match: with three seeds he had 3 hits at level 9 against 1 at level 3, and
+   * #217 (solid ceilings) shifted two of those matches to 1 against 1. Over eight seeds he has 5-6 against 1 on
+   * either side of that change, and every other shooter's gap is wider.
+   */
+  it.each(SHOOTERS)(
+    'hit with them more often at level 9 than at level 3: %s',
+    (id) => {
       const hits: Record<number, number> = {};
       for (const level of [9, 3]) {
         hits[level] = 0;
-        for (const seed of [1, 2, 3]) {
+        for (let seed = 1; seed <= 8; seed++) {
           const m = createMatch({
             seed,
             stage: STAGE,
@@ -114,9 +121,10 @@ describe('CPU projectiles', () => {
           }
         }
       }
-      expect(hits[9], `${id}: shot hits against a level 5 Red Ball`).toBeGreaterThan(hits[3]!);
-    }
-  }, 120_000);
+      expect(hits[9], `shot hits against a level 5 Red Ball`).toBeGreaterThan(hits[3]!);
+    },
+    60_000,
+  );
 
   it('shoot an opponent recovering from beside the stage', () => {
     for (const id of ['raftwars', 'papa-louie']) {
