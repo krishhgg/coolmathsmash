@@ -45,12 +45,23 @@ function moveFrame(f: FighterState): number {
   return f.actionFrame;
 }
 
+/** The clip that draws `move`'s charge, `<move>Charge`, when the art has one (docs/art.md). */
+export function chargeClipName(art: FighterArt | undefined, move: string): string | undefined {
+  const name = `${move}Charge`;
+  return art?.clips[name] ? name : undefined;
+}
+
 /**
  * The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. A tether move's clip
  * plays on through the reel, held on the clip's `reel` frame (AnimClip.reel) until the fighter arrives, unless the
- * art has its own clip for the reel (REEL_ACTIONS).
+ * art has its own clip for the reel (REEL_ACTIONS). A move waiting on its charge frame plays the art's charge clip,
+ * if it has one, on the frames charged so far.
  */
 export function clipFor(def: FighterDef, art: FighterArt, f: FighterState): [string, number] {
+  const hold = f.move ? def.moves?.[f.move]?.charge : undefined;
+  const charging = hold !== undefined && f.charge > 0 && f.actionFrame === hold - 1;
+  const charge = charging ? chargeClipName(art, f.move!) : undefined;
+  if (charge) return [charge, f.charge];
   const reeling = REEL_ACTIONS.has(f.action);
   const own = f.move && !(reeling && art.clips[f.action]) ? f.move : f.action;
   const name = art.clips[own] ? own : (STAND_INS[own] ?? 'idle');

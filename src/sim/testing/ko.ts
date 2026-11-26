@@ -38,6 +38,8 @@ export interface KoSetup {
   di?: { x: number; y: number };
   /** Attacker's % (rage). Default 0. */
   attackerPercent?: number;
+  /** Frames the attacker charged a `{ fighter, move }` hit (a smash attack or a charging special). Default 0. */
+  charge?: number;
   stage?: string;
 }
 
@@ -114,6 +116,7 @@ function kosWith(setup: KoSetup, launcher: Launcher, hit: KoHit | HitboxDef, per
     staleQueue: [],
     moveStale: 0,
     damage: setup.attackerPercent ?? 0,
+    charge: setup.charge ?? 0,
   });
   Object.assign(v, {
     pos: { ...at },
