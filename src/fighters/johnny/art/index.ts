@@ -32,6 +32,7 @@ export const art: FighterArt = {
       symbols: rig.symbols,
       symbol: 'laserBolt',
       scale: 1,
+      align: true,
       preview: {
         neutralB: { frame: 9, x: MUZZLE.x + LASER.speed, y: MUZZLE.y, vx: LASER.speed },
         neutralBAir: { frame: 8, x: MUZZLE.x + LASER.speed, y: MUZZLE.airY, vx: LASER.speed },

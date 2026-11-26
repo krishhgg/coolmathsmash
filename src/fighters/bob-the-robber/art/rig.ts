@@ -21,6 +21,7 @@ import {
   point,
   rope,
   sack,
+  shadows,
   shin,
   shoe,
   shoeFront,
@@ -150,6 +151,7 @@ export const rig: Rig = {
     twirl,
     taser,
     ...zaps,
+    ...shadows,
   },
 };
 

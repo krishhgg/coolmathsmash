@@ -37,11 +37,13 @@ export interface EntityState {
   damage: number;
   /** Frozen frames left after being hit. A projectile does not freeze when it hits something. */
   hitlag: number;
+  /** Match frame of its latest hitlag frame (-1 = none), for inHitlag. */
+  hitlagAt: number;
   /** The owner's move that spawned (or reflected) it: its hits stale that move. */
   move: string | null;
   /** Stale multiplier fixed when it first connects (0 = not connected yet). */
   stale: number;
-  /** Damage multiplier from reflections (1 = never reflected). */
+  /** Damage multiplier from the spawning move's charge (EntityDef.chargeDamage) and from reflections (1 = neither). */
   damageMul: number;
   /** Times reflected; the 8th reflector destroys it instead (Ultimate). */
   reflects: number;
@@ -81,6 +83,11 @@ export interface EntityDef {
   kind?: MoveKind;
   /** Hitbox windows over its age (frame 1 = the frame it spawns), x mirrored by its facing. */
   hits?: HitWindow[];
+  /**
+   * Damage multiplier of its hits at full charge of the move that spawns it (default 1: charge changes nothing). Less
+   * charge scales linearly from 1, as MoveDef.chargeDamage does, and knockback grows through the damage.
+   */
+  chargeDamage?: number;
   /** Pulled down by this much every frame, up to `maxFall`. */
   gravity?: number;
   maxFall?: number;

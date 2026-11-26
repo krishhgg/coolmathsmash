@@ -3,8 +3,8 @@ import { isIntangible } from './actions/registry';
 import { cameraTarget } from '../render/camera';
 import { getStage } from '../stages/registry';
 import { createMatch, stepMatch, type MatchState } from './match';
-import { attack, input, run, type Hold } from './testing/sim';
-import { FRESHNESS_BONUS, isTumble } from './combat/formulas';
+import { attack, input, placeInAir, run, type Hold } from './testing/sim';
+import { FRESHNESS_BONUS, isTumble, shieldBreakStun } from './combat/formulas';
 import { getFighter } from '../fighters/registry';
 import ref from './reference/physics-constants.json';
 import type { ButtonName } from '../input/types';
@@ -56,6 +56,32 @@ describe('ground movement', () => {
     expect(speeds[11]).toBeCloseTo(1.85, 9);
     expect(actions.at(-1)).toBe('run');
     expect(s.vel.x).toBeCloseTo(1.85, 3);
+  });
+
+  it("Mario's initial dash lasts 10 frames and he runs from frame 11 (UFD stats: Dash Frames 10)", () => {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'reference-mario' }],
+    });
+    const s = P(m);
+    s.pos.x = 0;
+    settle(m);
+    const speeds: number[] = [];
+    const actions: string[] = [];
+    for (let i = 0; i < 14; i++) {
+      stepMatch(m, [input({ x: 100 })]);
+      speeds.push(s.vel.x);
+      actions.push(s.action);
+    }
+    expect(actions.filter((a) => a === 'dash').length).toBe(ref.movement.mario_initial_dash_frames);
+    expect(actions.indexOf('run') + 1).toBe(ref.movement.mario_initial_dash_frames + 1);
+    // docs/physics-reference.md section 10: 1.936 for 6 frames, then 1.834 and 1.76 held.
+    expect(speeds.slice(0, 6).every((v) => Math.abs(v - 1.936) < 1e-9)).toBe(true);
+    expect(speeds[6]).toBeCloseTo(1.834, 9);
+    expect(speeds[7]).toBeCloseTo(1.76, 9);
+    expect(speeds[10]).toBeCloseTo(1.76, 9);
   });
 
   it('a tapped dash holds 1.95 u/f for 6 frames, then slides out at traction (Ultimate: dash_speed_keep_frame 6)', () => {
@@ -317,6 +343,25 @@ describe('shield', () => {
     expect(stunned).toBeGreaterThanOrEqual(28);
     expect(stunned).toBeLessThanOrEqual(32);
   });
+
+  it('a broken shield leaves the fighter dizzy for 400 - % frames (SmashWiki: Stun), then at 37.5 shield HP', () => {
+    for (const percent of [0, 100, 350]) {
+      const m = grounded();
+      const f = P(m);
+      f.damage = percent;
+      f.shieldHp = 1;
+      let frames = 0;
+      while (f.action !== 'dizzy' && frames++ < 300) stepMatch(m, [input({ buttons: ['shield'] })]);
+      let dizzy = 0;
+      while (f.action === 'dizzy' && dizzy < 600) {
+        stepMatch(m, [input({})]);
+        dizzy++;
+      }
+      expect(dizzy, `${percent}%`).toBe(shieldBreakStun(percent));
+      // The shield is reset as the dizzy ends, then regenerates for the frame stepped since.
+      expect(f.shieldHp).toBeCloseTo(ref.shield.hp_after_break + ref.shield.regen_per_frame, 6);
+    }
+  });
 });
 
 describe('dodges', () => {
@@ -354,8 +399,8 @@ describe('dodges', () => {
   it("forward roll is intangible on frames 4-15, actionable on 30, and covers the fighter's own roll distance", () => {
     const mario = dodge('reference-mario', { x: 100 });
     expect(mario.action).toBe('rollForward');
-    expect(mario.intangible).toEqual([4, 15]);
-    expect(mario.actionable).toBe(30);
+    expect(mario.intangible).toEqual(ref.dodges.forward_roll.intangible);
+    expect(mario.actionable).toBe(ref.dodges.forward_roll.total + 1);
     expect(mario.distance).toBeCloseTo(32.17, 2);
     const fireboy = dodge('fireboy', { x: 100 });
     expect(fireboy.actionable).toBe(30);
@@ -365,9 +410,9 @@ describe('dodges', () => {
   it("back roll is intangible on frames 5-16, actionable on 35, and covers the fighter's back roll distance", () => {
     const r = dodge('reference-mario', { x: -100 });
     expect(r.action).toBe('rollBack');
-    expect(r.intangible).toEqual([5, 16]);
-    expect(r.actionable).toBe(35);
-    expect(r.distance).toBeCloseTo(30.63, 2);
+    expect(r.intangible).toEqual(ref.dodges.back_roll.intangible);
+    expect(r.actionable).toBe(ref.dodges.back_roll.total + 1);
+    expect(r.distance).toBeCloseTo(ref.dodges.back_roll.mario_distance, 2);
     // Fireboy sets no backRollDistance, so his back roll matches his forward roll.
     const fireboy = dodge('fireboy', { x: -100 });
     expect(fireboy.action).toBe('rollBack');
@@ -378,18 +423,74 @@ describe('dodges', () => {
   it('spot dodge is intangible on frames 3-17 and actionable on 26', () => {
     const r = dodge('reference-mario', { y: -100 });
     expect(r.action).toBe('spotDodge');
-    expect(r.intangible).toEqual([3, 17]);
-    expect(r.actionable).toBe(26);
+    expect(r.intangible).toEqual(ref.dodges.spot_dodge.intangible);
+    expect(r.actionable).toBe(ref.dodges.spot_dodge.total + 1);
     expect(r.distance).toBe(0);
   });
 
   it('spot dodge cancels into a ground attack or special on frame 21; a grab waits for frame 26', () => {
+    const { total, total_with_cancel: cancel } = ref.dodges.spot_dodge;
     const jab = dodge('fireboy', { y: -100 }, { from: 15, buttons: ['attack'] });
-    expect([jab.actionable, jab.move]).toEqual([21, 'jab']);
+    expect([jab.actionable, jab.move]).toEqual([cancel + 1, 'jab']);
     const special = dodge('fireboy', { y: -100 }, { from: 15, buttons: ['special'] });
-    expect([special.actionable, special.move]).toEqual([21, 'neutralB']);
+    expect([special.actionable, special.move]).toEqual([cancel + 1, 'neutralB']);
     const grab = dodge('fireboy', { y: -100 }, { from: 15, buttons: ['grab'] });
-    expect([grab.actionable, grab.move]).toEqual([26, 'grab']);
+    expect([grab.actionable, grab.move]).toEqual([total + 1, 'grab']);
+  });
+
+  /** Air dodge with the stick held at `stick` on the press frame, high off Battlefield's right edge so it ends airborne. */
+  function airDodge(stick: Hold) {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'reference-mario' }],
+    });
+    settle(m, 10);
+    m.players[0]!.tapJump = false;
+    const f = placeInAir(m, 120, 120);
+    stepMatch(m, [input({ ...stick, buttons: ['shield'] })]);
+    const action = f.action;
+    const frames: number[] = [];
+    const intangible: number[] = [];
+    while (f.action === action && frames.length < 200) {
+      frames.push(f.actionFrame);
+      if (isIntangible(f)) intangible.push(f.actionFrame);
+      stepMatch(m, [input({})]);
+    }
+    return {
+      action,
+      actionable: Math.max(...frames) + 1,
+      intangible: [intangible[0], intangible.at(-1)],
+      next: f.action,
+      airborne: f.ground === null,
+    };
+  }
+
+  it("neutral air dodge is intangible on frames 3-29 and actionable on 53 (Mario's 52 total frames)", () => {
+    const r = airDodge({});
+    expect(r.action).toBe('airDodge');
+    expect(r.intangible).toEqual(ref.dodges.air_dodge_neutral.intangible);
+    expect(r.actionable).toBe(ref.dodges.air_dodge_neutral.total + 1);
+    expect([r.next, r.airborne]).toEqual(['fall', true]);
+  });
+
+  it("directional air dodges are actionable one frame after Mario's totals and end in a fall, not helpless", () => {
+    const totals = ref.dodges.air_dodge_directional.total_by_direction;
+    for (const [stick, total] of [
+      [{ y: -100 }, totals.down],
+      [{ x: 100, y: -100 }, totals.diag_down],
+      [{ x: 100 }, totals.side],
+      [{ x: -100 }, totals.side],
+      [{ x: 100, y: 100 }, totals.diag_up],
+      [{ y: 100 }, totals.up],
+    ] as const) {
+      const r = airDodge(stick);
+      expect(r.action).toBe('airDodge');
+      expect(r.intangible, JSON.stringify(stick)).toEqual(ref.dodges.air_dodge_directional.intangible);
+      expect(r.actionable, JSON.stringify(stick)).toBe(total + 1);
+      expect([r.next, r.airborne], JSON.stringify(stick)).toEqual(['fall', true]);
+    }
   });
 });
 

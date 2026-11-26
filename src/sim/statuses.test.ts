@@ -411,6 +411,30 @@ describe('statuses: freezing', () => {
     }
     expect(hasStatus(v, STUN)).toBe(true);
   });
+
+  it('is still frozen on the frame it runs out: a fighter standing in it pushes it only on the frame it acts again', () => {
+    const { m, a, v } = versus(3);
+    const frames = 10;
+    applyStatus(m, v, STUN, { frames });
+    runPorts(m, 1, []);
+    // P1 stands 5 units from the stunned Mario, 3 units inside it (their widths are 8).
+    Object.assign(a, { pos: { x: v.pos.x - 5, y: v.pos.y } });
+    a.prevPos = { ...a.pos };
+    const at = { a: { ...a.pos }, v: { ...v.pos } };
+    const held = v.actionFrame;
+    for (let frame = 1; frame <= frames; frame++) {
+      runPorts(m, 1, []);
+      expect({ frame, a: a.pos, v: v.pos }).toEqual({ frame, ...at });
+      expect({ frame, stunned: hasStatus(v, STUN) }).toEqual({ frame, stunned: frame < frames });
+      expect({ frame, actionFrame: v.actionFrame }).toEqual({ frame, actionFrame: held });
+    }
+    expect(m.events).toContainEqual({ type: 'statusEnd', port: 1, status: STUN, reason: 'expired' });
+    // The frame after: Mario acts again, and the two push apart.
+    runPorts(m, 1, []);
+    expect(v.actionFrame).toBe(held + 1);
+    expect(a.pos.x).toBeLessThan(at.a.x);
+    expect(v.pos.x).toBeGreaterThan(at.v.x);
+  });
 });
 
 describe('statuses: a KO from a ledge hang', () => {
