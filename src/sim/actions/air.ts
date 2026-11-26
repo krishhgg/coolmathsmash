@@ -3,8 +3,8 @@ import {
   AIR_DODGE_DIRECTIONAL,
   AIR_DODGE_NEUTRAL,
   AIR_DODGE_TECH_WINDOW,
-  DIRECTION_THRESHOLD,
   DOUBLE_JUMP_FRAMES,
+  FAST_FALL_FLICK,
 } from '../constants';
 import { buffered, consume, flickDown, stickX, stickY } from '../control';
 import { emit } from '../events';
@@ -17,7 +17,7 @@ import { enterAction, inWindow, setAction, type ActionDef } from './registry';
 
 export function fastFallCheck(x: Ctx): void {
   const { f, s, c } = x;
-  if (!f.fastFalling && f.vel.y <= 0 && flickDown(c)) {
+  if (!f.fastFalling && f.vel.y <= 0 && flickDown(c, FAST_FALL_FLICK)) {
     f.fastFalling = true;
     f.vel.y = -s.fastFallSpeed;
   }
@@ -127,7 +127,7 @@ export const AIR: Record<string, ActionDef> = {
         const sx = stickX(c);
         const sy = stickY(c);
         const mag = Math.hypot(sx, sy);
-        f.dodgeDir = mag >= DIRECTION_THRESHOLD ? { x: sx / mag, y: sy / mag } : { x: 0, y: 0 };
+        f.dodgeDir = mag >= AIR_DODGE_DIRECTIONAL.stick ? { x: sx / mag, y: sy / mag } : { x: 0, y: 0 };
       }
       if (directional(x)) {
         const dir = f.dodgeDir;
