@@ -655,7 +655,7 @@ export class Cpu {
     const me = state.fighters[this.port]!;
     const offstageOk = edgeguarding && this.lv.level >= 6;
     const arrive = attacks.some((a) => a.shot)
-      ? arrival(target.far ?? target.path, state.fighters[this.port]!.pos.x, opp.runSpeed)
+      ? arrival(target.far ?? target.path, me.pos.x, opp.runSpeed)
       : 0;
     const out: Attack[] = [];
     for (const a of attacks) {
