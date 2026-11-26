@@ -5,8 +5,9 @@ const RB = 'characters/red-ball';
 /**
  * Red Ball's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
  * Fireboy, plus his four jumps, the Cube Squash bounce, a full Charge Roll, Tongue Lash on a shield and reeling to
- * a ledge, and lab sheets of every move on its first active frame (zoom 10 keeps the lunges inside their cells; the
- * tongue sheet uses 5 for its 28-unit tongue). References live in the Captain drive's refs/.
+ * a ledge, Ground Pound squaring Fireboy, and lab sheets of every move on its first active frame (zoom 10 keeps the
+ * lunges inside their cells; the tongue sheet uses 5 for its 28-unit tongue and the Ground Pound sheet 6 for the
+ * landing's waves). References live in the Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'redball',
@@ -265,6 +266,59 @@ export const scenarios: FighterScenarios = {
       motion: { before: 22, after: 12 },
       requires: ['move:sideBAir', 'action:tetherPull'],
       refs: ['smash/ledge-hang-*', `${RB}/ingame-swing-*`],
+    },
+    {
+      name: 'redball-ground-pound',
+      description:
+        'Red Ball Ground Pounds (down special) from 30 units up, 12 units from Fireboy: the drop misses him and the landing shockwave leaves him Squared; capture the frame it does.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'redball' }, { fighter: 'fireboy' }] },
+      patches: [
+        {
+          port: 0,
+          state: {
+            pos: { x: 0, y: 30 },
+            vel: { x: 0, y: 0 },
+            ground: null,
+            action: 'fall',
+            jumpsUsed: 1,
+            facing: 1,
+          },
+        },
+        { port: 1, state: { pos: { x: 12, y: 0 }, facing: -1 } },
+      ],
+      script: [{ port: 0, from: 4, to: 5, y: -100, buttons: ['special'] }],
+      capture: {
+        label: 'P2 goes Squared',
+        when: (s, prev) => s.fighters[1]!.statuses.length > 0 && prev.fighters[1]!.statuses.length === 0,
+      },
+      motion: { before: 40, after: 30 },
+      requires: ['move:downBAir', 'move:downBLand'],
+      refs: ['smash/attack-active-*', `${RB}/assist-squarified-01*`, `${RB}/ingame-roll-vs-box-*`],
+    },
+    {
+      name: 'redball-sheet-pound',
+      description:
+        'Ground Pound: the squash, the rise hit, the peak, the drop, the aerial clean hit, and the landing shockwave on its first and last hit frames.',
+      page: { kind: 'lab', scene: 'fighter', params: { fighter: 'redball', zoom: '6' } },
+      calls: [
+        {
+          fn: 'sheet',
+          args: [
+            [
+              'downB@5',
+              'downB@7',
+              'downB@26',
+              'downB@27',
+              'downBAir@19',
+              'downBLand@3',
+              'downBLand@12',
+              'downBLand@25',
+            ],
+          ],
+        },
+      ],
+      refs: ['smash/attack-active-*', `${RB}/assist-squarified-01*`, `${RB}/cutscene-expressions-*`],
     },
     {
       name: 'redball-charge-roll',
