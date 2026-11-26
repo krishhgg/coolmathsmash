@@ -5,6 +5,7 @@ import { GRAVITY_BONUS_BASE, hitlagFrames, knockback, launch } from '../combat/f
 import { inHitlag, type FighterState } from '../fighter';
 import { emit } from '../events';
 import type { MatchState } from '../match';
+import { isFrozen } from '../statuses';
 import {
   destroyEntity,
   entityDef,
@@ -65,7 +66,8 @@ export function resolveEntityContacts(m: MatchState): number[] {
   const owed = m.fighters.map(() => 0);
   for (const e of m.entities) {
     m.fighters.forEach((f, i) => {
-      if (e.dead || f.port === e.owner || inHitlag(m, f) || f.action === 'ko' || f.action === 'out') return;
+      if (e.dead || f.port === e.owner || f.action === 'ko' || f.action === 'out') return;
+      if (inHitlag(m, f) || isFrozen(m, f)) return;
       if (reflectOrAbsorb(m, f, e)) return;
       owed[i] = Math.max(owed[i]!, attackEntity(m, f, e));
     });
