@@ -1,7 +1,7 @@
 import { ease } from '../../../render/rig/sample';
 import type { AnimClip, BonePose, Key } from '../../../render/rig/types';
-import { moves } from '../moves';
-import { FORE_ARM, UPPER_ARM } from './parts';
+import { SHAKER, moves } from '../moves';
+import { FORE_ARM, SHAKER_TIP, UPPER_ARM } from './parts';
 import { AIR, STAND, aim, feet, hands, key, mix, pointOf, swing, type Pose, type Pt } from './poses';
 import { rig } from './rig';
 
@@ -710,7 +710,151 @@ const PROPELLER_FOLLOW = grip(
   [-3.85, -8.38],
 );
 
+// --- Parmesan Shaker --------------------------------------------------------------------------------------
+
+/** The shaker's cap on each shot, where the spray comes from (moves.ts SHAKER, rig space). */
+const CAP: Pt = [SHAKER.cap.x, -SHAKER.cap.y];
+const SHAKER_SCALE = 1.25;
+/** From the prop bone to the top of the shaker's chrome cap, scaled. */
+const CAP_OUT = SHAKER_TIP * SHAKER_SCALE;
+/** From the back wrist to the prop bone along the hand: the bone's 0.6 plus the 0.3 the grip moves it up. */
+const GRIP_OUT = 0.9;
+
+/** The back hand holding the shaker out with its cap on `cap`, pointing along aim angle `deg` (-90 forward). */
+function shakerOut(pose: Pose, cap: Pt, deg: number): Pose {
+  const wrist = ahead(cap, deg, -(CAP_OUT + GRIP_OUT));
+  const p = aim(arms(pose, wrist, null), 'handB', deg);
+  return aim(mix(p, { prop: { y: 0.3, sx: SHAKER_SCALE, sy: SHAKER_SCALE } }), 'prop', deg + 180);
+}
+
+/** Leaning into the shake, the peel held back out of the way at his hip, turned edge on, in the front hand. */
+const SH_BODY = (lean: number, dip: number): Pose =>
+  grip(stance(0.45, 0.7 + dip, 7 + lean, -1.45, 1.55, { head: { rot: -6 }, ...SLANT }), [0.9, -5.2], 100);
+/** Taking the shaker from the apron pocket, the peel still upright. */
+const SH_REACH = mix(grip(stance(-0.1, 0.65, 8, -1.1, 1.3), [2.7, -5.4], -165, [-0.6, -3.7]), {
+  prop: { sx: SHAKER_SCALE, sy: SHAKER_SCALE },
+});
+/** Raised up by his toque, cap high, leaning back to wind up. */
+const SH_WIND = shakerOut(
+  grip(stance(-0.6, 0.6, -10, -1.5, 1.2, { head: { rot: -8 }, ...SLANT }), [0.9, -5.2], 100),
+  [1.2, -14.0],
+  170,
+);
+/** Thrust out in front, cap aimed forward and cocked up for the first shake. */
+const SH_AIM = shakerOut(SH_BODY(0, 0), [CAP[0] - 0.7, CAP[1] - 0.7], -112);
+
+/**
+ * One shake cycle, 5 frames a shot: the snap (phase 0) puts the cap on CAP tipped down as the shot leaves, then it
+ * eases back and cocks up again for the next one.
+ */
+const SHAKE = [
+  { back: 0, up: 0, deg: -78, lean: 2, dip: 0.1 },
+  { back: 0.15, up: 0.05, deg: -84, lean: 1.5, dip: 0.08 },
+  { back: 0.45, up: 0.35, deg: -98, lean: 0.5, dip: 0 },
+  { back: 0.65, up: 0.6, deg: -108, lean: 0, dip: -0.05 },
+  { back: 0.75, up: 0.7, deg: -112, lean: 0, dip: -0.05 },
+];
+
+/** The spray's reach (x its 22.5 units) on frame `f`: a frame ahead of each phase's box, then drifting off. */
+function sprayReach(f: number): number {
+  const grow: [number, number][] = [
+    [14, 0.06],
+    [15, 0.16],
+    [16, 0.32],
+    [17, 0.55],
+    [18, 0.7],
+    [19, 0.82],
+    [20, 0.94],
+    [21, 1],
+  ];
+  return grow.find(([at]) => at === f)?.[1] ?? (f < 14 ? 0 : 1);
+}
+
+/** The spray on fx2 from the cap, tipped a little up or down shot by shot like Blizzard's scattered shards. */
+function sprayAt(f: number, shot: number): BonePose {
+  const reach = sprayReach(f);
+  const tilt = shot % 2 ? 3 : -2;
+  return { x: CAP[0], y: CAP[1], rot: -90 + tilt, sx: 0.45 + 0.55 * reach, sy: reach };
+}
+
+/** The puff of cheese a shake throws out of the cap, on fx1, big on the snap and smaller the frame after. */
+const puffAt = (phase: number): BonePose => {
+  const s = phase === 0 ? 1.35 : 1.0;
+  return { x: CAP[0] + 0.2 + phase * 1.6, y: CAP[1], rot: -90, sx: s, sy: s };
+};
+
+const SH_Z = { ...BACK_ARM_FRONT, ...PADDLE_BEHIND };
+
+/** Frame `f` of the shaking, from the first cocked frame to the last shot's late hit. */
+function shakeKey(f: number): Key {
+  const since = f - SHAKER.first;
+  const shot = Math.max(0, Math.min(SHAKER.shots - 1, Math.floor(since / SHAKER.every)));
+  const done = since >= SHAKER.shots * SHAKER.every - SHAKER.every + 2;
+  const phase = since < 0 ? 4 : done ? 1 : since % SHAKER.every;
+  const c = SHAKE[phase]!;
+  const body = SH_BODY(c.lean, c.dip);
+  const pose = mix(shakerOut(body, [CAP[0] - c.back, CAP[1] - c.up], c.deg), {
+    fx2: sprayAt(f, shot),
+    ...(phase < 2 && !done && since >= 0 && { fx1: puffAt(phase) }),
+  });
+  const puff = phase < 2 && !done && since >= 0;
+  const face = phase === 0 && !done ? SHOUT : GRIT;
+  return key(f, pose, {
+    ease: 'linear',
+    swaps: {
+      ...face,
+      prop: 'shaker',
+      handB: 'fist',
+      fx2: 'parmesanSpray',
+      fx1: puff ? 'parmesanPuff' : null,
+    },
+    z: SH_Z,
+  });
+}
+
+/** The last puff drifting off after the late hit: the spray moves on, thins and goes. */
+function sprayOff(f: number, pose: Pose): Key {
+  const k = (f - 64) / 6;
+  return key(
+    f,
+    mix(pose, {
+      fx2: { x: CAP[0] + 9 * k, y: CAP[1] + 0.6 * k, rot: -90, sx: 1 - 0.45 * k, sy: 1 - 0.55 * k },
+    }),
+    {
+      ease: 'linear',
+      swaps: { ...GRIT, prop: 'shaker', handB: 'fist', fx2: 'parmesanSpray', fx1: null },
+      z: SH_Z,
+    },
+  );
+}
+
+const SH_HOLD = shakerOut(SH_BODY(0.5, 0.05), [CAP[0] - 0.15, CAP[1] - 0.05], -86);
+/** Drawn back in front of his belly, cap up, on the way to the apron pocket. */
+const SH_PULL = shakerOut(grip(stance(0.2, 0.7, 6, -1.3, 1.4, SLANT), [0.9, -5.2], 100), [2.9, -6.4], 180);
+
 const clips: Record<string, AnimClip> = {
+  /**
+   * Parmesan Shaker: takes the Parmesan shaker from his apron, raises it, thrusts it out and shakes it nine times,
+   * a burst of cheese on each shot frame and the spray streaming out over the shots' boxes, then tucks it away.
+   */
+  sideB: {
+    length: 84,
+    active: moves.sideB!.hits.map((w) => w.frames),
+    swaps: ANGRY,
+    keys: [
+      key(0, STAND, { ease: 'out' }),
+      key(4, SH_REACH, { ease: 'inOut', swaps: { ...ANGRY, prop: 'shaker' } }),
+      key(9, SH_WIND, { ease: 'in', swaps: { ...GRIT, prop: 'shaker', handB: 'fist' }, z: SH_Z }),
+      key(13, SH_AIM, { ease: 'out', swaps: { ...GRIT, prop: 'shaker', handB: 'fist' } }),
+      ...Array.from({ length: 64 - 14 + 1 }, (_, i) => shakeKey(14 + i)),
+      ...[66, 68, 70].map((f) => sprayOff(f, lerpPose(SH_HOLD, SH_PULL, (f - 64) / 8))),
+      key(71, undefined, { swaps: { ...GRIT, prop: 'shaker', handB: 'fist', fx2: null } }),
+      key(72, SH_PULL, { ease: 'inOut' }),
+      key(77, SH_REACH, { ease: 'inOut', swaps: { ...ANGRY, prop: 'shaker' }, z: {} }),
+      key(79, undefined, { swaps: {} }),
+      key(84, STAND),
+    ],
+  },
   upB: {
     length: 45,
     active: [
