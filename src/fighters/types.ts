@@ -318,6 +318,11 @@ export interface MoveDef {
   /** Throws: hits on the held fighter before the release (a command grab's chews), like pummels, in frame order. */
   holdHits?: HoldHitDef[];
   /**
+   * Throws: the held fighter is drawn to the holder's hands at this many units a frame from where it was caught,
+   * instead of at once (a long-range catch, such as Papa Louie's Final Smash belt).
+   */
+  pull?: number;
+  /**
    * Command grabs (Ganondorf's Flame Choke, Incineroar's Alolan Whip): a catch by this move's grab boxes plays the
    * move named here at once as the throw, instead of the grab hold, so it can't be mashed out of. Its grab boxes
    * catch airborne fighters at full size.
