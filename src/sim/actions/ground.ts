@@ -7,8 +7,10 @@ import {
   HOLD_BUFFER,
   INPUT_BUFFER_FRAMES,
   RUN_BRAKE_FRAMES,
+  RUN_THRESHOLD,
   RUN_TURN_FRAMES,
   TURN_DASH_FRAMES,
+  TURN_RUN_THRESHOLD,
 } from '../constants';
 import { flickX, isHeld, stickX, stickY } from '../control';
 import { emit } from '../events';
@@ -141,8 +143,8 @@ export const GROUND: Record<string, ActionDef> = {
       const { f, c } = x;
       if (groundActionable(x)) return;
       const sx = stickX(c) * f.facing;
-      if (f.actionFrame > 1 && sx >= DASH_THRESHOLD) return setAction(x, 'run');
-      if (sx <= -DASH_THRESHOLD) return setAction(x, 'turn');
+      if (f.actionFrame > 1 && sx >= RUN_THRESHOLD) return setAction(x, 'run');
+      if (sx <= -TURN_RUN_THRESHOLD) return setAction(x, 'turn');
       if (f.actionFrame >= RUN_BRAKE_FRAMES) setAction(x, 'idle');
     },
   },

@@ -8,20 +8,44 @@
 export const STICK_DEADZONE = 0.2;
 /** A stick axis below this magnitude counts as "back at neutral" for flick (tap) detection. */
 export const FLICK_NEUTRAL = 0.3;
-/** Frames between leaving neutral and reaching a threshold for the motion to count as a flick. */
+/**
+ * Frames between leaving neutral and reaching a threshold for the motion to count as a flick: dashes, tap jumps
+ * (Ultimate common param `jump_flick_y` 3) and C-stick smashes. Fast falls, dodges and platform drops have their own.
+ */
 export const FLICK_WINDOW = 3;
-/** Horizontal stick magnitude that starts a dash (when flicked) and separates walk from run speed. */
-export const DASH_THRESHOLD = 0.6;
+/** Horizontal stick that starts a dash when flicked (Ultimate common param `dash_stick_x` 0.85). */
+export const DASH_THRESHOLD = 0.85;
+/** A run brake runs again with the stick forward past this (Ultimate common param `run_stick_x` 0.75). */
+export const RUN_THRESHOLD = 0.75;
+/** A run brake turns around with the stick back past this (`turn_run_stick_x` -0.6). */
+export const TURN_RUN_THRESHOLD = 0.6;
+/** Lying down, the stick sideways rolls and up stands. No source; it is the dash threshold this used to share. */
+export const GETUP_STICK = 0.6;
+/** A flick: the stick reaches `stick` (a magnitude) within `frames` frames of its last neutral frame. */
+export interface Flick {
+  stick: number;
+  frames: number;
+}
+/** Fast fall: down to -0.66 within 4 frames (Ultimate common params `dive_cont_value`, `dive_flick_frame_value`). */
+export const FAST_FALL_FLICK: Flick = { stick: 0.66, frames: 4 };
+/**
+ * Platform drop: down to -0.6875 within 6 frames (`pass_stick_y`, `pass_flick_y`). Holding down past the same
+ * -0.6875 in the air passes through platforms.
+ */
+export const PLATFORM_DROP_FLICK: Flick = { stick: 0.6875, frames: 6 };
+/**
+ * Spot dodge (down to -0.7) and rolls (sideways to 0.7) out of shield, within 4 frames (`escape_stick_y`,
+ * `escape_flick_y`, `escape_fb_stick_x`, `escape_fb_flick_x`).
+ */
+export const DODGE_FLICK: Flick = { stick: 0.7, frames: 4 };
 /** Stick magnitude (when flicked within SMASH_WINDOW frames of the attack press) that makes a smash attack. */
 export const SMASH_THRESHOLD = 0.7;
 export const SMASH_WINDOW = 4;
 /** Flicking up past this jumps when tap-jump is on. */
 export const TAP_JUMP_THRESHOLD = 0.7;
-/** Flicking down past this fast-falls in the air and drops through soft platforms. */
-export const DOWN_FLICK_THRESHOLD = 0.7;
 /** Holding down past this crouches (low enough that the keyboard walk modifier + down crouches without a drop). */
 export const CROUCH_THRESHOLD = 0.45;
-/** Any stick magnitude above this picks a direction for tilts, specials and dodges. */
+/** Any stick magnitude above this picks a direction for tilts, throws and ledge options. */
 export const DIRECTION_THRESHOLD = 0.25;
 
 /**
@@ -33,12 +57,14 @@ export const SPECIAL_STICK_X = 0.6;
 
 /**
  * Button presses are remembered this many frames, so an input made during lag comes out on the first actionable frame.
- * Ultimate's `precede` param is 7; its 2-frame `precede_extension` for held inputs is covered by HOLD_BUFFER.
+ * SmashWiki (Buffer): Ultimate's window is "now 9 frames, down from 10". The params `precede` 7 and
+ * `precede_extension` 2 may be the same 9 (physics-reference section 10).
  */
-export const INPUT_BUFFER_FRAMES = 7;
+export const INPUT_BUFFER_FRAMES = 9;
 /**
- * Ultimate's "hold buffer": a press made during lag that is still held when the fighter becomes actionable
- * is used then, however long ago it was pressed.
+ * Ultimate's hold buffer (SmashWiki, Buffer): a press "can be made as early as desired, but must be held until the
+ * beginning of the standard 9 frame buffer window". So a held button stays buffered, and the window counts from the
+ * last frame it was held rather than from the press.
  */
 export const HOLD_BUFFER = true;
 
@@ -105,6 +131,8 @@ export const AIR_DODGE_NEUTRAL = { faf: 53, intangible: [3, 29] as [number, numb
 export const AIR_DODGE_DIRECTIONAL = {
   /** FAF by stick angle from straight down to straight up, every 45 degrees; angles between interpolate. */
   fafByAngle: [72, 78, 88, 103, 117],
+  /** A shorter stick gives a neutral air dodge (`escape_air_slide_stick` 0.66, of the stick's length). */
+  stick: 0.66,
   intangible: [3, 21] as [number, number],
   /** Free movement ends and gravity returns. */
   moveEnd: 20,
