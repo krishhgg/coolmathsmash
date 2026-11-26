@@ -5,6 +5,7 @@ import { spawnFromMove } from '../../sim/entities/entities';
 import type { Ctx } from '../../sim/fighter';
 import type { MoveDef } from '../types';
 import { PUMP } from './entities';
+import * as SimMath from '../../sim/math';
 
 /**
  * Water Stream (neutral special) is Mario's F.L.U.D.D. in Ultimate, from SmashWiki's Mario (SSBU)/Down special
@@ -61,8 +62,8 @@ function script(x: Ctx): void {
     frame: at,
     entity: pumpTier(f.charge),
     ...STREAM.nozzle,
-    vx: speed * Math.cos(theta),
-    vy: speed * Math.sin(theta),
+    vx: speed * SimMath.cos(theta),
+    vy: speed * SimMath.sin(theta),
   });
 }
 

@@ -42,6 +42,7 @@ import {
   STALE_QUEUE_LENGTH,
   staleMultiplier,
 } from './formulas';
+import * as SimMath from '../math';
 
 export const DAMAGE_MAX = 999;
 
@@ -381,8 +382,8 @@ function windPush({ v, box, shielding, percent, crouch, dir, rage }: Connection)
   const angle = box.angle === SAKURAI ? sakuraiAngle(kb, v.ground === null) : box.angle;
   const theta = (angle * Math.PI) / 180;
   const speed = kb * LAUNCH_SPEED_PER_KB;
-  v.kb.x += Math.cos(theta) * speed * dir;
-  if (!v.ground) v.kb.y += Math.sin(theta) * speed;
+  v.kb.x += SimMath.cos(theta) * speed * dir;
+  if (!v.ground) v.kb.y += SimMath.sin(theta) * speed;
 }
 
 /** Whether damage taken is x1.2: in a 1v1 with items off, unless the match says otherwise (MatchConfig.oneVOne). */
@@ -751,18 +752,18 @@ function linkedLaunch(x: Ctx, angle: number, link: LaunchLink, speed: number): {
     x: vel.x + AUTOLINK_PULL * (link.at.x - f.pos.x),
     y: Math.max(AUTOLINK_VY_MIN, vel.y + AUTOLINK_PULL * (link.at.y - f.pos.y - s.height / 2)),
   };
-  if (Math.hypot(v.x, v.y) > AUTOLINK_SPEED_MAX) {
+  if (SimMath.hypot(v.x, v.y) > AUTOLINK_SPEED_MAX) {
     f.launchMotion = { kind: 'cap', frames: AUTOLINK_SPEED_CAP_DELAY - 1 };
   }
   return v;
 }
 
 function withSpeed(v: { x: number; y: number }, speed: number): { x: number; y: number } {
-  const n = Math.hypot(v.x, v.y);
+  const n = SimMath.hypot(v.x, v.y);
   return n > 0 ? { x: (v.x / n) * speed, y: (v.y / n) * speed } : { x: 0, y: 0 };
 }
 
-export function stepLaunchMotion(x: Ctx, speed = Math.hypot(x.f.kb.x, x.f.kb.y)): void {
+export function stepLaunchMotion(x: Ctx, speed = SimMath.hypot(x.f.kb.x, x.f.kb.y)): void {
   const { f, s } = x;
   const p = f.launchMotion!;
   if (f.hitstun <= 0 || (f.action !== 'tumble' && f.action !== 'hitstun')) {

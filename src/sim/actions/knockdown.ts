@@ -15,6 +15,7 @@ import type { Ctx } from '../fighter';
 import { startMove } from './attack';
 import { rollWeights } from './defense';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
+import * as SimMath from '../math';
 
 /** Shield was pressed in tumble within the last `window` frames (see the tumble action). */
 export function techPressed(x: Ctx, window = TECH_WINDOW): boolean {
@@ -27,7 +28,7 @@ export function techPressed(x: Ctx, window = TECH_WINDOW): boolean {
  */
 export function tumbleLanding(x: Ctx, window = TECH_WINDOW): void {
   const { f, c } = x;
-  const teched = techPressed(x, window) && Math.hypot(f.kb.x, f.kb.y) <= TECH_MAX_SPEED;
+  const teched = techPressed(x, window) && SimMath.hypot(f.kb.x, f.kb.y) <= TECH_MAX_SPEED;
   f.hitstun = 0;
   f.kb = { x: 0, y: 0 };
   f.vel.x = 0;

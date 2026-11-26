@@ -26,6 +26,7 @@ import { finalSmashLeavesGround } from './actions/attack';
 import { breakGrab } from './actions/grab';
 import { actionDef, enterAction } from './actions/registry';
 import { entityPlatform } from './entities/entities';
+import * as SimMath from './math';
 
 const EPS = 0.001;
 /** Movement is split into sub-steps no longer than this, so fast fighters never tunnel through thin geometry. */
@@ -231,7 +232,7 @@ export function launchTimeScale(f: FighterState): number {
 
 /** Launch speed shrinks by `amount` along its own direction (Ultimate: 0.051 u/frame). */
 function decayKnockback(kb: Vec, amount: number): void {
-  const speed = Math.hypot(kb.x, kb.y);
+  const speed = SimMath.hypot(kb.x, kb.y);
   const k = speed > amount ? (speed - amount) / speed : 0;
   kb.x *= k;
   kb.y *= k;
@@ -414,7 +415,7 @@ export function pushOffCorner(f: FighterState, prev: { x: number; y: number }, e
   for (const [i, j] of BOX_SIDES) {
     const p = box[i]!;
     const q = box[j]!;
-    const len = Math.hypot(q.x - p.x, q.y - p.y);
+    const len = SimMath.hypot(q.x - p.x, q.y - p.y);
     const n = { x: (q.y - p.y) / len, y: (p.x - q.x) / len };
     normals.push(n);
     dNow.push((now.x - p.x) * n.x + (now.y - p.y) * n.y);

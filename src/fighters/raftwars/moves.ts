@@ -5,6 +5,7 @@ import type { Ctx } from '../../sim/fighter';
 import { aimedShot, aimedShotAir } from './aimedShot';
 import { duckRaft } from './duckRaft';
 import { grenade } from './grenade';
+import * as SimMath from '../../sim/math';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -70,10 +71,10 @@ function rocketRide(x: Ctx): void {
   if (t <= 48) {
     const target = rocketTarget(x);
     const sin = Math.max(-1, Math.min(1, (f.vel.x * f.facing) / ROCKET_SPEED));
-    const current = t === 12 ? target : clampHeading(Math.asin(sin) / DEG);
+    const current = t === 12 ? target : clampHeading(SimMath.asin(sin) / DEG);
     const heading = current + Math.max(-ROCKET_TURN, Math.min(ROCKET_TURN, target - current));
-    f.vel.x = Math.sin(heading * DEG) * ROCKET_SPEED * f.facing;
-    f.vel.y = Math.cos(heading * DEG) * ROCKET_SPEED;
+    f.vel.x = SimMath.sin(heading * DEG) * ROCKET_SPEED * f.facing;
+    f.vel.y = SimMath.cos(heading * DEG) * ROCKET_SPEED;
     return;
   }
   if (t === 49) {

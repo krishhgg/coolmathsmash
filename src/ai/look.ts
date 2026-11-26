@@ -8,6 +8,7 @@ import { createControl, type ControlState } from '../sim/control';
 import type { EntityState } from '../sim/entities/types';
 import { createFighter, type FighterState } from '../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
+import * as SimMath from '../sim/math';
 
 /**
  * Looking ahead. The simulation is deterministic and cheap, so the CPU predicts a fighter by running a copy of it
@@ -240,7 +241,7 @@ export function arc(
     else vx = approach(vx, ax * s.airSpeed, s.airAccelBase + s.airAccelAdd * Math.abs(ax));
     x += vx + kbx;
     y += vy + kby;
-    const speed = Math.hypot(kbx, kby);
+    const speed = SimMath.hypot(kbx, kby);
     const k = speed > LAUNCH_DECAY ? (speed - LAUNCH_DECAY) / speed : 0;
     kbx *= k;
     kby *= k;
