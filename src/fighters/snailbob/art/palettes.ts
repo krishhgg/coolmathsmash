@@ -25,6 +25,12 @@ const props = {
   wood: '#d39a52',
   woodHi: '#f0c884',
   woodLo: '#9a6128',
+  /** Shell Ship (the Final Smash): its porthole glass and its laser. */
+  glass: '#5fc8f0',
+  glassHi: '#dff6ff',
+  laser: '#52f0ff',
+  laserHi: '#ffffff',
+  laserLo: '#1a7fe0',
 };
 
 /** Bob as the 2010 games draw him: brown-orange shell, bright green body, pink-rimmed eyes. */

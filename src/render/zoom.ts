@@ -1,5 +1,6 @@
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../config';
 import { inFinalSmash } from '../sim/finalSmash';
+import type { SimEvent } from '../sim/events';
 import type { MatchState } from '../sim/match';
 import { SHAKE, type CameraView, type Focus } from './camera';
 import { predictKo, type KoPrediction } from './koPredict';
@@ -21,8 +22,9 @@ import { blade, easeOut, lerp, TAU, type Shape } from './vfx/shapes';
  * - 1v1 only: "In games with more than two players, the slowdown and camera zoom effects will be nearly
  *   non-existent." Two players, the same test as the 1v1 damage multiplier (hits.ts addDamage).
  * - It never triggers on an invincible fighter, during a Final Smash or in a timed match's last five seconds. Hits
- *   miss invincible fighters already, a hit while any fighter plays a Final Smash starts none, and timed matches
- *   don't exist yet.
+ *   miss invincible fighters already, and timed matches don't exist yet. A hit while any fighter plays a Final Smash
+ *   starts none, and neither does a Final Smash's own hit (SimEvent `hit` with `final`), even one from a projectile
+ *   still flying after its user can act, or another hit on a fighter whose launch on that frame is a Final Smash's.
  * - A Final Smash's activation gets its own zoom, gold, on the user (SmashWiki, Final Smash: "Most Final Smashes cause
  *   the camera to temporarily zoom in on the user when activated"), with any number of players. It lasts the sim's
  *   activation freeze (src/sim/finalSmash.ts), the frames everyone else holds still, and outranks both hit zooms.
@@ -96,10 +98,22 @@ function finalZoom(m: MatchState): SpecialZoom | null {
   };
 }
 
+type HitEvent = Extract<SimEvent, { type: 'hit' }>;
+
+/**
+ * Whether a Final Smash's hit set `victim`'s pending launch on `m`'s last frame: the first of that frame's hits on it
+ * with the most knockback, the one strike (src/sim/combat/hits.ts) keeps.
+ */
+function finalLaunch(m: MatchState, victim: number): boolean {
+  let top: HitEvent | undefined;
+  for (const e of m.events) if (e.type === 'hit' && e.victim === victim && (!top || e.kb > top.kb)) top = e;
+  return top?.final === true;
+}
+
 /**
  * The zoom `m`'s last frame starts, if any: a Final Smash's activation, or of that frame's hits (on `victim` only,
- * when given) on a fighter that froze, a predicted KO first, then the strongest knockback, only in 1v1 and never
- * during a Final Smash.
+ * when given) on a fighter that froze, a predicted KO first, then the strongest knockback, only in 1v1. None during a
+ * Final Smash, from a Final Smash's hit, or on a fighter a Final Smash's hit launches.
  */
 export function zoomFrom(m: MatchState, victim?: number): SpecialZoom | null {
   const final = victim === undefined ? finalZoom(m) : null;
@@ -108,6 +122,7 @@ export function zoomFrom(m: MatchState, victim?: number): SpecialZoom | null {
   let best: SpecialZoom | null = null;
   for (const e of m.events) {
     if (e.type !== 'hit' || (victim !== undefined && e.victim !== victim)) continue;
+    if (e.final || finalLaunch(m, e.victim)) continue;
     const v = m.fighters[e.victim];
     if (!v || v.hitlag <= 0) continue;
     const ko = predictKo(m, e.victim);

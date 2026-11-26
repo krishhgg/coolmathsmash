@@ -3,6 +3,7 @@ import { symbolsToSvg } from '../../../render/rig/svg';
 import type { ArtSymbol, FighterArt, PathShape } from '../../../render/rig/types';
 import { art as fireboy } from '../../fireboy/art';
 import { clips } from './clips';
+import { pumps } from './pumps';
 import { palettes } from './palettes';
 import { WAVE } from '../finalSmashData';
 import { splashes, streams, swells, waves } from './parts';
@@ -35,7 +36,7 @@ function iconBox(): [number, number, number, number] {
  * Watergirl's art until her own drawing lands: Fireboy's placeholder mannequin rig and clips in cool ash wood,
  * with water in place of fire under the same symbol names, so every clip places it the same way. Plain data.
  */
-export const art: FighterArt = {
+const mannequin: FighterArt = {
   ...fireboy,
   rig: { ...fireboy.rig, symbols },
   clips,
@@ -54,3 +55,6 @@ export const art: FighterArt = {
     },
   },
 };
+
+/** Her art in matches: the mannequin, with Water Stream's pumps (pumps.ts) among her props. */
+export const art: FighterArt = { ...mannequin, projectiles: { ...mannequin.projectiles, ...pumps } };
