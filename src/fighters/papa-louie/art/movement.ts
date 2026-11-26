@@ -1,10 +1,12 @@
 import { poseBounds } from '../../../render/rig/geometry';
 import { ease, samplePose } from '../../../render/rig/sample';
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, BonePose, Ease, FighterArt, Key } from '../../../render/rig/types';
 import {
   AIR_DODGE_NEUTRAL,
   GETUP_STAND,
   LEDGE_ATTACK,
+  LEDGE_CATCH_FRAMES,
   LEDGE_CLIMB,
   LEDGE_ROLL,
   ROLL_BACK,
@@ -1320,17 +1322,21 @@ const raw: Record<string, AnimClip> = {
     ],
   },
 
-  ledgeCatch: {
-    length: 8,
-    swaps: SHOUT,
-    keys: [
-      key(0, hang([GX, GY], -0.9, { body: { rot: -1 }, thighF: { rot: -37 }, thighB: { rot: 39 } }), {
-        ease: 'outBack',
-        z: LEDGE_HOLD,
-      }),
-      key(8, HANG, { swaps: STRAIN }),
-    ],
-  },
+  /** Drawn over 8 frames and stretched onto the 19-frame catch (LEDGE_CATCH_FRAMES), as Raft Wars does. */
+  ledgeCatch: retimeClip(
+    {
+      length: 8,
+      swaps: SHOUT,
+      keys: [
+        key(0, hang([GX, GY], -0.9, { body: { rot: -1 }, thighF: { rot: -37 }, thighB: { rot: 39 } }), {
+          ease: 'outBack',
+          z: LEDGE_HOLD,
+        }),
+        key(8, HANG, { swaps: STRAIN }),
+      ],
+    },
+    LEDGE_CATCH_FRAMES,
+  ),
 
   ledgeHang: {
     length: 60,
