@@ -98,7 +98,7 @@ function firstHit(
 }
 
 /** Ground momentum carried into a move: traction slows it each frame. */
-function carry(v: number, friction: number, frames: number): number {
+export function carry(v: number, friction: number, frames: number): number {
   let d = 0;
   let s = Math.abs(v);
   for (let i = 0; i <= frames && s > 0; i++) {
