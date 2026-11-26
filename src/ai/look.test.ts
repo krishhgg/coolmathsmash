@@ -3,7 +3,7 @@ import { getFighter } from '../fighters/registry';
 import { Btn, neutralInput } from '../input/types';
 import { hurtbox } from '../sim/combat/hits';
 import type { FighterState } from '../sim/fighter';
-import { spawnEntity } from '../sim/entities/entities';
+import { entityPlatform, spawnEntity } from '../sim/entities/entities';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { input, run as play, testMatch } from '../sim/testing/sim';
 import { STICK, press } from './inputs';
@@ -147,6 +147,44 @@ describe('look-ahead', () => {
       expect(ahead, `${others + 2} players`).toEqual(played(m, 90));
       expect(solo.fighters[0]!.damage, `${others + 2} players`).toBe(m.fighters[1]!.damage);
     }
+  });
+
+  it("holds the match's entity platforms, anyone's, and nothing else out: a Red Ball stays on Raft Wars' raft", () => {
+    // Raft Wars has a grenade in the air and a raft out at (-70, 30), a Red Ball standing on the raft. The Red Ball's
+    // look-ahead holds the raft but not the grenade, so the Red Ball stays on it as in the match while its weight
+    // wears it out, and falls when it pops, 75 frames in.
+    const m = facingOff(-45, 90);
+    stepMatch(m, [press({ x: STICK.special, buttons: Btn.Special }), neutralInput()]);
+    for (let i = 1; i < 40; i++) stepMatch(m, [neutralInput(), neutralInput()]);
+    const raft = spawnEntity(m, { kind: 'raftwars/duckRaft', owner: 0, pos: { x: -70, y: 30 } });
+    const deck = entityPlatform(raft)!;
+    Object.assign(m.fighters[1]!, {
+      pos: { x: -70, y: deck.y },
+      prevPos: { x: -70, y: deck.y },
+      ground: { kind: 'entity', index: raft.id, ...deck },
+    });
+    expect(m.entities.map((e) => e.kind)).toEqual(['raftwars/grenade', 'raftwars/duckRaft']);
+    const solo = soloMatch(m, m.fighters[1]!);
+    // Raft Wars' raft, with its id, under a port the look-ahead doesn't hold (2 for port 0).
+    expect(solo.entities.map((e) => [e.kind, e.id, e.owner])).toEqual([['raftwars/duckRaft', raft.id, 2]]);
+    const ahead = run(solo, 100).map((s) => [s.action, s.x, s.y, s.vx, s.vy]);
+    const real = played(structuredClone(m), 100);
+    expect(real.findIndex(([action]) => action !== 'idle')).toBe(75);
+    expect(ahead).toEqual(real);
+    // In Raft Wars' own look-ahead the raft is port 0's, as Raft Wars is.
+    expect(soloMatch(m, m.fighters[0]!).entities.map((e) => [e.kind, e.owner])).toEqual([
+      ['raftwars/duckRaft', 0],
+    ]);
+    // setEntities makes the owner's entities the ones it is given, so its raft is there once, or not at all.
+    const among = soloMatch(m, m.fighters[1]!);
+    setEntities(among, m.fighters[0]!, m.entities, 1);
+    expect(among.entities.map((e) => [e.kind, e.owner])).toEqual([
+      ['raftwars/grenade', 1],
+      ['raftwars/duckRaft', 1],
+    ]);
+    const none = soloMatch(m, m.fighters[1]!);
+    setEntities(none, m.fighters[0]!, [], 1);
+    expect([none.fighters.length, none.entities.length]).toEqual([1, 0]);
   });
 
   it("poses moving stage pieces on the match's own stage clock", () => {

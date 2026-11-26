@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getFighter } from '../fighters/registry';
 import { neutralInput } from '../input/types';
 import { posedStage } from '../sim/context';
-import { entityPlatform, spawnEntity } from '../sim/entities/entities';
+import { entityPlatform, registerEntity, spawnEntity } from '../sim/entities/entities';
 import type { FighterState, GroundRef } from '../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { groundSpan, surfaceY } from '../sim/movement';
@@ -12,6 +12,8 @@ import { createCpu } from './index';
 import { inZone, stageInfo } from './stage';
 
 registerStage(hazardTestbed);
+/** An 80-wide soft platform 1 above the entity's centre, which stays put: a tech roll fits each way from its middle. */
+registerEntity('test/wideDeck', { radius: 3, floor: 'pass', wall: 'pass', platform: { width: 80, y: 1 } });
 
 /** Fireboy's tech roll and getup roll length. */
 const ROLL = getFighter('fireboy').stats.rollDistance;
@@ -73,6 +75,8 @@ interface Getup {
   to: number;
   /** Every action port 0 went through. */
   seen: string[];
+  /** The ground it got up on. */
+  ground: GroundRef | null;
 }
 
 const ROLLS = new Set(['getupRoll', 'techRoll']);
@@ -82,12 +86,13 @@ const GETUPS = new Set(['getupStand', 'getupRoll', 'attack', 'techInPlace', 'tec
 function getUp(m: MatchState, level: number, seed: number): Getup {
   const f = m.fighters[0]!;
   const cpu = createCpu({ port: 0, level, seed });
-  const out: Getup = { action: '', dir: 0, from: 0, to: 0, seen: [f.action] };
+  const out: Getup = { action: '', dir: 0, from: 0, to: 0, seen: [f.action], ground: null };
   for (let i = 0; i < 300; i++) {
     stepMatch(m, [cpu.input(m), neutralInput()]);
     if (out.seen.at(-1) !== f.action) out.seen.push(f.action);
     if (!out.action && GETUPS.has(f.action)) {
       out.action = f.action;
+      out.ground = f.ground;
       if (ROLLS.has(f.action)) [out.dir, out.from] = [f.dodgeDir.x, along(m, f)];
     }
     if (out.action && !GETUPS.has(f.action)) {
@@ -199,6 +204,77 @@ describe('CPU rolls out of a knockdown on a platform', () => {
         const r = getUp(m, 9, seed);
         expect(r.action, `from x ${x} seed ${seed}: ${r.seen.join(' > ')}`).not.toBe('getupRoll');
       }
+    }
+  });
+
+  it('tech onto a Duck Raft over the stage and off it, in place as no roll fits, as they tech on the floor', () => {
+    // The look-ahead that times the tech press has to hold the raft (soloMatch), or it sees the fall go on past it and
+    // never presses. Raft Wars techs onto its own raft as Fireboy does onto Raft Wars'. Without the raft, the same
+    // falls over the stage tech on the floor below, rolling as well.
+    for (const [fighter, owner] of [
+      ['fireboy', 1],
+      ['raftwars', 0],
+    ] as const) {
+      for (const [rx, ry] of [
+        [0, 12],
+        [100, -10],
+      ]) {
+        for (const dx of [-5, 0, 5]) {
+          const runs = SEEDS.map((seed) => {
+            const m = createMatch({
+              seed: 3,
+              stage: 'battlefield',
+              stocks: 3,
+              ports: [{ fighter }, { fighter: 'raftwars' }],
+            });
+            const raft = spawnEntity(m, { kind: 'raftwars/duckRaft', owner, pos: { x: rx!, y: ry! } });
+            tumbleOnto(m, rx! + dx, entityPlatform(raft)!.y);
+            return { ...getUp(m, 9, seed), raft: raft.id };
+          });
+          for (const r of runs) {
+            const at = `${fighter} at x ${rx! + dx}: ${r.seen.join(' > ')}`;
+            expect(r.action, at).toBe('techInPlace');
+            expect(r.ground, at).toMatchObject({ kind: 'entity', index: r.raft });
+          }
+          if (ry! < 0) continue;
+          const floor = SEEDS.map((seed) => {
+            const m = createMatch({
+              seed: 3,
+              stage: 'battlefield',
+              stocks: 3,
+              ports: [{ fighter }, { fighter: 'raftwars' }],
+            });
+            tumbleOnto(m, rx! + dx, 0);
+            return getUp(m, 9, seed).action;
+          });
+          expect(floor.filter((a) => /^tech/.test(a)).length, `${fighter} at x ${rx! + dx}`).toBe(
+            SEEDS.length,
+          );
+          expect(new Set(floor).size, `${fighter} at x ${rx! + dx}`).toBe(2);
+        }
+      }
+    }
+  });
+
+  it('tech roll onto an entity platform only where the roll fits on it', () => {
+    // An 80-wide deck from x -40 to 40, high over Battlefield's top platform (-17 to 17): from its middle a roll fits
+    // either way, which on the top platform it wouldn't, and from 25 in from either end only a roll inward fits.
+    for (const [x, fits] of [
+      [0, [-1, 0, 1]],
+      [25, [-1, 0]],
+      [-25, [0, 1]],
+    ] as const) {
+      const runs = SEEDS.map((seed) => {
+        const m = duel();
+        const deck = spawnEntity(m, { kind: 'test/wideDeck', owner: -1, pos: { x: 0, y: 70 } });
+        tumbleOnto(m, x, entityPlatform(deck)!.y);
+        return getUp(m, 9, seed);
+      });
+      expectWholeRolls(runs);
+      const techs = runs.filter((r) => /^tech/.test(r.action));
+      expect(techs.length, `from x ${x}`).toBeGreaterThanOrEqual(6);
+      expect(techs.every((r) => r.ground?.kind === 'entity')).toBe(true);
+      expect([...new Set(techs.map((r) => r.dir))].sort(), `from x ${x}`).toEqual(fits);
     }
   });
 

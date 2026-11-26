@@ -66,6 +66,8 @@ export function shotHit(
   for (const e of state.entities)
     if (e.owner === me.port && !e.dead) out.set(e.kind, (out.get(e.kind) ?? 0) + 1);
   const m = soloMatch(state, me);
+  // Entities from here on are the move's (and what they spawn); those before are the platforms soloMatch copied.
+  const from = m.nextEntityId;
   const end = target.path.length;
   const struck = new Set<number>();
   let hit: ShotHit | null = null;
@@ -88,7 +90,7 @@ export function shotHit(
         data: { ...s.data },
       });
     }
-    const live = m.entities.filter((e) => !struck.has(e.id));
+    const live = m.entities.filter((e) => e.id >= from && !struck.has(e.id));
     if (!live.length) {
       if (next >= p.spawns.length) break;
       continue;
