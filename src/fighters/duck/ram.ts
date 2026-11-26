@@ -70,13 +70,6 @@ function takeOff(x: Ctx): void {
   f.move = move;
 }
 
-/**
- * The frames (each fighter's frame context) the startup's air physics already ran on. While Special holds the charge,
- * the shared code steps the move back onto its charge frame, which runs the script a second time that frame, and the
- * physics below add to the speed rather than set it. Nothing here outlives the frame.
- */
-const startupRan = new WeakSet<Ctx>();
-
 function script(x: Ctx): void {
   const { f, s, c } = x;
   const af = f.actionFrame;
@@ -89,8 +82,9 @@ function script(x: Ctx): void {
     }
   }
   if (af < RAM.launch) {
-    if (f.ground || startupRan.has(x)) return;
-    startupRan.add(x);
+    // While Special holds the charge, playMove holds the frame with holdFrame and this runs once a frame on the frame
+    // before the charge frame, so the speed below changes once a frame.
+    if (f.ground) return;
     if (af === 1) f.vel.x *= RAM.startSpeed;
     f.vel.x = approach(f.vel.x, 0, RAM.startFriction);
     // The air physics takes off the Duck's own gravity after this.
