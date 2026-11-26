@@ -1,6 +1,6 @@
 import { FillGradient, Graphics } from 'pixi.js';
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../../config';
-import { FIGHTERS } from '../../fighters/registry';
+import { allFighters } from '../../fighters/registry';
 import { Hud, fighterIcon, loadHudFont, type HudPlayer } from '../../render/hud';
 import { ICON_SIZES } from '../../render/hud/card';
 import { iconView } from '../../render/hud/icon';
@@ -94,7 +94,7 @@ export const scene: LabScene = {
     set: (players: HudPlayer[], frame: number) => setPlayers(players, frame),
     /** Every registered fighter's card icon, drawn at each of ICON_SIZES: its local bounds around the box centre. */
     iconBounds: () =>
-      Object.keys(FIGHTERS).flatMap((id) =>
+      Object.keys(allFighters()).flatMap((id) =>
         Object.entries(ICON_SIZES).map(([box, size]) => {
           const view = iconView(fighterIcon(id), size);
           const { x, y, width, height } = view.getLocalBounds();

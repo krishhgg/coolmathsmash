@@ -4,6 +4,10 @@ A fighter is one directory, `src/fighters/<id>/`, whose `index.ts` exports `figh
 (`src/fighters/registry.ts`) finds it with `import.meta.glob`, so adding a fighter edits no shared file. Fireboy
 (`src/fighters/fireboy/`) is the worked example; copy it.
 
+A fighter's files may import sim code, and the sim imports the registry, so the registry reads the fighter
+modules on the first `getFighter` or `allFighters` call. Look fighters up inside functions, never at module
+load: a lookup while a fighter module is still loading throws.
+
 ```
 src/fighters/<id>/
   index.ts      defineFighter({ id, name, series, stats, moves, art })
@@ -76,9 +80,9 @@ without a move simply does nothing for that input.
 
 ```ts
 fsmash: {
-  kind: 'smash',          // 'smash' | 'aerial' | 'projectile' | 'other': sets shieldstun (and smash charge)
+  kind: 'smash',          // 'smash' | 'aerial' | 'projectile' | 'other': sets shieldstun (and which button charges)
   faf: 50,                // first actionable frame
-  charge: 12,             // smash attacks: holding the input pauses here, up to 60 frames, up to 1.4x damage
+  charge: 12,             // holding the input pauses here, up to 60 frames, up to 1.4x damage (see Charging)
   hits: [
     {
       frames: [15, 17],   // inclusive
@@ -120,10 +124,14 @@ fsmash: {
   applies when it lands out of the helpless fall.
 - **Auto-cancel.** Landing in an aerial's `autoCancel` window costs only normal landing lag.
 - **Intangibility.** `intangible: [from, to]` makes the fighter intangible on those frames of the move.
-- **Armor.** `armor: { frames: [from, to], threshold?, damageThreshold? }` armours the fighter on those frames of the
-  move, as in Ultimate: hits still add damage and hitlag, but they don't launch, cause hitstun or interrupt the move.
-  A hit breaks through when its knockback reaches `threshold` (threshold armor) or its damage reaches
-  `damageThreshold` (Kirby's Stone); with neither it is heavy armor. Grabs and throws ignore armor.
+- **Armor.** `armor: { frames: [from, to], threshold?, damageThreshold?, breakDamageMul? }` armours the fighter on
+  those frames of the move, as in Ultimate: hits still add damage and hitlag, but they don't launch, cause hitstun or
+  interrupt the move. A hit breaks through when its knockback reaches `threshold` (threshold armor) or its damage
+  reaches `damageThreshold` (Kirby's Stone); with neither it is heavy armor. Grabs and throws ignore armor.
+  - `breakDamageMul` scales the % the breaking hit adds. Its knockback, its hitlag and the threshold check still use
+    the full damage. Set it only where the Ultimate analogue does it. SmashWiki ("Stone") documents it only for
+    Kirby's Stone, whose breaking hit deals half damage at full knockback (`breakDamageMul: 0.5`). Its "Armor" page
+    says most armor takes full damage, so leave it unset by default.
 - **Counter.** `counter: { window, move }` blocks hits on those frames and plays the counterattack `move` (see
   Counters below).
 - **Getup attack.** A move named `getupAttack` plays when a fighter lying down after a missed tech presses
@@ -139,7 +147,7 @@ fsmash: {
   - `glide` glides at the end of the move if Jump is held (see Air mobility).
   - `action` plays the move in another action with its own physics instead of `attack`/`aerial`: `'hover'`.
   - `drift: false` turns off air drift (and air friction) while an airborne move plays, so a scripted path such
-    as a tether zip (Bob the Robber's `upB`) is not bent by the stick.
+    as Bob the Robber's Grappling Hook zip (his `upB`) is not bent by the stick.
   - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
     `neutralB: { ..., air: 'neutralBAir' }`. The variant is its own move, so it has its own frame data and clip,
     and the `move` event carries its name.
@@ -190,6 +198,32 @@ stage. The debug overlay uses the same capsule.
 
 Every move start, hit and landing is reported as a sim event (`docs/sim-events.md`). Audio and effects key off
 move names, so keep them to the canonical names above.
+
+### Charging
+
+`charge` is the frame a move pauses on while it charges (`src/sim/actions/charge.ts`). Smash attacks charge while
+Attack or the C-stick is held. Any other move with `charge` (a special) charges while Special is held. Letting go,
+or reaching full charge, carries on with the move.
+
+- **`chargeFrames`** is the hold for a full charge (default 60, Ultimate's smash attacks).
+- **`chargeDamage`** is the damage multiplier at full charge (default 1.4, Ultimate's smash attacks). Less charge
+  scales linearly from 1, and knockback grows through the damage. The test charger's side special sets
+  `chargeDamage: 2.2`, so its 10% hitbox reaches 22%.
+- **Speeds and distances.** A move script reads `chargeLerp(f, uncharged, full)` for a value at the current charge
+  level (a dash speed), or `chargeLevel(f)` (0 to 1).
+- **Stored charge.** `storeCharge: {}` lets shield, an air dodge or a jump cancel the charge and keep it in
+  `storedCharge`. The move's next use starts from it (a full one fires at once) and spends it when it fires.
+  Releasing Special fires. With `tap: true` the move charges by itself and fires on the next Special or Attack
+  press. `storeAtFull: true` stores the charge and ends the move once it is full; otherwise the move waits at full
+  charge. Samus's Charge Shot and Donkey Kong's Giant Punch are `{ tap: true, storeAtFull: true }`.
+- **Variants and forms.** A move and its `air` variant share one stored charge (Ultimate: Samus's grounded and
+  aerial Charge Shot). A stored charge belongs to the form that stored it. After a `transform`, the new form's move
+  of the same name starts uncharged, and the charge is back after transforming again. Only a KO as the storing form
+  loses it (Ultimate: Squirtle keeps Water Gun's charge through Pokemon Change).
+- A charging move, and a fighter holding a stored charge for its current form, glow behind the fighter
+  (`src/render/chargeGlow.ts`, placeholder art).
+- `src/sim/testing/charge.ts` (`test-charger`, registered for tests and `?harness`) has one move of each kind.
+- Charging emits `charge` events (`full`, `store`, `fire`) with the charge level (`docs/sim-events.md`).
 
 ### Grabs and throws
 
@@ -342,8 +376,10 @@ down special.
 ### Tethers
 
 A move with `tether` fires a line from the hand (`TETHER.handHeight` up the body) that travels out, anchors, and
-reels the fighter in: Fluffy's grapples, the Fisherman's line, Bob's grappling hook. Fluffy's Quick Grapple,
-from the test fixtures in `src/sim/testing/tethers.ts` (Point Grapple and the Line Tether are there too):
+reels the fighter in: Fluffy's grapples, the Fisherman's line. Bob the Robber's Grappling Hook is not a tether:
+his `upB` in `src/fighters/bob-the-robber/specials.ts` is a scripted zip with `drift: false` and no line. Fluffy's
+Quick Grapple, from the test fixtures in `src/sim/testing/tethers.ts` (Point Grapple and the Line Tether are there
+too):
 
 ```ts
 upB: {
@@ -390,6 +426,10 @@ upB: {
 `castSegment(m, from, to, { platforms, fighters, ignore?, ledges? })` (`src/sim/cast.ts`) is the line test on its
 own, for projectiles too: it returns the nearest ledge, surface or fighter hurtbox the segment touches, with `t`
 (0 to 1 along it) and the point, or null.
+
+A tether that also hits gives its move ordinary `hits` beside the `tether`: Red Ball's Tongue Lash
+(`src/fighters/redball/specials.ts`) lashes with Ivysaur's Vine Whip boxes along the tongue and tethers to ledges
+only. The line passes through fighters, so the hit and the ledge pull stay independent.
 
 A tether ignores fighters unless it sets `targetsFighters: true`. If the line reaches a fighter before stage
 geometry, `onFighter(ctx, target, event)` can handle the contact in script or return `'pullSelf'` on

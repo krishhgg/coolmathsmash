@@ -9,6 +9,7 @@ import { lungeTester } from './testing/beast';
 import { COUNTER_TEST_FIGHTERS, counterTesterMarth } from './testing/counter';
 import { gadgets } from './testing/gadgets';
 import { MOBILITY_TEST_FIGHTERS, testFloater, testHover } from './testing/mobility';
+import { testCharger } from './testing/charge';
 import { marioReference as mario } from './testing/reference';
 import { tetherTester } from './testing/tethers';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from './testing/sim';
@@ -288,6 +289,46 @@ describe('sim events', () => {
     expect(e).toMatchObject({ victim: 0, source: 'zone', index: 1, element: 'lava', damage: 12, x: -48 });
     expect(e.kb).toBeGreaterThan(80);
     expect(m.fighters[0]!.damage).toBe(24);
+  });
+
+  it('charging reports full charge, a stored charge and the release, with the charge level', () => {
+    const m = testMatch({ fighter: testCharger.id });
+    const charges = () => of(m, 'charge').map(({ move, phase, level }) => ({ move, phase, level }));
+    run(m, 1, { x: 100 * m.fighters[0]!.facing, buttons: ['special'] });
+    expect(next(m, 'charge', { buttons: ['special'] })).toMatchObject({
+      port: 0,
+      move: 'sideB',
+      phase: 'full',
+      level: 1,
+    });
+    run(m, 1);
+    expect(charges()).toEqual([{ move: 'sideB', phase: 'fire', level: 1 }]);
+    until(m, (f) => f.action === 'idle');
+
+    run(m, 1, { buttons: ['special'] });
+    until(m, (f) => f.charge === 45, { buttons: ['special'] });
+    run(m, 1, { buttons: ['special', 'shield'] });
+    expect(charges()).toEqual([{ move: 'neutralB', phase: 'store', level: 0.5 }]);
+    until(m, (f) => f.action === 'idle');
+    run(m, 1, { buttons: ['special'] });
+    expect(next(m, 'charge')).toMatchObject({ move: 'neutralB', phase: 'fire', level: 0.5 });
+    until(m, (f) => f.action === 'idle');
+
+    run(m, 1, { y: -100, buttons: ['special'] });
+    expect(next(m, 'charge')).toMatchObject({ move: 'downB', phase: 'full', level: 1 });
+    run(m, 1);
+    expect(charges()).toEqual([{ move: 'downB', phase: 'store', level: 1 }]);
+  });
+
+  it('an uncharged move reports no charge', () => {
+    const m = testMatch({ fighter: testCharger.id });
+    run(m, 1, { x: 100 * m.fighters[0]!.facing, buttons: ['special'] });
+    let charges = 0;
+    for (let i = 0; i < 60; i++) {
+      run(m, 1);
+      charges += of(m, 'charge').length;
+    }
+    expect(charges).toBe(0);
   });
 
   it('the event stream is deterministic', () => {

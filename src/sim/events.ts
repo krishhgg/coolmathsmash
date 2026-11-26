@@ -79,6 +79,11 @@ export type SimEvent =
       x: number;
       y: number;
     }
+  /**
+   * A move's charge reached full, was stored for later (stored charge) or was let go; `level` is how charged it is
+   * (0-1). An uncharged move fires without an event.
+   */
+  | { type: 'charge'; port: number; move: string; phase: 'full' | 'store' | 'fire'; level: number }
   | { type: 'action'; port: number; from: string; to: string }
   /** A grab caught someone; `move` is the grab (grab, dashGrab or pivotGrab). */
   | { type: 'grab'; attacker: number; victim: number; move: string }

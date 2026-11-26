@@ -131,8 +131,8 @@ export interface HoldHitDef {
 export type TetherLatch = 'ledge' | 'surface' | 'sky';
 
 /**
- * A tether (Fluffy's grapples, the Fisherman's line, Bob's grappling hook): a line fired from the hand that
- * travels out, anchors, and reels the fighter in. See docs/fighters.md.
+ * A tether (Fluffy's grapples, the Fisherman's line): a line fired from the hand that travels out, anchors,
+ * and reels the fighter in. See docs/fighters.md.
  */
 export interface TetherDef {
   /** Move frame the line leaves the hand (aimed tethers wait here until special is released). */
@@ -214,8 +214,22 @@ export interface MoveDef {
    */
   landingLag?: number;
   autoCancel?: [number, number][];
-  /** Smash attacks: holding the input pauses the move on this frame for up to 60 frames, for up to 1.4x damage. */
+  /**
+   * Charging (src/sim/actions/charge.ts): the move pauses on this frame while it charges, for up to `chargeFrames`.
+   * Smash attacks charge while Attack or the C-stick is held, other moves (specials) while Special is held.
+   */
   charge?: number;
+  /** Frames of charge for a full charge (default 60, Ultimate's smash attacks). */
+  chargeFrames?: number;
+  /** Damage multiplier at full charge (default 1.4); less charge scales linearly from 1. */
+  chargeDamage?: number;
+  /**
+   * Stored charge: shield, an air dodge or a jump while charging keeps the charge for the move's next use by this
+   * form. `tap` charges without holding Special and fires on the next Special or Attack press (otherwise releasing
+   * Special fires); `storeAtFull` stores the charge and ends the move once it is full (otherwise the move waits at
+   * full charge). Samus's Charge Shot and Donkey Kong's Giant Punch are `{ tap: true, storeAtFull: true }`.
+   */
+  storeCharge?: { tap?: boolean; storeAtFull?: boolean };
   /**
    * Jab combos: Attack (pressed, buffered or held) with no stick direction during `window` (inclusive) cancels this
    * grounded move into `move`, the next hit of the combo (jab -> jab2 -> jab3).
@@ -228,9 +242,10 @@ export interface MoveDef {
   /**
    * Armor (Ultimate): on `frames` (inclusive) hits still add damage and hitlag, but they don't launch, cause
    * hitstun or interrupt the move. A hit breaks through when its knockback reaches `threshold` or its damage
-   * reaches `damageThreshold`; with neither set it is heavy armor and nothing breaks through.
+   * reaches `damageThreshold`; with neither set it is heavy armor and nothing breaks through. `breakDamageMul`
+   * scales the % the breaking hit adds, leaving its knockback and hitlag full (Kirby's Stone: 0.5).
    */
-  armor?: { frames: [number, number]; threshold?: number; damageThreshold?: number };
+  armor?: { frames: [number, number]; threshold?: number; damageThreshold?: number; breakDamageMul?: number };
   /** Recoveries: the move ends in helpless fall instead of a normal fall. */
   helpless?: boolean;
   /** Airborne moves that may grab a ledge from this frame. */
