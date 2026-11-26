@@ -1,5 +1,6 @@
 import { stickX } from '../../sim/control';
 import type { HitboxDef, MoveDef } from '../types';
+import { finalSmash, finalSmashCinematic } from './finalSmash';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -498,4 +499,7 @@ export const moves: Record<string, MoveDef> = {
       f.vel.y = Math.max(f.vel.y, -0.6);
     },
   },
+  /** Conveyor Oven, the Final Smash (./finalSmash.ts), on Steve's House of Boom. */
+  finalSmash,
+  finalSmashCinematic,
 };
