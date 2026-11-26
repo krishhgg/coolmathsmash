@@ -116,12 +116,20 @@ export interface HitboxDef {
    * a grab; it ignores shields and is halved in radius against airborne fighters (Ultimate).
    */
   grab?: boolean;
+  /**
+   * Which fighters it can hit (Ultimate's groundedness/airness): 'ground' only fighters on the ground, 'air' only
+   * airborne ones (a fighter hanging on a ledge counts as airborne), 'both' (default) either.
+   */
+  targets?: 'ground' | 'air' | 'both';
   /** A status the hit puts on its victim (not through a shield), by kind "<fighter id>/<name>" (FighterDef.statuses). */
   status?: string;
 }
 
 /** A throw's release hit: a hitbox without a position, since it lands on the held fighter wherever they are. */
-export type ThrowHitDef = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius' | 'grab' | 'direction' | 'pushOnly'> & {
+export type ThrowHitDef = Omit<
+  HitboxDef,
+  'id' | 'x' | 'y' | 'radius' | 'grab' | 'direction' | 'pushOnly' | 'targets'
+> & {
   /** 'back' launches behind the thrower (back throws). */
   direction?: 'forward' | 'back';
 };
