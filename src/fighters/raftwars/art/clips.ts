@@ -1,4 +1,5 @@
 import type { Pose } from '../../../render/rig/author';
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import {
   BLINK,
@@ -29,7 +30,13 @@ import {
   sole,
   type Pt,
 } from './poses';
-import { LEDGE_ATTACK, LEDGE_CLIMB, LEDGE_JUMP, LEDGE_ROLL } from '../../../sim/constants';
+import {
+  LEDGE_ATTACK,
+  LEDGE_CATCH_FRAMES,
+  LEDGE_CLIMB,
+  LEDGE_JUMP,
+  LEDGE_ROLL,
+} from '../../../sim/constants';
 import { stats } from '../stats';
 import { BRO_ARM } from './parts';
 
@@ -745,14 +752,17 @@ export const clips: Record<string, AnimClip> = {
       key(49, aloft(FALL)),
     ],
   },
-  ledgeCatch: {
-    length: 8,
-    swaps: { ...SHOUT, ...OPEN },
-    keys: [
-      key(0, hang(GX, GY + 1.2, { body: { x: 2.3, y: -1.5, rot: 4 } }), { ease: 'outBack' }),
-      key(8, HANG),
-    ],
-  },
+  ledgeCatch: retimeClip(
+    {
+      length: 8,
+      swaps: { ...SHOUT, ...OPEN },
+      keys: [
+        key(0, hang(GX, GY + 1.2, { body: { x: 2.3, y: -1.5, rot: 4 } }), { ease: 'outBack' }),
+        key(8, HANG),
+      ],
+    },
+    LEDGE_CATCH_FRAMES,
+  ),
   ledgeHang: {
     length: 60,
     loop: true,
@@ -780,29 +790,34 @@ export const clips: Record<string, AnimClip> = {
       key(34, STAND),
     ],
   },
-  ledgeRoll: {
-    length: 50,
-    swaps: GRIT,
-    keys: [
-      key(0, HANG, { ease: 'linear' }),
-      key(6, pull(corner(6, LEDGE_ROLL.moveEnd, LEDGE_ROLL.distance), 1, 0, 0.5), { ease: 'linear' }),
-      ...spin(
-        10,
-        34,
-        120,
-        540,
-        (deg) =>
-          mix(ball(deg), { root: { y: corner(10 + ((deg - 120) * 24) / 420, LEDGE_ROLL.moveEnd, 0)[1] } }),
-        30,
-        {
-          ...BLINK,
-          broFace: 'broScared',
-        },
-      ),
-      key(37, mix(CROUCH, { body: { rot: 720, y: 1.5 } }), { ease: 'out', swaps: {} }),
-      key(50, mix(STAND, { body: { rot: 720 } })),
-    ],
-  },
+  /** The keys up to the roll's moveEnd follow the engine's path; only the stand-up after them fits its last frames. */
+  ledgeRoll: retimeClip(
+    {
+      length: 50,
+      swaps: GRIT,
+      keys: [
+        key(0, HANG, { ease: 'linear' }),
+        key(6, pull(corner(6, LEDGE_ROLL.moveEnd, LEDGE_ROLL.distance), 1, 0, 0.5), { ease: 'linear' }),
+        ...spin(
+          10,
+          34,
+          120,
+          540,
+          (deg) =>
+            mix(ball(deg), { root: { y: corner(10 + ((deg - 120) * 24) / 420, LEDGE_ROLL.moveEnd, 0)[1] } }),
+          30,
+          {
+            ...BLINK,
+            broFace: 'broScared',
+          },
+        ),
+        key(37, mix(CROUCH, { body: { rot: 720, y: 1.5 } }), { ease: 'out', swaps: {} }),
+        key(50, mix(STAND, { body: { rot: 720 } })),
+      ],
+    },
+    LEDGE_ROLL.faf - 1,
+    [[LEDGE_ROLL.moveEnd, LEDGE_ROLL.moveEnd]],
+  ),
   ledgeJump: {
     length: 20,
     swaps: { ...SHOUT, ...OPEN },
