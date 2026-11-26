@@ -35,6 +35,7 @@ import {
   torso,
   type Part,
 } from './parts';
+import { raftSymbols } from './raft';
 
 /** Ink slots for both segments of a limb, then their fills, so joints have no seam. */
 function limbSlots(upper: string, lower: string, upperSym: string, lowerSym: string): Slot[] {
@@ -172,6 +173,8 @@ export const rig: Rig = {
     ...shotBalls,
     /** Aimed Shot's ball spinning in flight (art.projectiles). */
     shotBall: { loop: ['shotBallA', 'shotBallB'], fps: 20 },
+    /** Duck Raft: the raft (art.projectiles) and the folded raft in the hand. */
+    ...raftSymbols,
   },
 };
 
