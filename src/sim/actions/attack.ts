@@ -23,7 +23,7 @@ import { fastFallCheck } from './air';
 import { chargeHold } from './charge';
 import { groundGrab } from './grab';
 import { glideAfterMove } from './mobility';
-import { enterAction, inWindow, setAction, type ActionDef } from './registry';
+import { enterAction, holdFrame, inWindow, setAction, type ActionDef } from './registry';
 
 export function moveOf(f: FighterState): MoveDef | undefined {
   return f.move ? moveDef(getFighter(f.fighter), f.move) : undefined;
@@ -187,23 +187,26 @@ export function airAttack(x: Ctx): boolean {
 /**
  * Per-frame move bookkeeping: hold the charge frame while the move charges, reopen `rehit` windows, spawn the
  * frame's entities, run the move's script. Returns the move, or null when a stored charge cancelled it into
- * another action.
+ * another action. A held frame runs the script once, on the frame before the charge frame, whose windows, spawns
+ * and transform already happened on the way in.
  */
 export function playMove(x: Ctx): MoveDef | null {
   const { f } = x;
   const move = moveOf(f)!;
+  let held = false;
   if (move.charge === f.actionFrame) {
     const hold = chargeHold(x, move);
     if (hold === 'cancel') return null;
-    if (hold === 'hold') f.actionFrame--;
+    held = hold === 'hold';
+    if (held) holdFrame(x);
   }
-  if (move.hits.some((w) => w.rehit && w.frames[0] === f.actionFrame)) {
+  if (!held && move.hits.some((w) => w.rehit && w.frames[0] === f.actionFrame)) {
     f.hitVictims = [];
     f.hitEntities = [];
   }
-  for (const s of move.spawn ?? []) if (s.frame === f.actionFrame) spawnFromMove(x, s);
+  if (!held) for (const s of move.spawn ?? []) if (s.frame === f.actionFrame) spawnFromMove(x, s);
   move.script?.(x);
-  if (move.transform?.frame === f.actionFrame) {
+  if (!held && move.transform?.frame === f.actionFrame) {
     emit(x.m, { type: 'transform', port: f.port, from: f.fighter, to: move.transform.into });
     f.fighter = move.transform.into;
   }
