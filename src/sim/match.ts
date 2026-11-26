@@ -8,6 +8,7 @@ import { stepEntities } from './entities/step';
 import type { EntityState } from './entities/types';
 import { emit, type SimEvent } from './events';
 import { createItems, stepItems, type ItemsState } from './items/spawn';
+import { settleMeters } from './meters';
 import { pushApart } from './movement';
 import { stageHits } from './hazards';
 import { advanceStage, posedStage, stageStateAt, type StageState } from './movingStage';
@@ -94,6 +95,7 @@ export function stepMatch(state: MatchState, inputs: readonly InputFrame[]): voi
   const owed = resolveEntityContacts(state);
   resolveHits(state, posedStage(state), (struck) => stageHits(state, struck));
   state.fighters.forEach((f, i) => (f.hitlag = Math.max(f.hitlag, owed[i]!)));
+  settleMeters(state);
   state.fighters.forEach((f, i) => {
     if (f.action !== before[i]) emit(state, { type: 'action', port: f.port, from: before[i]!, to: f.action });
   });

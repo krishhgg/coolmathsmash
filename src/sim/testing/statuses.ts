@@ -49,6 +49,8 @@ export const testStatus = defineFighter({
      * Ultimate's paralysis (SmashWiki, "Paralyze"): floor(1 + knockback x hitlag multiplier x crouch) frames up to 90,
      * frozen, ended by a later hit. The mash numbers are made up; Ultimate's paralysis has none.
      */
+    /** Held while the `charge` meter is full: 30 frames, then the meter empties. */
+    charged: { frames: 30 },
     stun: {
       frames: 1,
       perKnockback: 1,
@@ -67,6 +69,8 @@ export const testStatus = defineFighter({
     hop: { max: 1, start: 1, regen: 1, grounded: true },
     /** Kept across stocks. */
     coins: { max: 99, onKo: 'keep' },
+    /** Fills by half the % dealt and all the % taken; held full, it holds `charged`, like Cloud's Limit. */
+    charge: { max: 10, dealt: 0.5, taken: 1, full: 'test-status/charged' },
   },
   moves: {
     /** A 5% strike that flowers. */
