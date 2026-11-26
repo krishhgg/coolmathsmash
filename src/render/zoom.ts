@@ -47,12 +47,15 @@ const FLASH_ALPHA = 0.78;
 
 export type ZoomKind = keyof typeof ZOOM_FLASH;
 
-/** One zoom, spawned by a hit. */
+/** One zoom, spawned by a hit and kept in step with its victim's freeze (stepZoom). */
 export interface SpecialZoom {
   kind: ZoomKind;
   /** The hit's frame. */
   frame: number;
-  /** The victim's last frozen frame (the hit's frame plus its hitlag); it launches on the frame after. */
+  /**
+   * The victim's last frozen frame as of the last frame stepped: that frame plus the victim's hitlag. It launches on
+   * the frame after, unless something lengthens or replaces its freeze first.
+   */
   until: number;
   victim: number;
   /** The contact point (world units, y up). */
@@ -67,14 +70,14 @@ export interface SpecialZoom {
 const RANK: Record<ZoomKind, number> = { special: 1, finish: 2 };
 
 /**
- * The zoom `m`'s last frame starts, if any: of that frame's hits on a fighter that froze, a predicted KO first, then
- * the strongest knockback. Only in 1v1.
+ * The zoom `m`'s last frame starts, if any: of that frame's hits (on `victim` only, when given) on a fighter that
+ * froze, a predicted KO first, then the strongest knockback. Only in 1v1.
  */
-export function zoomFrom(m: MatchState): SpecialZoom | null {
+export function zoomFrom(m: MatchState, victim?: number): SpecialZoom | null {
   if (m.players.length !== 2) return null;
   let best: SpecialZoom | null = null;
   for (const e of m.events) {
-    if (e.type !== 'hit') continue;
+    if (e.type !== 'hit' || (victim !== undefined && e.victim !== victim)) continue;
     const v = m.fighters[e.victim];
     if (!v || v.hitlag <= 0) continue;
     const ko = predictKo(m, e.victim);
@@ -117,14 +120,28 @@ export interface ZoomState {
 }
 
 /**
- * Advance `s` to the frame `m` just simulated: drop a finished zoom, then start this frame's. A new zoom waits for the
- * running one to end unless it outranks it (a Finish Zoom over a Special Zoom).
+ * Advance `s` to the frame `m` just simulated. A zoom whose victim launched is over. One still frozen follows the
+ * victim's live freeze, so it ends on the frame the victim actually launches: entity contacts can lengthen the
+ * freeze, and a hit landing during it (a returning projectile) replaces both the freeze and the pending launch
+ * (hits.ts strike). That hit decides the zoom again from the new launch: it keeps its start and contact point, so the
+ * camera does not jump, and ends when the new launch neither KOs nor is strong. Then a new zoom from this frame's
+ * hits takes over if it outranks the running one (a Finish Zoom over a Special Zoom).
  */
 export function stepZoom(s: ZoomState, m: MatchState): void {
   s.frame = m.frame;
-  if (s.zoom && !zoomed(s.zoom, m.frame)) s.zoom = null;
+  let z = s.zoom && m.frame <= s.zoom.until ? s.zoom : null;
+  if (z) {
+    const { frame, x, y, seed, victim } = z;
+    if (m.events.some((e) => e.type === 'hit' && e.victim === victim)) {
+      const again = zoomFrom(m, victim);
+      z = again && { ...again, frame, x, y, seed };
+    } else {
+      const until = m.frame + (m.fighters[victim]?.hitlag ?? 0);
+      if (until !== z.until) z = { ...z, until };
+    }
+  }
   const next = zoomFrom(m);
-  if (next && (!s.zoom || RANK[next.kind] > RANK[s.zoom.kind])) s.zoom = next;
+  s.zoom = next && (!z || RANK[next.kind] > RANK[z.kind]) ? next : z;
 }
 
 /**

@@ -9,7 +9,9 @@ import {
   type GameScenario,
 } from '../harness/scenarios';
 import { inputsAt, type ScriptStep } from '../harness/script';
+import type { HitboxDef } from '../fighters/types';
 import { hitlagFrames } from '../sim/combat/formulas';
+import { applyHit } from '../sim/combat/hits';
 import type { SimEvent } from '../sim/events';
 import { createMatch, DEFAULT_MATCH, stepMatch, type MatchState } from '../sim/match';
 import { getStage } from '../stages/registry';
@@ -18,6 +20,7 @@ import { easeOut } from './vfx/shapes';
 import {
   SPECIAL_ZOOM_KB,
   stepZoom,
+  zoomFrom,
   Zoom,
   ZOOM,
   ZOOM_FLASH,
@@ -84,6 +87,29 @@ function smash(percent: number, players: number): Frame[] {
 
 const firstHit = (frames: Frame[]) => frames.find((f) => f.hit)!;
 
+/** A bare hitbox: knockback is `bkb` exactly (no growth), the freeze Ultimate's for `damage` (x1.05 fresh). */
+const box = (damage: number, bkb: number, angle = 45): HitboxDef => ({
+  id: 9,
+  x: 0,
+  y: 0,
+  radius: 0,
+  hitlag: 1,
+  damage,
+  angle,
+  kbg: 0,
+  bkb,
+});
+
+/**
+ * Land `b` from the fighter on `from` on the one on `to` through the sim's own hit path, after a frame's step and
+ * before the zoom steps it, as if it had connected during that frame (a projectile arriving mid-freeze).
+ */
+function hitNow(m: MatchState, from: number, to: number, b: HitboxDef): void {
+  const a = m.fighters[from]!;
+  a.move ??= 'fsmash';
+  applyHit(m, a, m.fighters[to]!, b);
+}
+
 describe('which hits zoom', () => {
   it('a forward smash that will KO starts a Finish Zoom on the contact point, and the victim is KOd', () => {
     const frames = scenario('finish-zoom');
@@ -120,22 +146,103 @@ describe('which hits zoom', () => {
     }
   });
 
-  it('a Finish Zoom takes over a running Special Zoom, but not the other way round', () => {
-    const at = (name: string) => {
-      const s = findScenario(name) as GameScenario;
-      const m = createMatch(scenarioConfig(s));
-      startScenario(m, s);
-      while (!m.events.some((e) => e.type === 'hit')) stepMatch(m, scenarioInputs(s, m));
-      return m;
-    };
-    const special = at('special-zoom');
-    const finish = at('finish-zoom');
-    const s: ZoomState = { frame: -1, zoom: null };
-    stepZoom(s, special);
-    stepZoom(s, { ...finish, frame: special.frame + 1 });
-    expect(s.zoom).toMatchObject({ kind: 'finish', frame: special.frame + 1 });
-    stepZoom(s, { ...special, frame: special.frame + 2 });
-    expect(s.zoom).toMatchObject({ kind: 'finish', frame: special.frame + 1 });
+  it('a Finish Zoom on the other fighter takes over a running Special Zoom, but not the other way round', () => {
+    const s = findScenario('special-zoom') as GameScenario;
+    const m = createMatch(scenarioConfig(s));
+    startScenario(m, s);
+    const state: ZoomState = { frame: -1, zoom: null };
+    while (!m.events.some((e) => e.type === 'hit')) {
+      stepMatch(m, scenarioInputs(s, m));
+      stepZoom(state, m);
+    }
+    expect(state.zoom).toMatchObject({ kind: 'special', victim: 1 });
+    stepMatch(m, scenarioInputs(s, m));
+    hitNow(m, 1, 0, box(1, 300));
+    stepZoom(state, m);
+    expect(state.zoom).toMatchObject({ kind: 'finish', victim: 0, frame: m.frame });
+    const { frame } = state.zoom!;
+    stepMatch(m, scenarioInputs(s, m));
+    hitNow(m, 0, 1, box(1, 155, 80));
+    expect(zoomFrom(m)).toMatchObject({ kind: 'special', victim: 1 });
+    stepZoom(state, m);
+    expect(state.zoom).toMatchObject({ kind: 'finish', victim: 0, frame });
+  });
+});
+
+/**
+ * The finish-zoom scenario with `tweak` applied `after` frames into P2's freeze (see hitNow). Returns the hit frame,
+ * the frame P2 actually launches (first moves), and the zoom drawn on each frame.
+ */
+function followUp(after: number, tweak: (m: MatchState) => void) {
+  const s = findScenario('finish-zoom') as GameScenario;
+  const m = createMatch(scenarioConfig(s));
+  startScenario(m, s);
+  const zoom = new Zoom();
+  const zooms = new Map<number, SpecialZoom | null>();
+  let hit = -1;
+  let launch = -1;
+  let frozen = { x: 0, y: 0 };
+  for (let i = 0; i < 150 && launch < 0; i++) {
+    stepMatch(m, scenarioInputs(s, m));
+    const v = m.fighters[1]!;
+    if (hit < 0 && m.events.some((e) => e.type === 'hit')) {
+      hit = m.frame;
+      frozen = { ...v.pos };
+    }
+    if (hit >= 0 && m.frame === hit + after) tweak(m);
+    zoom.step(m);
+    zooms.set(m.frame, zoom.at(m));
+    if (hit >= 0 && (v.pos.x !== frozen.x || v.pos.y !== frozen.y)) launch = m.frame;
+  }
+  const first = zooms.get(hit)!;
+  /** The zoom runs on every frame from the hit until the victim moves, and not on that frame. */
+  const holdsToLaunch = () => {
+    for (let f = hit; f < launch; f++) expect(zooms.get(f), `frame ${f}`).not.toBeNull();
+    expect(zooms.get(launch)).toBeNull();
+  };
+  return { hit, launch, zooms, first, holdsToLaunch };
+}
+
+describe('a follow-up during the freeze: the zoom ends on the frame the victim actually launches', () => {
+  const lag = (damage: number) => hitlagFrames(damage * 1.05);
+
+  it('with none, after the forward smash hitlag of 18', () => {
+    const r = followUp(5, () => {});
+    expect(r.launch).toBe(r.hit + 18 + 1);
+    r.holdsToLaunch();
+  });
+
+  it('a hit with a shorter freeze ends it early, keeping its start and contact point', () => {
+    const r = followUp(5, (m) => hitNow(m, 0, 1, box(1, 300)));
+    expect(lag(1)).toBeLessThan(18 - 5);
+    expect(r.launch).toBe(r.hit + 5 + lag(1) + 1);
+    r.holdsToLaunch();
+    expect(r.zooms.get(r.launch - 1)).toMatchObject({
+      kind: 'finish',
+      frame: r.hit,
+      until: r.launch - 1,
+      x: r.first.x,
+      y: r.first.y,
+    });
+  });
+
+  it('a hit with a longer freeze holds it to the later launch', () => {
+    const r = followUp(5, (m) => hitNow(m, 0, 1, box(30, 300)));
+    expect(lag(30)).toBeGreaterThan(18 - 5);
+    expect(r.launch).toBe(r.hit + 5 + lag(30) + 1);
+    r.holdsToLaunch();
+  });
+
+  it('a freeze lengthened without a hit (an entity contact owing hitlag) holds it too', () => {
+    const r = followUp(5, (m) => void (m.fighters[1]!.hitlag += 7));
+    expect(r.launch).toBe(r.hit + 18 + 7 + 1);
+    r.holdsToLaunch();
+  });
+
+  it('a weak hit that replaces the KO launch ends it on that frame', () => {
+    const r = followUp(5, (m) => hitNow(m, 0, 1, box(1, 10)));
+    expect(r.zooms.get(r.hit + 4)).toMatchObject({ kind: 'finish' });
+    for (let f = r.hit + 5; f <= r.launch; f++) expect(r.zooms.get(f)).toBeNull();
   });
 });
 

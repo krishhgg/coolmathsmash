@@ -44,7 +44,12 @@ Ultimate's zoom on a decisive 1v1 hit lives in `src/render/zoom.ts`, with the KO
   Ultimate's check "does not account for obstructions or DI". With a clear path it matches the sim frame for frame.
 - Special Zoom, blue: a hit of at least 150 knockback (`SPECIAL_ZOOM_KB`, the camera's severe shake) that will not
   KO. Ultimate lists the moves instead; this roster has no such list.
-- A Finish Zoom takes over a running Special Zoom; otherwise a new zoom waits for the running one's launch.
+- A Finish Zoom on the other fighter takes over a running Special Zoom; otherwise a new zoom waits for the running
+  one to end.
+- The zoom follows its victim's live freeze, so it always ends on the frame the victim actually launches. A hit
+  landing during the freeze (a returning projectile) replaces the freeze and the pending launch, so it decides the
+  zoom again from the new launch, keeping its start and contact point; a launch that is now neither a KO nor strong
+  ends the zoom on that frame.
 
 SmashWiki gives no length, and Ultimate's slowdown would stretch sim frames. So the zoom plays over the victim's
 hitlag, the frames the sim already holds both fighters still: the camera pushes in on the contact point over 4
