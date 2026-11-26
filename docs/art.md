@@ -84,6 +84,13 @@ the line can anchor. Without it the clip plays on to its end. A reel that needs 
 named after the action instead: when the art has a `tetherPull` or `tetherHang` clip, the reel plays it from the
 reel's first frame (Red Ball's `tetherPull`, his tongue shortening towards the ledge).
 
+A charging move holds its charge frame for as long as it charges, so its clip would hold one pose. To draw the
+charge building, give the art a clip named `<move>Charge` with one frame per charge frame (`length` is the move's
+`chargeFrames`): while the move waits on its charge frame, the renderer plays it on the frames charged so far, and
+the move's own clip carries on from the charge frame on release. Start it on the move clip's charge-frame pose. The
+Duck's `sideBCharge` crouches, ruffles his feathers on a symbol loop and swells a glow behind him over its 80
+frames. The placeholder charge glow (`src/render/chargeGlow.ts`) leaves such a move alone.
+
 ## Pose checklist
 
 Check each row at match scale, facing both ways. In the fighter lab, inspect the start, strongest silhouette

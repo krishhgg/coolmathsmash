@@ -98,3 +98,33 @@ describe('clipFor through a tether reel', () => {
     expect(seen.filter((s) => s.action === 'aerial').every((s) => s.clip === 'sideBAir')).toBe(true);
   });
 });
+
+describe('clipFor while a move charges', () => {
+  const duck = getFighter('duck');
+
+  it("plays the Duck's sideBCharge on the frames charged so far, then sideB from its charge frame on release", () => {
+    const m = testMatch({ fighter: 'duck' });
+    const f = m.fighters[0]!;
+    const seen = () => clipFor(duck, fighterArt(duck)!, f);
+    runPorts(m, 1, [{ x: 65, buttons: ['special'] }]);
+    expect(seen()).toEqual(['sideB', 1]);
+    runPorts(m, 11, [{ buttons: ['special'] }]);
+    expect(seen()).toEqual(['sideB', 12]);
+    runPorts(m, 30, [{ buttons: ['special'] }]);
+    expect(f.charge).toBe(30);
+    expect(seen()).toEqual(['sideBCharge', 30]);
+    runPorts(m, 1, [{}]);
+    expect(seen()).toEqual(['sideB', 13]);
+  });
+
+  it('holds the move clip on its charge frame when the art has no charge clip', () => {
+    const fireboy = getFighter('fireboy');
+    const m = testMatch({ fighter: 'fireboy' });
+    const f = m.fighters[0]!;
+    runPorts(m, 1, [{ x: 100, buttons: ['attack'] }]);
+    runPorts(m, 30, [{ buttons: ['attack'] }]);
+    expect(f.charge).toBeGreaterThan(0);
+    const [clip] = clipFor(fireboy, fighterArt(fireboy)!, f);
+    expect(clip).toBe('fsmash');
+  });
+});
