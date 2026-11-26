@@ -77,7 +77,7 @@ describe('bob the robber art', () => {
   });
 
   it('has a clip for every move, ending at FAF - 1 with its hit windows (throw, pummel, shot frame or counter window) active', () => {
-    expect(moves.length).toBe(30);
+    expect(moves.length).toBe(33);
     for (const [name, move] of moves) {
       const clip = art.clips[name];
       expect(clip, name).toBeDefined();
