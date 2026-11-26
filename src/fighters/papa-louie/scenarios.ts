@@ -4,7 +4,7 @@ const PAPA = 'characters/papa-louie';
 
 /**
  * Papa Louie's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, his Pepper Bomb, Paddle Propeller, Paddle Deflect and Brick Oven in a match, and lab sheets of every move
+ * Fireboy, his Pepper Bomb, Parmesan Shaker, Paddle Propeller, Paddle Deflect and Brick Oven in a match, and lab sheets of every move
  * on its first active frame (the pummel and throws on their impact frame). Zoom 6 keeps the peel's reach inside the
  * cells. References live in the Captain drive's refs/.
  */
@@ -58,6 +58,51 @@ export const scenarios: FighterScenarios = {
       motion: { before: 31, after: 18 },
       requires: ['move:upB'],
       refs: [`${PAPA}/ingame-glide-*`, `${PAPA}/official-art-paddle-*`],
+    },
+    {
+      name: 'papa-louie-parmesan',
+      description:
+        'Papa shakes Parmesan at Fireboy across Battlefield: each burst Cheeses him, and his badge shows the coat.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'papa-louie' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: 0, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: 14, y: 0 }, facing: -1 } },
+      ],
+      script: [{ port: 0, from: 10, x: 100, buttons: ['special'] }],
+      capture: {
+        label: 'The fifth shake lands on a Cheesed Fireboy',
+        when: (s) => s.fighters[0]!.move === 'sideB' && s.fighters[0]!.actionFrame === 36,
+      },
+      motion: { before: 30, after: 50 },
+      requires: ['move:sideB'],
+      refs: [`${PAPA}/official-art-standing-*`, `${PAPA}/ingame-attack-paddle-*`],
+    },
+    {
+      name: 'papa-louie-sheet-parmesan',
+      description:
+        'Parmesan Shaker from the apron to the last puff: the wind-up, the first shake, the spray reaching each box, the last shot drifting off and the shaker going away.',
+      page: { kind: 'lab', scene: 'fighter', params: { fighter: 'papa-louie', zoom: '5' } },
+      calls: [
+        {
+          fn: 'sheet',
+          args: [
+            [
+              'sideB@4',
+              'sideB@9',
+              'sideB@13',
+              'sideB@16',
+              'sideB@18',
+              'sideB@21',
+              'sideB@38',
+              'sideB@64',
+              'sideB@68',
+              'sideB@77',
+            ],
+          ],
+        },
+      ],
+      refs: [`${PAPA}/official-art-standing-*`, `${PAPA}/official-art-paddle-*`],
     },
     {
       name: 'papa-louie-deflect',
