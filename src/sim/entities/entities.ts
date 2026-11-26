@@ -111,5 +111,5 @@ export function entityHitboxes(e: EntityState): PlacedHitbox[] {
 
 /** Its strongest hit this frame after reflections, for clanks and reflector/absorber limits. */
 export function entityPower(e: EntityState): number {
-  return Math.max(0, ...entityHitboxes(e).map((h) => h.box.damage)) * e.damageMul;
+  return Math.max(0, ...entityHitboxes(e).map(({ box }) => (box.pushOnly ? 0 : box.damage))) * e.damageMul;
 }
