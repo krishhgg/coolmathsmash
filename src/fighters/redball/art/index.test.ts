@@ -5,6 +5,7 @@ import { moveClipFrame } from '../../../render/rig/timing';
 import {
   AIR_DODGE_NEUTRAL,
   DOWN_BOUNCE_FRAMES,
+  GETUP_ROLL,
   GETUP_STAND,
   GRAB,
   LEDGE_ATTACK,
@@ -64,6 +65,7 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   down: 'loop',
   downBound: DOWN_BOUNCE_FRAMES,
   getupStand: GETUP_STAND.faf - 1,
+  getupRoll: GETUP_ROLL.faf - 1,
   techInPlace: TECH_IN_PLACE.faf - 1,
   techRoll: TECH_ROLL.faf - 1,
   respawn: 'loop',

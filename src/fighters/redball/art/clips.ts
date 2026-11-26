@@ -1,3 +1,4 @@
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import { R } from './parts';
 import {
@@ -594,5 +595,9 @@ export const clips: Record<string, AnimClip> = {
 /** Engine actions that draw another clip. */
 Object.assign(clips, {
   shieldStun: clips.shield,
-  getupRoll: clips.techRoll,
+  /** The tech roll on the getup roll's timeline: the sim's travel ends on frame 28 instead of 30, and 35 frames in all. */
+  getupRoll: retimeClip(clips.techRoll!, 35, [
+    [4, 4],
+    [30, 28],
+  ]),
 });
