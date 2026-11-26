@@ -107,9 +107,15 @@ export interface MoveProbe {
   /** t of the first and last active frame. */
   first: number;
   last: number;
-  /** Frames from the input until the fighter can act again (landing included). */
+  /**
+   * Frames from the input until the fighter can act again (landing included); PROBE_LIMIT when it can't within the
+   * probe, as when a helpless fall after the move never lands.
+   */
   busy: number;
-  /** Displacement when it can act again, and whether it is on the ground then. */
+  /**
+   * Displacement when it can act again, and whether it is on the ground then. For a move whose helpless fall from the
+   * probe's start runs out of the blast zone, where the move left the fighter.
+   */
   endDx: number;
   endDy: number;
   endsGrounded: boolean;
@@ -264,6 +270,11 @@ function chargeHold(move: MoveDef): number {
   return Math.min(move.chargeFrames ?? SMASH_CHARGE_FRAMES, CHARGE_HOLD);
 }
 
+/** KO'd: out of the blast zone. */
+function out(f: { action: string }): boolean {
+  return f.action === 'ko' || f.action === 'out';
+}
+
 /** Probe `move` from `start`; with `hold`, it fires with that much charge (chargeInput). */
 function probe(
   def: FighterDef,
@@ -313,8 +324,11 @@ function probe(
   const active: ProbeFrame[] = [];
   let busy = PROBE_LIMIT;
   let helpless = false;
+  /** Where the fighter was on the first frame the move no longer played, if it was still in the match. */
+  let left: { x: number; y: number } | null = null;
   for (let t = 0; t < PROBE_LIMIT; t++) {
     if (t > 0) step((f.move === plays && chargeInput(f, input.buttons ?? 0, hold)) || neutralInput());
+    if (!left && f.move !== plays && !out(f)) left = { x: f.pos.x, y: f.pos.y };
     shots.see(t, f.move === plays, x0, y0);
     if (f.action === 'helpless') helpless = true;
     const boxes = f.move === plays ? activeHitboxes(f) : [];
@@ -331,8 +345,16 @@ function probe(
       break;
     }
   }
-  if (f.action === 'ko' || f.action === 'out') return null;
-  const end = { x: f.pos.x - x0, y: f.pos.y - y0, grounded: f.ground !== null };
+  // A move that carries the fighter out of the blast zone is no use. In the air, a helpless fall after it is another
+  // matter: it drifts on with the move's speed wherever the move is used, so from above the stage's middle Wheely's
+  // Ramp Jump, which carries him 65 units sideways, falls out past the side. The move itself got him there alive, so
+  // it stays: air specials are for recovering, and the recovery planner plays one out on the real stage before it
+  // uses it. On the ground the probe is what the CPU's attacks trust to land it safely, so a fall out still drops it.
+  const fellOut = start === 'air' && out(f) && helpless && left !== null;
+  if (out(f) && !fellOut) return null;
+  const end = fellOut
+    ? { x: left!.x - x0, y: left!.y - y0, grounded: false }
+    : { x: f.pos.x - x0, y: f.pos.y - y0, grounded: f.ground !== null };
   for (let t = busy + 1; t < FLIGHT_LIMIT && shots.flying(); t++) {
     step(neutralInput());
     shots.see(t, false, x0, y0);
