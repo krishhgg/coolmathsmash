@@ -5,6 +5,10 @@ import type { EntityDef } from '../../sim/entities/types';
  * pump parameters): a 0% windbox at 55 degrees, 70 set knockback, 100 KBG, radius 4.0 scaled 0.8x-1.2x, living
  * 12 frames, gravity 0.17, falling speed 3. Charge adds up to 55 BKB; hitboxes are fixed data, so each eighth of a
  * full charge gets its own kind, `pump0` (uncharged) to `pump8` (full).
+ *
+ * A pump has no `pierce`, so it is used up on the first fighter or shield it reaches. SmashWiki and
+ * ultimateframedata.com don't say whether F.L.U.D.D.'s water does that in Ultimate or carries on through. If it
+ * carries on, set `pierce`; if it is used up, the art could splash where it ends (an `entityDestroy` with reason `hit`).
  */
 export const PUMP = {
   tiers: 8,

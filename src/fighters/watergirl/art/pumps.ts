@@ -47,11 +47,14 @@ function sheen([rx, ry]: [number, number], tip: [number, number]): string {
   ].join('');
 }
 
-/** A crescent glint hugging the head's upper front, between angles a0 and a1 (degrees, y down), `w` thick. */
-function glint(r: number, a0: number, a1: number, w: number): string {
+/**
+ * A crescent glint hugging the upper front of a ball of radius `r` centred `cx` ahead of the origin, between angles
+ * a0 and a1 (degrees, y down), `w` thick.
+ */
+function glint(cx: number, r: number, a0: number, a1: number, w: number): string {
   const at = (a: number, k: number) => {
     const t = (a * Math.PI) / 180;
-    return `${n(Math.cos(t) * r * k)} ${n(Math.sin(t) * r * k)}`;
+    return `${n(cx + Math.cos(t) * r * k)} ${n(Math.sin(t) * r * k)}`;
   };
   const mid = (a0 + a1) / 2;
   const bow = 1 / Math.cos((((a1 - a0) / 2) * Math.PI) / 180);
@@ -77,7 +80,7 @@ function drop(x: number, y: number, r: number): PathShape {
 
 /** The white glint on the head's upper front, and a fleck of light below it. */
 const SHINE: PathShape[] = [
-  { d: glint(R * 0.74, -100, -28, 0.55), fill: 'fxCore' },
+  { d: glint(0, R * 0.74, -100, -28, 0.55), fill: 'fxCore' },
   { d: ellipse(R * 0.66, -R * 0.02, 0.3, 0.3), fill: 'fxCore' },
 ];
 
@@ -107,8 +110,41 @@ function pumpDrawing({ head, tip, crest, t }: Wobble): PathShape[] {
 }
 
 /**
- * The pump on its first frames, still at her hands: the head with only a stub of tail, splashing drops out behind it,
- * so the long tail never crosses her face. The tail grows once the pump has flown clear.
+ * The pump as it leaves her hands: a ball of water 0.62 of the hitbox's radius, sitting in its front half, tapering
+ * back to a point and throwing two drops forward. A pump appears at the nozzle, 6 units ahead and 5 up, and her
+ * mannequin's head is her whole egg-shaped body, reaching 4 units ahead. On any pump size the spout, outline
+ * included, stays in front of that, where the full-size drawings would cross her face. The art test checks every
+ * pump against her head's drawn box.
+ */
+function spoutDrawing(): PathShape[] {
+  const [x, r] = [0.34, 0.62];
+  const p = (dx: number, dy: number) => `${n((x + dx) * R)} ${n(dy * R)}`;
+  const [rx, ry] = [r * 1.03, r * 0.97];
+  const body = [
+    `M${p(0, -ry)}`,
+    `C${p(K * rx, -ry)} ${p(rx, -K * ry)} ${p(rx, 0)}`,
+    `C${p(rx, K * ry)} ${p(K * rx, ry)} ${p(0, ry)}`,
+    `C${p(-0.4, ry)} ${p(-0.54, 0.32)} ${p(-0.64, 0.04)}`,
+    `C${p(-0.54, -0.28)} ${p(-0.4, -ry)} ${p(0, -ry)}Z`,
+  ].join('');
+  const sheen = [
+    `M${p(0.45, -0.22)}`,
+    `C${p(0.38, -0.5)} ${p(-0.1, -0.55)} ${p(-0.35, -0.36)}`,
+    `C${p(-0.25, -0.3)} ${p(0.1, -0.24)} ${p(0.45, -0.22)}Z`,
+  ].join('');
+  return [
+    drop(0.55, -0.74, 0.09),
+    drop(0.6, 0.72, 0.08),
+    { d: body, fill: 'fx', stroke: { color: 'fxLine', width: 0.45 } },
+    { d: sheen, fill: 'fxHot' },
+    { d: glint(x * R, r * 0.74 * R, -100, -25, 0.4), fill: 'fxCore' },
+    { d: ellipse((x + r * 0.66) * R, -0.02 * R, 0.26, 0.26), fill: 'fxCore' },
+  ];
+}
+
+/**
+ * The pump once it has flown clear of her: the full head with only a stub of tail, splashing drops out behind it.
+ * The long tail grows after it.
  */
 function burstDrawing(): PathShape[] {
   const p = (x: number, y: number) => `${n(x * R)} ${n(y * R)}`;
@@ -130,8 +166,8 @@ function burstDrawing(): PathShape[] {
   ].join('');
   return [
     drop(-0.4, -1.12, 0.12),
-    drop(-1.7, -0.3, 0.1),
-    drop(-1.75, 0.5, 0.1),
+    drop(-1.55, -0.36, 0.1),
+    drop(-1.55, 0.52, 0.1),
     drop(-1, 1.08, 0.12),
     { d: body, fill: 'fx', stroke: { color: 'fxLine', width: 0.45 } },
     { d: sheen, fill: 'fxHot' },
@@ -141,14 +177,19 @@ function burstDrawing(): PathShape[] {
 
 const DRAWINGS = WOBBLES.map(pumpDrawing);
 
+/**
+ * The pump's drawings by age, two ages apart (the loop runs at 30 fps on its age). A pump is first drawn on age 1, at
+ * the nozzle. The match renderer draws an entity between its last two positions, so age 2 can still show it there:
+ * the spout covers ages 1 to 3, the burst ages 4 and 5, and the tail ripples through the in-flight drawings from age
+ * 6 to its last, age 12.
+ */
+const PUMP_LOOP = ['pumpSpout', 'pumpSpout', 'pumpBurst', 'pumpFlow0', 'pumpFlow1', 'pumpFlow2', 'pumpFlow0'];
+
 const symbols: Record<string, ArtSymbol> = {
+  pumpSpout: spoutDrawing(),
   pumpBurst: burstDrawing(),
   ...Object.fromEntries(DRAWINGS.map((d, i) => [`pumpFlow${i}`, d])),
-  /**
-   * Clocked by the pump's age at 20 fps, three frames a drawing: the burst at her hands, then the tail rippling
-   * through the in-flight drawings, back on the first for the pump's last frame.
-   */
-  pump: { loop: ['pumpBurst', 'pumpFlow0', 'pumpFlow1', 'pumpFlow2', 'pumpFlow0'], fps: 20 },
+  pump: { loop: PUMP_LOOP, fps: 30 },
 };
 
 /** The first pump of a shoot in the lab, on the 12-degree aim at `speed`, for as long as it lives. */

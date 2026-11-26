@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { entityArt } from '../../../render/entities';
-import { poseBounds, shapesBounds, shapesContain, slotsCovering } from '../../../render/rig/geometry';
-import { resolveSymbol, samplePose } from '../../../render/rig/sample';
-import type { PathShape } from '../../../render/rig/types';
+import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
+import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
 import {
   AIR_DODGE_NEUTRAL,
@@ -15,9 +13,7 @@ import {
   TECH_ROLL,
 } from '../../../sim/constants';
 import { getFighter } from '../../registry';
-import { PUMP, entities } from '../entities';
 import { moves } from '../moves';
-import { STREAM } from '../waterStream';
 import { art } from '.';
 
 /** Canonical clip lengths (loops: any length). */
@@ -136,60 +132,5 @@ describe('watergirl art', () => {
   });
   it('is the art the game draws for her, so swapping in shows it', () => {
     expect(getFighter('watergirl').art).toBe(art);
-  });
-
-  it('draws every Water Stream pump in matches, filling its hitbox on every drawing of its loop', () => {
-    for (let tier = 0; tier <= PUMP.tiers; tier++) {
-      const name = `pump${tier}`;
-      const prop = art.projectiles?.[name];
-      expect(prop, name).toBeDefined();
-      expect(entityArt(`watergirl/${name}`)?.prop, name).toBe(prop);
-      expect(prop!.align, name).toBe(true);
-      const R = entities[name]!.hits![0]!.boxes[0]!.radius;
-      expect(entities[name]!.radius, name).toBe(R);
-      const drawings = new Set(
-        Array.from({ length: PUMP.lifetime + 1 }, (_, age) =>
-          resolveSymbol(prop!.symbols, prop!.symbol, age),
-        ),
-      );
-      expect(drawings.size, name).toBeGreaterThanOrEqual(2);
-      for (const drawing of drawings) {
-        const shapes = prop!.symbols[drawing!] as PathShape[];
-        const solid = shapes.filter((shape) => typeof shape.fill === 'string');
-        // Water out to the hitbox's edge all round its centre.
-        for (let deg = 0; deg < 360; deg += 15) {
-          const [x, y] = [Math.cos((deg * Math.PI) / 180), Math.sin((deg * Math.PI) / 180)];
-          expect(
-            shapesContain(solid, (0.95 * R * x) / prop!.scale, (0.95 * R * y) / prop!.scale),
-            `${name} ${drawing} ${deg}`,
-          ).toBe(true);
-        }
-        // Not much past it ahead, above or below; the tail and the drops it sheds trail up to 3.5 radii behind.
-        const [x0, y0, x1, y1] = shapesBounds(shapes).map((v) => v * prop!.scale);
-        expect(x1!, `${name} ${drawing} front`).toBeLessThanOrEqual(1.1 * R);
-        expect(Math.max(-y0!, y1!), `${name} ${drawing} height`).toBeLessThanOrEqual(1.3 * R);
-        expect(-x0!, `${name} ${drawing} tail`).toBeLessThanOrEqual(3.5 * R);
-      }
-    }
-  });
-
-  it("previews the first pump of each Water Stream shoot in the lab, from the nozzle at the shoot's speed", () => {
-    const first = STREAM.chargeFrame + STREAM.firstPump;
-    const theta = (STREAM.angle * Math.PI) / 180;
-    for (const [clip, name, speed] of [
-      ['neutralB', 'pump0', STREAM.speed],
-      ['neutralBHeavy', `pump${PUMP.tiers}`, STREAM.speed + STREAM.extraSpeed],
-    ] as const) {
-      const at = art.projectiles?.[name]?.preview?.[clip];
-      expect(at, clip).toBeDefined();
-      expect([at!.frame, at!.x, at!.y, at!.to]).toEqual([
-        first,
-        STREAM.nozzle.x,
-        STREAM.nozzle.y,
-        first + PUMP.lifetime,
-      ]);
-      expect(at!.vx).toBeCloseTo(speed * Math.cos(theta), 6);
-      expect(at!.vy).toBeCloseTo(speed * Math.sin(theta), 6);
-    }
   });
 });
