@@ -176,6 +176,36 @@ export interface PropPreview {
   to?: number;
 }
 
+/**
+ * A tether's line, drawn by the renderer from game state (src/render/tetherLine.ts) rather than keyed in a clip: from
+ * the hand (tetherOrigin) to the line's end (FighterState.tether.anchor), the tip while the line flies and the anchor
+ * once it holds, for as long as the tether lasts. Drawn in the fighter's costume, mirrored with its facing.
+ */
+export interface TetherLineArt {
+  symbols: Record<string, ArtSymbol>;
+  /** The line: a drawing one unit long along +x (from x 0 to 1), stretched to the line's length. */
+  line: string;
+  /** Drawn at the line's end, turned along the line. */
+  tip?: string;
+  /** The moves whose line this draws. Their clips leave the line out. */
+  moves: string[];
+  /** Where lab sheets draw the line over a move's clip, by clip name; in a match it comes from game state. */
+  preview?: Record<string, TetherLinePreview>;
+}
+
+/** A tether line in the lab: rig units from the feet, x forward and y up. */
+export interface TetherLinePreview {
+  /** The first and last clip frames it shows on. */
+  frame: number;
+  to: number;
+  /** The hand, where the line starts. */
+  from: [number, number];
+  /** Where it ends at full length. */
+  end: [number, number];
+  /** Frames it takes to reach `end`, growing evenly from the hand. Default 1: there at once. */
+  travel?: number;
+}
+
 export interface FighterArt {
   /** Standing height in units, flames included. */
   height: number;
@@ -199,6 +229,8 @@ export interface FighterArt {
    * Its `preview` places it in lab sheets of the move's clip.
    */
   reticle?: PropArt;
+  /** A tether's line drawn from game state on the moves it lists, whose clips leave the line out (TetherLineArt). */
+  tetherLine?: TetherLineArt;
   /** Where the hands hold the ledge in ledge clips (rig space): the ledge's top corner belongs here. */
   ledgeGrip?: [number, number];
 }

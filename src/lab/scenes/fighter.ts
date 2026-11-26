@@ -3,6 +3,7 @@ import { VIEW_HEIGHT, VIEW_WIDTH } from '../../config';
 import { sheetLayout } from '../sheet';
 import type { FighterArt } from '../../render/rig/types';
 import { createRigView, propView, type RigView } from '../../render/rig/view';
+import { createTetherLine } from '../../render/tetherLine';
 import type { LabScene } from '../types';
 
 const fighters = import.meta.glob<{ art: FighterArt }>('../../fighters/*/art/index.ts');
@@ -94,6 +95,28 @@ export const scene: LabScene = {
       }
     };
 
+    /**
+     * The tether line over the clip that fires it (art.tetherLine's preview): it grows from the hand to its end over
+     * `travel` frames, behind the rig with the tip in front. In game it runs from the hand to the real line's end.
+     */
+    const tetherLine = (parent: Container, rig: Container, clip: string, frame: number, zoom: number) => {
+      const at = art.tetherLine?.preview?.[clip];
+      if (!at || frame < at.frame || frame > at.to) return;
+      const k = Math.min(1, (frame - at.frame + 1) / (at.travel ?? 1));
+      const [x0, y0] = at.from;
+      const end = { x: x0 + (at.end[0] - x0) * k, y: -(y0 + (at.end[1] - y0) * k) };
+      const drawing = createTetherLine(art, palette);
+      drawing.place({ x: x0, y: -y0 }, end, 1, frame);
+      const behind = new Container();
+      const front = new Container();
+      behind.scale.set(zoom);
+      front.scale.set(zoom);
+      behind.addChild(drawing.line);
+      front.addChild(drawing.tip);
+      parent.addChildAt(behind, parent.getChildIndex(rig));
+      parent.addChild(front);
+    };
+
     const show = (clip: string, frame: number, globalFrame = frame) => {
       redraw = () => show(clip, frame, globalFrame);
       root.removeChildren().forEach((c) => c.destroy({ children: true }));
@@ -109,6 +132,7 @@ export const scene: LabScene = {
       ledge(stage, clip, zoom);
       overlay(view, zoom);
       projectiles(stage, clip, frame, globalFrame, zoom);
+      tetherLine(stage, view.container, clip, frame, zoom);
       const label = new Text({ text: `${name} · ${clip} · frame ${frame} · ${palette}`, style: LABEL });
       label.position.set(16, 12);
       root.addChild(label);
@@ -134,6 +158,7 @@ export const scene: LabScene = {
         cell.addChild(view.container);
         ledge(cell, clip, zoom);
         projectiles(cell, clip, frame, flicker ? frame : 0, zoom);
+        tetherLine(cell, view.container, clip, frame, zoom);
         cell.mask = cell.addChild(new Graphics().rect(-w * 0.4, -h * 0.8, w, h).fill('#ffffff'));
         const label = new Text({ text: state, style: LABEL });
         label.position.set(w * (i % cols) + 8, h * Math.floor(i / cols) + 6);

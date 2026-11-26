@@ -27,20 +27,17 @@ import {
 const STAND: Ball = {};
 
 /**
- * Point Grapple's typical target, up and ahead: where the clip draws the grabber going, and where the lab shows the
- * reticle (art.reticle; in a match the renderer draws it at the real aim).
+ * Point Grapple's typical target, up and ahead: where the lab shows the reticle and the line (art.reticle and
+ * art.tetherLine; in a match the renderer draws both from the real aim and line).
  */
 export const TARGET: Pt = [22, -19];
-/** How far the line still has to go as the engine pulls him in, by frames after the latch. */
-const toward = (t: number): Pt => [TARGET[0] * (1 - 0.6 * t), TARGET[1] * (1 - 0.6 * t)];
-const from: Pt = [1.5, -6.5];
 
 export const SPECIALS: Record<string, AnimClip> = {
   /**
-   * Point Grapple: aims (the renderer draws IQ Ball's reticle at the aim, src/render/reticle.ts), fires the grabber
-   * at it, latches, and is reeled up the line. The line
-   * anchors by 23 at the latest (fired on 12, 12 frames out), so a long reel holds on 28, pulled along with the line
-   * still nearly at full length, until the reel arrives.
+   * Point Grapple: aims, fires the grabber, latches, and is reeled up the line. The renderer draws IQ Ball's reticle
+   * at the aim and the grabber from his hand to the line's real end (src/render/reticle.ts, tetherLine.ts), so the
+   * clip draws neither. The line anchors by 23 at the latest (fired on 12, 12 frames out), so a long reel holds on
+   * 28, pulled along, until the reel arrives.
    */
   neutralB: {
     length: 50,
@@ -71,11 +68,10 @@ export const SPECIALS: Record<string, AnimClip> = {
           sy: 1.06,
           tilt: -10,
           look: [0.5, -0.5],
-          grab: { from, to: [8, -12] },
         }),
         {
           ease: 'linear',
-          swaps: { ...FOCUS, ...GRAB },
+          swaps: FOCUS,
         },
       ),
       key(
@@ -85,7 +81,6 @@ export const SPECIALS: Record<string, AnimClip> = {
           sy: 1.06,
           tilt: -12,
           look: [0.5, -0.5],
-          grab: { from, to: [17, -18] },
         }),
         {
           ease: 'linear',
@@ -98,11 +93,10 @@ export const SPECIALS: Record<string, AnimClip> = {
           sy: 1.08,
           tilt: -20,
           look: [0.5, -0.5],
-          grab: { from, to: TARGET },
         }),
         {
           ease: 'out',
-          swaps: { ...SHOCK, ...GRAB },
+          swaps: SHOCK,
         },
       ),
       key(
@@ -113,25 +107,14 @@ export const SPECIALS: Record<string, AnimClip> = {
           sy: 0.84,
           tilt: -40,
           look: [0.5, -0.5],
-          grab: { from, to: toward(0.2) },
         }),
         {
           ease: 'linear',
-          swaps: { ...EFFORT, ...GRAB, ...RUN_FUR },
+          swaps: { ...EFFORT, ...RUN_FUR },
         },
       ),
-      key(
-        40,
-        ball({ float: true, sx: 1.2, sy: 0.82, tilt: -40, look: [0.5, -0.5], grab: { from, to: toward(1) } }),
-        {
-          ease: 'inOut',
-        },
-      ),
-      key(44, ball({ float: true, sx: 0.96, sy: 1.04, tilt: -10, grab: { from, to: [4, -9] } }), {
-        ease: 'out',
-        swaps: { ...HALF, ...WHIP },
-      }),
-      key(46, undefined, { swaps: HALF }),
+      key(40, ball({ float: true, sx: 1.2, sy: 0.82, tilt: -40, look: [0.5, -0.5] }), { ease: 'inOut' }),
+      key(44, ball({ float: true, sx: 0.96, sy: 1.04, tilt: -10 }), { ease: 'out', swaps: HALF }),
       key(50, ball({ float: true })),
     ],
   },

@@ -82,7 +82,7 @@ describe('fluffy art', () => {
     expect(x1 - x0).toBeLessThan(11.5);
   });
 
-  it("plays Point Grapple's clip on through a long sky reel, holding on its reel frame with the grabber out", () => {
+  it("plays Point Grapple's clip on through a long sky reel, holding on its reel frame", () => {
     const m = testMatch({ fighter: 'fluffy' });
     const f = placeInAir(m, -80, 80);
     run(m, 1, { buttons: ['special'] });
@@ -100,17 +100,19 @@ describe('fluffy art', () => {
     expect(reel.length).toBeGreaterThan(30);
     expect(reel[0]).toBeLessThan(hold);
     expect(reel.at(-1)).toBe(hold);
-    for (const frame of reel) expect(samplePose(art, 'neutralB', frame, 0).symbols.grabLine).toBe('line');
   });
 
-  it("leaves Point Grapple's reticle to the renderer, which draws it at the real aim (art.reticle)", () => {
+  it("leaves Point Grapple's reticle and grabber to the renderer, which draws them from the real aim and line", () => {
     const clip = art.clips.neutralB!;
-    for (let f = 0; f <= clip.length; f++)
-      expect(Object.values(samplePose(art, 'neutralB', f, f).symbols), `neutralB@${f}`).not.toContain(
-        'reticle',
-      );
+    for (let f = 0; f <= clip.length; f++) {
+      const { symbols } = samplePose(art, 'neutralB', f, f);
+      expect(Object.values(symbols), `neutralB@${f}`).not.toContain('reticle');
+      expect([symbols.grabLine ?? null, symbols.tip ?? null], `neutralB@${f}`).toEqual([null, null]);
+    }
     expect(art.reticle?.symbol).toBe('reticle');
     expect(art.reticle?.preview?.neutralB).toMatchObject({ frame: 0, to: 23 });
+    expect(art.tetherLine).toMatchObject({ line: 'line', tip: 'tip', moves: ['neutralB'] });
+    expect(art.tetherLine?.preview?.neutralB).toMatchObject({ frame: 12, to: 40, travel: 12 });
   });
 
   it('never sinks into the floor while grounded', () => {

@@ -64,6 +64,12 @@ rig point `(6, -6)`.
   aimed tether move (`TetherDef.aimed`), from the press until the line anchors or misses, in the port's costume
   (`src/render/reticle.ts`). Keep it out of the move's clip, which can't know where the stick aims. Its `preview`
   shows it in lab sheets of the clip, up to clip frame `to` (Fluffy's IQ Ball reticle on `neutralB`, frames 0-23).
+- **Tether lines.** `tetherLine` draws a tether's line from game state on the moves it lists
+  (`src/render/tetherLine.ts`): its `line` drawing, one unit long along +x, stretched from the hand (`tetherOrigin`)
+  to the line's end (`FighterState.tether.anchor`), with `tip` at the end. The end is the tip while the line flies
+  and the anchor once it holds, so the line reels in as the fighter closes and is gone after a whiff. Lines draw
+  behind the fighters and tips over them. Leave the line out of those moves' clips. `preview` grows it from `from`
+  to `end` over `travel` frames in lab sheets (Fluffy's Point Grapple grabber on `neutralB`, frames 12-40).
 
 Sampling is a pure function of `(clip, frame, globalFrame)`: no clocks and no randomness, so replays and the
 frame-capture harness always draw the same picture.

@@ -503,7 +503,7 @@ export const moves: Record<string, MoveDef> = {
       onFighter: (_x, _target, event) => (event.phase === 'hit' ? 'pullSelf' : undefined),
       arriveHit: GRAPPLE_KICK,
     },
-    // He turns to the side the reticle is on, so the drawn grabber points the way the line goes.
+    // He turns to the side the reticle is on, so he faces the way the line goes.
     script({ f }) {
       if (!f.tether && f.aim && Math.abs(f.aim.x) >= 1) f.facing = f.aim.x > 0 ? 1 : -1;
     },

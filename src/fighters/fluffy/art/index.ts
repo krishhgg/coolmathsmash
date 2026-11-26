@@ -9,6 +9,9 @@ import { rig } from './rig';
 import { SPECIALS, TARGET } from './specials';
 import { LEDGE_GRIP, STATES } from './states';
 
+/** Where the line leaves him in the lab: TETHER.handHeight of his 11-unit height, as tetherOrigin puts it. */
+const HAND = 6.6;
+
 /** The ball with its eyes in body space, for the HUD icon (the face sits on the ball at FACE). */
 const iconSymbols = { ...rig.symbols, iconEyes: eyes(FACE), iconPupils: pupils(FACE) };
 
@@ -43,5 +46,18 @@ export const art: FighterArt = {
     symbol: 'reticle',
     scale: 1,
     preview: { neutralB: { frame: 0, to: 23, x: TARGET[0], y: -TARGET[1] } },
+  },
+  /**
+   * Point Grapple's grabber, the rig's own line and tip drawings, drawn from his hand to the line's real end in a
+   * match. The lab shows it flying at the clip's target from the shot on 12 and holding there to 40.
+   */
+  tetherLine: {
+    symbols: rig.symbols,
+    line: 'line',
+    tip: 'tip',
+    moves: ['neutralB'],
+    preview: {
+      neutralB: { frame: 12, to: 40, from: [0, HAND], end: [TARGET[0], -TARGET[1]], travel: 12 },
+    },
   },
 };
