@@ -4,6 +4,7 @@ import type { FighterArt, PathShape } from '../../../render/rig/types';
 import { clips, LEDGE_GRIP } from './clips';
 import { palettes } from './palettes';
 import { rig } from './rig';
+import { MUZZLE, SHOTS, STUN_GUN } from '../entities';
 
 /** Square viewBox around the front head, beanie and feather included, for the HUD icon. */
 function iconBox(): [number, number, number, number] {
@@ -27,4 +28,20 @@ export const art: FighterArt = {
   },
   icon: symbolsToSvg(rig.symbols, ['headFront', 'faceFront', 'hatFront'], palettes.default, iconBox()),
   ledgeGrip: LEDGE_GRIP,
+  projectiles: {
+    /**
+     * Stun Gun's shots: one crackling ball, drawn at each shot's radius. The lab shows the uncharged one over the
+     * clips from the frame it fires (the full charge fires from the same clips).
+     */
+    stunShot: {
+      symbols: rig.symbols,
+      symbol: 'stunShot',
+      scale: SHOTS.stunShot.radius,
+      preview: {
+        neutralB: { frame: STUN_GUN.shot, x: MUZZLE.x, y: MUZZLE.y, vx: SHOTS.stunShot.speed },
+        neutralBAir: { frame: STUN_GUN.shot, x: MUZZLE.x, y: MUZZLE.y, vx: SHOTS.stunShot.speed },
+      },
+    },
+    stunShotFull: { symbols: rig.symbols, symbol: 'stunShot', scale: SHOTS.stunShotFull.radius },
+  },
 };
