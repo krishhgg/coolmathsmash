@@ -254,7 +254,7 @@ const JAB_READY = shoot(
 );
 const JAB_FIRE = mix(
   shoot(braced({ body: { rot: 2, y: 0.1 }, neck: { rot: -6 }, ...bro(-4, -12, -120, 0, -20) }), -8, JAB_AT),
-  popSize(0.75),
+  popSize(1.25),
 );
 
 const FTILT = spawnOf('ftilt');
@@ -277,7 +277,7 @@ const FTILT_FIRE = mix(
     -10,
     FTILT_AT,
   ),
-  popSize(1.15),
+  popSize(1.6),
 );
 const FTILT_KICK = shoot(
   braced({ body: { rot: -6, y: 0.3, x: -0.4 }, neck: { rot: -10 }, ...bro(-16, -16, -150, -20, -30) }, [
@@ -302,7 +302,7 @@ const UTILT_FIRE = mix(
     -92,
     UTILT_AT,
   ),
-  popSize(0.9),
+  popSize(1.4),
 );
 const UTILT_KICK = shoot(
   braced({ body: { rot: -2, y: 1.1 }, neck: { rot: -14 }, ...bro(-4, -20, -130, 0, -10) }),
@@ -324,7 +324,7 @@ const kneel = (extra: Pose): Pose =>
     ),
   );
 const DTILT_AIM = shoot(kneel({}), 2, [DTILT_AT[0] - 0.4, DTILT_AT[1]]);
-const DTILT_FIRE = mix(shoot(kneel({ body: { rot: 10 } }), -6, DTILT_AT), popSize(0.85));
+const DTILT_FIRE = mix(shoot(kneel({ body: { rot: 10 } }), -6, DTILT_AT), popSize(1.35));
 const DTILT_KICK = shoot(kneel({ body: { rot: 6, x: -0.3 }, ...bro(-8, -10, -120, 0, -10) }), -14, [
   DTILT_AT[0] - 1.2,
   DTILT_AT[1] - 0.3,
@@ -478,7 +478,7 @@ const FAIR_FIRE = mix(
       FAIR_AT,
     ),
   ),
-  popSize(1),
+  popSize(1.45),
 );
 const FAIR_KICK = aloft(
   shoot(air({ body: { rot: -14, x: -0.5 }, neck: { rot: -10 }, ...BRO_FLUNG }, 0, 0.3), -22, [
@@ -509,7 +509,7 @@ const BAIR_AIM = backAim(180, [BAIR_AT[0] - 0.3, BAIR_AT[1]], {
 });
 const BAIR_FIRE = mix(
   backAim(188, BAIR_AT, { body: { rot: -2 }, neck: { rot: -6 }, ...bro(-8, -12, -150, -20, -40) }),
-  popSize(1.05),
+  popSize(1.5),
 );
 const BAIR_KICK = backAim(200, [BAIR_AT[0] + 1.5, BAIR_AT[1] - 0.6], {
   body: { rot: -12 },
@@ -527,7 +527,7 @@ const reachUp = (extra: Pose): Pose =>
     0.2,
   );
 const UAIR_AIM = aloft(shoot(reachUp({}), -90, [UAIR_AT[0], UAIR_AT[1] + 0.6]));
-const UAIR_FIRE = mix(aloft(shoot(reachUp({ body: { y: -0.6 } }), -92, UAIR_AT)), popSize(0.95));
+const UAIR_FIRE = mix(aloft(shoot(reachUp({ body: { y: -0.6 } }), -92, UAIR_AT)), popSize(1.4));
 const UAIR_KICK = aloft(
   shoot(reachUp({ body: { y: 0.2 }, neck: { rot: -10 } }), -84, [UAIR_AT[0] + 0.2, UAIR_AT[1] + 1.8]),
 );
@@ -553,7 +553,7 @@ const straddle = (extra: Pose): Pose =>
 const DAIR_AIM = shoot(straddle({}), 90, [DAIR_AT[0], DAIR_AT[1] - 0.8]);
 const DAIR_FIRE = mix(
   shoot(straddle({ body: { y: -2.6 }, ...bro(-6, -10, -160, -20, -40) }), 92, DAIR_AT),
-  popSize(0.95),
+  popSize(1.4),
 );
 const DAIR_KICK = shoot(straddle({ body: { y: -3.2 }, neck: { rot: 8 }, ...BRO_FLUNG }), 84, [
   DAIR_AT[0] - 0.2,
@@ -567,13 +567,13 @@ const NAIR_TUCK = aloft(air({ body: { rot: -10 }, ...bro(10, 10, 30, 6, 10) }, 2
 const nairSpin = (deg: number): Pose => aloft(mix(NAIR_TUCK, { body: { rot: deg - 10 } }));
 const NAIR_FIRE = mix(
   aloft(shoot(air({ body: { rot: 360 }, neck: { rot: -8 }, ...BRO_CHEER }, 0, 0.3), NAIR[0]!.deg, NAIR_AT)),
-  popSize(0.8),
+  popSize(1.2),
   ...NAIR.slice(1).map(({ at: [x, y], deg }, i) =>
     place(
       ['fx1', 'fx2', 'fx3'][i]!,
       round(x - Math.cos(deg / DEG) * 1.6),
       round(y - Math.sin(deg / DEG) * 1.6),
-      0.8,
+      1.1,
       round(deg),
     ),
   ),
@@ -661,7 +661,7 @@ const POINT_BLANK = mix(
     -4,
     [5.6, -6.9],
   ),
-  popSize(1.1),
+  popSize(1.4),
 );
 const POINT_KICK = shoot(
   braced({ body: { rot: -6, x: -0.4, y: 0.3 }, neck: { rot: -10 }, ...BRO_FLUNG }),
@@ -686,7 +686,7 @@ const UP_FIRE = mix(
     -64,
     [5.4, -9.6],
   ),
-  popSize(1.2),
+  popSize(1.5),
 );
 const UP_KICK = shoot(
   braced({ body: { rot: -8, y: 0.8 }, neck: { rot: -18 }, ...bro(-8, -24, -140, 0, -20) }, [
