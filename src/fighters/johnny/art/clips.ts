@@ -29,6 +29,7 @@ import {
   soles,
   type Pt,
 } from './poses';
+import { reactions } from './reactions';
 import { rig } from './rig';
 import { tech } from './tech';
 
@@ -683,6 +684,7 @@ export const clips: Record<string, AnimClip> = {
   ...attacks,
   ...dodges,
   ...laser,
+  ...reactions,
   ...ledge,
   ...tech,
 };

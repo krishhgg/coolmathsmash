@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { attack, placeInAir, run, testMatch, type Hold } from '../../../sim/testing/sim';
 import { clipFor } from '../../../render/fighterView';
 import { flattenPath, poseBounds, slotsCovering } from '../../../render/rig/geometry';
-import { samplePose } from '../../../render/rig/sample';
+import { samplePose, type RigPose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
 import type { FighterArt } from '../../../render/rig/types';
 import {
@@ -37,6 +37,14 @@ const FORMS: [string, FighterArt][] = [
   [LYING, lyingArt],
 ];
 const artOf = (f: FighterState) => (f.fighter === LYING ? lyingArt : art);
+/** Bounds of the block alone (the slots on its `block` bone), without the dust, rings and waves drawn around it. */
+const blockBounds = (a: FighterArt, pose: RigPose) =>
+  poseBounds(a, {
+    ...pose,
+    symbols: Object.fromEntries(
+      a.rig.slots.filter((s) => s.bone === 'block').map((s) => [s.name, pose.symbols[s.name] ?? null]),
+    ),
+  });
 
 /** The tests that sample every frame of every clip, or step the simulation through every move, take a while. */
 const SLOW = 60_000;
@@ -75,7 +83,6 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   ledgeAttack: LEDGE_ATTACK.faf - 1,
   hitstun: 20,
   tumble: 'loop',
-  knockdown: 'loop',
   down: 'loop',
   getupStand: GETUP_STAND.faf - 1,
   getupRoll: GETUP_ROLL.faf - 1,
@@ -320,7 +327,7 @@ describe('bloxorz block art', () => {
   it('plants Lying forward smash on the same toe through the rising slam and return', () => {
     for (let f = 1; f <= 53; f++) {
       const pose = samplePose(lyingArt, 'fsmash', f, f);
-      const [, , , bottom] = poseBounds(lyingArt, pose);
+      const [, , , bottom] = blockBounds(lyingArt, pose);
       expect(bottom, `fsmash@${f}`).toBeCloseTo(0, 1);
       expect(pose.world.pivot!.tx, `fsmash@${f}`).toBeCloseTo(12, 1);
     }

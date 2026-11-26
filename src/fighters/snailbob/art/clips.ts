@@ -654,10 +654,7 @@ const taunt: AnimClip = {
 void pointOf;
 void rig;
 
-/**
- * Every clip: the engine's action names and the canonical names in docs/art.md that differ from them (knockdown,
- * getUp, tech), then every move's clip (attacks.ts, specials.ts).
- */
+/** Every clip: the engine's action names, then every move's clip (attacks.ts, specials.ts). */
 export const clips: Record<string, AnimClip> = {
   idle,
   walk,
@@ -690,12 +687,9 @@ export const clips: Record<string, AnimClip> = {
   hitstun,
   tumble,
   down,
-  knockdown: down,
   downBound,
   getupStand,
-  getUp: getupStand,
   techInPlace,
-  tech: techInPlace,
   techRoll,
   getupRoll,
   respawn,
@@ -713,3 +707,11 @@ clips.getupRollBack = retimeClip(clips.rollBack!, 35, [
   [4, 4],
   [20, 28],
 ]);
+
+/**
+ * Dodges on the shared timings (src/sim/constants.ts): keys inside the intangible and travel windows stay put and
+ * only the recovery after them stretches or shrinks. Spot dodge 25 frames, forward roll 29, back roll 34.
+ */
+clips.spotDodge = retimeClip(clips.spotDodge!, 25, [[17, 17]]);
+clips.rollForward = retimeClip(clips.rollForward!, 29, [[20, 20]]);
+clips.rollBack = retimeClip(clips.rollBack!, 34, [[20, 20]]);

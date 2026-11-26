@@ -15,7 +15,16 @@ function stepAll(m: MatchState, frames: number, hold: (port: number) => Hold): v
       m.players.map((p) => input(hold(p.port))),
     );
 }
-import { hitlagFrames, hitstunFrames, knockback, LAUNCH_DECAY, shieldstunFrames, speedUp } from './formulas';
+import {
+  hitlagFrames,
+  hitstunFrames,
+  knockback,
+  LAUNCH_DECAY,
+  ONE_V_ONE_DAMAGE,
+  shieldstunFrames,
+  speedUp,
+} from './formulas';
+import { addDamage } from './hits';
 
 const kb10 = ref.knockback.test_vectors.find((v) => v.id === 'kb10_fresh_bonus')!;
 
@@ -29,9 +38,9 @@ function launchedAt(f: FighterState, frames: number): { x: number; y: number } {
   return { x: f.kb.x * k, y: f.kb.y * k };
 }
 
-/** Two reference fighters standing on Battlefield's main stage, `a` facing `v`. */
-function duel(ax = -10, vx = -2): { m: MatchState; a: FighterState; v: FighterState } {
-  const m = testMatch({ players: 2 });
+/** Two reference fighters standing on Battlefield's main stage, `a` facing `v` (the Items rule off unless `items`). */
+function duel(ax = -10, vx = -2, items?: boolean): { m: MatchState; a: FighterState; v: FighterState } {
+  const m = testMatch({ players: 2, ...(items === undefined ? {} : { items }) });
   const [a, v] = m.fighters as [FighterState, FighterState];
   for (const [f, x, facing] of [
     [a, ax, 1],
@@ -57,6 +66,49 @@ function airborne(v: FighterState, x: number, y: number): void {
     airFrames: 0,
   });
 }
+
+describe('1v1 multiplier (SmashWiki: x1.2 damage taken in a match started with two players and items off)', () => {
+  it.each([
+    [2, undefined, ONE_V_ONE_DAMAGE],
+    [2, false, ONE_V_ONE_DAMAGE],
+    [2, true, 1],
+    [3, false, 1],
+    [3, true, 1],
+    [4, false, 1],
+  ] as const)('%d players, items %s: damage taken x%d', (players, items, mult) => {
+    const m = testMatch({ players, ...(items === undefined ? {} : { items }) });
+    const v = m.fighters[1]!;
+    addDamage(m, v, 10);
+    expect(v.damage).toBeCloseTo(10 * mult, 9);
+  });
+
+  it('a match started with three players keeps x1 once only two fighters are left', () => {
+    const m = testMatch({ players: 3 });
+    m.fighters[2]!.stocks = 0;
+    addDamage(m, m.fighters[1]!, 10);
+    expect(m.fighters[1]!.damage).toBeCloseTo(10, 9);
+  });
+
+  it("a hit in a 1v1 with items on adds the hit's own damage, with the same hitlag, hitstun and launch", () => {
+    const hit = (items: boolean) => {
+      const { m, a, v } = duel(-10, -2, items);
+      v.damage = kb10.pre_percent;
+      airborne(v, a.pos.x + 8, 4);
+      attack(m, 0, 'probe');
+      run(m, 1);
+      const damage = v.damage - kb10.pre_percent;
+      const hitlag = v.hitlag;
+      run(m, hitlag + 1);
+      return { damage, hitlag, hitstun: v.hitstun, kb: { ...v.kb } };
+    };
+    const on = hit(true);
+    const off = hit(false);
+    expect(on.damage).toBeCloseTo(kb10.damage * kb10.stale_multiplier, 6);
+    expect(off.damage).toBeCloseTo(kb10.damage * kb10.stale_multiplier * ONE_V_ONE_DAMAGE, 6);
+    expect({ ...on, damage: 0 }).toEqual({ ...off, damage: 0 });
+    expect(Math.hypot(on.kb.x, on.kb.y)).toBeGreaterThan(0);
+  });
+});
 
 describe('hits (research vector kb10 end to end)', () => {
   it('adds damage x1.2 in 1v1, freezes both for hitlag, then launches at the reference velocity', () => {
