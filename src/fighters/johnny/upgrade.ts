@@ -157,11 +157,12 @@ const box = (radius: number, hit: Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius'>):
 export const upgradeEntities: Record<string, EntityDef> = {
   /**
    * The bolt: Limit Blade Beam's beam at the laser's speed and range, transcendent like the laser. It goes through
-   * what it hits so its script sees the contact; on the next frame it bursts there and is used up.
+   * what it hits so its script sees the contact; on the next frame it bursts there and is used up. It lives one frame
+   * past its last active frame, so a contact on that frame still bursts; with none, it expires then, before moving.
    */
   megaLaser: {
     radius: bolt.radius,
-    lifetime: LASER.lifetime,
+    lifetime: LASER.lifetime + 1,
     transcendent: true,
     pierce: true,
     hits: [
@@ -171,7 +172,10 @@ export const upgradeEntities: Record<string, EntityDef> = {
       },
     ],
     script({ m, e }) {
-      if (e.hitVictims.length === 0) return;
+      if (e.hitVictims.length === 0) {
+        if (e.age > LASER.lifetime) destroyEntity(m, e, 'expired');
+        return;
+      }
       const burst = spawnEntity(m, {
         kind: 'johnny/laserBurst',
         owner: e.owner,

@@ -351,6 +351,50 @@ describe('Johnny Upgrade: Upgraded Laser (Limit Blade Beam)', () => {
     expect(behind.damage).toBeCloseTo(CLOUD.limitBladeBeam.inBurst * 1.05, 6);
     expect(m.entities.some((e) => e.kind.startsWith('johnny/'))).toBe(false);
   });
+
+  it('a bolt that hits nothing lasts 27 frames and ends 26 x 4.6 units from where it appeared, as the laser does', () => {
+    const { m, a } = duel(-60, -100);
+    setMeter(a, UPGRADE_METER, 100);
+    runPorts(m, 1, []);
+    runPorts(m, 1, [SPECIAL]);
+    let shown = 0;
+    let from = NaN;
+    let end: { reason: string; x: number } | null = null;
+    for (let i = 0; i < 60 && !end; i++) {
+      runPorts(m, 1, []);
+      for (const e of m.events) {
+        if (e.type === 'entitySpawn' && e.kind === 'johnny/megaLaser') from = e.x;
+        if (e.type === 'entityDestroy' && e.kind === 'johnny/megaLaser') end = { reason: e.reason, x: e.x };
+      }
+      if (m.entities.some((e) => e.kind === 'johnny/megaLaser')) shown++;
+    }
+    expect(shown).toBe(LASER.lifetime);
+    expect(end?.reason).toBe('expired');
+    expect(end!.x - from).toBeCloseTo(LASER.speed * (LASER.lifetime - 1), 6);
+  });
+
+  it('bursts on a target the bolt first reaches on its last frame', () => {
+    // The bolt's centre is 8.5 + 4.6 x (age - 1) ahead of Johnny, and it touches Mario's 4-thick body within 5.5 + 4:
+    // from 60 units, Mario at 75.5 is first touched at age 27, the laser's last frame.
+    const { m, a, v } = duel(-60, 75.5);
+    setMeter(a, UPGRADE_METER, 100);
+    runPorts(m, 1, []);
+    runPorts(m, 1, [SPECIAL]);
+    const ages: number[] = [];
+    let hits = 0;
+    for (let i = 0; i < 80; i++) {
+      runPorts(m, 1, []);
+      for (const e of m.events) {
+        if (e.type !== 'hit' || e.victim !== v.port) continue;
+        hits++;
+        const bolt = m.entities.find((b) => b.id === e.entity && b.kind === 'johnny/megaLaser');
+        if (bolt) ages.push(bolt.age);
+      }
+    }
+    expect(ages).toEqual([LASER.lifetime]);
+    expect(hits).toBe(7);
+    expect(v.damage).toBeCloseTo(CLOUD.limitBladeBeam.onTarget * 1.05 * 1.2, 6);
+  });
 });
 
 describe('Johnny Upgrade: Upgraded Laser kill percent (Mario at the Battlefield ledge, fresh, no rage, no DI)', () => {
