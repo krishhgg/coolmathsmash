@@ -14,7 +14,7 @@ import {
   STICK,
   press,
 } from './inputs';
-import { stageInfo } from './stage';
+import { staticStage } from './stage';
 
 /**
  * What a CPU knows about a fighter, learned by trying every move once in a private copy of the simulation: when
@@ -127,7 +127,13 @@ const DASH_LEAD = 6;
 const PROBE_LIMIT = 240;
 
 function settle(def: FighterDef, stageId: string): MatchState {
-  const m = createMatch({ seed: 1, stage: stageId, stocks: 1, ports: [{ fighter: def.id, tapJump: true }] });
+  const m = createMatch({
+    seed: 1,
+    stage: stageId,
+    stocks: 1,
+    ports: [{ fighter: def.id, tapJump: true }],
+    hazards: false,
+  });
   const n = [neutralInput()];
   for (let i = 0; i < 40; i++) stepMatch(m, n);
   return m;
@@ -136,7 +142,7 @@ function settle(def: FighterDef, stageId: string): MatchState {
 function probe(def: FighterDef, stageId: string, move: string, start: MoveProbe['start']): MoveProbe | null {
   const m = settle(def, stageId);
   const f = m.fighters[0]!;
-  const info = stageInfo(stageId);
+  const info = staticStage(stageId);
   f.facing = 1;
   if (start === 'air') {
     Object.assign(f, {
