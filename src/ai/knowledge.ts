@@ -374,7 +374,7 @@ class Shots {
     for (const e of m.entities) {
       const s = this.root.get(e.id);
       if (!s || !this.base) continue;
-      for (const b of entityHitboxes(e)) {
+      for (const b of entityHitboxes(m, e)) {
         if (b.box.pushOnly) continue;
         if (!s.box || b.box.damage > s.box.damage) s.box = b.box;
         const r = b.box.radius;

@@ -96,7 +96,7 @@ export function shotHit(
     if (s.intangible || GONE.has(s.action)) continue;
     const hurt = { ...s.hurt, x: s.hurt.x + target.errX };
     for (const e of live) {
-      const b = entityHitboxes(e).find(
+      const b = entityHitboxes(m, e).find(
         (b) => !b.box.pushOnly && targets(b.box, s) && overlaps(b.x, b.y, b.box.radius, hurt, MARGIN),
       );
       if (!b) continue;
