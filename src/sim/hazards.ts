@@ -1,5 +1,5 @@
 import { getFighter } from '../fighters/registry';
-import { armorOf, hittable, hurtbox, strike, touches, type PlacedHitbox } from './combat/hits';
+import { armorOf, hittable, hurtbox, strike, targetable, touches, type PlacedHitbox } from './combat/hits';
 import { emit } from './events';
 import type { FighterState } from './fighter';
 import type { MatchState } from './match';
@@ -71,6 +71,7 @@ function zoneContact(geo: StageGeometry, v: FighterState, frame: number): Contac
     if (v.pos.x + width / 2 <= at.x1 || v.pos.x - width / 2 >= at.x2) continue;
     if (v.pos.y + height <= at.y1 || v.pos.y >= at.y2) continue;
     const hit = z.hit ?? ELEMENT_HITS[z.element].hit;
+    if (!targetable(hit, v)) continue;
     const away = Math.sign(v.pos.x - (at.x1 + at.x2) / 2);
     return {
       source: 'zone',
@@ -92,7 +93,7 @@ function hitboxContact(geo: StageGeometry, v: FighterState, frame: number): Cont
   const hitboxes = geo.hitboxes ?? [];
   for (let i = 0; i < hitboxes.length; i++) {
     const h = hitboxes[i]!;
-    const touching = stageHitboxesAt(h, frame).filter((p) => touches(p, body));
+    const touching = stageHitboxesAt(h, frame).filter((p) => targetable(p.box, v) && touches(p, body));
     const first = touching.sort((p, q) => p.box.id - q.box.id)[0];
     if (!first) continue;
     const away = Math.sign(v.pos.x - (h.x + motionOffset(h.motion, frame)[0]));
