@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { knockback } from '../../sim/combat/formulas';
-import { finalReach } from '../../sim/finalSmash';
+import { FINAL_SMASH, finalReach } from '../../sim/finalSmash';
 import type { SimEvent } from '../../sim/events';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../../sim/match';
 import { marioReference } from '../../sim/testing/reference';
 import { input, type Hold } from '../../sim/testing/sim';
+import { applyStatus, statusOf } from '../../sim/statuses';
+import { PARALYZED } from '../bob-the-robber/entities';
 import { registerFighter } from '../registry';
 import { art } from './art';
 import { BLAST, blast, finalSmash, finalSmashAir } from './finalSmash';
@@ -16,12 +18,13 @@ const SPECIAL: Hold = { buttons: ['special'] };
 
 /**
  * Fireboy at x -60 facing right, a Mario-weight target 30 units in front at `percent`, and a third fighter behind
- * Fireboy (three players: no 1v1 damage multiplier). Returns after the activation frame.
+ * Fireboy (three players: no 1v1 damage multiplier). `prep` runs just before the activation frame. Returns after it.
  */
 function blastMatch(
   percent = 0,
   air = false,
   hold: Hold = {},
+  prep: (m: MatchState) => void = () => {},
 ): { m: MatchState; a: FighterState; v: FighterState } {
   const m = createMatch({
     seed: 1,
@@ -41,6 +44,7 @@ function blastMatch(
   if (air)
     Object.assign(a, { pos: { x: -60, y: 40 }, prevPos: { x: -60, y: 40 }, ground: null, action: 'fall' });
   a.finalReady = true;
+  prep(m);
   step(m, 1, [SPECIAL, hold]);
   return { m, a, v };
 }
@@ -189,6 +193,18 @@ describe('Fire Blast (Final Smash), on Mario Finale', () => {
     expect(m.entities.some((e) => e.kind === 'fireboy/blast')).toBe(true);
     step(m, 1);
     expect(m.entities.some((e) => e.kind === 'fireboy/blast')).toBe(false);
+  });
+
+  it("pauses a target's paralysis through the activation freeze: a 30-frame Stun Gun paralysis outlasts it", () => {
+    const { m, v } = blastMatch(0, false, {}, (m) =>
+      applyStatus(m, m.fighters[1]!, PARALYZED, { frames: 30 }),
+    );
+    for (let i = 0; i < FINAL_SMASH.freeze; i++) {
+      step(m, 1);
+      expect(statusOf(v, PARALYZED)?.frames).toBe(30);
+    }
+    step(m, 1);
+    expect(statusOf(v, PARALYZED)?.frames).toBe(29);
   });
 
   it('in the air holds still until the release, which kicks Fireboy back and up, then falls on frame 147', () => {
