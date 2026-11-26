@@ -194,10 +194,10 @@ describe("The Duck: Running Ram (side special, Pikachu's Skull Bash)", () => {
     expect(frame + 1).toBeGreaterThanOrEqual(RAM.ledgeFrom);
   });
 
-  it.each([
+  it.each<[string, Hold]>([
     ['a hit', {}],
     ['a shield', { buttons: ['shield'] }],
-  ] as const)('bounces back off %s and can act 22 frames later', (_, other) => {
+  ])('bounces back off %s and can act 22 frames later', (_, other) => {
     const [m, a, v] = duel();
     charge(m, TILT, 0, other);
     for (let i = 0; i < 60 && a.hitVictims.length === 0; i++) runPorts(m, 1, [{}, other]);
