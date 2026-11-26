@@ -16,6 +16,7 @@ import { emit } from '../events';
 import type { Ctx, FighterState } from '../fighter';
 import { HELPLESS_LANDING_LAG, SPECIAL_REVERSE } from '../constants';
 import { spawnFromMove } from '../entities/entities';
+import { pickUpItem } from '../items/pickup';
 import { leaveGround, normalLandingLag } from '../movement';
 import { fastFallCheck } from './air';
 import { chargeHold } from './charge';
@@ -48,6 +49,7 @@ export function startMove(x: Ctx, requested: string, action?: string): boolean {
   x.f.hitEntities = [];
   x.f.moveStale = 0;
   x.f.charge = 0;
+  x.f.counterDamage = 0;
   x.f.bReverseFrom = -1;
   return true;
 }
@@ -121,7 +123,8 @@ function bReverse(x: Ctx): void {
 /**
  * Grounded attack inputs, Smash style: Grab (or Attack with Shield held) grabs; the C-stick smashes; Attack with a
  * freshly flicked stick smashes, with a held stick tilts, and alone jabs; Attack while dashing or running is a
- * dash attack. Backward smashes and tilts turn around first. True when a move started.
+ * dash attack. Backward smashes and tilts turn around first. Standing or walking, Attack without a smash input picks
+ * up an item within reach instead (src/sim/items/pickup.ts). True when a move started or an item was picked up.
  */
 export function groundAttack(x: Ctx): boolean {
   const { f, c } = x;
@@ -143,6 +146,7 @@ export function groundAttack(x: Ctx): boolean {
     turnFor(x, smash);
     return startMove(x, SMASH[smash]);
   }
+  if (pickUpItem(x)) return true;
   if (f.action === 'dash' || f.action === 'run') return startMove(x, 'dashAttack');
   const dir = stickDir(c, f.facing);
   turnFor(x, dir);

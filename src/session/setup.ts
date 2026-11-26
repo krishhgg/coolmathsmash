@@ -171,6 +171,7 @@ export function resolveMatch(setup: MatchSetup, seed: number, tapJump = true): R
       seed: seed | 0,
       stage,
       stocks: setup.rules.stocks,
+      items: setup.rules.items,
       ports: draft.slots.map((s) => ({ fighter: s.fighter!, costume: s.costume, tapJump })),
     },
     controllers: setup.slots.map((s) =>
