@@ -427,7 +427,7 @@ export function pushOut(
     const cx = px + (prev.x - f.pos.x) * (1 - k);
     const cy = py + (prev.y - f.pos.y) * (1 - k);
     const t = ((cx - e.a.x) * ex + (cy - e.a.y) * ey) / (ex * ex + ey * ey);
-    if (t >= -0.05 && t <= 1.05) depth = -dNow;
+    if (t >= e.span[0] && t <= e.span[1]) depth = -dNow;
   }
   if (depth === 0) return false;
   f.pos.x += e.n.x * (depth + EPS);

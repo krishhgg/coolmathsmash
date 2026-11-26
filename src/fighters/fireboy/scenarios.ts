@@ -61,7 +61,7 @@ export const scenarios: FighterScenarios = {
     {
       name: 'fireboy-upb-under-hull',
       description:
-        "Fireboy up-specials from under Construction Site's hull by its left corner, steering in: he presses against the underside and falls, and never rises through the hull.",
+        "Fireboy up-specials from under Construction Site's hull by its left corner, steering in, with his ledge grab held off so only the stage stops him: he slides off the corner, rises beside the wall and comes onto the deck over the ledge, never up through the hull.",
       page: { kind: 'game' },
       match: { stage: 'snail-bob-construction', ports: [{ fighter: 'fireboy' }, { fighter: 'watergirl' }] },
       patches: [
@@ -74,6 +74,7 @@ export const scenarios: FighterScenarios = {
             actionFrame: 1,
             jumpsUsed: 2,
             facing: 1,
+            ledgeLock: 600,
           },
         },
         { port: 1, state: { pos: { x: 40, y: 0 }, facing: -1 } },

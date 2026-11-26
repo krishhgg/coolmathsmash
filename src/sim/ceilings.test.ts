@@ -10,7 +10,9 @@ import {
 import { RAFT } from '../stages/raft-wars-water/geometry';
 import type { FighterState } from './fighter';
 import { createMatch, stepMatch, type MatchState } from './match';
+import { ecb, pushOffCorner, pushOut } from './movement';
 import { posedStage } from './movingStage';
+import { makeCtx } from './step';
 import { placeInAir, run, testMatch, type Hold } from './testing/sim';
 
 /**
@@ -129,18 +131,19 @@ describe("Fireboy's up special under solid ground", () => {
     });
   }
 
-  it('the fireboy-upb-under-hull capture never puts him inside the hull', () => {
+  it('the fireboy-upb-under-hull capture takes him round the corner and over the ledge, not through the hull', () => {
     const scenario = findScenario('fireboy-upb-under-hull') as GameScenario;
     const m = createMatch(scenarioConfig(scenario));
     startScenario(m, scenario);
     const f = m.fighters[0]!;
     while (m.frame < 70) {
       stepMatch(m, scenarioInputs(scenario, m));
-      expect(inSolid(m, f), `frame ${m.frame} at (${f.pos.x.toFixed(2)}, ${f.pos.y.toFixed(2)})`).toBe(false);
+      const at = `frame ${m.frame} at (${f.pos.x.toFixed(2)}, ${f.pos.y.toFixed(2)})`;
+      expect(inSolid(m, f), at).toBe(false);
+      // Below the deck his feet stay beside the side wall (on main they went in under the deck at x -77.6).
+      if (f.pos.y < 0) expect(f.pos.x, at).toBeLessThan(-80);
     }
-    // On main he came out on top of the hull and landed at x -28.
-    expect(f.ground).toBeNull();
-    expect(f.pos.y).toBeLessThan(-15);
+    expect(f.ground?.kind).toBe('solid');
   });
 
   it("straight up just past Battlefield's ledge, slides off the corner under it instead of rising through the stage", () => {
@@ -232,6 +235,41 @@ describe('jumps and launches into the underside', () => {
       }
     }
   });
+});
+
+describe('drifting just above a ledge', () => {
+  it("a box wholly above Construction Site's deck crosses the top of its side wall without a push", () => {
+    // The wall runs from the deck at y 0 down to -8. Fireboy's feet move from (-80.5, 0.2) to (-79.5, 0.2).
+    const m = testMatch({ fighter: 'fireboy', stage: 'snail-bob-construction' });
+    const f = placeInAir(m, -79.5, 0.2);
+    f.vel = { x: 1, y: 0 };
+    const stage = posedStage(m);
+    const box = ecb(f, makeCtx(m, f, m.players[0]!));
+    const prev = { x: -80.5, y: 0.2 };
+    for (const e of stage.edges) {
+      if (e.kind !== 'floor') expect(pushOut(f, prev, e, box), `edge ${e.index}`).toBe(false);
+      if (e.corner) expect(pushOffCorner(f, prev, e, box), `corner ${e.index}`).toBe(false);
+    }
+    expect(f.pos).toEqual({ x: -79.5, y: 0.2 });
+    expect(f.vel.x).toBe(1);
+  });
+
+  for (const stage of ['battlefield', 'snail-bob-construction']) {
+    for (const side of [-1, 1] as const) {
+      it(`on ${stage}, drifting in just above the ${side < 0 ? 'left' : 'right'} ledge keeps going and lands on the deck`, () => {
+        const m = testMatch({ fighter: 'fireboy', stage });
+        const f = placeInAir(m, side * 80.5, 0.2, side < 0 ? 1 : -1);
+        f.vel = { x: -side, y: 0 };
+        f.ledgeLock = 1000;
+        run(m, 1, { x: -side * 100 });
+        expect(Math.abs(f.pos.x)).toBeLessThan(80);
+        expect(Math.abs(f.vel.x)).toBeGreaterThan(1);
+        run(m, 5, { x: -side * 100 });
+        expect(f.ground?.kind).toBe('solid');
+        expect(Math.abs(f.pos.x)).toBeLessThan(75);
+      });
+    }
+  }
 });
 
 describe('drop-through platforms from below', () => {
