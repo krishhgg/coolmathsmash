@@ -133,6 +133,14 @@ interface Connection {
 }
 
 /**
+ * What `box` of `f`'s current move deals before staleness, the same on a fighter, on a hittable entity and in a clank
+ * with a projectile: its own damage, or a counterattack's when that is more (MoveDef.counter), times the charge.
+ */
+export function hitboxDamage(f: FighterState, box: HitboxDef): number {
+  return Math.max(box.damage, f.counterDamage) * chargeMultiplier(f);
+}
+
+/**
  * The connection of `box` from `a` on `v`, read before anything lands. A move activation stales once: its
  * multiplier is fixed and it enters the stale queue the first time it connects, however many fighters or rehit
  * windows it hits afterwards.
@@ -153,7 +161,7 @@ function connection(
     fromX: a.pos.x,
     box,
     kind: moveOf(a)?.kind ?? 'other',
-    damage: Math.max(box.damage, a.counterDamage) * chargeMultiplier(a),
+    damage: hitboxDamage(a, box),
     stale: a.moveStale,
     rage: rageMultiplier(a.damage),
     dir: launchDir(box, a.facing, a.pos.x, v),
@@ -269,10 +277,11 @@ export function applyHit(
 /**
  * Find every hit this frame from the state before any of them lands, then apply them all, so two fighters
  * whose moves connect on the same frame trade. Each move hits a fighter once (per rehit window), lowest
- * hitbox id first. Hits on an open counter are caught instead (counterattack). Grab boxes are found from the same
- * state and resolved after the hits (grab.ts), so an attack beats a grab on the same frame. `posed` is the stage as
- * it stands this frame, for a counter that reappears on a floor. `stage` lands the stage hazards' hits
- * (src/sim/hazards.ts) between the two, adding its victims to `struck`, so they break grabs like any other hit.
+ * hitbox id first. Hits on an open counter are caught instead. Grab boxes are found from the same state and
+ * resolved after the hits (grab.ts), so an attack beats a grab on the same frame. `stage` lands the stage hazards'
+ * hits (src/sim/hazards.ts) between the two, adding its victims to `struck`, so they break grabs like any other hit.
+ * Counterattacks start last, for counterers no grab or hazard took this frame; `posed` is the stage as it stands this
+ * frame, for a counter that reappears on a floor.
  */
 export function resolveHits(
   m: MatchState,
@@ -316,14 +325,15 @@ export function resolveHits(
     else if (h.shielding) shieldHit(m, h, again);
     else hit(m, h, again);
   }
-  for (const h of caught) {
-    counterattack(m, posed, h, h.counter!);
-    struck.add(h.v);
-  }
   for (const e of used) destroyEntity(m, e, 'hit');
   sweepEntities(m);
   stage?.(struck);
   resolveGrabs(m, grabs, struck);
+  // A caught hit is blocked, not a strike, so it doesn't stop a grab. Grabs and hazards go through counters: a
+  // counterer that one of them took this frame doesn't answer.
+  for (const h of caught) {
+    if (!struck.has(h.v) && h.v.action !== 'grabbed') counterattack(m, posed, h, h.counter!);
+  }
 }
 
 function windPush({ v, box, shielding, percent, crouch, dir, rage }: Connection): void {

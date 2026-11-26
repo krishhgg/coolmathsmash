@@ -191,6 +191,44 @@ describe('counters (MoveDef.counter), Marth-style', () => {
     expect(seen).not.toContain('counter');
   });
 
+  it('lets a grab through on the frame it catches a hit: the grab wins and nothing is answered', () => {
+    const { m, a, v } = duel({ attacker: 'fireboy', more: 1 });
+    const grabber = m.fighters[2]!;
+    attack(m, 1, 'downB');
+    runPorts(m, 4, idle(m));
+    // Fireboy's grab box is out on its frames 6-7 and his jab's on 2-3: both reach P2 on its frame 10.
+    attack(m, 2, 'grab');
+    runPorts(m, 4, idle(m));
+    attack(m, 0, 'jab');
+    runPorts(m, 2, idle(m));
+    expect([v.actionFrame, grabber.actionFrame, a.actionFrame]).toEqual([0, 0, 2]);
+    expect(ofType(m, 'grab')).toMatchObject([{ attacker: 2, victim: 1 }]);
+    expect(ofType(m, 'counter')).toEqual([]);
+    expect(ofType(m, 'hit')).toEqual([]);
+    expect([v.action, grabber.action]).toEqual(['grabbed', 'grabHold']);
+    expect([v.hitlag, a.hitlag, v.intangible, v.damage]).toEqual([0, 0, 0, 0]);
+  });
+
+  it("hits an entity as hard as a fighter: a 50% counterattack breaks Snail Bob's 12 HP crate", () => {
+    const d = duel({ attacker: 'test-counter-heavy' });
+    // Behind P1, in reach of P2's counterattack (centre x -11) and out of reach of P1's own swing.
+    const crate = spawnEntity(d.m, {
+      kind: 'snailbob/crate',
+      owner: 0,
+      pos: { x: -22, y: 5 },
+      vel: { x: 0, y: 0 },
+    });
+    counterAt(10, 'heavy', 1, d);
+    expect(d.v.counterDamage).toBe(COUNTER.max);
+    const hits: Extract<SimEvent, { type: 'entityHit' }>[] = [];
+    for (let i = 0; i < 40 && !crate.dead; i++) {
+      runPorts(d.m, 1, idle(d.m));
+      hits.push(...ofType(d.m, 'entityHit'));
+    }
+    expect(hits).toMatchObject([{ id: crate.id, attacker: 1, damage: COUNTER.max }]);
+    expect(crate.dead).toBe(true);
+  });
+
   it('catches a projectile in place, using it up, and freezes nobody else', () => {
     const { m, a, v } = duel({ facing: 1 });
     place(a, -60, 0, 1);

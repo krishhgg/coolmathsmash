@@ -349,8 +349,10 @@ downBHit: {
 
 - **The catch.** A hit whose box touches the fighter on a `window` frame (inclusive) is blocked: no damage,
   knockback or hitstun. Every hit on it that frame is blocked, and the first in the frame's order (attackers by port,
-  then projectiles) sets the counter off. Grabs, command grabs and stage hazards go through. An intangible fighter is
-  never touched, so it can't counter: Marth is intangible on frames 5 and 6, and his first catch is on frame 7.
+  then projectiles) sets the counter off. Grabs, command grabs and stage hazards go through, even on the frame the
+  counter catches a hit: then the grab or the hazard wins, the counterattack doesn't start and nobody freezes. A
+  windbox (`pushOnly`) pushes the counterer without setting it off. An intangible fighter is never touched, so it
+  can't counter: Marth is intangible on frames 5 and 6, and his first catch is on frame 7.
 - **The freeze.** The counterer goes straight into the counterattack `move` and freezes with the attacker for
   `freeze` frames (default 21, Marth's). The counterattack's frame 1 is the last frozen frame, so its frame numbers
   are Ultimate's and Marth's swing lands 25 frames after the catch. The counterer is intangible through the freeze,
@@ -361,7 +363,9 @@ downBHit: {
 - **Damage.** The counterattack's boxes deal the caught hit's damage (after staleness, as a shield takes it) times
   `multiplier` (default 1.2), capped at `max` (default 50%), or their own damage when that is more. Marth's 8% box is
   his counter's minimum, as in Ultimate's data. `multiplier: 0` always deals the boxes' own damage (Double Team's
-  fixed 12.5%). Otherwise the counterattack is a normal move: it can miss, it stales, and rage and DI apply.
+  fixed 12.5%). The boxes deal the same on hittable entities and in clanks with projectiles (`hitboxDamage`,
+  `src/sim/combat/hits.ts`). Otherwise the counterattack is a normal move: it can miss, it stales, and rage and DI
+  apply.
 - **Projectiles.** A caught projectile is used up as if it hit. The counterer answers in place, even with `behind`,
   and nobody else freezes.
 - **Events.** A catch reports `counter` with what the caught hit would have dealt, then `move` for the counterattack
