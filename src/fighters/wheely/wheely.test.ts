@@ -93,7 +93,10 @@ describe('Wheely: car handling', () => {
   });
 });
 
-/** [move, damage of the strongest box, first active frame], from the roster sheet. */
+/**
+ * [move, damage of the strongest box, first active frame], from the roster sheet, except the aerials, which deal
+ * their analogue's damage (kill percents below).
+ */
 const FRAME_DATA: [string, number, number][] = [
   ['jab', 2, 3],
   ['jab2', 2, 3],
@@ -105,11 +108,11 @@ const FRAME_DATA: [string, number, number][] = [
   ['fsmash', 17, 16],
   ['usmash', 14, 12],
   ['dsmash', 13, 11],
-  ['nair', 9, 6],
-  ['fair', 12, 10],
-  ['bair', 13, 9],
+  ['nair', 10, 6],
+  ['fair', 13, 10],
+  ['bair', 12, 9],
   ['uair', 9, 7],
-  ['dair', 13, 13],
+  ['dair', 12, 13],
   ['grab', 0, 9],
 ];
 
@@ -174,14 +177,40 @@ describe('Wheely: kill percents (Mario at the Battlefield ledge, fresh, no DI)',
     expect(Math.abs(ko! - analogue!)).toBeLessThanOrEqual(5);
   });
 
-  it('back aerial uses Wario bair knockback, with 13% damage instead of 12%', () => {
-    const hit = { angle: 361, kbg: 106, bkb: 21, direction: 'back' } as const;
-    const ko = koPercent({ hit: { fighter: 'wheely', move: 'bair' }, air: true });
-    const damageMatched = koPercent({ hit: { ...hit, damage: 13 }, air: true });
+  /**
+   * Sourced kill percents for the aerials and Charge Through: SSBU-Calculator's KO calculator (rubendal/SSBU-Calculator
+   * 233590e, js/knockback.js Distance, run headless with ko.test.ts's setup: Mario at Battlefield's ledge, x 79.9,
+   * fresh, no rage, no DI, airborne for the aerials) on the analogue's 13.0.1 hitbox from ultimate-hitboxes.com
+   * (RSN-Bran/ultimate-hitboxes ead416b, server/data). SmashWiki's Kirby (SSBU)/Neutral aerial, Bowser (SSBU)/Forward
+   * aerial and King K. Rool (SSBU)/Down aerial tables give the same values. The down air's 9% hit is its own box;
+   * koPercent on the move counts it, since from the ledge the meteor drives Mario into the stage.
+   */
+  it.each([
+    { move: 'nair', analogue: "Kirby's clean nair", sourced: 103.2, air: true }, // 10%, 46°, BKB 35, KBG 117
+    { move: 'fair', analogue: "Bowser's fair", sourced: 109.3, air: true }, // 13%, 361°, BKB 40, KBG 80
+    { move: 'bair', analogue: "Wario's bair", sourced: 100.3, air: true }, // 12%, 361°, BKB 21, KBG 106
+    { move: 'uair', analogue: "Incineroar's uair", sourced: 180.6, air: true }, // 9%, 85°, BKB 66, KBG 79
+    { move: 'dair', analogue: "King K. Rool's late dair", sourced: 145.6, air: true }, // 9%, 361°, BKB 20, KBG 100
+    { move: 'sideB', analogue: "Wario Bike's drive", sourced: 186.6, air: false }, // 7%, 361°, BKB 60, KBG 70
+  ])('$move KOs within 5 points of $analogue at $sourced%', ({ move, sourced, air }) => {
+    const ko = koPercent({ hit: { fighter: 'wheely', move }, air });
     expect(ko).not.toBeNull();
-    expect(damageMatched).not.toBeNull();
-    expect(Math.abs(ko! - damageMatched!)).toBeLessThanOrEqual(5);
-    expect(ko).toBeLessThan(koPercent({ hit: { ...hit, damage: 12 }, air: true })!);
+    expect(Math.abs(ko! - sourced)).toBeLessThanOrEqual(5);
+  });
+
+  /**
+   * The down air's meteor, on Mario airborne 10 units past the ledge, where a downward hit can KO. The calculator
+   * puts King K. Rool's meteor (12%, 270°, BKB 10, KBG 90) at 69.2% there, but the engine KOs every meteor about 7 to
+   * 8 points later than the calculator from that point, K. Rool's own hit included (77.0%), so the meteor is held to
+   * K. Rool's hit through koPercent from the same setup instead.
+   */
+  it("dair's meteor KOs within 5 points of King K. Rool's meteor 10 units past the ledge", () => {
+    const setup = { air: true, from: { x: 90, y: 0 } };
+    const ko = koPercent({ hit: moves.dair!.hits[0]!.boxes[0]!, ...setup });
+    const kRool = koPercent({ hit: { damage: 12, angle: 270, kbg: 90, bkb: 10 }, ...setup });
+    expect(ko).not.toBeNull();
+    expect(kRool).not.toBeNull();
+    expect(Math.abs(ko! - kRool!)).toBeLessThanOrEqual(5);
   });
 
   it('forward smash kills earliest, then back aerial, then up smash', () => {
@@ -255,7 +284,7 @@ describe('Wheely: grabs', () => {
 });
 
 describe('Wheely: specials', () => {
-  it('Charge Through (side special) floors it about 50 units and hits for 10% on the way', () => {
+  it("Charge Through (side special) floors it about 50 units and hits for Wario Bike's 7% on the way", () => {
     const m = duel();
     const [a, v] = m.fighters as [FighterState, FighterState];
     Object.assign(a, { pos: { x: -40, y: 0 }, prevPos: { x: -40, y: 0 } });
@@ -271,7 +300,7 @@ describe('Wheely: specials', () => {
     expect(a.move).toBe('sideB');
     while (a.move === 'sideB') runPorts(m, 1, [{}, {}]);
     expect(a.pos.x + 40).toBeGreaterThan(45);
-    expect(v.damage).toBeCloseTo(10 * 1.05 * 1.2, 6);
+    expect(v.damage).toBeCloseTo(7 * 1.05 * 1.2, 6);
   });
 
   it('Charge Through in the air drives level, then leaves him helpless', () => {
