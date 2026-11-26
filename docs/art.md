@@ -55,6 +55,11 @@ rig point `(6, -6)`.
   corner should touch while hanging. `preview` places the prop in lab sheets of the move that spawns it: on
   clip frame `frame` on it sits at (`x`, `y`) from the feet (x forward, y up), then moves `vx`, `vy` units a
   frame.
+- **Projectiles in a match** draw their art when the entity's kind `<fighter id>/<name>` names a key in that
+  fighter's `art.projectiles` (Fireboy's `fireball` draws for `fireboy/fireball`). The prop wears its owner's
+  costume, mirrors with the entity's facing, and plays its symbol loops on the entity's age, so a flicker starts on
+  its first drawing at spawn. Set `align: true` on a streak or comet to turn it to its velocity, tail behind.
+  Kinds without art draw the placeholder disc (`src/render/entities.ts`).
 
 Sampling is a pure function of `(clip, frame, globalFrame)`: no clocks and no randomness, so replays and the
 frame-capture harness always draw the same picture.
