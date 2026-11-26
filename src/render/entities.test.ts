@@ -1,4 +1,4 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, DOMAdapter, Graphics } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import { allFighters, getFighter, registerFighter } from '../fighters/registry';
 import { spawnEntity } from '../sim/entities/entities';
@@ -10,6 +10,7 @@ import { gadgets } from '../sim/testing/gadgets';
 import { EntityView, entityArt, layerFighters, propPlacement } from './entities';
 import { fighterArt } from './fighterView';
 import { drawPlanetEntity } from './items';
+import { Renderer } from './renderer';
 import type { PropArt } from './rig/types';
 
 /** A test-only fighter whose entities have no art, so they always draw the disc. */
@@ -152,6 +153,63 @@ describe('EntityView', () => {
     view.draw(m, 1, ['default']);
     expect(view.back.children).toHaveLength(0);
     expect(view.fronts.children).toHaveLength(0);
+  });
+
+  it("draws Ball Rain's balls under the fighter layer and a fireball over it", () => {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'redball' }, { fighter: 'fireboy' }],
+    });
+    const ball = spawnEntity(m, {
+      kind: 'redball/ball',
+      owner: 0,
+      pos: { x: 6, y: 8 },
+      vel: { x: 0.5, y: -3 },
+      final: true,
+    });
+    spawnEntity(m, { kind: 'fireboy/fireball', owner: 1, pos: { x: -10, y: 5 } });
+    // The renderer's world as it builds it, on a stand-in app (nothing here draws to a screen).
+    type Layers = { world: Container; entities: EntityView; fighterLayer: Container; boatLayer: Container };
+    const app = { stage: new Container(), renderer: {}, canvas: {} };
+    const r = new (Renderer as unknown as new (app: unknown, quality: string) => Layers)(app, 'lite');
+    // The ball's gradients bake into a canvas, which node lacks: a stand-in that takes the drawing calls.
+    const adapter = DOMAdapter.get();
+    const gradient = { addColorStop: () => {} };
+    const context = {
+      createLinearGradient: () => gradient,
+      createRadialGradient: () => gradient,
+      fillRect: () => {},
+      translate: () => {},
+      rotate: () => {},
+      scale: () => {},
+      fillStyle: '',
+    };
+    DOMAdapter.set({
+      ...adapter,
+      createCanvas: (width = 1, height = 1) =>
+        ({ width, height, getContext: () => context }) as unknown as ReturnType<typeof adapter.createCanvas>,
+    });
+    try {
+      r.entities.draw(m, 1, ['default', 'default']);
+    } finally {
+      DOMAdapter.set(adapter);
+    }
+    expect(r.entities.back.children).toHaveLength(1);
+    expect(r.entities.fronts.children).toHaveLength(0);
+    expect(r.entities.props.children).toHaveLength(1);
+    const [body] = r.entities.back.children as [Container];
+    expect(body.position).toMatchObject({ x: 6, y: -8 });
+    expect((body.children[0] as Graphics).context.instructions.length).toBeGreaterThan(0);
+    const at = (c: Container) => r.world.getChildIndex(c);
+    expect(at(r.entities.back)).toBeLessThan(at(r.boatLayer));
+    expect(at(r.entities.back)).toBeLessThan(at(r.fighterLayer));
+    expect(at(r.entities.container)).toBeGreaterThan(at(r.fighterLayer));
+
+    m.entities = m.entities.filter((e) => e !== ball);
+    r.entities.draw(m, 1, ['default', 'default']);
+    expect(r.entities.back.children).toHaveLength(0);
   });
 
   it('puts only the fighters standing in a raft under its rim, everyone else over it, in port order', () => {

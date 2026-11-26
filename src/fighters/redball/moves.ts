@@ -1,6 +1,7 @@
 import { setAction } from '../../sim/actions/registry';
 import { approach } from '../../sim/vec';
 import type { HitboxDef, MoveDef } from '../types';
+import { finalSmash } from './finalSmash';
 import { specials } from './specials';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -295,4 +296,6 @@ export const moves: Record<string, MoveDef> = {
     throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55, status: 'redball/squared' } },
   },
   ...specials,
+  /** Ball Rain, his Final Smash: Ness's PK Starstorm (finalSmash.ts). */
+  finalSmash,
 };
