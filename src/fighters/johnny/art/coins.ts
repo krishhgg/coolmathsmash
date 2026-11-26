@@ -102,7 +102,7 @@ function fieldLine(r: number, alpha: number): PathShape {
 function sparkle(size: number): PathShape[] {
   return [
     inked(star(0.3, 0, 1.3 * size, 0.38 * size, 4, -90), 'coinHi', 'coinLo', 0.06),
-    { d: ellipse(0.3, 0, 0.32 * size), fill: '#ffffff' },
+    { d: ellipse(0.3, 0, 0.32 * size), fill: 'shine' },
   ];
 }
 

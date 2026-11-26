@@ -1,4 +1,5 @@
 import type { PathShape, Rig, Slot } from '../../../render/rig/types';
+import { BURST_LOOP, burstSymbols } from './burst';
 import { coinSymbols } from './coins';
 import {
   FORE_ARM,
@@ -97,6 +98,8 @@ export const rig: Rig = {
     laserBolt: { loop: ['laserBolt0', 'laserBolt1'], fps: 30 },
     ...megaLaserBolt,
     megaBolt: { loop: ['megaBolt0', 'megaBolt1'], fps: 30 },
+    ...burstSymbols,
+    laserBurst: BURST_LOOP,
     ...coinSymbols,
   },
 };
