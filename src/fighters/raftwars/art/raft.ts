@@ -116,13 +116,13 @@ const BILL: P[] = [
 
 /** The tail flicking up at the stern, behind the hull. */
 const TAIL: P[] = [
-  [-7.9, RIM + 0.6],
-  [-9.7, RIM + 0.5],
-  [-10.7, -3.2],
-  [-11.1, -5.0, 0],
-  [-10.1, -4.0],
-  [-9.1, -3.1],
-  [-8.1, RIM - 0.4],
+  [-7.6, RIM + 0.6],
+  [-9.4, RIM + 0.5],
+  [-9.9, -3.3],
+  [-9.9, -5.1, 0],
+  [-9.1, -4.0],
+  [-8.5, -3.1],
+  [-7.7, RIM - 0.4],
 ];
 
 export const duckRaft: PathShape[] = [

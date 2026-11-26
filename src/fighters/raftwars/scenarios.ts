@@ -4,7 +4,8 @@ const RW = 'characters/raft-wars';
 
 /**
  * Raft Wars Kids' capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus Rocket Ride (up special) and Bottle Rocket (up smash). References live in the Captain drive's refs/.
+ * Fireboy, plus Rocket Ride (up special), Bottle Rocket (up smash), the shots and Duck Raft (down special). References
+ * live in the Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'raftwars',
@@ -92,6 +93,28 @@ export const scenarios: FighterScenarios = {
       motion: { before: 107, after: 12 },
       requires: ['move:sideB'],
       refs: ['smash/attack-active-*', `${RW}/ingame-aim-*`],
+    },
+    {
+      name: 'raftwars-duck-raft',
+      description:
+        'Duck Raft (down special) at the top of a full hop in mid-stage: the raft pops open under the kids and they stand in it.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'raftwars' }, { fighter: 'fireboy' }] },
+      patches: [{ port: 0, state: { pos: { x: 0, y: 0 }, facing: 1 } }],
+      script: [
+        { port: 0, from: 10, to: 16, buttons: ['jump'] },
+        { port: 0, from: 36, to: 38, y: -100, buttons: ['special'] },
+      ],
+      capture: {
+        label: "P1 move 'downB' frame 7, standing in the raft",
+        when: (s) => {
+          const f = s.fighters[0]!;
+          return f.move === 'downB' && f.actionFrame === 7 && f.ground?.kind === 'entity';
+        },
+      },
+      motion: { before: 33, after: 30 },
+      requires: ['move:downB'],
+      refs: ['smash/attack-active-*', `${RW}/ingame-raft-idle-*`],
     },
     {
       name: 'raftwars-aimed-shot',

@@ -36,10 +36,10 @@ export const DUCK_RAFT = {
   /** The hull's bottom, below the entity's centre. */
   bottom: 2.5,
   /**
-   * The entity's centre on the placing frame, from the feet (x forward, y up). On the ground: 14.5 ahead, the drawn
+   * The entity's centre on the placing frame, from the feet (x forward, y up). On the ground: 16.5 ahead, the drawn
    * hull and tail just clear of the kids, its hull resting on the floor. In the air: centred under them, its deck at
    * their feet.
    */
-  ground: { x: 14.5, y: 2.5 },
+  ground: { x: 16.5, y: 2.5 },
   air: { x: 0, y: -1 },
 } as const;

@@ -22,9 +22,9 @@ import {
 import { rig } from './rig';
 
 /**
- * Duck Raft (down special), on the move's frames: the big kid pulls the folded raft out with his near hand and lifts
- * it beside his head while his brother looks up at it (frame 2), slings it down in front of him (frame 3) and lets
- * go on frame 4, the frame the raft appears, in two puffs of air as it pops open. His brother cheers as he picks the
+ * Duck Raft (down special), on the move's frames: the big kid pulls the folded raft out with his near hand and swings
+ * it back low behind him while his brother peers down at it (frame 2), slings it underhand in front of him (frame 3)
+ * and lets go on frame 4, the frame the raft appears, in two puffs of air as it pops open. His brother cheers as he picks the
  * launcher back up. One clip serves the ground and the air: in the air the raft appears under their feet and they
  * land on it that frame, so they finish the move standing either way. Rig space: y down, feet at the origin, facing
  * right.
@@ -54,13 +54,13 @@ function toss(extra: Pose, hand: Pt, gun: number, back: Pt, front: Pt): Pose {
   return reachTo(pose, at(pose, 'gun', ...GRIP_FRONT), hand);
 }
 
-/** The folded raft lifted beside his head, his brother peering up at it. */
+/** The folded raft swung back low behind him for an underhand toss, his brother peering down at it. */
 const PULL = toss(
-  { body: { rot: -8, x: -0.4, y: 0.3 }, neck: { rot: -8 }, ...bro(-6, -14, -50, -10, -20, 0.2) },
-  [-1.6, -10.2],
+  { body: { rot: -6, x: -0.3, y: 0.4 }, neck: { rot: 4 }, ...bro(-4, 12, -60, -10, -10) },
+  [-3.6, -6.0],
   40,
-  [1.2, 0],
-  [-1.8, 0],
+  [1.4, 0],
+  [-1.6, 0],
 );
 /** Slung down and forward, about to let go. */
 const SLING = toss(
@@ -89,7 +89,7 @@ const SETTLE = toss(
 
 /** An effect bone's placement. */
 const place = (bone: string, x: number, y: number, s: number): Pose => ({ [bone]: fx(x, y, s) });
-/** The puffs: one where the ground raft pops open ahead of them, one at their feet. */
+/** The puffs: one above the rim of the ground raft as it pops open ahead of them, one at their feet. */
 const puffs = (ahead: [number, number, number], feet: [number, number, number]): Pose =>
   mix(place('fx1', ...ahead), place('fx2', ...feet));
 
@@ -101,14 +101,14 @@ export const duckRaftClips: Record<string, AnimClip> = {
     swaps: GRIN,
     keys: shortTurns([
       key(0, STAND, { ease: 'out' }),
-      key(2, PULL, { ease: 'in', swaps: { ...GRIT, broFace: 'broUp', held: 'raftBundle' } }),
+      key(2, PULL, { ease: 'in', swaps: { ...GRIT, held: 'raftBundle' } }),
       key(DUCK_RAFT.place - 1, SLING, { ease: 'linear', swaps: { ...SHOUT, held: 'raftBundle' } }),
-      key(DUCK_RAFT.place, mix(LET_GO, puffs([12.5, -3.2, 1.6], [1.0, -1.0, 0.9])), {
+      key(DUCK_RAFT.place, mix(LET_GO, puffs([13.0, -6.0, 1.6], [1.0, -1.0, 0.9])), {
         ease: 'out',
         swaps: { ...SHOUT, broFace: 'broCheer', ...OPEN_F, held: null, fx1: 'fxPuff', fx2: 'fxPuff' },
       }),
-      key(7, mix(LET_GO, puffs([13.5, -4.4, 2.3], [0.6, -1.4, 1.3])), { ease: 'in', swaps: { ...HAPPY } }),
-      key(10, mix(SETTLE, puffs([14.0, -5.4, 0.6], [0.4, -1.9, 0.4])), { ease: 'inOut' }),
+      key(7, mix(LET_GO, puffs([13.8, -7.2, 2.2], [0.6, -1.4, 1.3])), { ease: 'in', swaps: { ...HAPPY } }),
+      key(10, mix(SETTLE, puffs([14.2, -8.4, 0.6], [0.4, -1.9, 0.4])), { ease: 'inOut' }),
       key(11, undefined, { swaps: { ...HAPPY, fx1: null, fx2: null } }),
       key(DUCK_RAFT.faf - 1, STAND, { swaps: {} }),
     ]),

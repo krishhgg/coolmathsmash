@@ -188,6 +188,7 @@ describe('raft wars art', () => {
       'fthrow',
       'uthrow',
       'sideB',
+      'downB',
     ];
     const ground = [
       ...standing,
