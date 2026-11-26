@@ -1458,27 +1458,74 @@ export function turbo(seed: number): PathShape[] {
   ];
 }
 
+/** The bow wave's size as drawn: from the ground under the bumper out to its front, and its height over the bumper. */
+export const BOOM = { length: 20, height: 14 };
+
 /**
- * The bow wave a car shoves ahead of it at full throttle: a faint lens of pressed air bulging forward from the front
- * bumper, its foot on the ground at the origin and about 15 tall, ringed by three nested crescents of wind that
- * taper to points top and bottom, like his horn waves.
+ * The bow wave a car shoves ahead of it at full throttle: a faint dome of pressed air from the ground under his front
+ * bumper (the origin) out to its front BOOM.length ahead, BOOM.height tall over the bumper, with three arcs of wind
+ * spreading out from the bumper like his horn waves, each taller than the last. The air and the arcs fade in from the
+ * bumper and are brightest at their fronts; the outermost arc is the dome's inked edge, so the drawing ends exactly at
+ * its front.
  */
 export const boom: PathShape[] = (() => {
-  const CY = -7.2;
-  const RY = 7.8;
-  const half = (cx: number, rx: number) => ellipsePts(cx, CY, rx, RY, 0, -90, 90, 10);
-  const open = (pts: Pt[]) => [C(...pts[0]!), ...pts.slice(1, -1), C(...pts[pts.length - 1]!)];
-  /** A crescent between two half ellipses sharing their ends: thick at the front, pointed top and bottom. */
-  const crescent = (cx: number, rx: number, thick: number) => {
-    const out = half(cx, rx);
-    const inner = half(cx, rx - thick);
-    return curve([...open(out), ...open(inner).reverse().slice(1, -1)]);
+  const { length: L, height: H } = BOOM;
+  /** A quarter ellipse from the ground ahead (0 degrees) up over the bumper (90). */
+  const quarter = (rx: number, ry: number) => ellipsePts(0, 0, rx, ry, 0, 0, 90, 6);
+  /** An arc of wind along the quarter ellipse at `k` of the way out, `thick` at its middle and thinner at its ends. */
+  const arcOf = (k: number, thick: number) => {
+    const out = quarter(k * L, (0.55 + 0.45 * k) * H);
+    const inner = out.map(([x, y], i): Pt => {
+      const a = (i / (out.length - 1)) * (Math.PI / 2);
+      const t = thick * (0.3 + 0.7 * Math.sin(2 * a));
+      const r = Math.hypot(x, y);
+      return [x * (1 - t / r), y * (1 - t / r)];
+    });
+    return curve([
+      C(...out[0]!),
+      ...out.slice(1, -1),
+      C(...out[out.length - 1]!),
+      C(...inner[inner.length - 1]!),
+      ...inner.slice(1, -1).reverse(),
+      C(...inner[0]!),
+    ]);
   };
+  const streak = (y: number, x0: number, len: number) =>
+    fill(curve([C(x0, y - 0.12), C(x0 + len, y), C(x0, y + 0.12)]), {
+      type: 'linear',
+      x0,
+      y0: 0,
+      x1: x0 + len,
+      y1: 0,
+      stops: [
+        { offset: 0, color: 'speed', alpha: 0 },
+        { offset: 1, color: 'speed', alpha: 0.9 },
+      ],
+    });
+  /** `color` fading in from the bumper to `to` units ahead. */
+  const ahead = (color: string, to: number, from: number, alpha: number): Paint => ({
+    type: 'linear',
+    x0: 0,
+    y0: 0,
+    x1: to,
+    y1: 0,
+    stops: [
+      { offset: 0, color, alpha: from },
+      { offset: 1, color, alpha },
+    ],
+  });
+  const dome = quarter(L, H);
   return [
-    fill(curve(open(half(0, 5.8))), faded('turbo', 0.16)),
-    fill(crescent(-2.6, 3.6, 0.32), faded('speed', 0.7), 'turboLine', 0.05),
-    fill(crescent(-1.3, 4.7, 0.42), faded('speed', 0.8), 'turboLine', 0.06),
-    fill(crescent(0, 5.8, 0.55), faded('speed', 0.92), 'turboLine', 0.08),
+    fill(
+      curve([C(0, 0), C(...dome[0]!), ...dome.slice(1, -1), C(...dome[dome.length - 1]!)]),
+      ahead('turbo', L, 0, 0.2),
+    ),
+    streak(-2.2, 1.5, 9),
+    streak(-6.2, 0.8, 7),
+    streak(-10, 0.5, 4.5),
+    fill(arcOf(0.42, 0.4), ahead('speed', 0.42 * L, 0.05, 0.8)),
+    fill(arcOf(0.7, 0.5), ahead('speed', 0.7 * L, 0.05, 0.85)),
+    fill(arcOf(1, 0.65), ahead('speed', L, 0.15, 0.95), 'turboLine', 0.08),
   ];
 })();
 

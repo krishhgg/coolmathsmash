@@ -13,13 +13,8 @@ import { marioReference } from '../../sim/testing/reference';
 import { input, type Hold } from '../../sim/testing/sim';
 import { registerFighter } from '../registry';
 import { art } from './art';
-import {
-  FULL_THROTTLE,
-  FULL_THROTTLE_RANGE,
-  finalSmash,
-  finalSmashAir,
-  finalSmashCinematic,
-} from './finalSmash';
+import { finalSmash, finalSmashAir, finalSmashCinematic } from './finalSmash';
+import { FULL_THROTTLE, FULL_THROTTLE_RANGE } from './finalSmashData';
 
 registerFighter(marioReference);
 

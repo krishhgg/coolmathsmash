@@ -1,6 +1,6 @@
 import type { AnimClip, Key } from '../../../render/rig/types';
-import { FULL_THROTTLE } from '../finalSmash';
-import { BODY, EXHAUST, HORN, WHEEL_X } from './parts';
+import { FULL_THROTTLE, THROTTLE_BOXES } from '../finalSmashData';
+import { BODY, BOOM, EXHAUST, HORN, WHEEL_X } from './parts';
 import {
   AIR,
   ANGRY,
@@ -33,8 +33,9 @@ import {
  * - `finalSmash` / `finalSmashAir`: through the activation freeze he revs with the brake on, the way Rev Up revs (the
  *   shell shaking harder, smoke and flame from the pipe, the flash as the revs top out). On frame 26 he pops the
  *   clutch, and on 27-30 he crosses the Blue Falcon's boxes, stretched long behind a turbo jet and speed lines with a
- *   bow wave of air shoved ahead of his bumper over the boxes. Caught nobody: he stamps on the brakes, skids, and
- *   honks twice in annoyance (Captain Falcon "swings his fist in annoyance") before he settles.
+ *   bow wave of air shoved ahead of his bumper out to the front edge of that frame's box. Caught nobody: he stamps
+ *   on the brakes, skids, and honks twice in annoyance (Captain Falcon "swings his fist in annoyance") before he
+ *   settles.
  * - `finalSmashCinematic`, from the catch, with the caught fighter held just off his front bumper: the crash, then
  *   he reverses ten units for a run-up, revs, floors it and rams them (FULL_THROTTLE.ram), rears back and lets go a
  *   blast on the horn that is the final launch (FULL_THROTTLE.launch).
@@ -52,8 +53,18 @@ const CONTACT: [number, number] = [10.4, -5.6];
 
 /** The turbo jet (fxBack) out of the pipe, `s` times its drawn length. */
 const jet = (pose: Pose, s: number) => fxOn(pose, 'fx4', EXHAUST, s);
-/** The bow wave (fx2) standing on the ground at the front bumper. */
-const wave = (pose: Pose, s: number) => fxOn(pose, 'fx2', [9.3, -0.5], s);
+/** The box out on move frame `frame` (THROTTLE_BOXES); before the window, the first one. */
+const boxOn = (frame: number) => THROTTLE_BOXES.find((b) => b.frame === frame) ?? THROTTLE_BOXES[0]!;
+
+/**
+ * The bow wave (fx2) from the ground under his front bumper out to the front edge of the box out on `frame`, so the
+ * drawing shows how far ahead it catches: stretched along its length only, level, whatever the car's tilt.
+ */
+function wave(pose: Pose, frame: number): Pose {
+  const { x = 0, y = 0 } = fxOn(pose, 'fx2', [9.3, 0]).fx2!;
+  const box = boxOn(frame);
+  return mix(pose, { fx2: { x, y, sx: (box.x + box.radius - x) / BOOM.length, sy: 1, rot: 0 } });
+}
 /** Speed lines (fx3) streaming off the tail. */
 const lines = (pose: Pose, s: number) => fxOn(pose, 'fx3', [-8.9, 0], s);
 /** A backfire flame (`fx`, fxFlame) out of the pipe. */
@@ -126,8 +137,8 @@ function activation(air: boolean): AnimClip {
     keys.push(key(f, pose, { ease: 'linear', swaps: revSwaps(t, f - revFrom, t >= 0.4, f >= POP - 6) }));
   }
   /** The dash: stretched long and level, the turbo jet behind, the bow wave ahead and speed lines off the tail. */
-  const dash = (rot: number, dx: number, deg: number, s: number) =>
-    lines(wave(jet(mix(nose(rot, dx), squash(0.96, 1.1), spin(deg)), 1.5 * s), 0.95 + 0.1 * s), 1.1 * s);
+  const dash = (frame: number, rot: number, dx: number, deg: number, s: number) =>
+    lines(wave(jet(mix(nose(rot, dx), squash(0.96, 1.1), spin(deg)), 1.5 * s), frame), 1.1 * s);
   const dashSwaps = {
     ...SHOUT,
     ...BLUR,
@@ -157,10 +168,10 @@ function activation(air: boolean): AnimClip {
       ease: 'linear',
       swaps: { ...SHOUT, ...BLUR, fxBack: 'fxTurbo', fx1: 'fxFlame', fx2: null, fx3: null, prop: null },
     }),
-    key(POP + 1, dash(1.5, 1.2, 500, 1), { ease: 'linear', swaps: dashSwaps }),
-    key(POP + 2, dash(1, 1.6, 900, 1.1), { ease: 'linear' }),
-    key(POP + 3, dash(1.5, 1.8, 1300, 1.15), { ease: 'linear' }),
-    key(LAST, dash(1.2, 1.8, 1700, 1.2), { ease: 'linear' }),
+    key(POP + 1, dash(POP + 1, 1.5, 1.2, 500, 1), { ease: 'linear', swaps: dashSwaps }),
+    key(POP + 2, dash(POP + 2, 1, 1.6, 900, 1.1), { ease: 'linear' }),
+    key(POP + 3, dash(POP + 3, 1.5, 1.8, 1300, 1.15), { ease: 'linear' }),
+    key(LAST, dash(LAST, 1.2, 1.8, 1700, 1.2), { ease: 'linear' }),
     key(LAST + 1, brake(6, 0.8, 1.1), {
       ease: 'out',
       swaps: {
