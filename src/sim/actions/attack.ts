@@ -11,11 +11,12 @@ import {
   smashDir,
   specialDir,
   stickDir,
+  stickX,
   type Dir,
 } from '../control';
 import { emit } from '../events';
 import type { Ctx, FighterState } from '../fighter';
-import { HELPLESS_LANDING_LAG } from '../constants';
+import { HELPLESS_LANDING_LAG, SPECIAL_REVERSE } from '../constants';
 import { spawnFromMove } from '../entities/entities';
 import { leaveGround, normalLandingLag } from '../movement';
 import { fastFallCheck } from './air';
@@ -57,6 +58,7 @@ export function startMove(x: Ctx, requested: string, action?: string): boolean {
   x.f.hitEntities = [];
   x.f.moveStale = 0;
   x.f.charge = 0;
+  x.f.bReversible = false;
   return true;
 }
 
@@ -93,6 +95,37 @@ function turnFor(x: Ctx, dir: Dir): void {
   if (dir === 'back') x.f.facing = -x.f.facing as 1 | -1;
 }
 
+/** The main stick is at least SPECIAL_REVERSE.stickX behind the fighter. */
+function stickBehind(x: Ctx): boolean {
+  return stickX(x.c) * x.f.facing <= -SPECIAL_REVERSE.stickX;
+}
+
+/**
+ * Start the special for `dir` from a Special press. With the stick behind the fighter it turns around first and
+ * keeps its momentum (Ultimate's turnaround special); a back side special is the same turn. Neutral, side and down
+ * specials can then be B-reversed on their first frames (bReverse), up specials can't; `MoveDef.bReverse` overrides.
+ */
+function startSpecial(x: Ctx, dir: Dir): boolean {
+  const turn = stickBehind(x);
+  if (!startMove(x, SPECIAL[dir])) return false;
+  if (turn) x.f.facing = -x.f.facing as 1 | -1;
+  x.f.bReversible = moveOf(x.f)?.bReverse ?? dir !== 'up';
+  return true;
+}
+
+/**
+ * B-reverse (SPECIAL_REVERSE): the stick behind the fighter on frames 2-5 of a special, 1 to 4 frames after the press,
+ * turns it around and reverses its horizontal momentum, on the ground and in the air. Knockback still decaying from
+ * an earlier hit is not the fighter's own momentum and keeps its direction.
+ */
+function bReverse(x: Ctx): void {
+  const { f } = x;
+  if (!f.bReversible || !inWindow(f.actionFrame, SPECIAL_REVERSE.window) || !stickBehind(x)) return;
+  f.facing = -f.facing as 1 | -1;
+  f.vel.x = -f.vel.x;
+  f.bReversible = false;
+}
+
 /**
  * Grounded attack inputs, Smash style: Grab (or Attack with Shield held) grabs; the C-stick smashes; Attack with a
  * freshly flicked stick smashes, with a held stick tilts, and alone jabs; Attack while dashing or running is a
@@ -109,9 +142,7 @@ export function groundAttack(x: Ctx): boolean {
   }
   if (buffered(c, Btn.Special)) {
     consume(c, Btn.Special);
-    const dir = specialDir(c, f.facing);
-    turnFor(x, dir);
-    return startMove(x, SPECIAL[dir]);
+    return startSpecial(x, specialDir(c, f.facing));
   }
   if (!buffered(c, Btn.Attack)) return false;
   consume(c, Btn.Attack);
@@ -135,7 +166,7 @@ export function jumpSquatAttack(x: Ctx): boolean {
   }
   if (buffered(c, Btn.Special) && specialDir(c, f.facing) === 'up') {
     consume(c, Btn.Special);
-    return startMove(x, 'upB');
+    return startSpecial(x, 'up');
   }
   if (buffered(c, Btn.Attack) && smashDir(c, f.facing) === 'up') {
     consume(c, Btn.Attack);
@@ -154,9 +185,7 @@ export function airAttack(x: Ctx): boolean {
   }
   if (buffered(c, Btn.Special)) {
     consume(c, Btn.Special);
-    const dir = specialDir(c, f.facing);
-    turnFor(x, dir);
-    return startMove(x, SPECIAL[dir]);
+    return startSpecial(x, specialDir(c, f.facing));
   }
   if (!buffered(c, Btn.Attack)) return false;
   consume(c, Btn.Attack);
@@ -164,8 +193,8 @@ export function airAttack(x: Ctx): boolean {
 }
 
 /**
- * Per-frame move bookkeeping: hold the charge frame while Attack (or the C-stick) is held, reopen `rehit`
- * windows, spawn the frame's entities, run the move's script. Returns the move.
+ * Per-frame move bookkeeping: hold the charge frame while Attack (or the C-stick) is held, B-reverse a special,
+ * reopen `rehit` windows, spawn the frame's entities, run the move's script. Returns the move.
  */
 export function playMove(x: Ctx): MoveDef {
   const { f, c } = x;
@@ -175,6 +204,7 @@ export function playMove(x: Ctx): MoveDef {
     f.charge++;
     f.actionFrame--;
   }
+  bReverse(x);
   if (move.hits.some((w) => w.rehit && w.frames[0] === f.actionFrame)) {
     f.hitVictims = [];
     f.hitEntities = [];

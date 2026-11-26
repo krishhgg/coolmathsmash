@@ -223,6 +223,12 @@ export interface MoveDef {
   /** Airborne moves: false turns off the stick's air drift (and air friction) while the move plays, for scripted paths. */
   drift?: boolean;
   /**
+   * Specials: whether the move can be B-reversed (SPECIAL_REVERSE). Neutral, side and down specials can by default
+   * and up specials can't. Set false for the Ultimate analogues that can't, such as Falcon Punch, Warlock Punch and
+   * Mewtwo's Disable (SmashWiki "B-reversing"). The turnaround special on the press works either way.
+   */
+  bReverse?: boolean;
+  /**
    * Ground/air variants (Ultimate's SpecialN and SpecialAirN): started in the air, this move plays the move named
    * `air` instead, which is also the clip and the name in the `move` event.
    */

@@ -72,6 +72,8 @@ export interface FighterState {
   moveStale: number;
   /** Frames the current smash attack was charged (0-60). */
   charge: number;
+  /** The current move is a special started by Special that can still be B-reversed (SPECIAL_REVERSE). */
+  bReversible: boolean;
   /** Names of the last moves that hit, most recent first (stale-move negation). */
   staleQueue: string[];
   /** Intangibility from outside the current action (ledge grab, respawn), counting down. */
@@ -161,6 +163,7 @@ export function createFighter(
     hitEntities: [],
     moveStale: 0,
     charge: 0,
+    bReversible: false,
     staleQueue: [],
     intangible: 0,
     ledge: -1,
