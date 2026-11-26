@@ -4,7 +4,7 @@ import { addMeter, spendMeter } from '../meters';
 import { applyStatus } from '../statuses';
 import { marioReference } from './reference';
 
-const strike = (damage: number, status: string) => ({
+const strike = (damage: number, status: string, hitlag?: number) => ({
   id: 0,
   x: 8,
   y: 6,
@@ -14,6 +14,7 @@ const strike = (damage: number, status: string) => ({
   kbg: 30,
   bkb: 30,
   status,
+  ...(hitlag !== undefined && { hitlag }),
 });
 
 /**
@@ -44,6 +45,18 @@ export const testStatus = defineFighter({
         if (x.def.meters?.heat) addMeter(x.f, 'heat', 1);
       },
     },
+    /**
+     * Ultimate's paralysis (SmashWiki, "Paralyze"): floor(1 + knockback x hitlag multiplier x crouch) frames up to 90,
+     * frozen, ended by a later hit. The mash numbers are made up; Ultimate's paralysis has none.
+     */
+    stun: {
+      frames: 1,
+      perKnockback: 1,
+      max: 90,
+      freeze: true,
+      endOnHit: true,
+      mash: { stick: 4, button: 6 },
+    },
   },
   meters: {
     /** Three shots, spent by neutralB. */
@@ -60,6 +73,12 @@ export const testStatus = defineFighter({
     jab: { kind: 'other', faf: 20, hits: [{ frames: [3, 4], boxes: [strike(5, 'test-status/flower')] }] },
     /** A 4% strike that warms. */
     ftilt: { kind: 'other', faf: 20, hits: [{ frames: [3, 4], boxes: [strike(4, 'test-status/warm')] }] },
+    /** A 4% strike with x0.5 hitlag that stuns. */
+    dtilt: {
+      kind: 'other',
+      faf: 20,
+      hits: [{ frames: [3, 4], boxes: [strike(4, 'test-status/stun', 0.5)] }],
+    },
     /** Spends a shot on frame 1 to fire a flowering petal; empty, it fires nothing. */
     neutralB: {
       kind: 'other',
