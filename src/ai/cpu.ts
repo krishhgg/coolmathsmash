@@ -268,9 +268,14 @@ export class Cpu {
       return null;
     }
     if (p.t === 0 && !p.holds) {
-      const reused = (i.buttons & this.last.buttons) !== 0;
+      // A program's first press is let go for a frame when the last input held it, so the sim sees a new press. Not
+      // Shield held into a shield or its stun: the shield took the press it started with, and a new one there stays
+      // in the buffer, so a jump out of the shield air dodges with it on its first frame in the air.
+      const shielding = me.action === 'shield' || me.action === 'shieldStun';
+      const again = this.last.buttons & ~(shielding ? Btn.Shield : 0);
+      const reused = (i.buttons & again) !== 0;
       const cAgain = (i.cx !== 0 || i.cy !== 0) && (this.last.cx !== 0 || this.last.cy !== 0);
-      if (reused || cAgain) return { ...i, buttons: i.buttons & ~this.last.buttons, cx: 0, cy: 0 };
+      if (reused || cAgain) return { ...i, buttons: i.buttons & ~again, cx: 0, cy: 0 };
     }
     p.t++;
     return i;
@@ -668,12 +673,10 @@ export class Cpu {
       return true;
     }
     if (me.ground === null) {
-      if (!actionable(me)) return false;
-      if (!me.airDodgeUsed && threat.t <= 6) {
-        this.start(airDodge());
-        return true;
-      }
-      return false;
+      if (!actionable(me) || me.airDodgeUsed || threat.t > 6) return false;
+      const escape = this.airEscape(state, me, k, info);
+      if (escape) this.start(escape);
+      return escape !== null;
     }
     if (!actionable(me)) return false;
     const self: Self = { f: me, k, info, groundDelay: 0, jumpDelay: 0, state };
@@ -709,6 +712,31 @@ export class Cpu {
     }
     this.start(shield(hold));
     return true;
+  }
+
+  /**
+   * How to get out of a hit in the air, played out first on a copy of the match (airReturns): a neutral air dodge if
+   * the CPU gets back to the stage from where it leaves it, else an air dodge toward the stage (AIR_ESCAPES), else a
+   * double jump toward it. A neutral air dodge keeps the momentum it starts with and can't catch a ledge, so out of a
+   * hop toward the ledge or a dash off a platform it can carry the CPU past the ledge and under it. Null when nothing
+   * gets back: taking the hit is better than that.
+   */
+  private airEscape(
+    state: Readonly<MatchState>,
+    me: Readonly<FighterState>,
+    k: FighterKnowledge,
+    info: StageInfo,
+  ): Program | null {
+    const returns = (input: InputFrame) => airReturns(state, me, this.lv, this.last, input);
+    if (returns(press({ buttons: Btn.Shield }))) return airDodge();
+    const toward = Math.sign(info.centerX - me.pos.x) || me.facing;
+    for (const [x, y] of AIR_ESCAPES) {
+      if (returns(press({ x: toward * x, y, buttons: Btn.Shield }))) return airDodge(toward * x, y);
+    }
+    if (me.jumpsUsed < k.stats.jumps && returns(press({ x: toward * STICK.full, buttons: Btn.Jump }))) {
+      return fullHop('jumpBack', toward * STICK.full, 1, 20);
+    }
+    return null;
   }
 
   private shieldPunish(
@@ -1174,6 +1202,59 @@ function ledgeReturns(
   const g = m.fighters[0]!;
   if (pressed < 0 || g.action === 'ledgeCatch') return true;
   return g.ground !== null && standSafe(stageInfo(m), g.fighter, g.pos.x, g.pos.y);
+}
+
+/** Frames airReturns plays an air option out for at most: a directional air dodge straight up lasts 116. */
+const AIR_RETURN = 150;
+/**
+ * The sticks of the air dodges toward the stage that airEscape tries, in order, with x toward the stage: sideways,
+ * diagonally up, then diagonally down, each at full tilt (71 is 100 over the square root of 2). Sideways first: it
+ * flies level, without gravity, until its intangibility ends on frame 21, while one down onto the stage lands at once
+ * and stands in landing lag where the hit was coming.
+ */
+const AIR_ESCAPES: readonly (readonly [number, number])[] = [
+  [STICK.full, 0],
+  [71, 71],
+  [71, -71],
+];
+
+/**
+ * Whether pressing `input` in the air now leaves `me` somewhere it gets back to the stage from. It plays out on a copy
+ * of the match: the press (a frame later when `last`, the CPU's input last frame, already holds its button, as
+ * runProgram sends it), then the stick toward the stage while the fighter is within 10 units of the stage's ends or
+ * past them, as airIdle and the recovery steer. It runs until the fighter lands, catches a ledge, or can act again and
+ * is falling. Landed, it must be somewhere it can stand. Still in the air, it must be over the stage or have a
+ * recovery from there (planRecovery, without its random mistakes) that ends on the stage or a ledge. It draws no
+ * random numbers.
+ */
+function airReturns(
+  state: Readonly<MatchState>,
+  me: Readonly<FighterState>,
+  lv: CpuLevel,
+  last: InputFrame,
+  input: InputFrame,
+): boolean {
+  const m = soloMatch(state, me, state.players[me.port]!.control);
+  const { left, right, centerX } = stageInfo(state);
+  const at = (last.buttons & input.buttons) !== 0 ? 1 : 0;
+  const drive: Driver = (t, g) => {
+    if (t < at) return NEUTRAL;
+    if (t === at) return input;
+    const near = g.pos.x < left + 10 || g.pos.x > right - 10;
+    return press({ x: near ? Math.sign(centerX - g.pos.x) * STICK.full : 0 });
+  };
+  const done = (g: Readonly<FighterState>, t: number) =>
+    t > at && (g.ground !== null || g.action === 'ledgeCatch' || (actionable(g) && g.vel.y <= 0));
+  run(m, AIR_RETURN, drive, done);
+  const g = m.fighters[0]!;
+  if (g.action === 'ko' || g.action === 'out') return false;
+  if (g.action === 'ledgeCatch') return true;
+  const info = stageInfo(m);
+  if (g.ground !== null) return standSafe(info, g.fighter, g.pos.x, g.pos.y);
+  if (floorBelow(info, g.pos.x, g.pos.y) !== null) return true;
+  const k = knowledge(g.fighter, state.config.stage);
+  const sure = { ...lv, recoveryError: 0 };
+  return planRecovery(m, g, m.players[0]!.control, info, k, sure, { rng: 1 }).outcome !== 'fail';
 }
 
 /**
