@@ -230,8 +230,12 @@ export const GRAB = {
  */
 export const COUNTER = { multiplier: 1.2, max: 50, freeze: 21 };
 
-/** Hitstun cancel (Ultimate): air dodge out of tumble from frame 40 once the launch has slowed to 2.5 u/frame. */
-export const HITSTUN_CANCEL_AIR_DODGE = { from: 40, maxSpeed: 2.5 };
+/**
+ * Hitstun cancel (Ultimate): an air dodge out of tumble after 40 frames of hitstun (from frame 41) once the launch
+ * speed is below 2.5 u/frame. SmashWiki (Hitstun): "at least 40 frames" and "lower than 2.5"; params
+ * damage_fly_escape_frame 40, damage_fly_escape_speed 2.5; SSBU-Calculator HitstunCancel: max(i + 2, 40 + 1), lc < 2.5.
+ */
+export const HITSTUN_CANCEL_AIR_DODGE = { after: 40, below: 2.5 };
 /**
  * Hitstun cancel (Ultimate): an aerial out of tumble after 45 frames of hitstun (from frame 46) once the launch
  * speed is below 2 u/frame. SmashWiki (Hitstun): "at least 45 frames" and "lower than 2"; params
