@@ -4,8 +4,11 @@ import {
   DASH_SPEED_KEEP_FRAMES,
   DASH_THRESHOLD,
   DIRECTION_THRESHOLD,
+  HOLD_BUFFER,
+  INPUT_BUFFER_FRAMES,
   RUN_BRAKE_FRAMES,
   RUN_TURN_FRAMES,
+  TURN_DASH_FRAMES,
 } from '../constants';
 import { flickX, isHeld, stickX, stickY } from '../control';
 import { emit } from '../events';
@@ -40,6 +43,12 @@ function runToward(x: Ctx, sx: number): void {
     f.facing * s.runSpeed,
     over ? s.groundFriction : s.runAccelBase + s.runAccelAdd * sx,
   );
+}
+
+/** Turn an initial dash into a new initial dash the other way. */
+function dashBack(x: Ctx): void {
+  x.f.facing = -x.f.facing as 1 | -1;
+  setAction(x, 'dash');
 }
 
 export const GROUND: Record<string, ActionDef> = {
@@ -78,8 +87,10 @@ export const GROUND: Record<string, ActionDef> = {
 
   /**
    * Initial dash, dashFrames long: dash speed for its first DASH_SPEED_KEEP_FRAMES, then run physics, so a stick held
-   * forward eases it to run speed and a neutral or backward stick slides it out at traction. Flicking back restarts
-   * it the other way (dash dance).
+   * forward eases it to run speed and a neutral or backward stick slides it out at traction. A flick back on its first
+   * TURN_DASH_FRAMES frames restarts it the other way at once (dash dance). A later flick back is buffered: the dash
+   * plays on and restarts the other way on the frame it ends, if the flick is still in the input buffer then or the
+   * stick is still held back (Ultimate's hold buffer).
    */
   dash: {
     physics: 'ground',
@@ -87,14 +98,19 @@ export const GROUND: Record<string, ActionDef> = {
     friction: false,
     update(x) {
       const { f, s, c } = x;
+      if (f.actionFrame === 1) f.dashBackAt = 0;
       if (groundActionable(x)) return;
-      const fl = flickX(c, DASH_THRESHOLD);
-      if (fl === -f.facing) {
-        f.facing = fl as 1 | -1;
-        return setAction(x, 'dash');
-      }
       const sx = stickX(c) * f.facing;
-      if (f.actionFrame > s.dashFrames) return setAction(x, sx > 0 ? 'run' : 'idle');
+      if (flickX(c, DASH_THRESHOLD) === -f.facing) {
+        if (f.actionFrame <= TURN_DASH_FRAMES) return dashBack(x);
+        if (f.dashBackAt === 0) f.dashBackAt = f.actionFrame;
+      }
+      if (f.actionFrame > s.dashFrames) {
+        const inBuffer = f.dashBackAt > 0 && f.actionFrame - f.dashBackAt < INPUT_BUFFER_FRAMES;
+        const held = f.dashBackAt > 0 && HOLD_BUFFER && sx <= -DASH_THRESHOLD;
+        if (inBuffer || held) return dashBack(x);
+        return setAction(x, sx > 0 ? 'run' : 'idle');
+      }
       if (f.actionFrame <= DASH_SPEED_KEEP_FRAMES) f.vel.x = f.facing * s.dashInitialSpeed;
       else if (sx > 0) runToward(x, sx);
       else f.vel.x = approach(f.vel.x, 0, s.groundFriction);
