@@ -547,6 +547,16 @@ the Blue Falcon's hits as `holdHits` and its final launch as the `throw`.
   its attacks.
 - **Events.** Activation emits `finalSmash` after the `move` event, with the freeze length; a trap's catch is a
   `commandGrab` event (docs/sim-events.md).
+- **Stage-wide.** A Final Smash that reaches everyone near the user is a direct one with big boxes. Runner's Tunnel
+  Flip (`src/fighters/runner/finalSmash.ts`) is Peach Blossom: three rings of damage (30, 20 and 10% out to 25, 50 and
+  100 units, no knockback) on frames 40-61, then rings of 0% boxes with a freezing, mashable `endOnHit` status, one
+  status kind per stuck length since a box's status takes its length from the status. The status's `clip` draws the
+  stuck dazed in their `dizzy` clip (tumbling in the air). Its `final.freeze` is 38, so the hit lands on Peach
+  Blossom's own frame 40.
+- **View flips.** A Final Smash that turns the stage over does it in the renderer only: the art's `viewFlips` names
+  the move frames over which the backdrop and world mirror top to bottom and turn back (docs/art.md,
+  `src/render/viewFlip.ts`). Nobody's gravity or controls change, so the sim stays as it was. Runner's view turns over
+  on frames 40-61, stays upside down to 230 and is upright again on 247, the frame before she can act.
 - **Not built.** Ultimate's Final Smash Meter, the height boost after an aerial Final Smash, the solid-colour background
   for the whole move, and the close-up of the user's eyes.
 
@@ -789,6 +799,11 @@ dthrow: { ..., throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55
   in (armor took the hit) goes on when the freeze ends. It can still be hit by fighters, projectiles and stage hazards.
   On the frame a freeze goes on the fighter still acts, so it can be pushed and land hits then. The renderer shakes the
   fighter and flickers it in the status's `color`.
+- **Drawing.** `color` puts a badge beside the head. `clip` draws the fighter in another clip while the status is on,
+  in place of its action's, counted from the status's first frame: `{ ground, air }`, `air` defaulting to `ground`
+  (`statusClip` in `src/render/fighterView.ts`). Name a canonical clip every drawn fighter has (`dizzy`, `down`,
+  `tumble`); a fighter whose art lacks it keeps its own clip. Runner's Tunnel Flip leaves its victims in `dizzy` on the
+  ground and `tumble` in the air. It is presentation only: the sim never reads it.
 - **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status. With `endOnHit`, a later
   hit that lands (not on a shield), a pummel or a throw's hold hit included, takes it off, reported as `statusEnd` with
   reason `hit`. That hit's hitlag and launch take over, and no hit landing on the same frame can put the same status
