@@ -108,7 +108,7 @@ describe("The Duck: Running Ram (side special, Pikachu's Skull Bash)", () => {
     ['uncharged', 0, 1.6],
     ['fully charged', 80, 3.2],
   ] as const)(
-    '%s, flies %s units a frame through its hit frames, then slides to a stop',
+    '%s (%i charge frames): %s units a frame through its hit frames, then a slide to a stop',
     (_, frames, speed) => {
       const m = duck();
       const f = stand(m, 0, -78, 1);
