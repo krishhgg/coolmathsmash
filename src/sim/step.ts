@@ -1,4 +1,6 @@
 import './actions';
+// Every fighter, for the lookup in src/fighters/lookup.ts. Sim code a fighter's own modules import must not load them.
+import '../fighters/registry';
 import { tickMobility } from './actions/mobility';
 import { actionDef, runAction } from './actions/registry';
 import { dropLostTether, rideAnchor } from './actions/tether';

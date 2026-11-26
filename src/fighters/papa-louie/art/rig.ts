@@ -1,4 +1,5 @@
 import type { PathShape, Rig, Slot } from '../../../render/rig/types';
+import { conveyorSymbols } from './conveyor';
 import {
   FORE_ARM,
   SHIN,
@@ -154,6 +155,8 @@ export const rig: Rig = {
     parmesanSpray2: parmesanSpray[2]!,
     /** The spray's shreds streaming out, a third of a step every 3 frames. */
     parmesanSpray: { loop: ['parmesanSpray0', 'parmesanSpray1', 'parmesanSpray2'], fps: 20 },
+    /** Conveyor Oven, the Final Smash: the belt, its flour cloud and the oven's flipbook (conveyor.ts). */
+    ...conveyorSymbols,
   },
 };
 

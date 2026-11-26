@@ -1,4 +1,4 @@
-import { getFighter } from '../../fighters/registry';
+import { getFighter } from '../../fighters/lookup';
 import type { CounterDef, FighterStats, HitboxDef, MoveKind } from '../../fighters/types';
 import { moveOf } from '../actions/attack';
 import { chargeMultiplier } from '../actions/charge';
