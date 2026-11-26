@@ -164,6 +164,11 @@ export interface PropArt {
    */
   front?: string;
   /**
+   * Draw the whole prop behind the fighters (EntityView.back), so they read through it: Red Ball's Ball Rain balls,
+   * drawn as big as their radius-16 hitboxes, would otherwise cover whoever they fall on.
+   */
+  behind?: boolean;
+  /**
    * Where the lab's fighter scene draws it over the clips that fire it (in a match the engine spawns and moves it),
    * keyed by clip name.
    */

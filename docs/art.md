@@ -62,7 +62,8 @@ rig point `(6, -6)`.
   Props draw over fighters. A prop with a `front` symbol draws its `symbol` behind every fighter and its `front` over
   only the fighters standing on that entity, with everyone else over it (`layerFighters` in
   `src/render/entities.ts`): the Raft Wars kids' Duck Raft sits behind fighters, and its rim band covers the feet of
-  whoever stands in it and nobody else.
+  whoever stands in it and nobody else. Set `behind: true` to draw the whole prop behind the fighters, for one big
+  enough to cover whoever it hits: Red Ball's Ball Rain balls are as wide as their radius-16 hitboxes.
   Kinds without art draw the placeholder disc (`src/render/entities.ts`).
 - **Reticles.** `reticle` is a `PropArt` the renderer draws at the fighter's aim (`FighterState.aim`) during an
   aimed tether move (`TetherDef.aimed`), from the press until the line anchors or misses, in the port's costume
