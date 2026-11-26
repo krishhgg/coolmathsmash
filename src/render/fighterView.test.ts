@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { getFighter, registerFighter } from '../fighters/registry';
+import { allFighters, getFighter, registerFighter } from '../fighters/registry';
 import { defineFighter, type FighterDef } from '../fighters/types';
-import { SHIELD_MAX } from '../sim/constants';
+import { GETUP_ROLL, SHIELD_MAX, TECH_ROLL } from '../sim/constants';
+import { createFighter } from '../sim/fighter';
 import { quickGrapple, tetherTester } from '../sim/testing/tethers';
 import { attack, placeInAir, runPorts, testMatch, type Hold } from '../sim/testing/sim';
-import { clipFor, fighterArt, shieldRadius } from './fighterView';
+import { BADGE_BLINK_FRAMES, clipFor, fighterArt, shieldRadius, statusBadges } from './fighterView';
 
 describe('shieldRadius', () => {
   const fireboy = getFighter('fireboy');
@@ -17,6 +18,57 @@ describe('shieldRadius', () => {
   it('never goes negative when shield HP overshoots below zero during hitlag', () => {
     expect(shieldRadius(fireboy, -SHIELD_MAX)).toBe(0);
   });
+});
+
+describe('statusBadges', () => {
+  const squared = { kind: 'redball/squared', age: 1, since: 0, source: 0 };
+
+  it('draws one badge per status that has a colour, steady until its last second, then blinking', () => {
+    const f = createFighter(1, 'fireboy', [0, 0, 1], 3);
+    expect(statusBadges(f, 0)).toEqual([]);
+    f.statuses = [{ ...squared, frames: 300 }];
+    expect(statusBadges(f, 4)).toEqual(['#3b3b46']);
+    f.statuses = [{ ...squared, frames: BADGE_BLINK_FRAMES }];
+    expect(statusBadges(f, 0)).toEqual(['#3b3b46']);
+    expect(statusBadges(f, 4)).toEqual([]);
+  });
+});
+
+describe('clipFor on tech and getup rolls', () => {
+  const ROLLS = { techRoll: TECH_ROLL, getupRoll: GETUP_ROLL };
+  const rolling = Object.values(allFighters()).filter((def) => fighterArt(def)?.clips.techRoll);
+
+  /** The clip and clip frame for `action` on `frame`, facing `facing` and rolling `dir` times the facing. */
+  function pick(def: FighterDef, action: string, facing: 1 | -1, dir: 1 | -1, frame: number) {
+    const f = createFighter(0, def.id, [0, 0, facing], 3);
+    Object.assign(f, { action, actionFrame: frame, move: null, dodgeDir: { x: dir * facing, y: 0 } });
+    return clipFor(def, fighterArt(def)!, f);
+  }
+
+  it('covers every fighter with art that has roll clips', () => {
+    const without = Object.values(allFighters()).filter(
+      (def) => fighterArt(def) && !fighterArt(def)!.clips.techRoll,
+    );
+    for (const def of without) expect(fighterArt(def)!.clips.rollBack, def.id).toBeUndefined();
+    expect(rolling.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it.each(rolling.map((def) => [def.id, def] as const))(
+    '%s draws a backward tech or getup roll with its back roll, as long as the action',
+    (_, def) => {
+      for (const [action, { faf }] of Object.entries(ROLLS))
+        for (const facing of [1, -1] as const)
+          for (const [dir, want] of [
+            [1, action],
+            [-1, `${action}Back`],
+          ] as const) {
+            const label = `${def.id} ${action} facing ${facing} rolling ${dir * facing}`;
+            expect(pick(def, action, facing, dir, 1)[0], label).toBe(want);
+            expect(fighterArt(def)!.clips[want]!.length, label).toBe(faf - 1);
+            expect(pick(def, action, facing, dir, faf - 1), label).toEqual([want, faf - 1]);
+          }
+    },
+  );
 });
 
 describe('clipFor through a tether reel', () => {

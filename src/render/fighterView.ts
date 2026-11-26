@@ -3,8 +3,10 @@ import { isIntangible } from '../sim/actions/registry';
 import { SHIELD_MAX } from '../sim/constants';
 import type { FighterState } from '../sim/fighter';
 import type { MatchConfig } from '../sim/match';
+import { statusDef } from '../sim/statuses';
 import type { FighterDef } from '../fighters/types';
 import { PORT_COLORS } from './debug/inputDisplay';
+import { drawFinalGlow } from './items';
 import { moveClipFrame } from './rig/timing';
 import type { FighterArt } from './rig/types';
 import { createRigView, type RigView } from './rig/view';
@@ -23,6 +25,9 @@ const STAND_INS: Record<string, string> = {
   getupRoll: 'techRoll',
 };
 
+/** The clip each roll action draws when it rolls away from the fighter's facing (backRoll). */
+const BACK_ROLLS: Record<string, string> = { techRoll: 'techRollBack', getupRoll: 'getupRollBack' };
+
 /**
  * A tether's reel and hang keep the move's name and play on its clip (clipFor), unless the art has a clip named
  * after the action: that plays from the reel's own first frame instead (Red Ball's tongue reel).
@@ -31,6 +36,16 @@ const REEL_ACTIONS = new Set(['tetherPull', 'tetherHang']);
 
 export function fighterArt(def: FighterDef): FighterArt | undefined {
   return def.art as FighterArt | undefined;
+}
+
+/**
+ * Tech roll and getup roll travel along `dodgeDir` and keep the fighter's facing, so one away from the facing is a
+ * back roll. A back roll draws the fighter's `techRollBack` or `getupRollBack`, else its `rollBack`.
+ */
+function backRoll(art: FighterArt, f: FighterState): string | undefined {
+  const back = BACK_ROLLS[f.action];
+  if (!back || f.dodgeDir.x * f.facing >= 0) return undefined;
+  return art.clips[back] ? back : art.clips.rollBack ? 'rollBack' : undefined;
 }
 
 /**
@@ -46,13 +61,14 @@ function moveFrame(f: FighterState): number {
 }
 
 /**
- * The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. A tether move's clip
- * plays on through the reel, held on the clip's `reel` frame (AnimClip.reel) until the fighter arrives, unless the
- * art has its own clip for the reel (REEL_ACTIONS).
+ * The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. A tech or getup roll
+ * away from the facing draws a back roll (backRoll). A tether move's clip plays on through the reel, held on the
+ * clip's `reel` frame (AnimClip.reel) until the fighter arrives, unless the art has its own clip for the reel
+ * (REEL_ACTIONS).
  */
 export function clipFor(def: FighterDef, art: FighterArt, f: FighterState): [string, number] {
   const reeling = REEL_ACTIONS.has(f.action);
-  const own = f.move && !(reeling && art.clips[f.action]) ? f.move : f.action;
+  const own = f.move && !(reeling && art.clips[f.action]) ? f.move : (backRoll(art, f) ?? f.action);
   const name = art.clips[own] ? own : (STAND_INS[own] ?? 'idle');
   const clip = art.clips[name];
   if (!clip || !f.move || name !== f.move) return [name, f.actionFrame];
@@ -83,6 +99,19 @@ export function shieldRadius(def: FighterDef, shieldHp: number): number {
   return Math.max(0, def.stats.shieldSize * ((shieldHp / SHIELD_MAX) * 0.85 + 0.15));
 }
 
+/** Badges blink for the last second of a status. */
+export const BADGE_BLINK_FRAMES = 60;
+const BADGE = 3.2;
+
+/** The badge colours to draw this frame: one per status with a `color`, oldest first, blinking near their end. */
+export function statusBadges(f: FighterState, frame: number): string[] {
+  return f.statuses.flatMap((s) => {
+    const color = statusDef(s.kind).color;
+    if (!color || (s.frames <= BADGE_BLINK_FRAMES && frame % 8 >= 4)) return [];
+    return [color];
+  });
+}
+
 /** Frames the parry flash lasts (render only; Ultimate shows a bright flash on the parrying fighter). */
 export const PARRY_FLASH_FRAMES = 12;
 
@@ -93,6 +122,10 @@ export class FighterView {
   private readonly art: FighterArt | undefined;
   private readonly rig: RigView | null;
   private readonly shield = new Graphics();
+  /** The rainbow aura of a fighter holding a Final Smash charge (FighterState.finalReady). */
+  private readonly glow = new Graphics();
+  /** Status badges beside the head (the overhead tag takes the space above it). */
+  private readonly badges = new Graphics();
   private readonly shieldColor: string;
   /** The colour flash (smash charge, respawn invincibility); never made in `lite`, where it is the blink instead. */
   private flash: ColorMatrixFilter | null = null;
@@ -131,7 +164,7 @@ export class FighterView {
     this.top = this.art?.height ?? h;
     this.label.position.set(0, -this.top - 5);
     this.label.visible = false;
-    this.container.addChild(this.body, this.shield, this.parryFlash, this.label);
+    this.container.addChild(this.glow, this.body, this.shield, this.parryFlash, this.badges, this.label);
   }
 
   /** Start the parry flash; `frame` is the match frame after the parry. */
@@ -169,6 +202,9 @@ export class FighterView {
     }
     if (this.flashing !== k > 0) this.body.filters = k > 0 ? [this.flash!] : [];
     this.flashing = k > 0;
+    this.glow.clear();
+    this.glow.position.set(jx, jy);
+    if (f.finalReady) drawFinalGlow(this.glow, this.def.stats.width, this.top, frame);
     this.shield.clear();
     if (f.action === 'shield' || f.action === 'shieldStun') {
       const cracked = f.shieldHp <= 0;
@@ -188,6 +224,15 @@ export class FighterView {
         );
     }
     this.drawParryFlash(frame - this.parryAt);
+    this.badges.clear();
+    const bx = this.def.stats.width / 2 + 1.2;
+    statusBadges(f, frame).forEach((color, i) => {
+      const y = -this.top + 0.6 + i * (BADGE + 0.8);
+      this.badges
+        .roundRect(bx, y, BADGE, BADGE, 0.5)
+        .fill(color)
+        .stroke({ color: '#ffffff', width: 0.45, alpha: 0.9 });
+    });
     this.label.visible = debug;
     if (debug) this.label.text = `${f.move ?? f.action} ${f.actionFrame}`;
   }
