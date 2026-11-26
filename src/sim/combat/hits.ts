@@ -245,6 +245,24 @@ export function applyHit(
 }
 
 /**
+ * Land `box` from `a`'s current move on `v` at `at` as a hitbox touching `v` would, for a hit a move script finds
+ * itself (Fluffy's Point Grapple flying into its target): a shield takes it as a shield hit, a shield drop's
+ * parry window parries it, and armor holds as usual. Unlike applyHit, which no shield stops (throws).
+ */
+export function contactHit(
+  m: MatchState,
+  a: FighterState,
+  v: FighterState,
+  box: HitboxDef,
+  at: { x: number; y: number },
+): void {
+  const h = connection(a, v, box, at, m.frame);
+  if (h.parry) parry(m, h, false);
+  else if (h.shielding) shieldHit(m, h, false);
+  else hit(m, h, false);
+}
+
+/**
  * Find every hit this frame from the state before any of them lands, then apply them all, so two fighters
  * whose moves connect on the same frame trade. Each move hits a fighter once (per rehit window), lowest
  * hitbox id first. Grab boxes are found from the same state and resolved after the hits (grab.ts), so an

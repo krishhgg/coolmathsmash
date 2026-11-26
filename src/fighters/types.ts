@@ -151,6 +151,11 @@ export interface TetherDef {
   aimed?: { speed: number; quick?: { frames: number } };
   /** What the line may anchor to; hitting anything else stops it. */
   latch: TetherLatch[];
+  /**
+   * Sky anchors allowed per airtime (FighterState.skyAnchorsUsed, shared by all the fighter's tether moves). With
+   * none left a sky shot whiffs. Landing, or a ledge or surface latch, gives them back. Unset: no limit.
+   */
+  skyAnchors?: number;
   /** Reel speed towards the anchor, units per frame. */
   pullSpeed: number;
   /** Holding this button when the reel arrives keeps the fighter hanging at the anchor. */

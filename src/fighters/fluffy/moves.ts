@@ -1,3 +1,4 @@
+import { contactHit } from '../../sim/combat/hits';
 import { HELPLESS_LANDING_LAG } from '../../sim/constants';
 import type { HitboxDef, MoveDef } from '../types';
 import { CANDY_SPEED } from './entities';
@@ -19,6 +20,23 @@ type Hit = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius'>;
 
 /** Quick Grapple's last airborne stall frame: the shot on 8 plus its 10 travel frames, when the line has landed or missed. */
 const QUICK_GRAPPLE_STALL = 18;
+
+/** Sky anchors per airtime, shared by Point Grapple and Quick Grapple (roster sheet 8). */
+export const SKY_ANCHORS = 3;
+
+/**
+ * Point Grapple's fly-in when the line reaches a fighter: the roster's 10%, with the knockback of Corrin's Dragon
+ * Lunge kick (55 degrees, 98 growth, 70 base; SSBU-Calculator's hitbox data, the kick's first hit), where Corrin,
+ * stuck to a foe or a wall by the spear, flies forward into a kick. It launches away from Fluffy, whichever way he
+ * came in.
+ */
+export const GRAPPLE_KICK: HitboxDef = box(0, 0, 0, 0, {
+  damage: 10,
+  angle: 55,
+  kbg: 98,
+  bkb: 70,
+  direction: 'away',
+});
 
 /**
  * The grabber line: count boxes evenly spaced from the tip at to back to from (forward units) at height y. The tip
@@ -456,11 +474,45 @@ export const moves: Record<string, MoveDef> = {
     spawn: [{ frame: 14, entity: 'candy', x: 8.5, y: 5.5, vx: CANDY_SPEED, max: 1 }],
   },
   /**
+   * Point Grapple (neutral special, roster sheet 8): holding special walks IQ Ball's reticle out from him with the
+   * stick at 6 units a frame, up to 160, while he keeps drifting; releasing it fires the grabber at the reticle on
+   * frame 12, and the line reaches it 12 frames later (the clip's timing). A quick tap with a direction fires the full
+   * 160 that way. A ledge, floor, wall or platform reels him in at 4 units a frame, and holding Jump there hangs from
+   * the line. Empty air at the reticle anchors too, using one of his SKY_ANCHORS. A fighter in the way stops the line
+   * and he flies into them for GRAPPLE_KICK, which a shield blocks. Not helpless: letting go ends in a fall.
+   */
+  neutralB: {
+    kind: 'other',
+    faf: 51,
+    hits: [],
+    tether: {
+      frame: 12,
+      range: 160,
+      travel: 12,
+      angle: 0,
+      aimed: { speed: 6, quick: { frames: 6 } },
+      latch: ['ledge', 'surface', 'sky'],
+      skyAnchors: SKY_ANCHORS,
+      pullSpeed: 4,
+      hang: 'jump',
+      targetsFighters: true,
+      onFighter({ m, f }, target, event) {
+        if (event.phase === 'hit') return 'pullSelf';
+        contactHit(m, f, target, GRAPPLE_KICK, event.point);
+      },
+    },
+    // He turns to the side the reticle is on, so the drawn grabber points the way the line goes.
+    script({ f }) {
+      if (!f.tether && f.aim && Math.abs(f.aim.x) >= 1) f.facing = f.aim.x > 0 ? 1 : -1;
+    },
+  },
+  /**
    * Quick Grapple (up special, roster sheet 8): the grabber fires straight up on frame 8 and reaches 120 units in 10
    * frames, bent up to 30 degrees by the stick. A ledge it passes reels him into a ledge grab; a floor, wall or
-   * platform reels him to it, and holding Jump there hangs from the line. It is his recovery, so letting go of the
-   * line or a shot that finds nothing in range ends in helpless fall, as an up special does in Ultimate. In the air
-   * he stops falling while the grabber flies (QUICK_GRAPPLE_STALL), so a shot from below the ledge still reaches it.
+   * platform reels him to it, and holding Jump there hangs from the line. Empty air at full range anchors too, using
+   * one of Point Grapple's SKY_ANCHORS. It is his recovery, so letting go of the line or a shot that finds nothing
+   * ends in helpless fall, as an up special does in Ultimate. In the air he stops falling while the grabber flies
+   * (QUICK_GRAPPLE_STALL), so a shot from below the ledge still reaches it.
    */
   upB: {
     kind: 'other',
@@ -475,7 +527,8 @@ export const moves: Record<string, MoveDef> = {
       travel: 10,
       angle: 90,
       stickAdjust: 30,
-      latch: ['ledge', 'surface'],
+      latch: ['ledge', 'surface', 'sky'],
+      skyAnchors: SKY_ANCHORS,
       pullSpeed: 4,
       hang: 'jump',
     },

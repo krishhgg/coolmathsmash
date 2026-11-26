@@ -33,9 +33,14 @@ const toward = (t: number): Pt => [TARGET[0] * (1 - 0.6 * t), TARGET[1] * (1 - 0
 const from: Pt = [1.5, -6.5];
 
 export const SPECIALS: Record<string, AnimClip> = {
-  /** Point Grapple: aims IQ Ball's reticle, fires the grabber at it, latches, and is reeled up the line. */
+  /**
+   * Point Grapple: aims IQ Ball's reticle, fires the grabber at it, latches, and is reeled up the line. The line
+   * anchors by 23 at the latest (fired on 12, 12 frames out), so a long reel holds on 28, pulled along with the line
+   * still nearly at full length, until the reel arrives.
+   */
   neutralB: {
     length: 50,
+    reel: 28,
     swaps: FOCUS,
     keys: [
       key(0, ball({ look: [0.3, -0.2], fx2: at(10, -9, 0.2) }), {

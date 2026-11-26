@@ -116,6 +116,8 @@ export interface FighterState {
   } | null;
   /** A tether's target as an offset from the fighter: the reticle while aiming, then where the line is going. */
   aim: Vec | null;
+  /** Sky anchors taken this airtime (TetherDef.skyAnchors); landing or a ledge or surface latch resets it. */
+  skyAnchorsUsed: number;
   /** Frames before stage hazards (damage zones, stage hitboxes) can hit this fighter again. */
   stageHitLock: number;
 }
@@ -177,6 +179,7 @@ export function createFighter(
     mobility: createMobility(getFighter(fighterId)),
     tether: null,
     aim: null,
+    skyAnchorsUsed: 0,
     stageHitLock: 0,
   };
 }
