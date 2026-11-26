@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { activeHitboxes } from '../../sim/combat/hits';
+import { DASH_SPEED_KEEP_FRAMES } from '../../sim/constants';
 import type { FighterState } from '../../sim/fighter';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
 import { koPercent, type KoHit, type KoSetup } from '../../sim/testing/ko';
@@ -47,10 +48,11 @@ describe('Red Ball: attributes (roster sheet)', () => {
     expect(f.vel.y).toBeLessThan(vy);
   });
 
-  it('rolls up to top speed slowly: about 30 frames of running from the end of the dash', () => {
+  it('rolls up to top speed slowly: about 30 frames from the end of the dash speed hold', () => {
     const m = redball();
     const f = m.fighters[0]!;
-    until(m, (g) => g.action === 'run', { x: 100 });
+    // The run acceleration starts once the dash stops holding its speed (Ultimate's dash_speed_keep_frame).
+    until(m, (g) => g.action === 'dash' && g.actionFrame === DASH_SPEED_KEEP_FRAMES, { x: 100 });
     const frames = until(m, (g) => Math.abs(g.vel.x) >= stats.runSpeed - 1e-9, { x: 100 });
     expect(frames).toBeGreaterThanOrEqual(26);
     expect(frames).toBeLessThanOrEqual(34);
