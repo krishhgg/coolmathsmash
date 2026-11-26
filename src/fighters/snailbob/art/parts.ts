@@ -697,9 +697,9 @@ export const spinRing: PathShape[] = [
 ];
 /**
  * Shell Spin's whirl around a ball of radius about 5 centred on the origin: a pale smear over its top, bright at
- * the leading (front) end like spinRing's, and three motion streaks 60 degrees apart, advanced `step` degrees.
- * It stays above the ball's centre, so it never cuts into the floor under a grounded roll. Three cels 20 degrees
- * apart repeat the pattern exactly, so the loop reads as one steady clockwise spin.
+ * the leading (front) end like spinRing's, and motion streaks every 60 degrees, advanced `step` degrees and cut
+ * to the top. It stays above the ball's centre, so it never cuts into the floor under a grounded roll. Three cels
+ * 20 degrees apart repeat the pattern exactly, so the loop reads as one steady clockwise spin.
  */
 function revRingAt(step: number): PathShape[] {
   const streaks = [-60, 0, 60, 120, 180]

@@ -104,13 +104,13 @@ const RIM = [...shell, ...lipHole].flatMap((s) => flattenPath(s.d, 4)).flat();
  * The ball turned `deg` clockwise and scaled (sx, sy), lifted or lowered so the lowest point of its rim sits on
  * the floor: the shell is no circle, so rolling it on a fixed pivot would sink its corners into the stage.
  */
-function rolled(deg: number, sx = 1, sy = 1, extra: Pose = {}): Pose {
+function rolled(deg: number, sx = 1, sy = 1): Pose {
   const r = (deg * Math.PI) / 180;
   let low = -Infinity;
   for (let i = 0; i < RIM.length; i += 2)
     low = Math.max(low, sx * RIM[i]! * Math.sin(r) + sy * RIM[i + 1]! * Math.cos(r));
   const y = -BODY_Y - low;
-  return mix(BALL, { body: { rot: deg, sx, sy, y } }, extra);
+  return mix(BALL, { body: { rot: deg, sx, sy, y } });
 }
 
 /** Frames of src/fighters/snailbob/moves.ts: SPIN_REV_FRAME (held while Special is held) and SPIN_ROLL. */
@@ -119,7 +119,7 @@ const ROLL: [number, number] = [12, 44];
 /** The roll's turn: from the rev's upright shell through three more turns, ending upright again. */
 const ROLL_TURNS = 3;
 const ROLL_END = 360 * (1 + ROLL_TURNS);
-/** The smear and the speed lines that ride with the ball. */
+/** The whirl (fx1) centred on the ball, whose centre is at rig height `y`. */
 const ringAt = (y: number): Pose => ({ fx1: at(0, y, 0, 1.0) });
 const SPIN_FX = { ...SPINNING, fx1: 'revRing' };
 
@@ -179,9 +179,18 @@ const sideB: AnimClip = (() => {
     key(45, rolled(ROLL_END + 25), { ease: 'out', swaps: SPINNING }),
     key(47, rolled(ROLL_END), { ease: 'out', swaps: IN_SHELL }),
     key(
-      50,
-      mix(CROUCH, { body: { rot: ROLL_END }, neck: { rot: -10, sy: 0.75 } }, stalks(-20, 16, -12, 14, 0.7)),
+      48,
+      mix(
+        CROUCH,
+        { body: { rot: ROLL_END }, shell: { y: 1.8, sx: 1.06, sy: 0.92 }, neck: { rot: -20, sy: 0.55 } },
+        stalks(-30, 20, -20, 20, 0.45),
+      ),
       { ease: 'out', swaps: HAPPY },
+    ),
+    key(
+      51,
+      mix(CROUCH, { body: { rot: ROLL_END }, neck: { rot: -10, sy: 0.75 } }, stalks(-20, 16, -12, 14, 0.7)),
+      { ease: 'inOut' },
     ),
     key(59, mix(STAND, { body: { rot: ROLL_END } })),
   );
