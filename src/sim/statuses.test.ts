@@ -274,16 +274,19 @@ describe('statuses: coats', () => {
   });
 
   it.each([
-    [0, 1],
-    [12, 1 + 12 / 360],
-    [90, 1.25],
-    [180, 1.5],
-    [300, 1.5],
-  ])("at %s units the fighter takes x%s damage, ink's 1 + level x 0.5 / 180 up to 1.5", (level, mul) => {
-    const { m, v } = versus(3);
-    if (level) applyStatus(m, v, INK, { level });
-    expect(land(m, v, 'ftilt')).toBeCloseTo(4 * 1.05 * mul, 9);
-  });
+    [0, '1', 1],
+    [12, '1.033', 1 + 12 / 360],
+    [90, '1.25', 1.25],
+    [180, '1.5', 1.5],
+    [300, '1.5', 1.5],
+  ])(
+    "at %s units the fighter takes ink's 1 + level x 0.5 / 180 times the damage, at most 1.5 (x%s)",
+    (level, _, mul) => {
+      const { m, v } = versus(3);
+      if (level) applyStatus(m, v, INK, { level });
+      expect(land(m, v, 'ftilt')).toBeCloseTo(4 * 1.05 * mul, 9);
+    },
+  );
 
   it("doesn't change the hit's knockback, and multiplies every source of %, a status tick's included", () => {
     const kb = (level: number) => {

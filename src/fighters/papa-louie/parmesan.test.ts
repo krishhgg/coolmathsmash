@@ -159,14 +159,14 @@ describe("Papa Louie: Cheesed (Inkling's ink)", () => {
   }
 
   it.each([
-    [0, 1],
-    [12, 1 + 1 / 30],
-    [108, 1.3],
-    [180, 1.5],
-    [300, 1.5],
+    [0, '1', 1],
+    [12, '1.033', 1 + 1 / 30],
+    [108, '1.3', 1.3],
+    [180, '1.5', 1.5],
+    [300, '1.5', 1.5],
   ])(
     "at %s units he takes x%s damage from any hit, ink's 1 + coat x 0.5 / 180 up to x1.5, at the same knockback",
-    (level, mul) => {
+    (level, _, mul) => {
       const hit = swipe(level);
       expect(hit.added).toBeCloseTo(9 * 1.05 * 1.2 * mul, 9);
       expect(hit.kb).toBe(swipe(0).kb);
