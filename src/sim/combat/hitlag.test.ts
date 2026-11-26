@@ -23,7 +23,12 @@ function stand(f: FighterState, x: number, facing: 1 | -1): void {
 function pointBlank(players: number): { m: MatchState; a: FighterState; v: FighterState } {
   const m = testMatch({ players });
   const [a, v] = m.fighters as [FighterState, FighterState];
-  expect([a.action, v.action, a.ground, v.ground]).toEqual(['idle', 'idle', expect.anything(), expect.anything()]);
+  expect([a.action, v.action, a.ground, v.ground]).toEqual([
+    'idle',
+    'idle',
+    expect.anything(),
+    expect.anything(),
+  ]);
   stand(a, -4, 1);
   stand(v, 0, -1);
   attack(m, 0, 'probe');
