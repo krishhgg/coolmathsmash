@@ -14,7 +14,7 @@ import type { CompiledStage } from '../stage';
 import { destroyEntity, entityDef, entityHitboxes, sweepEntities } from '../entities/entities';
 import type { EntityState } from '../entities/types';
 import { leaveGround, restoreAirOptions, surfaceRange, surfaceY } from '../movement';
-import { applyStatus, endStatusesOnHit } from '../statuses';
+import { applyStatus, damageTaken, endStatusesOnHit } from '../statuses';
 import {
   AUTOLINK,
   AUTOLINK_GROUND_ANGLE,
@@ -369,9 +369,13 @@ function windPush({ v, box, shielding, percent, crouch, dir, rage }: Connection)
   if (!v.ground) v.kb.y += Math.sin(theta) * speed;
 }
 
-/** Add `damage` to a fighter's meter: x1.2 in 1v1 (the meter only), capped at 999%. */
+/**
+ * Add `damage` to a fighter's meter: x1.2 in 1v1 and x its statuses' damageTaken (the meter only, not knockback),
+ * capped at 999%.
+ */
 export function addDamage(m: MatchState, v: FighterState, damage: number): void {
-  v.damage = Math.min(DAMAGE_MAX, v.damage + damage * (m.players.length === 2 ? ONE_V_ONE_DAMAGE : 1));
+  const mul = (m.players.length === 2 ? ONE_V_ONE_DAMAGE : 1) * damageTaken(v);
+  v.damage = Math.min(DAMAGE_MAX, v.damage + damage * mul);
 }
 
 /** What a hit does to its victim, whoever or whatever dealt it (a fighter's move, a stage hazard). */
