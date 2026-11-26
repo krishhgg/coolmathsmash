@@ -203,7 +203,7 @@ const sideB: AnimClip = (() => {
  * The remote draws behind his eyestalks, so his eyes stay in front as he looks at it, and behind his front arm, so
  * his fist closes over its grip.
  */
-const REMOTE_Z = { fx1: rig.slots.findIndex((s) => s.name === 'stalkB1Line') - 0.5 };
+export const REMOTE_Z = { fx1: rig.slots.findIndex((s) => s.name === 'stalkB1Line') - 0.5 };
 /** The red button and the antenna tip, in the remote's own space (parts.ts). */
 const BUTTON: [number, number] = [0, -1.98];
 const ANTENNA: [number, number] = [0.63, -4.42];
@@ -214,7 +214,7 @@ const REMOTE = 1.5;
  * Holding the remote up in his front fist with its grip at (x, y), tilted `deg`, scaled `s`: the click (fx3) sits
  * on the button and the radio waves (fx2) on the antenna tip.
  */
-function holding(base: Pose, x: number, y: number, deg = 0, s = REMOTE): Pose {
+export function holding(base: Pose, x: number, y: number, deg = 0, s = REMOTE): Pose {
   const r = (deg * Math.PI) / 180;
   const on = ([px, py]: [number, number]): [number, number] => [
     x + s * (px * Math.cos(r) - py * Math.sin(r)),
@@ -229,29 +229,37 @@ function holding(base: Pose, x: number, y: number, deg = 0, s = REMOTE): Pose {
 }
 
 /** Pleased with himself, eyes on the remote. */
-const PROUD: Pose = mix({ neck: { rot: -6 }, head: { rot: -4 } }, stalks(-6, 6, 0, 8), look(0.3, 0.35));
+export const PROUD: Pose = mix(
+  { neck: { rot: -6 }, head: { rot: -4 } },
+  stalks(-6, 6, 0, 8),
+  look(0.3, 0.35),
+);
 /** Winding up to press: leaning back a little, the remote lifted. */
-const WIND: Pose = mix(
+export const WIND: Pose = mix(
   { shell: { rot: -7, x: -0.5 }, neck: { rot: -12 }, head: { rot: -6 } },
   stalks(-10, 4, -4, 6, 1.03),
   look(0.3, 0.3),
 );
 /** The press: leaning onto the button, squashed. */
-const PRESS: Pose = mix(
+export const PRESS: Pose = mix(
   { shell: { rot: 4, x: 0.3, y: 0.3, sx: 1.03, sy: 0.96 }, foot: { sx: 1.03 }, neck: { rot: 6, sy: 0.95 } },
   stalks(4, 6, 8, 6, 0.97),
   look(0.35, 0.4),
 );
 /** Looking up and ahead for the crate. */
-const SKYWARD: Pose = mix(
+export const SKYWARD: Pose = mix(
   { shell: { rot: -4 }, neck: { rot: -4 }, head: { rot: -6 } },
   stalks(-6, -2, -2, 0, 1.06),
   look(0.3, -0.6),
 );
 /** Following it down to the landing spot ahead. */
-const TRACK: Pose = mix({ neck: { rot: 4 }, head: { rot: 2 } }, stalks(-2, 2, 2, 4, 1.03), look(0.5, 0.05));
+export const TRACK: Pose = mix(
+  { neck: { rot: 4 }, head: { rot: 2 } },
+  stalks(-2, 2, 2, 4, 1.03),
+  look(0.5, 0.05),
+);
 /** The crate lands: a flinch, stalks thrown back. */
-const FLINCH: Pose = mix(
+export const FLINCH: Pose = mix(
   {
     shell: { rot: -8, x: -0.5, y: 0.35, sx: 1.03, sy: 0.95 },
     foot: { sx: 1.03 },
@@ -261,8 +269,8 @@ const FLINCH: Pose = mix(
   look(0.45, 0),
 );
 
-const REMOTE_ON = { ...FIST_F, fx1: 'remote' };
-const PRESSED = { ...FIST_F, fx1: 'remotePressed' };
+export const REMOTE_ON = { ...FIST_F, fx1: 'remote' };
+export const PRESSED = { ...FIST_F, fx1: 'remotePressed' };
 
 /**
  * Crate Drop: he pops a yellow crane remote out into his fist, winds up and jabs its big red button (frame 12),
