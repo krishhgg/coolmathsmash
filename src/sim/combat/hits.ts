@@ -13,7 +13,7 @@ import type { MatchState } from '../match';
 import { destroyEntity, entityDef, entityHitboxes, sweepEntities } from '../entities/entities';
 import type { EntityState } from '../entities/types';
 import { leaveGround } from '../movement';
-import { applyStatus } from '../statuses';
+import { applyStatus, endStatusesOnHit } from '../statuses';
 import {
   AUTOLINK,
   AUTOLINK_GROUND_ANGLE,
@@ -23,6 +23,7 @@ import {
   AUTOLINK_SPEED_MAX,
   AUTOLINK_VORTEX_FRAMES,
   AUTOLINK_VY_MIN,
+  HITLAG,
   hitlagFrames,
   hitstunFrames,
   isAutolink,
@@ -351,14 +352,15 @@ export interface Strike {
  * on one victim on the same frame (`again`), the strongest knockback is the launch and the longest hitlag is
  * the freeze. An armored victim takes hits below both its thresholds without launching; the hit that breaks through
  * adds only `breakDamageMul` of its damage, judged and launched on the full damage. A held fighter stays in the grab,
- * the damage counting toward breaking it. Returns the knockback, the hitlag and the % added.
+ * the damage counting toward breaking it. The hit takes off the victim's statuses that end on a hit. Returns the
+ * knockback, the hitlag, the % added and the kinds of status it took off.
  */
 export function strike(
   m: MatchState,
   v: FighterState,
   { box, damage: base, stale, rage, dir, percent, crouch, armor, link }: Strike,
   again: boolean,
-): { kb: number; lag: number; added: number } {
+): { kb: number; lag: number; added: number; ended: string[] } {
   const kb = knockback({
     percent,
     damage: base,
@@ -374,9 +376,10 @@ export function strike(
   const armored = armor !== null && kb < armor.kb && damage < armor.damage;
   const before = v.damage;
   addDamage(m, v, armor && !armored ? damage * armor.breakDamageMul : damage);
+  const ended = endStatusesOnHit(m, v);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric', crouch });
   v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
-  const result = { kb, lag, added: v.damage - before };
+  const result = { kb, lag, added: v.damage - before, ended };
   if (armored) return result;
   const held = grabArmour(m, v, damage);
   if (again && v.launch && v.launch.kb >= kb) return result;
@@ -390,10 +393,11 @@ export function strike(
 
 /**
  * Damage always adds up; a fighter attacker freezes for hitlag, but an entity and its owner do not. A box with a
- * `status` puts it on the victim after the hit event, its length taken from the % the hit added.
+ * `status` puts it on the victim after the hit event, its length taken from the % the hit added and its knockback
+ * scaled like its hitlag, unless this hit just took that status off (StatusDef.endOnHit).
  */
 function hit(m: MatchState, h: Connection, again: boolean): void {
-  const { kb, lag, added } = strike(m, h.v, h, again);
+  const { kb, lag, added, ended } = strike(m, h.v, h, again);
   // One swing can connect several times a frame (a parry among them): the attacker keeps the longest freeze.
   if (h.a) h.a.hitlag = Math.max(h.a.hitlag, lag);
   emit(m, {
@@ -410,7 +414,10 @@ function hit(m: MatchState, h: Connection, again: boolean): void {
     x: h.at.x,
     y: h.at.y,
   });
-  if (h.box.status) applyStatus(m, h.v, h.box.status, { damage: added, source: h.attacker });
+  if (h.box.status && !ended.includes(h.box.status)) {
+    const knockback = kb * (h.box.hitlag ?? 1) * (h.crouch ? HITLAG.crouch : 1);
+    applyStatus(m, h.v, h.box.status, { damage: added, knockback, source: h.attacker });
+  }
 }
 
 function shieldHit(

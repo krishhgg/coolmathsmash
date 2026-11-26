@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { hashState } from '../engine/hash';
 import { registerFighter } from '../fighters/registry';
+import { HITLAG, hitlagFrames, knockback } from './combat/formulas';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
 import { createMatch, type MatchState } from './match';
@@ -13,6 +14,7 @@ registerFighter(testStatus);
 
 const FLOWER = 'test-status/flower';
 const WARM = 'test-status/warm';
+const STUN = 'test-status/stun';
 
 /**
  * The status fixture (P1) facing the Mario reference (P2) 10 units away on Battlefield, plus more Marios parked
@@ -231,6 +233,122 @@ describe('statuses: ticking', () => {
       return hashState(m);
     };
     expect(play()).toBe(play());
+  });
+});
+
+describe('statuses: freezing', () => {
+  /** The stun dtilt's knockback on the Mario reference at 0%: 4%, 30 base, 30 growth, fresh (x1.05). */
+  const dtiltKb = (crouch = false) =>
+    knockback({ percent: 0, damage: 4, kbg: 30, bkb: 30, weight: 98, stale: 1.05, crouch });
+
+  it("lasts floor(1 + knockback x hitlag multiplier), Ultimate's paralysis, at most 90 frames", () => {
+    const { m, v } = versus(3);
+    land(m, v, 'dtilt');
+    const frames = Math.floor(1 + dtiltKb() * 0.5);
+    expect(frames).toBe(18);
+    expect(statusOf(v, STUN)).toMatchObject({ frames, source: 0 });
+    expect(m.events).toContainEqual({ type: 'statusStart', port: 1, status: STUN, frames, source: 0 });
+    clearStatus(m, v, STUN);
+    expect(applyStatus(m, v, STUN, { knockback: 200 })!.frames).toBe(90);
+  });
+
+  it('a crouch cancel shortens it as it does hitlag: knockback x0.85, then x0.67', () => {
+    const { m, v } = versus(3);
+    runPorts(m, 3, [{}, { y: -100 }]);
+    expect(v.action).toBe('crouch');
+    attack(m, 0, 'dtilt');
+    stepUntil(m, 'hit', [{}, { y: -100 }]);
+    expect(statusOf(v, STUN)!.frames).toBe(Math.floor(1 + dtiltKb(true) * 0.5 * HITLAG.crouch));
+    expect(statusOf(v, STUN)!.frames).toBe(11);
+  });
+
+  it('freezes the fighter where it was hit through its hitlag and after, then the launch goes', () => {
+    const { m, v } = versus(3);
+    land(m, v, 'dtilt');
+    expect(v.hitlag).toBe(hitlagFrames(4 * 1.05, { mult: 0.5 }));
+    expect(v.hitlag).toBe(4);
+    const at = { ...v.pos };
+    const pending = v.launch;
+    for (let i = 1; i <= 18; i++) {
+      runPorts(m, 1, []);
+      expect(v.pos, `frame ${i}`).toEqual(at);
+      expect(v.launch, `frame ${i}`).toBe(pending);
+      expect(v.actionFrame).toBe(0);
+    }
+    expect(hasStatus(v, STUN)).toBe(false);
+    expect(m.events).toContainEqual({ type: 'statusEnd', port: 1, status: STUN, reason: 'expired' });
+    runPorts(m, 1, []);
+    expect(v.launch).toBeNull();
+    expect(v.actionFrame).toBe(1);
+    expect(v.pos).not.toEqual(at);
+  });
+
+  it('holds an airborne fighter in the air, then it falls', () => {
+    const { m, v } = versus(3);
+    const at = { x: 10, y: 30 };
+    Object.assign(v, {
+      pos: { ...at },
+      prevPos: { ...at },
+      ground: null,
+      action: 'fall',
+      vel: { x: 0, y: -1 },
+    });
+    applyStatus(m, v, STUN, { frames: 20 });
+    runPorts(m, 1, []);
+    expect(v.pos).toEqual({ x: 10, y: 29 }); // it went on during this frame: it starts on the next one
+    runPorts(m, 20, []);
+    expect(v.pos).toEqual({ x: 10, y: 29 });
+    runPorts(m, 1, []);
+    expect(v.pos.y).toBeLessThan(29);
+  });
+
+  it('mashing cuts it like any status', () => {
+    const { m, v } = versus(3);
+    applyStatus(m, v, STUN, { frames: 60 });
+    runPorts(m, 1, []);
+    runPorts(m, 1, [{}, { x: 100 }]);
+    expect(statusOf(v, STUN)!.frames).toBe(60 - 1 - 4);
+    runPorts(m, 1, [{}, { x: -100, buttons: ['attack'] }]);
+    expect(statusOf(v, STUN)!.frames).toBe(60 - 2 - 8 - 6);
+  });
+
+  it('pauses the other statuses, as hitlag does', () => {
+    const { m, v } = versus(3);
+    applyStatus(m, v, WARM);
+    applyStatus(m, v, STUN, { frames: 10 });
+    runPorts(m, 11, []);
+    expect(statusOf(v, WARM)).toMatchObject({ frames: 90, age: 0 });
+    runPorts(m, 1, []);
+    expect(statusOf(v, WARM)).toMatchObject({ frames: 89, age: 1 });
+  });
+
+  it("a later hit ends it, and that hit's hitlag and launch take over", () => {
+    const { m, v } = versus(3);
+    land(m, v, 'dtilt');
+    runPorts(m, 10, []);
+    expect(statusOf(v, STUN)!.frames).toBe(8);
+    const before = v.damage;
+    const events = (land(m, v, 'jab'), m.events);
+    expect(events).toContainEqual({ type: 'statusEnd', port: 1, status: STUN, reason: 'hit' });
+    expect(hasStatus(v, STUN)).toBe(false);
+    expect(hasStatus(v, FLOWER)).toBe(true);
+    expect(v.hitlag).toBe(hitlagFrames(5 * 1.05));
+    const kb = knockback({ percent: before, damage: 5, kbg: 30, bkb: 30, weight: 98, stale: 1.05 });
+    expect(v.launch!.kb).toBeCloseTo(kb, 9);
+    runPorts(m, v.hitlag, []);
+    expect(v.launch).not.toBeNull();
+    runPorts(m, 1, []);
+    expect(v.launch).toBeNull();
+  });
+
+  it("a stunning hit on a stunned fighter ends the stun and doesn't stun it again", () => {
+    const { m, v } = versus(3);
+    land(m, v, 'dtilt');
+    runPorts(m, 5, []);
+    land(m, v, 'dtilt');
+    expect(m.events).toContainEqual({ type: 'statusEnd', port: 1, status: STUN, reason: 'hit' });
+    expect(m.events.some((e) => e.type === 'statusStart')).toBe(false);
+    expect(hasStatus(v, STUN)).toBe(false);
   });
 });
 
