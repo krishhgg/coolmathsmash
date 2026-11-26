@@ -4,8 +4,9 @@ import { neutralInput, type InputFrame } from '../input/types';
 import { isIntangible } from '../sim/actions/registry';
 import { activeHitboxes, hurtbox, type Hurtbox, type PlacedHitbox } from '../sim/combat/hits';
 import { LAUNCH_DECAY } from '../sim/combat/formulas';
-import type { ControlState } from '../sim/control';
-import type { FighterState } from '../sim/fighter';
+import { createControl, type ControlState } from '../sim/control';
+import type { EntityState } from '../sim/entities/types';
+import { createFighter, type FighterState } from '../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
 
 /**
@@ -60,6 +61,42 @@ export function soloMatch(
   m.fighters[0] = { ...structuredClone(f as FighterState), port: 0 };
   if (control) m.players[0]!.control = structuredClone(control as ControlState);
   return m;
+}
+
+/** The port that stands in for the owner of the entities setEntities puts into a look-ahead. */
+const OWNER = 1;
+
+/**
+ * Make `entities` (fighter `owner`'s, as they were on some frame of the match) the ones `owner` has out in `m`, a
+ * soloMatch of another fighter (`victim`, its port in the match), in place of any it had, so their hits land on that
+ * fighter as they will: a grenade bursts on it, a shot already in the air connects. The first call adds a port
+ * standing in for the owner, out of play (as with no stocks left) where it stands, so nothing hits, grabs or pushes
+ * it; it gives the entities what they read from their owner: its rage, its stale queue, and where it is for one that
+ * flies home. The copies keep their ids and their hits so far. Nothing changes while the owner has nothing out.
+ */
+export function setEntities(
+  m: MatchState,
+  owner: Readonly<FighterState>,
+  entities: readonly Readonly<EntityState>[],
+  victim: number,
+): void {
+  if (m.fighters.length <= OWNER) {
+    if (!entities.length) return;
+    m.config.ports.push({ fighter: owner.fighter });
+    m.players.push({ port: OWNER, tapJump: true, control: createControl() });
+    m.fighters.push({
+      ...createFighter(OWNER, owner.fighter, [owner.pos.x, owner.pos.y, owner.facing], 0),
+      action: 'out',
+      damage: owner.damage,
+      staleQueue: [...owner.staleQueue],
+    });
+  }
+  m.entities = m.entities.filter((e) => e.owner !== OWNER);
+  for (const e of entities) {
+    const hitVictims = e.hitVictims.includes(victim) ? [0] : [];
+    m.entities.push({ ...structuredClone(e as EntityState), owner: OWNER, hitVictims });
+    m.nextEntityId = Math.max(m.nextEntityId, e.id + 1);
+  }
 }
 
 export function sample(f: Readonly<FighterState>, stats: FighterStats): Sample {
