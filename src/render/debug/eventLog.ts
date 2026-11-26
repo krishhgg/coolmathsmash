@@ -32,12 +32,16 @@ function describe(e: SimEvent): string {
     case 'commandGrab':
     case 'throw':
       return `${p(e.attacker)} ${e.move} ${p(e.victim)}`;
+    case 'counter':
+      return `${p(e.port)} counters ${p(e.attacker)} ${n(e.damage)}% > ${e.move}`;
     case 'pummel':
       return `${p(e.attacker)} pummel ${p(e.victim)} +${n(e.damage)}%`;
     case 'grabRelease':
       return `${p(e.held)} grab release`;
     case 'grabClank':
       return `${p(e.ports[0])} ${p(e.ports[1])} grab clank`;
+    case 'statusDamage':
+      return `${p(e.port)} ${e.status} +${n(e.damage)}%${e.source >= 0 ? ` from ${p(e.source)}` : ''}`;
     case 'stageHit':
       return `${p(e.victim)} hit by ${e.element ?? 'stage hitbox'} +${n(e.damage)}% kb ${n(e.kb)}`;
     case 'stagePiece':
