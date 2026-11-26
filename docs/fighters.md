@@ -150,6 +150,8 @@ fsmash: {
   - `action` plays the move in another action with its own physics instead of `attack`/`aerial`: `'hover'`.
   - `drift: false` turns off air drift (and air friction) while an airborne move plays, so a scripted path such
     as Bob the Robber's Grappling Hook zip (his `upB`) is not bent by the stick.
+  - `fastFall: false` stops a down flick from fast-falling while an airborne move plays, as in Ultimate's specials
+    (the Duck's Running Ram).
   - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
     `neutralB: { ..., air: 'neutralBAir' }`. The variant is its own move, so it has its own frame data and clip,
     and the `move` event carries its name.

@@ -221,7 +221,7 @@ export const ATTACK: Record<string, ActionDef> = {
       const { f } = x;
       const move = playMove(x);
       if (!move) return;
-      if (!move.helpless && !move.tether?.aimed) fastFallCheck(x);
+      if (!move.helpless && !move.tether?.aimed && move.fastFall !== false) fastFallCheck(x);
       if (f.actionFrame < move.faf) return;
       if (glideAfterMove(x, move)) return;
       if (!move.helpless) return setAction(x, 'fall');

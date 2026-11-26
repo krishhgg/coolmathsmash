@@ -70,17 +70,27 @@ function takeOff(x: Ctx): void {
   f.move = move;
 }
 
+/**
+ * The frames (each fighter's frame context) the startup's air physics already ran on. While Special holds the charge,
+ * the shared code steps the move back onto its charge frame, which runs the script a second time that frame, and the
+ * physics below add to the speed rather than set it. Nothing here outlives the frame.
+ */
+const startupRan = new WeakSet<Ctx>();
+
 function script(x: Ctx): void {
   const { f, s, c } = x;
   const af = f.actionFrame;
-  if (af === 1 && f.charge === 0 && smashDir(c, f.facing) !== 'neutral') f.charge = RAM.smashStart;
-  // Specials don't fast fall: undo one a down flick started on the last frame.
-  if (f.fastFalling) {
-    f.fastFalling = false;
-    f.vel.y = Math.max(f.vel.y, -s.fallSpeed);
+  if (af === 1) {
+    if (f.charge === 0 && smashDir(c, f.facing) !== 'neutral') f.charge = RAM.smashStart;
+    // A fast fall carried into the move ends with it (`fastFall: false` stops new ones).
+    if (f.fastFalling) {
+      f.fastFalling = false;
+      f.vel.y = Math.max(f.vel.y, -s.fallSpeed);
+    }
   }
   if (af < RAM.launch) {
-    if (f.ground) return;
+    if (f.ground || startupRan.has(x)) return;
+    startupRan.add(x);
     if (af === 1) f.vel.x *= RAM.startSpeed;
     f.vel.x = approach(f.vel.x, 0, RAM.startFriction);
     // The air physics takes off the Duck's own gravity after this.
@@ -141,6 +151,7 @@ export const runningRam: MoveDef = {
   continuesOnLanding: true,
   ledgeFrom: RAM.ledgeFrom,
   drift: false,
+  fastFall: false,
   hits: [
     { frames: RAM.clean, boxes: [ram(4)] },
     { frames: RAM.late, boxes: [ram(3)] },

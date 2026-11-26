@@ -160,6 +160,35 @@ describe("The Duck: Running Ram (side special, Pikachu's Skull Bash)", () => {
     expect(f.action).toBe('idle');
   });
 
+  it("charges in the air under Skull Bash's 0.04 gravity, once a frame while Special is held", () => {
+    const m = duck();
+    const f = placeInAir(m, -40, 100, 1);
+    run(m, 1, TILT);
+    until(m, (g) => g.charge === 10, SPECIAL);
+    const falls: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      const y = f.pos.y;
+      run(m, 1, SPECIAL);
+      falls.push(y - f.pos.y);
+    }
+    for (let i = 1; i < falls.length; i++) expect(falls[i]! - falls[i - 1]!).toBeCloseTo(RAM.startGravity, 9);
+  });
+
+  it('a down flick never fast-falls it, mid-dash or in the ending', () => {
+    const path = (flick: boolean) => {
+      const m = duck();
+      const f = placeInAir(m, -100, 80, 1);
+      run(m, 1, TILT);
+      const ys: number[] = [];
+      for (let i = 0; i < 70; i++) {
+        run(m, 1, flick && f.actionFrame >= 40 && i % 3 === 0 ? { y: -100 } : {});
+        ys.push(f.pos.y);
+      }
+      return ys;
+    };
+    expect(path(true)).toEqual(path(false));
+  });
+
   it('ends in the air on frame 75, free to act (not helpless)', () => {
     const m = duck();
     const f = placeInAir(m, -100, 80, 1);
