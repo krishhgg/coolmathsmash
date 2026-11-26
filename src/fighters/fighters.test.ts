@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import ref from '../sim/reference/physics-constants.json';
 import { entityDef } from '../sim/entities/entities';
+import { freezeOf } from '../sim/finalSmash';
 import { allFighters } from './registry';
 import type { FighterStats } from './types';
 
@@ -109,6 +110,15 @@ describe.each(Object.values(allFighters()).map((f) => [f.id, f] as const))('figh
       expect(b.frames[1]).toBeGreaterThanOrEqual(b.frames[0]);
       expect(b.frames[1]).toBeLessThan(move.faf);
       expect(b.radius).toBeGreaterThan(0);
+    }
+    if (name === 'finalSmash') expect(move.final, 'finalSmash is marked final').toBeDefined();
+    if (move.final && move.action !== 'grabThrow') {
+      for (const next of [move.air, move.commandGrab])
+        if (next) expect(def.moves?.[next]?.final, `${next} is part of the Final Smash`).toBeDefined();
+      // Nothing comes out while the others are frozen for the activation (src/sim/finalSmash.ts).
+      const opens = [...move.hits.map((w) => w.frames[0]), ...(move.spawn ?? []).map((s) => s.frame)];
+      const cinematic = Object.values(def.moves ?? {}).some((m) => m.commandGrab === name);
+      if (!cinematic) for (const f of opens) expect(f).toBeGreaterThan(freezeOf(move.final));
     }
     if (move.action === 'hover') expect(def.hover, 'hover moves need FighterDef.hover').toBeDefined();
     if (move.glide) expect(def.glide, 'glide moves need FighterDef.glide').toBeDefined();

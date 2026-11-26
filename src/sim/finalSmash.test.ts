@@ -189,16 +189,16 @@ describe('Final Smash rules', () => {
     step(m, 2, [{}, walk, {}]);
     a.finalReady = true;
     step(m, 1, [SPECIAL, walk, {}]);
-    const held = [where(v), where(w), { ...ball.pos, age: ball.age }];
+    const held = { v: where(v), w: where(w), ball: { ...ball.pos, age: ball.age } };
     for (let i = 0; i < FREEZE; i++) {
       step(m, 1, [{}, walk, { buttons: ['jump'] }]);
-      expect([where(v), where(w), { ...ball.pos, age: ball.age }]).toEqual(held);
+      expect({ v: where(v), w: where(w), ball: { ...ball.pos, age: ball.age } }).toEqual(held);
       expect(a.actionFrame).toBe(i + 2);
     }
     step(m, 1, [{}, walk, {}]);
-    expect(v.pos.x).toBeLessThan(held[0]!.x);
-    expect(w.pos.y).not.toBe(held[1]!.y);
-    expect(ball.age).toBe(held[2]!.age + 1);
+    expect(v.pos.x).toBeLessThan(held.v.x);
+    expect(w.pos.y).not.toBe(held.w.y);
+    expect(ball.age).toBe(held.ball.age + 1);
     for (let i = 0; i < 10; i++) {
       const x = v.pos.x;
       step(m, 1, [{}, walk, {}]);
