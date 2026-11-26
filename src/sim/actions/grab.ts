@@ -334,6 +334,7 @@ function grab(m: MatchState, a: FighterState, v: FighterState): void {
     hitVictims: [],
     holdHitsLanded: 0,
     moveStale: 0,
+    bReverseFrom: -1,
   });
   Object.assign(v, {
     action: 'grabbed',

@@ -10,12 +10,13 @@ import {
   smashDir,
   specialDir,
   stickDir,
+  stickX,
   type Dir,
 } from '../control';
 import { emit } from '../events';
 import { moveDef } from '../sharedMoves';
 import type { Ctx, FighterState } from '../fighter';
-import { HELPLESS_LANDING_LAG } from '../constants';
+import { HELPLESS_LANDING_LAG, SPECIAL_REVERSE } from '../constants';
 import { spawnFromMove } from '../entities/entities';
 import { freezeOf, inFinalSmash } from '../finalSmash';
 import { pickUpItem } from '../items/pickup';
@@ -52,6 +53,7 @@ export function startMove(x: Ctx, requested: string, action?: string): boolean {
   x.f.moveStale = 0;
   x.f.charge = 0;
   x.f.counterDamage = 0;
+  x.f.bReverseFrom = -1;
   return true;
 }
 
@@ -88,6 +90,39 @@ function turnFor(x: Ctx, dir: Dir): void {
   if (dir === 'back') x.f.facing = -x.f.facing as 1 | -1;
 }
 
+/** The main stick is at least SPECIAL_REVERSE.stickX behind the fighter. */
+function stickBehind(x: Ctx): boolean {
+  return stickX(x.c) * x.f.facing <= -SPECIAL_REVERSE.stickX;
+}
+
+/**
+ * Start the special for `dir` from a Special press. With the stick behind the fighter it turns around first and
+ * keeps its momentum (Ultimate's turnaround special); a back side special is the same turn. Neutral, side and down
+ * specials can then be B-reversed on their first frames (bReverse), up specials can't; `MoveDef.bReverse` overrides.
+ */
+function startSpecial(x: Ctx, dir: Dir): boolean {
+  const turn = stickBehind(x);
+  if (!startMove(x, SPECIAL[dir])) return false;
+  if (turn) x.f.facing = -x.f.facing as 1 | -1;
+  if (moveOf(x.f)?.bReverse ?? dir !== 'up') x.f.bReverseFrom = x.m.frame;
+  return true;
+}
+
+/**
+ * B-reverse (SPECIAL_REVERSE): the stick behind the fighter 1 to 4 frames after the press (frames 2-5 of a special
+ * that doesn't charge) turns it around and reverses its horizontal momentum, on the ground and in the air. The
+ * window counts match frames, not the move's frame, which a charge holds still. Knockback still decaying from an
+ * earlier hit is not the fighter's own momentum and keeps its direction.
+ */
+function bReverse(x: Ctx): void {
+  const { f } = x;
+  if (f.bReverseFrom < 0 || !inWindow(x.m.frame - f.bReverseFrom + 1, SPECIAL_REVERSE.window)) return;
+  if (!stickBehind(x)) return;
+  f.facing = -f.facing as 1 | -1;
+  f.vel.x = -f.vel.x;
+  f.bReverseFrom = -1;
+}
+
 /**
  * Neutral special with a Final Smash charge plays the Final Smash (src/sim/finalSmash.ts) and spends the charge. A
  * `still` one started in the air stops the user where it is. False, keeping the charge, without a `finalSmash` move.
@@ -110,13 +145,15 @@ function startFinalSmash(x: Ctx): boolean {
   return true;
 }
 
-/** Special by stick direction, or the Final Smash for a neutral special while holding the charge. */
+/**
+ * Special by stick direction (startSpecial: turnaround and B-reverse), or the Final Smash for a neutral special while
+ * holding the charge.
+ */
 function special(x: Ctx): boolean {
   consume(x.c, Btn.Special);
   const dir = specialDir(x.c, x.f.facing);
   if (dir === 'neutral' && startFinalSmash(x)) return true;
-  turnFor(x, dir);
-  return startMove(x, SPECIAL[dir]);
+  return startSpecial(x, dir);
 }
 
 /**
@@ -158,7 +195,7 @@ export function jumpSquatAttack(x: Ctx): boolean {
   }
   if (buffered(c, Btn.Special) && specialDir(c, f.facing) === 'up') {
     consume(c, Btn.Special);
-    return startMove(x, 'upB');
+    return startSpecial(x, 'up');
   }
   if (buffered(c, Btn.Attack) && smashDir(c, f.facing) === 'up') {
     consume(c, Btn.Attack);
@@ -192,9 +229,9 @@ function aiming(x: Ctx, move: MoveDef): boolean {
 
 /**
  * Per-frame move bookkeeping: hold the charge frame while the move charges, and an aimed tether's frame while it
- * aims; reopen `rehit` windows, spawn the frame's entities, run the move's script. Returns the move, or null when
- * a stored charge cancelled it into another action. While a frame is held the script runs once a frame on the
- * frame before it, whose windows, spawns and transform already happened on the way in.
+ * aims; B-reverse a special, reopen `rehit` windows, spawn the frame's entities, run the move's script. Returns the
+ * move, or null when a stored charge cancelled it into another action. While a frame is held the script runs once a
+ * frame on the frame before it, whose windows, spawns and transform already happened on the way in.
  */
 export function playMove(x: Ctx): MoveDef | null {
   const { f } = x;
@@ -207,6 +244,7 @@ export function playMove(x: Ctx): MoveDef | null {
   }
   held ||= aiming(x, move);
   if (held) holdFrame(x);
+  bReverse(x);
   if (!held && move.hits.some((w) => w.rehit && w.frames[0] === f.actionFrame)) {
     f.hitVictims = [];
     f.hitEntities = [];
