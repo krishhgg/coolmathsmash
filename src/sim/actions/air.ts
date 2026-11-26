@@ -15,6 +15,7 @@ import { consumeJump, wantsJump } from './common';
 import { techPressed, tumbleLanding } from './knockdown';
 import { airMobility } from './mobility';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
+import * as SimMath from '../math';
 
 export function fastFallCheck(x: Ctx): void {
   const { f, s, c } = x;
@@ -50,7 +51,7 @@ export function airDodgeFaf(dir: Vec): number {
   if (dir.x === 0 && dir.y === 0) return AIR_DODGE_NEUTRAL.faf;
   const { x: dx, y: dy } = dir;
   const table = AIR_DODGE_DIRECTIONAL.fafByAngle;
-  const t = ((Math.atan2(dy, Math.abs(dx)) + Math.PI / 2) / Math.PI) * (table.length - 1);
+  const t = ((SimMath.atan2(dy, Math.abs(dx)) + Math.PI / 2) / Math.PI) * (table.length - 1);
   const i = Math.min(Math.floor(t), table.length - 2);
   return Math.round(table[i]! + (table[i + 1]! - table[i]!) * (t - i));
 }
@@ -128,7 +129,7 @@ export const AIR: Record<string, ActionDef> = {
         f.fastFalling = false;
         const sx = stickX(c);
         const sy = stickY(c);
-        const mag = Math.hypot(sx, sy);
+        const mag = SimMath.hypot(sx, sy);
         f.dodgeDir = mag >= AIR_DODGE_DIRECTIONAL.stick ? { x: sx / mag, y: sy / mag } : { x: 0, y: 0 };
       }
       if (directional(x)) {

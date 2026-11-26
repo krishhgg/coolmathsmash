@@ -9,13 +9,15 @@ import { STICK, press } from './inputs';
 import type { CpuLevel } from './levels';
 import { run, soloMatch, type Driver, type Sample } from './look';
 import { floorBelow, type StageInfo } from './stage';
+import * as SimMath from '../sim/math';
 
 /**
  * Getting back to the stage. The CPU tries a set of recovery plans (drift, double jump at different times, up or
  * side special at different heights, an air dodge) in a private copy of the simulation and picks one that ends on
  * the ledge or the stage. From under the stage, plans can also hold the special until the fighter has drifted
  * out near the ledge, as Ultimate's CPUs do, instead of rising into the underside. Low levels sometimes pick a plan
- * at random, which is how they self-destruct.
+ * at random, which is how they self-destruct. A CPU standing on an entity's platform with no stage under it (a Duck
+ * Raft off the side) plans from there too: every plan starts with a full hop off it, its double jump still to come.
  */
 
 export interface RecoveryParams {
@@ -73,6 +75,7 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
   let jumped = false;
   let special = false;
   let dodged = false;
+  let holding = false;
   return (t, f) => {
     const L = targetLedge(info, f.pos.x);
     const out = p.special && !special && p.reach < 0 ? -p.reach : 0;
@@ -87,9 +90,17 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
       i.buttons = Btn.Special;
       return i;
     }
+    // Standing on an entity's platform off the stage (a Duck Raft): jump from it toward the stage, holding Jump through
+    // the jump squat for a full hop, and let go once in the air, so that a double jump is a new press.
+    const held = holding;
+    holding = f.ground?.kind === 'entity' && floorBelow(info, f.pos.x, f.pos.y) === null;
+    if (holding) {
+      i.buttons = Btn.Jump;
+      return i;
+    }
     if (f.ground !== null || !actionable(f) || f.action === 'helpless') return i;
     const dir = (Math.sign(d) || 1) as 1 | -1;
-    if (!jumped && t >= p.jumpAt && f.jumpsUsed < k.stats.jumps) {
+    if (!jumped && !held && t >= p.jumpAt && f.jumpsUsed < k.stats.jumps) {
       jumped = true;
       i.buttons = Btn.Jump;
       return i;
@@ -106,7 +117,7 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
     if (!dodged && t >= p.dodgeAt && !f.airDodgeUsed) {
       dodged = true;
       const ly = L ? L.y - f.pos.y : 0;
-      const n = Math.hypot(d, ly) || 1;
+      const n = SimMath.hypot(d, ly) || 1;
       return press({ x: Math.round((d / n) * 100), y: Math.round((ly / n) * 100), buttons: Btn.Shield });
     }
     return i;
@@ -155,9 +166,12 @@ function simulate(
   params: RecoveryParams,
 ): { path: Sample[]; outcome: RecoveryPlan['outcome']; miss: number } {
   const m = soloMatch(state, f, control);
+  // A plan from an entity's platform starts on the ground, and ends when the fighter comes down after leaving it.
+  let left = f.ground === null;
   const path = run(m, LIMIT, recoveryDriver(info, k, params), (g) => {
+    left ||= g.ground === null;
     if (g.action === 'ledgeCatch') return true;
-    if (g.ground !== null) return true;
+    if (g.ground !== null) return left;
     return g.pos.y < info.blast.bottom + 10;
   });
   const end = path.at(-1);
@@ -165,7 +179,7 @@ function simulate(
   if (end?.action === 'ledgeCatch') outcome = 'ledge';
   else if (end?.grounded && floorBelow(info, end.x, end.y + 0.1) !== null) outcome = 'land';
   const L = targetLedge(info, f.pos.x);
-  const miss = L ? Math.min(...path.map((s) => Math.hypot(s.x - L.x, s.y - L.y))) : 0;
+  const miss = L ? Math.min(...path.map((s) => SimMath.hypot(s.x - L.x, s.y - L.y))) : 0;
   return { path, outcome, miss };
 }
 
@@ -214,8 +228,8 @@ export function chooseDI(
   const sticks: [number, number][] = [[0, 0]];
   for (let a = 0; a < 8; a++)
     sticks.push([
-      Math.round(Math.cos((a * Math.PI) / 4) * 100),
-      Math.round(Math.sin((a * Math.PI) / 4) * 100),
+      Math.round(SimMath.cos((a * Math.PI) / 4) * 100),
+      Math.round(SimMath.sin((a * Math.PI) / 4) * 100),
     ]);
   const b = info.blast;
   let best: InputFrame = neutralInput();
@@ -234,7 +248,7 @@ export function chooseDI(
     const room = Math.min(
       ...path.map((s) => Math.min(s.x - b.left, b.right - s.x, (b.top - s.y) * 1.2, s.y - b.bottom)),
     );
-    const away = attacker ? Math.hypot(end.x - attacker.x, end.y - attacker.y) : 0;
+    const away = attacker ? SimMath.hypot(end.x - attacker.x, end.y - attacker.y) : 0;
     return { x, y, ko, room, away };
   });
   const danger = scores.some((s) => s.ko || s.room < 45);

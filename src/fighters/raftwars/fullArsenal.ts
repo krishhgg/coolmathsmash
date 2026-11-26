@@ -10,6 +10,7 @@ import type { Vec } from '../../sim/vec';
 import { getFighter } from '../lookup';
 import type { HitboxDef, MoveDef } from '../types';
 import { ARSENAL, BLAST, REACH, SHOTS } from './fullArsenalData';
+import * as SimMath from '../../sim/math';
 
 export { ARSENAL, BLAST, REACH, SHOTS } from './fullArsenalData';
 
@@ -54,7 +55,7 @@ function seek(x: EntityCtx): FighterState | undefined {
   const { m, e } = x;
   const marks = mine(m, e.owner, MARK).filter((k) => k.data.use === e.data.use);
   const count = (f: FighterState) => marks.filter((k) => k.data.target === f.port).length;
-  const dist = (f: FighterState) => Math.hypot(middle(f).x - e.pos.x, middle(f).y - e.pos.y);
+  const dist = (f: FighterState) => SimMath.hypot(middle(f).x - e.pos.x, middle(f).y - e.pos.y);
   return m.fighters
     .filter((f) => f.port !== e.owner && !gone(f))
     .sort((a, b) => count(a) - count(b) || dist(a) - dist(b) || a.port - b.port)[0];
@@ -68,13 +69,13 @@ function steer(x: EntityCtx): Vec {
   const { e, c } = x;
   const s = c ? { x: stickX(c), y: stickY(c) } : { x: 0, y: 0 };
   if (s.x !== 0 || s.y !== 0) {
-    const len = Math.max(1, Math.hypot(s.x, s.y));
+    const len = Math.max(1, SimMath.hypot(s.x, s.y));
     return { x: e.pos.x + (s.x / len) * ARSENAL.speed, y: e.pos.y + (s.y / len) * ARSENAL.speed };
   }
   const foe = seek(x);
   if (!foe) return { ...e.pos };
   const at = middle(foe);
-  const d = Math.hypot(at.x - e.pos.x, at.y - e.pos.y);
+  const d = SimMath.hypot(at.x - e.pos.x, at.y - e.pos.y);
   const k = d > ARSENAL.speed ? ARSENAL.speed / d : 1;
   return { x: e.pos.x + (at.x - e.pos.x) * k, y: e.pos.y + (at.y - e.pos.y) * k };
 }
@@ -95,7 +96,7 @@ function hunt(x: EntityCtx): void {
 
   const locks = Number(e.data.locks ?? 0);
   const ready = e.data.last === undefined || e.age - Number(e.data.last) >= ARSENAL.lockEvery;
-  const dist = (f: FighterState) => Math.hypot(middle(f).x - to.x, middle(f).y - to.y);
+  const dist = (f: FighterState) => SimMath.hypot(middle(f).x - to.x, middle(f).y - to.y);
   const hit = ready
     ? m.fighters
         .filter((f) => f.port !== e.owner && !gone(f))

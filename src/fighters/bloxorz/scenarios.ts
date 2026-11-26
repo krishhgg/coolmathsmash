@@ -1,4 +1,5 @@
 import type { FighterScenarios, LabScenario } from '../../harness/scenarios';
+import { BARRAGE } from './finalSmashData';
 
 const BX = 'characters/bloxorz';
 
@@ -72,7 +73,7 @@ function sheets(fighter: 'bloxorz' | 'bloxorz-lying'): LabScenario[] {
     },
     {
       name: `${fighter}-sheet-air`,
-      description: `Bloxorz block (${form}): aerials, grabs, Roll, Switch Bridge and Heavy Switch on their first active frames, and the throws on their release frames.`,
+      description: `Bloxorz block (${form}): aerials, grabs, Roll, Switch Bridge, Heavy Switch and Split Switch on their first active frames, and the throws on their release frames.`,
       page: lab('4'),
       calls: [
         {
@@ -96,6 +97,7 @@ function sheets(fighter: 'bloxorz' | 'bloxorz-lying'): LabScenario[] {
               'upB@20',
               'upB@34',
               'downB@14',
+              'finalSmash@29',
             ],
           ],
         },
@@ -287,6 +289,27 @@ export const scenarios: FighterScenarios = {
       motion: { before: 60, after: 20 },
       requires: ['move:upB'],
       refs: ['smash/ledge-hang-*', `${BX}/ingame-fall-*`],
+    },
+    {
+      name: 'bloxorz-final-smash',
+      description:
+        "Bloxorz block holds a Final Smash charge and fires Split Switch at Fireboy: it topples onto him, the level tiles flip up, its two cubes take turns rocking into him, and the bridge tile flings him. Capture the first of the barrage's late hits.",
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'bloxorz' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -30, y: 0 }, facing: 1, finalReady: true } },
+        { port: 1, state: { pos: { x: -5, y: 0 }, facing: -1, damage: 40 } },
+      ],
+      script: [{ port: 0, from: 10, buttons: ['special'] }],
+      capture: {
+        label: `P1 move 'finalSmashCinematic', frame ${BARRAGE.late[0]}`,
+        when: (s) =>
+          s.fighters[0]!.move === 'finalSmashCinematic' && s.fighters[0]!.actionFrame === BARRAGE.late[0],
+        limit: 400,
+      },
+      motion: { before: 150, after: 200 },
+      requires: ['move:finalSmash'],
+      refs: [`${BX}/ingame-roll-*`, `${BX}/ingame-idle-*`, 'smash/attack-active-*'],
     },
     ...sheets('bloxorz'),
     ...sheets('bloxorz-lying'),

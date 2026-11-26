@@ -5,6 +5,7 @@ import { emit } from '../events';
 import type { FighterState } from '../fighter';
 import type { MatchState } from '../match';
 import { approach, clamp } from '../vec';
+import * as SimMath from '../math';
 
 /** Entity kind of the Coolmath Planet, the game's Smash Ball. */
 export const PLANET = 'item/coolmath-planet';
@@ -63,9 +64,9 @@ function roam(x: EntityCtx): void {
   if (e.age === 1 || e.age % RETARGET_FRAMES === 0) retarget(x);
   const dx = (e.data.tx as number) - e.pos.x;
   const dy = (e.data.ty as number) - e.pos.y;
-  const d = Math.hypot(dx, dy);
+  const d = SimMath.hypot(dx, dy);
   const speed = Math.min(PLANET_SPEED, d * 0.02);
-  const bob = Math.sin((e.age / BOB_FRAMES) * 2 * Math.PI) * BOB_SPEED;
+  const bob = SimMath.sin((e.age / BOB_FRAMES) * 2 * Math.PI) * BOB_SPEED;
   e.vel.x = approach(e.vel.x, d > 0 ? (dx / d) * speed : 0, PLANET_ACCEL);
   e.vel.y = approach(e.vel.y, (d > 0 ? (dy / d) * speed : 0) + bob, PLANET_ACCEL);
 }

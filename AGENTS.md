@@ -12,5 +12,5 @@ Coolmath Smash is a browser platform fighter (TypeScript, Vite, PixiJS 8). Read 
 
 ## Rules
 
-- The simulation must stay deterministic: no `Math.random`, no wall-clock time, no iteration over unordered sources inside `src/sim`.
+- The simulation must stay deterministic: no `Math.random`, no wall-clock time, no iteration over unordered sources inside `src/sim`. Sim code takes `sin`, `cos`, `atan2`, `hypot` and the like from `src/sim/math.ts`, never `Math`, because engines round those differently.
 - Ship every change as a small PR with screenshots or GIFs in the body.

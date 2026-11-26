@@ -10,6 +10,7 @@ import { approach, clamp } from '../vec';
 import { airActionable } from './air';
 import { airAttack, moveOf, playMove, startMove } from './attack';
 import { enterAction, setAction, type ActionDef } from './registry';
+import * as SimMath from '../math';
 
 const DEG = Math.PI / 180;
 /** A climbing glide slower than this along its path stalls into a fall. */
@@ -25,7 +26,7 @@ function glideOf(x: Ctx): Required<GlideDef> {
 /** Drag on glide speed, chosen so a glide at the neutral pitch settles at exactly `speed` across. */
 function glideDrag(g: Required<GlideDef>): number {
   const a = g.angles[0] * DEG;
-  return (g.accel * -Math.sin(a) * Math.cos(a)) / g.speed;
+  return (g.accel * -SimMath.sin(a) * SimMath.cos(a)) / g.speed;
 }
 
 function startGlide(x: Ctx, helpless: boolean): void {
@@ -145,14 +146,14 @@ export const MOBILITY: Record<string, ActionDef> = {
       const target = sy >= 0 ? neutral + (up - neutral) * sy : neutral + (neutral - down) * sy;
       m.glideAngle = approach(m.glideAngle, target, g.turnRate);
       const a = m.glideAngle * DEG;
-      m.glideSpeed += -g.accel * Math.sin(a) - glideDrag(g) * m.glideSpeed;
+      m.glideSpeed += -g.accel * SimMath.sin(a) - glideDrag(g) * m.glideSpeed;
       if (stickX(c) * f.facing <= -0.5) {
         m.glideSpeed *= GLIDE_BRAKE;
         if (m.glideSpeed < GLIDE_TURN) f.facing = -f.facing as 1 | -1;
       }
       if (m.glideSpeed < GLIDE_STALL) return endGlide(x);
-      f.vel.x = clamp(f.facing * m.glideSpeed * Math.cos(a), -g.speed, g.speed);
-      f.vel.y = Math.max(m.glideSpeed * Math.sin(a), -g.fallSpeed);
+      f.vel.x = clamp(f.facing * m.glideSpeed * SimMath.cos(a), -g.speed, g.speed);
+      f.vel.y = Math.max(m.glideSpeed * SimMath.sin(a), -g.fallSpeed);
     },
     land(x) {
       const { f } = x;
