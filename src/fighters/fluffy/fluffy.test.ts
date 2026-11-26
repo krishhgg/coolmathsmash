@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { activeHitboxes } from '../../sim/combat/hits';
 import { HELPLESS_LANDING_LAG, TETHER } from '../../sim/constants';
+import type { ButtonName } from '../../input/types';
 import type { SimEvent } from '../../sim/events';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, type MatchState } from '../../sim/match';
 import { koPercent, type KoSetup } from '../../sim/testing/ko';
 import { attack, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
-import { moves } from './moves';
+import { GRAPPLE_KICK, moves, SKY_ANCHORS } from './moves';
 import { stats } from './stats';
 
 /** Fluffy (P1) against the Mario reference (P2) on Battlefield, both settled. */
@@ -464,8 +465,21 @@ describe('Fluffy: Quick Grapple (up special)', () => {
     expect(f.pos.y).toBeGreaterThan(-42);
   });
 
-  it('a shot that finds nothing in range leaves Fluffy helpless, with no second up special', () => {
+  it('with nothing in range it anchors in the sky, spending one of the sky anchors Point Grapple also uses', () => {
+    const { f, events, actions, step, fire } = grapple(150, -20, -1);
+    f.skyAnchorsUsed = 1;
+    fire();
+    step(18);
+    expect(events.map((e) => e.type)).toEqual(['tetherFire', 'tetherLatch']);
+    expect(events[1]).toMatchObject({ kind: 'sky', x: 150 });
+    expect([f.action, f.skyAnchorsUsed]).toEqual(['tetherPull', 2]);
+    for (let i = 0; i < 60 && f.action === 'tetherPull'; i++) step(1);
+    expect(actions).toEqual(['aerial', 'tetherPull', 'helpless']);
+  });
+
+  it('with no sky anchors left, a shot that finds nothing leaves Fluffy helpless, with no second up special', () => {
     const { f, events, step, fire } = grapple(150, -20, -1);
+    f.skyAnchorsUsed = SKY_ANCHORS;
     fire();
     step(moves.upB!.faf - 1);
     expect(events.map((e) => e.type)).toEqual(['tetherFire', 'tetherRelease']);
@@ -478,6 +492,7 @@ describe('Fluffy: Quick Grapple (up special)', () => {
 
   it('touching down before the move ends still costs the helpless landing lag', () => {
     const { f, step, fire } = grapple(-64, 3, 1);
+    f.skyAnchorsUsed = SKY_ANCHORS;
     fire();
     let frame = 0;
     for (let i = 0; i < moves.upB!.faf && f.ground === null; i++) {
@@ -505,5 +520,333 @@ describe('Fluffy: Quick Grapple (up special)', () => {
     expect(hang.f.action).toBe('tetherHang');
     hang.step(1);
     expect(hang.f.action).toBe('helpless');
+  });
+});
+
+describe('Fluffy: Point Grapple (neutral special)', () => {
+  const HAND = stats.height * TETHER.handHeight;
+
+  /**
+   * Fluffy (P1) at (x, y), airborne unless y is 0, alone or against the Mario reference (P2), with steppers that
+   * hold P2's input and collect the tether, hit and shield events and the actions Fluffy goes through.
+   */
+  function grapple(x: number, y: number, facing: 1 | -1, m = testMatch({ fighter: 'fluffy' })) {
+    const f = m.fighters[0]!;
+    const floor = f.ground;
+    const events: SimEvent[] = [];
+    const actions: string[] = [];
+    let other: Hold = {};
+    /** Put Fluffy at rest at (px, py); his sky anchors carry over. */
+    const put = (px: number, py: number) => {
+      place(f, px, py, facing, py === 0 ? floor : null);
+      Object.assign(f, { jumpsUsed: py === 0 ? 0 : 1, tether: null, aim: null, move: null });
+      actions.length = 0;
+      events.length = 0;
+    };
+    const step = (frames: number, hold: Hold = {}) => {
+      for (let i = 0; i < frames; i++) {
+        runPorts(m, 1, [hold, other]);
+        events.push(...m.events.filter((e) => /^(tether|hit|shieldHit|parry|ko)/.test(e.type)));
+        if (f.action !== actions.at(-1)) actions.push(f.action);
+      }
+    };
+    /** Neutral special, as a player inputs it: the press, with the stick still neutral. */
+    const press = () => {
+      step(1, { buttons: ['special'] });
+      expect(f.move).toBe('neutralB');
+    };
+    /** A quick tap: special pressed, the stick pushed (sx, sy) while it is held, and released 3 frames in. */
+    const tap = (sx: number, sy: number) => {
+      press();
+      step(2, { x: sx, y: sy, buttons: ['special'] });
+      step(1, { x: sx, y: sy });
+    };
+    /** The kinds of tether latch over the next `frames` frames. */
+    const latches = (frames: number) => {
+      const from = events.length;
+      step(frames);
+      return events.slice(from).flatMap((e) => (e.type === 'tetherLatch' ? [e.kind] : []));
+    };
+    const hold = (h: Hold) => (other = h);
+    put(x, y);
+    return { m, f, events, actions, put, step, press, tap, latches, hold };
+  }
+
+  /** Fluffy at (x, 0) facing right and the Mario reference standing at (mx, 0) facing him. */
+  function vsMarioAt(x: number, mx: number) {
+    const s = grapple(x, 0, 1, vsMario());
+    const v = s.m.fighters[1]!;
+    place(v, mx, 0, -1, s.m.fighters[0]!.ground);
+    return { ...s, v };
+  }
+
+  it('walks the reticle 6 units a frame with the stick up to 160 while the move waits on frame 11, and turns to it', () => {
+    const { f, events, step, press } = grapple(-40, 0, 1);
+    press();
+    step(10, { x: -100, buttons: ['special'] });
+    expect(f.aim).toEqual({ x: -60, y: 0 });
+    expect([f.actionFrame, f.facing, f.tether]).toEqual([11, -1, null]);
+    step(30, { x: -100, buttons: ['special'] });
+    expect(f.aim).toEqual({ x: -160, y: 0 });
+    expect([f.actionFrame, events]).toEqual([11, []]);
+  });
+
+  it('releasing special fires the grabber at the reticle on frame 12, and the line reaches it 12 frames later', () => {
+    const { f, events, step, press } = grapple(-40, 0, 1);
+    press();
+    step(30, { x: -100, buttons: ['special'] });
+    step(1);
+    expect(f.actionFrame).toBe(12);
+    expect(events).toEqual([{ type: 'tetherFire', port: 0, x: -200, y: HAND }]);
+    step(10);
+    expect([f.action, f.tether?.kind]).toEqual(['attack', 'out']);
+    step(1);
+    expect(events[1]).toEqual({ type: 'tetherLatch', port: 0, kind: 'sky', x: -200, y: HAND });
+    expect([f.action, f.tether?.moveFrame]).toEqual(['tetherPull', 23]);
+  });
+
+  it('a quick tap with a direction fires the full 160 that way', () => {
+    const { f, events, step, tap } = grapple(-40, 0, 1);
+    tap(100, 100);
+    step(8);
+    expect(f.actionFrame).toBe(12);
+    const d = 160 * Math.SQRT1_2;
+    expect(events[0]).toMatchObject({ type: 'tetherFire' });
+    const shot = events[0] as Extract<SimEvent, { type: 'tetherFire' }>;
+    expect(shot.x).toBeCloseTo(-40 + d, 9);
+    expect(shot.y).toBeCloseTo(HAND + d, 9);
+  });
+
+  it('latches the ledge from below and reels him into a ledge grab, which gives back his sky anchors', () => {
+    const { f, events, actions, step, tap } = grapple(104, -30, -1);
+    f.skyAnchorsUsed = SKY_ANCHORS;
+    tap(-100, 100);
+    for (let i = 0; i < 60 && f.action !== 'ledgeCatch'; i++) step(1);
+    expect(events.map((e) => e.type)).toEqual(['tetherFire', 'tetherLatch', 'tetherRelease']);
+    expect(events[1]).toEqual({ type: 'tetherLatch', port: 0, kind: 'ledge', x: 80, y: 0 });
+    expect(actions).toEqual(['aerial', 'tetherPull', 'ledgeCatch']);
+    expect([f.ledge, f.skyAnchorsUsed]).toEqual([1, 0]);
+  });
+
+  it('latches the platform above and reels him up to it, then falls (not helpless) or hangs while Jump is held', () => {
+    const shoot = (jump: boolean) => {
+      const s = grapple(-40, 0, 1);
+      s.f.skyAnchorsUsed = SKY_ANCHORS;
+      // Jump goes down while he aims, as a fresh press during the reel would let go instead.
+      const held: ButtonName[] = jump ? ['jump'] : [];
+      s.press();
+      s.step(6, { y: 100, buttons: ['special', ...held] });
+      for (let i = 0; i < 60 && s.f.action !== 'fall' && s.f.action !== 'tetherHang'; i++)
+        s.step(1, { buttons: held });
+      const latch = s.events[1] as Extract<SimEvent, { type: 'tetherLatch' }>;
+      expect([latch.type, latch.kind, latch.x]).toEqual(['tetherLatch', 'surface', -40]);
+      expect(latch.y).toBeCloseTo(24.12, 9);
+      expect(s.f.skyAnchorsUsed).toBe(0);
+      return s;
+    };
+    const fall = shoot(false);
+    expect(fall.actions).toEqual(['attack', 'tetherPull', 'fall']);
+    expect(fall.f.pos.y).toBeCloseTo(24.12 - HAND, 9);
+    const hang = shoot(true);
+    expect(hang.actions).toEqual(['attack', 'tetherPull', 'tetherHang']);
+    hang.step(30, { buttons: ['jump'] });
+    expect(hang.f.action).toBe('tetherHang');
+    hang.step(1);
+    expect(hang.f.action).toBe('fall');
+  });
+
+  it('anchors to empty air and reels him in at 4 units a frame, three times an airtime; the fourth shot whiffs', () => {
+    const { f, events, actions, put, step, tap, latches } = grapple(-100, 80, 1);
+    for (let i = 1; i <= SKY_ANCHORS; i++) {
+      put(-100, 80);
+      tap(100, 0);
+      expect(latches(30)).toEqual(['sky']);
+      expect([f.action, f.skyAnchorsUsed]).toEqual(['tetherPull', i]);
+      const at = { ...f.pos };
+      step(1);
+      expect(Math.hypot(f.pos.x - at.x, f.pos.y - at.y)).toBeCloseTo(4, 9);
+    }
+    put(-100, 80);
+    tap(100, 0);
+    expect(latches(moves.neutralB!.faf)).toEqual([]);
+    expect(events.map((e) => e.type)).toEqual(['tetherFire', 'tetherRelease']);
+    expect(actions).toEqual(['aerial', 'fall']);
+  });
+
+  it('landing gives the sky anchors back', () => {
+    const { f, put, step, tap, latches } = grapple(-40, 5, 1);
+    f.skyAnchorsUsed = SKY_ANCHORS;
+    for (let i = 0; i < 60 && !f.ground; i++) step(1);
+    expect([f.ground, f.skyAnchorsUsed]).toEqual([expect.anything(), 0]);
+    put(-100, 80);
+    tap(100, 0);
+    expect(latches(30)).toEqual(['sky']);
+  });
+
+  it('with the sky anchors spent, Quick Grapple finds nothing either and leaves him helpless', () => {
+    const { f, events, put, step, tap, latches } = grapple(-100, 80, 1);
+    for (let i = 0; i < SKY_ANCHORS; i++) {
+      put(-100, 80);
+      tap(100, 0);
+      expect(latches(30)).toEqual(['sky']);
+    }
+    put(150, 0 - 20);
+    step(1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    step(moves.upB!.faf);
+    expect(events.map((e) => e.type)).toEqual(['tetherFire', 'tetherRelease']);
+    expect(f.action).toBe('helpless');
+  });
+
+  it('the line stops at a fighter, and he flies into them for 10% on arrival', () => {
+    const { f, v, events, actions, step, tap } = vsMarioAt(-30, 30);
+    tap(100, 0);
+    for (let i = 0; i < 60 && f.action !== 'tetherPull'; i++) step(1);
+    expect(events.map((e) => e.type)).toEqual(['tetherFire', 'tetherFighterHit']);
+    expect(f.tether).toMatchObject({ kind: 'fighter', port: 1 });
+    expect(v.damage).toBe(0);
+    for (let i = 0; i < 60 && f.action === 'tetherPull'; i++) step(1);
+    expect(events.map((e) => e.type)).toEqual(['tetherFire', 'tetherFighterHit', 'hit', 'tetherRelease']);
+    expect(events[2]).toMatchObject({ attacker: 0, victim: 1, move: 'neutralB' });
+    // Fresh (x1.05), and the meter takes x1.2 in 1v1.
+    expect(v.damage).toBeCloseTo(10 * 1.05 * 1.2, 9);
+    expect(actions).toEqual(['attack', 'tetherPull', 'fall']);
+    for (let i = 0; i < 30 && v.hitlag > 0; i++) step(1);
+    step(1);
+    // Launched away from him at 55 degrees, lifted a little by the tumble gravity bonus (Mario's 55.7).
+    const launched = (Math.atan2(v.kb.y, v.kb.x) * 180) / Math.PI;
+    expect(Math.abs(launched - GRAPPLE_KICK.angle)).toBeLessThan(1);
+  });
+
+  it('a shield blocks the fly-in: shieldstun and shield damage, no % and no launch', () => {
+    const { f, v, events, step, tap, hold } = vsMarioAt(-30, 30);
+    hold({ buttons: ['shield'] });
+    step(5);
+    expect(v.action).toBe('shield');
+    const shield = v.shieldHp;
+    tap(100, 0);
+    for (let i = 0; i < 60 && !events.some((e) => e.type === 'shieldHit'); i++) step(1);
+    expect(events.map((e) => e.type)).toEqual(['tetherFire', 'tetherFighterHit', 'shieldHit']);
+    expect(events[2]).toMatchObject({ attacker: 0, victim: 1, move: 'neutralB', damage: 10 * 1.05 });
+    expect([v.action, v.damage]).toEqual(['shieldStun', 0]);
+    expect(v.shieldHp).toBeLessThan(shield - 10);
+    // He holds where he arrived through the shared hitlag, the kick's box still out, then lets go into a fall.
+    expect([f.action, f.hitlag > 0]).toEqual(['tetherPull', true]);
+    expect(activeHitboxes(f).map((b) => b.box)).toEqual([GRAPPLE_KICK]);
+    for (let i = 0; i < 30 && f.action === 'tetherPull'; i++) step(1);
+    expect(events.map((e) => e.type)).toEqual([
+      'tetherFire',
+      'tetherFighterHit',
+      'shieldHit',
+      'tetherRelease',
+    ]);
+    expect([f.action, activeHitboxes(f)]).toEqual(['fall', []]);
+  });
+
+  it('lands the fly-in in the hit pass: a shield pressed on the arrival frame blocks it, on either port', () => {
+    /**
+     * Fluffy on `port` grapples the Mario reference 60 units away on the other port, whose input on each match frame
+     * is `mario(frame)`. Returns the tether and hit events (hits as attacker>victim), the match frame the first hit
+     * or shield hit landed on, and both fighters' state once Fluffy has let go.
+     */
+    const flyIn = (port: 0 | 1, mario: (frame: number) => Hold = () => ({})) => {
+      const fighters = [{ fighter: 'fluffy' }, { fighter: 'reference-mario' }];
+      const m = createMatch({
+        seed: 1,
+        stage: 'battlefield',
+        stocks: 3,
+        ports: port === 0 ? fighters : fighters.reverse(),
+      });
+      runPorts(m, 10, [{}, {}]);
+      const f = m.fighters[port]!;
+      const v = m.fighters[1 - port]!;
+      place(f, -30, 0, 1, f.ground);
+      place(v, 30, 0, -1, f.ground);
+      const name = (p: number) => (p === port ? 'fluffy' : 'mario');
+      const events: string[] = [];
+      let hitFrame = -1;
+      const step = (fluffy: Hold) => {
+        const other = mario(m.frame);
+        runPorts(m, 1, port === 0 ? [fluffy, other] : [other, fluffy]);
+        const now: string[] = [];
+        for (const e of m.events) {
+          if (e.type === 'hit' || e.type === 'shieldHit') {
+            now.push(`${e.type} ${name(e.attacker)}>${name(e.victim)}`);
+            if (hitFrame < 0) hitFrame = m.frame - 1;
+          } else if (/^(tether|parry)/.test(e.type)) now.push(e.type);
+        }
+        // Hits on one frame land in port order, which is not what this compares.
+        events.push(...now.sort());
+      };
+      step({ buttons: ['special'] });
+      for (let i = 0; i < 2; i++) step({ x: 100, buttons: ['special'] });
+      step({ x: 100 });
+      for (let i = 0; i < 90 && (hitFrame < 0 || f.action === 'tetherPull'); i++) step({});
+      const state = (g: FighterState) => ({ action: g.action, damage: g.damage, shieldHp: g.shieldHp });
+      return { events, hitFrame, fluffy: state(f), mario: state(v) };
+    };
+    // Untouched, the kick lands on the same match frame on either port: the frame the reel arrives.
+    const open = flyIn(0);
+    expect(open.events).toEqual(['tetherFire', 'tetherFighterHit', 'hit fluffy>mario', 'tetherRelease']);
+    expect(flyIn(1)).toEqual(open);
+    const arrival = open.hitFrame;
+    // Shield pressed on that frame, and not a frame before: blocked on both ports, the same way.
+    const shield = (frame: number): Hold => (frame >= arrival ? { buttons: ['shield'] } : {});
+    const shielded = flyIn(0, shield);
+    expect(shielded.events).toEqual([
+      'tetherFire',
+      'tetherFighterHit',
+      'shieldHit fluffy>mario',
+      'tetherRelease',
+    ]);
+    expect(shielded.mario).toMatchObject({ action: 'shieldStun', damage: 0 });
+    expect(flyIn(1, shield)).toEqual(shielded);
+    // Mario's jab, out on its frames 2-3, pressed the frame before: it is out on the arrival frame, so the two trade.
+    const jab = (frame: number): Hold => (frame === arrival - 1 ? { buttons: ['attack'] } : {});
+    const traded = flyIn(0, jab);
+    expect(traded.events.slice(0, 4)).toEqual([
+      'tetherFire',
+      'tetherFighterHit',
+      'hit fluffy>mario',
+      'hit mario>fluffy',
+    ]);
+    expect([traded.hitFrame, traded.fluffy.damage > 0, traded.mario.damage]).toEqual([
+      arrival,
+      true,
+      open.mario.damage,
+    ]);
+    expect(flyIn(1, jab)).toEqual(traded);
+  });
+
+  it("the fly-in has Corrin's Dragon Lunge kick knockback (55 degrees, 98 growth, 70 base) at the roster's 10%", () => {
+    expect(GRAPPLE_KICK).toMatchObject({ damage: 10, angle: 55, kbg: 98, bkb: 70, direction: 'away' });
+  });
+
+  it('the fly-in kills Mario at the ledge between forward smash and down smash', () => {
+    const { damage, angle, kbg, bkb } = GRAPPLE_KICK;
+    const kick = koPercent({ hit: { damage, angle, kbg, bkb } })!;
+    expect(kick).toBeGreaterThan(koPercent({ hit: { fighter: 'fluffy', move: 'fsmash' } })!);
+    expect(kick).toBeLessThan(koPercent({ hit: { fighter: 'fluffy', move: 'dsmash' } })!);
+  });
+
+  it('a real fly-in kills where koPercent says: from 2% over its threshold, and not from 2% under', () => {
+    const { damage, angle, kbg, bkb } = GRAPPLE_KICK;
+    const threshold = koPercent({ hit: { damage, angle, kbg, bkb }, from: { x: 70, y: 0 } })!;
+    /** Does the real Point Grapple, flying in from 60 units away, KO Mario before his hitstun runs out? */
+    const kos = (percent: number) => {
+      const { v, events, step, tap } = vsMarioAt(10, 70);
+      v.damage = percent;
+      tap(100, 0);
+      for (let i = 0; i < 60 && !events.some((e) => e.type === 'hit'); i++) step(1);
+      expect(events.some((e) => e.type === 'hit')).toBe(true);
+      for (let i = 0; i < 600; i++) {
+        if (v.action === 'ko') return true;
+        if (v.hitlag <= 0 && v.launch === null && v.hitstun <= 0) return false;
+        step(1);
+      }
+      return false;
+    };
+    expect(kos(threshold + 2)).toBe(true);
+    expect(kos(threshold - 2)).toBe(false);
   });
 });

@@ -102,6 +102,8 @@ export const TETHER_ACTIONS: Record<string, ActionDef> = {
    * Reeling in at `pullSpeed`. A ledge anchor ends in a ledge grab within TETHER.ledgeArrive; another anchor
    * ends in tetherHang if `hang` is held on arrival, else in a fall. A jump press lets go keeping the reel's
    * velocity, and a reel that can't arrive (a wall in the way) gives up after range / pullSpeed + slack frames.
+   * A reel to a fighter with an `arriveHit` holds still on arrival with the hit out for that frame's hit pass, and
+   * lets go the next frame it steps.
    */
   tetherPull: {
     physics: 'air',
@@ -111,7 +113,7 @@ export const TETHER_ACTIONS: Record<string, ActionDef> = {
       const { f, c, m, s } = x;
       const t = moveOf(f)?.tether;
       const tether = f.tether;
-      if (!t || !tether) return letGo(x, false);
+      if (!t || !tether || tether.arrived) return letGo(x, false);
       if (justPressed(c, Btn.Jump)) {
         consume(c, Btn.Jump);
         return letGo(x, true);
@@ -142,7 +144,10 @@ export const TETHER_ACTIONS: Record<string, ActionDef> = {
           t.onFighter?.(x, target, { phase: 'arrive', point: { ...tether.anchor } });
           if (f.tether !== tether) return;
           if (f.action !== 'tetherPull' || f.move !== move) return releaseTether(m, f);
-          return letGo(x, false);
+          if (!t.arriveHit) return letGo(x, false);
+          // The hit lands in resolveHits, once the target has stepped this frame too (its shield press counts).
+          tether.arrived = true;
+          return;
         }
         if (!t.hang || !isHeld(c, buttonBit(t.hang))) return letGo(x, false);
         // The held button is spent on the hang, so the hold buffer doesn't turn letting go of it into a jump.

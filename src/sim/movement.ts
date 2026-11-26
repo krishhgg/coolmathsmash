@@ -134,9 +134,10 @@ export function leaveGround(x: Ctx): void {
   f.jumpsUsed = Math.max(f.jumpsUsed, 1);
 }
 
-/** Standing on the stage restores jumps, the air dodge and the ledge-grab allowance. */
+/** Standing on the stage restores jumps, the air dodge, the ledge-grab allowance and sky anchors. */
 export function restoreAirOptions(f: FighterState): void {
   f.jumpsUsed = 0;
+  f.skyAnchorsUsed = 0;
   f.fastFalling = false;
   f.airDodgeUsed = false;
   f.dropPlatform = -1;

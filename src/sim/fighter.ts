@@ -138,6 +138,8 @@ export interface FighterState {
    * surface anchor also keeps that surface and the anchor within it, so a moving piece carries the line along.
    * `moveFrame` is the move's frame on the first frame of tetherPull (the frame the line anchored) or tetherHang
    * (the frame the reel arrived), so the renderer plays the move's clip on through the reel instead of restarting it.
+   * `arrived` marks a reel that reached its fighter this frame: the tether's `arriveHit` is out (activeHitboxes) until
+   * the fighter next steps and lets go.
    */
   tether: {
     anchor: Vec;
@@ -148,9 +150,12 @@ export interface FighterState {
     surface?: GroundRef;
     local?: Vec;
     moveFrame?: number;
+    arrived?: boolean;
   } | null;
   /** A tether's target as an offset from the fighter: the reticle while aiming, then where the line is going. */
   aim: Vec | null;
+  /** Sky anchors taken this airtime (TetherDef.skyAnchors); landing or a ledge or surface latch resets it. */
+  skyAnchorsUsed: number;
   /** Frames before stage hazards (damage zones, stage hitboxes) can hit this fighter again. */
   stageHitLock: number;
   /** Timed statuses on this fighter, oldest first (src/sim/statuses.ts). */
@@ -225,6 +230,7 @@ export function createFighter(
     mobility: createMobility(getFighter(fighterId)),
     tether: null,
     aim: null,
+    skyAnchorsUsed: 0,
     stageHitLock: 0,
     statuses: [],
     meters: createMeters(getFighter(fighterId)),
