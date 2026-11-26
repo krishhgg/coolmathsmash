@@ -170,7 +170,7 @@ export function knowledge(fighterId: string, stageId: string): FighterKnowledge 
     if (!moves[name] || avoid.has(name)) continue;
     const p = probe(def, stageId, name, 'ground');
     if (!p) continue;
-    const charged = chargeable(moves[name]!) ? probe(def, stageId, name, 'ground', true) : null;
+    const charged = chargeable(moves[name]) ? probe(def, stageId, name, 'ground', true) : null;
     ground[name] = charged ? { ...p, charged } : p;
   }
   for (const name of Object.keys(DASH_INPUTS)) {
