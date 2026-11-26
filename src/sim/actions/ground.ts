@@ -1,6 +1,7 @@
 import { Btn } from '../../input/types';
 import {
   CROUCH_THRESHOLD,
+  DASH_SPEED_KEEP_FRAMES,
   DASH_THRESHOLD,
   DIRECTION_THRESHOLD,
   RUN_BRAKE_FRAMES,
@@ -24,6 +25,21 @@ function takeOff(x: Ctx, v: number): void {
   f.jumpsUsed = 1;
   f.fastFalling = false;
   setAction(x, 'jump');
+}
+
+/**
+ * Run physics for a stick held `sx` forward, as Ultimate's control energy moves the Dash and Run statuses: below
+ * run speed it accelerates by run accel. Above it, as when an initial dash outpaces the run, it brakes back down at
+ * traction (the energy's brake is ground_brake x run_brake_brake_mul, and that multiplier is 1 in common params).
+ */
+function runToward(x: Ctx, sx: number): void {
+  const { f, s } = x;
+  const over = f.vel.x * f.facing > s.runSpeed;
+  f.vel.x = approach(
+    f.vel.x,
+    f.facing * s.runSpeed,
+    over ? s.groundFriction : s.runAccelBase + s.runAccelAdd * sx,
+  );
 }
 
 export const GROUND: Record<string, ActionDef> = {
@@ -60,7 +76,11 @@ export const GROUND: Record<string, ActionDef> = {
     },
   },
 
-  /** Initial dash: fixed speed for dashFrames; flicking back restarts it the other way (dash dance). */
+  /**
+   * Initial dash, dashFrames long: dash speed for its first DASH_SPEED_KEEP_FRAMES, then run physics, so a stick held
+   * forward eases it to run speed and a neutral or backward stick slides it out at traction. Flicking back restarts
+   * it the other way (dash dance).
+   */
   dash: {
     physics: 'ground',
     edge: 'fall',
@@ -73,8 +93,11 @@ export const GROUND: Record<string, ActionDef> = {
         f.facing = fl as 1 | -1;
         return setAction(x, 'dash');
       }
-      f.vel.x = f.facing * s.dashInitialSpeed;
-      if (f.actionFrame > s.dashFrames) setAction(x, stickX(c) * f.facing > 0 ? 'run' : 'idle');
+      const sx = stickX(c) * f.facing;
+      if (f.actionFrame > s.dashFrames) return setAction(x, sx > 0 ? 'run' : 'idle');
+      if (f.actionFrame <= DASH_SPEED_KEEP_FRAMES) f.vel.x = f.facing * s.dashInitialSpeed;
+      else if (sx > 0) runToward(x, sx);
+      else f.vel.x = approach(f.vel.x, 0, s.groundFriction);
     },
   },
 
@@ -83,12 +106,12 @@ export const GROUND: Record<string, ActionDef> = {
     edge: 'fall',
     friction: false,
     update(x) {
-      const { f, s, c } = x;
+      const { f, c } = x;
       if (groundActionable(x)) return;
       const sx = stickX(c) * f.facing;
       if (sx <= -DIRECTION_THRESHOLD) return setAction(x, 'turn');
       if (sx <= 0) return setAction(x, 'runBrake');
-      f.vel.x = approach(f.vel.x, f.facing * s.runSpeed, s.runAccelBase + s.runAccelAdd * sx);
+      runToward(x, sx);
     },
   },
 
