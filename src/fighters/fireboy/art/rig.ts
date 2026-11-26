@@ -5,6 +5,7 @@ import {
   THIGH,
   UPPER_ARM,
   balls,
+  blasts,
   faces,
   fist,
   foreArm,
@@ -108,6 +109,9 @@ export const rig: Rig = {
     fxFlame: loop('fxJet', 3, 30, [1, 2, 0]),
     /** A strike flame: a yellow-cored teardrop with swept tongues, flickering through three drawings. */
     fxJet: loop('fxJet', 3, 20, [0, 1, 2]),
+    ...frames('fxBlast', blasts),
+    /** Fire Blast, the Final Smash's fire at world scale, its two fireballs rolling a third of a turn a drawing. */
+    fxBlast: loop('fxBlast', 3, 15, [0, 1, 2]),
   },
 };
 

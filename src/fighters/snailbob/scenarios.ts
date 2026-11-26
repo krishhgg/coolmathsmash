@@ -4,8 +4,8 @@ const SB = 'characters/snail-bob';
 
 /**
  * Snail Bob's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus the Shell Pound's landing shockwave, a Rocket Hover recovery from below the ledge and the down
- * special Shell Pound's hop and drop. References live in the Captain drive's refs/.
+ * Fireboy, plus the down air Shell Plunge's landing shockwave, a Rocket Hover recovery from below the ledge and the
+ * down special Shell Pound's hop and drop. References live in the Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'snailbob',
@@ -21,9 +21,9 @@ export const scenarios: FighterScenarios = {
   },
   extra: [
     {
-      name: 'snailbob-dair-pound',
+      name: 'snailbob-dair-plunge',
       description:
-        'Snail Bob drops a Shell Pound (down air) from a full hop beside Fireboy at 60%; capture the landing ' +
+        'Snail Bob drops a Shell Plunge (down air) from a full hop beside Fireboy at 60%; capture the landing ' +
         'shockwave (dairLand), then the shell flipping back over.',
       page: { kind: 'game' },
       match: { ports: [{ fighter: 'snailbob' }, { fighter: 'fireboy' }] },
