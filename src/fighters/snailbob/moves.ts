@@ -2,6 +2,7 @@ import type { HitboxDef, MoveDef } from '../types';
 import { Btn } from '../../input/types';
 import { startMove } from '../../sim/actions/attack';
 import { SMASH_CHARGE_FRAMES } from '../../sim/actions/charge';
+import { holdFrame } from '../../sim/actions/registry';
 import { isHeld } from '../../sim/control';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -330,7 +331,8 @@ export const moves: Record<string, MoveDef> = {
     faf: 60,
     continuesOnLanding: true,
     hits: [{ frames: SPIN_ROLL, boxes: [box(0, 0, 6, 6.5, { damage: 10, angle: 70, kbg: 70, bkb: 80 })] }],
-    script({ f, c, s }) {
+    script(x) {
+      const { f, c, s } = x;
       const frame = f.actionFrame;
       if (frame === 1) f.fastFalling = false;
       if (frame <= SPIN_REV_FRAME) {
@@ -338,7 +340,7 @@ export const moves: Record<string, MoveDef> = {
         if (!f.ground && !f.fastFalling) f.vel.y = Math.max(f.vel.y * 0.8, -0.4);
         if (frame === SPIN_REV_FRAME && isHeld(c, Btn.Special) && f.charge < SMASH_CHARGE_FRAMES) {
           f.charge++;
-          f.actionFrame--;
+          holdFrame(x);
         }
         return;
       }
