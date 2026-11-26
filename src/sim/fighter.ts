@@ -44,6 +44,11 @@ export interface FighterState {
   airDodgeUsed: boolean;
   /** Match frame of the last Shield press that counted as a tech input. */
   techPressAt: number;
+  /**
+   * Initial dash: the control frame (ControlState.frame) a flick back after TURN_DASH_FRAMES was last made, or with
+   * the hold buffer last held, buffered until the dash ends (-1 = none).
+   */
+  dashBackAt: number;
   /** Direction of the current dodge or roll (unit vector, 0,0 for a neutral air dodge). */
   dodgeDir: Vec;
   airFrames: number;
@@ -165,6 +170,7 @@ export function createFighter(
     fastFalling: false,
     airDodgeUsed: false,
     techPressAt: -TECH_LOCKOUT,
+    dashBackAt: -1,
     dodgeDir: vec(),
     airFrames: 0,
     landingLag: 0,
