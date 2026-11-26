@@ -202,13 +202,16 @@ export function slotsCovering(art: FighterArt, pose: RigPose, x: number, y: numb
     .map((slot) => slot.name);
 }
 
-/** Rig-space [minX, minY, maxX, maxY] of everything drawn in `pose`, decorations aside. */
+/**
+ * Rig-space [minX, minY, maxX, maxY] of every slot drawn in `pose`, decorations included: the renderer draws
+ * those too, so a glow or a hat below the floor shows on screen like any other part.
+ */
 export function poseBounds(art: FighterArt, pose: RigPose): [number, number, number, number] {
   const b: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity];
   for (const slot of art.rig.slots) {
     const name = pose.symbols[slot.name];
     const sym = name ? art.rig.symbols[name] : undefined;
-    if (slot.decor || !Array.isArray(sym)) continue;
+    if (!Array.isArray(sym)) continue;
     const m = pose.world[slot.bone]!;
     for (const shape of sym)
       for (const p of flattenPath(shape.d, 4))
