@@ -483,3 +483,8 @@ STATES.getupRollBack = retimeClip(STATES.rollBack!, 35, [
   [4, 4],
   [20, 28],
 ]);
+/**
+ * The air dodge on the neutral dodge's 52 frames (AIR_DODGE_NEUTRAL): keys inside the intangible window (3 to 29)
+ * stay put and only the recovery after it stretches. A directional dodge plays the same clip over its own length.
+ */
+STATES.airDodge = retimeClip(STATES.airDodge!, 52, [[29, 29]]);
