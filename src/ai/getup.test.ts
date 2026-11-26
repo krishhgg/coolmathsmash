@@ -5,8 +5,13 @@ import { posedStage } from '../sim/context';
 import { entityPlatform, spawnEntity } from '../sim/entities/entities';
 import type { FighterState, GroundRef } from '../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
-import { surfaceRange, surfaceY } from '../sim/movement';
+import { groundSpan, surfaceY } from '../sim/movement';
+import { hazardTestbed } from '../stages/hazardTestbed';
+import { registerStage } from '../stages/registry';
 import { createCpu } from './index';
+import { inZone, stageInfo } from './stage';
+
+registerStage(hazardTestbed);
 
 /** Fireboy's tech roll and getup roll length. */
 const ROLL = getFighter('fireboy').stats.rollDistance;
@@ -19,9 +24,12 @@ function duel(stage = 'battlefield', foe = 'fireboy'): MatchState {
   return createMatch({ seed: 3, stage, stocks: 3, ports: [{ fighter: 'fireboy' }, { fighter: foe }] });
 }
 
-/** Where `f` stands along the surface it is on, from that surface's left end: what a moving platform carries. */
+/**
+ * Where `f` stands along the ground it is on, from that ground's left end (with the floors connected to it): what a
+ * moving platform carries.
+ */
 function along(m: MatchState, f: Readonly<FighterState>): number {
-  return f.pos.x - surfaceRange(posedStage(m), f.ground!)[0];
+  return f.pos.x - groundSpan(posedStage(m), f.ground!)[0];
 }
 
 /** Port 0 lying down at `x` on `ground`; port 1 standing on the main floor at `foe`, too far off to crowd it. */
@@ -40,9 +48,9 @@ function lieDown(m: MatchState, x: number, ground: GroundRef, foe = x > 0 ? -70 
   m.fighters[1]!.pos.x = foe;
 }
 
-/** Port 0 tumbling 20 units above (x, the top of `ground`), falling straight down onto it. */
-function tumbleOnto(m: MatchState, x: number, ground: GroundRef): void {
-  const y = surfaceY(posedStage(m), ground, x) + 20;
+/** Port 0 tumbling 20 units above (x, top), falling straight down onto the ground there. */
+function tumbleOnto(m: MatchState, x: number, top: number): void {
+  const y = top + 20;
   Object.assign(m.fighters[0]!, {
     pos: { x, y },
     prevPos: { x, y },
@@ -151,7 +159,7 @@ describe('CPU rolls out of a knockdown on a platform', () => {
     ] as const) {
       const runs = SEEDS.map((seed) => {
         const m = duel();
-        tumbleOnto(m, x, SIDE);
+        tumbleOnto(m, x, posedStage(m).geo.platforms[2]!.y);
         return getUp(m, 9, seed);
       });
       expectWholeRolls(runs);
@@ -159,6 +167,27 @@ describe('CPU rolls out of a knockdown on a platform', () => {
       expect(techs.length, `from x ${x}`).toBeGreaterThanOrEqual(6);
       expect([...new Set(techs.map((r) => r.dir))].sort(), `from x ${x}`).toEqual(fits);
     }
+  });
+
+  it('tech roll onto the floor of a stage with hazards, clear of its damage zones', () => {
+    // The tech roll is picked a few frames before touching down. Its end has to be somewhere the CPU can stand, judged
+    // at the height of the ground under it. The hazard testbed's floor has damage zones from x 36 to 60 and -60 to -36,
+    // and a trapdoor from -15 to 15.
+    const runs = SEEDS.flatMap((seed) =>
+      [-15, 0, 15].map((x) => {
+        const m = duel('hazard-testbed');
+        expect(stageInfo(m).calm).toBe(false);
+        tumbleOnto(m, x, 0);
+        const r = getUp(m, 9, seed);
+        if (r.action === 'techRoll') {
+          const f = m.fighters[0]!;
+          expect(inZone(stageInfo(m), f.fighter, f.pos.x, f.pos.y), r.seen.join(' > ')).toBe(false);
+        }
+        return r;
+      }),
+    );
+    expectWholeRolls(runs);
+    expect(runs.filter((r) => r.action === 'techRoll').length).toBeGreaterThan(0);
   });
 
   it('never roll up from lying on a Duck Raft, 14 wide, half a roll', () => {
