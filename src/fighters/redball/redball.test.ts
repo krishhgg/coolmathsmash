@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
-import { koPercent, type KoHit } from '../../sim/testing/ko';
+import { koPercent, type KoHit, type KoSetup } from '../../sim/testing/ko';
 import { versusMario } from './versus';
 import { DAIR_DROP_FRAME, moves } from './moves';
 import { stats } from './stats';
@@ -171,6 +171,38 @@ describe('Red Ball: kill moves on Mario at the Battlefield ledge (Ultimate analo
 
   it('forward throw and the tilts do not kill before 150%', () => {
     for (const move of ['fthrow', 'ftilt', 'utilt']) expect(ko(move), move).toBeGreaterThan(150);
+  });
+});
+
+/**
+ * Measured, not sourced. Forward air, up air, down air and the Charge Roll name no Ultimate analogue: moves.ts gives
+ * the aerials "Ultimate-style knockback for moves of their size and speed", and specials.ts models the charge on
+ * Sonic's spin charge without copying its hits. No Ultimate hit has their damage, angle, BKB and KBG (searched in
+ * the 13.0.1 hitbox data of ultimate-hitboxes.com), so there is no Ultimate kill percent to hold them to. These are
+ * the percents koPercent gave on main when they were written, so a change to their knockback shows up here. Mario
+ * reference, Battlefield, fresh, no rage, no DI: at the ledge, airborne for the aerials, and the down air's meteor
+ * 10 units past the ledge, where a downward hit can KO.
+ */
+const MEASURED: [move: string, measured: number, setup: Pick<KoSetup, 'air' | 'from'>][] = [
+  ['fair', 138.6, { air: true }],
+  ['uair', 157.8, { air: true }],
+  ['dair', 59.2, { air: true, from: { x: 90, y: 0 } }],
+  ['chargeRoll1', 206.2, {}],
+  ['chargeRoll2', 122.7, {}],
+  ['chargeRoll3', 78.3, {}],
+];
+
+describe('Red Ball: kill percents with no Ultimate analogue (measured)', () => {
+  it.each(MEASURED)('%s KOs within 5 points of its measured %d%%', (move, measured, setup) => {
+    const percent = koPercent({ hit: { fighter: 'redball', move }, ...setup });
+    expect(percent).not.toBeNull();
+    expect(Math.abs(percent! - measured)).toBeLessThanOrEqual(5);
+  });
+
+  it('a longer rev rolls into a harder hit: each Charge Roll tier KOs at least 40 points earlier', () => {
+    const [roll1, roll2, roll3] = MEASURED.slice(3).map(([move]) => ko(move));
+    expect(roll2! + 40).toBeLessThan(roll1!);
+    expect(roll3! + 40).toBeLessThan(roll2!);
   });
 });
 
