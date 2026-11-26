@@ -7,7 +7,7 @@ import { findGrabs, grabArmour, resolveGrabs } from '../actions/grab';
 import { inWindow, isIntangible } from '../actions/registry';
 import { COUNTER, LEDGE_HIT_LOCK, PARRY } from '../constants';
 import { stickX, stickY } from '../control';
-import type { Ctx, FighterState, LaunchLink } from '../fighter';
+import { inHitlag, type Ctx, type FighterState, type LaunchLink } from '../fighter';
 import { emit } from '../events';
 import { isFinalMove } from '../finalSmash';
 import type { MatchState } from '../match';
@@ -308,7 +308,7 @@ export function resolveHits(
   const hits: Connection[] = [];
   const grabs = findGrabs(m);
   for (const a of m.fighters) {
-    if (a.hitlag > 0) continue;
+    if (inHitlag(m, a)) continue;
     const boxes = activeHitboxes(a).filter((h) => !h.box.grab);
     if (boxes.length === 0) continue;
     const found: { v: FighterState; box: HitboxDef; at: { x: number; y: number } }[] = [];
