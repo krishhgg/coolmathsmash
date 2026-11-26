@@ -131,7 +131,7 @@ describe('Fire Blast (Final Smash), on Mario Finale', () => {
     ]);
   });
 
-  it('starts from neutral special with the charge and puts the fire out on frame 65, as wide as the stage is long', () => {
+  it('starts from neutral special with the charge and puts the fire out on frame 65 and sends it further than Battlefield is wide', () => {
     const { m, a } = blastMatch();
     expect([a.move, a.finalReady]).toEqual(['finalSmash', false]);
     step(m, BLAST.frame - 2);
