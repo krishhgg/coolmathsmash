@@ -45,7 +45,7 @@ function rotOf(pose: Pose, bone: string): number {
  * The forearm lines up with the barrel; the upper arm turns to the elbow and stretches to meet it, Flash
  * rubber-hose style.
  */
-function hold(pose: Pose, hand: Pt, tilt: number): Pose {
+export function hold(pose: Pose, hand: Pt, tilt: number): Pose {
   const t = tilt / DEG;
   const [dx, dy] = [Math.cos(t), Math.sin(t)];
   const [sx, sy] = pointOf(rig, pose, 'armF');
@@ -152,6 +152,67 @@ const clips: Record<string, AnimClip> = {
       key(38, AIR_READY),
     ],
   },
+};
+
+// --- Upgraded Laser (src/fighters/johnny/upgrade.ts): the shot 2 frames sooner, a bigger flash with a burst, a
+// harder kick that rocks him back, and 7 more frames before he holsters.
+
+/** The upgraded shot's flash: the muzzle flash twice as big, and an impact burst on fx2 round the muzzle. */
+const bigFlash = (pt: Pt): Pose => ({
+  fx1: flash(2.6, pt),
+  fx2: { x: pt[0] + 0.6, y: pt[1], sx: 1.5, sy: 1.5 },
+});
+const BIG_FLASH = { ...SWAPS, ...GRIT, fx1: 'muzzleFlash', fx2: 'impact' };
+
+function bigKick(base: Pose, tip: Pt): Pose {
+  return mix(aim(mix(base, { body: { rot: -2 } }), [tip[0] - 1.3, tip[1] - 1.4], -24), {
+    fx1: flash(3.0, [tip[0] - 0.9, tip[1] - 2.0]),
+  });
+}
+const bigRecoil = (base: Pose, tip: Pt): Pose =>
+  aim(mix(base, { body: { rot: -1 } }), [tip[0] - 1.0, tip[1] - 0.9], -16);
+
+/** One upgraded shot: aim on 3, fire on `shot`, kick, settle back on the aim by `settle` and hold it to `hold`. */
+function bigShotKeys(shot: number, settle: number, holdTo: number, base: Pose, tip: Pt, aimed: Pose) {
+  return [
+    key(3, aimed, { ease: 'linear' }),
+    key(shot - 1, aimed, { ease: 'linear' }),
+    key(shot, mix(aimed, bigFlash(tip)), { ease: 'linear', swaps: BIG_FLASH }),
+    key(shot + 1, bigKick(base, tip), { ease: 'out', swaps: { ...SWAPS, ...GRIT, fx1: 'muzzleFlash' } }),
+    key(shot + 3, bigRecoil(base, tip), { ease: 'inOut', swaps: {} }),
+    key(settle, aimed, { ease: 'linear' }),
+    key(holdTo, aimed, { ease: 'inOut' }),
+  ];
+}
+
+clips.neutralBUpgraded = {
+  length: 48,
+  active: [[6, 6]],
+  swaps: SWAPS,
+  keys: [
+    key(0, STANCE, { ease: 'out' }),
+    key(1, DRAW, { ease: 'out' }),
+    ...bigShotKeys(6, 18, 33, BASE, MUZZLE_TIP, AIM),
+    key(41, LOWER, { ease: 'in' }),
+    key(44, mix(LOWER, { body: { rot: 0 } }), { ease: 'inOut', swaps: { ...GRIT, ...GUARD } }),
+    key(48, STANCE),
+  ],
+};
+clips.neutralBUpgradedAir = {
+  length: 45,
+  active: [[5, 5]],
+  swaps: SWAPS,
+  keys: [
+    key(0, AIR_READY, { ease: 'out' }),
+    key(1, AIR_DRAW, { ease: 'out' }),
+    ...bigShotKeys(5, 17, 30, AIR_BASE, AIR_MUZZLE_TIP, AIR_AIM),
+    key(38, AIR_LOWER, { ease: 'in' }),
+    key(41, AIR_LOWER, {
+      ease: 'inOut',
+      swaps: { ...GRIT, ...FIST_B, foreF: 'fist', foreFLine: 'fistLine' },
+    }),
+    key(45, AIR_READY),
+  ],
 };
 
 export const laser: Record<string, AnimClip> = Object.fromEntries(

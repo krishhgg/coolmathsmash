@@ -1041,6 +1041,113 @@ function ellipseIn(x: number, y: number, rx: number, ry: number): string {
   return ellipse(-y, H + x, ry, rx);
 }
 
+// ---------------------------------------------------------------------------------------------------------
+// Coin Magnet: a red horseshoe magnet gripped by its bend in the near fist, prongs forward, silver poles at the tips.
+// Drawn in gun space, like the ray gun.
+
+/** The point between the pole tips in gun space, where the coins arrive. */
+export const MAGNET_POLES: readonly [number, number] = [4.5, 0];
+
+/** The horseshoe: outer edge round the bend from the top tip to the bottom tip, then back along the inner edge. */
+const HORSESHOE: P[] = [
+  [4.5, -1.75, 0],
+  [2.4, -1.8],
+  [0.8, -1.7],
+  [-0.2, -1.32],
+  [-0.72, -0.62],
+  [-0.85, 0],
+  [-0.72, 0.62],
+  [-0.2, 1.32],
+  [0.8, 1.7],
+  [2.4, 1.8],
+  [4.5, 1.75, 0],
+  [4.5, 0.62, 0],
+  [2.4, 0.62],
+  [1.55, 0.55],
+  [1.1, 0.32],
+  [0.95, 0],
+  [1.1, -0.32],
+  [1.55, -0.55],
+  [2.4, -0.62],
+  [4.5, -0.62, 0],
+];
+
+function magnetShapes(): PathShape[] {
+  const pole = (y0: number, y1: number): PathShape[] => [
+    inked(
+      poly(
+        gun([
+          [3.45, y0],
+          [4.5, y0],
+          [4.5, y1],
+          [3.45, y1],
+        ]),
+      ),
+      'gun',
+      'gunLine',
+      0.09,
+    ),
+    fill(
+      poly(
+        gun([
+          [3.55, y0 + 0.14],
+          [4.4, y0 + 0.14],
+          [4.4, y0 + 0.32],
+          [3.55, y0 + 0.32],
+        ]),
+      ),
+      'gunHi',
+    ),
+  ];
+  return [
+    inked(smooth(gun(HORSESHOE)), 'magnet', 'magnetLine'),
+    // Shade along the lower edge of each prong and round the bend's underside.
+    fill(
+      smooth(
+        gun([
+          [3.45, 1.75, 0],
+          [2.4, 1.8],
+          [0.8, 1.7],
+          [-0.2, 1.32],
+          [-0.72, 0.62],
+          [-0.5, 0.62],
+          [0.1, 1.12],
+          [0.9, 1.42],
+          [2.4, 1.45],
+          [3.45, 1.4, 0],
+        ]),
+      ),
+      'magnetLo',
+    ),
+    fill(
+      smooth(
+        gun([
+          [3.45, -0.62, 0],
+          [2.4, -0.62],
+          [1.55, -0.55],
+          [1.75, -0.86],
+          [2.4, -0.92],
+          [3.45, -0.92, 0],
+        ]),
+      ),
+      'magnetLo',
+    ),
+    fill(
+      smooth(
+        gun([
+          [0.9, -1.5],
+          [2.6, -1.58],
+          [2.6, -1.4],
+          [0.9, -1.3],
+        ]),
+      ),
+      'magnetHi',
+    ),
+    ...pole(-1.75, -0.62),
+    ...pole(0.62, 1.75),
+  ];
+}
+
 /** Muzzle flash, drawn in fx space at the muzzle: a cyan burst with a long spike along +x and a white core. */
 export const muzzleFlash: PathShape[] = [
   inked(
@@ -1109,6 +1216,7 @@ export const parts: Record<string, Part> = {
   palm: forearm(NEAR, palmShapes()),
   palmFar: forearm(FAR, palmShapes()),
   gun: forearm(NEAR, [...gunShapes(), ...fistShapes()]),
+  magnet: forearm(NEAR, [...magnetShapes(), ...fistShapes()]),
   thigh: legTube(NEAR, THIGH, 0.84, 0.66),
   thighFar: legTube(FAR, THIGH, 0.84, 0.66),
   shin: legTube(NEAR, SHIN - 0.35, 0.66, 0.54),
