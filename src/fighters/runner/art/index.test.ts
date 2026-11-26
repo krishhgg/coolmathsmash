@@ -150,6 +150,15 @@ describe('runner art', () => {
     expect(x1 - x0).toBeLessThan(12.5);
   });
 
+  it('keeps every frame of the getup attack above the floor, within 0.2 units', () => {
+    const sunk: string[] = [];
+    for (let f = 0; f <= art.clips.getupAttack!.length; f++) {
+      const bottom = poseBounds(art, samplePose(art, 'getupAttack', f, f))[3];
+      if (bottom > 0.2) sunk.push(`getupAttack@${f} ${bottom.toFixed(2)}`);
+    }
+    expect(sunk).toEqual([]);
+  });
+
   it('keeps her feet on the floor through the grounded loops', () => {
     for (const name of ['idle', 'walk'])
       for (let f = 0; f < art.clips[name]!.length; f += 2)
