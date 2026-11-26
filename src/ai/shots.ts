@@ -78,7 +78,7 @@ export function shotHit(
       const n = out.get(s.kind) ?? 0;
       if (!pos || (s.max !== undefined && n >= s.max)) continue;
       out.set(s.kind, n + 1);
-      const e = spawnEntity(m, { kind: s.kind, owner: 0, pos, move: p.move });
+      const e = spawnEntity(m, { kind: s.kind, owner: 0, pos, move: p.plays });
       Object.assign(e, {
         age: 1,
         vel: { x: s.vx * facing, y: s.vy },

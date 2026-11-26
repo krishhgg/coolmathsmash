@@ -92,7 +92,14 @@ export interface ShotReach {
 }
 
 export interface MoveProbe {
+  /** The move the input asks for, by its input name: what the CPU presses (inputs.ts) and its hints name. */
   move: string;
+  /**
+   * The move the engine plays for that input: `move`, or its `air` variant when it has one and the probe started in
+   * the air (MoveDef.air, startMove in src/sim/actions/attack.ts), as Red Ball's air Tongue Lash plays sideBAir.
+   * `def`, the frames, the boxes and the spawns are this move's.
+   */
+  plays: string;
   def: MoveDef;
   /** How it was started: standing, out of a dash, or in mid-air at rest. */
   start: 'ground' | 'dash' | 'air';
@@ -134,7 +141,10 @@ export interface FighterKnowledge {
   hints: CpuHints;
   /** Probes by move name, for grounded starts (normals, smashes, specials, the grab) and out of a dash. */
   ground: Record<string, MoveProbe>;
-  /** Probes by move name, started in mid-air (aerials and specials). */
+  /**
+   * Probes by move name, started in mid-air (aerials and specials). A special with an air variant is probed as the
+   * variant, which is what its input plays there (MoveProbe.plays).
+   */
   air: Record<string, MoveProbe>;
   /** Some probed move puts out an entity with hitboxes (a projectile), so attack options must follow entities. */
   shoots: boolean;
@@ -296,17 +306,18 @@ function probe(
         ? { x: STICK.full, ...DASH_INPUTS[move] }
         : GROUND_INPUTS[move];
   if (!input) return null;
-  const shots = new Shots(def, move, m);
+  const plays = (start === 'air' && def.moves?.[move]?.air) || move;
+  const shots = new Shots(def, plays, m);
   step(press(input));
-  if (f.move !== move) return null;
+  if (f.move !== plays) return null;
   const active: ProbeFrame[] = [];
   let busy = PROBE_LIMIT;
   let helpless = false;
   for (let t = 0; t < PROBE_LIMIT; t++) {
-    if (t > 0) step((f.move === move && chargeInput(f, input.buttons ?? 0, hold)) || neutralInput());
-    shots.see(t, f.move === move, x0, y0);
+    if (t > 0) step((f.move === plays && chargeInput(f, input.buttons ?? 0, hold)) || neutralInput());
+    shots.see(t, f.move === plays, x0, y0);
     if (f.action === 'helpless') helpless = true;
-    const boxes = f.move === move ? activeHitboxes(f) : [];
+    const boxes = f.move === plays ? activeHitboxes(f) : [];
     if (boxes.length) {
       active.push({
         t,
@@ -315,7 +326,7 @@ function probe(
         boxes: boxes.map((b) => ({ x: b.x - f.pos.x, y: b.y - f.pos.y, r: b.box.radius, box: b.box })),
       });
     }
-    if (t > 0 && f.move !== move && actionable(f) && (start === 'air' || f.ground !== null)) {
+    if (t > 0 && f.move !== plays && actionable(f) && (start === 'air' || f.ground !== null)) {
       busy = t;
       break;
     }
@@ -329,7 +340,8 @@ function probe(
   const all = active.flatMap((a) => a.boxes);
   return {
     move,
-    def: (def.moves ?? {})[move]!,
+    plays,
+    def: (def.moves ?? {})[plays]!,
     start,
     active,
     first: active[0]?.t ?? -1,
