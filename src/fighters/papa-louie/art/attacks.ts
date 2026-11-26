@@ -650,8 +650,8 @@ const PEPPER_AT: Pt = [PEPPER.x, -PEPPER.y];
 const PB_REACH = grip(stance(-0.1, 0.65, 8, -1.1, 1.3), [2.7, -5.4], -165, [-0.6, -3.7]);
 /** Wound up: leaning back, the bomb cocked up behind his toque, the front arm out ahead for balance. */
 const PB_WIND = (() => {
-  const p = grip(stance(-0.7, 0.75, -14, -1.6, 1.2, { head: { rot: -6 } }), [3.9, -7.0], -118, [-3.7, -11.0]);
-  return propAt(p, [-4.2, -12.2]);
+  const p = grip(stance(-0.7, 0.75, -14, -1.6, 1.2, { head: { rot: -6 } }), [3.9, -7.0], -118, [-4.5, -10.2]);
+  return propAt(p, [-5.4, -10.9]);
 })();
 /** The arm whipping over his head, the body coming forward and the peel swinging back over his shoulder. */
 const PB_WHIP = (() => {
@@ -667,8 +667,18 @@ const PB_RELEASE = (() => {
 const PB_FOLLOW = grip(stance(1.1, 0.85, 22, -1.0, 2.0), [-1.4, -5.6], 80, [5.8, -6.2]);
 const PB_FOLLOW_LOW = grip(stance(1.0, 0.8, 18, -1.0, 2.0), [-1.0, -5.6], 88, [5.0, -5.0]);
 const PB_SETTLE = grip(stance(0.5, 0.7, 10, -1.1, 1.6), [2.4, -5.4], -165, [3.4, -4.4]);
-/** The throwing arm in front of his body, the peel behind it. */
-const PB_THROW_Z = { ...BACK_ARM_FRONT, ...PADDLE_BEHIND };
+/** The throwing arm and the bomb over his head and toque as they whip past them, the peel behind his body. */
+const PB_OVERHEAD_Z = {
+  ...PADDLE_BEHIND,
+  armBLine: 30.1,
+  foreBLine: 30.2,
+  armB: 30.3,
+  foreB: 30.4,
+  handB: 30.5,
+  prop: 30.6,
+};
+/** Then the arm in front of his body but behind his face, the bomb over his fist so it shows on the release. */
+const PB_THROW_Z = { ...BACK_ARM_FRONT, ...PADDLE_BEHIND, prop: 30.6 };
 /** The throwing arm's arc: pivots at the back shoulder, its thick edge on the arm. */
 const pbSmear = (pose: Pose, s: number): BonePose => {
   const shoulder = at(pose, 'armB');
@@ -747,8 +757,8 @@ const clips: Record<string, AnimClip> = {
       key(0, STAND, { ease: 'out' }),
       key(3, PB_REACH, { ease: 'inOut', swaps: { ...ANGRY, prop: 'pepperBomb' } }),
       key(9, PB_WIND, { ease: 'in', swaps: { ...GRIT, prop: 'pepperBomb' } }),
-      key(12, PB_WHIP, { ease: 'linear', swaps: { ...SHOUT, prop: 'pepperBomb' }, z: PB_THROW_Z }),
-      key(13, PB_RELEASE, { ease: 'out' }),
+      key(12, PB_WHIP, { ease: 'linear', swaps: { ...SHOUT, prop: 'pepperBomb' }, z: PB_OVERHEAD_Z }),
+      key(13, PB_RELEASE, { ease: 'out', z: PB_THROW_Z }),
       key(14, mix(PB_FOLLOW, { fx1: pbSmear(PB_RELEASE, 0.62) }), {
         ease: 'out',
         swaps: { ...SHOUT, fx1: 'swoosh' },
