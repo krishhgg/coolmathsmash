@@ -188,8 +188,8 @@ describe('ground movement (Mario reference: walk 1.155, initial dash 1.936, run 
     // Ultimate brakes speed above run_speed_max by ground_brake: 1.936 - 0.102 = 1.834, then 1.76.
     expect(speeds[6]).toBeCloseTo(S.dashInitialSpeed - S.groundFriction, 9);
     expect(speeds[7]).toBeCloseTo(S.runSpeed, 9);
-    expect(actions[10]).toBe('dash');
-    expect(actions[11]).toBe('run');
+    expect(actions[S.dashFrames - 1]).toBe('dash');
+    expect(actions[S.dashFrames]).toBe('run');
     for (const v of speeds.slice(7)) expect(v).toBeCloseTo(S.runSpeed, 9);
     for (let i = 1; i < speeds.length; i++) {
       expect(speeds[i - 1]! - speeds[i]!).toBeLessThanOrEqual(S.groundFriction + 1e-9);
