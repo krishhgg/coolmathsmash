@@ -127,20 +127,18 @@ export const upgradeMoves: Record<string, MoveDef> = {
 };
 
 /**
- * Upgraded Laser's hits: Limit Blade Beam in Ultimate (SmashWiki, Cloud (SSBU)/Neutral special, grounded Limit
- * hitbox table). A 6% beam (BKB 38, KBG 60, radius 5.5) bursts where it hits into five looping 2% hits (autolink 366,
- * 40 set knockback, x0.5 hitlag, one every 6 frames on frames 1-28) and a 3% finisher on 29-30 (48 degrees, BKB 50,
- * KBG 226), radius 14: 19% on the target it hits and 13% on anyone else in the burst, the totals SmashWiki's Limit
- * page gives. The table lists the beam's angle as "Speed-based"; it is read here as 365, the autolink angle that
- * launches from the attacker's motion (SmashWiki, "Autolink angle"). Sizes keep Limit's on Johnny's laser, which is
- * 1.44 / 3.0 = 0.48 the size of Cloud's beam.
+ * Upgraded Laser's hits and sizes: Limit Blade Beam in Ultimate (SmashWiki, Cloud (SSBU)/Neutral special, grounded
+ * Limit hitbox table). A 6% beam (BKB 38, KBG 60, radius 5.5) bursts where it hits into five looping 2% hits
+ * (autolink 366, 40 set knockback, x0.5 hitlag, one every 6 frames on frames 1-28) and a 3% finisher on 29-30 (48
+ * degrees, BKB 50, KBG 226), radius 14: 19% on the target it hits and 13% on anyone else in the burst, the totals
+ * SmashWiki's Limit page gives. The table lists the beam's angle as "Speed-based"; it is read here as 365, the
+ * autolink angle that launches from the attacker's motion (SmashWiki, "Autolink angle").
  */
-const SCALE = LASER.radius / 3;
 export const MEGA_LASER = {
-  bolt: { radius: 5.5 * SCALE, damage: 6, angle: 365, kbg: 60, bkb: 38 },
+  bolt: { radius: 5.5, damage: 6, angle: 365, kbg: 60, bkb: 38 },
   loop: { every: 6, hits: 5, damage: 2, angle: 366, kbg: 100, bkb: 0, wbkb: 40, hitlag: 0.5 },
   final: { frames: [29, 30] as [number, number], damage: 3, angle: 48, kbg: 226, bkb: 50 },
-  burstRadius: 14 * SCALE,
+  burstRadius: 14,
 } as const;
 
 const { bolt, loop, final } = MEGA_LASER;
