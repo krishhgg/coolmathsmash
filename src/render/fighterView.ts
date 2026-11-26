@@ -23,6 +23,9 @@ const STAND_INS: Record<string, string> = {
   getupRoll: 'techRoll',
 };
 
+/** The clip each roll action draws when it rolls away from the fighter's facing (backRoll). */
+export const BACK_ROLLS: Record<string, string> = { techRoll: 'techRollBack', getupRoll: 'getupRollBack' };
+
 /**
  * A tether's reel and hang keep the move's name and play on its clip (clipFor), unless the art has a clip named
  * after the action: that plays from the reel's own first frame instead (Red Ball's tongue reel).
@@ -31,6 +34,16 @@ const REEL_ACTIONS = new Set(['tetherPull', 'tetherHang']);
 
 export function fighterArt(def: FighterDef): FighterArt | undefined {
   return def.art as FighterArt | undefined;
+}
+
+/**
+ * Tech roll and getup roll travel along `dodgeDir` and keep the fighter's facing, so one away from the facing is a
+ * back roll. A back roll draws the fighter's `techRollBack` or `getupRollBack`, else its `rollBack`.
+ */
+function backRoll(art: FighterArt, f: FighterState): string | undefined {
+  const back = BACK_ROLLS[f.action];
+  if (!back || f.dodgeDir.x * f.facing >= 0) return undefined;
+  return art.clips[back] ? back : art.clips.rollBack ? 'rollBack' : undefined;
 }
 
 /**
@@ -46,13 +59,14 @@ function moveFrame(f: FighterState): number {
 }
 
 /**
- * The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. A tether move's clip
- * plays on through the reel, held on the clip's `reel` frame (AnimClip.reel) until the fighter arrives, unless the
- * art has its own clip for the reel (REEL_ACTIONS).
+ * The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. A tech or getup roll
+ * away from the facing draws a back roll (backRoll). A tether move's clip plays on through the reel, held on the
+ * clip's `reel` frame (AnimClip.reel) until the fighter arrives, unless the art has its own clip for the reel
+ * (REEL_ACTIONS).
  */
 export function clipFor(def: FighterDef, art: FighterArt, f: FighterState): [string, number] {
   const reeling = REEL_ACTIONS.has(f.action);
-  const own = f.move && !(reeling && art.clips[f.action]) ? f.move : f.action;
+  const own = f.move && !(reeling && art.clips[f.action]) ? f.move : (backRoll(art, f) ?? f.action);
   const name = art.clips[own] ? own : (STAND_INS[own] ?? 'idle');
   const clip = art.clips[name];
   if (!clip || !f.move || name !== f.move) return [name, f.actionFrame];

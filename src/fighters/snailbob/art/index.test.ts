@@ -49,7 +49,10 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   grabHold: 'loop',
 };
 
-/** Specials are COOL-11's to draw; the art covers the standard, grab and throw moveset. */
+/**
+ * Specials are drawn one by one (specials.ts) and checked in their own tests; this file's coverage checks are for
+ * the standard, grab and throw moveset.
+ */
 const SPECIALS = ['neutralB', 'sideB', 'upB', 'downB'];
 const drawnMoves = Object.entries(moves).filter(([name]) => !SPECIALS.includes(name));
 
@@ -126,6 +129,24 @@ describe('snail bob art', () => {
         }
     }
     expect(misses).toEqual([]);
+  });
+
+  it("shows Rocket Hover's booster and flame for the whole hover, past the clip's end, and in no other clip", () => {
+    expect(art.clips.upB!.length).toBe(moves.upB!.faf - 1);
+    for (const f of [2, 5, 12, 24, 60, 143]) {
+      const { symbols } = samplePose(art, 'upB', moveClipFrame(art.clips.upB!, f, moves.upB), f);
+      expect(symbols.rocket, `upB@${f}`).toBe('rocket');
+      expect(symbols.flame, `upB@${f}`).toMatch(/^flame\d$/);
+    }
+    const flames = new Set([24, 25, 26, 27].map((g) => samplePose(art, 'upB', 24, g).symbols.flame));
+    expect(flames.size).toBeGreaterThan(1);
+    for (const [name, clip] of Object.entries(art.clips)) {
+      if (name === 'upB') continue;
+      for (let f = 0; f <= clip.length; f++) {
+        const { symbols } = samplePose(art, name, f, f);
+        expect([symbols.rocket, symbols.flame], `${name}@${f}`).toEqual([null, null]);
+      }
+    }
   });
 
   it('stands 13 units tall and about 12 wide, feet on the ground', () => {

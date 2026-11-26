@@ -1,4 +1,5 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import {
   AIR,
@@ -26,6 +27,7 @@ import {
   type Pt,
 } from './poses';
 import { attacks } from './attacks';
+import { specials } from './specials';
 import { BODY_Y, SHELL_X, SHELL_Y, rig } from './rig';
 
 const TAU = Math.PI * 2;
@@ -652,7 +654,7 @@ const taunt: AnimClip = {
 void pointOf;
 void rig;
 
-/** Every clip: the engine's action names, then every move's clip (attacks.ts). */
+/** Every clip: the engine's action names, then every move's clip (attacks.ts, specials.ts). */
 export const clips: Record<string, AnimClip> = {
   idle,
   walk,
@@ -693,4 +695,15 @@ export const clips: Record<string, AnimClip> = {
   respawn,
   grabbed,
   ...attacks,
+  ...specials,
 };
+
+/** Tech and getup rolls away from the facing: the back roll with its frames moved onto each action's travel. */
+clips.techRollBack = retimeClip(clips.rollBack!, 40, [
+  [4, 4],
+  [20, 30],
+]);
+clips.getupRollBack = retimeClip(clips.rollBack!, 35, [
+  [4, 4],
+  [20, 28],
+]);
