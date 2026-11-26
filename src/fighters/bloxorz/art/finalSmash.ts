@@ -234,12 +234,13 @@ function activation(f: number): Frame {
 function cinematic(f: number): Frame {
   const extra = level(f);
   // The punch: the toppled block on the catch, held through the punch's hitlag while the catch slides in over it.
+  // Its spark flashes above the catch's head, so the catch stays in view.
   if (f <= 1) {
     return {
       block: rock(F, 90, { sx: 0.9, sy: 1.03 }),
       under: true,
       fx: {
-        starA: f === 1 ? { sym: 'burst', x: 11, y: -9, sx: 1.25, sy: 1.25 } : undefined,
+        starA: f === 1 ? { sym: 'burst', x: 12, y: -19, sx: 0.75, sy: 0.75 } : undefined,
         ...landing(18, 12, f, 1.2, 14),
       },
       extra,
