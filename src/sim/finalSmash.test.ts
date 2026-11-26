@@ -12,7 +12,7 @@ import { FINAL_SMASH, heldStill } from './finalSmash';
 import { SMASH_BALL } from './items/spawn';
 import { createMatch, stepMatch, type MatchConfig, type MatchState } from './match';
 import { decodeReplay, encodeReplay } from './replay';
-import { applyStatus, isFrozen, statusOf } from './statuses';
+import { applyStatus, statusOf } from './statuses';
 import {
   finalBlast,
   finalCinematic,
@@ -312,7 +312,8 @@ describe('Final Smash rules', () => {
     expect(left).toBeGreaterThan(55);
     for (let i = 0; i < FREEZE; i++) {
       step(m, 1);
-      expect([statusOf(v, PARALYZED)?.frames, isFrozen(m, v)]).toEqual([left, true]);
+      // Still frozen by it on the frame just played (stepMatch counts m.frame up at its end).
+      expect([statusOf(v, PARALYZED)?.frames, v.frozenAt]).toEqual([left, m.frame - 1]);
     }
     step(m, 1);
     expect(statusOf(v, PARALYZED)?.frames).toBe(left - 1);
