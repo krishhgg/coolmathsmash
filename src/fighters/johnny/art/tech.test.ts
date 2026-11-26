@@ -60,4 +60,17 @@ describe("johnny's techs and getups", () => {
     ] as const)
       expect(Math.sign(turned(name, mid) - turned(name, 4)), name).toBe(dir);
   });
+
+  it('starts each back tech and getup roll on the frame its forward roll starts on', () => {
+    for (const [forward, back] of [
+      ['techRoll', 'techRollBack'],
+      ['getupRoll', 'getupRollBack'],
+    ]) {
+      const [a, b] = [samplePose(art, forward!, 0, 0), samplePose(art, back!, 0, 0)];
+      expect(b.symbols, back).toEqual(a.symbols);
+      for (const bone of art.rig.bones.map((x) => x.name))
+        for (const k of ['a', 'b', 'c', 'd', 'tx', 'ty'] as const)
+          expect(b.world[bone]![k], `${back} ${bone}.${k}`).toBeCloseTo(a.world[bone]![k], 6);
+    }
+  });
 });

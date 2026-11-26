@@ -1,5 +1,4 @@
 import type { Pose } from '../../../render/rig/author';
-import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip } from '../../../render/rig/types';
 import { GETUP_ROLL, GETUP_STAND, ROLL_BACK, TECH_IN_PLACE, TECH_ROLL } from '../../../sim/constants';
 import {
@@ -27,9 +26,10 @@ import {
 } from './poses';
 
 /**
- * Johnny on the floor: lying down after a missed tech, the techs that catch the landing, and the getups, with the
- * back roll they reuse. Each timed clip lasts its action's FAF - 1 frames (src/sim/constants.ts), and the sim moves
- * him through the rolls. A tech or getup roll away from his facing draws its `Back` clip (src/render/fighterView.ts).
+ * Johnny on the floor: lying down after a missed tech, the techs that catch the landing, and the getups, with his
+ * shield back roll (a fighter with a back roll draws its tech rolls too). Each timed clip lasts its action's FAF - 1
+ * frames (src/sim/constants.ts), and the sim moves him through the rolls. A tech or getup roll away from his facing
+ * draws its `Back` clip (src/render/fighterView.ts), which starts where the forward one does.
  */
 
 const IDLE_FEET = { footF: { sx: -1 } };
@@ -114,20 +114,26 @@ const CROUCHED = hands(
 );
 
 /**
- * The back roll from his shield: sits back, somersaults backwards while the sim slides him (its travel is frames 4
- * to 20) and comes up in his guard facing ahead. The back tech roll is this retimed onto the tech roll's travel.
+ * A tech roll, `dir` 1 forward and -1 backward: he lands in the superhero crouch, tucks and somersaults that way
+ * while the sim slides him (its travel is frames 4 to 30), comes up crouched and rises into his guard facing ahead.
+ * Both ways start from the same landing, since he touches down out of tumble.
  */
-const BACK_ROLL: AnimClip = {
-  length: ROLL_BACK.faf - 1,
-  swaps: { ...GRIT, ...FISTS },
-  keys: shortTurns([
-    key(0, STANCE, { ease: 'in' }),
-    key(3, mix(CROUCHED, { body: { rot: -6 } }), { ease: 'in' }),
-    ...somersault(5, 20, 0, -360),
-    key(24, mix(CROUCHED, { body: { rot: -348 } }), { ease: 'out' }),
-    key(ROLL_BACK.faf - 1, mix(STANCE, { body: { rot: -360 } }), { swaps: { ...GRIT, ...GUARD } }),
-  ]),
-};
+function techRoll(dir: 1 | -1): AnimClip {
+  return onFloor({
+    length: TECH_ROLL.faf - 1,
+    swaps: { ...SHOUT, ...FISTS },
+    keys: shortTurns([
+      key(0, LAND_HIT, { ease: 'out' }),
+      key(2, grounded(mix(TUCK, { body: { rot: -20 * dir } })), {
+        ease: 'linear',
+        swaps: { ...GRIT, ...FISTS },
+      }),
+      ...somersault(4, 24, 0, 360 * dir),
+      key(29, mix(CROUCHED, { body: { rot: 368 * dir } }), { ease: 'inOut' }),
+      key(TECH_ROLL.faf - 1, mix(STANCE, { body: { rot: 360 * dir } }), { swaps: { ...GRIT, ...GUARD } }),
+    ]),
+  });
+}
 
 export const tech: Record<string, AnimClip> = {
   down: {
@@ -149,17 +155,8 @@ export const tech: Record<string, AnimClip> = {
     ],
   }),
 
-  techRoll: onFloor({
-    length: TECH_ROLL.faf - 1,
-    swaps: { ...SHOUT, ...FISTS },
-    keys: shortTurns([
-      key(0, LAND_HIT, { ease: 'out' }),
-      key(2, grounded(mix(TUCK, { body: { rot: -20 } })), { ease: 'linear', swaps: { ...GRIT, ...FISTS } }),
-      ...somersault(4, 24, 0, 360),
-      key(29, mix(CROUCHED, { body: { rot: 368 } }), { ease: 'inOut' }),
-      key(TECH_ROLL.faf - 1, mix(STANCE, { body: { rot: 360 } }), { swaps: { ...GRIT, ...GUARD } }),
-    ]),
-  }),
+  techRoll: techRoll(1),
+  techRollBack: techRoll(-1),
 
   getupStand: onFloor({
     length: GETUP_STAND.faf - 1,
@@ -185,13 +182,21 @@ export const tech: Record<string, AnimClip> = {
     ]),
   }),
 
-  rollBack: onFloor(BACK_ROLL),
-  techRollBack: onFloor(
-    retimeClip(BACK_ROLL, TECH_ROLL.faf - 1, [
-      [4, 4],
-      [20, 30],
+  /**
+   * The back roll from his shield: sits back, somersaults backwards while the sim slides him (its travel is frames
+   * 4 to 20) and comes up in his guard facing ahead.
+   */
+  rollBack: onFloor({
+    length: ROLL_BACK.faf - 1,
+    swaps: { ...GRIT, ...FISTS },
+    keys: shortTurns([
+      key(0, STANCE, { ease: 'in' }),
+      key(3, mix(CROUCHED, { body: { rot: -6 } }), { ease: 'in' }),
+      ...somersault(5, 20, 0, -360),
+      key(24, mix(CROUCHED, { body: { rot: -348 } }), { ease: 'out' }),
+      key(ROLL_BACK.faf - 1, mix(STANCE, { body: { rot: -360 } }), { swaps: { ...GRIT, ...GUARD } }),
     ]),
-  ),
+  }),
 
   getupRollBack: onFloor({
     length: GETUP_ROLL.faf - 1,
