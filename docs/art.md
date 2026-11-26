@@ -63,7 +63,8 @@ frame-capture harness always draw the same picture.
 
 Name each clip after its engine action or the exact key in the fighter's move table. The renderer picks
 `f.move` when one is running, otherwise `f.action`. An unknown name falls back to `idle`, except for the
-shared stand-ins listed below. Use `loop: true` for cycles; other clips hold their last key.
+shared stand-ins listed below. A clip under any other name never plays, so `src/fighters/clipNames.test.ts`
+fails on one. Use `loop: true` for cycles; other clips hold their last key.
 
 A clip for a timed ground action (`spotDodge`, `rollForward`, `rollBack`, `techInPlace`, `techRoll`, `getupStand`,
 `getupRoll`) lasts the action's `faf - 1` from `src/sim/constants.ts`, with its last key on that frame, so it
