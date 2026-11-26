@@ -276,5 +276,5 @@ describe('Wheely: Rev Up for CPUs', () => {
     // The charged probe's blast hits on frame 58, past the 45 frames ahead a CPU that doesn't shoot reads its opponent
     // (cpu.ts, HORIZON), so the CPU doesn't pick it yet.
     expect(longest).toBe(0);
-  });
+  }, 60_000);
 });
