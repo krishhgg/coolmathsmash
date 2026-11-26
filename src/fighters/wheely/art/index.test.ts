@@ -40,10 +40,10 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   rollForward: ROLL_FORWARD.faf - 1,
   rollBack: ROLL_BACK.faf - 1,
   airDodge: 49,
-  ledgeCatch: 8,
+  ledgeCatch: 19,
   ledgeHang: 'loop',
   ledgeClimb: 34,
-  ledgeRoll: 50,
+  ledgeRoll: 45,
   ledgeJump: 20,
   ledgeAttack: 55,
   hitstun: 20,
@@ -52,8 +52,10 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   knockdown: 'loop',
   getUp: GETUP_STAND.faf - 1,
   getupRoll: GETUP_ROLL.faf - 1,
+  getupRollBack: GETUP_ROLL.faf - 1,
   tech: TECH_IN_PLACE.faf - 1,
   techRoll: TECH_ROLL.faf - 1,
+  techRollBack: TECH_ROLL.faf - 1,
   dizzy: 'loop',
   grabHold: 'loop',
   grabbed: 'loop',
@@ -79,8 +81,10 @@ const GROUNDED = [
   'rollBack',
   'knockdown',
   'getUp',
+  'getupRollBack',
   'tech',
   'techRoll',
+  'techRollBack',
   'dizzy',
   'grabHold',
   'taunt',
@@ -187,7 +191,7 @@ describe('wheely art', () => {
     for (const [name, f] of [
       ['ledgeHang', 0],
       ['ledgeHang', 30],
-      ['ledgeCatch', 8],
+      ['ledgeCatch', 19],
     ] as const) {
       const pose = samplePose(art, name, f, f);
       expect(slotsCovering(art, pose, gx - 0.3, gy - 0.3), `${name}@${f}`).toContain('wheelF');

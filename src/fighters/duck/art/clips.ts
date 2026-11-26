@@ -492,9 +492,9 @@ export const clips: Record<string, AnimClip> = {
     ],
   },
   ledgeCatch: {
-    length: 8,
+    length: 19,
     swaps: { ...SHOUT, ...WINGS },
-    keys: [key(0, hang(GX, GY + 1.4, { body: { rot: -14 } }), { ease: 'outBack' }), key(8, HANG)],
+    keys: [key(0, hang(GX, GY + 1.4, { body: { rot: -14 } }), { ease: 'outBack' }), key(19, HANG)],
   },
   ledgeHang: {
     length: 60,
@@ -548,7 +548,7 @@ export const clips: Record<string, AnimClip> = {
     ],
   },
   ledgeRoll: {
-    length: 50,
+    length: 45,
     swaps: { ...ANGRY, ...WINGS },
     keys: [
       key(0, HANG, { ease: 'linear' }),
@@ -561,7 +561,7 @@ export const clips: Record<string, AnimClip> = {
       key(26, mix(ball(400), { base: { y: -belowFloor(26, 40) } }), { ease: 'linear' }),
       key(34, ball(540), { ease: 'out' }),
       key(37, mix(CROUCH, { body: { rot: 720 } }), { ease: 'out', swaps: {} }),
-      key(50, mix(STAND, { body: { rot: 720 } })),
+      key(45, mix(STAND, { body: { rot: 720 } })),
     ],
   },
   ledgeJump: {
@@ -696,6 +696,15 @@ clips.techInPlace = clips.tech!;
 clips.getupRoll = retimeClip(clips.techRoll!, 35, [
   [4, 4],
   [30, 28],
+]);
+/** Tech and getup rolls away from the facing: the back roll with its frames moved onto each action's travel. */
+clips.techRollBack = retimeClip(clips.rollBack!, 40, [
+  [4, 4],
+  [20, 30],
+]);
+clips.getupRollBack = retimeClip(clips.rollBack!, 35, [
+  [4, 4],
+  [20, 28],
 ]);
 /** `jab1` is the canonical name of the first jab hit; the Duck's move is `jab`. */
 clips.jab1 = clips.jab!;

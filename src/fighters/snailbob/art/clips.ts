@@ -1,4 +1,5 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import {
   AIR,
@@ -410,12 +411,12 @@ function cling(cx: number, cy: number, extra: Pose = {}): Pose {
 const HANG = cling(GX, GY);
 
 const ledgeCatch: AnimClip = {
-  length: 8,
+  length: 19,
   swaps: { ...STARTLED, ...HANDS },
   keys: [
     key(0, cling(GX, GY + 1.2, { body: { rot: -70 } }), { ease: 'out' }),
-    key(4, cling(GX, GY - 0.3), { ease: 'inOut', swaps: { ...HAPPY, ...HANDS } }),
-    key(8, HANG),
+    key(10, cling(GX, GY - 0.3), { ease: 'inOut', swaps: { ...HAPPY, ...HANDS } }),
+    key(19, HANG),
   ],
 };
 
@@ -496,13 +497,13 @@ const LEDGE_ROLL_SPIN = [11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 28, 32, 36].map
 });
 
 const ledgeRoll: AnimClip = {
-  length: 49,
+  length: 45,
   swaps: HAPPY,
   keys: [
     ...climb(40, 25, [0, 5, 10], { ...DETERMINED, ...HANDS }),
     ...LEDGE_ROLL_SPIN,
     key(38, mix(SHRINK, { body: { rot: 720 } }), { ease: 'out', swaps: HAPPY }),
-    key(49, mix(STAND, { body: { rot: 720 } })),
+    key(45, mix(STAND, { body: { rot: 720 } })),
   ],
 };
 
@@ -702,3 +703,13 @@ export const clips: Record<string, AnimClip> = {
   ...attacks,
   ...specials,
 };
+
+/** Tech and getup rolls away from the facing: the back roll with its frames moved onto each action's travel. */
+clips.techRollBack = retimeClip(clips.rollBack!, 40, [
+  [4, 4],
+  [20, 30],
+]);
+clips.getupRollBack = retimeClip(clips.rollBack!, 35, [
+  [4, 4],
+  [20, 28],
+]);

@@ -514,14 +514,14 @@ export const clips: Record<string, AnimClip> = {
     ],
   },
   ledgeCatch: {
-    length: 8,
+    length: 19,
     swaps: { ...ANGRY, ...MITTENS },
     keys: [
       key(0, hang(GX, GY, DROP + 0.8, { body: { rot: -4 }, thighF: { rot: -40 }, thighB: { rot: 30 } }), {
         ease: 'outBack',
         z: ARMS_IN_FRONT,
       }),
-      key(8, HANG),
+      key(19, HANG),
     ],
   },
   ledgeHang: {
@@ -555,7 +555,7 @@ export const clips: Record<string, AnimClip> = {
     ],
   },
   ledgeRoll: {
-    length: 50,
+    length: 45,
     swaps: ANGRY,
     keys: [
       key(0, HANG, { ease: 'linear', z: ARMS_IN_FRONT }),
@@ -568,7 +568,7 @@ export const clips: Record<string, AnimClip> = {
         ),
       ),
       key(37, mix(CROUCH, { head: { sx: 1.1, sy: 0.88 } }), { ease: 'out', swaps: FRONT }),
-      key(50, STAND),
+      key(45, STAND),
     ],
   },
   ledgeJump: {
@@ -830,4 +830,13 @@ export const clips: Record<string, AnimClip> = {
 clips.getupRoll = retimeClip(clips.techRoll!, 35, [
   [4, 4],
   [30, 28],
+]);
+/** Tech and getup rolls away from the facing: the back roll with its frames moved onto each action's travel. */
+clips.techRollBack = retimeClip(clips.rollBack!, 40, [
+  [4, 4],
+  [20, 30],
+]);
+clips.getupRollBack = retimeClip(clips.rollBack!, 35, [
+  [4, 4],
+  [20, 28],
 ]);
