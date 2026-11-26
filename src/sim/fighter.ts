@@ -53,6 +53,8 @@ export interface FighterState {
   shieldHp: number;
   /** Frozen frames left (attacker and victim both freeze when a hit connects). */
   hitlag: number;
+  /** Match frame of the fighter's latest hitlag frame (-1 = none), for inHitlag. */
+  hitlagAt: number;
   /** Hitstun left, counted in un-sped frames: the fighter can act on the frame it reaches 0. */
   hitstun: number;
   /** Un-sped first actionable frame of the current tumble launch, for balloon speed-up (0 = none). */
@@ -168,6 +170,7 @@ export function createFighter(
     stocks,
     shieldHp: SHIELD_MAX,
     hitlag: 0,
+    hitlagAt: -1,
     hitstun: 0,
     speedUpFaf: 0,
     flyTop: false,
@@ -202,6 +205,15 @@ export function createFighter(
     meters: createMeters(getFighter(fighterId)),
     finalReady: false,
   };
+}
+
+/**
+ * `f` is frozen in hitlag on this frame of `m`. Ultimate freezes attacker and victim for the whole of every hitlag
+ * frame (SmashWiki, Hitlag), but a fighter's step counts `hitlag` down before the frame's pushes, hits, grabs, hazards
+ * and entity contacts run, so on its last frozen frame `hitlag` already reads 0 there. Those passes ask this instead.
+ */
+export function inHitlag(m: MatchState, f: FighterState): boolean {
+  return f.hitlag > 0 || f.hitlagAt === m.frame;
 }
 
 /** Knockback waiting for hitlag to end; DI is read when it is applied. */
