@@ -175,6 +175,13 @@ export const GRAB = {
   holdGap: 1,
 };
 
+/**
+ * Counter defaults (MoveDef.counter), Marth's Counter in Ultimate (SmashWiki, Marth (SSBU)/Down special,
+ * Parameters): the counterattack deals 1.2x the caught hit's damage, at most 50%, and both fighters freeze for 21
+ * frames on the catch ("Counter hitlag on activation"). Every counter in SmashWiki's Counterattack table caps at 50%.
+ */
+export const COUNTER = { multiplier: 1.2, max: 50, freeze: 21 };
+
 /** Hitstun cancel (Ultimate): air dodge out of tumble from frame 40 once the launch has slowed to 2.5 u/frame. */
 export const HITSTUN_CANCEL_AIR_DODGE = { from: 40, maxSpeed: 2.5 };
 /** Frames a fighter that was just hit cannot grab ledges. */

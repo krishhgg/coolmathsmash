@@ -6,6 +6,7 @@ import type { MatchConfig } from '../sim/match';
 import { statusDef } from '../sim/statuses';
 import type { FighterDef } from '../fighters/types';
 import { PORT_COLORS } from './debug/inputDisplay';
+import { drawFinalGlow } from './items';
 import { moveClipFrame } from './rig/timing';
 import type { FighterArt } from './rig/types';
 import { createRigView, type RigView } from './rig/view';
@@ -125,6 +126,8 @@ export class FighterView {
   private readonly art: FighterArt | undefined;
   private readonly rig: RigView | null;
   private readonly shield = new Graphics();
+  /** The rainbow aura of a fighter holding a Final Smash charge (FighterState.finalReady). */
+  private readonly glow = new Graphics();
   /** Status badges beside the head (the overhead tag takes the space above it). */
   private readonly badges = new Graphics();
   private readonly shieldColor: string;
@@ -165,7 +168,7 @@ export class FighterView {
     this.top = this.art?.height ?? h;
     this.label.position.set(0, -this.top - 5);
     this.label.visible = false;
-    this.container.addChild(this.body, this.shield, this.parryFlash, this.badges, this.label);
+    this.container.addChild(this.glow, this.body, this.shield, this.parryFlash, this.badges, this.label);
   }
 
   /** Start the parry flash; `frame` is the match frame after the parry. */
@@ -203,6 +206,9 @@ export class FighterView {
     }
     if (this.flashing !== k > 0) this.body.filters = k > 0 ? [this.flash!] : [];
     this.flashing = k > 0;
+    this.glow.clear();
+    this.glow.position.set(jx, jy);
+    if (f.finalReady) drawFinalGlow(this.glow, this.def.stats.width, this.top, frame);
     this.shield.clear();
     if (f.action === 'shield' || f.action === 'shieldStun') {
       const cracked = f.shieldHp <= 0;
