@@ -39,7 +39,7 @@ export interface CpuLevel {
   whiff: number;
   /** Chance to fast fall when coming down. */
   fastFall: number;
-  /** Mash inputs per second while held in a grab (a new stick direction each, a button every other one). */
+  /** Mash inputs per second while held in a grab or dizzy (a new stick direction each, a button every other one). */
   mash: number;
   /** Pummels before a throw, at most. */
   pummels: number;

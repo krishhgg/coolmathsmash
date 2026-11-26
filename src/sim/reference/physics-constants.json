@@ -814,9 +814,11 @@
   "min_hold_frames": 3,
   "drop_lag_frames": 11,
   "size_formula": "radius = fighter_shield_size * ((hp/50) * 0.85 + 0.15)",
-  "break_stun_formula": "400 - percent frames (min 0); mashing removes 3 frames per stick input",
+  "break_stun_formula": "400 - percent frames (min 0); mashing removes 3 frames per stick input and 5.4 per button press, then a 33-frame wake-up",
   "break_stun_base": 400,
   "break_mash_per_input": 3,
+  "break_mash_per_button": 5.4,
+  "break_wake_frames": 33,
   "shieldstun": {
    "formula": "floor(damage * 0.8 * t + 3) - 1   (equivalently floor(0.8*d*t + 2))",
    "mult": 0.8,

@@ -154,7 +154,7 @@ export class Cpu {
       if (i) return i;
     }
     if (a === 'down') return this.onDown(state, me);
-    if (a === 'grabbed') return this.mash(state);
+    if (a === 'grabbed' || a === 'dizzy') return this.mash(state);
     if (a === 'grabHold') return this.onGrabHold(state, me);
     if (a === 'hitstun' || (a === 'tumble' && me.hitstun > 0) || BUSY.has(a)) {
       this.prog = null;
@@ -277,7 +277,10 @@ export class Cpu {
     return press({ y: STICK.full });
   }
 
-  /** Held in a grab: mash at the level's rate, a new stick direction each time and a button every other time. */
+  /**
+   * Held in a grab or dizzy from a shield break: mash at the level's rate, a new stick direction each time and a button
+   * every other time. Ultimate's CPUs mash out of both, faster at higher levels (SmashWiki: Button mashing).
+   */
   private mash(state: Readonly<MatchState>): InputFrame {
     this.prog = null;
     if (this.lv.mash <= 0) return NEUTRAL;
