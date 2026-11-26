@@ -212,7 +212,7 @@ export const scenarios: FighterScenarios = {
     {
       name: 'papa-louie-sheet-roy',
       description: 'Papa in his Roy costume (red Pizzeria tee, blue-and-red cap) on the key states.',
-      page: { kind: 'lab', scene: 'fighter', params: { fighter: 'papa-louie', palette: 'roy' } },
+      page: { kind: 'lab', scene: 'fighter', params: { fighter: 'papa-louie', palette: 'roy', zoom: '7' } },
       calls: [{ fn: 'sheet', args: [['idle@0', 'run@6', 'fsmash@15', 'taunt@28', 'shield@6']] }],
       refs: [`${PAPA}/alt-roy-pauly-*`],
     },
