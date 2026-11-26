@@ -220,4 +220,40 @@ describe('command grabs', () => {
     expect(by.damage).toBeGreaterThan(0);
     expect(chews).toEqual(beastChew.holdHits!.map((h) => h.frame));
   });
+
+  it('a throw with pull draws a far catch to the hands at that speed, off the ground until it arrives', () => {
+    const far: typeof beastLunge = {
+      ...beastLunge,
+      hits: [{ ...beastLunge.hits[0]!, boxes: [{ ...beastLunge.hits[0]!.boxes[0]!, x: 30, radius: 8 }] }],
+    };
+    const puller = {
+      ...lungeTester,
+      id: 'test-lunge-puller',
+      moves: { ...lungeTester.moves, sideB: far, beastChew: { ...beastChew, pull: 1.5 } },
+    } satisfies typeof lungeTester;
+    registerFighter(puller);
+    const hands = (a: FighterState) => a.pos.x + lungeTester.stats.width + 1;
+    for (const [fighter, pull] of [
+      [puller.id, 1.5],
+      [`${puller.id}-snap`, undefined],
+    ] as const) {
+      if (!pull) registerFighter({ ...puller, id: fighter, moves: { ...puller.moves, beastChew } });
+      const { m, a, v } = duel(36, fighter);
+      expect(lunge(m, a, v)).toBe(FROM);
+      if (!pull) {
+        expect([v.pos.x, v.ground]).toEqual([hands(a), a.ground]);
+        continue;
+      }
+      let last = v.pos.x;
+      expect(last).toBeCloseTo(-10 + 36 - pull, 6);
+      while (v.pos.x !== hands(a)) {
+        expect([v.ground, v.pos.y]).toEqual([null, a.pos.y]);
+        runPorts(m, 1, []);
+        expect(last - v.pos.x).toBeLessThanOrEqual(pull + 1e-9);
+        last = v.pos.x;
+      }
+      expect(v.ground).toEqual(a.ground);
+      expect(a.actionFrame).toBeLessThan(THROW.frame);
+    }
+  });
 });
