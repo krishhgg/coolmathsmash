@@ -187,6 +187,7 @@ export const MOBILITY: Record<string, ActionDef> = {
       const { f, s, c, def } = x;
       if (f.ground) leaveGround(x);
       const move = playMove(x);
+      if (!move) return;
       const h = def.hover!;
       const thrust = isHeld(c, Btn.Special) && f.mobility.hoverFuel > 0;
       if (thrust) {
