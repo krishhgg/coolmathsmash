@@ -18,8 +18,11 @@ export interface MeterDef {
   start?: number;
   /** Change per frame the fighter acts (negative drains). Default 0. */
   regen?: number;
-  /** Only regenerate while standing on the ground (a count that refills on landing). */
-  grounded?: boolean;
+  /**
+   * Only regenerate while standing on the ground (a count that refills on landing). `'stage'` counts only the stage
+   * itself, not an entity's platform (EntityDef.platform), so standing on a placed raft or block refills nothing.
+   */
+  grounded?: boolean | 'stage';
   /** On a KO: `reset` to `start` (default) or `keep` the value into the next stock. */
   onKo?: 'reset' | 'keep';
   /**
@@ -80,6 +83,7 @@ export function tickMeters(x: Ctx): void {
   if (f.action === 'ko' || f.action === 'out') return;
   for (const [name, m] of Object.entries(def.meters ?? {})) {
     if (!m.regen || (m.grounded && !f.ground)) continue;
+    if (m.grounded === 'stage' && f.ground?.kind === 'entity') continue;
     addMeter(f, name, m.regen);
   }
 }

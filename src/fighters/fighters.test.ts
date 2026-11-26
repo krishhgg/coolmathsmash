@@ -99,6 +99,16 @@ describe.each(Object.values(allFighters()).map((f) => [f.id, f] as const))('figh
       expect(t.travel).toBeGreaterThanOrEqual(1);
       expect(t.pullSpeed).toBeGreaterThan(0);
       expect(t.latch.length).toBeGreaterThan(0);
+      if (t.skyAnchors !== undefined) {
+        expect(t.latch, 'skyAnchors needs a sky latch').toContain('sky');
+        expect(Number.isInteger(t.skyAnchors) && t.skyAnchors >= 1).toBe(true);
+      }
+      if (t.aimed) {
+        expect(t.aimed.speed).toBeGreaterThan(0);
+        if (t.aimed.quick) expect(t.aimed.quick.frames).toBeGreaterThanOrEqual(1);
+      }
+      if (t.targetsFighters) expect(t.onFighter, 'targetsFighters needs onFighter').toBeDefined();
+      if (t.arriveHit) expect(t.targetsFighters, 'arriveHit needs targetsFighters').toBe(true);
     }
     for (const s of move.spawn ?? []) {
       expect(s.frame).toBeGreaterThanOrEqual(1);
@@ -131,6 +141,13 @@ describe.each(Object.values(allFighters()).map((f) => [f.id, f] as const))('figh
       if (e.lifetime !== undefined) expect(w.frames[1]).toBeLessThanOrEqual(e.lifetime);
       expect(new Set(w.boxes.map((b) => b.id)).size).toBe(w.boxes.length);
     }
+  });
+
+  it('gives all its tether moves the same sky-anchor limit, since they share one count', () => {
+    const limits = Object.values(def.moves ?? {}).flatMap((m) =>
+      m.tether?.skyAnchors === undefined ? [] : [m.tether.skyAnchors],
+    );
+    expect(new Set(limits).size).toBeLessThanOrEqual(1);
   });
 
   it('has 2 to 6 jumps, like the Ultimate cast, and per-jump heights that start at doubleJumpHeight', () => {

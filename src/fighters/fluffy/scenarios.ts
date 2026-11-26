@@ -11,8 +11,8 @@ const faceOff = (fluffy = {}, fireboy = {}): GameScenario['patches'] => [
 
 /**
  * Fluffy's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus his Grabber Whip, Stick Tight, a Quick Grapple ledge recovery, Fluffy himself launched at high
- * percent, and four Fluffys in their costumes. References live in the Captain drive's refs/.
+ * Fireboy, plus his Grabber Whip, Stick Tight, a Quick Grapple ledge recovery, a Point Grapple fly-in, Fluffy
+ * himself launched at high percent, and four Fluffys in their costumes. References live in the Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'fluffy',
@@ -136,6 +136,25 @@ export const scenarios: FighterScenarios = {
       motion: { before: 16, after: 30 },
       requires: ['move:upB', 'action:tetherPull'],
       refs: ['smash/ledge-hang-*', `${F}/ingame-grab-*`, `${F}/official-art-03-*`],
+    },
+    {
+      name: 'fluffy-point-grapple',
+      description:
+        'Fluffy aims Point Grapple at Fireboy 70 units away, fires on frame 12, reels in along the line and flies into him for 10%.',
+      page: { kind: 'game' },
+      match: VS_FIREBOY,
+      patches: faceOff({ pos: { x: -50, y: 0 } }, { pos: { x: 20, y: 0 } }),
+      script: [
+        { port: 0, from: 10, buttons: ['special'] },
+        { port: 0, from: 11, to: 23, x: 100, buttons: ['special'] },
+      ],
+      capture: {
+        label: "P1's Point Grapple kick lands",
+        when: (s) => s.events.some((e) => e.type === 'hit' && e.move === 'neutralB'),
+      },
+      motion: { before: 30, after: 30 },
+      requires: ['move:neutralB', 'action:tetherPull'],
+      refs: ['smash/attack-active-*', `${F}/ingame-grab-*`, `${F}/official-art-02-*`],
     },
     {
       name: 'fluffy-launched',
