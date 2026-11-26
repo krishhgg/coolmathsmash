@@ -116,6 +116,51 @@ describe('Final Smash activation', () => {
     expect(a.pos.y).toBeLessThan(at.y);
   });
 
+  it('carries on through a landing: a falling trap user lands and still catches on its frame', () => {
+    const m = match([TRAP, NONE], [-30, -16]);
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    Object.assign(a, {
+      pos: { x: -30, y: 6 },
+      prevPos: { x: -30, y: 6 },
+      ground: null,
+      action: 'fall',
+      actionFrame: 1,
+    });
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    expect([a.action, a.move]).toEqual(['aerial', 'finalSmash']);
+    step(m, finalTrap.hits[0]!.frames[0] - 2);
+    expect([a.action, a.move, a.actionFrame]).toEqual([
+      'attack',
+      'finalSmash',
+      finalTrap.hits[0]!.frames[0] - 1,
+    ]);
+    step(m, 1);
+    expect(v.action).toBe('grabbed');
+  });
+
+  it('carries on when a rising platform catches a still user (Raft War Lagoon, hazards on)', () => {
+    const m = createMatch({ ...config([DIRECT, NONE]), stage: 'raft-wars-water', hazards: true });
+    const a = m.fighters[0]!;
+    step(m, 20);
+    Object.assign(a, {
+      pos: { x: -30, y: 0.4 },
+      prevPos: { x: -30, y: 0.4 },
+      vel: { x: 0, y: 0 },
+      ground: null,
+    });
+    Object.assign(a, { action: 'fall', actionFrame: 1, facing: 1, finalReady: true });
+    step(m, 1, [SPECIAL]);
+    expect(a.move).toBe('finalSmash');
+    let landed = false;
+    for (let f = 2; f < finalBlast.faf; f++) {
+      step(m, 1);
+      landed ||= a.ground !== null;
+      expect([a.move, a.actionFrame]).toEqual(['finalSmash', f]);
+    }
+    expect(landed).toBe(true);
+  });
+
   it('comes out of a dash, a run and a crouch, states a special starts from', () => {
     const states: [string, Hold[]][] = [
       ['dash', [{ x: 100 }]],
