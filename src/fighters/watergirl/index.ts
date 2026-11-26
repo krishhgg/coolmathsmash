@@ -1,5 +1,6 @@
 import { defineFighter } from '../types';
 import { art } from './art';
+import { entities } from './entities';
 import { moves } from './moves';
 import { stats } from './stats';
 
@@ -14,6 +15,7 @@ export const fighter = defineFighter({
   stats,
   moves,
   art,
+  entities,
   selectable: false,
   immune: ['water'],
 });
