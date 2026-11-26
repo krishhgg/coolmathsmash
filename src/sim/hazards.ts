@@ -141,11 +141,13 @@ function hitboxContact(geo: StageGeometry, v: FighterState, frame: number): Cont
  * gives no rule for hazards (docs/stage-geometry.md).
  */
 export function stageHits(m: MatchState, struck: Set<FighterState>): void {
+  // A Final Smash's hold stops the stage (advanceStage): its hazards wait, and so do their locks.
+  if (m.finalHold) return;
   for (const f of m.fighters) if (f.stageHitLock > 0) f.stageHitLock--;
   if (!hazardsOn(m)) return;
   const geo = compiledStage(m.config.stage).geo;
   if (!geo.zones && !geo.hitboxes) return;
-  const frame = m.frame + 1;
+  const frame = m.stageFrame;
   for (const v of m.fighters) {
     if (v.stageHitLock > 0 || inHitlag(m, v) || !hittable(v)) continue;
     const c = zoneContact(geo, v, frame) ?? hitboxContact(geo, v, frame);

@@ -215,14 +215,16 @@ export function tickStatuses(x: Ctx): void {
 /**
  * One frame of the fighter's freezing statuses (StatusDef.freeze), ticked like any status but on every frame, hitlag
  * included. True when one was on from before this frame: the fighter is frozen and doesn't act this frame, so the
- * frame a freeze runs out is still frozen, as with hitlag.
+ * frame a freeze runs out is still frozen, as with hitlag. While a Final Smash holds the fighter (`held`,
+ * src/sim/finalSmash.ts) the freeze still holds it but doesn't count down, so it waits out the hold like every other
+ * status.
  */
-export function tickFreezes(x: Ctx): boolean {
+export function tickFreezes(x: Ctx, held = false): boolean {
   const { m, f } = x;
   const frozen = f.statuses.some((s) => s.since !== m.frame && statusDef(s.kind).freeze);
   if (frozen) {
     f.frozenAt = m.frame;
-    tick(x, true);
+    if (!held) tick(x, true);
   }
   return frozen;
 }

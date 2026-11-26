@@ -9,6 +9,7 @@ import { INFINITE_STOCKS, RESPAWN_DELAY, SHIELD_MAX, SHIELD_REGEN } from './cons
 import { makeCtx } from './context';
 import { emit } from './events';
 import type { Ctx, FighterState } from './fighter';
+import { heldStill } from './finalSmash';
 import type { MatchState, PlayerState } from './match';
 import { resetMetersOnKo, tickMeters } from './meters';
 import { airMove, groundMove } from './movement';
@@ -23,7 +24,7 @@ export function stepFighter(m: MatchState, f: FighterState, p: PlayerState): voi
   f.prevPos = { x: f.pos.x, y: f.pos.y };
   dropLostTether(m, f);
   rideAnchor(m, f);
-  const frozen = tickFreezes(x);
+  const frozen = tickFreezes(x, heldStill(m, f));
   if (f.hitlag > 0) {
     f.hitlag--;
     f.hitlagAt = m.frame;

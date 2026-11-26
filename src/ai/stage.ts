@@ -85,7 +85,8 @@ export function staticStage(id: string): StageInfo {
 
 /**
  * The stage on the match's current frame, as the sim will collide with it and hit fighters on the next step.
- * Deterministic: schedules, motions and zones are functions of the match frame. Cached per frame.
+ * Deterministic: schedules, motions and zones are functions of the stage's clock (MatchState.stageFrame). Cached per
+ * frame.
  */
 export function stageInfo(state: Readonly<MatchState>): StageInfo {
   let info = live.get(state.stage);
@@ -97,14 +98,14 @@ export function stageInfo(state: Readonly<MatchState>): StageInfo {
   const stays = (p: PieceOptions, on: boolean | undefined): boolean => {
     if (!on) return false;
     if ((p.hazard && !hazards) || !p.schedule) return true;
-    for (let t = 1; t <= STEADY_FRAMES; t++) if (!scheduledOn(p.schedule, state.frame + t)) return false;
+    for (let t = 1; t <= STEADY_FRAMES; t++) if (!scheduledOn(p.schedule, state.stageFrame + t)) return false;
     return true;
   };
   const belt = (p: PieceOptions) => (hazards ? (p.conveyor ?? 0) : 0);
   const zones: StageInfo['zones'] = [];
   if (hazards) {
     for (const z of geo.zones ?? []) {
-      const at = zoneAt(z, state.frame + 1);
+      const at = zoneAt(z, state.stageFrame + 1);
       if (at) zones.push({ ...at, element: z.element });
     }
   }

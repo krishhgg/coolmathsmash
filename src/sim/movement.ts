@@ -22,6 +22,7 @@ import {
   speedUp,
   VERTICAL_LAUNCH_FALL_SPEED,
 } from './combat/formulas';
+import { finalSmashLeavesGround } from './actions/attack';
 import { breakGrab } from './actions/grab';
 import { actionDef, enterAction } from './actions/registry';
 import { entityPlatform } from './entities/entities';
@@ -77,9 +78,12 @@ function connectedFloor(stage: CompiledStage, g: GroundRef, x: number): GroundRe
   return null;
 }
 
-/** Speed of the conveyor belt a grounded fighter stands on: 0 off a belt, or with hazards off. */
+/**
+ * Speed of the conveyor belt a grounded fighter stands on: 0 off a belt, with hazards off, or while a Final Smash's
+ * hold stops the stage (advanceStage).
+ */
 export function conveyorSpeed(x: Ctx, g: GroundRef): number {
-  if (x.m.config.hazards === false || g.kind === 'entity') return 0;
+  if (x.m.config.hazards === false || x.m.finalHold || g.kind === 'entity') return 0;
   const geo = x.stage.geo;
   const piece = g.kind === 'platform' ? geo.platforms[g.index]! : geo.solids[x.stage.edges[g.index]!.solid]!;
   return piece.conveyor ?? 0;
@@ -115,6 +119,7 @@ export function groundMove(x: Ctx): void {
     return;
   }
   f.pos.x = nx;
+  if (finalSmashLeavesGround(x)) return leaveGround(x);
   if (f.grabPartner >= 0) breakGrab(x.m, f);
   leaveGround(x);
   // As when the stage takes the surface away (movingStage.ts loseGround), hitstun carries on in the air.
