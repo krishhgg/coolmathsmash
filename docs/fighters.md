@@ -405,9 +405,10 @@ The rules follow SmashWiki's Final Smash and Smash Ball articles:
 
 SmashWiki gives no length for the activation freeze, so 40 frames is an estimate; `final.freeze` overrides it per
 move. The others are held on the move's frames 2 to `freeze` + 1, so nothing in the activation move may come out
-before frame `freeze` + 2 (`fighters.test.ts` checks it). The freeze is a frame of hitlag added to every other
-fighter and entity at the end of each frame it lasts, so actions, launches, statuses, lifetimes and hitboxes all wait,
-the same way whatever the port order.
+before frame `freeze` + 2 (`fighters.test.ts` checks it). The freeze holds every other fighter and entity in hitlag
+for each frame it lasts (`holdStill`, at the end of `stepMatch`, listing them in `MatchState.finalHold`), so actions,
+launches, statuses and lifetimes wait, and nothing held is pushed, hits, grabs or is touched by hazards. It reads only
+the end of the frame, so port order doesn't change it.
 
 A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned beams (Mario Finale):
 
@@ -415,7 +416,7 @@ A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned b
 finalSmash: {
   kind: 'other',
   faf: 90,
-  final: { still: true },  // in the air: stop, no gravity or drift, as Mario holds still in Mario Finale
+  final: { still: true },  // in the air: stop, no gravity or drift (Mario in Mario Finale); a cinematic takes it too
   hits: [{ frames: [42, 51], boxes: [{ id: 0, x: 32, y: 8, radius: 18, damage: 30, angle: 40, kbg: 70, bkb: 80 }] }],
 },
 ```

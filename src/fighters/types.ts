@@ -320,7 +320,10 @@ export interface MoveDef {
 export interface FinalSmashDef {
   /** Frames everyone else is held still from activation (default FINAL_SMASH.freeze). */
   freeze?: number;
-  /** In the air, the user stops and holds still (no gravity or drift) for the move, like Mario in Mario Finale. */
+  /**
+   * In the air, the user stops and holds still (no gravity or drift) for the move, like Mario in Mario Finale. A trap's
+   * cinematic with it holds still too.
+   */
   still?: boolean;
   /** How far ahead of the feet it reaches, for CPUs deciding when to use it (default: its hitboxes' reach). */
   range?: number;

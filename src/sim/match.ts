@@ -7,7 +7,7 @@ import { resolveEntityContacts } from './entities/contacts';
 import { stepEntities } from './entities/step';
 import type { EntityState } from './entities/types';
 import { emit, type SimEvent } from './events';
-import { holdStill } from './finalSmash';
+import { holdStill, type FinalHold } from './finalSmash';
 import { createItems, stepItems, type ItemsState } from './items/spawn';
 import { pushApart } from './movement';
 import { stageHits } from './hazards';
@@ -55,6 +55,8 @@ export interface MatchState {
   stage: StageState;
   /** The item spawner's timers (src/sim/items/spawn.ts); idle while the Items rule is off. */
   items: ItemsState;
+  /** Who a Final Smash's freeze is holding this frame (src/sim/finalSmash.ts); absent when nobody is held. */
+  finalHold?: FinalHold;
 }
 
 export const DEFAULT_MATCH: MatchConfig = {
