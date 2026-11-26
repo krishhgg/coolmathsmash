@@ -5,7 +5,7 @@ import { createMatch, type MatchState } from '../../sim/match';
 import { koPercent, kos } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
-import { FIGHTERS } from '../registry';
+import { allFighters } from '../registry';
 import { GRAVITY_SWITCH, HOP, moves, RAPID_JAB, TREADMILL } from './moves';
 import { stats } from './stats';
 
@@ -74,7 +74,7 @@ describe('Runner: stats', () => {
     expect(stats.dashInitialSpeed).toBe(2.31);
     expect(stats.weight).toBe(79);
     expect(stats.jumps).toBe(2);
-    for (const def of Object.values(FIGHTERS))
+    for (const def of Object.values(allFighters()))
       expect(stats.runSpeed).toBeGreaterThanOrEqual(def.stats.runSpeed);
   });
 
