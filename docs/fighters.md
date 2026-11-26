@@ -117,6 +117,9 @@ fsmash: {
     contact (forward and up). It pulls the target's middle toward that point over `frames` (rounded up)
     and then drops its launch speed. Stage collision still applies. A vector works with any angle; without
     one, `368` falls back to `367`.
+  - On an entity's hit, the attacker's velocity is the entity's, so a still burst (Johnny's Upgraded Laser, on
+    Limit Blade Beam's `366` loops) holds its target in place. An entity's hit ignores `vector`, so its `368` acts
+    as `367`.
 - **Windboxes.** `pushOnly: true` applies knockback without damage, hitlag, hitstun or interruption. It pushes
   grounded targets horizontally without lifting them, and shields ignore it. Use `damage: 0`; windbox
   projectiles can be reflected or absorbed as usual, but heal nothing on absorption. Watergirl's Water Stream
@@ -652,8 +655,23 @@ meters: {
   that much, and returns whether it did. An unknown meter name throws.
 - `regen` changes the value every frame the fighter acts (not while KO'd), negative to drain. With `grounded` it only regenerates on
   the ground.
+- `dealt` and `taken` fill a meter from damage: that much per % the fighter's hits, projectiles, pummels, throw hold hits
+  and statuses add to another fighter, and per % it takes from anything. The % counts as added, 1v1 multiplier
+  included. Shields and entities don't count. The gain lands at the end of the frame, after every hit.
+- `full` names a status the fighter holds while the meter is full. It goes on at the end of the frame the meter fills
+  and comes off at the end of the frame the meter is spent. When it runs out or a KO takes it off, the meter empties.
+  Its `color` badge is how the meter shows on screen.
 - A KO puts a meter back to `start` unless it has `onKo: 'keep'`.
 - Meters have no events. The HUD reads the values from state.
+
+Johnny Upgrade's upgrade meter (`src/fighters/johnny/upgrade.ts`) is Cloud's Limit Gauge in Ultimate (SmashWiki,
+"Limit (status)"). His Coin Magnet adds 0.3 a frame while held, as Limit Charge does. When the meter is full, his
+neutral special plays its upgraded version and spends the meter:
+
+```ts
+meters: { upgrade: { max: 100, dealt: 0.667, taken: 1, full: 'johnny/upgraded' } },
+statuses: { upgraded: { frames: 900, color: '#ffd21a' } }, // Limit Break: 15 seconds, then the gauge empties
+```
 
 ## Stages
 
