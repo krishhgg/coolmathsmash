@@ -110,6 +110,8 @@ export interface FighterState {
   grabPartner: number;
   /** Held fighter: hold frames left after mashing; it breaks free at 0 (after GRAB.minHold frames). */
   grabTimer: number;
+  /** Dizzy fighter: stun frames left after mashing; it wakes up at 0 (DIZZY). */
+  dizzyTimer: number;
   /** Held fighter: damage taken from fighters outside the grab; GRAB.breakDamage frees it. */
   grabDamage: number;
   /** First match frame this fighter can be grabbed again (regrab immunity after a grab release). */
@@ -205,6 +207,7 @@ export function createFighter(
     respawnTimer: 0,
     grabPartner: -1,
     grabTimer: 0,
+    dizzyTimer: 0,
     grabDamage: 0,
     grabbableFrom: 0,
     shieldGrabFrom: 0,

@@ -425,23 +425,84 @@ describe('shield', () => {
     expect(stunned).toBeLessThanOrEqual(32);
   });
 
+  /**
+   * Break a grounded Fireboy's shield at `percent`, then send `mash(n)` on each frame after the one it lands dizzy on.
+   * Counting that landing frame as frame 1, it returns the frames spent dizzy and waking up, the first frame it can
+   * act on, the action it acts with there, and its shield HP on the first wake-up frame.
+   */
+  function shieldBreak(percent: number, mash: (n: number) => Hold = () => ({})) {
+    const m = grounded();
+    const f = P(m);
+    f.damage = percent;
+    f.shieldHp = 1;
+    for (let i = 0; f.action !== 'dizzy' && i < 300; i++) stepMatch(m, [input({ buttons: ['shield'] })]);
+    const actions = [f.action];
+    let shieldHp = NaN;
+    while ((f.action === 'dizzy' || f.action === 'dizzyWake') && actions.length < 600) {
+      stepMatch(m, [input(mash(actions.length))]);
+      if (f.action === 'dizzyWake' && f.actionFrame === 1) shieldHp = f.shieldHp;
+      actions.push(f.action);
+    }
+    const actionable = actions.findIndex((a) => a !== 'dizzy' && a !== 'dizzyWake');
+    return {
+      dizzy: actions.filter((a) => a === 'dizzy').length,
+      wake: actions.filter((a) => a === 'dizzyWake').length,
+      actionable: actionable + 1,
+      next: actions[actionable],
+      shieldHp,
+    };
+  }
+
   it('a broken shield leaves the fighter dizzy for 400 - % frames (SmashWiki: Stun), then at 37.5 shield HP', () => {
     for (const percent of [0, 100, 350]) {
-      const m = grounded();
-      const f = P(m);
-      f.damage = percent;
-      f.shieldHp = 1;
-      let frames = 0;
-      while (f.action !== 'dizzy' && frames++ < 300) stepMatch(m, [input({ buttons: ['shield'] })]);
-      let dizzy = 0;
-      while (f.action === 'dizzy' && dizzy < 600) {
-        stepMatch(m, [input({})]);
-        dizzy++;
-      }
-      expect(dizzy, `${percent}%`).toBe(shieldBreakStun(percent));
-      // The shield is reset as the dizzy ends, then regenerates for the frame stepped since.
-      expect(f.shieldHp).toBeCloseTo(ref.shield.hp_after_break + ref.shield.regen_per_frame, 6);
+      const r = shieldBreak(percent);
+      expect(r.dizzy, `${percent}%`).toBe(shieldBreakStun(percent));
+      // The shield is reset as the dizzy ends, then regenerates on that frame like any frame out of shield.
+      expect(r.shieldHp).toBeCloseTo(ref.shield.hp_after_break + ref.shield.regen_per_frame, 6);
     }
+  });
+
+  it('wakes up for 33 frames after the dizzy before it can act (SmashWiki: Stun, FuraFuraEnd)', () => {
+    for (const [percent, dizzy] of [
+      [0, 400],
+      [100, 300],
+    ] as const) {
+      const r = shieldBreak(percent);
+      expect([r.dizzy, r.wake], `${percent}%`).toEqual([dizzy, ref.shield.break_wake_frames]);
+      expect([r.actionable, r.next], `${percent}%`).toEqual([dizzy + 33 + 1, 'idle']);
+    }
+  });
+
+  it('holds a jab pressed during the wake-up until the first actionable frame', () => {
+    // Pressed on wake-up frame 31, inside the buffer window of frame 434.
+    const r = shieldBreak(0, (n) => (n === 400 + 30 ? { buttons: ['attack'] } : {}));
+    expect([r.dizzy, r.wake, r.actionable, r.next]).toEqual([400, 33, 434, 'attack']);
+  });
+
+  it('cuts the dizzy by 3 frames per new stick direction and 5.4 per button press (SmashWiki: Stun)', () => {
+    const everyFrame = (n: number): Hold => ({ x: n % 2 ? 100 : -100 });
+    const everyOther = (n: number): Hold => ({ x: n % 2 ? 100 : 0 });
+    const holdRight = (): Hold => ({ x: 100 });
+    const attackEveryOther = (n: number): Hold => ({ buttons: n % 2 ? ['attack'] : [] });
+    const cases: [number, string, (n: number) => Hold, number][] = [
+      // A new direction every frame: each frame takes 1 + 3, so 400 / 4 and 300 / 4.
+      [0, 'stick every frame', everyFrame, 100],
+      [100, 'stick every frame', everyFrame, 75],
+      // Right, neutral, right: each right is a new input, so two frames take 1 + 3 + 1.
+      [0, 'stick every other frame', everyOther, 160],
+      [100, 'stick every other frame', everyOther, 120],
+      // A held direction counts once.
+      [0, 'stick held', holdRight, 397],
+      // The fastest one button can go: two frames take 1 + 5.4 + 1.
+      [0, 'attack every other frame', attackEveryOther, 109],
+      [100, 'attack every other frame', attackEveryOther, 81],
+    ];
+    for (const [percent, label, mash, dizzy] of cases) {
+      const r = shieldBreak(percent, mash);
+      expect([r.dizzy, r.wake, r.actionable], `${percent}% ${label}`).toEqual([dizzy, 33, dizzy + 34]);
+    }
+    expect(ref.shield.break_mash_per_input).toBe(3);
+    expect(ref.shield.break_mash_per_button).toBe(5.4);
   });
 });
 

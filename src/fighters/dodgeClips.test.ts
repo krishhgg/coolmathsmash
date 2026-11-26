@@ -33,13 +33,6 @@ const ACTIONS: Record<string, number> = {
   grabRelease: GRAB.releaseLag,
 };
 
-/**
- * Fighters whose clips still don't fit an action's length. Their check is expected to fail; take a fighter off this
- * list once its clips match. Watergirl draws Fireboy's clips, so she matches through his. Raft Wars' grabRelease is
- * 30 frames, one longer than the action.
- */
-const WAITING = ['raftwars'];
-
 /** Actions drawn with a back roll when they roll away from the facing (clipFor). */
 const BACK_ROLLS = ['techRoll', 'getupRoll'];
 
@@ -94,11 +87,11 @@ function directionalDrift(id: string): string[] {
   });
 }
 
+/** Every fighter with art. Watergirl draws Fireboy's clips, so she matches through his. */
 const drawn = Object.keys(allFighters()).filter((id) => fighterArt(allFighters()[id]!));
 
 describe.each(drawn)('%s', (id) => {
-  const check = WAITING.includes(id) ? it.fails : it;
-  check('draws every dodge, roll, tech, getup and grab release over the whole action', () => {
+  it('draws every dodge, roll, tech, getup and grab release over the whole action', () => {
     expect(drift(id)).toEqual([]);
   });
 

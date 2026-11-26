@@ -1,5 +1,6 @@
 import { Btn } from '../../input/types';
 import {
+  DIZZY,
   DODGE_FLICK,
   PARRY,
   ROLL_BACK,
@@ -11,13 +12,13 @@ import {
   SPOT_DODGE,
 } from '../constants';
 import { shieldBreakStun } from '../combat/formulas';
-import { flickDown, flickX, isHeld } from '../control';
+import { flickDown, flickX, isHeld, justPressed } from '../control';
 import { emit } from '../events';
 import type { Ctx, FighterState } from '../fighter';
 import { leaveGround } from '../movement';
 import { groundAttack } from './attack';
 import { consumeJump, wantsJump } from './common';
-import { grabInput, shieldGrab } from './grab';
+import { grabInput, MASH_BUTTONS, mashDir, shieldGrab } from './grab';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
 
 /** Share of a roll's distance covered on each frame of its movement window: a smooth ease-in/ease-out. */
@@ -121,19 +122,36 @@ export const DEFENSE: Record<string, ActionDef> = {
     update() {},
     land(x) {
       x.f.vel.x = 0;
+      x.f.dizzyTimer = shieldBreakStun(Math.floor(x.f.damage));
       enterAction(x, 'dizzy', 0);
     },
   },
 
-  /** Shield-break stun: 400 - % frames (shieldBreakStun; SmashWiki: Stun), then the shield is back at 37.5 HP. */
+  /**
+   * Shield-break stun: 400 - % frames (shieldBreakStun; SmashWiki: Stun), less DIZZY.mashStick for each new stick
+   * direction and DIZZY.mashButton for each mash button pressed. Then the shield is back at 37.5 HP and the fighter
+   * wakes up.
+   */
   dizzy: {
     physics: 'ground',
     update(x) {
-      const { f } = x;
-      if (f.actionFrame >= shieldBreakStun(Math.floor(f.damage))) {
+      const { f, c } = x;
+      const dir = mashDir(c.cur);
+      const stick = dir !== 0 && dir !== mashDir(c.prev) ? DIZZY.mashStick : 0;
+      const buttons = MASH_BUTTONS.filter((b) => justPressed(c, b)).length * DIZZY.mashButton;
+      f.dizzyTimer -= 1 + stick + buttons;
+      if (f.dizzyTimer <= 0) {
         f.shieldHp = SHIELD_HP_AFTER_BREAK;
-        setAction(x, 'idle');
+        setAction(x, 'dizzyWake');
       }
+    },
+  },
+
+  /** Waking up from the dizzy (Ultimate's FuraFuraEnd): DIZZY.wakeFrames frames, actionable on the next. */
+  dizzyWake: {
+    physics: 'ground',
+    update(x) {
+      if (x.f.actionFrame > DIZZY.wakeFrames) setAction(x, 'idle');
     },
   },
 };

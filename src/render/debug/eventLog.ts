@@ -7,15 +7,18 @@ const LINES = 16;
 const WIDTH = 420;
 const p = (port: number) => `P${port + 1}`;
 const n = (v: number) => v.toFixed(1);
+/** Who dealt a hit: a port, or a stage hazard, which credits nobody and has no entity. */
+const by = (e: { attacker: number; entity?: number }) =>
+  e.attacker < 0 && e.entity === undefined ? 'stage hazard' : p(e.attacker);
 
 function describe(e: SimEvent): string {
   switch (e.type) {
     case 'hit':
       return `${p(e.attacker)} hit ${p(e.victim)} ${e.move ?? ''} +${n(e.damage)}% kb ${n(e.kb)}${e.tumble ? ' tumble' : ''}`;
     case 'shieldHit':
-      return `${p(e.attacker)} hit ${p(e.victim)}'s shield ${e.move ?? ''} (${n(e.shieldHp)} left)`;
+      return `${by(e)} hit ${p(e.victim)}'s shield ${e.move ?? ''} (${n(e.shieldHp)} left)`;
     case 'parry':
-      return `${p(e.victim)} parried ${p(e.attacker)} ${e.move ?? ''}`;
+      return `${p(e.victim)} parried ${by(e)} ${e.move ?? ''}`;
     case 'ko':
       return `${p(e.port)} KO ${e.side}, ${e.stocks} left`;
     case 'jump':
