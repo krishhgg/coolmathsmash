@@ -165,10 +165,49 @@ a fighter's hit: Ultimate's knockback formula, hitlag, a launch with DI when hit
 and the 1v1 damage multiplier. There is no attacker, so there is no staleness or rage and only the victim
 freezes. A fighter takes at most one stage hit per frame (zones first, then stage hitboxes, lowest index first),
 and then `stageHitLock`, the hazard's `rehit`, keeps all stage hazards off them. Hazards skip intangible
-fighters and fighters already in hitlag (not a fighter paralyzed past its hitlag), and go through shields but not
-armor (MoveDef.armor). Stage hits land before the frame's grabs are
-resolved, so they count like any other hit on a grab: a held fighter armours through them until they add up
-to `GRAB.breakDamage` (a lava hit breaks free at once, goo takes a few), and a struck holder lets go.
+fighters and fighters already in hitlag (not a fighter paralyzed past its hitlag). Stage hits land before the frame's grabs are resolved, so they count
+like any other hit on a grab: a held fighter armours through them until they add up to `GRAB.breakDamage` (a
+lava hit breaks free at once, goo takes a few), and a struck holder lets go.
+
+### Shields, parries, counters and armor
+
+A hazard's hit meets a fighter's defences as a fighter's hit does (`guardStageHit` in `src/sim/combat/hits.ts`).
+A blocked or parried hit still starts the hazard's `rehit` wait. The tests are in `src/sim/hazards.test.ts`
+("hazards and shields"), on the hazard testbed's lava pool and blade.
+
+- A raised shield (`shield`, `shieldStun`) blocks it: shield damage (damage x 1.19, plus `shieldDamage`),
+  shieldstun from the formula's general case (x 1.0, since a hazard is no smash attack, aerial or projectile),
+  pushback away from the zone's middle or the hitbox's anchor, and no %.
+- The parry window (shield drop frames 1-5) parries it: no %, no shield damage and no shieldstun. A hazard has no
+  attacker to freeze, so the defender's freeze follows `PARRY`'s rule for an indirect hit (its hitlag - 1).
+- Armor (`MoveDef.armor`) takes its damage and hitlag, and it launches only past the armor's thresholds.
+- An open counter (`MoveDef.counter`) doesn't catch it: the hazard goes through, as docs/fighters.md describes.
+
+A blocked hit emits `shieldHit` and a parried one `parry`, with `attacker` -1, no `entity` and `move` null,
+instead of `stageHit` (docs/sim-events.md).
+
+The rules come from SmashWiki:
+
+- [Shield](https://www.ssbwiki.com/Shield): "A shield protects the user from a majority of attacks; more
+  specifically, any that are not grabs or determined to be unblockable". A hazard is neither.
+- [Spear Pillar](https://www.ssbwiki.com/Spear_Pillar), on Dialga and Palkia's laser: "It can be shielded and, in
+  Ultimate, reflected or absorbed."
+- [Perfect shield](https://www.ssbwiki.com/Perfect_shield): "Because it is technically a shield, it is ineffective
+  against grabs and unblockable attacks", so a parry takes whatever a shield blocks.
+- [Armor](https://www.ssbwiki.com/Armor): "Armor is the concept of sustaining hitlag and damage, but not sustaining
+  any (or sustaining reduced) knockback", and "Grab hitboxes ignore all variations of armor." A hazard is a
+  hitbox, not a grab.
+
+Two points SmashWiki does not settle:
+
+- Counters. No SmashWiki page says whether a hazard sets a counter off in Ultimate. The Shield, Perfect shield,
+  Counterattack, Hitbox, Stage hazard, Witch Time, Counter and Marth (SSBU)/Down special pages say nothing about
+  hazards, and [Counterattack](https://www.ssbwiki.com/Counterattack) says "Should any normally blockable attack
+  hit the user during these guard frames, the attack will be blocked", which on its face includes a blockable
+  hazard. The engine lets hazards through counters (#195); if Ultimate turns out to block them, change that rule.
+- Unblockable hazards. [Norfair](https://www.ssbwiki.com/Norfair) says its magma can be "in Brawl and SSB4,
+  shielded, and perfect shielded with decent timing", which suggests Ultimate's can't be. Hazards here have no
+  unblockable flag, so a shield blocks every one of them.
 
 ### Conveyors
 
