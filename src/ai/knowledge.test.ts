@@ -205,11 +205,12 @@ describe('air probes of moves that end in a helpless fall', () => {
 });
 
 describe('a recovery that carries the CPU back over the stage', () => {
-  // Wheely as he was in a level 9 match (seed 1 against Johnny, frame 4983): 0.6 units past Battlefield's right edge,
-  // falling, his double jump used, and Johnny in the air above the stage, both with the stage's state patched in. On
-  // these CPU seeds he Ramp Jumps, which carries him back over the stage at 2 units a frame and leaves him helpless.
-  // The CPU used to drop its recovery plan once there was stage under him and give no input over the middle, so he
-  // drifted off the left side; the plan steers that fall, as the planner checked it.
+  // Wheely and Johnny as they were on frame 4983 of the seed 1 level 9 match in src/ai/bench.ts before #326, patched
+  // into a new match: Wheely 0.6 units past Battlefield's right edge, falling with his double jump left, and Johnny in
+  // his double jump above the stage. There Wheely Ramp Jumped on the next frame and self-destructed on frame 5156. On
+  // these CPU seeds he Ramp Jumps too, which carries him back over the stage at 2 units a frame and leaves him
+  // helpless. The CPU used to drop its recovery plan once there was stage under him and give no input over the middle,
+  // so he drifted off the left side; the plan steers that fall, as the planner checked it.
   it.each([11, 24, 31, 76])(
     'keeps steering the helpless fall after Ramp Jump onto the stage (CPU seed %d)',
     (seed) => {
