@@ -10,6 +10,7 @@ import {
   star,
   strokes,
   tube,
+  turn,
   type P,
 } from './shapes';
 
@@ -1104,6 +1105,64 @@ export const fxBall: PathShape[] = [
   ...strokes(bezier([-0.85, -0.5], [-0.2, -0.05], [-0.2, 0.45], [-0.6, 0.8], 6), 0.16, 'ballSeam'),
   ...strokes(bezier([0.85, 0.5], [0.2, 0.05], [0.2, -0.45], [0.6, -0.8], 6), 0.16, 'ballSeam'),
 ];
+
+/**
+ * Aimed Shot's charge at the launcher's muzzle, three drawings for a twinkle that loops while they hold the charge
+ * (fxPower): a small four-point glint, an eight-point burst, then four rays round a dot. Unit size at scale 1.
+ */
+export const fxPowers = {
+  fxPowerA: [inked(star(0, 0, 0.95, 0.3, 4), 'spark', INK * 0.8), fill(star(0, 0, 0.45, 0.16, 4), 'star')],
+  fxPowerB: [
+    inked(star(0, 0, 1.3, 0.5, 8, -67.5), 'spark', INK * 0.8),
+    fill(star(0, 0, 0.7, 0.28, 8, -67.5), 'star'),
+  ],
+  fxPowerC: [
+    ...[0, 90, 180, 270].flatMap((deg) => {
+      const t = (deg * Math.PI) / 180;
+      const at = (r: number): P => [Math.cos(t) * r, Math.sin(t) * r];
+      return strokes([at(0.75), at(1.45)], 0.2, 'star');
+    }),
+    inked(ellipse(0, 0, 0.42), 'spark', INK * 0.8),
+  ],
+};
+
+/**
+ * Aimed Shot's ball in flight, facing right: a tennis ball 1.4 across its radius with three speed lines trailing
+ * behind it. Two drawings with the seam a quarter turn apart spin it (shotBall).
+ */
+const SEAM_A = bezier([-1.2, -0.7], [-0.3, -0.07], [-0.3, 0.63], [-0.84, 1.12], 6);
+const SEAM_B = bezier([1.2, 0.7], [0.3, 0.07], [0.3, -0.63], [0.84, -1.12], 6);
+const spun = (deg: number): PathShape[] => [
+  ...strokes(
+    [
+      [-4.2, -0.75],
+      [-2.1, -0.75],
+    ],
+    0.24,
+    'puffLine',
+  ),
+  ...strokes(
+    [
+      [-5.0, 0],
+      [-2.0, 0],
+    ],
+    0.24,
+    'puffLine',
+  ),
+  ...strokes(
+    [
+      [-3.8, 0.75],
+      [-2.1, 0.75],
+    ],
+    0.24,
+    'puffLine',
+  ),
+  inked(ellipse(0, 0, 1.4), 'ball', INK * 1.6),
+  fill(ellipse(-0.45, -0.5, 0.42, 0.26), 'puffHi'),
+  ...strokes(turn(SEAM_A, deg), 0.2, 'ballSeam'),
+  ...strokes(turn(SEAM_B, deg), 0.2, 'ballSeam'),
+];
+export const shotBalls = { shotBallA: spun(0), shotBallB: spun(90) };
 
 /** Rocket exhaust: a flame pointing down +y from the nozzle, two drawings for the flicker. */
 const flame = (len: number, wide: number): PathShape[] => [
