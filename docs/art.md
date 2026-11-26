@@ -160,7 +160,9 @@ const fireball = createPropView(art, 'fireball', 'default'); // { container, upd
 
 Every symbol becomes one shared `GraphicsContext` per (symbol set, symbol, palette), so any number of fighters
 and frames reuse the same tessellated geometry; posing only swaps contexts and sets matrices. The engine draws
-the shield bubble, hit flash, shake, intangibility blink and port tags itself.
+the shield bubble, hit flash, shake, intangibility blink and port tags itself. A fighter playing a Final Smash draws over the other
+fighters and without the intangibility blink, so a cinematic's art can cover the screen (Bob the Robber's Lights
+Out draws a dark sheet over everyone).
 
 ## Asset policy
 

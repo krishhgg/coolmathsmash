@@ -3,6 +3,7 @@ import { airDodgeFaf } from '../sim/actions/air';
 import { isIntangible } from '../sim/actions/registry';
 import { AIR_DODGE_DIRECTIONAL, AIR_DODGE_NEUTRAL, LEDGE_JUMP, SHIELD_MAX } from '../sim/constants';
 import type { FighterState } from '../sim/fighter';
+import { inFinalSmash } from '../sim/finalSmash';
 import type { MatchConfig } from '../sim/match';
 import { statusDef } from '../sim/statuses';
 import type { FighterDef } from '../fighters/types';
@@ -155,6 +156,19 @@ export function statusBadges(f: FighterState, frame: number): string[] {
 /** Frames the parry flash lasts (render only; Ultimate shows a bright flash on the parrying fighter). */
 export const PARRY_FLASH_FRAMES = 12;
 
+/**
+ * Whether `f`'s body is dimmed on `frame` by the intangibility blink: every few frames while intangible, except through
+ * a Final Smash, whose user is intangible on every frame and which Ultimate draws without flashing.
+ */
+export const intangibleBlink = (f: Readonly<FighterState>, frame: number): boolean =>
+  isIntangible(f) && !inFinalSmash(f) && frame % 8 < 4;
+
+/**
+ * Draw order among the fighters: one playing a Final Smash draws over the others, so its art can cover them (Bob the
+ * Robber's Lights Out puts the lights out over everyone), and the rest keep their port order.
+ */
+export const fighterLayer = (f: Readonly<FighterState>): number => (inFinalSmash(f) ? 1 : 0);
+
 /** One fighter: its rig posed from the action and frame, plus shield and debug label. World units, y down. */
 export class FighterView {
   readonly container = new Container();
@@ -220,6 +234,7 @@ export class FighterView {
     const x = f.prevPos.x + (f.pos.x - f.prevPos.x) * alpha;
     const y = f.prevPos.y + (f.pos.y - f.prevPos.y) * alpha;
     this.container.position.set(x, -y);
+    this.container.zIndex = fighterLayer(f);
     const jx = fx.jitter?.x ?? 0;
     const jy = -(fx.jitter?.y ?? 0);
     this.body.position.set(jx, jy);
@@ -227,7 +242,7 @@ export class FighterView {
     this.body.scale.x = f.facing;
     if (this.rig && this.art) this.rig.pose(...clipFor(this.def, this.art, f), frame);
     const flash = this.lite ? undefined : fx.flash;
-    this.body.alpha = !flash && isIntangible(f) && frame % 8 < 4 ? 0.55 : 1;
+    this.body.alpha = !flash && intangibleBlink(f, frame) ? 0.55 : 1;
     const k = flash?.amount ?? 0;
     if (flash && k > 0) {
       this.flash ??= new ColorMatrixFilter();

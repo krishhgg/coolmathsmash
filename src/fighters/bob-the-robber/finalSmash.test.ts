@@ -97,15 +97,12 @@ describe("Lights Out (Final Smash), on Joker's All-Out Attack", () => {
       'finalSmashCinematic',
       'finalSmashCinematic',
     ]);
-    for (const move of [finalSmash, finalSmashAir])
-      expect(move.hits).toEqual([
-        {
-          frames: [67, 77],
-          boxes: [5, 7.5, 10].map((x, id) =>
-            expect.objectContaining({ id, x, y: 6.5, radius: 7, grab: true }),
-          ),
-        },
-      ]);
+    for (const move of [finalSmash, finalSmashAir]) {
+      expect(move.hits.map((w) => w.frames)).toEqual([[67, 77]]);
+      expect(move.hits[0]!.boxes.map(({ id, x, y, radius, grab }) => ({ id, x, y, radius, grab }))).toEqual(
+        [5, 7.5, 10].map((x, id) => ({ id, x, y: 6.5, radius: 7, grab: true })),
+      );
+    }
     // A whiff: 46 frames after the dash grounded, 37 in the air.
     expect([finalSmash.faf, finalSmashAir.faf]).toEqual([77 + 46 + 1, 77 + 37 + 1]);
     // The cinematic: the catch's 3% on its first frame, game_finalhit's 20 frames, scene 1's seven 3.8% hits, scene
@@ -234,7 +231,7 @@ describe("Lights Out (Final Smash), on Joker's All-Out Attack", () => {
   });
 
   it("launches with game_finalend's 13% at 60 degrees, BKB 73, KBG 100 on the % the cinematic left", () => {
-    const { m, a, v } = setup([-30, -10, 60], 20);
+    const { m, a } = setup([-30, -10, 60], 20);
     const { seen } = playOut(m, a);
     const thrown = seen.find((e) => e.type === 'throw');
     expect(thrown).toEqual({ type: 'throw', attacker: 0, victim: 1, move: 'finalSmashCinematic' });

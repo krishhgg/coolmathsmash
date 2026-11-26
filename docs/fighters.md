@@ -485,6 +485,13 @@ finalSmashCinematic: {
 },
 ```
 
+Bob the Robber's Lights Out (`src/fighters/bob-the-robber/finalSmash.ts`) is the roster's trapping example, on
+Joker's All-Out Attack from its 13.0.1 game scripts and `param_final`: a 65-frame hold (`final.freeze`, the script's
+SLOW_OPPONENT), an 80-unit dash whose catch boxes are out from frame 67 to 77, and a 444-frame cinematic of nine
+`holdHits` (3%, seven of 3.8%, 7%) and a 13% `throw`. Its cinematic's art covers the stage and the other fighters
+with a dark sheet in a `decor` slot: a fighter playing a Final Smash draws over the others and never shows the
+intangibility blink (`fighterLayer` and `intangibleBlink` in `src/render/fighterView.ts`).
+
 - **Catching.** The trap catches like any command grab: the nearest grabbable fighter in front, through shields. Ultimate
   traps every fighter its hitbox touches; this one holds the first.
 - **Landing.** A `final` move that lands carries on from the same frame, as with `continuesOnLanding`: the charge is
