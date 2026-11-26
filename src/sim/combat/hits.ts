@@ -163,7 +163,7 @@ function connection(
   const move = a.move!;
   if (!box.pushOnly && a.moveStale === 0) a.moveStale = stale(a, move);
   return {
-    ...victim(v, frame),
+    ...victim(v, frame, moveOf(a)?.final !== undefined),
     a,
     attacker: a.port,
     fromX: a.pos.x,
@@ -219,7 +219,7 @@ function entityHits(m: MatchState, e: EntityState, hits: Connection[]): boolean 
     e.hitVictims.push(v.port);
     if (!hit.box.pushOnly && e.stale === 0) e.stale = owner && e.move ? stale(owner, e.move) : 1;
     hits.push({
-      ...victim(v, m.frame),
+      ...victim(v, m.frame, e.final),
       a: null,
       attacker: e.owner,
       entity: e.id,
@@ -245,19 +245,24 @@ function stale(a: FighterState, move: string): number {
   return mult;
 }
 
-/** The victim's state before any of this frame's hits land (on match frame `frame`). */
+/**
+ * The victim's state before any of this frame's hits land (on match frame `frame`). An `unblockable` hit (a Final
+ * Smash's, src/sim/finalSmash.ts) goes through a shield, a parry or a counter as if none were up: SmashWiki
+ * ("Counterattack") says "unblockable attacks cannot be countered".
+ */
 function victim(
   v: FighterState,
   frame: number,
+  unblockable = false,
 ): Pick<Connection, 'v' | 'percent' | 'crouch' | 'shielding' | 'parry' | 'armor' | 'counter'> {
   return {
     v,
     percent: v.damage,
     crouch: v.action === 'crouch' && v.ground !== null,
-    shielding: v.action === 'shield' || v.action === 'shieldStun',
-    parry: parries(v, frame),
+    shielding: !unblockable && (v.action === 'shield' || v.action === 'shieldStun'),
+    parry: !unblockable && parries(v, frame),
     armor: armorOf(v),
-    counter: counterOf(v),
+    counter: unblockable ? null : counterOf(v),
   };
 }
 

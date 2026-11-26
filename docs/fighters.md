@@ -408,6 +408,92 @@ slowdown (Double Team, Greninja's Substitute), and choosing the counterattack's 
 `__smash.newMatch({ ports: [{ fighter: 'fireboy' }, { fighter: 'test-counter' }] })` (or `test-counter-behind`), then
 down special.
 
+### Final Smash
+
+A move named `finalSmash` is the fighter's Final Smash. Neutral special plays it while the fighter holds a charge
+from breaking the Coolmath Planet (`FighterState.finalReady`, docs/items.md), on the ground or in the air, from any
+state a special can start from, and the charge is spent. Side, up and down special stay specials, and a fighter
+without a `finalSmash` move keeps the charge. Every move of a Final Smash carries `final` (its `air` variant, a
+trap's cinematic). The engine is `src/sim/finalSmash.ts`; the test fighters in `src/sim/testing/finalSmash.ts`
+(`test-final-direct`, `test-final-trap`, `test-final-none`, also under `?harness`) show both shapes, and
+`src/sim/finalSmash.test.ts` drives them.
+
+The rules follow SmashWiki's Final Smash and Smash Ball articles:
+
+| Ultimate (SmashWiki)                                                                           | Here                                                                                       |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| "unleashed at any time by pressing the input for a neutral special move" (Smash Ball)          | neutral special with `finalReady`, grounded or airborne                                    |
+| Final Smashes "are unblockable, make the user fully intangible"                                | a `final` move is intangible on every frame; its hits and its projectiles' ignore shields  |
+| "unblockable attacks cannot be countered" (Counterattack)                                      | its hits and its projectiles' go through parries and counters too                          |
+| "Most Final Smashes cause the camera to temporarily zoom in on the user when activated"        | everyone else holds still for `FINAL_SMASH.freeze` (40) frames; the renderer zooms in gold |
+| a cinematic's hitbox traps an opponent and "the game effectively pauses" while the scene plays | a trap holds its catch through the cinematic; everyone and everything else holds still     |
+| direct Final Smashes play out in normal time                                                   | past the freeze, others move and act as usual                                              |
+| a KO in standby loses the Final Smash                                                          | `stepItems` clears `finalReady` on a KO                                                    |
+
+SmashWiki gives no length for the activation freeze, so 40 frames is an estimate; `final.freeze` overrides it per
+move. The others are held on the move's frames 2 to `freeze` + 1, so nothing in the activation move may come out
+before frame `freeze` + 2 (`fighters.test.ts` checks it). The freeze holds every other fighter and entity in hitlag
+for each frame it lasts (`holdStill`, at the end of `stepMatch`, listing them in `MatchState.finalHold`), so actions,
+launches, statuses (freezing ones such as paralysis included) and lifetimes wait, and nothing held is pushed, hits,
+grabs or is touched by hazards. It reads only the end of the frame, so port order doesn't change it. The stage stops
+too: "All stage hazards are paused during a Final Smash" (SmashWiki, Stage hazard). Its clock
+(`MatchState.stageFrame`) waits, so no piece moves, vanishes or carries anyone, and no zone, stage hitbox or conveyor
+belt acts until the hold ends. SmashWiki also says platforms only slow down during some Final Smashes; here they stop
+for the hold and run at full speed after it.
+
+A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned beams. Fireboy's Fire Blast
+(`src/fighters/fireboy/finalSmash.ts`) is the roster example: Mario Finale's frame data, damage and knockback on a
+`fireboy/blast` entity that crosses the stage and keeps burning after Fireboy can act, as Mario's fireballs do. The
+test fighter's is a plain hitbox:
+
+```ts
+finalSmash: {
+  kind: 'other',
+  faf: 90,
+  final: { still: true },  // in the air: stop, no gravity or drift (Mario in Mario Finale); a cinematic takes it too
+  hits: [{ frames: [42, 51], boxes: [{ id: 0, x: 32, y: 8, radius: 18, damage: 30, angle: 40, kbg: 70, bkb: 80 }] }],
+},
+```
+
+A **trapping** Final Smash is a command grab (above) whose cinematic is `final` too. The first fighter its boxes catch
+is held through the cinematic's `holdHits` and launched by its `throw`; nobody else moves until the release:
+
+```ts
+finalSmash: {
+  kind: 'other',
+  faf: 80,
+  final: {},
+  commandGrab: 'finalSmashCinematic',
+  hits: [{ frames: [42, 51], boxes: [{ id: 0, x: 12, y: 7, radius: 10, damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true }] }],
+},
+finalSmashCinematic: {
+  kind: 'other',
+  faf: 130,
+  final: {},
+  hits: [],
+  holdHits: [{ frame: 20, damage: 8 }, { frame: 40, damage: 8 }, { frame: 60, damage: 8 }],
+  throw: { frame: 100, hit: { damage: 16, angle: 45, kbg: 70, bkb: 90 } },
+},
+```
+
+- **Catching.** The trap catches like any command grab: the nearest grabbable fighter in front, through shields. Ultimate
+  traps every fighter its hitbox touches; this one holds the first.
+- **Landing.** A `final` move that lands carries on from the same frame, as with `continuesOnLanding`: the charge is
+  already spent, so a fall, or a moving platform rising under a `still` user, can't cut it short.
+- **Losing the floor.** The same goes the other way (`finalSmashLeavesGround`): when a platform vanishes or moves out
+  from under the user after the freeze, or a conveyor belt carries it off an end, a grounded `final` move plays on in
+  the air from the same frame. A `still` one stops where it left the floor (`stopInPlace`), as one started in the air
+  does. A trap's cinematic never loses its floor, since the stage stands still while it holds the others.
+- **Projectiles.** An entity a `final` move puts out is marked at spawn (`EntityState.final`), so it stays unblockable
+  however long it lasts, after its owner acts again or turns into another fighter (Fireboy's Swap).
+- **CPUs.** A CPU holding the charge presses neutral special once an opponent is inside the Final Smash's reach in front
+  (`finalReach`: its boxes, or `final.range` for one that spawns its blast), and otherwise leaves neutral special out of
+  its attacks.
+- **Events.** Activation emits `finalSmash` after the `move` event, with the freeze length; a trap's catch is a
+  `commandGrab` event (docs/sim-events.md).
+- **Not built.** Ultimate's Final Smash Meter, the height boost after an aerial Final Smash, the solid-colour background
+  for the whole move, and the close-up of the user's eyes.
+
 ### Tethers
 
 A move with `tether` fires a line from the hand (`TETHER.handHeight` up the body) that travels out, anchors, and
@@ -636,11 +722,12 @@ dthrow: { ..., throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55
   the hit's hitlag is (the box's `hitlag` multiplier, x0.67 on a crouch cancel), before the length is floored.
 - **Freezing.** A `freeze` status holds the fighter as hitlag does: no action, physics or timers, and the launch waits
   for it. It ticks on every frame from the one after it went on, hitlag included, so a hit that applies one freezes the
-  victim for the longer of its hitlag and the status. Other statuses pause while it lasts, and other fighters can't
-  push it, on the frame it runs out too. Its own hitboxes, grab boxes, reflectors and absorbers do nothing while it is
-  frozen, as in hitlag, so a move it was frozen in (armor took the hit) goes on when the freeze ends. It can still be
-  hit by fighters, projectiles and stage hazards. On the frame a freeze goes on the fighter still acts, so it can be
-  pushed and land hits then. The renderer shakes the fighter and flickers it in the status's `color`.
+  victim for the longer of its hitlag and the status, except that it waits while a Final Smash holds the fighter.
+  Other statuses pause while it lasts, and other fighters can't push it, on the frame it runs out too. Its own
+  hitboxes, grab boxes, reflectors and absorbers do nothing while it is frozen, as in hitlag, so a move it was frozen
+  in (armor took the hit) goes on when the freeze ends. It can still be hit by fighters, projectiles and stage hazards.
+  On the frame a freeze goes on the fighter still acts, so it can be pushed and land hits then. The renderer shakes the
+  fighter and flickers it in the status's `color`.
 - **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status. With `endOnHit`, a later
   hit that lands (not on a shield), a pummel or a throw's hold hit included, takes it off, reported as `statusEnd` with
   reason `hit`. That hit's hitlag and launch take over, and no hit landing on the same frame can put the same status
