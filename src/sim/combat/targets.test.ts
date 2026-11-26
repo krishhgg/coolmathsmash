@@ -5,8 +5,11 @@ import { registerStage } from '../../stages/registry';
 import { registerEntity, spawnEntity } from '../entities/entities';
 import type { FighterState } from '../fighter';
 import { createMatch, type MatchState } from '../match';
+import { counterTesterMarth } from '../testing/counter';
 import { marioReference } from '../testing/reference';
 import { attack, runPorts } from '../testing/sim';
+
+registerFighter(counterTesterMarth);
 
 /** The Mario reference's 12% probe box (angle 45, kbg 100, bkb 30), at 8 forward and 8 up with radius 8. */
 const probe = marioReference.moves.probe.hits[0]!.boxes[0]!;
@@ -117,15 +120,19 @@ function liftInto(f: FighterState, y: number): void {
 }
 
 /**
- * P1 (the test fighter) at x -10 facing P2 (Mario) `gap` units in front, both standing on Battlefield; an airborne
- * P2 is lifted 4 units, still inside the probe box.
+ * P1 (the test fighter) at x -10 facing P2 (Mario unless `fighter` says otherwise) `gap` units in front, both
+ * standing on Battlefield; an airborne P2 is lifted 4 units, still inside the probe box.
  */
-function duel(p2: Situation, gap = 8): { m: MatchState; a: FighterState; v: FighterState } {
+function duel(
+  p2: Situation,
+  gap = 8,
+  fighter = marioReference.id,
+): { m: MatchState; a: FighterState; v: FighterState } {
   const m = createMatch({
     seed: 1,
     stage: 'battlefield',
     stocks: 3,
-    ports: [{ fighter: 'test-targets' }, { fighter: marioReference.id }],
+    ports: [{ fighter: 'test-targets' }, { fighter }],
   });
   runPorts(m, 10, [{}, {}]);
   const [a, v] = m.fighters as [FighterState, FighterState];
@@ -198,6 +205,33 @@ describe('hitbox targets (HitboxDef.targets)', () => {
     expect(airborne.v.kb).toEqual({ x: 0, y: 0 });
     expect(airborne.a.hitVictims).toEqual([]);
     for (const { v } of [grounded, airborne]) expect([v.damage, v.hitstun]).toEqual([0, 0]);
+  });
+
+  it("can't be caught by a counter it can't hit: a ground-only box on an airborne counterer", () => {
+    /** P2 (Marth's Counter on down special) on its frame 10, in the catch window, as P1 swings `name`. */
+    const countered = (name: string, p2: Situation) => {
+      const d = duel(p2, 8, counterTesterMarth.id);
+      attack(d.m, 1, 'downB');
+      d.v.actionFrame = 9;
+      attack(d.m, 0, name);
+      runPorts(d.m, 1, [{}, {}]);
+      expect(d.v.ground === null).toBe(p2 === 'airborne');
+      return d;
+    };
+    for (const [name, p2, caught] of [
+      ['ground', 'grounded', true],
+      ['unset', 'airborne', true],
+      ['ground', 'airborne', false],
+    ] as const) {
+      const { m, v } = countered(name, p2);
+      expect(
+        m.events.some((e) => e.type === 'counter'),
+        `${name} on ${p2}`,
+      ).toBe(caught);
+      expect(v.move, `${name} on ${p2}`).toBe(caught ? 'downBHit' : 'downB');
+      expect(m.events.some((e) => e.type === 'hit')).toBe(false);
+      expect(v.damage).toBe(0);
+    }
   });
 
   it('a ground-only grab box grabs a grounded fighter but not an airborne one a normal grab catches', () => {

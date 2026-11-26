@@ -25,6 +25,9 @@ async function focusRow(page: Page, key: string, dir: 'ArrowDown' | 'ArrowUp' = 
 }
 
 test('controls: rebind keys and pad buttons, resolve conflicts, cancel, reset', async ({ page }) => {
+  // A long walk through the rows, one key and two animation frames per step, and each step repaints the side panel,
+  // which CI's software renderer rasterizes on the CPU: 12 to 31 s on CI, too close to the default 30 s.
+  test.slow();
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');

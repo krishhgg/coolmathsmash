@@ -132,6 +132,7 @@ fsmash: {
   the lowest-id box that can hit it where it is. A box that skips a fighter doesn't use up the move's hit on it,
   so it can still connect on a later active frame once the fighter lands or leaves the ground. Windboxes
   (`pushOnly`), grab boxes, entity hits, stage hitboxes and damage zones (`hit`) take `targets` too. Throws don't.
+  A counter catches only boxes that can hit the counterer, so a ground-only box passes an airborne one untouched.
 - **Landing lag.** Aerials give `landingLag` and `autoCancel` windows; a `helpless` move's `landingLag` also
   applies when it lands out of the helpless fall.
 - **Auto-cancel.** Landing in an aerial's `autoCancel` window costs only normal landing lag.
@@ -144,6 +145,8 @@ fsmash: {
     the full damage. Set it only where the Ultimate analogue does it. SmashWiki ("Stone") documents it only for
     Kirby's Stone, whose breaking hit deals half damage at full knockback (`breakDamageMul: 0.5`). Its "Armor" page
     says most armor takes full damage, so leave it unset by default.
+- **Counter.** `counter: { window, move }` blocks hits on those frames and plays the counterattack `move` (see
+  Counters below).
 - **Getup attack.** A move named `getupAttack` plays when a fighter lying down after a missed tech presses
   Attack. Give it `intangible: [1, 26]` (Ultimate's) and hits on both sides; without one, Attack just stands up.
 - **Specials.** `script(x)` runs every frame of the move before physics and sets velocity or facing. It must be
@@ -326,6 +329,66 @@ beastChew: {
 - **`holdHits: [{ frame, damage, hitlag? }]`** land in order like pummels: damage and hitlag, no knockback. Their
   damage counts towards the release's knockback.
 - **Third parties.** Hits from others break the victim free after 10%, as in any grab.
+
+### Counters
+
+A move with `counter` blocks hits and answers them with a counterattack. Marth's Counter in Ultimate, from the test
+fixtures in `src/sim/testing/counter.ts` until Bob's Shadow Step exists:
+
+```ts
+downB: {
+  kind: 'other',
+  faf: 65,
+  hits: [],
+  intangible: [5, 6],
+  counter: { window: [6, 27], move: 'downBHit' },
+},
+downBHit: {
+  kind: 'other',
+  faf: 42,
+  intangible: [1, 8],
+  hits: [
+    {
+      frames: [5, 7],
+      boxes: [{ id: 0, x: 9, y: 8, radius: 8, damage: 8, angle: 361, kbg: 60, bkb: 90 }],
+    },
+  ],
+},
+```
+
+- **The catch.** A hit whose box touches the fighter on a `window` frame (inclusive) is blocked: no damage, knockback,
+  hitstun or `status`. Every hit on it that frame is blocked, and the first in the frame's order (attackers by port,
+  then projectiles) sets the counter off. Grabs, command grabs and stage hazards go through, even on the frame the
+  counter catches a hit: then the grab or the hazard wins, the counterattack doesn't start and nobody freezes. A
+  windbox (`pushOnly`) pushes the counterer without setting it off. An intangible fighter is never touched, so it
+  can't counter: Marth is intangible on frames 5 and 6, and his first catch is on frame 7.
+- **The freeze.** The counterer goes straight into the counterattack `move` and freezes with the attacker for
+  `freeze` frames (default 21, Marth's). The counterattack's frame 1 is the last frozen frame, so its frame numbers
+  are Ultimate's and Marth's swing lands 25 frames after the catch. The counterer is intangible through the freeze,
+  and the counterattack's own `intangible` takes over from frame 1.
+- **Facing.** The counterer turns to face the hit. With `behind` it reappears that many units behind the attacker
+  instead, facing their back, as Lucario's Double Team does: on the attacker's floor (held to its ends), or in the
+  air beside an airborne attacker.
+- **Damage.** The counterattack's boxes deal the caught hit's damage (after staleness, as a shield takes it) times
+  `multiplier` (default 1.2), capped at `max` (default 50%), or their own damage when that is more. Marth's 8% box is
+  his counter's minimum, as in Ultimate's data. `multiplier: 0` always deals the boxes' own damage (Double Team's
+  fixed 12.5%). The boxes deal the same on hittable entities and in clanks with projectiles (`hitboxDamage`,
+  `src/sim/combat/hits.ts`). Otherwise the counterattack is a normal move: it can miss, it stales, and rage and DI
+  apply.
+- **Projectiles.** A caught projectile is used up as if it hit. The counterer answers in place, even with `behind`,
+  and nobody else freezes.
+- **Events.** A catch reports `counter` with what the caught hit would have dealt, then `move` for the counterattack
+  (`docs/sim-events.md`).
+
+The defaults (`COUNTER`, `src/sim/constants.ts`) and the fixture are SmashWiki's Marth (SSBU)/Down special: counter
+6-27, x1.2, 8% to 50%, "Counter hitlag on activation: 21 frames", the counterattack's frames and its knockback. The
+rules are SmashWiki's Counterattack page: blockable hits during the counter are blocked, grabs are immune, and
+counters don't trigger while the fighter is invincible. Not modelled: a freeze scaled from the caught hit and the
+slowdown (Double Team, Greninja's Substitute), and choosing the counterattack's direction with the stick.
+
+`?harness` registers both fixtures, so you can try them:
+`__smash.newMatch({ ports: [{ fighter: 'fireboy' }, { fighter: 'test-counter' }] })` (or `test-counter-behind`), then
+down special.
 
 ### Tethers
 
@@ -638,6 +701,9 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   never hit or clank with entities.
 - **Order of a frame.** Fighters act (spawning), the stage moves, entities move, then reflectors, absorbers and clanks, then every hit
   from fighters and entities lands at once, then grabs (an attack or projectile beats a grab on the same frame).
+- **Items.** Items are entities registered as `item/<name>`. `onBreak(m, e, by)` runs when a hittable entity breaks,
+  with the port that landed the last hit. `pickup(m, f, e)` makes an entity something an idle fighter picks up with
+  Attack. The Items rule, spawning and the Coolmath Planet are in docs/items.md.
 - **Events.** Entities report `entitySpawn`, `entityDestroy` (with the reason), `reflect`, `absorb` and `entityHit`,
   and their hits are `hit` and `shieldHit` events carrying the `entity` id (`docs/sim-events.md`).
 
