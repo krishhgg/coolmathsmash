@@ -1,6 +1,7 @@
 import type { Pose } from '../../../render/rig/author';
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, Key } from '../../../render/rig/types';
-import { AIR_DODGE_NEUTRAL, ROLL_FORWARD, SPOT_DODGE } from '../../../sim/constants';
+import { ROLL_FORWARD, SPOT_DODGE } from '../../../sim/constants';
 import {
   AIR,
   BACK_ARM_OVER_HEAD,
@@ -189,7 +190,7 @@ export const dodges: Record<string, AnimClip> = {
   }),
 
   airDodge: {
-    length: AIR_DODGE_NEUTRAL.faf - 1,
+    length: 46,
     swaps: { ...GRIT, ...FISTS },
     keys: [
       key(0, OPEN, { ease: 'out' }),
@@ -197,7 +198,14 @@ export const dodges: Record<string, AnimClip> = {
       ...corkscrew(4, 24),
       key(29, aloft(mix(PENCIL, { body: { rot: -4 } })), { ease: 'out' }),
       key(34, OPEN, { ease: 'inOut', swaps: { ...SHOUT, ...PALM_F, ...PALM_B }, z: {} }),
-      key(AIR_DODGE_NEUTRAL.faf - 1, FALL_START, { swaps: { ...GRIT, ...PALM_F, ...PALM_B } }),
+      key(46, FALL_START, { swaps: { ...GRIT, ...PALM_F, ...PALM_B } }),
     ],
   },
 };
+
+/**
+ * The air dodge, drawn over the old 46-frame neutral dodge, on the current 52 (AIR_DODGE_NEUTRAL): keys inside the
+ * intangible window (3 to 29) stay put and only the recovery after it stretches. A directional dodge plays the same
+ * clip over its own length.
+ */
+dodges.airDodge = retimeClip(dodges.airDodge!, 52, [[29, 29]]);

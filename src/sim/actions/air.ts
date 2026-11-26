@@ -9,6 +9,7 @@ import {
 import { buffered, consume, flickDown, stickX, stickY } from '../control';
 import { emit } from '../events';
 import type { Ctx } from '../fighter';
+import type { Vec } from '../vec';
 import { airAttack } from './attack';
 import { consumeJump, wantsJump } from './common';
 import { techPressed, tumbleLanding } from './knockdown';
@@ -44,9 +45,10 @@ export function airActionable(x: Ctx): boolean {
 
 const directional = (x: Ctx) => x.f.dodgeDir.x !== 0 || x.f.dodgeDir.y !== 0;
 
-function airDodgeFaf(x: Ctx): number {
-  if (!directional(x)) return AIR_DODGE_NEUTRAL.faf;
-  const { x: dx, y: dy } = x.f.dodgeDir;
+/** The FAF of an air dodge toward `dir`: neutral when it is zero, else by stick angle (AIR_DODGE_DIRECTIONAL). */
+export function airDodgeFaf(dir: Vec): number {
+  if (dir.x === 0 && dir.y === 0) return AIR_DODGE_NEUTRAL.faf;
+  const { x: dx, y: dy } = dir;
   const table = AIR_DODGE_DIRECTIONAL.fafByAngle;
   const t = ((Math.atan2(dy, Math.abs(dx)) + Math.PI / 2) / Math.PI) * (table.length - 1);
   const i = Math.min(Math.floor(t), table.length - 2);
@@ -142,12 +144,12 @@ export const AIR: Record<string, ActionDef> = {
           f.vel.y *= AIR_DODGE_DIRECTIONAL.decay;
         }
       }
-      if (f.actionFrame >= airDodgeFaf(x)) setAction(x, 'fall');
+      if (f.actionFrame >= airDodgeFaf(f.dodgeDir)) setAction(x, 'fall');
     },
     land(x) {
       const { f } = x;
       if (techPressed(x, AIR_DODGE_TECH_WINDOW)) return tumbleLanding(x, AIR_DODGE_TECH_WINDOW);
-      if (!directional(x) || f.actionFrame >= airDodgeFaf(x)) {
+      if (!directional(x) || f.actionFrame >= airDodgeFaf(f.dodgeDir)) {
         f.landingLag = AIR_DODGE_NEUTRAL.landingLag;
       } else {
         const t = Math.min(1, Math.max(0, (f.actionFrame - 3) / 30));
