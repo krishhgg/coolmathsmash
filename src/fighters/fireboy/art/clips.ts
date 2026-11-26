@@ -16,6 +16,7 @@ import {
   SIDE,
   SIDE_ANGRY,
   SIDE_HURT,
+  SIDE_SHOUT,
   STAND,
   TUCK,
   UP,
@@ -778,6 +779,42 @@ export const clips: Record<string, AnimClip> = {
     keys: [
       key(0, mix(HIT, { body: { rot: -8, y: -0.6 } })),
       key(10, mix(HIT, { body: { rot: -2, y: -0.7 }, thighF: { rot: -20 }, thighB: { rot: 35 } })),
+    ],
+  },
+  /**
+   * Pushed apart after a grab ends without a throw (either side): jolted back on his heels with his arms thrown
+   * up, he skids on the front foot, then crouches and stands. As long as GRAB.releaseLag.
+   */
+  grabRelease: {
+    length: 29,
+    swaps: SIDE_SHOUT,
+    keys: [
+      key(
+        0,
+        hands(
+          feet(
+            { body: { rot: -18, x: -0.3 }, hip: { y: 0.45 }, neck: { rot: -8 } },
+            [-0.8, 0],
+            [2.2, 0],
+            true,
+          ),
+          [1.2, -6.6],
+          [2.6, -5.8],
+        ),
+        { ease: 'out' },
+      ),
+      key(
+        8,
+        hands(
+          feet({ body: { rot: -9 }, hip: { y: 0.65 }, neck: { rot: -3 } }, [-0.7, 0], [1.8, 0], true),
+          [-2.0, -3.6],
+          [2.2, -4.0],
+        ),
+        { ease: 'inOut', swaps: SIDE_ANGRY },
+      ),
+      key(15, CROUCH, { ease: 'inOut', swaps: ANGRY }),
+      key(21, STAND, { swaps: FRONT }),
+      key(29, STAND),
     ],
   },
   taunt: {
