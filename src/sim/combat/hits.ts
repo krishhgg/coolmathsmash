@@ -14,7 +14,7 @@ import type { CompiledStage } from '../stage';
 import { destroyEntity, entityDef, entityHitboxes, sweepEntities } from '../entities/entities';
 import type { EntityState } from '../entities/types';
 import { leaveGround, restoreAirOptions, surfaceRange, surfaceY } from '../movement';
-import { applyStatus, endStatusesOnHit } from '../statuses';
+import { applyStatus, endStatusesOnHit, isFrozen } from '../statuses';
 import {
   AUTOLINK,
   AUTOLINK_GROUND_ANGLE,
@@ -304,7 +304,7 @@ export function resolveHits(
   const hits: Connection[] = [];
   const grabs = findGrabs(m);
   for (const a of m.fighters) {
-    if (inHitlag(m, a)) continue;
+    if (inHitlag(m, a) || isFrozen(m, a)) continue;
     const boxes = activeHitboxes(a).filter((h) => !h.box.grab);
     if (boxes.length === 0) continue;
     const found: { v: FighterState; box: HitboxDef; at: { x: number; y: number } }[] = [];

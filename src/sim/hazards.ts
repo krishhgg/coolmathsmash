@@ -115,7 +115,7 @@ function hitboxContact(geo: StageGeometry, v: FighterState, frame: number): Cont
  * After the fighters' hits and before grabs are resolved (resolveHits): each fighter a hazard touches takes that
  * hazard's hit and joins `struck`, at most one stage hit per frame and none while `stageHitLock` (the hazard's
  * `rehit`) runs. Hazards skip intangible fighters and fighters already in hitlag, go through shields and respect
- * armor.
+ * armor. A fighter frozen by a status (StatusDef.freeze, paralysis) is still hit once its hitlag is over.
  */
 export function stageHits(m: MatchState, struck: Set<FighterState>): void {
   for (const f of m.fighters) if (f.stageHitLock > 0) f.stageHitLock--;

@@ -83,12 +83,13 @@ export function hasStatus(f: FighterState, kind: string): boolean {
 }
 
 /**
- * A freezing status (StatusDef.freeze) holds `f` on this frame of `m`: like a fighter in hitlag, it isn't pushed by
- * others. tickFreezes ends a freeze inside the fighter's step, before the frame's pushes run, so on its last frozen
- * frame the status is already off; `frozenAt` keeps that frame frozen too.
+ * A freezing status (StatusDef.freeze) holds `f` on this frame of `m`: like a fighter in hitlag, it isn't pushed and
+ * lands no hitbox or grab, but it can still be hit. tickFreezes marks each frame it holds the fighter in `frozenAt`,
+ * so the last frozen frame counts though the status is already off, and the frame a freeze goes on doesn't: the
+ * fighter acts on that one.
  */
 export function isFrozen(m: MatchState, f: FighterState): boolean {
-  return f.frozenAt === m.frame || f.statuses.some((s) => statusDef(s.kind).freeze);
+  return f.frozenAt === m.frame;
 }
 
 /**

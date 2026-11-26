@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { hashState } from '../engine/hash';
 import { registerFighter } from '../fighters/registry';
+import { defineFighter } from '../fighters/types';
 import { registerStage } from '../stages/registry';
 import { HITLAG, hitlagFrames, knockback } from './combat/formulas';
+import { registerEntity, spawnEntity } from './entities/entities';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
 import { createMatch, type MatchState } from './match';
 import { addMeter, meter, setMeter, spendMeter } from './meters';
 import { applyStatus, clearStatus, hasStatus, statusOf } from './statuses';
+import { marioReference } from './testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from './testing/sim';
 import { testStatus } from './testing/statuses';
 
@@ -434,6 +437,197 @@ describe('statuses: freezing', () => {
     expect(v.actionFrame).toBe(held + 1);
     expect(a.pos.x).toBeLessThan(at.a.x);
     expect(v.pos.x).toBeGreaterThan(at.v.x);
+  });
+});
+
+/**
+ * The Mario reference with heavy armor through two long moves, so a stunning hit freezes it mid-move instead of
+ * launching it, as an armored fighter paralyzed mid-attack is: `swing`, a 10% box out in front on frames 3-40, and
+ * `grab`, a grab box out on the same frames. `stunSelf` stuns itself for 10 frames from its script on frame 1.
+ */
+const FROZEN = 'test-frozen';
+registerFighter(
+  defineFighter({
+    ...marioReference,
+    id: FROZEN,
+    name: 'Test: frozen mid-move',
+    moves: {
+      swing: {
+        kind: 'other',
+        faf: 60,
+        armor: { frames: [1, 60] },
+        hits: [
+          {
+            frames: [3, 40],
+            boxes: [{ id: 0, x: 10, y: 8, radius: 6, damage: 10, angle: 45, kbg: 50, bkb: 30 }],
+          },
+        ],
+      },
+      grab: {
+        kind: 'other',
+        faf: 60,
+        armor: { frames: [1, 60] },
+        hits: [
+          {
+            frames: [3, 40],
+            boxes: [{ id: 0, x: 9, y: 7, radius: 5, damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true }],
+          },
+        ],
+      },
+      stunSelf: {
+        kind: 'other',
+        faf: 30,
+        hits: [],
+        script: (x) => {
+          if (x.f.actionFrame === 1) applyStatus(x.m, x.f, STUN, { frames: 10 });
+        },
+      },
+    },
+  }),
+);
+/** A hittable entity with no hitboxes of its own. */
+const CRATE = 'test-frozen/crate';
+registerEntity(CRATE, { floor: 'pass', wall: 'pass', radius: 3, hp: 100 });
+
+describe('statuses: a frozen fighter acts on nothing', () => {
+  /**
+   * The stun fixture (P1) 10 units behind the armored fixture (P2), which faces away from it toward a Mario reference
+   * (P3) 12 units in front, on Battlefield. P1's stun dtilt hits P2 on frame 3 of P2's `move`, whose box is out by
+   * then; P3 is intangible until 7 frames after that hit, so nothing of P2's can reach it before.
+   */
+  function stunnedMidMove(move: string): {
+    m: MatchState;
+    a: FighterState;
+    b: FighterState;
+    lag: number;
+    frames: number;
+  } {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'test-status' }, { fighter: FROZEN }, { fighter: 'reference-mario' }],
+    });
+    runPorts(m, 10, []);
+    const [s, a, b] = m.fighters as [FighterState, FighterState, FighterState];
+    for (const [f, x, facing] of [
+      [s, -10, 1],
+      [a, 0, 1],
+      [b, 12, -1],
+    ] as const) {
+      Object.assign(f, { pos: { x, y: s.pos.y }, ground: s.ground, action: 'idle', actionFrame: 1, facing });
+      f.prevPos = { ...f.pos };
+    }
+    attack(m, 0, 'dtilt');
+    attack(m, 1, move);
+    b.intangible = 10;
+    const events = stepUntil(m, 'hit');
+    expect(events.filter((e) => e.type === 'hit')).toMatchObject([{ attacker: 0, victim: 1 }]);
+    // Armored: still in its move, on frame 3, frozen for its hitlag and then the stun.
+    expect([a.action, a.move, a.actionFrame]).toEqual(['attack', move, 3]);
+    const lag = a.hitlag;
+    const frames = statusOf(a, STUN)!.frames;
+    expect([lag, frames]).toEqual([4, 18]);
+    expect(b.intangible).toBe(7);
+    return { m, a, b, lag, frames };
+  }
+
+  it('lands none of its hitboxes while frozen: its still-active box waits for the first frame it acts again', () => {
+    const { m, a, frames } = stunnedMidMove('swing');
+    const landed: number[] = [];
+    const held: number[] = [];
+    for (let frame = 1; frame <= frames + 1; frame++) {
+      runPorts(m, 1, []);
+      if (m.events.some((e) => e.type === 'hit' && e.attacker === 1 && e.victim === 2)) landed.push(frame);
+      if (a.actionFrame === 3) held.push(frame);
+    }
+    expect(landed).toEqual([frames + 1]);
+    // Its move holds on frame 3 through the hitlag and the stun, and goes on to frame 4 on the frame the box lands.
+    expect(held).toEqual(Array.from({ length: frames }, (_, i) => i + 1));
+    expect(a.actionFrame).toBe(4);
+  });
+
+  it('catches no one with its grab box while frozen, and grabs on the first frame it acts again', () => {
+    const { m, a, b, frames } = stunnedMidMove('grab');
+    const caught: number[] = [];
+    for (let frame = 1; frame <= frames + 1; frame++) {
+      runPorts(m, 1, []);
+      if (m.events.some((e) => e.type === 'grab')) caught.push(frame);
+    }
+    expect(caught).toEqual([frames + 1]);
+    expect([a.action, b.action]).toEqual(['grabHold', 'grabbed']);
+  });
+
+  it("doesn't hit an entity while frozen: a crate inside its box takes the hit on the first frame it acts again", () => {
+    const { m, a, b, lag, frames } = stunnedMidMove('swing');
+    b.intangible = 600;
+    runPorts(m, lag + 2, []);
+    // Past the hitlag, still stunned: a crate appears inside the swing's box.
+    const crate = spawnEntity(m, { kind: CRATE, owner: -1, pos: { x: a.pos.x + 10, y: a.pos.y + 8 } });
+    const struck: number[] = [];
+    for (let frame = lag + 3; frame <= frames + 1; frame++) {
+      runPorts(m, 1, []);
+      if (m.events.some((e) => e.type === 'entityHit' && e.id === crate.id)) struck.push(frame);
+    }
+    expect(struck).toEqual([frames + 1]);
+  });
+
+  it('acts on the frame a script stuns it, so it is pushed then, and not again until it acts after the stun', () => {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: FROZEN }, { fighter: 'reference-mario' }, { fighter: 'reference-mario' }],
+    });
+    runPorts(m, 10, []);
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    // P2 stands 5 units from P1, 3 units inside it (their widths are 8).
+    Object.assign(v, { pos: { x: a.pos.x + 5, y: a.pos.y }, ground: a.ground, action: 'idle', facing: -1 });
+    v.prevPos = { ...v.pos };
+    attack(m, 0, 'stunSelf');
+    const pushed: number[] = [];
+    for (let frame = 1; frame <= 12; frame++) {
+      const before = a.pos.x;
+      runPorts(m, 1, []);
+      if (frame === 1) expect(statusOf(a, STUN)).toMatchObject({ frames: 10, age: 0 });
+      if (a.pos.x !== before) pushed.push(frame);
+    }
+    // Frame 1: it acts (its move starts and stuns it). Frames 2-11: stunned. Frame 12: it acts again.
+    expect(pushed).toEqual([1, 12]);
+  });
+
+  it('is still hit while frozen: a hazard and a projectile each land on a frozen frame and end the stun', () => {
+    const lava = createMatch({
+      seed: 1,
+      stage: 'hazard-testbed',
+      stocks: 3,
+      ports: [{ fighter: 'reference-mario' }],
+    });
+    const f = lava.fighters[0]!;
+    // In the testbed's lava, locked out of stage hits until frame 6. The stun freezes it from frame 2.
+    Object.assign(f, { pos: { x: -48, y: 0.001 }, prevPos: { x: -48, y: 0.001 }, stageHitLock: 6 });
+    applyStatus(lava, f, STUN, { frames: 30 });
+    const burned: number[] = [];
+    for (let frame = 1; frame <= 6; frame++) {
+      runPorts(lava, 1, []);
+      if (lava.events.some((e) => e.type === 'stageHit')) burned.push(frame);
+    }
+    expect(burned).toEqual([6]);
+    expect(lava.events).toContainEqual({ type: 'statusEnd', port: 0, status: STUN, reason: 'hit' });
+
+    const { m, v } = versus(3);
+    applyStatus(m, v, STUN, { frames: 30 });
+    runPorts(m, 5, []);
+    expect(v.hitlag).toBe(0);
+    spawnEntity(m, {
+      kind: 'test-status/petal',
+      owner: 0,
+      pos: { x: v.pos.x, y: v.pos.y + 8 },
+      move: 'neutralB',
+    });
+    runPorts(m, 1, []);
+    expect(m.events.filter((e) => e.type === 'hit')).toMatchObject([{ attacker: 0, victim: 1 }]);
+    expect(m.events).toContainEqual({ type: 'statusEnd', port: 1, status: STUN, reason: 'hit' });
   });
 });
 
