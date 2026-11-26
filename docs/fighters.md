@@ -227,6 +227,10 @@ or reaching full charge, carries on with the move.
   Skull Bash) charges for 80 frames from 6.2% to 21.4% and speeds up its dash with `chargeLerp`.
 - **Speeds and distances.** A move script reads `chargeLerp(f, uncharged, full)` for a value at the current charge
   level (a dash speed), or `chargeLevel(f)` (0 to 1).
+- **Projectiles.** An entity whose EntityDef sets `chargeDamage` hits for up to that many times its damage at the
+  spawning move's full charge, linearly from 1 (`chargeScale(level, full)`), so its knockback grows too. A move's
+  `spawn` passes the move's charge level; a script passes `charge: chargeLevel(f)` to `spawnEntity`. The multiplier
+  goes into the entity's `damageMul`, so reflections stack on it. The Raft Wars kids' Aimed Shot is the example.
 - **Scripts while charging.** The script runs once a frame while the move is held, with `actionFrame` on the frame
   before the charge frame. That frame's spawns, `rehit` windows and `transform` happen once, on the way in.
 - **Stored charge.** `storeCharge: {}` lets shield, an air dodge or a jump cancel the charge and keep it in
