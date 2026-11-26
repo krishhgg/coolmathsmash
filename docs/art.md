@@ -72,10 +72,10 @@ shared stand-ins listed below. A clip under any other name never plays, so `src/
 fails on one. Use `loop: true` for cycles; other clips hold their last key.
 
 A clip for a timed ground action (`spotDodge`, `rollForward`, `rollBack`, `techInPlace`, `techRoll`, `getupStand`,
-`getupRoll`) lasts the action's `faf - 1` from `src/sim/constants.ts`, with its last key on that frame, so it
-neither stops early nor holds a pose. `src/fighters/dodgeClips.test.ts` checks every drawn fighter. When a timing
-changes, move the keys rather than cutting them; `retimeClip` in `src/render/rig/timing.ts` re-keys a whole clip,
-which is how the getup rolls reuse the tech rolls.
+`getupRoll`) or for `ledgeAttack` lasts the action's `faf - 1` from `src/sim/constants.ts`, with its last key on
+that frame, so it neither stops early nor holds a pose. `src/fighters/dodgeClips.test.ts` checks every drawn
+fighter. When a timing changes, move the keys rather than cutting them; `retimeClip` in `src/render/rig/timing.ts`
+re-keys a whole clip, which is how the getup rolls reuse the tech rolls.
 
 `airDodge` follows the same rule for the neutral dodge: 52 frames (`AIR_DODGE_NEUTRAL.faf - 1`), played frame for
 frame. A directional dodge lasts 71 to 116 frames by stick angle (`AIR_DODGE_DIRECTIONAL.fafByAngle`), and the
