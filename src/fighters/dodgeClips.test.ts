@@ -3,6 +3,7 @@ import { clipFor, fighterArt } from '../render/fighterView';
 import {
   GETUP_ROLL,
   GETUP_STAND,
+  LEDGE_ATTACK,
   ROLL_BACK,
   ROLL_FORWARD,
   SPOT_DODGE,
@@ -13,8 +14,9 @@ import type { FighterState } from '../sim/fighter';
 import { allFighters } from './registry';
 
 /**
- * Timed ground actions shared by every fighter. Each ends on its FAF, so the clip the renderer draws for it
- * (its own or a stand-in) lasts FAF - 1 frames, with its last key on the last frame (docs/art.md).
+ * Timed actions shared by every fighter: the ground dodges, techs and getups, and the ledge attack. Each ends on
+ * its FAF, so the clip the renderer draws for it (its own or a stand-in) lasts FAF - 1 frames, with its last key
+ * on the last frame (docs/art.md).
  */
 const ACTIONS: Record<string, number> = {
   spotDodge: SPOT_DODGE.faf - 1,
@@ -24,6 +26,7 @@ const ACTIONS: Record<string, number> = {
   techRoll: TECH_ROLL.faf - 1,
   getupStand: GETUP_STAND.faf - 1,
   getupRoll: GETUP_ROLL.faf - 1,
+  ledgeAttack: LEDGE_ATTACK.faf - 1,
 };
 
 /**
@@ -55,7 +58,7 @@ const drawn = Object.keys(allFighters()).filter((id) => fighterArt(allFighters()
 
 describe.each(drawn)('%s', (id) => {
   const check = WAITING.includes(id) ? it.fails : it;
-  check('draws every dodge, roll, tech and getup over the whole action', () => {
+  check('draws every dodge, roll, tech, getup and ledge attack over the whole action', () => {
     expect(drift(id)).toEqual([]);
   });
 });

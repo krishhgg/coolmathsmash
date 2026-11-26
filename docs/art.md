@@ -65,10 +65,10 @@ Name each clip after its engine action or the exact key in the fighter's move ta
 shared stand-ins listed below. Use `loop: true` for cycles; other clips hold their last key.
 
 A clip for a timed ground action (`spotDodge`, `rollForward`, `rollBack`, `techInPlace`, `techRoll`, `getupStand`,
-`getupRoll`) lasts the action's `faf - 1` from `src/sim/constants.ts`, with its last key on that frame, so it
-neither stops early nor holds a pose. `src/fighters/dodgeClips.test.ts` checks every drawn fighter. When a timing
-changes, move the keys rather than cutting them; `retimeClip` in `src/render/rig/timing.ts` re-keys a whole clip,
-which is how the getup rolls reuse the tech rolls.
+`getupRoll`) or for `ledgeAttack` lasts the action's `faf - 1` from `src/sim/constants.ts`, with its last key on
+that frame, so it neither stops early nor holds a pose. `src/fighters/dodgeClips.test.ts` checks every drawn
+fighter. When a timing changes, move the keys rather than cutting them; `retimeClip` in `src/render/rig/timing.ts`
+re-keys a whole clip, which is how the getup rolls reuse the tech rolls.
 
 For a move authored at simulation speed, frame 1 is the move's first frame, and the clip ends at `FAF - 1`.
 Record the clip's impact windows in `AnimClip.active`. To play a clip authored on a different timeline, the

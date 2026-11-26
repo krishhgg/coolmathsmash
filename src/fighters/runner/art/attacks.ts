@@ -1474,7 +1474,7 @@ export const attacks: Record<string, AnimClip> = {
   ),
   /** Over the corner and straight into a low sweep along the floor (the engine's ledge attack; no move data). */
   ledgeAttack: {
-    length: 55,
+    length: LEDGE_ATTACK.faf - 1,
     swaps: ANGRY,
     keys: [
       key(0, HANG, { ease: 'linear', z: FAR_ARM_IN_FRONT }),
@@ -1501,7 +1501,7 @@ export const attacks: Record<string, AnimClip> = {
       ...strike(19, 23, LEDGE_SWEEP, { ...STREAK1, ...SHOUT }),
       done(30, LEDGE_SWEEP),
       key(42, CROUCH, { swaps: FACE }),
-      key(54, STAND),
+      key(LEDGE_ATTACK.faf - 1, STAND),
     ],
   },
 };
