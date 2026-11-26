@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { poseBounds } from '../../../render/rig/geometry';
-import { samplePose, type RigPose } from '../../../render/rig/sample';
+import { flattenPath, poseBounds, shapesContain } from '../../../render/rig/geometry';
+import { samplePose, toLocal, type RigPose } from '../../../render/rig/sample';
+import type { PathShape } from '../../../render/rig/types';
 import { art } from '.';
 
 /** Swings checked frame by frame. Bob's other grounded clips still dip into the floor, so they join once fixed. */
@@ -39,6 +40,68 @@ function turn(pose: RigPose, bone: string): number {
   return deg;
 }
 
+/** Props held in a hand. */
+const PROPS = ['baton', 'sack', 'gun'];
+
+/**
+ * How much of a part a held prop may overlap, in square units, on both sides of a change in their draw order. The
+ * ready stance's baton crosses 0.06 of his cheek and a swing's prop can pass the edge of his head at a key, but a
+ * sack that moves from over his belly to behind it covers 15 and is seen to jump.
+ */
+const OVERLAP = 0.25;
+
+/** Grid spacing for measuring overlaps. */
+const CELL = 0.1;
+
+const slots = Object.fromEntries(art.rig.slots.map((s) => [s.name, s]));
+
+/** The drawing in `slot` in `pose`, if it has one. */
+function drawing(pose: RigPose, slot: string): PathShape[] | undefined {
+  const name = pose.symbols[slot];
+  const sym = name ? art.rig.symbols[name] : undefined;
+  return Array.isArray(sym) ? sym : undefined;
+}
+
+/** Rig-space [minX, minY, maxX, maxY] of `slot`'s drawing in `pose`. */
+function bounds(pose: RigPose, slot: string): [number, number, number, number] {
+  const m = pose.world[slots[slot]!.bone]!;
+  const b: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const shape of drawing(pose, slot) ?? [])
+    for (const p of flattenPath(shape.d))
+      for (let i = 0; i < p.length; i += 2) {
+        const x = m.a * p[i]! + m.c * p[i + 1]! + m.tx;
+        const y = m.b * p[i]! + m.d * p[i + 1]! + m.ty;
+        b[0] = Math.min(b[0], x);
+        b[1] = Math.min(b[1], y);
+        b[2] = Math.max(b[2], x);
+        b[3] = Math.max(b[3], y);
+      }
+  return b;
+}
+
+/** Whether `slot`'s drawing covers rig point (x, y) in `pose`. */
+const covers = (pose: RigPose, slot: string, x: number, y: number) =>
+  shapesContain(drawing(pose, slot)!, ...toLocal(pose.world[slots[slot]!.bone]!, x, y));
+
+/** Whether the drawings in slots `a` and `b` overlap by more than OVERLAP in `pose`, measured on a CELL grid. */
+function overlaps(pose: RigPose, a: string, b: string): boolean {
+  const [a0, a1, a2, a3] = bounds(pose, a);
+  const [b0, b1, b2, b3] = bounds(pose, b);
+  let cells = 0;
+  for (let x = Math.max(a0, b0) + CELL / 2; x < Math.min(a2, b2); x += CELL)
+    for (let y = Math.max(a1, b1) + CELL / 2; y < Math.min(a3, b3); y += CELL)
+      if (covers(pose, a, x, y) && covers(pose, b, x, y) && ++cells * CELL * CELL > OVERLAP) return true;
+  return false;
+}
+
+/** Each slot's place in the draw order, back to front. */
+function layers(pose: RigPose): Record<string, number> {
+  const order = art.rig.slots
+    .map((s, i) => ({ name: s.name, z: pose.z[s.name] ?? i, i }))
+    .sort((a, b) => a.z - b.z || a.i - b.i);
+  return Object.fromEntries(order.map((s, k) => [s.name, k]));
+}
+
 /** Bones that carry a drawing in `pose`. */
 const drawn = (pose: RigPose) =>
   new Set(art.rig.slots.filter((s) => pose.symbols[s.name] !== null).map((s) => s.bone));
@@ -74,5 +137,26 @@ describe("bob's baton swings", () => {
       }
     }
     expect(spun).toEqual([]);
+  });
+
+  it('never moves a held prop in front of or behind a part it covers from one frame to the next', () => {
+    const popped: string[] = [];
+    for (const name of SWINGS) {
+      let prev = samplePose(art, name, 0, 0);
+      for (let f = 1; f <= art.clips[name]!.length; f++) {
+        const pose = samplePose(art, name, f, f);
+        const [was, now] = [layers(prev), layers(pose)];
+        for (const prop of PROPS.filter((p) => drawing(prev, p) && drawing(pose, p)))
+          for (const { name: part, decor } of art.rig.slots) {
+            if (part === prop || decor || !drawing(prev, part) || !drawing(pose, part)) continue;
+            const over = now[prop]! > now[part]!;
+            if (over === was[prop]! > was[part]!) continue;
+            if (overlaps(prev, prop, part) && overlaps(pose, prop, part))
+              popped.push(`${name}@${f} ${prop} ${over ? 'over' : 'under'} ${part}`);
+          }
+        prev = pose;
+      }
+    }
+    expect(popped).toEqual([]);
   });
 });

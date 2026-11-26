@@ -144,6 +144,11 @@ const FTILT_FOLLOW = swing(lungeWith({ body: { rot: 12 } }, -2.2), [3.4, -6.0], 
 const UTILT_UP = (deg: number) =>
   reachF(swing(stanceWith({ body: { rot: -4 } }), [1.8, -10.4], deg), [1.8, -10.4]);
 const UTILT_FINISH = reachF(swing(stanceWith({ body: { rot: -8 } }), [2.2, -11.2], -80), [2.2, -11.2]);
+/** Holding the finish with the fist forward of his hat, so the baton is clear of his head as it goes behind it. */
+const UTILT_REST = trail(
+  reachF(swing(stanceWith({ body: { rot: -8 } }), [4.8, -10.2], -75), [4.8, -10.2]),
+  true,
+);
 /** The twirl's blur over his head, at `size`. */
 const TWIRL = (size: number) => ({ fx4: fx(1.8, -10.6, 0, size) });
 /** Degrees the twirl adds to the baton on its keys: it spins counterclockwise, a half turn every two frames. */
@@ -180,6 +185,11 @@ const SLIDE = feet(
 const DASH_WIND = aim(hands(SLIDE, [-2.6, -7.4], [2.4, -5.4]), 'sackH', 130);
 const DASH_HIT = aim(reachB(hands(SLIDE, [5.0, -5.9], [2.6, -4.4]), [5.0, -5.9]), 'sackH', -84);
 const DASH_LATE = aim(reachB(hands(SLIDE, [4.7, -5.5], [2.6, -4.4]), [4.7, -5.5]), 'sackH', -66);
+/**
+ * The sack lifted over his head and hanging behind it from his raised back hand, clear of his head and body, so it
+ * can go behind his back without jumping.
+ */
+const DASH_SLUNG = aim(hands(feet(STANCE, floor(-2.4), floor(1.8)), [-4.4, -6.6], null), 'sackH', 80);
 
 // Smashes ----------------------------------------------------------------------------------------------------
 
@@ -336,7 +346,8 @@ export const attacks: Record<string, AnimClip> = {
         key(4, JAB3_UP, { ease: 'in' }),
         strikeKey(6, trail(JAB3_BONK), { ...SHOUT, ...BATON, smear: 'smear90' }),
         key(7, trail(JAB3_BONK), { ease: 'out' }),
-        key(11, swing(lungeWith({ body: { rot: 20, x: 0.9 } }, -2.6), [3.6, -7.0], 45), {
+        // Follow through low and forward, clear of his head, so the baton goes behind it without jumping.
+        key(11, swing(lungeWith({ body: { rot: 20, x: 0.9 } }, -2.6), [5.2, -5.0], 30), {
           ease: 'inOut',
           swaps: { ...ANGRY, ...BATON },
           z: {},
@@ -388,7 +399,7 @@ export const attacks: Record<string, AnimClip> = {
           }),
           key(17, mix(trail(UTILT_FINISH, true), TWIRL(5.0)), { ease: 'out' }),
           key(18, undefined, { swaps: { ...SHOUT, ...BATON, smear: 'smear90' } }),
-          key(21, trail(UTILT_FINISH, true), { ease: 'inOut', swaps: { ...ANGRY, ...BATON }, z: {} }),
+          key(21, UTILT_REST, { ease: 'inOut', swaps: { ...ANGRY, ...BATON }, z: {} }),
           key(33, BATON_READY),
         ],
         { onScreen: true },
@@ -426,10 +437,7 @@ export const attacks: Record<string, AnimClip> = {
         strikeKey(9, DASH_HIT, { ...SHOUT, ...SACK }, { z: { ...BACK_ARM_IN_FRONT, ...SACK_IN_FRONT } }),
         key(12, DASH_HIT, { ease: 'linear' }),
         key(20, DASH_LATE, { ease: 'inOut', swaps: { ...GRIN, ...SACK } }),
-        key(28, aim(hands(feet(STANCE, floor(-2.4), floor(1.8)), [1.0, -6.4], null), 'sackH', 10), {
-          ease: 'inOut',
-          z: {},
-        }),
+        key(28, DASH_SLUNG, { ease: 'inOut', z: {} }),
         key(39, aim(READY, 'sackH', 130), { swaps: { ...SIDE, sack: null } }),
       ],
       { onScreen: true },
@@ -440,8 +448,9 @@ export const attacks: Record<string, AnimClip> = {
     active: [[13, 15]],
     swaps: { ...ANGRY, ...BATON, handB: 'fist' },
     keys: continuous([
-      key(0, BATON_READY, { ease: 'out' }),
-      key(8, FSMASH_WIND, { ease: 'inOut', z: FRONT_ARM_OVER_HEAD }),
+      // The baton goes back over his head in front of it, so it is over his head from the start.
+      key(0, BATON_READY, { ease: 'out', z: FRONT_ARM_OVER_HEAD }),
+      key(8, FSMASH_WIND, { ease: 'inOut' }),
       key(9, FSMASH_WIND, { ease: 'in' }),
       key(11, FSMASH_TOP, { ease: 'linear', swaps: { ...SHOUT, ...BATON, handB: 'fist' } }),
       strikeKey(
