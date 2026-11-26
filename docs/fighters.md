@@ -117,6 +117,10 @@ fsmash: {
     contact (forward and up). It pulls the target's middle toward that point over `frames` (rounded up)
     and then drops its launch speed. Stage collision still applies. A vector works with any angle; without
     one, `368` falls back to `367`.
+- **Windboxes.** `pushOnly: true` applies knockback without damage, hitlag, hitstun or interruption. It pushes
+  grounded targets horizontally without lifting them, and shields ignore it. Use `damage: 0`; windbox
+  projectiles can be reflected or absorbed as usual, but heal nothing on absorption. Watergirl's Water Stream
+  (`src/fighters/watergirl/waterStream.ts`) is the example: F.L.U.D.D.'s windbox pumps, stronger with charge.
 - **Direction.** A hit launches along the attacker's facing unless its box sets `direction`: `'back'` for boxes
   behind him (back aerials, the rear hit of a down smash) and `'away'` for boxes around his body (spins, up
   attacks), which send the target away from his centre.
@@ -126,8 +130,8 @@ fsmash: {
   shockwave is ground-only. For a move that acts differently on grounded and aerial targets, put a ground box and
   an air box in the same place, as Samus' up tilt does. The ground box takes the lower id, and a fighter takes
   the lowest-id box that can hit it where it is. A box that skips a fighter doesn't use up the move's hit on it,
-  so it can still connect on a later active frame once the fighter lands or leaves the ground. Grab boxes, entity
-  hits, stage hitboxes and damage zones (`hit`) take `targets` too. Throws don't.
+  so it can still connect on a later active frame once the fighter lands or leaves the ground. Windboxes
+  (`pushOnly`), grab boxes, entity hits, stage hitboxes and damage zones (`hit`) take `targets` too. Throws don't.
 - **Landing lag.** Aerials give `landingLag` and `autoCancel` windows; a `helpless` move's `landingLag` also
   applies when it lands out of the helpless fall.
 - **Auto-cancel.** Landing in an aerial's `autoCancel` window costs only normal landing lag.

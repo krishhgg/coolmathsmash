@@ -97,6 +97,8 @@ export interface HitboxDef {
   /** Extra shield damage on top of the move's damage. */
   shieldDamage?: number;
   effect?: 'normal' | 'fire' | 'electric';
+  /** Windbox: apply knockback without damage, hitlag or hitstun. Shields ignore it. */
+  pushOnly?: boolean;
   /**
    * Which way the hit launches (Ultimate's LR check): along the attacker's facing (default), against it for hits
    * behind him, or away from his centre for hits that surround him.
@@ -120,7 +122,10 @@ export interface HitboxDef {
 }
 
 /** A throw's release hit: a hitbox without a position, since it lands on the held fighter wherever they are. */
-export type ThrowHitDef = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius' | 'grab' | 'direction' | 'targets'> & {
+export type ThrowHitDef = Omit<
+  HitboxDef,
+  'id' | 'x' | 'y' | 'radius' | 'grab' | 'direction' | 'pushOnly' | 'targets'
+> & {
   /** 'back' launches behind the thrower (back throws). */
   direction?: 'forward' | 'back';
 };

@@ -29,7 +29,8 @@ const grab = (box: Partial<HitboxDef>): MoveDef => ({
 
 /**
  * The Mario reference with the probe box set to each `targets`, Samus' up tilt pattern (a ground-only box at 0
- * degrees and an air-only box at 90 in the same place, the ground one with the lower id), and standing grabs.
+ * degrees and an air-only box at 90 in the same place, the ground one with the lower id), a ground-only windbox and
+ * standing grabs.
  */
 registerFighter(
   defineFighter({
@@ -45,6 +46,7 @@ registerFighter(
         { ...probe, id: 0, angle: 0, targets: 'ground' },
         { ...probe, id: 1, angle: 90, targets: 'air' },
       ),
+      groundWind: move({ ...probe, damage: 0, pushOnly: true, targets: 'ground' }),
       grab: grab({}),
       groundGrab: grab({ targets: 'ground' }),
     },
@@ -186,6 +188,16 @@ describe('hitbox targets (HitboxDef.targets)', () => {
     });
     runPorts(m, 1, [{}, {}]);
     expect(v.damage).toBeGreaterThan(0);
+  });
+
+  it('a ground-only windbox pushes a grounded fighter and leaves an airborne one alone', () => {
+    const grounded = swing('groundWind', 'grounded');
+    expect(grounded.v.kb.x).toBeGreaterThan(0);
+    expect(grounded.a.hitVictims).toEqual([1]);
+    const airborne = swing('groundWind', 'airborne');
+    expect(airborne.v.kb).toEqual({ x: 0, y: 0 });
+    expect(airborne.a.hitVictims).toEqual([]);
+    for (const { v } of [grounded, airborne]) expect([v.damage, v.hitstun]).toEqual([0, 0]);
   });
 
   it('a ground-only grab box grabs a grounded fighter but not an airborne one a normal grab catches', () => {
