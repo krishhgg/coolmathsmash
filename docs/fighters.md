@@ -124,6 +124,15 @@ fsmash: {
 - **Direction.** A hit launches along the attacker's facing unless its box sets `direction`: `'back'` for boxes
   behind him (back aerials, the rear hit of a down smash) and `'away'` for boxes around his body (spins, up
   attacks), which send the target away from his centre.
+- **Ground and air targets.** A box with `targets: 'ground'` hits only fighters standing on the ground, and one
+  with `targets: 'air'` hits only airborne fighters. A fighter hanging on a ledge counts as airborne. Unset, or
+  `'both'`, hits either, as most Ultimate hitboxes do (SmashWiki "Hitbox", groundedness/airness). Kirby's Stone
+  shockwave is ground-only. For a move that acts differently on grounded and aerial targets, put a ground box and
+  an air box in the same place, as Samus' up tilt does. The ground box takes the lower id, and a fighter takes
+  the lowest-id box that can hit it where it is. A box that skips a fighter doesn't use up the move's hit on it,
+  so it can still connect on a later active frame once the fighter lands or leaves the ground. Windboxes
+  (`pushOnly`), grab boxes, entity hits, stage hitboxes and damage zones (`hit`) take `targets` too. Throws don't.
+  A counter catches only boxes that can hit the counterer, so a ground-only box passes an airborne one untouched.
 - **Landing lag.** Aerials give `landingLag` and `autoCancel` windows; a `helpless` move's `landingLag` also
   applies when it lands out of the helpless fall.
 - **Auto-cancel.** Landing in an aerial's `autoCancel` window costs only normal landing lag.
@@ -598,7 +607,25 @@ dthrow: { ..., throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55
   input), `script(x, status)` runs (after the action, before physics), and `tick` adds `damage` % on every `every`th
   frame with no hitlag or knockback, reported as `statusDamage` so the results count it for the victim and the
   source. Then it counts down one frame and ends at 0. Ending emits `statusEnd`.
-- **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status.
+- **Length from knockback.** `perKnockback` adds frames for each unit of the applying hit's knockback, scaled the way
+  the hit's hitlag is (the box's `hitlag` multiplier, x0.67 on a crouch cancel), before the length is floored.
+- **Freezing.** A `freeze` status holds the fighter as hitlag does: no action, physics or timers, and the launch waits
+  for it. It ticks on every frame from the one after it went on, hitlag included, so a hit that applies one freezes the
+  victim for the longer of its hitlag and the status. Other statuses pause while it lasts, and other fighters can't
+  push it. The renderer shakes the fighter and flickers it in the status's `color`.
+- **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status. With `endOnHit`, a later
+  hit that lands (not on a shield), a pummel or a throw's hold hit included, takes it off, reported as `statusEnd` with
+  reason `hit`. That hit's hitlag and launch take over, and no hit landing on the same frame can put the same status
+  back on. A status that went on this frame stays, so hits landing together give the same result in any port order.
+
+Bob the Robber's paralysis (`src/fighters/bob-the-robber/statuses.ts`) uses all three. It is Ultimate's paralysis
+(SmashWiki, "Paralyze"): floor(1 + knockback x hitlag multiplier x crouch) frames, at most 90, in place of the hit's
+hitlag:
+
+```ts
+paralyzed: { frames: 1, perKnockback: 1, max: 90, freeze: true, endOnHit: true, color: '#f2c62a' },
+```
+
 - **State.** `FighterState.statuses` lists `{ kind, frames, age, since, source }`, oldest first. `frames` is what is
   left, `age` counts ticks from 1 and `source` is the port credited (-1 for none). Use `hasStatus` and `statusOf`
   to read it.

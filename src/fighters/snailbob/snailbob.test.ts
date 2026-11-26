@@ -8,7 +8,7 @@ import { createMatch, stepMatch, type MatchState } from '../../sim/match';
 import { koPercent, type KoHit } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
-import { CRATE_FRAMES, CRATE_RADIUS } from './entities';
+import { CRATE_FRAMES, CRATE_RADIUS, entities } from './entities';
 import { fighter } from '.';
 import { DAIR_PLUNGE_FROM, SPIN_ROLL, moves } from './moves';
 import { stats } from './stats';
@@ -489,16 +489,30 @@ describe('Snail Bob: Crate Drop (neutral special)', () => {
     expect(crates(m, 'crate')).toHaveLength(0);
   });
 
-  it('hits whoever it lands on for 12% and still lands', () => {
+  it("hits whoever it lands on for Steve's anvil's 10% and still lands", () => {
     const { m, a, v } = vsMario();
     place(a, 0).facing = 1;
     place(v, 20);
     Object.assign(v, { ground: a.ground, action: 'idle', intangible: 0 });
     runPorts(m, 1, [{ buttons: ['special'] }, {}]);
     for (let i = 0; i < 40 && v.damage === 0; i++) runPorts(m, 1, [{}, {}]);
-    expect(v.damage).toBeCloseTo(12 * 1.05 * 1.2, 6);
+    expect(v.damage).toBeCloseTo(10 * 1.05 * 1.2, 6);
     runPorts(m, 20, [{}, {}]);
     expect(crates(m, 'crate')).toHaveLength(1);
+  });
+
+  /**
+   * Sourced kill percent: Steve's lone falling anvil (Down Air (Anvil Only) in the 13.0.1 hitbox data of
+   * ultimate-hitboxes.com, RSN-Bran/ultimate-hitboxes ead416b; SmashWiki's Steve (SSBU)/Down aerial gives the same
+   * 10%, 70° on grounded targets, BKB 62, KBG 78) KOs Mario standing at Battlefield's ledge from 183.6% in
+   * SSBU-Calculator's KO calculator (rubendal/SSBU-Calculator 233590e, js/knockback.js Distance, run headless with
+   * ko.test.ts's setup: fresh, no rage, no DI). The crate's hit is the anvil's, so it KOs within 5 points of that.
+   */
+  it("its hit KOs Mario at the ledge within 5 points of Steve's anvil at 183.6%", () => {
+    const { damage, angle, kbg, bkb } = entities.crateFall!.hits![0]!.boxes[0]!;
+    const percent = koPercent({ hit: { damage, angle, kbg, bkb } });
+    expect(percent).not.toBeNull();
+    expect(Math.abs(percent! - 183.6)).toBeLessThanOrEqual(5);
   });
 
   it('keeps one crate at a time: the next one replaces it', () => {
