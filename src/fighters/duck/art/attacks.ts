@@ -34,7 +34,7 @@ import {
  * through the hit's active frames (index.test.ts checks it).
  */
 
-interface Strike {
+export interface Strike {
   /** Belly lean (deg, + forwards), shift forwards and drop, in rig units. */
   lean?: number;
   shift?: number;
@@ -58,7 +58,7 @@ interface Strike {
 const NECK = 4.1;
 
 /** A pose for a strike: body lean and lunge, feet planted, head placed with the beak aimed. */
-function strike(s: Strike): Pose {
+export function strike(s: Strike): Pose {
   const [sx, sy] = s.squash ?? [1, 1];
   const body = { rot: s.lean ?? 0, x: s.shift ?? 0, y: s.drop ?? 0, sx, sy };
   if (s.head) {
@@ -82,8 +82,8 @@ function strike(s: Strike): Pose {
 }
 
 /** Both wings at once: [angle, reach, thickness?] each, or null to leave one alone. */
-type W = [number, number, number?];
-const wings = (pose: Pose, f: W | null, b: W | null) => {
+export type W = [number, number, number?];
+export const wings = (pose: Pose, f: W | null, b: W | null) => {
   let p = pose;
   if (f) p = wing(p, 'F', f[0], f[1], f[2]);
   if (b) p = wing(p, 'B', b[0], b[1], b[2]);
