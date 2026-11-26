@@ -88,9 +88,8 @@ export const PARRY = {
   projectileDefenderHitlag: -1,
   maxHitlag: 30,
 };
-/** Height a broken shield launches its owner to, and how long they stay dizzy after landing (approximate). */
+/** Height a broken shield launches its owner to. The dizzy that follows lasts shieldBreakStun (formulas.ts) frames. */
 export const SHIELD_BREAK_HEIGHT = 40;
-export const SHIELD_BREAK_DIZZY = 300;
 
 /**
  * Ground dodges: Mario's Ultimate frame data, shared by every fighter (each sets its own `rollDistance`). UFD
@@ -120,9 +119,15 @@ export const ROLL_BACK = {
   intangible: [5, 16] as [number, number],
   move: [4, 20] as [number, number],
 };
-export const AIR_DODGE_NEUTRAL = { faf: 47, intangible: [3, 29] as [number, number], landingLag: 10 };
+/**
+ * Air dodges: Mario's Ultimate frame data, shared by every fighter. UFD and SmashWiki (https://www.ssbwiki.com/Air_dodge)
+ * give total frames: neutral 52; directional 71 down, 77 diagonally down, 87 sideways, 102 diagonally up, 116 up.
+ * FAF is total + 1, as for the ground dodges. A directional dodge leaves the fighter able to act, not helpless.
+ */
+export const AIR_DODGE_NEUTRAL = { faf: 53, intangible: [3, 29] as [number, number], landingLag: 10 };
 export const AIR_DODGE_DIRECTIONAL = {
-  faf: 70,
+  /** FAF by stick angle from straight down to straight up, every 45 degrees; angles between interpolate. */
+  fafByAngle: [72, 78, 88, 103, 117],
   intangible: [3, 21] as [number, number],
   /** Free movement ends and gravity returns. */
   moveEnd: 20,

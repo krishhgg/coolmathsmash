@@ -894,8 +894,8 @@
  },
  "dodges": {
   "spot_dodge": {
-   "faf_with_cancel": 20,
-   "faf_without_cancel": 25,
+   "total_with_cancel": 20,
+   "total": 25,
    "intangible": [
     3,
     17
@@ -903,7 +903,7 @@
    "_source": "ufd_mario"
   },
   "forward_roll": {
-   "faf": 29,
+   "total": 29,
    "intangible": [
     4,
     15
@@ -915,7 +915,7 @@
    "_source": "ufd_mario (frames, Mario); ssbw_roll (distances)"
   },
   "back_roll": {
-   "faf": 34,
+   "total": 34,
    "intangible": [
     5,
     16
@@ -927,7 +927,7 @@
    "_source": "ufd_mario; ssbw_roll"
   },
   "air_dodge_neutral": {
-   "faf": 52,
+   "total": 52,
    "landing_lag": 10,
    "intangible": [
     3,
@@ -937,13 +937,13 @@
    "_source": "ufd_mario; ssbw_air_dodge; params_sheet (landing_frame_escape_air 0xA)"
   },
   "air_dodge_directional": {
-   "faf_by_direction": {
+   "total_by_direction": {
     "down": 71,
     "diag_down": 77,
     "side": 87,
     "diag_up": 102,
     "up": 116,
-    "_source": "ufd_mario"
+    "_source": "ufd_mario; ssbw_air_dodge"
    },
    "landing_lag_range": [
     11,
@@ -958,7 +958,7 @@
    "distance_fully_stale": 13.3333,
    "stick_threshold": 0.66,
    "waveland_speed_cap": 2.0,
-   "ends_in": "helpless fall until landing (FAF values above are the airborne action length)",
+   "ends_in": "not helpless: the fighter can act again from total + 1, but gets no second air dodge before landing, a hit or a ledge grab",
    "_source": "ufd_mario; ssbw_air_dodge (distance table); mmsp (landing_frame_escape_air_slide_max 20); params_sheet (escape_air_slide_stick 0.66, escape_air_slide_landing_speed_max 2.0)"
   },
   "air_dodges_per_airtime": 1,
@@ -980,6 +980,7 @@
    "roll_flick_frames": 4,
    "_source": "params_sheet (escape_stick_y, escape_flick_y, escape_fb_stick_x, escape_fb_flick_x)"
   },
+  "frames_note": "every frame count here is a total (UFD, SmashWiki); the first actionable frame is total + 1",
   "_source": "ufd_mario; ssbw_air_dodge; ssbw_roll"
  },
  "ledge": {
