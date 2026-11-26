@@ -13,6 +13,7 @@ import { ledgePresent } from '../stage';
 import type { Vec } from '../vec';
 import { moveOf } from './attack';
 import { setAction, type ActionDef } from './registry';
+import * as SimMath from '../math';
 
 /**
  * Tethers, after the line anchors (tetherCast.ts fires it): the fighter reels in with tetherPull, onto the ledge
@@ -124,7 +125,7 @@ export const TETHER_ACTIONS: Record<string, ActionDef> = {
       const to = pullTarget(x);
       if (target) to.y = Math.max(to.y, target.pos.y);
       const d = { x: to.x - f.pos.x, y: to.y - f.pos.y };
-      const dist = Math.hypot(d.x, d.y);
+      const dist = SimMath.hypot(d.x, d.y);
       if (tether.kind === 'ledge' && dist <= TETHER.ledgeArrive) {
         const i = tether.ledge!;
         if (!ledgeFree(x, i)) return letGo(x, false);

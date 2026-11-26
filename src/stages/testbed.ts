@@ -1,4 +1,5 @@
 import type { StageGeometry } from '../sim/stage';
+import * as SimMath from '../sim/math';
 
 /**
  * The engine testbed: not a real stage. It shows every stage system on one Battlefield-sized slab so tests,
@@ -82,7 +83,7 @@ export const testbed: StageGeometry = {
       y: 25,
       motion: (frame) => {
         const a = (2 * Math.PI * frame) / 360;
-        return [18 * Math.cos(a), 18 * Math.sin(a)];
+        return [18 * SimMath.cos(a), 18 * SimMath.sin(a)];
       },
     },
   ],

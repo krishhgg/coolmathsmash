@@ -20,11 +20,12 @@ import { groundAttack } from './attack';
 import { consumeJump, wantsJump } from './common';
 import { grabInput, MASH_BUTTONS, mashDir, shieldGrab } from './grab';
 import { enterAction, inWindow, setAction, type ActionDef } from './registry';
+import * as SimMath from '../math';
 
 /** Share of a roll's distance covered on each frame of its movement window: a smooth ease-in/ease-out. */
 export function rollWeights([from, to]: [number, number]): number[] {
   const n = to - from + 1;
-  const raw = Array.from({ length: n }, (_, i) => Math.sin((Math.PI * (i + 0.5)) / n));
+  const raw = Array.from({ length: n }, (_, i) => SimMath.sin((Math.PI * (i + 0.5)) / n));
   const sum = raw.reduce((a, b) => a + b, 0);
   return raw.map((w) => w / sum);
 }
