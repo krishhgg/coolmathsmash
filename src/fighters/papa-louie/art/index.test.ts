@@ -66,6 +66,8 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   getupRoll: GETUP_ROLL.faf - 1,
   techInPlace: TECH_IN_PLACE.faf - 1,
   techRoll: TECH_ROLL.faf - 1,
+  techRollBack: TECH_ROLL.faf - 1,
+  getupRollBack: GETUP_ROLL.faf - 1,
   respawn: 'loop',
   grabHold: 'loop',
   grabbed: 'loop',
