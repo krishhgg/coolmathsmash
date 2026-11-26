@@ -25,9 +25,11 @@ const templeMirror = fireboyMoves.sideB && { sideB: fireboyMoves.sideB };
 
 /**
  * Watergirl's moves: Mario's kit in Ultimate (the roster's "Mario frame" list), with her own damage from the roster
- * sheet and her extra range in hitbox size and position. Angle, BKB, KBG and frame data come from each move's
- * Ultimate analogue (SmashWiki hitbox tables, UFD); a sourspot keeps the analogue's damage ratio to its sweetspot.
- * Frame windows are inclusive and faf is the first actionable frame; move names double as animation clip names.
+ * sheet and her extra range in hitbox size and position. The down smash's back hit and the back air take Mario's
+ * damage instead, because the roster's kept them more than 5 points off Mario's kill percent (watergirl.test.ts).
+ * Angle, BKB, KBG and frame data come from each move's Ultimate analogue (SmashWiki hitbox tables, UFD); a sourspot
+ * keeps the analogue's damage ratio to its sweetspot. Frame windows are inclusive and faf is the first actionable
+ * frame; move names double as animation clip names.
  */
 export const moves: Record<string, MoveDef> = {
   /** 1-2-Kick, first punch: Mario's jab 1 (the tip box is his far box, 361/15/20). Attack again for jab2. */
@@ -156,7 +158,7 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Split Sweep: Mario's down smash, low kicks to the front, then the back. */
+  /** Split Sweep: Mario's down smash, low kicks to the front, then the back, with his 10% and 12%. */
   dsmash: {
     kind: 'smash',
     faf: 44,
@@ -172,8 +174,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [14, 14],
         boxes: [
-          box(0, -10.5, 2.5, 4, { damage: 11, angle: 30, kbg: 100, bkb: 30, direction: 'back' }),
-          box(1, -6, 2.5, 3.5, { damage: 11, angle: 30, kbg: 100, bkb: 30, direction: 'back' }),
+          box(0, -10.5, 2.5, 4, { damage: 12, angle: 30, kbg: 100, bkb: 30, direction: 'back' }),
+          box(1, -6, 2.5, 3.5, { damage: 12, angle: 30, kbg: 100, bkb: 30, direction: 'back' }),
         ],
       },
     ],
@@ -235,7 +237,7 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Dropkick: Mario's back aerial; weaker late. */
+  /** Dropkick: Mario's back aerial, with his 10.5% clean and 7% late hits. */
   bair: {
     kind: 'aerial',
     faf: 34,
@@ -248,13 +250,13 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [6, 7],
         boxes: [
-          box(0, -9, 7, 4.5, { damage: 10, angle: 361, kbg: 106, bkb: 12, direction: 'back' }),
-          box(1, -5, 7, 4, { damage: 10, angle: 361, kbg: 106, bkb: 12, direction: 'back' }),
+          box(0, -9, 7, 4.5, { damage: 10.5, angle: 361, kbg: 106, bkb: 12, direction: 'back' }),
+          box(1, -5, 7, 4, { damage: 10.5, angle: 361, kbg: 106, bkb: 12, direction: 'back' }),
         ],
       },
       {
         frames: [8, 10],
-        boxes: [box(0, -9, 7, 4.5, { damage: 6.7, angle: 361, kbg: 90, bkb: 7, direction: 'back' })],
+        boxes: [box(0, -9, 7, 4.5, { damage: 7, angle: 361, kbg: 90, bkb: 7, direction: 'back' })],
       },
     ],
   },

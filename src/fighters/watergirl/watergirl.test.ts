@@ -71,10 +71,8 @@ describe('Watergirl: damage (roster sheet, W column)', () => {
     ['dashAttack', 8],
     ['fsmash', 15],
     ['usmash', 13],
-    ['dsmash', 11],
     ['nair', 7.5],
     ['fair', 11],
-    ['bair', 10],
     ['uair', 7],
     ['pummel', 1.3],
     ['fthrow', 8],
@@ -85,9 +83,15 @@ describe('Watergirl: damage (roster sheet, W column)', () => {
     expect(damage(moves[move]!)).toBe(dmg);
   });
 
-  it('multi-hit moves: dsmash 10 then 11, dair 1.2 x5 + 5, Geyser 2 x4 + 2', () => {
+  it("dsmash and bair take Mario's damage, not the roster's 11 and 10, so they KO where his do (kill percents below)", () => {
+    expect(damage(moves.dsmash!)).toBe(12);
+    expect(damage(moves.bair!)).toBe(10.5);
+    expect(moves.bair!.hits[1]!.boxes.map((b) => b.damage)).toEqual([7]);
+  });
+
+  it('multi-hit moves: dsmash 10 then 12, dair 1.2 x5 + 5, Geyser 2 x4 + 2', () => {
     const windows = (move: string) => moves[move]!.hits.map((w) => Math.max(...w.boxes.map((b) => b.damage)));
-    expect(windows('dsmash')).toEqual([10, 11]);
+    expect(windows('dsmash')).toEqual([10, 12]);
     expect(windows('dair')).toEqual([1.2, 1.2, 1.2, 1.2, 1.2, 5]);
     expect(windows('upB')).toEqual([2, 2, 2, 2, 2]);
   });
@@ -367,6 +371,40 @@ describe('Watergirl: kill percents (koPercent: Mario at the Battlefield ledge, f
     const reference = atLedge({ damage: 11, angle: 361, kbg: 98, bkb: 35 }, true);
     expect(Math.abs(ko('fair', true) - reference)).toBeLessThanOrEqual(5);
   });
+
+  /**
+   * Sourced kill percents for the down smash and back air: SSBU-Calculator's KO calculator (rubendal/SSBU-Calculator
+   * 233590e, js/knockback.js Distance, run headless with ko.test.ts's setup: Mario at Battlefield's ledge, x 79.9,
+   * fresh, no rage, no DI, airborne for the back air) on Mario's 13.0.1 hitboxes from ultimate-hitboxes.com
+   * (RSN-Bran/ultimate-hitboxes ead416b, server/data), which SmashWiki's Mario (SSBU)/Down smash and /Back aerial
+   * tables match. The down smash's front hit is its own box; koPercent on the move counts its stronger back hit.
+   */
+  it.each([
+    {
+      move: 'dsmash front hit',
+      hit: moves.dsmash!.hits[0]!.boxes[0]!,
+      analogue: "Mario's front hit", // 10%, 32°, BKB 30, KBG 100
+      sourced: 113.7,
+    },
+    {
+      move: 'dsmash',
+      hit: { fighter: 'watergirl', move: 'dsmash' },
+      analogue: "Mario's back hit", // 12%, 30°, BKB 30, KBG 100
+      sourced: 91.7,
+    },
+    {
+      move: 'bair',
+      hit: { fighter: 'watergirl', move: 'bair' },
+      air: true,
+      analogue: "Mario's clean bair", // 10.5%, 361°, BKB 12, KBG 106
+      sourced: 124.9,
+    },
+  ] satisfies { move: string; hit: KoSetup['hit']; air?: boolean; analogue: string; sourced: number }[])(
+    '$move KOs within 5 points of $analogue at $sourced%',
+    ({ hit, air, sourced }) => {
+      expect(Math.abs(atLedge(hit, air) - sourced)).toBeLessThanOrEqual(5);
+    },
+  );
 
   it('at the ledge fsmash KOs earlier than bair, then usmash and bthrow', () => {
     const bair = ko('bair', true);
