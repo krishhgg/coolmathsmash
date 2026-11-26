@@ -509,10 +509,13 @@ export class Cpu {
       situation === 'combo' ? this.lv.followUp : situation === 'punish' ? this.lv.punish : this.lv.aggression;
     if (attacks.length && this.rand() < chance && this.startAttack(state, attacks, me, info)) return;
     if (Math.abs(now.x - me.pos.x) < 45 && this.rand() < this.lv.whiff * 0.3) {
-      const any = Object.keys(k.ground);
+      const facing = (move: string) => (TURNING_MOVES.has(move) ? dir : me.facing);
+      const any = Object.keys(k.ground).filter(
+        (move) => info.calm || this.groundMoveSafe(me, k, info, move, facing(move)),
+      );
       if (any.length && me.ground && actionable(me)) {
         const move = any[Math.floor(this.rand() * any.length)]!;
-        this.start(groundMove(move, TURNING_MOVES.has(move) ? dir : me.facing));
+        this.start(groundMove(move, facing(move)));
         return;
       }
     }
@@ -637,13 +640,15 @@ export class Cpu {
     edgeguarding: boolean,
   ): Attack[] {
     const opp = getFighter(snap.fighter).stats;
+    const me = state.fighters[this.port]!;
     const offstageOk = edgeguarding && this.lv.level >= 6;
     const out: Attack[] = [];
     for (const a of attacks) {
       const s = target.path[a.tHit]!;
       const onStage =
         landsSafe(info, k.id, a.endX, a.endY + 1) &&
-        (info.calm || a.landX === undefined || landsSafe(info, k.id, a.landX, a.endY + 1));
+        (info.calm || a.landX === undefined || landsSafe(info, k.id, a.landX, a.endY + 1)) &&
+        (info.calm || a.kind !== 'ground' || this.groundMoveSafe(me, k, info, a.move, a.facing));
       if (!onStage && !(offstageOk && this.safeOffstage(a, info, k))) continue;
       if (a.box.grab) {
         const grabbing = (throwDamage(k) + 4) * (k.hints.prefer?.[a.move] ?? 1);
@@ -740,6 +745,29 @@ export class Cpu {
       if (t > 4 && g.ground !== null) return standSafe(stageInfo(m), g.fighter, g.pos.x, g.pos.y);
     }
     return false;
+  }
+
+  /**
+   * Whether a grounded move started here facing `facing` keeps the CPU somewhere safe, from its probe: every point it
+   * slides over and where it ends (a roll or charge special can carry the CPU into a gap or a damage zone). Moves
+   * that leave the ground only need a safe landing under where they end.
+   */
+  private groundMoveSafe(
+    me: Readonly<FighterState>,
+    k: FighterKnowledge,
+    info: StageInfo,
+    move: string,
+    facing: number,
+  ): boolean {
+    const p = k.ground[move];
+    if (!p) return true;
+    const end = me.pos.x + p.endDx * facing;
+    if (!p.endsGrounded || Math.abs(p.endDy) > 1) return landsSafe(info, k.id, end, me.pos.y + p.endDy + 1);
+    const step = Math.sign(end - me.pos.x);
+    for (let x = me.pos.x; step * (end - x) > 0; x += step) {
+      if (!standSafe(info, k.id, x, me.pos.y)) return false;
+    }
+    return standSafe(info, k.id, end, me.pos.y);
   }
 
   /**
