@@ -14,7 +14,7 @@ import { hitlagFrames } from '../sim/combat/formulas';
 import { applyHit } from '../sim/combat/hits';
 import { Btn, neutralInput } from '../input/types';
 import type { SimEvent } from '../sim/events';
-import { FINAL_SMASH } from '../sim/finalSmash';
+import { FINAL_SMASH, inFinalSmash } from '../sim/finalSmash';
 import { finalDirectTester, noFinalTester } from '../sim/testing/finalSmash';
 import { createMatch, DEFAULT_MATCH, stepMatch, type MatchState } from '../sim/match';
 import { getStage } from '../stages/registry';
@@ -105,12 +105,14 @@ const box = (damage: number, bkb: number, angle = 45): HitboxDef => ({
 
 /**
  * Land `b` from the fighter on `from` on the one on `to` through the sim's own hit path, after a frame's step and
- * before the zoom steps it, as if it had connected during that frame (a projectile arriving mid-freeze).
+ * before the zoom steps it, as if it had connected during that frame (a projectile arriving mid-freeze). With
+ * `again`, it lands with the frame's other hits on `to` (hits.ts strike): the longest freeze and the strongest launch
+ * win.
  */
-function hitNow(m: MatchState, from: number, to: number, b: HitboxDef): void {
+function hitNow(m: MatchState, from: number, to: number, b: HitboxDef, again = false): void {
   const a = m.fighters[from]!;
   a.move ??= 'fsmash';
-  applyHit(m, a, m.fighters[to]!, b);
+  applyHit(m, a, m.fighters[to]!, b, again);
 }
 
 describe('which hits zoom', () => {
@@ -244,6 +246,20 @@ describe('a follow-up during the freeze: the zoom ends on the frame the victim a
 
   it('a weak hit that replaces the KO launch ends it on that frame', () => {
     const r = followUp(5, (m) => hitNow(m, 0, 1, box(1, 10)));
+    expect(r.zooms.get(r.hit + 4)).toMatchObject({ kind: 'finish' });
+    for (let f = r.hit + 5; f <= r.launch; f++) expect(r.zooms.get(f)).toBeNull();
+  });
+
+  it("a Final Smash's hit that replaces the KO launch ends it on that frame, KO or not", () => {
+    const r = followUp(5, (m) => {
+      // A hit from P1's Final Smash move, then back to the forward smash, so no Final Smash is playing.
+      const a = m.fighters[0]!;
+      const move = a.move;
+      a.move = 'finalSmash';
+      hitNow(m, 0, 1, box(1, 300));
+      a.move = move;
+      expect(m.events.at(-1)).toMatchObject({ type: 'hit', final: true });
+    });
     expect(r.zooms.get(r.hit + 4)).toMatchObject({ kind: 'finish' });
     for (let f = r.hit + 5; f <= r.launch; f++) expect(r.zooms.get(f)).toBeNull();
   });
@@ -414,8 +430,122 @@ describe('Final Smash zoom', () => {
   it('starts no Special or Finish Zoom from a hit during the Final Smash, even one that KOs', () => {
     const { frames } = activate(2, 160);
     const hit = frames.find((f) => f.hit);
-    expect(hit?.hit?.move).toBe('finalSmash');
+    expect(hit?.hit).toMatchObject({ move: 'finalSmash', final: true });
     expect(frames.some((f) => f.ko)).toBe(true);
     expect(frames.filter((f) => f.zoom && f.zoom.kind !== 'final')).toEqual([]);
+  });
+});
+
+describe("a Final Smash that outlasts its user's move", () => {
+  interface Outlast {
+    frames: Frame[];
+    /** The first frame the user is out of its Final Smash, free to act. */
+    acted: number;
+    /** The first hit P2 takes: from what the Final Smash left out, after `acted`. */
+    late: Hit & { frame: number };
+  }
+
+  /**
+   * `user`'s Final Smash in a 1v1 on Battlefield, from x -60 at P2 (Fireboy) standing at `x` with `percent`. P2 stays
+   * intangible while the user plays the move, so the first hit it takes comes from what the move left out (Fire
+   * Blast's blast, Ball Rain's balls) after the user can act. `same` runs on that hit's frame, after the sim steps and
+   * before the zoom does, to land other hits on the same frame (hitNow).
+   */
+  function outlast(
+    user: string,
+    x: number,
+    percent: number,
+    same: (m: MatchState) => void = () => {},
+  ): Outlast {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: user }, { fighter: 'fireboy' }],
+    });
+    m.fighters.forEach((f, i) => {
+      const at = i ? x : -60;
+      Object.assign(f, { pos: { x: at, y: 0 }, prevPos: { x: at, y: 0 }, facing: i ? -1 : 1 });
+    });
+    const idle = () => m.players.map(() => neutralInput());
+    for (let i = 0; i < 20; i++) stepMatch(m, idle());
+    const a = m.fighters[0]!;
+    const v = m.fighters[1]!;
+    a.finalReady = true;
+    v.damage = percent;
+    const zoom = new Zoom();
+    const frames: Frame[] = [];
+    let acted = -1;
+    let late: Outlast['late'] | undefined;
+    for (let i = 0; i < 460; i++) {
+      // It counts down before the frame's hits land, so 2 keeps P2 out of them.
+      if (acted < 0) v.intangible = Math.max(v.intangible, 2);
+      const inputs = idle();
+      if (i === 0) inputs[0]!.buttons = Btn.Special;
+      stepMatch(m, inputs);
+      if (acted < 0 && !inFinalSmash(a)) acted = m.frame;
+      const hit = m.events.find((e): e is Hit => e.type === 'hit');
+      if (hit && !late) {
+        late = { ...hit, frame: m.frame };
+        same(m);
+      }
+      zoom.step(m);
+      frames.push({
+        frame: m.frame,
+        zoom: zoom.at(m),
+        hit,
+        victim: { ...v.pos },
+        ko: m.events.some((e) => e.type === 'ko'),
+      });
+    }
+    expect(acted).toBeGreaterThan(0);
+    expect(late).toMatchObject({ attacker: 0, victim: 1, final: true });
+    expect(late!.entity).toBeTypeOf('number');
+    expect(late!.frame).toBeGreaterThan(acted);
+    return { frames, acted, late: late! };
+  }
+
+  /** The zooms of every frame from `from` on. */
+  const zoomsFrom = (r: Outlast, from: number) => r.frames.filter((f) => f.frame >= from && f.zoom);
+
+  it("Ball Rain's balls falling after Red Ball can act start no Special Zoom, and no Finish Zoom on a KO", () => {
+    const strong = outlast('redball', 0, 70);
+    expect(strong.late.kb).toBeGreaterThanOrEqual(SPECIAL_ZOOM_KB);
+    expect(strong.late.hitlag).toBeGreaterThan(0);
+    expect(strong.frames.some((f) => f.ko)).toBe(false);
+    expect(zoomsFrom(strong, strong.acted)).toEqual([]);
+
+    const ko = outlast('redball', 0, 150);
+    expect(ko.late.hitlag).toBeGreaterThan(0);
+    expect(ko.frames.find((f) => f.ko)!.frame).toBeGreaterThan(ko.late.frame);
+    expect(zoomsFrom(ko, ko.acted)).toEqual([]);
+  });
+
+  it("Fire Blast's blast burning after Fireboy can act starts none, even when a jab freezes P2 on the same frame", () => {
+    const alone = outlast('fireboy', 60, 250);
+    expect(alone.late.kb).toBeGreaterThanOrEqual(SPECIAL_ZOOM_KB);
+    expect(zoomsFrom(alone, alone.acted)).toEqual([]);
+    // The blast's hitlag x0 freezes nobody; a jab on the same frame does, and the blast's launch still wins.
+    const jab = outlast('fireboy', 60, 250, (m) => hitNow(m, 0, 1, box(1, 10), true));
+    expect(jab.frames.find((f) => f.frame === jab.late.frame)!.hit).toMatchObject({ final: true });
+    expect(zoomsFrom(jab, jab.acted)).toEqual([]);
+  });
+
+  it('an ordinary hit on the same frame as a ball still zooms, unless the ball launches its victim', () => {
+    const at = (r: Outlast) => r.frames.find((f) => f.frame === r.late.frame)!.zoom;
+    // P2 KOs Red Ball as the ball KOs P2.
+    const trade = outlast('redball', 0, 150, (m) => hitNow(m, 1, 0, box(1, 300)));
+    expect(at(trade)).toMatchObject({ kind: 'finish', victim: 0, frame: trade.late.frame });
+    // Red Ball's own hit on P2 out-launches the ball.
+    const stronger = outlast('redball', 0, 150, (m) => hitNow(m, 0, 1, box(1, 300), true));
+    expect(at(stronger)).toMatchObject({ kind: 'finish', victim: 1, kb: 300 });
+    // A weak one doesn't: P2 flies on the ball's KO launch, so nothing zooms.
+    const weak = outlast('redball', 0, 150, (m) => hitNow(m, 0, 1, box(1, 10), true));
+    expect(weak.frames.some((f) => f.ko)).toBe(true);
+    expect(zoomsFrom(weak, weak.acted)).toEqual([]);
+  });
+
+  it('an ordinary hit carries no final mark', () => {
+    expect(firstHit(scenario('finish-zoom')).hit!.final).toBeUndefined();
   });
 });

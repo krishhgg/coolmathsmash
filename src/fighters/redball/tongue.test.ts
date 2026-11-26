@@ -160,6 +160,32 @@ describe('Red Ball: Tongue Lash reels him in to a ledge', () => {
     expect(f.ledge).toBe(-1);
   });
 
+  /**
+   * Red Ball lashes at the right ledge from offstage while a second Red Ball hangs from it, climbing from it on the
+   * same frame with `climb`. Returns both 24 frames later, after the reel and before the climb leaves the corner.
+   */
+  function lashAtHeldLedge(climb: boolean) {
+    const m = testMatch({ fighter: 'redball', players: 2 });
+    const o = m.fighters[1]!;
+    const at = { x: LEDGE.x + 3, y: LEDGE.y - 6 };
+    Object.assign(o, { pos: at, prevPos: { ...at }, vel: { x: 0, y: 0 }, ground: null });
+    Object.assign(o, { action: 'fall', actionFrame: 1, jumpsUsed: 1, facing: -1 });
+    until(m, () => o.action === 'ledgeHang', {}, 60);
+    const f = placeInAir(m, LEDGE.x + 24, LEDGE.y - 6, -1);
+    runPorts(m, 1, [{ x: -100, buttons: ['special'] }, climb ? { x: -50 } : {}]);
+    run(m, 24);
+    return { f, o };
+  }
+
+  it('reels into a ledge another fighter is climbing from, but not one it hangs from', () => {
+    const climbing = lashAtHeldLedge(true);
+    expect(climbing.o.action).toBe('ledgeClimb');
+    expect(climbing.f.action).toBe('ledgeCatch');
+    const hanging = lashAtHeldLedge(false);
+    expect(hanging.o.action).toBe('ledgeHang');
+    expect(hanging.f.ledge).toBe(-1);
+  });
+
   it('on the stage the tongue never pulls him to a ledge', () => {
     const m = testMatch({ fighter: 'redball', x: LEDGE.x - 20 });
     const f = m.fighters[0]!;
