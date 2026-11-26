@@ -26,6 +26,7 @@ import {
   type Pt,
 } from './poses';
 import { attacks } from './attacks';
+import { specials } from './specials';
 import { BODY_Y, SHELL_X, SHELL_Y, rig } from './rig';
 
 const TAU = Math.PI * 2;
@@ -654,7 +655,7 @@ void rig;
 
 /**
  * Every clip: the engine's action names and the canonical names in docs/art.md that differ from them (knockdown,
- * getUp, tech), then every move's clip (attacks.ts).
+ * getUp, tech), then every move's clip (attacks.ts, specials.ts).
  */
 export const clips: Record<string, AnimClip> = {
   idle,
@@ -699,4 +700,5 @@ export const clips: Record<string, AnimClip> = {
   respawn,
   grabbed,
   ...attacks,
+  ...specials,
 };
