@@ -204,12 +204,12 @@ function counterOf(v: FighterState): CounterDef | null {
  * owner's rage and by reflections, and DI'd and shielded like any hit. Only the victim freezes. It hits each fighter
  * once (per rehit window) and, unless it pierces, is used up by its first victim: true when it was.
  */
-function entityHits(e: EntityState, fighters: FighterState[], hits: Connection[], frame: number): boolean {
-  const boxes = entityHitboxes(e);
+function entityHits(m: MatchState, e: EntityState, hits: Connection[]): boolean {
+  const boxes = entityHitboxes(m, e);
   if (boxes.length === 0) return false;
   const def = entityDef(e.kind);
-  const owner = fighters.find((f) => f.port === e.owner) ?? null;
-  for (const v of fighters) {
+  const owner = m.fighters.find((f) => f.port === e.owner) ?? null;
+  for (const v of m.fighters) {
     if (v.port === e.owner || e.hitVictims.includes(v.port) || !hittable(v)) continue;
     const body = hurtbox(v, getFighter(v.fighter).stats);
     const hit = boxes
@@ -219,7 +219,7 @@ function entityHits(e: EntityState, fighters: FighterState[], hits: Connection[]
     e.hitVictims.push(v.port);
     if (!hit.box.pushOnly && e.stale === 0) e.stale = owner && e.move ? stale(owner, e.move) : 1;
     hits.push({
-      ...victim(v, frame),
+      ...victim(v, m.frame),
       a: null,
       attacker: e.owner,
       entity: e.id,
@@ -319,7 +319,7 @@ export function resolveHits(
       hits.push(connection(a, v, box, at, m.frame));
     }
   }
-  const used = m.entities.filter((e) => entityHits(e, m.fighters, hits, m.frame));
+  const used = m.entities.filter((e) => entityHits(m, e, hits));
   const caught: Connection[] = [];
   const struck = new Set<FighterState>();
   const ended: EndedOnHit = new Map();
