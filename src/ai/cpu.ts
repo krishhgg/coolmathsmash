@@ -76,7 +76,7 @@ const HORIZON = 45;
  */
 const SHOT_HORIZON = 110;
 const NEUTRAL = Object.freeze(neutralInput());
-/** Units inside the ends of its ground that a tech roll or getup roll the CPU picks must end. */
+/** Units inside the ends of its ground that a shield roll, tech roll or getup roll the CPU picks must end. */
 const ROLL_ROOM = 4;
 
 type Situation = 'combo' | 'punish' | 'neutral';
@@ -201,8 +201,12 @@ export class Cpu {
     const final = this.finalSmash(state, me);
     if (final) return final;
     const info = stageInfo(state);
+    // Off the stage: in the air with no stage under it, or standing on an entity's platform (a Duck Raft) with no stage
+    // under it, which holds only until it pops. Either way the CPU recovers to the stage.
     const offstage =
-      me.ground === null && floorBelow(info, me.pos.x, me.pos.y) === null && !a.startsWith('ledge');
+      (me.ground === null || me.ground.kind === 'entity') &&
+      floorBelow(info, me.pos.x, me.pos.y) === null &&
+      !a.startsWith('ledge');
     if (this.prog && !this.prog.interruptible && (!offstage || this.prog.offstage)) {
       const i = this.runProgram(me, info);
       if (i) return i;
@@ -674,8 +678,17 @@ export class Cpu {
       return true;
     }
     const r = this.rand();
+    // A shield roll away from the threat (a back roll facing it, a forward roll facing away) counts only if it ends
+    // ROLL_ROOM inside the ends of the ground the CPU is on and, on a stage with hazards, somewhere it can stand. The
+    // sim stops a roll at those ends (groundSpan), so a longer one would end short there.
+    const reach =
+      me.facing === dir ? (k.stats.backRollDistance ?? k.stats.rollDistance) : k.stats.rollDistance;
+    const [lo, hi] = groundSpan(info.c, me.ground);
+    const end = me.pos.x - dir * reach;
     const roomBehind =
-      clampToStage(info, me.pos.x - dir * k.stats.rollDistance, 4) === me.pos.x - dir * k.stats.rollDistance;
+      end >= lo + ROLL_ROOM &&
+      end <= hi - ROLL_ROOM &&
+      (info.calm || standSafe(info, me.fighter, end, me.pos.y));
     if (threat.t >= 3 && r < 0.2 * skill) {
       this.start(spotDodge());
       return true;
