@@ -201,8 +201,12 @@ export class Cpu {
     const final = this.finalSmash(state, me);
     if (final) return final;
     const info = stageInfo(state);
+    // Off the stage: in the air with no stage under it, or standing on an entity's platform (a Duck Raft) with no stage
+    // under it, which holds only until it pops. Either way the CPU recovers to the stage.
     const offstage =
-      me.ground === null && floorBelow(info, me.pos.x, me.pos.y) === null && !a.startsWith('ledge');
+      (me.ground === null || me.ground.kind === 'entity') &&
+      floorBelow(info, me.pos.x, me.pos.y) === null &&
+      !a.startsWith('ledge');
     if (this.prog && !this.prog.interruptible && (!offstage || this.prog.offstage)) {
       const i = this.runProgram(me, info);
       if (i) return i;
