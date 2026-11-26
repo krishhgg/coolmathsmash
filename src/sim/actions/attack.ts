@@ -15,6 +15,7 @@ import { emit } from '../events';
 import type { Ctx, FighterState } from '../fighter';
 import { HELPLESS_LANDING_LAG } from '../constants';
 import { spawnFromMove } from '../entities/entities';
+import { freezeOf } from '../finalSmash';
 import { pickUpItem } from '../items/pickup';
 import { leaveGround, normalLandingLag } from '../movement';
 import { fastFallCheck } from './air';
@@ -85,6 +86,41 @@ function turnFor(x: Ctx, dir: Dir): void {
 }
 
 /**
+ * Neutral special with a Final Smash charge plays the Final Smash (src/sim/finalSmash.ts) and spends the charge. A
+ * `still` one started in the air stops the user where it is. False, keeping the charge, without a `finalSmash` move.
+ */
+function startFinalSmash(x: Ctx): boolean {
+  const { f } = x;
+  if (!f.finalReady || !x.def.moves?.finalSmash || !startMove(x, 'finalSmash')) return false;
+  f.finalReady = false;
+  const final = moveOf(f)?.final ?? {};
+  if (!f.ground && final.still) {
+    f.vel = { x: 0, y: 0 };
+    f.kb = { x: 0, y: 0 };
+    f.fastFalling = false;
+  }
+  const { move, port, pos } = f;
+  emit(x.m, {
+    type: 'finalSmash',
+    port,
+    move: move!,
+    freeze: freezeOf(final),
+    x: pos.x,
+    y: pos.y + x.s.height / 2,
+  });
+  return true;
+}
+
+/** Special by stick direction, or the Final Smash for a neutral special while holding the charge. */
+function special(x: Ctx): boolean {
+  consume(x.c, Btn.Special);
+  const dir = specialDir(x.c, x.f.facing);
+  if (dir === 'neutral' && startFinalSmash(x)) return true;
+  turnFor(x, dir);
+  return startMove(x, SPECIAL[dir]);
+}
+
+/**
  * Grounded attack inputs, Smash style: Grab (or Attack with Shield held) grabs; the C-stick smashes; Attack with a
  * freshly flicked stick smashes, with a held stick tilts, and alone jabs; Attack while dashing or running is a
  * dash attack. Backward smashes and tilts turn around first. Standing or walking, Attack without a smash input picks
@@ -99,12 +135,7 @@ export function groundAttack(x: Ctx): boolean {
     turnFor(x, cDir);
     return startMove(x, SMASH[cDir]);
   }
-  if (buffered(c, Btn.Special)) {
-    consume(c, Btn.Special);
-    const dir = specialDir(c, f.facing);
-    turnFor(x, dir);
-    return startMove(x, SPECIAL[dir]);
-  }
+  if (buffered(c, Btn.Special)) return special(x);
   if (!buffered(c, Btn.Attack)) return false;
   consume(c, Btn.Attack);
   const smash = smashDir(c, f.facing);
@@ -145,12 +176,7 @@ export function airAttack(x: Ctx): boolean {
     consumeCStick(c);
     return startMove(x, AERIAL[cDir]);
   }
-  if (buffered(c, Btn.Special)) {
-    consume(c, Btn.Special);
-    const dir = specialDir(c, f.facing);
-    turnFor(x, dir);
-    return startMove(x, SPECIAL[dir]);
-  }
+  if (buffered(c, Btn.Special)) return special(x);
   if (!buffered(c, Btn.Attack)) return false;
   consume(c, Btn.Attack);
   return startMove(x, AERIAL[stickDir(c, f.facing)]);
@@ -182,10 +208,15 @@ export function playMove(x: Ctx): MoveDef | null {
   return move;
 }
 
-function moveIntangible(f: FighterState): boolean {
-  const w = moveOf(f)?.intangible;
-  return w !== undefined && inWindow(f.actionFrame, w);
+/** Intangible on the move's `intangible` frames, and on every frame of a Final Smash. */
+export function moveIntangible(f: FighterState): boolean {
+  const move = moveOf(f);
+  if (move?.final) return true;
+  return move?.intangible !== undefined && inWindow(f.actionFrame, move.intangible);
 }
+
+/** An airborne `still` Final Smash holds the user in place: no gravity, no drift, no fast fall. */
+const still = (x: Ctx) => moveOf(x.f)?.final?.still === true;
 
 /** Jab combos: Attack with the stick neutral inside the move's `next` window starts the combo's next hit. */
 function comboNext(x: Ctx, move: MoveDef): boolean {
@@ -215,7 +246,8 @@ export const ATTACK: Record<string, ActionDef> = {
   aerial: {
     physics: 'air',
     intangible: moveIntangible,
-    drift: (x) => moveOf(x.f)?.drift ?? true,
+    drift: (x) => !still(x) && (moveOf(x.f)?.drift ?? true),
+    gravity: (x) => !still(x),
     ledge: (x) => {
       const from = moveOf(x.f)?.ledgeFrom;
       return from === undefined ? false : from;
@@ -224,7 +256,7 @@ export const ATTACK: Record<string, ActionDef> = {
       const { f } = x;
       const move = playMove(x);
       if (!move) return;
-      if (!move.helpless && !move.tether?.aimed) fastFallCheck(x);
+      if (!move.helpless && !move.tether?.aimed && !move.final?.still) fastFallCheck(x);
       if (f.actionFrame < move.faf) return;
       if (glideAfterMove(x, move)) return;
       if (!move.helpless) return setAction(x, 'fall');

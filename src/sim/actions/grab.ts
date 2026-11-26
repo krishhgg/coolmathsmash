@@ -106,13 +106,13 @@ export const GRAB_ACTIONS: Record<string, ActionDef> = {
   },
 
   /**
-   * A throw: invincible until it lets go on its release frame (resolveGrabs), as in Ultimate. A command grab
-   * caught in the air plays its throw in the air, and landing doesn't end it.
+   * A throw: invincible until it lets go on its release frame (resolveGrabs), as in Ultimate, and a Final Smash's
+   * cinematic to its end. A command grab caught in the air plays its throw in the air, and landing doesn't end it.
    */
   grabThrow: {
     physics: 'ground',
     drift: (x) => moveOf(x.f)?.drift ?? true,
-    intangible: (f) => f.grabPartner >= 0,
+    intangible: (f) => f.grabPartner >= 0 || moveOf(f)?.final !== undefined,
     update(x) {
       const move = playMove(x);
       if (move && x.f.actionFrame >= move.faf) setAction(x, x.f.ground ? 'idle' : 'fall');

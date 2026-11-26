@@ -128,10 +128,15 @@ export type SimEvent =
   /** An idle fighter picked up an item (EntityDef.pickup); its `entityDestroy` (reason `pickup`) follows. */
   | { type: 'itemPickup'; port: number; id: number; kind: string }
   /**
-   * A fighter broke the Coolmath Planet and now holds a Final Smash charge (`FighterState.finalReady`). There is no
-   * Final Smash yet; this is what one will start from.
+   * A fighter broke the Coolmath Planet and now holds a Final Smash charge (`FighterState.finalReady`); neutral
+   * special spends it on the fighter's Final Smash.
    */
   | { type: 'finalReady'; port: number; x: number; y: number }
+  /**
+   * A fighter spent its charge on its Final Smash `move` (src/sim/finalSmash.ts), after the `move` event. Everyone
+   * else holds still for the next `freeze` frames; `x`, `y` is the middle of the user's body.
+   */
+  | { type: 'finalSmash'; port: number; move: string; freeze: number; x: number; y: number }
   /** A tether line left the hand towards (`x`, `y`), its full-range end. */
   | { type: 'tetherFire'; port: number; x: number; y: number }
   /** A fighter-targeting line touched a hurtbox at (`x`, `y`), before the move chooses how to respond. */
