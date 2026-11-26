@@ -97,11 +97,7 @@ function startFinalSmash(x: Ctx): boolean {
   if (!f.finalReady || !x.def.moves?.finalSmash || !startMove(x, 'finalSmash')) return false;
   f.finalReady = false;
   const final = moveOf(f)?.final ?? {};
-  if (!f.ground && final.still) {
-    f.vel = { x: 0, y: 0 };
-    f.kb = { x: 0, y: 0 };
-    f.fastFalling = false;
-  }
+  if (!f.ground && final.still) stopInPlace(f);
   const { move, port, pos } = f;
   emit(x.m, {
     type: 'finalSmash',
@@ -228,7 +224,8 @@ export function playMove(x: Ctx): MoveDef | null {
  * The floor went out from under `x.f` (its platform vanished or moved away, or a conveyor belt carried it off): a Final
  * Smash has spent its charge, so it carries on, as a landing carries one on (`aerial`'s land). A grounded one plays on
  * in the air from the same frame, and a trap's cinematic keeps its catch, the user's end and the held fighter's alike.
- * True when it did; the caller then only leaves the ground.
+ * A `still` one, cinematic included, stops where it left the floor, as one started in the air does. True when it
+ * carried on; the caller then only leaves the ground.
  */
 export function finalSmashLeavesGround(x: Ctx): boolean {
   const { f, m } = x;
@@ -240,7 +237,18 @@ export function finalSmashLeavesGround(x: Ctx): boolean {
     enterAction(x, 'aerial', actionFrame);
     f.move = move;
   }
+  if (still(x)) stopInPlace(f);
   return true;
+}
+
+/**
+ * A `still` Final Smash in the air holds the user where it is: no speed, knockback or fast fall left, since its
+ * gravity and drift are off and air friction never runs (Mario in Mario Finale).
+ */
+export function stopInPlace(f: FighterState): void {
+  f.vel = { x: 0, y: 0 };
+  f.kb = { x: 0, y: 0 };
+  f.fastFalling = false;
 }
 
 /** Intangible on the move's `intangible` frames, and on every frame of a Final Smash. */

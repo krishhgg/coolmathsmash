@@ -18,7 +18,7 @@ import { inHitlag, type Ctx, type FighterState } from '../fighter';
 import type { MatchState } from '../match';
 import { restoreAirOptions } from '../movement';
 import { endStatusesOnHit, isFrozen } from '../statuses';
-import { moveOf, playMove, startMove } from './attack';
+import { moveOf, playMove, startMove, stopInPlace } from './attack';
 import { setAction, type ActionDef } from './registry';
 
 /**
@@ -349,8 +349,7 @@ function grab(m: MatchState, a: FighterState, v: FighterState): void {
     vel: { x: 0, y: 0 },
     kb: { x: 0, y: 0 },
   });
-  if (stillThrow(a) && !a.ground)
-    Object.assign(a, { vel: { x: 0, y: 0 }, kb: { x: 0, y: 0 }, fastFalling: false });
+  if (stillThrow(a) && !a.ground) stopInPlace(a);
   restoreAirOptions(v);
   const c = m.players[v.port]!.control;
   for (const b of MASH_BUTTONS) consume(c, b);
