@@ -634,11 +634,8 @@ export const clips: Record<string, AnimClip> = {
   },
 };
 
-/** Engine and docs/art.md names for the same clips. */
+/** Engine actions that draw another clip. */
 Object.assign(clips, {
-  knockdown: clips.down,
-  getUp: clips.getupStand,
-  tech: clips.techInPlace,
   shieldStun: clips.shield,
   /** The tech roll on the getup roll's timeline: the sim's travel ends on frame 28 instead of 30, and 35 frames in all. */
   getupRoll: retimeClip(clips.techRoll!, 35, [
