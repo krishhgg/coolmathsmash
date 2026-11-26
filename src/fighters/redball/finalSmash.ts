@@ -9,12 +9,12 @@ import type { HitboxDef, MoveDef } from '../types';
  * table); ultimateframedata.com lists no Final Smashes.
  *
  * - Timing: meteors spawn "until the Final Smash ends (frames 51-357)", "one every 23 frames (0.383 seconds) and
- *   decreasing by 0.5 frames (rounded up) with each meteor", which "results in Ness ... spawning 16 meteors". Ness
- *   acts again after frame 357, so Red Ball is actionable on 358. "Each meteorite is active for 200 frames."
+ *   decreasing by 0.5 frames (rounded up) with each meteor", which "results in Ness ... spawning 16 meteors". The
+ *   Final Smash ends on frame 357, so Red Ball acts on 358. "Each meteorite is active for 200 frames."
  * - Spread: "Ness's meteors will spawn at the top and centre of the stage, and will fly out at a range of angles,
  *   fanning outwards from an invisible 'line' going down the middle of the stage." The balls drop from the middle of
  *   the top blast zone, RAIN.drop below it, each aimed at one of 16 lanes 12 units apart that cross y = 0 from -90 to
- *   90 (Battlefield's floor is -80 to 80), in bit-reversed order (RAIN.lanes) so the rain alternates sides and fills
+ *   90 (Battlefield's floor is -80 to 80), in bit-reversed order (RAIN_LANES) so the rain alternates sides and fills
  *   the gaps. Ultimate picks the angles at random; a fixed order keeps the spread the same every time.
  * - Speed: "The meteors fall faster as time passes." SmashWiki gives no speeds: each ball flies RAIN.speedUp a frame
  *   faster than the last, from RAIN.speed.
@@ -120,9 +120,9 @@ function drop(x: Ctx, i: number): void {
 }
 
 /**
- * Ball Rain. Grounded or in the air, Red Ball holds still and calls the rain down (Ness stays put through PK
- * Starstorm), and acts again on frame 358. CPUs use it on anyone up to 160 units in front: the rain covers the
- * stage wherever he stands.
+ * Ball Rain. Red Ball stays where he is, grounded or in the air (`still`; SmashWiki says nothing of Ness moving), calls
+ * the rain down and acts again on frame 358. CPUs use it on anyone up to 160 units in front, Battlefield's width: the
+ * rain covers the stage wherever he stands.
  */
 export const finalSmash: MoveDef = {
   kind: 'other',

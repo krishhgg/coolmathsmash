@@ -187,9 +187,23 @@ describe('Ball Rain (Final Smash), on PK Starstorm', () => {
 
   it('deals 8% (x1.05 fresh) per ball, launching the way the ball flies, and 25.2% from 3 balls at centre stage', () => {
     const { m, a, v, step } = rain();
-    const seen = step(finalSmash.faf + RAIN.lifetime);
+    const seen: SimEvent[] = [];
+    const launches: { ball: 1 | -1; dir: 1 | -1; angle: number }[] = [];
+    for (let i = 0; i < finalSmash.faf + RAIN.lifetime; i++) {
+      const frame = step(1);
+      seen.push(...frame);
+      for (const h of hitsOn(frame, v.port))
+        launches.push({
+          ball: m.entities.find((e) => e.id === h.entity)!.facing,
+          dir: v.launch!.dir,
+          angle: v.launch!.angle,
+        });
+    }
     const hits = hitsOn(seen, v.port);
     expect(hits).toHaveLength(3);
+    // Speed-based: each launches at 42 degrees towards the side its ball is flying.
+    for (const l of launches) expect([l.dir, l.angle]).toEqual([l.ball, 42]);
+    expect(launches).toHaveLength(3);
     const kb = (percent: number) =>
       knockback({ percent, damage: 8, kbg: 110, bkb: 67, weight: 98, stale: 1.05, rage: 1 });
     let percent = 0;
@@ -254,7 +268,7 @@ describe('Ball Rain (Final Smash), on PK Starstorm', () => {
     expect(last.pos.y).toBeGreaterThan(0);
   });
 
-  it('in the air holds Red Ball still, intangible, until he falls on frame 358', () => {
+  it('in the air holds Red Ball still until he falls on frame 358', () => {
     const { a, step } = rain({ air: true });
     expect([a.move, a.vel]).toEqual(['finalSmash', { x: 0, y: 0 }]);
     const at = { ...a.pos };
