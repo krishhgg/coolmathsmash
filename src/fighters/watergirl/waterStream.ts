@@ -1,4 +1,5 @@
 import { Btn } from '../../input/types';
+import { holdFrame } from '../../sim/actions/registry';
 import { isHeld } from '../../sim/control';
 import { spawnFromMove } from '../../sim/entities/entities';
 import type { Ctx } from '../../sim/fighter';
@@ -45,7 +46,7 @@ function script(x: Ctx): void {
   const at = f.actionFrame;
   if (at === STREAM.chargeFrame && f.charge < STREAM.fullCharge && isHeld(c, Btn.Special)) {
     f.charge++;
-    f.actionFrame--;
+    holdFrame(x);
     // Same frames so far; only the recovery after release is longer.
     if (f.charge >= STREAM.heavyFrom) f.move = HEAVY;
     return;
