@@ -80,7 +80,9 @@ drawn part reaches into every hitbox's inner half on its active frames.
 A tether move keeps its clip through the reel. `tetherPull` plays the move's clip on from the frame the line
 anchored, and `tetherHang` holds the frame the reel arrived on. Set `AnimClip.reel` to the clip frame a long reel
 should hold on (Fluffy's `upB` holds on 24, while the line still reaches well up), after the latest frame
-the line can anchor. Without it the clip plays on to its end.
+the line can anchor. Without it the clip plays on to its end. A reel that needs its own drawing gets a clip
+named after the action instead: when the art has a `tetherPull` or `tetherHang` clip, the reel plays it from the
+reel's first frame (Red Ball's `tetherPull`, his tongue shortening towards the ledge).
 
 ## Pose checklist
 
