@@ -3,7 +3,7 @@ import {
   AIR_DODGE_NEUTRAL,
   DASH_SPEED_KEEP_FRAMES,
   INFINITE_STOCKS,
-  LEDGE_INTANGIBILITY,
+  LEDGE_CATCH_FRAMES,
   LEDGE_MAX_GRABS,
   LEDGE_GETUP_INTANGIBILITY_SCALE,
   RESPAWN_INVINCIBILITY,
@@ -16,6 +16,7 @@ import {
   SPOT_DODGE,
 } from './constants';
 import { isIntangible } from './actions/registry';
+import { ledgeIntangibility } from './combat/formulas';
 import type { FighterState } from './fighter';
 import { marioReference as mario } from './testing/reference';
 import { placeInAir, run, testMatch, until, type Hold } from './testing/sim';
@@ -299,7 +300,7 @@ describe('ledges', () => {
     until(m, (g) => g.action === 'ledgeCatch');
     expect(f.ledge).toBe(0);
     expect(f.facing).toBe(1);
-    expect(f.intangible).toBeGreaterThan(LEDGE_INTANGIBILITY - 3);
+    expect(f.intangible).toBe(ledgeIntangibility(f.airFrames, f.damage));
     expect(f.pos.x).toBeLessThan(-80);
   });
 
@@ -316,7 +317,7 @@ describe('ledges', () => {
       if (f.action === 'ledgeCatch') {
         grabs++;
         expect(f.intangible).toBe(0);
-        run(m, 10);
+        run(m, LEDGE_CATCH_FRAMES);
       }
     }
     expect(grabs).toBe(LEDGE_MAX_GRABS);
@@ -354,7 +355,7 @@ describe('ledges', () => {
     expect(f.ledgeFresh).toBe(true);
     placeInAir(m, -85, 4, 1);
     until(m, (g) => g.action === 'ledgeCatch');
-    expect(f.intangible).toBeGreaterThan(LEDGE_INTANGIBILITY - 3);
+    expect(f.intangible).toBe(ledgeIntangibility(f.airFrames, f.damage));
   });
 
   /** Intangible frames of a getup started with `start`, from a hang reached after `grabs` grabs. */
@@ -371,10 +372,10 @@ describe('ledges', () => {
   };
 
   it.each([
-    ['climb', { x: 50 }, 30],
-    ['roll', { buttons: ['shield'] }, 34],
-    ['attack', { buttons: ['attack'] }, 22],
-    ['jump', { buttons: ['jump'] }, 13],
+    ['climb', { x: 50 }, 33],
+    ['roll', { buttons: ['shield'] }, 25],
+    ['attack', { buttons: ['attack'] }, 26],
+    ['jump', { buttons: ['jump'] }, 12],
   ] as [string, Hold, number][])(
     'ledge %s intangibility shrinks on regrabs: x1, x0.8, x0.5, then none',
     (_, start, full) => {
@@ -401,7 +402,7 @@ describe('ledges', () => {
       if (isIntangible(g)) frames++;
       return g.action === 'idle';
     });
-    expect(frames).toBe(Math.floor(30 * 0.8));
+    expect(frames).toBe(Math.floor(33 * 0.8));
   });
 });
 

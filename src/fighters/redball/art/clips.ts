@@ -1,4 +1,5 @@
 import { retimeClip } from '../../../render/rig/timing';
+import { LEDGE_CATCH_FRAMES, LEDGE_CLIMB, LEDGE_ROLL } from '../../../sim/constants';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import { R } from './parts';
 import {
@@ -402,23 +403,27 @@ export const clips: Record<string, AnimClip> = {
     keys: [key(0, REEL_FAR), key(1, REEL_FAR, { ease: 'linear' }), key(6, REEL_NEAR), key(20, REEL_NEAR)],
   },
 
-  ledgeCatch: {
-    length: 8,
-    keys: [
-      key(
-        0,
-        mix(HANG, nearCorner(LEDGE_GRIP, [HANG_REL[0] - 0.6, HANG_REL[1] - 1.6], 0.9, 1.12), roll(-10)),
-        {
-          swaps: { ...SHOCK, fx4: null },
-        },
-      ),
-      key(3, mix(HANG, body(1.08, 0.94), roll(-32), fx('fx1', GX - 0.55, GY - 0.8, 0.72)), {
-        swaps: { ...STRAIN, ...BITE, fx1: 'pop', fx4: null },
-      }),
-      key(6, undefined, { swaps: { ...STRAIN, ...BITE, fx4: null } }),
-      key(8, mix(HANG, fx('fx1', GX - 0.55, GY - 0.8, 0.9)), { swaps: { ...STRAIN, ...BITE } }),
-    ],
-  },
+  /** Bites onto the lip: keyed over 8 frames and stretched over the whole catch. */
+  ledgeCatch: retimeClip(
+    {
+      length: 8,
+      keys: [
+        key(
+          0,
+          mix(HANG, nearCorner(LEDGE_GRIP, [HANG_REL[0] - 0.6, HANG_REL[1] - 1.6], 0.9, 1.12), roll(-10)),
+          {
+            swaps: { ...SHOCK, fx4: null },
+          },
+        ),
+        key(3, mix(HANG, body(1.08, 0.94), roll(-32), fx('fx1', GX - 0.55, GY - 0.8, 0.72)), {
+          swaps: { ...STRAIN, ...BITE, fx1: 'pop', fx4: null },
+        }),
+        key(6, undefined, { swaps: { ...STRAIN, ...BITE, fx4: null } }),
+        key(8, mix(HANG, fx('fx1', GX - 0.55, GY - 0.8, 0.9)), { swaps: { ...STRAIN, ...BITE } }),
+      ],
+    },
+    LEDGE_CATCH_FRAMES,
+  ),
   /** Hanging on by his teeth, sweating: the grip sags and pulls up again every two thirds of a second. */
   ledgeHang: {
     length: 90,
@@ -426,40 +431,54 @@ export const clips: Record<string, AnimClip> = {
     swaps: { ...STRAIN, ...BITE },
     keys: [key(0, HANG), key(24, HANG_SWAY), key(48, HANG_SWAY_B), key(70, HANG_SWAY), key(90, HANG)],
   },
-  /** Lets go of the lip, hops up and rolls onto the stage. */
-  ledgeClimb: {
-    length: 33,
-    keys: getup(30, 7, [
-      [
-        4,
-        [-5.1, 4.9],
-        mix(body(1.08, 0.94), roll(-30), BITE_AT(4, 30, 7)),
-        { ...STRAIN, ...BITE, fx4: null },
-      ],
-      [9, [-2.4, -2.8], mix(body(0.86, 1.16), roll(40)), WHEE],
-      [14, [1.5, -6.4], mix(body(1, 1), roll(200))],
-      [19, [5.2, -4.6], mix(body(1.16, 0.86), roll(340))],
-      [24, [7, -5.25], mix(body(1, 1), roll(360)), DETERMINED],
-      [33, [7, -5.25], roll(360)],
-    ]),
-  },
-  /** Lets go, pops over the lip and rolls a long way in. */
-  ledgeRoll: {
-    length: 49,
-    keys: getup(40, 25, [
-      [
-        4,
-        [-5.1, 4.9],
-        mix(body(1.08, 0.94), roll(-30), BITE_AT(4, 40, 25)),
-        { ...STRAIN, ...BITE, fx4: null },
-      ],
-      [8, [-2.0, -3.2], mix(body(0.88, 1.14), roll(30)), GRIT],
-      [13, [2.5, -5.25], mix(body(1.1, 0.92), roll(90))],
-      [40, [25, -5.25], roll(360)],
-      [44, [25, -5.25], mix(ground(1.08, 0.93), roll(362)), DETERMINED],
-      [49, [25, -5.25], roll(360)],
-    ]),
-  },
+  /**
+   * Lets go of the lip, hops up and rolls onto the stage. The keys up to frame 24 follow the engine's path, so only
+   * the settle after them stretches to the climb's last frame.
+   */
+  ledgeClimb: retimeClip(
+    {
+      length: 33,
+      keys: getup(30, 7, [
+        [
+          4,
+          [-5.1, 4.9],
+          mix(body(1.08, 0.94), roll(-30), BITE_AT(4, 30, 7)),
+          { ...STRAIN, ...BITE, fx4: null },
+        ],
+        [9, [-2.4, -2.8], mix(body(0.86, 1.16), roll(40)), WHEE],
+        [14, [1.5, -6.4], mix(body(1, 1), roll(200))],
+        [19, [5.2, -4.6], mix(body(1.16, 0.86), roll(340))],
+        [24, [7, -5.25], mix(body(1, 1), roll(360)), DETERMINED],
+        [33, [7, -5.25], roll(360)],
+      ]),
+    },
+    LEDGE_CLIMB.faf - 1,
+    [[24, 24]],
+  ),
+  /**
+   * Lets go, pops over the lip and rolls a long way in. The keys up to frame 40 follow the engine's path, so only the
+   * landing after them fits into the roll's last frames.
+   */
+  ledgeRoll: retimeClip(
+    {
+      length: 49,
+      keys: getup(40, 25, [
+        [
+          4,
+          [-5.1, 4.9],
+          mix(body(1.08, 0.94), roll(-30), BITE_AT(4, 40, 25)),
+          { ...STRAIN, ...BITE, fx4: null },
+        ],
+        [8, [-2.0, -3.2], mix(body(0.88, 1.14), roll(30)), GRIT],
+        [13, [2.5, -5.25], mix(body(1.1, 0.92), roll(90))],
+        [40, [25, -5.25], roll(360)],
+        [44, [25, -5.25], mix(ground(1.08, 0.93), roll(362)), DETERMINED],
+        [49, [25, -5.25], roll(360)],
+      ]),
+    },
+    LEDGE_ROLL.faf - 1,
+    [[40, 40]],
+  ),
   /** Pops up over the lip and bumps forward. */
   ledgeAttack: {
     length: 55,

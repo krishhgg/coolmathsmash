@@ -146,7 +146,7 @@ function ledgeRollKeys(): Key[] {
         ease: 'out',
       }),
     );
-  keys.push(key(50, mix({ body: { rot: 360 } }, spin(turn + 420))));
+  keys.push(key(45, mix({ body: { rot: 360 } }, spin(turn + 420))));
   return keys;
 }
 
@@ -501,12 +501,12 @@ export const authored: Record<string, AnimClip> = {
   },
   /** Swings in nose first and hooks the front tyre over the corner. */
   ledgeCatch: {
-    length: 8,
+    length: 19,
     swaps: SURPRISED,
     keys: [
       key(0, hooked([GX + HOOK[0], GY + HOOK[1] - 0.4], -40, bob(0, 0.3)), { ease: 'outBack' }),
-      key(4, undefined, { swaps: FOCUS }),
-      key(8, HANG),
+      key(10, undefined, { swaps: FOCUS }),
+      key(19, HANG),
     ],
   },
   /** Nose up against the wall, the rear tyre scrabbling at it. */
@@ -530,7 +530,7 @@ export const authored: Record<string, AnimClip> = {
     ].sort((a, b) => a.frame - b.frame),
   },
   ledgeRoll: {
-    length: 50,
+    length: 45,
     swaps: ANGRY,
     keys: [
       ...ledgeRollKeys(),
