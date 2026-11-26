@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { registerFighter } from '../fighters/registry';
-import { defineFighter } from '../fighters/types';
+import { defineFighter, type MoveDef } from '../fighters/types';
 import { chargeMultiplier } from './actions/charge';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
@@ -56,6 +56,35 @@ function chargeTo(
   until(m, (g) => g.charge === frames, hold, 300);
   return f;
 }
+
+/** What each per-frame part of a charging move adds: speed from its script, and a mote it spawns. */
+const PUSH = 0.05;
+const MOTE = 'test-charger-push/mote';
+
+/**
+ * The test charger's `name` in the air with no drift, its script adding PUSH to the forward speed on every frame
+ * before the charge frame, and a mote spawned on the frame before the charge frame.
+ */
+function pushing(name: 'sideB' | 'neutralB' | 'downB'): MoveDef {
+  const move = testCharger.moves[name];
+  const hold = move.charge;
+  return {
+    ...move,
+    drift: false,
+    spawn: [{ frame: hold - 1, entity: 'mote', x: 0, y: 5 }],
+    script: (x) => {
+      if (x.f.actionFrame < hold) x.f.vel.x += PUSH;
+    },
+  };
+}
+const pusher = defineFighter({
+  ...testCharger,
+  id: 'test-charger-push',
+  name: 'Test: push',
+  entities: { mote: { radius: 0.5, lifetime: 600, floor: 'pass', wall: 'pass' } },
+  moves: { sideB: pushing('sideB'), neutralB: pushing('neutralB'), downB: pushing('downB') },
+});
+registerFighter(pusher);
 
 const sideB = (facing: number): Hold => ({ x: 100 * facing, buttons: ['special'] });
 const neutralB: Hold = { buttons: ['special'] };
@@ -270,4 +299,30 @@ describe('stored charge', () => {
     expect(f.action).toBe('ko');
     expect(f.storedCharge).toEqual({ fighter: testCharger.id, move: 'neutralB', frames: 30 });
   });
+});
+
+describe('a move held on its charge frame', () => {
+  it.each([
+    ['held', 'sideB', { x: 100, buttons: ['special'] }, { buttons: ['special'] }],
+    ['held, stored', 'neutralB', { buttons: ['special'] }, { buttons: ['special'] }],
+    ['tap, stored', 'downB', { y: -100, buttons: ['special'] }, {}],
+  ] satisfies [string, 'sideB' | 'neutralB' | 'downB', Hold, Hold][])(
+    '%s (%s): runs its script once a frame and spawns on the frame before the charge frame once',
+    (_, name, press, hold) => {
+      const m = testMatch({ fighter: pusher.id });
+      const f = placeInAir(m, 0, 120, 1);
+      run(m, 1, press);
+      expect(f.move).toBe(name);
+      const speeds = [f.vel.x];
+      let motes = 0;
+      while (f.charge < 30) {
+        run(m, 1, hold);
+        speeds.push(f.vel.x);
+        motes += m.events.filter((e) => e.type === 'entitySpawn' && e.kind === MOTE).length;
+      }
+      expect(f.actionFrame).toBe(testCharger.moves[name].charge - 1);
+      for (let i = 1; i < speeds.length; i++) expect(speeds[i]! - speeds[i - 1]!).toBeCloseTo(PUSH, 12);
+      expect(motes).toBe(1);
+    },
+  );
 });

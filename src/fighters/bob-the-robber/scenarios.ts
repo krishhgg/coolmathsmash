@@ -2,7 +2,9 @@ import type { FighterPatch, FighterScenarios, GameScenario, LabScenario } from '
 import type { ScriptStep } from '../../harness/script';
 import type { MoveDef } from '../types';
 import { PARALYZED, STUN_GUN } from './entities';
-import { moves } from './moves';
+// Through the fighter, not './moves': his moves import sim code that imports the fighter registry, so loading them
+// first (as the harness does) registers Bob before his moves exist. Entering by index.ts finishes them first.
+import { fighter } from './index';
 
 const ID = 'bob-the-robber';
 const BOB = 'characters/bob-the-robber';
@@ -67,7 +69,7 @@ const firstActive = (move: MoveDef): number =>
 
 const AIR_MOVES = new Set(['nair', 'fair', 'bair', 'uair', 'dair', 'neutralBAir', 'sideB', 'upB']);
 const atFirstActive = (pick: (name: string) => boolean) =>
-  Object.entries(moves)
+  Object.entries(fighter.moves)
     .filter(([name]) => pick(name))
     .map(([name, move]) => `${name}@${firstActive(move)}`);
 
