@@ -96,11 +96,13 @@ the line can anchor. Without it the clip plays on to its end. A reel that needs 
 named after the action instead: when the art has a `tetherPull` or `tetherHang` clip, the reel plays it from the
 reel's first frame (Red Ball's `tetherPull`, his tongue shortening towards the ledge).
 
-A charging move (`MoveDef.charge`) holds its clip on the charge frame. To draw the charge building instead, add a
-clip named `<move>Charge`, one frame per frame of charge (length `chargeFrames`): while the move holds its charge, the
-renderer plays it at the frames charged so far (`clipFor` in `src/render/fighterView.ts`), and the move clip takes
-over again when it fires. Wheely's `neutralBCharge` (`src/fighters/wheely/art/revUp.ts`) shakes harder and puffs
-bigger as the revs build, and flashes as they top out.
+A charging move holds its charge frame for as long as it charges, so its clip would hold one pose. To draw the
+charge building, give the art a clip named `<move>Charge` with one frame per charge frame (`length` is the move's
+`chargeFrames`): while the move waits on its charge frame, the renderer plays it on the frames charged so far, and
+the move's own clip carries on from the charge frame on release. Start it on the move clip's charge-frame pose. The
+Duck's `sideBCharge` crouches, ruffles his feathers on a symbol loop and swells a glow behind him over its 80
+frames, and Wheely's `neutralBCharge` (`src/fighters/wheely/art/revUp.ts`) shakes harder and puffs bigger as
+the revs build, and flashes as they top out. The placeholder charge glow (`src/render/chargeGlow.ts`) leaves such a move alone.
 
 ## Pose checklist
 

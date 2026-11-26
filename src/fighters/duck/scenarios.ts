@@ -161,6 +161,31 @@ export const scenarios: FighterScenarios = {
       refs: [`${DL}/ingame-swim-*`, 'smash/attack-active-*'],
     },
     {
+      name: 'duck-running-ram',
+      description:
+        'The Duck holds Running Ram (side special) to a full charge, then rams Fireboy headfirst; capture the hit.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'duck' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -40, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: -10, y: 0 }, facing: -1 } },
+      ],
+      script: [
+        { port: 0, from: 10, x: 65, buttons: ['special'] },
+        { port: 0, from: 11, to: 110, buttons: ['special'] },
+      ],
+      capture: {
+        label: "P1 move 'sideB' at full charge, in hitlag on the hit",
+        when: (s) => {
+          const f = s.fighters[0]!;
+          return f.move === 'sideB' && f.charge === 80 && f.hitlag > 0;
+        },
+      },
+      motion: { before: 45, after: 30 },
+      requires: ['move:sideB'],
+      refs: [`${DL}/ingame-run-*`, 'smash/attack-active-*'],
+    },
+    {
       name: 'duck-crown',
       description: "The Duck's crown costume (Duck Life's champion Crown hat) in key poses.",
       page: { kind: 'lab', scene: 'fighter', params: { fighter: 'duck', palette: 'crown' } },

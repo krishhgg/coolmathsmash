@@ -37,8 +37,8 @@ export const testCharger = defineFighter({
     /** A smash attack on the defaults: 60 frames of charge for 1.4x damage. */
     fsmash: { kind: 'smash', faf: 40, charge: 6, hits: [{ frames: [10, 12], boxes: [hit(10, 6)] }] },
     /**
-     * Held charge, the shape planned for the Duck's Running Ram (Pikachu's Skull Bash role): hold Special to charge,
-     * then a headfirst dash, 10% to 22%.
+     * Held charge in Pikachu's Skull Bash role: hold Special to charge, then a headfirst dash, 10% to 22%. The Duck's
+     * Running Ram (src/fighters/duck/ram.ts) is the roster move with Skull Bash's own numbers.
      */
     sideB: {
       kind: 'other',
