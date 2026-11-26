@@ -161,6 +161,8 @@ fsmash: {
   - `action` plays the move in another action with its own physics instead of `attack`/`aerial`: `'hover'`.
   - `drift: false` turns off air drift (and air friction) while an airborne move plays, so a scripted path such
     as Bob the Robber's Grappling Hook zip (his `upB`) is not bent by the stick.
+  - `fastFall: false` stops a down flick from fast-falling while an airborne move plays, as in Ultimate's specials
+    (the Duck's Running Ram).
   - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
     `neutralB: { ..., air: 'neutralBAir' }`. The variant is its own move, so it has its own frame data and clip,
     and the `move` event carries its name.
@@ -221,7 +223,8 @@ or reaching full charge, carries on with the move.
 - **`chargeFrames`** is the hold for a full charge (default 60, Ultimate's smash attacks).
 - **`chargeDamage`** is the damage multiplier at full charge (default 1.4, Ultimate's smash attacks). Less charge
   scales linearly from 1, and knockback grows through the damage. The test charger's side special sets
-  `chargeDamage: 2.2`, so its 10% hitbox reaches 22%.
+  `chargeDamage: 2.2`, so its 10% hitbox reaches 22%. The Duck's Running Ram (`src/fighters/duck/ram.ts`, Pikachu's
+  Skull Bash) charges for 80 frames from 6.2% to 21.4% and speeds up its dash with `chargeLerp`.
 - **Speeds and distances.** A move script reads `chargeLerp(f, uncharged, full)` for a value at the current charge
   level (a dash speed), or `chargeLevel(f)` (0 to 1).
 - **Projectiles.** An entity whose EntityDef sets `chargeDamage` hits for up to that many times its damage at the
@@ -240,7 +243,8 @@ or reaching full charge, carries on with the move.
   of the same name starts uncharged, and the charge is back after transforming again. Only a KO as the storing form
   loses it (Ultimate: Squirtle keeps Water Gun's charge through Pokemon Change).
 - A charging move, and a fighter holding a stored charge for its current form, glow behind the fighter
-  (`src/render/chargeGlow.ts`, placeholder art).
+  (`src/render/chargeGlow.ts`, placeholder art). A move whose art draws its own charge with a `<move>Charge` clip
+  (docs/art.md) gets no placeholder while it charges.
 - `src/sim/testing/charge.ts` (`test-charger`, registered for tests and `?harness`) has one move of each kind.
 - Charging emits `charge` events (`full`, `store`, `fire`) with the charge level (`docs/sim-events.md`).
 
@@ -559,7 +563,8 @@ It returns the lowest % (to 0.1) from which the hit KOs the target: the target c
 blast line below, **before its hitstun ends**, with no input other than the optional DI stick, which is the definition
 the community KO calculator uses. Defaults: the Mario reference (weight 98) standing at Battlefield's ledge
 (`from: 'ledge'`, launched toward the near blast zone), fresh (×1.05), no rage, no DI. `from` also takes `'centre'` or
-a point, `target` another fighter id, `attackerPercent` adds rage.
+a point, `target` another fighter id, `attackerPercent` adds rage, `charge` charges a `{ fighter, move }` hit for that
+many frames.
 
 A `{ fighter, move }` hit lands the way the real hit connects:
 
@@ -721,9 +726,29 @@ hitlag:
 paralyzed: { frames: 1, perKnockback: 1, max: 90, freeze: true, endOnHit: true, color: '#f2c62a' },
 ```
 
+Papa Louie's Cheesed (`src/fighters/papa-louie/statuses.ts`) is Inkling's ink (SmashWiki, "Ink (status)"), on two
+more fields:
+
+```ts
+cheesed: {
+  frames: 120,                                   // the coat holds 120 frames after the last coating hit
+  coat: { add: 12, max: 300, decay: 0.25 },      // +12 a hit up to 300, then -0.25 a frame; lasts 120 + level / 0.25
+  damageTaken: (s) => 1 + (Math.min(s.level ?? 0, 180) * 0.5) / 180, // up to x1.5 damage taken
+  color: '#f2cf5b',
+},
+```
+
+- **Coats.** With `coat`, each application adds `add` to the status's `level` (or the `level` given to `applyStatus`),
+  up to `max`, and sets its length to `frames` + level / `decay`. The level holds for `frames` frames, then drops
+  `decay` a frame, and the status ends as it reaches 0. A new application starts the hold again. `perDamage`,
+  `perKnockback` and `stack` don't apply.
+- **Damage taken.** `damageTaken(status)` multiplies the % the fighter takes from any source (hits, throws, pummels,
+  status ticks) while it lasts, inside `addDamage`. Like the 1v1 multiplier, it changes the % added, not the hit's
+  knockback or the shield damage.
+
 - **State.** `FighterState.statuses` lists `{ kind, frames, age, since, source }`, oldest first. `frames` is what is
-  left, `age` counts ticks from 1 and `source` is the port credited (-1 for none). Use `hasStatus` and `statusOf`
-  to read it.
+  left, `age` counts ticks from 1 and `source` is the port credited (-1 for none). A coat also has its `level`. Use
+  `hasStatus` and `statusOf` to read it.
 
 Meters are declared in `FighterDef.meters`:
 
