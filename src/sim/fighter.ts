@@ -74,6 +74,8 @@ export interface FighterState {
   moveStale: number;
   /** Frames the current move has charged (0 to its chargeFrames). */
   charge: number;
+  /** A counterattack's damage (MoveDef.counter): its boxes deal at least this. 0 outside a counterattack. */
+  counterDamage: number;
   /**
    * A charge kept for the next use of `move` by the form `fighter` (stored charge), spent when that move fires; lost
    * on a KO as that form.
@@ -174,6 +176,7 @@ export function createFighter(
     hitEntities: [],
     moveStale: 0,
     charge: 0,
+    counterDamage: 0,
     storedCharge: null,
     staleQueue: [],
     intangible: 0,
