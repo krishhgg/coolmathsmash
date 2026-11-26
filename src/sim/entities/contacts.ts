@@ -2,7 +2,7 @@ import { moveOf } from '../actions/attack';
 import { inWindow } from '../actions/registry';
 import { activeHitboxes, hitboxDamage, type PlacedHitbox } from '../combat/hits';
 import { GRAVITY_BONUS_BASE, hitlagFrames, knockback, launch } from '../combat/formulas';
-import type { FighterState } from '../fighter';
+import { inHitlag, type FighterState } from '../fighter';
 import { emit } from '../events';
 import type { MatchState } from '../match';
 import {
@@ -65,7 +65,7 @@ export function resolveEntityContacts(m: MatchState): number[] {
   const owed = m.fighters.map(() => 0);
   for (const e of m.entities) {
     m.fighters.forEach((f, i) => {
-      if (e.dead || f.port === e.owner || f.hitlag > 0 || f.action === 'ko' || f.action === 'out') return;
+      if (e.dead || f.port === e.owner || inHitlag(m, f) || f.action === 'ko' || f.action === 'out') return;
       if (reflectOrAbsorb(m, f, e)) return;
       owed[i] = Math.max(owed[i]!, attackEntity(m, f, e));
     });
