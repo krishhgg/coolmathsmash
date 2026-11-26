@@ -1,4 +1,4 @@
-import { getFighter } from '../../fighters/registry';
+import { getFighter } from '../../fighters/lookup';
 import { Btn, buttonBit } from '../../input/types';
 import { castSegment } from '../cast';
 import { hittable } from '../combat/hits';

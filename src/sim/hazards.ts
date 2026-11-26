@@ -1,4 +1,4 @@
-import { getFighter } from '../fighters/registry';
+import { getFighter } from '../fighters/lookup';
 import {
   armorOf,
   guardStageHit,
