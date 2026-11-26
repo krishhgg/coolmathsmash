@@ -24,6 +24,7 @@ import {
   wingLines,
   wingOpen,
 } from './parts';
+import { burstSymbols, fxBurst, fxWave, plume, tail, waveSymbols } from './evolved';
 
 /** Height of the belly's centre above the feet, and the head's centre from the belly's. */
 export const BODY_Y = -1.15 - 0.19 - BODY_R;
@@ -73,6 +74,9 @@ export const rig: Rig = {
     { name: 'wingF', bone: 'wingF', symbol: null },
     { name: 'fx1', bone: 'fx1', symbol: null, decor: true },
     { name: 'fx2', bone: 'fx2', symbol: null, decor: true },
+    /** The evolved Duck's parts (Evolved Stomp): his clip draws them behind the belly's and head's outlines. */
+    { name: 'tail', bone: 'body', symbol: null },
+    { name: 'plume', bone: 'head', symbol: null },
   ],
   symbols: {
     body,
@@ -102,5 +106,11 @@ export const rig: Rig = {
     fxSwoosh,
     fxSpeed,
     fxStar,
+    plume,
+    tail,
+    ...burstSymbols,
+    fxBurst,
+    ...waveSymbols,
+    fxWave,
   },
 };
