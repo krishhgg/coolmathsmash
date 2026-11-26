@@ -391,17 +391,28 @@ describe('Full Arsenal (Final Smash), on Covering Fire', () => {
     const prop = art.projectiles!.lockMark!;
     const drawn = of(m, 'lockMark').map((e) => propSymbol(m, e, prop));
     expect(drawn).toEqual(LOCK_STACK);
-    // The first three drawings carry a ring, over 15 units tall; the last two are only a diamond.
+    // The first three drawings carry a ring, over 12 units tall; the last two are only a diamond.
     const height = (name: string) => {
       const [, y0, , y1] = shapesBounds(art.rig.symbols[`${name}A`] as PathShape[]);
       return y1 - y0;
     };
     const heights = LOCK_STACK.map(height);
-    expect(heights.slice(0, LOCK_RINGS).every((h) => h > 15)).toBe(true);
+    expect(heights.slice(0, LOCK_RINGS).every((h) => h > 12)).toBe(true);
     expect(heights.slice(LOCK_RINGS).every((h) => h < 2.5)).toBe(true);
-    // The third ring reaches at most 1.5 lower than the first, so it stays out of the floor.
+    // The rings grow only up and out: every one ends where the first does, above the floor.
     const bottom = (name: string) => shapesBounds(art.rig.symbols[`${name}A`] as PathShape[])[3];
-    expect(bottom(LOCK_STACK[2]!) - bottom(LOCK_STACK[0]!)).toBeLessThanOrEqual(1.5);
+    for (const name of LOCK_STACK.slice(1, LOCK_RINGS))
+      expect(bottom(name)).toBeCloseTo(bottom(LOCK_STACK[0]!), 6);
+    // The diamond ladder never meets a ring's brackets, in either drawing of any rank.
+    for (const name of LOCK_STACK)
+      for (const half of ['A', 'B']) {
+        const shapes = art.rig.symbols[`${name}${half}`] as PathShape[];
+        const [px0, py0, px1, py1] = shapesBounds([shapes.at(-1)!]);
+        for (const s of shapes.slice(0, -1)) {
+          const [x0, y0, x1, y1] = shapesBounds([s]);
+          expect(px0 < x1 && x0 < px1 && py0 < y1 && y0 < py1, `${name}${half}`).toBe(false);
+        }
+      }
   });
 
   it('takes a lock mark away when its shot is gone without bursting', () => {

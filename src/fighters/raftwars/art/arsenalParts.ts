@@ -72,26 +72,43 @@ export const reticleSymbols = {
 /** How many marks on one foe draw a ring; the rest draw only their diamond. */
 export const LOCK_RINGS = 3;
 
-/** Ring `rank`'s corner brackets: wider and taller each rank, growing up more than down so it stays out of the floor. */
-function ring(rank: number, squeeze: number): PathShape[] {
+/**
+ * Where every ring's bottom brackets sit, below the middle of the foe's body: the ink ends 0.35 lower, still above the
+ * feet of the shortest fighters, 5.5 below their middle. A mark can't know its foe's height, so the rings clear the
+ * shortest and sit higher up the legs of taller foes.
+ */
+export const RING_BOTTOM = 5.1;
+
+/**
+ * Ring `rank`'s corner brackets: wider and taller each rank, growing only up and out, every bottom on RING_BOTTOM.
+ * `squeeze` narrows the ring for the second drawing of its loop.
+ */
+export function lockRing(rank: number, squeeze: number): PathShape[] {
   const w = (5.2 + 1.5 * rank) * squeeze;
-  const top = (7.6 + 1.6 * rank) * squeeze;
-  const bottom = (7.6 + 0.5 * rank) * squeeze;
+  const top = 7.6 + 1.6 * rank;
   const arm = 1.6;
   const corner = (sx: number, y: number, sy: number): P[] => [
     [sx * (w - arm), y],
     [sx * w, y],
     [sx * w, y - sy * arm],
   ];
-  const corners = [corner(-1, -top, -1), corner(1, -top, -1), corner(1, bottom, 1), corner(-1, bottom, 1)];
+  const corners = [
+    corner(-1, -top, -1),
+    corner(1, -top, -1),
+    corner(1, RING_BOTTOM, 1),
+    corner(-1, RING_BOTTOM, 1),
+  ];
   return [
     ...corners.flatMap((c) => strokes(c, 0.7, 'line')),
     ...corners.flatMap((c) => strokes(c, 0.38, 'aim')),
   ];
 }
 
-/** Where the diamonds go: up the first ring's right edge, from below the middle of the body to above it. */
-export const LOCK_PIP = { x: 5.2, bottom: 4.4, step: 2.2, halfWidth: 0.75, halfHeight: 1.0 };
+/**
+ * Where the diamonds go: up the first ring's right edge, between its top and bottom corner brackets (their ink spans
+ * 5.65 above the body's middle to 3.15 below it), so the ladder never meets them and stays below the overhead tag.
+ */
+export const LOCK_PIP = { x: 5.2, bottom: 2.25, step: 1.75, halfWidth: 0.6, halfHeight: 0.75 };
 
 /** Diamond `rank` on the ladder; the first is the lowest, so the ladder shortens from the top as shots land. */
 export function lockPip(rank: number, squeeze: number): PathShape {
@@ -111,7 +128,7 @@ export function lockPip(rank: number, squeeze: number): PathShape {
 }
 
 const mark = (rank: number, squeeze: number): PathShape[] => [
-  ...(rank < LOCK_RINGS ? ring(rank, squeeze) : []),
+  ...(rank < LOCK_RINGS ? lockRing(rank, squeeze) : []),
   lockPip(rank, squeeze === 1 ? 1 : 0.85),
 ];
 export const lockSymbols = Object.fromEntries(

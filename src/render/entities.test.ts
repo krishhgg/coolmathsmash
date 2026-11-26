@@ -14,7 +14,7 @@ import { EntityView, entityArt, layerFighters, propPlacement, propSymbol } from 
 import { FighterView, fighterArt, headTop } from './fighterView';
 import { drawPlanetEntity } from './items';
 import { Renderer } from './renderer';
-import { lockPip } from '../fighters/raftwars/art/arsenalParts';
+import { LOCK_RINGS, lockPip, lockRing } from '../fighters/raftwars/art/arsenalParts';
 import { MAX_ZOOM } from './camera';
 import { POINTER, TAG_H, TAG_LIFT, tagWidth } from './hud/tags';
 import { shapesBounds } from './rig/geometry';
@@ -154,6 +154,29 @@ describe('propSymbol', () => {
         }
       }
     }
+  });
+
+  it("keeps every Full Arsenal ring's bottom above the feet of every fighter, the shortest to the tallest", () => {
+    // A mark sits on the middle of its foe's body, so a foe's feet are half its height below the mark. Every ring, ink
+    // included, ends above that for every fighter in the roster.
+    const prop = entityArt('raftwars/lockMark')!.prop;
+    const drawings = prop.stack!.flatMap((name) => (prop.symbols[name] as { loop: string[] }).loop);
+    const rings = drawings
+      .map((name, i) => {
+        const shapes = prop.symbols[name] as PathShape[];
+        const rank = Math.floor(i / 2);
+        if (rank >= LOCK_RINGS) return [];
+        expect(shapes.slice(0, -1)).toEqual(lockRing(rank, i % 2 ? 0.9 : 1));
+        return shapes.slice(0, -1);
+      })
+      .filter((r) => r.length);
+    expect(rings).toHaveLength(LOCK_RINGS * 2);
+    const roster = Object.values(allFighters()).filter((def) => fighterArt(def));
+    const halves = roster.map((def) => def.stats.height / 2);
+    expect([Math.min(...halves), Math.max(...halves)]).toEqual([5.5, 12]);
+    for (const def of roster)
+      for (const ring of rings)
+        expect(shapesBounds(ring)[3], def.id).toBeLessThanOrEqual(def.stats.height / 2);
   });
 
   it('draws a mark above a burst on the same spot, whichever came first', () => {
