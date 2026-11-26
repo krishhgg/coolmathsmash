@@ -485,6 +485,11 @@ finalSmashCinematic: {
 },
 ```
 
+Fluffy's Fuzz Frenzy (`src/fighters/fluffy/finalSmash.ts`) is the roster example, on Donkey Kong's Jungle Rush: the
+detection box as grab circles on frames 29-34, the catch's 12% and the 31-hit barrage as hold hits, and the final hit
+as the throw on frame 139. Its box comes out before frame 42, so it sets `final.freeze` to 27, the longest hold that
+lets the box out on its own frame.
+
 - **Catching.** The trap catches like any command grab: the nearest grabbable fighter in front, through shields. Ultimate
   traps every fighter its hitbox touches; this one holds the first.
 - **Landing.** A `final` move that lands carries on from the same frame, as with `continuesOnLanding`: the charge is
