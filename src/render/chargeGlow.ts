@@ -2,11 +2,13 @@ import type { Graphics } from 'pixi.js';
 import { getFighter } from '../fighters/registry';
 import { SMASH_CHARGE_FRAMES } from '../sim/actions/charge';
 import type { MatchState } from '../sim/match';
+import { chargeClipName, fighterArt } from './fighterView';
 
 /**
  * Placeholder charge glow behind each fighter, in world units (y down): it grows while a move charges and pulses
- * around a fighter holding a stored charge for its current form, brighter the fuller the charge. `alpha`
- * interpolates positions like the fighter views.
+ * around a fighter holding a stored charge for its current form, brighter the fuller the charge. A move whose art
+ * draws its own charge (a `<move>Charge` clip) gets no placeholder while it charges. `alpha` interpolates positions
+ * like the fighter views.
  */
 export function drawChargeGlows(g: Graphics, state: MatchState, alpha: number): void {
   g.clear();
@@ -15,7 +17,8 @@ export function drawChargeGlows(g: Graphics, state: MatchState, alpha: number): 
     const def = getFighter(f.fighter);
     const full = (move: string) => def.moves?.[move]?.chargeFrames ?? SMASH_CHARGE_FRAMES;
     const hold = f.move === null ? undefined : def.moves?.[f.move]?.charge;
-    const charging = hold !== undefined && f.actionFrame <= hold ? f.charge / full(f.move!) : 0;
+    const drawn = hold !== undefined && chargeClipName(fighterArt(def), f.move!) !== undefined;
+    const charging = hold !== undefined && !drawn && f.actionFrame <= hold ? f.charge / full(f.move!) : 0;
     const kept = f.storedCharge?.fighter === f.fighter ? f.storedCharge : null;
     const stored = kept ? kept.frames / full(kept.move) : 0;
     const level = Math.max(charging, stored);

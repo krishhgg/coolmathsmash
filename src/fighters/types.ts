@@ -268,6 +268,8 @@ export interface MoveDef {
   continuesOnLanding?: boolean;
   /** Airborne moves: false turns off the stick's air drift (and air friction) while the move plays, for scripted paths. */
   drift?: boolean;
+  /** Airborne moves: false stops a down flick from fast-falling while the move plays (Ultimate's specials). */
+  fastFall?: boolean;
   /**
    * Specials: whether the move can be B-reversed (SPECIAL_REVERSE). Neutral, side and down specials can by default
    * and up specials can't. Set false for the Ultimate analogues that can't, such as Falcon Punch, Warlock Punch and
