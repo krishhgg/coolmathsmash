@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AIR_DODGE_NEUTRAL,
+  DASH_SPEED_KEEP_FRAMES,
   INFINITE_STOCKS,
   LEDGE_INTANGIBILITY,
   LEDGE_MAX_GRABS,
@@ -162,6 +163,50 @@ describe('ground movement (Mario reference: walk 1.155, initial dash 1.936, run 
     expect(f.actionFrame).toBe(S.dashFrames);
     run(m, 1, { x: 100 });
     expect(f.action).toBe('run');
+  });
+
+  /** Mario's speed on each of the first `frames` frames of a dash whose stick is held for `held` frames. */
+  function dashSpeeds(held: number, frames: number) {
+    const m = testMatch({ x: -60 });
+    const f = fighter(m);
+    const x0 = f.pos.x;
+    const speeds: number[] = [];
+    const actions: string[] = [];
+    for (let i = 0; i < frames; i++) {
+      run(m, 1, i < held ? { x: 100 } : {});
+      speeds.push(f.vel.x);
+      actions.push(f.action);
+    }
+    return { speeds, actions, distance: f.pos.x - x0 };
+  }
+
+  it('holds the initial dash speed for dash_speed_keep_frame (6) frames, then eases to run speed at traction', () => {
+    expect(DASH_SPEED_KEEP_FRAMES).toBe(6);
+    const { speeds, actions } = dashSpeeds(16, 16);
+    for (let i = 0; i < 6; i++) expect(speeds[i]).toBeCloseTo(S.dashInitialSpeed, 9);
+    // Ultimate brakes speed above run_speed_max by ground_brake: 1.936 - 0.102 = 1.834, then 1.76.
+    expect(speeds[6]).toBeCloseTo(S.dashInitialSpeed - S.groundFriction, 9);
+    expect(speeds[7]).toBeCloseTo(S.runSpeed, 9);
+    expect(actions[10]).toBe('dash');
+    expect(actions[11]).toBe('run');
+    for (const v of speeds.slice(7)) expect(v).toBeCloseTo(S.runSpeed, 9);
+    for (let i = 1; i < speeds.length; i++) {
+      expect(speeds[i - 1]! - speeds[i]!).toBeLessThanOrEqual(S.groundFriction + 1e-9);
+    }
+  });
+
+  it('a stick released during the initial dash keeps dash speed to frame 6, then slides out at traction', () => {
+    const { speeds, actions, distance } = dashSpeeds(1, 30);
+    for (let i = 0; i < 6; i++) expect(speeds[i]).toBeCloseTo(S.dashInitialSpeed, 9);
+    for (let i = 6; i < 24; i++) {
+      expect(speeds[i]).toBeCloseTo(S.dashInitialSpeed - S.groundFriction * (i - 5), 9);
+    }
+    expect(speeds[24]).toBe(0);
+    // The dash still plays out its dashFrames, braking, then the fighter stands and skids on.
+    expect(actions.slice(0, S.dashFrames).every((a) => a === 'dash')).toBe(true);
+    expect(actions[S.dashFrames]).toBe('idle');
+    // 6 x 1.936 held, then 1.834 + 1.732 + ... + 0.1 at 0.102 a frame.
+    expect(distance).toBeCloseTo(29.022, 3);
   });
 
   it('dash dances when flicked back during the initial dash', () => {
