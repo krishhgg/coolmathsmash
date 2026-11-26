@@ -6,7 +6,7 @@ import {
   PUSH_STIFFNESS,
 } from './constants';
 import { stickY } from './control';
-import { getFighter } from '../fighters/registry';
+import { getFighter } from '../fighters/lookup';
 import type { FighterStats } from '../fighters/types';
 import { resetMobility } from './mobility';
 import { inHitlag, type Ctx, type FighterState, type GroundRef } from './fighter';
