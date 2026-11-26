@@ -54,6 +54,7 @@ const original: Palette = {
   smear: '#ffffff',
   smearEdge: '#cfe6ff',
   shadow: '#170f2a',
+  shadowHi: '#4c3b7c',
 };
 
 /**
