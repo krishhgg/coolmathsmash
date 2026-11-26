@@ -55,6 +55,8 @@ export interface FighterState {
   hitlag: number;
   /** Match frame of the fighter's latest hitlag frame (-1 = none), for inHitlag. */
   hitlagAt: number;
+  /** Match frame of the fighter's latest frame frozen by a freezing status (-1 = none), for isFrozen. */
+  frozenAt: number;
   /** Hitstun left, counted in un-sped frames: the fighter can act on the frame it reaches 0. */
   hitstun: number;
   /** Un-sped first actionable frame of the current tumble launch, for balloon speed-up (0 = none). */
@@ -174,6 +176,7 @@ export function createFighter(
     shieldHp: SHIELD_MAX,
     hitlag: 0,
     hitlagAt: -1,
+    frozenAt: -1,
     hitstun: 0,
     speedUpFaf: 0,
     flyTop: false,
@@ -214,8 +217,9 @@ export function createFighter(
  * `f` is frozen in hitlag on this frame of `m`. Ultimate freezes attacker and victim for the whole of every hitlag
  * frame (SmashWiki, Hitlag), but a fighter's step counts `hitlag` down before the frame's pushes, hits, grabs, hazards
  * and entity contacts run, so on its last frozen frame `hitlag` already reads 0 there. Those passes ask this instead.
+ * A hit entity (EntityState) freezes the same way: its step counts its `hitlag` down before its hits land.
  */
-export function inHitlag(m: MatchState, f: FighterState): boolean {
+export function inHitlag(m: MatchState, f: Pick<FighterState, 'hitlag' | 'hitlagAt'>): boolean {
   return f.hitlag > 0 || f.hitlagAt === m.frame;
 }
 
