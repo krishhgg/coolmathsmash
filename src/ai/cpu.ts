@@ -46,6 +46,7 @@ import {
 import { chooseDI, planRecovery, recoveryDriver, targetLedge, type RecoveryPlan } from './recovery';
 import {
   clampToStage,
+  driftBack,
   floorBelow,
   groundUnder,
   landingX,
@@ -1031,7 +1032,11 @@ export class Cpu {
     return crouch(20 + Math.floor(this.rand() * 30));
   }
 
-  /** Airborne and nothing to do: drift back over the stage and maybe fast fall. */
+  /**
+   * Airborne and nothing to do: drift back over the stage and maybe fast fall. A helpless or free fall that would come
+   * down past an edge with no input steers back onto the stage (driftBack): a helpless fall after an up special used
+   * as an attack, or a fall with no opponent to think about, can carry the CPU over the stage and off the far side.
+   */
   private airIdle(me: Readonly<FighterState>, info: StageInfo): InputFrame {
     if (this.fastFallAir !== me.airFrames || me.airFrames <= 1) {
       if (me.airFrames <= 1) this.wantFastFall = this.rand() < this.lv.fastFall * 0.5;
@@ -1039,7 +1044,8 @@ export class Cpu {
     this.fastFallAir = me.airFrames;
     const toward =
       me.pos.x < info.left + 10 || me.pos.x > info.right - 10 ? Math.sign(info.centerX - me.pos.x) * 100 : 0;
-    const x = info.calm ? toward : steer(me, info, toward);
+    const back = me.action === 'helpless' || actionable(me) ? driftBack(info, me) : null;
+    const x = back ?? (info.calm ? toward : steer(me, info, toward));
     const ff = this.wantFastFall && actionable(me) && canFastFall(me, info) && this.last.y > -30;
     return press({ x, y: ff ? -100 : 0 });
   }
