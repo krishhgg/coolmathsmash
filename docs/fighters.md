@@ -458,15 +458,17 @@ for the hold and run at full speed after it.
 
 A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned beams. Fireboy's Fire Blast
 (`src/fighters/fireboy/finalSmash.ts`) is the roster example: Mario Finale's frame data, damage and knockback on a
-`fireboy/blast` entity that crosses the stage and keeps burning after Fireboy can act, as Mario's fireballs do. Red
-Ball's Ball Rain (`src/fighters/redball/finalSmash.ts`) covers the whole stage instead, on PK Starstorm: its script drops
-`redball/ball` entities with `spawnEntity` from the top of the stage's middle rather than from his feet, passing
-`final: true` and the move, and `final.range` tells CPUs how far ahead it reaches. Its balls draw behind the fighters
-(`PropArt.behind`), so whoever one falls on still shows. The Duck's Evolved Stomp (`src/fighters/duck/finalSmash.ts`) is
-Ganon, The Demon King: a paralysing burst, then a shockwave that runs along the floor and breaks up at its edge. Both
-are entities, as Ganon is an article, so the Duck never freezes in his own hits' hitlag and his frames stay Ganon's.
-They are one use of the move, so the shockwave hits at the multiplier the burst staled the move with (`moveStale`), not
-a second, staler one. The test fighter's is a plain hitbox:
+`fireboy/blast` entity that crosses the stage and keeps burning after Fireboy can act, as Mario's fireballs do.
+Watergirl's Tidal Wave (`src/fighters/watergirl/finalSmash.ts`) builds a `watergirl/wave` entity from the same table
+(`MARIO_FINALE`, `marioFinaleHits`), so the twins share one copy of Mario Finale. Red Ball's Ball Rain
+(`src/fighters/redball/finalSmash.ts`) covers the whole stage instead, on PK Starstorm: its script drops `redball/ball`
+entities with `spawnEntity` from the top of the stage's middle rather than from his feet, passing `final: true` and the
+move, and `final.range` tells CPUs how far ahead it reaches. Its balls draw behind the fighters (`PropArt.behind`), so
+whoever one falls on still shows. The Duck's Evolved Stomp (`src/fighters/duck/finalSmash.ts`) is Ganon, The Demon King:
+a paralysing burst, then a shockwave that runs along the floor and breaks up at its edge. Both are entities, as Ganon is
+an article, so the Duck never freezes in his own hits' hitlag and his frames stay Ganon's. They are one use of the move,
+so the shockwave hits at the multiplier the burst staled the move with (`moveStale`), not a second, staler one. The test
+fighter's is a plain hitbox:
 
 ```ts
 finalSmash: {
@@ -528,7 +530,8 @@ lets the box out on its own frame.
   the air from the same frame. A `still` one stops where it left the floor (`stopInPlace`), as one started in the air
   does. A trap's cinematic never loses its floor, since the stage stands still while it holds the others.
 - **Projectiles.** An entity a `final` move puts out is marked at spawn (`EntityState.final`), so it stays unblockable
-  however long it lasts, after its owner acts again or turns into another fighter (Fireboy's Swap).
+  however long it lasts, after its owner acts again or turns into another fighter (the twins' Swap). The charge
+  carries through a Swap too, and neutral special spends it on whichever twin presses it.
 - **CPUs.** A CPU holding the charge presses neutral special once an opponent is inside the Final Smash's reach in front
   (`finalReach`: its boxes, or `final.range` for one that spawns its blast), and otherwise leaves neutral special out of
   its attacks.

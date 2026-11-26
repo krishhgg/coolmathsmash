@@ -20,6 +20,7 @@ import { HAND, rig } from '../../fireboy/art/rig';
 import { pointOf, type Pose } from '../../../render/rig/author';
 import type { AnimClip, BonePose, Key } from '../../../render/rig/types';
 import { STREAM } from '../waterStream';
+import { finalSmashAirClip, finalSmashClip } from './finalSmash';
 
 type Pt = readonly [number, number];
 
@@ -180,14 +181,14 @@ function waterStream(recovery: number): AnimClip {
   };
 }
 
-/** Fireboy's clips, without his Final Smash (Fire Blast): Watergirl has no Final Smash move of her own yet. */
+/** Fireboy's clips, without his Final Smash (Fire Blast): Watergirl has her own, Tidal Wave (finalSmash.ts). */
 const base: Record<string, AnimClip> = Object.fromEntries(
   Object.entries(fireboy.clips).filter(([name]) => name !== 'finalSmash' && name !== 'finalSmashAir'),
 );
 
 /**
  * Watergirl's clips: Fireboy's, with the water thrown further where her hitboxes reach further (jabs, ftilt,
- * fair), and her own Geyser and Water Stream.
+ * fair), and her own Geyser, Water Stream and Tidal Wave.
  */
 export const clips: Record<string, AnimClip> = {
   ...base,
@@ -199,4 +200,6 @@ export const clips: Record<string, AnimClip> = {
   upB,
   neutralB: waterStream(STREAM.light),
   neutralBHeavy: waterStream(STREAM.heavy),
+  finalSmash: finalSmashClip,
+  finalSmashAir: finalSmashAirClip,
 };
