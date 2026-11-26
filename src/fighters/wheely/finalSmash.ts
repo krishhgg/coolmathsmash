@@ -21,10 +21,10 @@ import { stats } from './stats';
  * - Not carried over: the boxes' own launch (angle 80, KS 100, FKV 200), which pops the victims up into the slow
  *   motion before the cutscene. The trap holds its catch instead. Ultimate's catches every fighter the boxes touch;
  *   the engine's trap holds the first (docs/fighters.md, "Final Smash").
- * - SmashWiki gives no activation freeze, cutscene length or KO percent. The default freeze (FINAL_SMASH.freeze, 40)
- *   would hold the others past frame 28, so the freeze is 26, the longest that lets the boxes come out on Blue
- *   Falcon's frames. The cinematic's timing is Wheely's own (an estimate), and the KO percent is the final launch's,
- *   through koPercent (finalSmash.test.ts).
+ * - SmashWiki gives no activation freeze, cutscene length or KO percent, and ultimateframedata.com lists no Final
+ *   Smashes. The default freeze (FINAL_SMASH.freeze, 40) would hold the others past frame 28, so the freeze is 26,
+ *   the longest that lets the boxes come out on Blue Falcon's frames. The cinematic's timing is Wheely's own (an
+ *   estimate), and the KO percent is the final launch's, through koPercent (finalSmash.test.ts).
  */
 export const FULL_THROTTLE = {
   freeze: 26,
@@ -39,7 +39,7 @@ export const FULL_THROTTLE = {
     [45, 16],
   ] as const,
   y: 12,
-  /** How fast he loses the dash's speed once past the boxes (per frame), stamping on the brakes. */
+  /** The share of his speed he keeps each frame once past the boxes, stamping on the brakes. */
   brake: 0.55,
   /** The catch: the Blue Falcon's body hit, landed on the cinematic's first frame. */
   crash: { frame: 1, damage: 10 },
