@@ -27,6 +27,7 @@ import {
   type Pt,
 } from './poses';
 import { attacks } from './attacks';
+import { finalSmashCinematicClip, finalSmashClip } from './finalSmash';
 import { shellPound } from './shellPound';
 import { specials } from './specials';
 import { BODY_Y, SHELL_X, SHELL_Y, rig } from './rig';
@@ -655,7 +656,10 @@ const taunt: AnimClip = {
 void pointOf;
 void rig;
 
-/** Every clip: the engine's action names, then every move's clip (attacks.ts, specials.ts, shellPound.ts). */
+/**
+ * Every clip: the engine's action names, then every move's clip (attacks.ts, specials.ts, shellPound.ts and the Final
+ * Smash's finalSmash.ts).
+ */
 export const clips: Record<string, AnimClip> = {
   idle,
   walk,
@@ -698,6 +702,8 @@ export const clips: Record<string, AnimClip> = {
   ...attacks,
   ...specials,
   ...shellPound,
+  finalSmash: finalSmashClip,
+  finalSmashCinematic: finalSmashCinematicClip,
 };
 
 /** Tech and getup rolls away from the facing: the back roll with its frames moved onto each action's travel. */

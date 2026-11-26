@@ -4,6 +4,7 @@ import { startMove } from '../../sim/actions/attack';
 import { SMASH_CHARGE_FRAMES } from '../../sim/actions/charge';
 import { holdFrame } from '../../sim/actions/registry';
 import { isHeld } from '../../sim/control';
+import { shellShip } from './finalSmash';
 import { shellPound } from './shellPound';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -420,4 +421,6 @@ export const moves: Record<string, MoveDef> = {
   },
   /** Shell Pound (down special, Bowser's Bowser Bomb): shellPound.ts. */
   ...shellPound,
+  /** Shell Ship (Final Smash, Captain Falcon's Blue Falcon): finalSmash.ts. */
+  ...shellShip,
 };
