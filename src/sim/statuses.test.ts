@@ -20,6 +20,7 @@ const FLOWER = 'test-status/flower';
 const CHARGED = 'test-status/charged';
 const WARM = 'test-status/warm';
 const STUN = 'test-status/stun';
+const INK = 'test-status/ink';
 
 /**
  * The status fixture (P1) facing the Mario reference (P2) 10 units away on Battlefield, plus more Marios parked
@@ -238,6 +239,81 @@ describe('statuses: ticking', () => {
       return hashState(m);
     };
     expect(play()).toBe(play());
+  });
+});
+
+describe('statuses: coats', () => {
+  it("adds 12 a hit up to 300 and lasts 120 + level / 0.25 frames (Inkling's ink)", () => {
+    const { m, v } = versus(3);
+    land(m, v, 'utilt');
+    expect(m.events).toContainEqual({ type: 'statusStart', port: 1, status: INK, frames: 168, source: 0 });
+    expect(statusOf(v, INK)).toMatchObject({ level: 12, frames: 168, source: 0 });
+    m.events = [];
+    applyStatus(m, v, INK);
+    expect(statusOf(v, INK)).toMatchObject({ level: 24, frames: 216 });
+    applyStatus(m, v, INK, { level: 400 });
+    expect(statusOf(v, INK)).toMatchObject({ level: 300, frames: 1320 });
+    expect(m.events).toEqual([]);
+  });
+
+  it('holds its level for 120 frames after the last coat, then wears off 0.25 a frame and ends at 0', () => {
+    const { m, v } = versus(3);
+    applyStatus(m, v, INK, { level: 180 });
+    runPorts(m, 1, []); // the frame it went on
+    runPorts(m, 120, []);
+    expect(statusOf(v, INK)).toMatchObject({ level: 180, frames: 720 });
+    runPorts(m, 1, []);
+    expect(statusOf(v, INK)).toMatchObject({ level: 179.75, frames: 719 });
+    runPorts(m, 360, []);
+    expect(statusOf(v, INK)!.level).toBe(89.75);
+    applyStatus(m, v, INK); // a new coat starts the hold again
+    expect(statusOf(v, INK)).toMatchObject({ level: 101.75, frames: 527 });
+    runPorts(m, 120, []);
+    expect(statusOf(v, INK)!.level).toBe(101.75);
+    runPorts(m, 406, []);
+    expect(statusOf(v, INK)).toMatchObject({ level: 0.25, frames: 1 });
+    runPorts(m, 1, []);
+    expect(hasStatus(v, INK)).toBe(false);
+    expect(m.events).toContainEqual({ type: 'statusEnd', port: 1, status: INK, reason: 'expired' });
+  });
+
+  it.each([
+    [0, '1', 1],
+    [12, '1.033', 1 + 12 / 360],
+    [90, '1.25', 1.25],
+    [180, '1.5', 1.5],
+    [300, '1.5', 1.5],
+  ])(
+    "at %s units the fighter takes ink's 1 + level x 0.5 / 180 times the damage, at most 1.5 (x%s)",
+    (level, _, mul) => {
+      const { m, v } = versus(3);
+      if (level) applyStatus(m, v, INK, { level });
+      expect(land(m, v, 'ftilt')).toBeCloseTo(4 * 1.05 * mul, 9);
+    },
+  );
+
+  it("doesn't change the hit's knockback, and multiplies every source of %, a status tick's included", () => {
+    const kb = (level: number) => {
+      const { m, v } = versus(3);
+      if (level) applyStatus(m, v, INK, { level });
+      land(m, v, 'ftilt');
+      return v.launch!.kb;
+    };
+    expect(kb(180)).toBe(kb(0));
+    const { m, v } = versus(3);
+    applyStatus(m, v, INK, { level: 180 });
+    applyStatus(m, v, FLOWER, { damage: 5 });
+    runPorts(m, 22, []);
+    expect(v.damage).toBe(1.5);
+  });
+
+  it('a KO clears it with the rest', () => {
+    const { m, v } = versus(3);
+    applyStatus(m, v, INK, { level: 300 });
+    Object.assign(v, { pos: { x: 400, y: 20 }, ground: null, action: 'fall' });
+    runPorts(m, 1, []);
+    expect(v.statuses).toEqual([]);
+    expect(m.events).toContainEqual({ type: 'statusEnd', port: 1, status: INK, reason: 'ko' });
   });
 });
 
