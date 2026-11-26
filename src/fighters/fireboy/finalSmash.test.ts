@@ -255,16 +255,20 @@ describe('Fire Blast (Final Smash), on Mario Finale', () => {
     });
     step(m, 20);
     const a = m.fighters[0]!;
+    // Just above the deck: the raft, rising 1.6 over 150 frames, waits out the freeze with the rest of the stage
+    // and reaches him after it, before frame 65.
     Object.assign(a, {
-      pos: { x: -30, y: 0.4 },
-      prevPos: { x: -30, y: 0.4 },
+      pos: { x: -30, y: 0.25 },
+      prevPos: { x: -30, y: 0.25 },
       vel: { x: 0, y: 0 },
       ground: null,
     });
     Object.assign(a, { action: 'fall', actionFrame: 1, facing: 1, finalReady: true });
     step(m, 1, [SPECIAL]);
     expect(a.move).toBe('finalSmashAir');
-    step(m, BLAST.frame - 1);
+    step(m, FINAL_SMASH.freeze);
+    expect(a.ground).toBe(null);
+    step(m, BLAST.frame - 1 - FINAL_SMASH.freeze);
     expect(a.ground).not.toBe(null);
     expect([a.move, a.actionFrame]).toEqual(['finalSmashAir', BLAST.frame]);
     expect(m.entities.filter((e) => e.kind === 'fireboy/blast')).toHaveLength(1);
