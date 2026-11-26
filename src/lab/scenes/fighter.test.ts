@@ -1,10 +1,11 @@
 import { Container, type Application } from 'pixi.js';
 import { describe, expect, it, vi } from 'vitest';
+import type * as RigViewModule from '../../render/rig/view';
 import type { RigView } from '../../render/rig/view';
 
 const views: RigView[] = [];
 vi.mock('../../render/rig/view', async (importOriginal) => {
-  const real = await importOriginal<typeof import('../../render/rig/view')>();
+  const real = await importOriginal<typeof RigViewModule>();
   return {
     ...real,
     createRigView: (...args: Parameters<typeof real.createRigView>) => {
