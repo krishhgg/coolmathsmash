@@ -202,8 +202,12 @@ export class Cpu {
     const final = this.finalSmash(state, me);
     if (final) return final;
     const info = stageInfo(state);
+    // Off the stage: in the air with no stage under it, or standing on an entity's platform (a Duck Raft) with no stage
+    // under it, which holds only until it pops. Either way the CPU recovers to the stage.
     const offstage =
-      me.ground === null && floorBelow(info, me.pos.x, me.pos.y) === null && !a.startsWith('ledge');
+      (me.ground === null || me.ground.kind === 'entity') &&
+      floorBelow(info, me.pos.x, me.pos.y) === null &&
+      !a.startsWith('ledge');
     if (this.prog && !this.prog.interruptible && (!offstage || this.prog.offstage)) {
       const i = this.runProgram(me, info);
       if (i) return i;
@@ -307,10 +311,13 @@ export class Cpu {
     if (!plan.tech) return null;
     if (plan.pressed) return press({ x: (plan.dir ?? 0) * 100 });
     const control = state.players[this.port]!.control;
-    const fall = run(soloMatch(state, me, control), TECH_WINDOW, undefined, (g) => g.action !== 'tumble');
+    const m = soloMatch(state, me, control);
+    const fall = run(m, TECH_WINDOW, undefined, (g) => g.action !== 'tumble');
     const touch = fall.at(-1);
     if (touch?.action !== 'downBound') return null;
-    plan.dir ??= this.getupDirection(state, { ...me, pos: { x: touch.x, y: touch.y } }, [0, 1, -1]);
+    // Where the look-ahead touches down, which can be an entity's platform (a Duck Raft) that the stage doesn't have.
+    const ground = m.fighters[0]!.ground;
+    plan.dir ??= this.getupDirection(state, { ...me, pos: { x: touch.x, y: touch.y }, ground }, [0, 1, -1]);
     const ahead = fall.length - 1;
     const now = techPress(state, me, control, 0, plan.dir);
     if (ahead > TECH_LEAD) {

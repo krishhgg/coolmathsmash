@@ -16,7 +16,8 @@ import * as SimMath from '../sim/math';
  * side special at different heights, an air dodge) in a private copy of the simulation and picks one that ends on
  * the ledge or the stage. From under the stage, plans can also hold the special until the fighter has drifted
  * out near the ledge, as Ultimate's CPUs do, instead of rising into the underside. Low levels sometimes pick a plan
- * at random, which is how they self-destruct.
+ * at random, which is how they self-destruct. A CPU standing on an entity's platform with no stage under it (a Duck
+ * Raft off the side) plans from there too: every plan starts with a full hop off it, its double jump still to come.
  */
 
 export interface RecoveryParams {
@@ -74,6 +75,7 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
   let jumped = false;
   let special = false;
   let dodged = false;
+  let holding = false;
   return (t, f) => {
     const L = targetLedge(info, f.pos.x);
     const out = p.special && !special && p.reach < 0 ? -p.reach : 0;
@@ -88,9 +90,17 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
       i.buttons = Btn.Special;
       return i;
     }
+    // Standing on an entity's platform off the stage (a Duck Raft): jump from it toward the stage, holding Jump through
+    // the jump squat for a full hop, and let go once in the air, so that a double jump is a new press.
+    const held = holding;
+    holding = f.ground?.kind === 'entity' && floorBelow(info, f.pos.x, f.pos.y) === null;
+    if (holding) {
+      i.buttons = Btn.Jump;
+      return i;
+    }
     if (f.ground !== null || !actionable(f) || f.action === 'helpless') return i;
     const dir = (Math.sign(d) || 1) as 1 | -1;
-    if (!jumped && t >= p.jumpAt && f.jumpsUsed < k.stats.jumps) {
+    if (!jumped && !held && t >= p.jumpAt && f.jumpsUsed < k.stats.jumps) {
       jumped = true;
       i.buttons = Btn.Jump;
       return i;
@@ -156,9 +166,12 @@ function simulate(
   params: RecoveryParams,
 ): { path: Sample[]; outcome: RecoveryPlan['outcome']; miss: number } {
   const m = soloMatch(state, f, control);
+  // A plan from an entity's platform starts on the ground, and ends when the fighter comes down after leaving it.
+  let left = f.ground === null;
   const path = run(m, LIMIT, recoveryDriver(info, k, params), (g) => {
+    left ||= g.ground === null;
     if (g.action === 'ledgeCatch') return true;
-    if (g.ground !== null) return true;
+    if (g.ground !== null) return left;
     return g.pos.y < info.blast.bottom + 10;
   });
   const end = path.at(-1);

@@ -5,6 +5,7 @@ import { isIntangible } from '../sim/actions/registry';
 import { activeHitboxes, hurtbox, oneVOne, type Hurtbox, type PlacedHitbox } from '../sim/combat/hits';
 import { LAUNCH_DECAY } from '../sim/combat/formulas';
 import { createControl, type ControlState } from '../sim/control';
+import { entityDef } from '../sim/entities/entities';
 import type { EntityState } from '../sim/entities/types';
 import { createFighter, type FighterState } from '../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
@@ -41,10 +42,26 @@ export type Driver = (t: number, f: Readonly<FighterState>) => InputFrame;
 
 const idle: Driver = () => neutralInput();
 
+/** The port that stands in for the owner of the entities setEntities puts into a look-ahead. */
+const OWNER = 1;
+/**
+ * Where setEntities files an entity's hit on a fighter the look-ahead doesn't hold: real port p becomes ABSENT + p,
+ * a port no fighter there has, so the hit still counts (an entity that pierces doesn't hit that fighter again, and
+ * one that reacts to having hit, like Johnny's upgraded laser bursting, still does) without touching anyone.
+ */
+const ABSENT = OWNER + 1;
+
 /**
  * A one-fighter copy of the match holding a clone of `f` (and of its controller, when given), on the same frame of
  * the stage and of its clock with the same hazards setting, so moving pieces, schedules and hazards play out as they
  * will. It keeps the match's 1v1 damage rule (MatchConfig.oneVOne), which counts players.
+ *
+ * The entities fighters stand on (EntityDef.platform, such as a Duck Raft) come too, whoever put them out, so `f` lands
+ * on them and stays on the one it stands on. Nothing else that is out comes: no shots, bursts or other hits. The copies
+ * keep their ids, which a fighter's ground names (GroundRef), and their wear, so a raft wears out in the copy when it
+ * would in the match. `f`'s own are port 0's, as `f` is, so one it put down in the air catches it as in the match
+ * (collide). Anyone else's go under a port the copy doesn't hold (ABSENT + their port), so `f`'s hits and shots still
+ * land on them.
  */
 export function soloMatch(
   state: Readonly<MatchState>,
@@ -64,26 +81,28 @@ export function soloMatch(
   m.stageFrame = state.stageFrame;
   m.fighters[0] = { ...structuredClone(f as FighterState), port: 0 };
   if (control) m.players[0]!.control = structuredClone(control as ControlState);
+  const port = (p: number) => (p === f.port ? 0 : p < 0 ? p : ABSENT + p);
+  for (const e of state.entities) {
+    if (e.dead || !entityDef(e.kind).platform) continue;
+    m.entities.push({
+      ...structuredClone(e),
+      owner: port(e.owner),
+      hitVictims: e.hitVictims.map(port),
+    });
+    m.nextEntityId = Math.max(m.nextEntityId, e.id + 1);
+  }
   return m;
 }
-
-/** The port that stands in for the owner of the entities setEntities puts into a look-ahead. */
-const OWNER = 1;
-/**
- * Where setEntities files an entity's hit on a fighter the look-ahead doesn't hold: real port p becomes ABSENT + p,
- * a port no fighter there has, so the hit still counts (an entity that pierces doesn't hit that fighter again, and
- * one that reacts to having hit, like Johnny's upgraded laser bursting, still does) without touching anyone.
- */
-const ABSENT = OWNER + 1;
 
 /**
  * Make `entities` (fighter `owner`'s, as they were on some frame of the match) the ones `owner` has out in `m`, a
  * soloMatch of another fighter (`victim`, its port in the match), in place of any it had, so their hits land on that
- * fighter as they will: a grenade bursts on it, a shot already in the air connects. The first call adds a port
- * standing in for the owner, out of play (as with no stocks left), so nothing hits, grabs or pushes it; each call
- * sets it to `owner` as given. It gives the entities what they read from their owner: its rage, its stale queue, and
- * where it is for one that flies home. The copies keep their ids and their hits so far, those on other fighters
- * under ports the look-ahead doesn't hold (ABSENT). Nothing changes while the owner has nothing out.
+ * fighter as they will: a grenade bursts on it, a shot already in the air connects. That takes out the copies of the
+ * owner's entity platforms soloMatch put in. The first call with entities adds a port standing in for the owner, out
+ * of play (as with no stocks left), so nothing hits, grabs or pushes it; each call sets it to `owner` as given. It
+ * gives the entities what they read from their owner: its rage, its stale queue, and where it is for one that flies
+ * home. The copies keep their ids and their hits so far, those on other fighters under ports the look-ahead doesn't
+ * hold (ABSENT).
  */
 export function setEntities(
   m: MatchState,
@@ -91,6 +110,7 @@ export function setEntities(
   entities: readonly Readonly<EntityState>[],
   victim: number,
 ): void {
+  m.entities = m.entities.filter((e) => e.owner !== OWNER && e.owner !== ABSENT + owner.port);
   if (m.fighters.length <= OWNER) {
     if (!entities.length) return;
     m.config.ports.push({ fighter: owner.fighter });
@@ -104,7 +124,6 @@ export function setEntities(
     damage: owner.damage,
     staleQueue: [...owner.staleQueue],
   });
-  m.entities = m.entities.filter((e) => e.owner !== OWNER);
   for (const e of entities) {
     const hitVictims = e.hitVictims.map((p) => (p === victim ? 0 : ABSENT + p));
     m.entities.push({ ...structuredClone(e as EntityState), owner: OWNER, hitVictims });

@@ -7,7 +7,7 @@ import { consume, isHeld, justPressed } from '../control';
 import { emit } from '../events';
 import type { Ctx, FighterState, GroundRef } from '../fighter';
 import type { MatchState } from '../match';
-import { grabLedge, hangPos } from '../movement';
+import { grabLedge, hangPos, ledgeHolder } from '../movement';
 import { posedStage, type PieceState } from '../movingStage';
 import { ledgePresent } from '../stage';
 import type { Vec } from '../vec';
@@ -30,10 +30,7 @@ export function tetherOrigin(f: FighterState): Vec {
 export function ledgeFree(x: Ctx, i: number): boolean {
   const { f, m, stage } = x;
   return (
-    ledgePresent(stage, i) &&
-    f.ledgeLock === 0 &&
-    f.ledgeGrabs < LEDGE_MAX_GRABS &&
-    !m.fighters.some((o) => o !== f && o.ledge === i && o.action.startsWith('ledge'))
+    ledgePresent(stage, i) && f.ledgeLock === 0 && f.ledgeGrabs < LEDGE_MAX_GRABS && !ledgeHolder(m, i, f)
   );
 }
 
