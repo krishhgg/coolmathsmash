@@ -4,7 +4,8 @@ const SB = 'characters/snail-bob';
 
 /**
  * Snail Bob's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus the Shell Pound's landing shockwave. References live in the Captain drive's refs/.
+ * Fireboy, plus the Shell Pound's landing shockwave and a Rocket Hover recovery from below the ledge. References
+ * live in the Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'snailbob',
@@ -48,6 +49,43 @@ export const scenarios: FighterScenarios = {
       motion: { before: 30, after: 30 },
       requires: ['move:dair'],
       refs: ['smash/attack-active-*', `${SB}/shell-01*`],
+    },
+    {
+      name: 'snailbob-upb-recovery',
+      description:
+        'Snail Bob falls 35 units below the right ledge at 40% with his midair jump spent and fires Rocket Hover ' +
+        '(up special): the booster lifts him past the ledge, he drifts in over the stage, lets go and lands. ' +
+        'Capture the frame he rises past the ledge.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'snailbob' }, { fighter: 'fireboy' }] },
+      patches: [
+        {
+          port: 0,
+          state: {
+            pos: { x: 100, y: -35 },
+            vel: { x: 0, y: 0 },
+            ground: null,
+            action: 'fall',
+            jumpsUsed: 2,
+            damage: 40,
+            facing: -1,
+          },
+        },
+        { port: 1, state: { pos: { x: 20, y: 0 }, facing: 1 } },
+      ],
+      script: [
+        { port: 0, from: 4, y: 50, buttons: ['special'] },
+        { port: 0, from: 5, to: 85, buttons: ['special'] },
+        { port: 0, from: 50, to: 85, x: -100 },
+      ],
+      capture: {
+        label: 'P1 Rocket Hover rising past the ledge',
+        when: (s, prev) =>
+          s.fighters[0]!.move === 'upB' && s.fighters[0]!.pos.y >= 0 && prev.fighters[0]!.pos.y < 0,
+      },
+      motion: { before: 50, after: 90 },
+      requires: ['move:upB'],
+      refs: ['smash/ledge-hang-*', `${SB}/official-art-02*`],
     },
   ],
 };
