@@ -261,8 +261,8 @@ describe('Fluffy: kill percents against his Ultimate analogues', () => {
 
   /**
    * The down air's meteor, on Mario airborne 10 units past the ledge, where a downward hit can KO. The calculator
-   * puts Min Min's meteor (11%, 285°, BKB 30, KBG 90) at 54.6% there, but the engine KOs every meteor about 7 to 8
-   * points later than the calculator from that point, Min Min's own hit included (62.5%), so the meteor is held to
+   * puts Min Min's meteor (11%, 285°, BKB 30, KBG 90) at 54.6% there, but under balloon speed-up its KO check reads
+   * a launch speed from earlier in the launch, which KOs meteors 6 to 8 points early (#263). So the meteor is held to
    * Min Min's hit through koPercent from the same setup instead.
    */
   it("dair's meteor KOs within 5 points of Min Min's meteor 10 units past the ledge", () => {
