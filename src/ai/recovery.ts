@@ -107,7 +107,11 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
     const low = L ? f.pos.y < L.y - p.below : false;
     const near = !L || L.side * (hangX(L, k.stats.width) - f.pos.x) <= p.reach + 1;
     const due = t >= p.specialAt || (p.specialAt === Infinity && low && f.vel.y <= 0.5);
-    if (!special && p.special && due && near) {
+    // A plan with a double jump uses its special after it, never before: a fighter that starts low enough would
+    // otherwise use it on the first frame and keep the jump for nothing (Wheely 35 units beside Battlefield's ledge and
+    // 50 under it Ramp Jumps into the stage's side, where a double jump first gets him back).
+    const jumpDone = jumped || p.jumpAt === Infinity || f.jumpsUsed >= k.stats.jumps;
+    if (!special && p.special && due && near && jumpDone) {
       special = true;
       if (p.special === 'upB') return press({ x: 40 * dir, y: STICK.special, buttons: Btn.Special });
       if (p.special === 'sideB') return press({ x: STICK.special * dir, buttons: Btn.Special });
@@ -136,7 +140,9 @@ function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterSta
   };
   out.push(none);
   const canJump = f.jumpsUsed < k.stats.jumps;
-  const jumps = canJump ? [1, 8, 16, 26, 38, 52] : [Infinity];
+  // With a jump left, plans also try the special without it (Infinity): from under the stage Fluffy's Point Grapple
+  // used at once reaches the ledge, where a double jump first takes him too high and too far out.
+  const jumps = canJump ? [Infinity, 1, 8, 16, 26, 38, 52] : [Infinity];
   const L = targetLedge(info, f.pos.x);
   const under = L !== null && L.side * (L.x - f.pos.x) > 0 && f.pos.y < L.y;
   for (const jumpAt of jumps) {
