@@ -1,4 +1,4 @@
-import { getFighter } from '../../fighters/registry';
+import { getFighter } from '../../fighters/lookup';
 import type { Ctx, FighterState } from '../fighter';
 
 type Dynamic<T> = T | ((x: Ctx) => T);

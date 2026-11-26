@@ -1,4 +1,4 @@
-import { getFighter } from '../fighters/registry';
+import { getFighter } from '../fighters/lookup';
 import { hittable, hurtbox, type Hurtbox } from './combat/hits';
 import type { GroundRef } from './fighter';
 import type { MatchState } from './match';
