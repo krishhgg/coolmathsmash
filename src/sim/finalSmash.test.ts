@@ -105,7 +105,7 @@ describe('Final Smash activation', () => {
     expect(a.pos.y).toBeLessThan(at.y);
   });
 
-  it('comes out of a dash, a run, a crouch and a fall, the states a special starts from', () => {
+  it('comes out of a dash, a run and a crouch, states a special starts from', () => {
     const states: [string, Hold[]][] = [
       ['dash', [{ x: 100 }]],
       ['run', Array.from({ length: 20 }, () => ({ x: 100 }))],
