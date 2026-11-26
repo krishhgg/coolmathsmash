@@ -27,19 +27,31 @@
   outline: none;
 }
 
+/*
+ * The focus ring is white on ::after, over the sheen, and its yellow copy on ::before fades in and out above it. The
+ * compositor runs an opacity animation; animating border-color repainted the tile every frame.
+ */
+.menu-tile.is-focus::after {
+  border: 6px solid #fff;
+  background-origin: border-box;
+  clip-path: inherit;
+  z-index: 2;
+}
+
 .menu-tile.is-focus::before {
   content: '';
   position: absolute;
   inset: 0;
-  border: 6px solid #fff;
+  border: 6px solid #ffe40f;
   clip-path: inherit;
-  z-index: 2;
+  z-index: 3;
+  opacity: 0;
   animation: focus-pulse 1s ease-in-out infinite;
 }
 
 @keyframes focus-pulse {
   50% {
-    border-color: #ffe40f;
+    opacity: 1;
   }
 }
 
