@@ -13,9 +13,11 @@ import {
   SPOT_DODGE,
 } from '../../../sim/constants';
 import { placeInAir, run, testMatch, until } from '../../../sim/testing/sim';
+import { AIMED_SHOT } from '../aimedShot';
 import { moves } from '../moves';
 import { stats } from '../stats';
 import { art } from '.';
+import { aimedShotClips } from './aimedShot';
 import { frameData } from './attacks';
 
 /** Engine actions and their canonical clip lengths (loops: any length; holds: not looping). */
@@ -76,7 +78,10 @@ describe('raft wars art', () => {
       const clip = art.clips[name];
       expect(clip, name).toBeDefined();
       expect(clip!.length, name).toBe(move.faf - 1);
-      const impact = move.spawn?.[0]?.frame ?? move.throw?.frame ?? move.pummel?.frame;
+      // Aimed Shot fires from its script, not `spawn`, on AIMED_SHOT.fire. The charge holds the move on its charge
+      // frame, so the ball leaves on that frame at every charge.
+      const fired = name in aimedShotClips ? AIMED_SHOT.fire : undefined;
+      const impact = move.spawn?.[0]?.frame ?? move.throw?.frame ?? move.pummel?.frame ?? fired;
       const windows = move.hits.length ? move.hits.map((h) => h.frames) : [[impact, impact]];
       expect(clip!.active, name).toEqual(windows);
       for (let f = 0; f < move.faf; f++) expect(moveClipFrame(clip!, f, move), `${name}@${f}`).toBe(f);
@@ -86,6 +91,9 @@ describe('raft wars art', () => {
   it('keys the clips to the frame data in the moves', () => {
     const { FAF, SPAWNS, GRAB_BOXES } = frameData;
     for (const [name, move] of Object.entries(moves)) {
+      // These tables copy the moves' numbers because attacks.ts can't import the moves. Aimed Shot's clips read
+      // AIMED_SHOT from the move file itself (aimedShot.ts), so there is no copy to check.
+      if (name in aimedShotClips) continue;
       expect(FAF[name], name).toBe(move.faf);
       const spawns = (move.spawn ?? []).map(({ frame, x, y, vx, vy }) => ({
         frame,

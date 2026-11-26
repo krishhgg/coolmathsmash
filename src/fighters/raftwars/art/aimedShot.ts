@@ -99,6 +99,8 @@ function shotClip(legs: Legs, faf: number): AnimClip {
   const rest = legs === onGround ? STAND : aloft(air());
   return {
     length: faf - 1,
+    // The impact window is the frame the ball leaves, as on the kids' other shots (attacks.ts).
+    active: [[AIMED_SHOT.fire, AIMED_SHOT.fire]],
     keys: shortTurns([
       key(0, rest, { ease: 'out', swaps: GRIN }),
       key(5, P.HOIST, { ease: 'inOut', swaps: { ...GRIN, broFace: 'broUp' } }),
