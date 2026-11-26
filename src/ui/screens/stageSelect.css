@@ -249,21 +249,43 @@
   box-shadow: 0 6px 18px rgb(0 0 0 / 0.6);
 }
 
-.ss-tile.is-focus::before,
-.ss-rule.is-focus::before {
+/*
+ * The focus ring is white on ::after and its yellow copy on ::before fades in and out above it. The compositor runs an
+ * opacity animation; animating border-color repainted the tile every frame.
+ */
+.ss-tile.is-focus::after,
+.ss-rule.is-focus::after {
   content: '';
   position: absolute;
   inset: 0;
   border: 6px solid #fff;
   border-radius: inherit;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* A stage tile's ::after also carries the sheen; the ring covers its edge line. */
+.ss-tile.is-focus::after {
+  background-origin: border-box;
+  box-shadow: none;
+}
+
+.ss-tile.is-focus::before,
+.ss-rule.is-focus::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 6px solid var(--cm-yellow);
+  border-radius: inherit;
   z-index: 3;
   pointer-events: none;
+  opacity: 0;
   animation: ss-pulse 1s ease-in-out infinite;
 }
 
 @keyframes ss-pulse {
   50% {
-    border-color: var(--cm-yellow);
+    opacity: 1;
   }
 }
 
