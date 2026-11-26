@@ -4,7 +4,7 @@ import type { ArtSymbol, FighterArt, PathShape } from '../../../render/rig/types
 import { art as fireboy } from '../../fireboy/art';
 import { clips } from './clips';
 import { palettes } from './palettes';
-import { WAVE } from '../finalSmash';
+import { WAVE } from '../finalSmashData';
 import { splashes, streams, swells, waves } from './parts';
 
 const frames = (name: string, drawings: ArtSymbol[]) =>

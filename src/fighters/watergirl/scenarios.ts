@@ -1,5 +1,5 @@
 import type { FighterScenarios } from '../../harness/scenarios';
-import { WAVE } from './finalSmash';
+import { WAVE } from './finalSmashData';
 
 /**
  * Watergirl's capture states (docs/hill-climb.md). She is only reached by Fireboy's swap in play, but the harness

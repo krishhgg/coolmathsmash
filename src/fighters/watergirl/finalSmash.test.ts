@@ -13,7 +13,8 @@ import { input, type Hold } from '../../sim/testing/sim';
 import { BLAST } from '../fireboy/finalSmash';
 import { registerFighter } from '../registry';
 import { art } from './art';
-import { WAVE, finalSmash, finalSmashAir, wave } from './finalSmash';
+import { finalSmash, finalSmashAir, wave } from './finalSmash';
+import { WAVE, WAVE_BOXES } from './finalSmashData';
 
 registerFighter(marioReference);
 
@@ -134,17 +135,21 @@ describe('Tidal Wave (Final Smash), on Mario Finale', () => {
   });
 
   it("covers Mario Finale's hit area: two radius-16 boxes 3 above and below the wave's centre, which rises 20 ahead and 13 up", () => {
+    expect(WAVE_BOXES).toEqual([
+      { x: 0, y: 3, radius: 16 },
+      { x: 0, y: -3, radius: 16 },
+    ]);
     for (const w of wave.hits!) {
       for (const b of w.boxes) {
-        expect([b.x, b.radius]).toEqual([0, 16]);
-        expect(b.y).toBe(b.id % 2 ? -3 : 3);
+        expect([b.x, b.y, b.radius]).toEqual(Object.values(WAVE_BOXES[b.id % 2]!));
       }
     }
-    expect([WAVE.radius, WAVE.stretch, WAVE.x, WAVE.y]).toEqual([16, 3, 20, 13]);
+    expect([WAVE.radius, WAVE.x, WAVE.y]).toEqual([16, 20, 13]);
     // From her feet: 4 to 36 ahead, 6 under the floor to 32 up, so its body runs along the stage under anyone on it.
+    const [crest, body] = [WAVE_BOXES[0]!, WAVE_BOXES[1]!];
     expect(WAVE.x - WAVE.radius).toBe(4);
-    expect(WAVE.y - WAVE.stretch - WAVE.radius).toBe(-6);
-    expect(WAVE.y + WAVE.stretch + WAVE.radius).toBe(32);
+    expect(WAVE.y + body.y - body.radius).toBe(-6);
+    expect(WAVE.y + crest.y + crest.radius).toBe(32);
   });
 
   it('hits a fighter standing in its way with the grounded row, and not one standing behind her', () => {

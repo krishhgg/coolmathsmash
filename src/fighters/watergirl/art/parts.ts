@@ -1,5 +1,6 @@
 import { ellipse } from '../../fireboy/art/parts';
 import type { PathShape } from '../../../render/rig/types';
+import { WAVE_BOXES } from '../finalSmashData';
 
 /**
  * Water effects for Watergirl's placeholder mannequin, drawn by hand in the same frames as Fireboy's fire so
@@ -81,56 +82,71 @@ function arc(cx: number, cy: number, r: number, a0: number, a1: number): string 
   return `M${at(a0)} Q${at((a0 + a1) / 2, 1 / Math.cos(span))} ${at(a1)}`;
 }
 
+/** The crest's box (fire1) in the drawing, y down: its centre and radius. */
+const CREST = { x: WAVE_BOXES[0]!.x, y: -WAVE_BOXES[0]!.y, r: WAVE_BOXES[0]!.radius };
+/** How far the crest's foam stands out past the crest's box: half a unit. */
+const FOAM_OUT = 0.5;
+const FOAM_LINE = 0.3;
+
+/** Where the wave sits on the floor in its drawing (y down from its centre): its back foot and its base line. */
+export const WAVE_FOOT = { back: 11.4, base: 13.6 };
+
 /**
  * Tidal Wave's wave (src/fighters/watergirl/finalSmash.ts), at world scale round the entity's centre, which rides 13
- * units over the floor: its crest (fire1's radius-16 box, 3 up) curls over towards +x and its body (fire2's, 3 down)
- * runs back along the floor, so the drawing fills both boxes and trails a long back slope behind them. `t` (0-2)
- * rolls the crest, foam and spray on for the three drawings of the loop.
+ * units over the floor, drawn inside its two radius-16 boxes (WAVE_BOXES): the curling crest fills fire1's box, 3 up,
+ * and the body fire2's, 3 down, along the floor. Its front, the lip and the froth, and its top, the foam cap, stay on
+ * the boxes' edges, so a fighter the drawing reaches is one the wave can hit (art/index.test.ts). `t` (0-2) rolls the
+ * crest, foam and drips on for the three drawings of the loop.
  */
 function waveDrawing(t: number): PathShape[] {
-  const lip = 0.5 * Math.sin((t * 2 * Math.PI) / 3);
+  const lip = 0.3 * Math.sin((t * 2 * Math.PI) / 3);
   const body = [
-    `M-18 13.6`,
-    `C-15 12.6 -13.4 7 -11.6 -1`,
-    `C-9 -11.5 -3 -19.5 5.5 -19.6`,
-    `C13 -19.7 18.6 -15.4 ${n(18.4 + lip)} -9`,
-    `C${n(18 + lip)} -5 ${n(15.4 + lip)} -2.6 ${n(12.6 + lip)} -4`,
-    `C13.4 -6.6 12 -9.6 8.6 -9.8`,
-    `C4.6 -10 2.6 -5.6 3.6 -0.6`,
-    `C4.6 5 10.2 10.4 19 12.4`,
-    `C21.4 13 21.6 13.6 19.4 13.6Z`,
+    `M${n(-WAVE_FOOT.back)} ${WAVE_FOOT.base}`,
+    `C-13.8 9.4 -15.6 2.4 -14.9 -4.4`,
+    `C-14 -11.4 -8.4 -17.6 -0.8 -18.2`,
+    `C6.4 -18.6 12.4 -14.8 14.6 -9.4`,
+    `C${n(15.6 + lip)} -5.4 ${n(14.6 + lip)} -1.6 ${n(12 + lip)} -1.4`,
+    `C12.8 -4 11.4 -6.6 8.6 -6.8`,
+    `C5 -7 3.2 -3.4 4 1`,
+    `C4.8 5.6 8.4 9.8 12.2 12.6`,
+    `C13 13.2 12.8 ${WAVE_FOOT.base} 11.8 ${WAVE_FOOT.base}Z`,
   ].join('');
   /** The lit back of the wave, light coming through the water under the crest. */
   const band = [
-    `M-15.5 12.8`,
-    `C-12.8 9.5 -11.2 2 -9.2 -6.5`,
-    `C-5.5 -14 0 -17.6 5.6 -17.6`,
-    `C11 -17.6 14.8 -14.6 15.6 -10.8`,
-    `C12.2 -13.2 7.6 -13.6 3.6 -12`,
-    `C-2.2 -9.6 -6 -2 -8 4.5`,
-    `C-9 8.6 -11 12 -15.5 12.8Z`,
+    `M-10.4 12.8`,
+    `C-12.6 8.4 -13.8 1.8 -13.1 -4.6`,
+    `C-12.1 -10.4 -7.2 -15.8 -0.8 -16.4`,
+    `C4.8 -16.8 9.6 -14.4 12 -10.6`,
+    `C9 -12.8 5 -13.2 1.4 -11.6`,
+    `C-3.4 -9.4 -6.2 -2 -7.2 4.6`,
+    `C-7.8 8.6 -8.8 11.8 -10.4 12.8Z`,
   ].join('');
   /** The barrel's dark back wall under the lip. */
-  const tube = `M8.6 -9.8C4.6 -10 2.6 -5.6 3.6 -0.6C4.2 2.6 6.2 5.6 9 7.8C6.8 4.4 6.2 0 7.2 -3.6C8 -6.4 10 -8 12.6 -7.6C11.8 -9 10.4 -9.8 8.6 -9.8Z`;
+  const tube = `M8.6 -6.8C5 -7 3.2 -3.4 4 1C4.4 3.8 6 6.4 8.4 8.4C6.6 5.2 6.2 1.4 7 -1.6C7.6 -4 9 -5.2 11.2 -4.8C10.6 -6.2 9.8 -6.8 8.6 -6.8Z`;
   const k = (i: number) => 0.3 * Math.sin(((t + i) * 2 * Math.PI) / 3);
+  /** Foam blobs round the crest's box, each standing FOAM_OUT past its edge whatever its size. */
+  const capped = (deg: number, r: number): [number, number, number] => {
+    const a = (deg * Math.PI) / 180;
+    const d = CREST.r + FOAM_OUT - r - FOAM_LINE;
+    return [CREST.x + Math.cos(a) * d, CREST.y + Math.sin(a) * d, r];
+  };
   const crest: [number, number, number][] = [
-    [-8, -13.8, 1.9 + k(0)],
-    [-4.4, -16.6, 2.4 + k(1)],
-    [0.2, -18.6, 2.7 + k(2)],
-    [5.4, -19.2, 2.9 + k(0)],
-    [10.6, -18.1, 2.7 + k(1)],
-    [15, -15, 2.4 + k(2)],
-    [17.4 + lip, -10.6, 2 + k(0)],
-    [16.8 + lip, -6.6, 1.6 + k(1)],
-    [14.4 + lip, -4.6, 1.2 + k(2)],
+    capped(-148, 1.7 + k(0)),
+    capped(-128, 2.1 + k(1)),
+    capped(-108, 2.4 + k(2)),
+    capped(-88, 2.6 + k(0)),
+    capped(-68, 2.5 + k(1)),
+    capped(-48, 2.3 + k(2)),
+    capped(-30, 2 + k(0)),
+    capped(-14, 1.6 + k(1)),
+    [12.2 + lip, -1.9, 1.1 + k(2) * 0.5],
   ];
   const base: [number, number, number][] = [
-    [12.5, 11.9, 1.4 + k(1)],
-    [15.6, 12.4, 1.7 + k(2)],
-    [18.8, 12.7, 1.6 + k(0)],
-    [21.4, 13, 1.1 + k(1)],
-    [-12.6, 12.9, 1 + k(2)],
-    [-15.8, 13.1, 1.2 + k(0)],
+    [7.2, 11.4, 1.2 + k(1)],
+    [9.6, 12.4, 1.3 + k(2)],
+    [11.6, 12.6, 1 + k(0) * 0.5],
+    [-7.6, 13.1, 0.9 + k(2)],
+    [-10, 12.8, 1 + k(0)],
   ];
   const drop = (x: number, y: number, r: number): PathShape => ({
     d: ellipse(x, y, r * 0.8, r),
@@ -138,21 +154,21 @@ function waveDrawing(t: number): PathShape[] {
     stroke: { color: 'fxLine', width: 0.3 },
   });
   const flow = (r: number, a0: number, a1: number, w: number): PathShape => ({
-    d: arc(6.5, -4.5, r, a0 + t * 40, a1 + t * 40),
+    d: arc(4.5, -3.5, r, a0 + t * 40, a1 + t * 40),
     stroke: { color: 'fxLine', width: w },
   });
   return [
     { d: body, fill: 'fx', stroke: { color: 'fxLine', width: 0.7 } },
     { d: band, fill: 'fxHot' },
     { d: tube, fill: 'fxLine' },
-    flow(11.5, 150, 215, 0.45),
-    flow(8, 170, 240, 0.4),
+    flow(9.5, 150, 215, 0.45),
+    flow(6.5, 170, 240, 0.4),
     { d: arc(-3.5, 6, 6, 200 - t * 25, 250 - t * 25), stroke: { color: 'fxCore', width: 0.5 } },
-    ...foam(crest),
-    ...foam(base),
-    drop(21.5 + t * 0.9, -15 - t * 0.6, 0.9),
-    drop(23.6 + t * 0.7, -9.4 + t * 0.5, 0.7),
-    drop(19 + t * 0.6, -21.6 - t * 0.4, 0.6),
+    ...foam(crest, FOAM_LINE),
+    ...foam(base, FOAM_LINE),
+    // Drips falling off the lip into the barrel.
+    drop(10.6 + lip, 1.2 + t * 1.6, 0.55),
+    drop(9.4, 4 + ((t + 1) % 3) * 1.3, 0.45),
   ];
 }
 

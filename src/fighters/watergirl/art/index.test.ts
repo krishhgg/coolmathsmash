@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
-import { samplePose } from '../../../render/rig/sample';
+import { flattenPath, poseBounds, slotsCovering } from '../../../render/rig/geometry';
+import { resolveSymbol, samplePose } from '../../../render/rig/sample';
+import type { PathShape } from '../../../render/rig/types';
 import { moveClipFrame } from '../../../render/rig/timing';
 import {
   AIR_DODGE_NEUTRAL,
@@ -13,6 +14,7 @@ import {
   TECH_ROLL,
 } from '../../../sim/constants';
 import { getFighter } from '../../registry';
+import { WAVE, WAVE_BOXES } from '../finalSmashData';
 import { moves } from '../moves';
 import { art } from '.';
 
@@ -130,6 +132,42 @@ describe('watergirl art', () => {
     expect(art.icon).toMatch(/^<svg [^>]*viewBox="[-\d. ]+"/);
     expect(art.icon.length).toBeGreaterThan(1000);
   });
+  it("draws Tidal Wave's wave on its boxes: on every frame it is out, facing both ways, its front and top within 1.5 units of theirs", () => {
+    const prop = art.projectiles!.wave!;
+    /** A unit and a half: the foam stands half a unit out, and the lip rocks by 0.3 between drawings. */
+    const NEAR = 1.5;
+    const misses: string[] = [];
+    for (let age = 1; age <= WAVE.lifetime; age++) {
+      // As the renderer draws it (src/render/entities.ts): the loop on the entity's age, x mirrored by its facing.
+      const name = resolveSymbol(prop.symbols, prop.symbol, age)!;
+      const shapes = prop.symbols[name] as PathShape[];
+      for (const facing of [1, -1] as const) {
+        const boxes = WAVE_BOXES.map((b) => ({ x: b.x * facing, y: b.y, r: b.radius }));
+        let [front, top] = [-Infinity, -Infinity];
+        for (const shape of shapes) {
+          // The drawing is y down round the entity's centre, the boxes y up. A stroke reaches half its width out.
+          const ink = (shape.stroke?.width ?? 0) / 2;
+          for (const p of flattenPath(shape.d))
+            for (let i = 0; i < p.length; i += 2) {
+              const [x, y] = [p[i]! * prop.scale * facing, -p[i + 1]! * prop.scale];
+              const out = Math.min(...boxes.map((b) => Math.hypot(x - b.x, y - b.y) - b.r)) + ink;
+              if (out > NEAR)
+                misses.push(
+                  `${name} facing ${facing} (${x.toFixed(1)}, ${y.toFixed(1)}) by ${out.toFixed(2)}`,
+                );
+              front = Math.max(front, x * facing + ink);
+              top = Math.max(top, y + ink);
+            }
+        }
+        const boxFront = Math.max(...boxes.map((b) => b.x * facing + b.r));
+        const boxTop = Math.max(...boxes.map((b) => b.y + b.r));
+        expect(Math.abs(front - boxFront), `${name} front, facing ${facing}`).toBeLessThanOrEqual(NEAR);
+        expect(Math.abs(top - boxTop), `${name} top, facing ${facing}`).toBeLessThanOrEqual(NEAR);
+      }
+    }
+    expect(misses).toEqual([]);
+  });
+
   it('is the art the game draws for her, so swapping in shows it', () => {
     expect(getFighter('watergirl').art).toBe(art);
   });

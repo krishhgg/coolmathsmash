@@ -14,7 +14,8 @@ import {
   key,
   mix,
 } from '../../fireboy/art/poses';
-import { WAVE } from '../finalSmash';
+import { WAVE } from '../finalSmashData';
+import { WAVE_FOOT } from './parts';
 
 /**
  * Tidal Wave, the Final Smash (src/fighters/watergirl/finalSmash.ts), on Mario Finale's timeline: through the
@@ -59,9 +60,11 @@ const rising = (r: number, stretch: number): Pose => ({ fx4: flame(0, -3.2, r, -
 
 /**
  * The wave forming in front of her sweeping hands (bone fx1) at `s` of its full size, its back foot `x` ahead of her
- * and its base on the floor (the drawing's base is 13.6 under its centre, its back foot 18 behind).
+ * and its base on the floor (WAVE_FOOT).
  */
-const forming = (x: number, s: number): Pose => ({ fx1: { x: x + 18 * s, y: -13.6 * s, sx: s, sy: s } });
+const forming = (x: number, s: number): Pose => ({
+  fx1: { x: x + WAVE_FOOT.back * s, y: -WAVE_FOOT.base * s, sx: s, sy: s },
+});
 
 /** Streams running off her palms after the release, scaled by `jet`. */
 const runoff = (jet: number): Record<string, BonePose> => ({
@@ -118,12 +121,12 @@ function tidalWave(air: boolean, length: number): AnimClip {
     key(44, lift(1.2, 0.6, 1.2, -4), { ease: 'out', swaps: lifted(air), z: BEHIND }),
     key(52, lift(1.15, 1.3, 2.2, -10), { ease: 'inOut' }),
     key(RELEASE - 4, lift(1.05, 1.6, 2.8, -14), { ease: 'in' }),
-    key(RELEASE - 3, mix(push(6, 0.2), forming(3.2, 0.3)), {
+    key(RELEASE - 3, mix(push(6, 0.2), forming(4.2, 0.3)), {
       ease: 'linear',
       swaps: FORMING,
       z: { ...ARMS_IN_FRONT, fx1: 0.5 },
     }),
-    key(RELEASE - 1, mix(push(12, 0.4), forming(2.6, 0.62)), { ease: 'linear' }),
+    key(RELEASE - 1, mix(push(12, 0.4), forming(5.2, 0.62)), { ease: 'linear' }),
     key(RELEASE, push(16, 1.3), { ease: 'out', swaps: PUSH, z: ARMS_IN_FRONT }),
     key(RELEASE + 6, push(9, 1.6), { ease: 'inOut' }),
   );
