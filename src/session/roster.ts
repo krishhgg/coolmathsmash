@@ -1,4 +1,4 @@
-import { FIGHTERS, getFighter } from '../fighters/registry';
+import { allFighters, getFighter } from '../fighters/registry';
 import { STAGES } from '../stages/registry';
 
 /** The parts of a fighter's art the menus use; the full type lives with the rig renderer. */
@@ -44,7 +44,7 @@ const nameKey = (s: string) =>
  * Forms reached only in a match (`selectable: false`, like Watergirl from Fireboy's down special) get no tile.
  */
 export function rosterTiles(
-  registered: readonly { id: string; name: string; selectable?: boolean }[] = Object.values(FIGHTERS),
+  registered: readonly { id: string; name: string; selectable?: boolean }[] = Object.values(allFighters()),
 ): RosterTile[] {
   const fighters = registered.filter((f) => f.selectable !== false);
   const placed = new Set<string>();
@@ -66,7 +66,7 @@ export function rosterTiles(
 
 /** Every fighter a player can pick, in registry order; forms reached only in a match are left out. */
 export function selectableFighterIds(): string[] {
-  return Object.values(FIGHTERS)
+  return Object.values(allFighters())
     .filter((f) => f.selectable !== false)
     .map((f) => f.id);
 }

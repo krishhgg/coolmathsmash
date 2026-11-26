@@ -4,6 +4,10 @@ A fighter is one directory, `src/fighters/<id>/`, whose `index.ts` exports `figh
 (`src/fighters/registry.ts`) finds it with `import.meta.glob`, so adding a fighter edits no shared file. Fireboy
 (`src/fighters/fireboy/`) is the worked example; copy it.
 
+A fighter's files may import sim code, and the sim imports the registry, so the registry reads the fighter
+modules on the first `getFighter` or `allFighters` call. Look fighters up inside functions, never at module
+load: a lookup while a fighter module is still loading throws.
+
 ```
 src/fighters/<id>/
   index.ts      defineFighter({ id, name, series, stats, moves, art })
@@ -141,7 +145,7 @@ fsmash: {
   - `glide` glides at the end of the move if Jump is held (see Air mobility).
   - `action` plays the move in another action with its own physics instead of `attack`/`aerial`: `'hover'`.
   - `drift: false` turns off air drift (and air friction) while an airborne move plays, so a scripted path such
-    as a tether zip (Bob the Robber's `upB`) is not bent by the stick.
+    as Bob the Robber's Grappling Hook zip (his `upB`) is not bent by the stick.
   - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
     `neutralB: { ..., air: 'neutralBAir' }`. The variant is its own move, so it has its own frame data and clip,
     and the `move` event carries its name.
@@ -288,8 +292,10 @@ beastChew: {
 ### Tethers
 
 A move with `tether` fires a line from the hand (`TETHER.handHeight` up the body) that travels out, anchors, and
-reels the fighter in: Fluffy's grapples, the Fisherman's line, Bob's grappling hook. Fluffy's Quick Grapple,
-from the test fixtures in `src/sim/testing/tethers.ts` (Point Grapple and the Line Tether are there too):
+reels the fighter in: Fluffy's grapples, the Fisherman's line. Bob the Robber's Grappling Hook is not a tether:
+his `upB` in `src/fighters/bob-the-robber/specials.ts` is a scripted zip with `drift: false` and no line. Fluffy's
+Quick Grapple, from the test fixtures in `src/sim/testing/tethers.ts` (Point Grapple and the Line Tether are there
+too):
 
 ```ts
 upB: {
