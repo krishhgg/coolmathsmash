@@ -1,7 +1,7 @@
 import { getFighter } from '../../fighters/registry';
 import { Btn, type InputFrame } from '../../input/types';
 import { grabHoldFrames, hitlagFrames, isTumble } from '../combat/formulas';
-import { activeHitboxes, addDamage, applyHit, hittable, hurtbox, touches } from '../combat/hits';
+import { activeHitboxes, addDamage, applyHit, hittable, hurtbox, targetable, touches } from '../combat/hits';
 import { DIRECTION_THRESHOLD, GRAB } from '../constants';
 import { emit } from '../events';
 import {
@@ -78,6 +78,9 @@ export function mashDir(i: InputFrame): number {
   return x > 0 ? 1 : 2;
 }
 
+/** A Final Smash cinematic with `final.still`: in the air the user holds still through it, as in its activation. */
+const stillThrow = (f: FighterState) => moveOf(f)?.final?.still === true;
+
 export const GRAB_ACTIONS: Record<string, ActionDef> = {
   /** Holding someone: any stick or C-stick direction throws that way, Attack or Grab pummels. */
   grabHold: {
@@ -111,7 +114,8 @@ export const GRAB_ACTIONS: Record<string, ActionDef> = {
    */
   grabThrow: {
     physics: 'ground',
-    drift: (x) => moveOf(x.f)?.drift ?? true,
+    drift: (x) => !stillThrow(x.f) && (moveOf(x.f)?.drift ?? true),
+    gravity: (x) => !stillThrow(x.f),
     intangible: (f) => f.grabPartner >= 0 || moveOf(f)?.final !== undefined,
     update(x) {
       const move = playMove(x);
@@ -181,8 +185,11 @@ export function findGrabs(m: MatchState): GrabContact[] {
       if (v === a || !grabbable(m, v) || (v.pos.x - a.pos.x) * a.facing < 0) continue;
       const body = hurtbox(v, getFighter(v.fighter).stats);
       const scale = v.ground || command ? 1 : GRAB.airborneRadius;
-      if (!boxes.some((h) => touches({ ...h, box: { ...h.box, radius: h.box.radius * scale } }, body)))
-        continue;
+      const caught = boxes.some(
+        (h) =>
+          targetable(h.box, v) && touches({ ...h, box: { ...h.box, radius: h.box.radius * scale } }, body),
+      );
+      if (!caught) continue;
       if (!best || Math.abs(v.pos.x - a.pos.x) < Math.abs(best.pos.x - a.pos.x)) best = v;
     }
     if (best) contacts.push({ a, v: best });
@@ -340,6 +347,8 @@ function grab(m: MatchState, a: FighterState, v: FighterState): void {
     vel: { x: 0, y: 0 },
     kb: { x: 0, y: 0 },
   });
+  if (stillThrow(a) && !a.ground)
+    Object.assign(a, { vel: { x: 0, y: 0 }, kb: { x: 0, y: 0 }, fastFalling: false });
   restoreAirOptions(v);
   const c = m.players[v.port]!.control;
   for (const b of MASH_BUTTONS) consume(c, b);

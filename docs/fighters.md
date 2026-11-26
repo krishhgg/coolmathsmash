@@ -124,6 +124,15 @@ fsmash: {
 - **Direction.** A hit launches along the attacker's facing unless its box sets `direction`: `'back'` for boxes
   behind him (back aerials, the rear hit of a down smash) and `'away'` for boxes around his body (spins, up
   attacks), which send the target away from his centre.
+- **Ground and air targets.** A box with `targets: 'ground'` hits only fighters standing on the ground, and one
+  with `targets: 'air'` hits only airborne fighters. A fighter hanging on a ledge counts as airborne. Unset, or
+  `'both'`, hits either, as most Ultimate hitboxes do (SmashWiki "Hitbox", groundedness/airness). Kirby's Stone
+  shockwave is ground-only. For a move that acts differently on grounded and aerial targets, put a ground box and
+  an air box in the same place, as Samus' up tilt does. The ground box takes the lower id, and a fighter takes
+  the lowest-id box that can hit it where it is. A box that skips a fighter doesn't use up the move's hit on it,
+  so it can still connect on a later active frame once the fighter lands or leaves the ground. Windboxes
+  (`pushOnly`), grab boxes, entity hits, stage hitboxes and damage zones (`hit`) take `targets` too. Throws don't.
+  A counter catches only boxes that can hit the counterer, so a ground-only box passes an airborne one untouched.
 - **Landing lag.** Aerials give `landingLag` and `autoCancel` windows; a `helpless` move's `landingLag` also
   applies when it lands out of the helpless fall.
 - **Auto-cancel.** Landing in an aerial's `autoCancel` window costs only normal landing lag.
@@ -405,9 +414,10 @@ The rules follow SmashWiki's Final Smash and Smash Ball articles:
 
 SmashWiki gives no length for the activation freeze, so 40 frames is an estimate; `final.freeze` overrides it per
 move. The others are held on the move's frames 2 to `freeze` + 1, so nothing in the activation move may come out
-before frame `freeze` + 2 (`fighters.test.ts` checks it). The freeze is a frame of hitlag added to every other
-fighter and entity at the end of each frame it lasts, so actions, launches, statuses, lifetimes and hitboxes all wait,
-the same way whatever the port order.
+before frame `freeze` + 2 (`fighters.test.ts` checks it). The freeze holds every other fighter and entity in hitlag
+for each frame it lasts (`holdStill`, at the end of `stepMatch`, listing them in `MatchState.finalHold`), so actions,
+launches, statuses and lifetimes wait, and nothing held is pushed, hits, grabs or is touched by hazards. It reads only
+the end of the frame, so port order doesn't change it.
 
 A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned beams. Fireboy's Fire Blast
 (`src/fighters/fireboy/finalSmash.ts`) is the roster example: Mario Finale's frame data, damage and knockback on a
@@ -418,7 +428,7 @@ test fighter's is a plain hitbox:
 finalSmash: {
   kind: 'other',
   faf: 90,
-  final: { still: true },  // in the air: stop, no gravity or drift, as Mario holds still in Mario Finale
+  final: { still: true },  // in the air: stop, no gravity or drift (Mario in Mario Finale); a cinematic takes it too
   hits: [{ frames: [42, 51], boxes: [{ id: 0, x: 32, y: 8, radius: 18, damage: 30, angle: 40, kbg: 70, bkb: 80 }] }],
 },
 ```

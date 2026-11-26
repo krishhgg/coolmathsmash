@@ -25,6 +25,17 @@ import { input, type Hold } from './testing/sim';
 const DIRECT = finalDirectTester.id;
 const TRAP = finalTrapTester.id;
 const NONE = noFinalTester.id;
+/** The trap with `still` on its activation and its cinematic. */
+const STILL_TRAP = 'test-final-trap-still';
+registerFighter({
+  ...finalTrapTester,
+  id: STILL_TRAP,
+  moves: {
+    ...finalTrapTester.moves,
+    finalSmash: { ...finalTrap, final: { still: true } },
+    finalSmashCinematic: { ...finalCinematic, final: { still: true } },
+  },
+});
 registerFighter(counterTesterMarth);
 const FREEZE = FINAL_SMASH.freeze;
 const SPECIAL: Hold = { buttons: ['special'] };
@@ -209,6 +220,41 @@ describe('Final Smash rules', () => {
     }
   });
 
+  it('holds a fighter through every pass of the frame: a user sliding into it never pushes it', () => {
+    const m = match([DIRECT, NONE], [-30, -18]);
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    a.finalReady = true;
+    step(m, 1, [{ x: 100 }]);
+    expect(a.action).toBe('dash');
+    step(m, 1, [SPECIAL]);
+    expect(a.move).toBe('finalSmash');
+    expect(a.vel.x).toBeGreaterThan(0);
+    const held = where(v);
+    for (let i = 0; i < FREEZE; i++) {
+      step(m, 1);
+      expect(where(v)).toEqual(held);
+    }
+  });
+
+  it("keeps a held fighter's active hitbox out: nothing it touches during the freeze is hit", () => {
+    const m = match([DIRECT, NONE, NONE], [-60, 20, 60]);
+    const [a, v, w] = m.fighters as [FighterState, FighterState, FighterState];
+    step(m, 1, [{}, { buttons: ['attack'] }]);
+    expect([v.move, v.actionFrame]).toEqual(['jab', 1]);
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    expect(v.actionFrame).toBe(2);
+    // Put the third fighter right inside the frozen jab's box.
+    const x = v.pos.x + 7 * v.facing;
+    Object.assign(w, { pos: { x, y: v.pos.y }, prevPos: { x, y: v.pos.y } });
+    const seen = step(m, FREEZE);
+    expect(seen.filter((e) => e.type === 'hit')).toEqual([]);
+    expect(v.actionFrame).toBe(2);
+    expect(step(m, 1).filter((e) => e.type === 'hit')).toEqual([
+      expect.objectContaining({ attacker: 1, victim: 2 }),
+    ]);
+  });
+
   it('lands a direct hit with its own damage and launch, straight through a shield', () => {
     const m = match([DIRECT, NONE], [-30, 0]);
     const [a, v] = m.fighters as [FighterState, FighterState];
@@ -310,6 +356,33 @@ describe('Final Smash rules', () => {
     expect(v.pos.y).toBeGreaterThan(10);
     step(m, finalCinematic.faf);
     expect([a.action, isIntangible(a)]).toEqual(['idle', false]);
+  });
+
+  it('holds a still user in place in the air through its cinematic too', () => {
+    const m = match([STILL_TRAP, NONE], [-30, -16]);
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    for (const [f, x] of [
+      [a, -30],
+      [v, -16],
+    ] as const)
+      Object.assign(f, {
+        pos: { x, y: 60 },
+        prevPos: { x, y: 60 },
+        ground: null,
+        action: 'fall',
+        actionFrame: 1,
+      });
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    const at = { ...a.pos };
+    let caught = false;
+    for (let i = 0; i < 300 && a.move !== null; i++) {
+      step(m, 1, [{ x: 100, y: -100 }]);
+      caught ||= v.action === 'grabbed';
+      if (a.move !== null) expect(a.pos).toEqual(at);
+    }
+    expect(caught).toBe(true);
+    expect(v.damage).toBeGreaterThan(24);
   });
 
   it('catches only the nearest of two fighters in reach; the other holds still until the release', () => {

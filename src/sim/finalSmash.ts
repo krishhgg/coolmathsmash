@@ -54,22 +54,44 @@ function holds(u: Readonly<FighterState>): boolean {
   return u.actionFrame <= freezeOf(final);
 }
 
+/** Who the Final Smash freeze held on the last frame (MatchState.finalHold): fighters by port, entities by id. */
+export interface FinalHold {
+  fighters: number[];
+  entities: number[];
+}
+
 /**
  * The Final Smash freeze, once every fighter, entity and hit of the frame is done (stepMatch): while a Final Smash
- * activates or traps someone, every other fighter and entity gains a frame of hitlag, which holds it exactly where it
- * is (actions, launches, timers, lifetimes and hitboxes all wait) for the next frame. The user plays on, and so does
- * a trapped fighter, and so do the projectiles the Final Smash itself put out. Reading only the end of the frame
- * keeps it the same whatever the port order.
+ * activates or traps someone, every other fighter and entity is held for the next frame. Holding gives it two frames
+ * of hitlag and takes one back at the end of that frame, so it never acts (actions, launches, timers, lifetimes all
+ * wait) and every pass of the frame sees it in hitlag: it isn't pushed, its hitboxes and grab boxes stay out, and
+ * hazards and projectile contacts pass it by. The user plays on, and so does a trapped fighter, and so do the
+ * projectiles the Final Smash itself put out. Reading only the end of the frame keeps it the same whatever the port
+ * order.
  */
 export function holdStill(m: MatchState): void {
+  const last = m.finalHold;
+  if (last) {
+    for (const f of m.fighters) if (last.fighters.includes(f.port)) f.hitlag = Math.max(0, f.hitlag - 1);
+    for (const e of m.entities) if (last.entities.includes(e.id)) e.hitlag = Math.max(0, e.hitlag - 1);
+    delete m.finalHold;
+  }
   const users = m.fighters.filter(holds);
   if (users.length === 0) return;
   const plays = (f: FighterState) =>
     users.some((u) => u === f || (u.action === 'grabThrow' && u.grabPartner === f.port));
-  for (const f of m.fighters) if (!plays(f)) f.hitlag++;
-  for (const e of m.entities) {
-    if (!users.some((u) => u.port === e.owner && isFinalMove(u.fighter, e.move))) e.hitlag++;
+  const hold: FinalHold = { fighters: [], entities: [] };
+  for (const f of m.fighters) {
+    if (plays(f)) continue;
+    f.hitlag += 2;
+    hold.fighters.push(f.port);
   }
+  for (const e of m.entities) {
+    if (users.some((u) => u.port === e.owner && isFinalMove(u.fighter, e.move))) continue;
+    e.hitlag += 2;
+    hold.entities.push(e.id);
+  }
+  m.finalHold = hold;
 }
 
 /**

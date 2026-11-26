@@ -26,9 +26,11 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 
 /**
  * Fireboy's moves: Mario's kit in Ultimate (the roster's "Mario frame" list), with fire on his heavy hits and his
- * own damage from the roster sheet. Angle, BKB, KBG and frame data come from each move's Mario analogue (SmashWiki
- * hitbox tables, UFD); a weaker late or far hit keeps Mario's damage ratio to the main hit. Frame windows are
- * inclusive, faf is the first actionable frame. Move names double as animation clip names.
+ * own damage from the roster sheet, except where the roster damage kept a kill move more than 5 points off Mario's
+ * kill percent: the down smash's front hit and the back air take Mario's damage (fireboy.test.ts). Angle, BKB, KBG
+ * and frame data come from each move's Mario analogue (SmashWiki hitbox tables, UFD); a weaker late or far hit keeps
+ * Mario's damage ratio to the main hit. Frame windows are inclusive, faf is the first actionable frame. Move names
+ * double as animation clip names.
  */
 export const moves: Record<string, MoveDef> = {
   /**
@@ -122,7 +124,7 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Flames along the ground on both sides: front first, then back. Mario's down smash. */
+  /** Flames along the ground on both sides: front first, then back. Mario's down smash, with his 10% and 12%. */
   dsmash: {
     kind: 'smash',
     faf: 44,
@@ -130,7 +132,7 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [5, 6],
-        boxes: [box(0, 8, 2, 4.5, { damage: 11, angle: 32, kbg: 100, bkb: 30, effect: fire })],
+        boxes: [box(0, 8, 2, 4.5, { damage: 10, angle: 32, kbg: 100, bkb: 30, effect: fire })],
       },
       {
         frames: [14, 14],
@@ -214,7 +216,7 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Back kick: Mario's back aerial; weaker late. */
+  /** Back kick: Mario's back aerial, with his 10.5% clean and 7% late hits. */
   bair: {
     kind: 'aerial',
     faf: 34,
@@ -226,11 +228,11 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [6, 7],
-        boxes: [box(0, -8, 7, 4.5, { damage: 11, angle: 361, kbg: 106, bkb: 12, direction: 'back' })],
+        boxes: [box(0, -8, 7, 4.5, { damage: 10.5, angle: 361, kbg: 106, bkb: 12, direction: 'back' })],
       },
       {
         frames: [8, 10],
-        boxes: [box(0, -8, 7, 4.5, { damage: 7.3, angle: 361, kbg: 90, bkb: 7, direction: 'back' })],
+        boxes: [box(0, -8, 7, 4.5, { damage: 7, angle: 361, kbg: 90, bkb: 7, direction: 'back' })],
       },
     ],
   },
