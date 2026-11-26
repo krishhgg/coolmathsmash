@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FIGHTERS, getFighter, registerFighter } from '../fighters/registry';
+import { allFighters, getFighter, registerFighter } from '../fighters/registry';
 import { defineFighter, type FighterDef } from '../fighters/types';
 import { GETUP_ROLL, SHIELD_MAX, TECH_ROLL } from '../sim/constants';
 import { createFighter } from '../sim/fighter';
@@ -22,7 +22,7 @@ describe('shieldRadius', () => {
 
 describe('clipFor on tech and getup rolls', () => {
   const ROLLS = { techRoll: TECH_ROLL, getupRoll: GETUP_ROLL };
-  const rolling = Object.values(FIGHTERS).filter((def) => fighterArt(def)?.clips.techRoll);
+  const rolling = Object.values(allFighters()).filter((def) => fighterArt(def)?.clips.techRoll);
 
   /** The clip and clip frame for `action` on `frame`, facing `facing` and rolling `dir` times the facing. */
   function pick(def: FighterDef, action: string, facing: 1 | -1, dir: 1 | -1, frame: number) {
@@ -32,7 +32,7 @@ describe('clipFor on tech and getup rolls', () => {
   }
 
   it('covers every fighter with art that has roll clips', () => {
-    const without = Object.values(FIGHTERS).filter(
+    const without = Object.values(allFighters()).filter(
       (def) => fighterArt(def) && !fighterArt(def)!.clips.techRoll,
     );
     for (const def of without) expect(fighterArt(def)!.clips.rollBack, def.id).toBeUndefined();
@@ -118,5 +118,21 @@ describe('clipFor through a tether reel', () => {
     expect(new Set(seen.slice(hang).map((s) => `${s.clip}@${s.frame}`))).toEqual(
       new Set([`upB@${seen[hang]!.frame}`]),
     );
+  });
+  it('plays the art’s own tetherPull clip from the reel’s first frame instead, when it has one', () => {
+    const redball = getFighter('redball');
+    const m = testMatch({ fighter: 'redball' });
+    const f = placeInAir(m, 104, -6, -1);
+    runPorts(m, 1, [{ x: -100, buttons: ['special'] }]);
+    const seen: { action: string; clip: string; frame: number }[] = [];
+    for (let i = 0; i < 30 && f.action !== 'ledgeCatch'; i++) {
+      runPorts(m, 1, []);
+      const [clip, frame] = clipFor(redball, fighterArt(redball)!, f);
+      seen.push({ action: f.action, clip, frame });
+    }
+    const pull = seen.filter((s) => s.action === 'tetherPull');
+    expect(pull.length).toBeGreaterThan(2);
+    expect(pull.map((s) => [s.clip, s.frame])).toEqual(pull.map((_, i) => ['tetherPull', i + 1]));
+    expect(seen.filter((s) => s.action === 'aerial').every((s) => s.clip === 'sideBAir')).toBe(true);
   });
 });
