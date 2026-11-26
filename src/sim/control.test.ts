@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Btn, neutralInput, type InputFrame } from '../input/types';
-import { INPUT_BUFFER_FRAMES } from './constants';
+import { FAST_FALL_FLICK, INPUT_BUFFER_FRAMES } from './constants';
 import ref from './reference/physics-constants.json';
 import {
   buffered,
@@ -29,8 +29,8 @@ describe('control state', () => {
     expect(justPressed(c, Btn.Attack)).toBe(false);
   });
 
-  it("uses Ultimate's 7-frame buffer (params precede)", () => {
-    expect(INPUT_BUFFER_FRAMES).toBe(ref.movement.buffer_frames);
+  it("uses Ultimate's 9-frame buffer (SmashWiki: Buffer)", () => {
+    expect(INPUT_BUFFER_FRAMES).toBe(ref.movement.buffer_window_frames);
   });
 
   it(`buffers a tapped button for ${INPUT_BUFFER_FRAMES} frames`, () => {
@@ -71,7 +71,7 @@ describe('control state', () => {
     const slow = createControl();
     for (const v of [0, 35, 45, 55, 65, 75, 100]) feedControl(slow, f({ x: v, y: -v }));
     expect(flickX(slow, 0.6)).toBe(0);
-    expect(flickDown(slow)).toBe(false);
+    expect(flickDown(slow, FAST_FALL_FLICK)).toBe(false);
   });
 
   it('makes tap + attack a smash attack and hold-then-attack a tilt', () => {
