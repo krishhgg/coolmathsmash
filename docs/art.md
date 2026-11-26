@@ -77,6 +77,12 @@ neither stops early nor holds a pose. `src/fighters/dodgeClips.test.ts` checks e
 changes, move the keys rather than cutting them; `retimeClip` in `src/render/rig/timing.ts` re-keys a whole clip,
 which is how the getup rolls reuse the tech rolls.
 
+`airDodge` follows the same rule for the neutral dodge: 52 frames (`AIR_DODGE_NEUTRAL.faf - 1`), played frame for
+frame. A directional dodge lasts 71 to 116 frames by stick angle (`AIR_DODGE_DIRECTIONAL.fafByAngle`), and the
+renderer plays the same clip over it (`clipFor`): clip frames 3 to 29, the neutral intangible window, are drawn over
+the directional one (3 to 21), and the rest of the clip slows to end on the dodge's last frame. Draw the twist
+inside frames 3 to 29 and the recovery into the fall pose after them. `dodgeClips.test.ts` checks both.
+
 Tech roll and getup roll keep the fighter's facing, so one away from it is a back roll. The renderer draws
 `techRollBack` or `getupRollBack` for it, falling back to `rollBack`. Build both from `rollBack` with `retimeClip`,
 moving its travel frames (4 to 20) onto the action's (4 to 30 for a tech roll, 4 to 28 for a getup roll). Wheely
@@ -122,7 +128,7 @@ with the same checks as its nearest shared action.
 | `fall`, `helpless`                                    | Fall looks controlled; helpless has a different, slack or spread silhouette. Check that a single frame distinguishes them.                                                                                  |
 | `land`                                                | Feet meet the floor before the body compresses, then the fighter unwinds into the next action.                                                                                                              |
 | `shield`, `shieldStun`, `shieldDrop`                  | Brace inside the bubble; show recoil on block; uncurl as the bubble drops. `shieldStun` can reuse `shield`, and the bubble is rendered separately.                                                          |
-| `shieldBreak`, `dizzy`                                | Break snaps up or back, then gives way to a dazed sway. Neither should read like a voluntary jump or idle.                                                                                                  |
+| `shieldBreak`, `dizzy`, `dizzyWake`                   | Break snaps up or back, then gives way to a dazed sway; `dizzyWake` (33 frames) shakes it off back into the stance. None should read like a voluntary jump or idle. `dizzyWake` can reuse `dizzy`.          |
 | `spotDodge`, `rollForward`, `rollBack`, `airDodge`    | Pull back for a spot dodge, tuck and unroll in the direction of a ground roll, and twist then recover in the air. Don't animate a second copy of the sim's travel.                                          |
 | `ledgeCatch`, `ledgeHang`                             | Reach for the corner, take the weight, then hang with the grip on `ledgeGrip`. Check the hands and feet against the lab's ledge block.                                                                      |
 | `ledgeClimb`, `ledgeRoll`, `ledgeJump`, `ledgeAttack` | Pull up before standing, tuck before rolling, push off before rising, and show the strike on its hit window. Compensate for the sim lifting the origin while the hands still grip (Fireboy's `belowFloor`). |

@@ -27,6 +27,7 @@ import {
   type Pt,
 } from './poses';
 import { attacks } from './attacks';
+import { shellPound } from './shellPound';
 import { specials } from './specials';
 import { BODY_Y, SHELL_X, SHELL_Y, rig } from './rig';
 
@@ -654,7 +655,7 @@ const taunt: AnimClip = {
 void pointOf;
 void rig;
 
-/** Every clip: the engine's action names, then every move's clip (attacks.ts, specials.ts). */
+/** Every clip: the engine's action names, then every move's clip (attacks.ts, specials.ts, shellPound.ts). */
 export const clips: Record<string, AnimClip> = {
   idle,
   walk,
@@ -696,6 +697,7 @@ export const clips: Record<string, AnimClip> = {
   grabbed,
   ...attacks,
   ...specials,
+  ...shellPound,
 };
 
 /** Tech and getup rolls away from the facing: the back roll with its frames moved onto each action's travel. */
@@ -710,8 +712,10 @@ clips.getupRollBack = retimeClip(clips.rollBack!, 35, [
 
 /**
  * Dodges on the shared timings (src/sim/constants.ts): keys inside the intangible and travel windows stay put and
- * only the recovery after them stretches or shrinks. Spot dodge 25 frames, forward roll 29, back roll 34.
+ * only the recovery after them stretches or shrinks. Spot dodge 25 frames, forward roll 29, back roll 34, air dodge
+ * 52 (intangible to 29). A directional air dodge plays the same clip over its own length.
  */
 clips.spotDodge = retimeClip(clips.spotDodge!, 25, [[17, 17]]);
 clips.rollForward = retimeClip(clips.rollForward!, 29, [[20, 20]]);
 clips.rollBack = retimeClip(clips.rollBack!, 34, [[20, 20]]);
+clips.airDodge = retimeClip(clips.airDodge!, 52, [[29, 29]]);
