@@ -56,6 +56,29 @@ export const SPECIAL_STICK_Y = 0.5;
 export const SPECIAL_STICK_X = 0.6;
 
 /**
+ * Turnaround special and B-reverse (Ultimate; SmashWiki "B-reversing", https://www.ssbwiki.com/B-reversing).
+ * - Turnaround special: the stick at least `stickX` behind the fighter on the frame Special starts a special turns
+ *   the fighter around first and keeps its momentum. It works for every special, on the ground and in the air ("In
+ *   Ultimate, the new dash cancel mechanics now allow characters to perform grounded turnaround-Bs"; "when a player
+ *   reverses the direction of their up special to recover, they are performing a turnaround up special").
+ * - B-reverse: the stick at least `stickX` behind the fighter on frames `window` of the special, 1 to 4 frames after
+ *   the press ("In Ultimate, the direction input must be within 4 frames of the special input"), turns it around
+ *   and reverses its horizontal momentum ("turning around and reversing their momentum"), on the ground and in the
+ *   air. Once per special. The window counts frames since the press, so a charge holding the move on its charge
+ *   frame doesn't stretch it; charging specials can be B-reversed (Samus's Charge Shot is an exception only "prior
+ *   to Ultimate"). Neutral, side and down specials allow it ("In Brawl, SSB4 and Ultimate, most side special
+ *   moves can be reversed in the first few frames", SmashWiki "Side special move"); up specials don't, since
+ *   SmashWiki only describes reversing them as a turnaround. "Not every special move can be B-reversed":
+ *   MoveDef.bReverse opts a move out (Falcon Punch, Warlock Punch, Disable) or an up special in.
+ * - Wavebounce: a turnaround special then a B-reverse. The fighter keeps its facing and its momentum reverses.
+ * SmashWiki gives no stick threshold, so `stickX` is the engine's DIRECTION_THRESHOLD.
+ */
+export const SPECIAL_REVERSE = {
+  stickX: DIRECTION_THRESHOLD,
+  window: [2, 5] as [number, number],
+};
+
+/**
  * Button presses are remembered this many frames, so an input made during lag comes out on the first actionable frame.
  * SmashWiki (Buffer): Ultimate's window is "now 9 frames, down from 10". The params `precede` 7 and
  * `precede_extension` 2 may be the same 9 (physics-reference section 10).

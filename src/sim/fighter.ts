@@ -86,6 +86,11 @@ export interface FighterState {
   /** A counterattack's damage (MoveDef.counter): its boxes deal at least this. 0 outside a counterattack. */
   counterDamage: number;
   /**
+   * Match frame the current special started on, while it can still be B-reversed (SPECIAL_REVERSE); -1 when it
+   * can't. The window counts frames since the press, so a charge holding the move's frame doesn't stretch it.
+   */
+  bReverseFrom: number;
+  /**
    * A charge kept for the next use of `move` by the form `fighter` (stored charge), spent when that move fires; lost
    * on a KO as that form.
    */
@@ -191,6 +196,7 @@ export function createFighter(
     moveStale: 0,
     charge: 0,
     counterDamage: 0,
+    bReverseFrom: -1,
     storedCharge: null,
     staleQueue: [],
     intangible: 0,
