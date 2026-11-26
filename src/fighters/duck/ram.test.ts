@@ -7,6 +7,9 @@ import { createMatch, stepMatch, type MatchState } from '../../sim/match';
 import { koPercent } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
+import { registerFighter } from '../registry';
+import { defineFighter } from '../types';
+import { fighter } from '.';
 import { RAM, RAM_BOUNCE, runningRam } from './ram';
 import { scenarios } from './scenarios';
 import { stats } from './stats';
@@ -76,6 +79,25 @@ function damage(press: Hold, frames: number): number {
 
 /** Frames until the move lets go of the Duck, stepping with `hold`. */
 const playOut = (m: MatchState, hold: Hold = {}) => until(m, (g) => g.move !== 'sideB', hold, 400);
+
+/** The Duck with Running Ram counting the runs of its script in `scriptRuns`. */
+let scriptRuns = 0;
+const counter = defineFighter({
+  ...fighter,
+  id: 'test-duck-ram-runs',
+  name: 'Test: Running Ram runs',
+  moves: {
+    ...fighter.moves,
+    sideB: {
+      ...runningRam,
+      script: (x) => {
+        scriptRuns++;
+        runningRam.script!(x);
+      },
+    },
+  },
+});
+registerFighter(counter);
 
 describe("The Duck: Running Ram (side special, Pikachu's Skull Bash)", () => {
   it('charges on frame 13 while Special is held and launches by itself after 80 frames', () => {
@@ -172,6 +194,43 @@ describe("The Duck: Running Ram (side special, Pikachu's Skull Bash)", () => {
       falls.push(y - f.pos.y);
     }
     for (let i = 1; i < falls.length; i++) expect(falls[i]! - falls[i - 1]!).toBeCloseTo(RAM.startGravity, 9);
+  });
+
+  it('runs its script once a frame through a full air charge and the dash', () => {
+    const m = testMatch({ fighter: counter.id });
+    // High enough that it never lands. On the floor, frame 18's take-off switches to the air and plays that frame again.
+    const f = placeInAir(m, -40, 170, 1);
+    run(m, 1, TILT);
+    expect(f.move).toBe('sideB');
+    const runs: number[] = [];
+    while (f.actionFrame < RAM.late[1]) {
+      const before = scriptRuns;
+      run(m, 1, SPECIAL);
+      runs.push(scriptRuns - before);
+    }
+    expect([f.charge, f.ground]).toEqual([RAM.chargeFrames, null]);
+    expect(runs).toHaveLength(RAM.late[1] - 1 + RAM.chargeFrames);
+    expect(runs).toEqual(runs.map(() => 1));
+  });
+
+  it('holding the charge in the air slows it once a frame: 0.02 across, and 0.04 a frame of fall', () => {
+    const m = duck();
+    const f = placeInAir(m, -40, 100, 1);
+    run(m, 1, TILT);
+    run(m, RAM.charge - 2, SPECIAL);
+    expect(f.actionFrame).toBe(RAM.charge - 1);
+    f.vel = { x: stats.airSpeed, y: 1 };
+    // One startup step a frame, then the air physics with drift off: the Duck's own gravity, capped at his fall speed.
+    let { x: vx, y: vy } = f.vel;
+    for (let i = 0; i < RAM.chargeFrames; i++) {
+      run(m, 1, SPECIAL);
+      vx = Math.max(0, vx - RAM.startFriction);
+      vy = Math.max(vy + stats.gravity - RAM.startGravity - stats.gravity, -stats.fallSpeed);
+      expect([f.actionFrame, f.charge]).toEqual([RAM.charge - 1, i + 1]);
+      expect(f.vel.x).toBeCloseTo(vx, 12);
+      expect(f.vel.y).toBeCloseTo(vy, 12);
+    }
+    expect([vx, vy, f.ground]).toEqual([0, -stats.fallSpeed, null]);
   });
 
   it('a down flick never fast-falls it, mid-dash or in the ending', () => {
