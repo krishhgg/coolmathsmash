@@ -410,7 +410,7 @@ describe('Split Switch (Final Smash), on Jungle Rush', () => {
     let toppled = 0;
     let split = 0;
     while (a.move !== null) {
-      m.fighters.slice(0, 2).forEach((f, i) => views[i].update(f, 1, m.frame, false));
+      m.fighters.slice(0, 2).forEach((f, i) => views[i]!.update(f, 1, m.frame, false));
       layerFighters(
         m,
         views.map((view) => view.container),
