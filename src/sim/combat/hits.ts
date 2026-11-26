@@ -542,9 +542,15 @@ function reappearBehind(stage: CompiledStage, f: FighterState, a: FighterState, 
   f.prevPos = { x: f.pos.x, y: f.pos.y };
 }
 
+/** What a shield or a parry reads from a hit: a fighter's, an entity's or a stage hazard's (`guardStageHit`). */
+type Guarded = Pick<
+  Connection,
+  'a' | 'attacker' | 'entity' | 'fromX' | 'v' | 'kind' | 'damage' | 'stale' | 'dir' | 'at' | 'move'
+> & { box: Pick<HitboxDef, 'hitlag' | 'effect' | 'shieldDamage'> };
+
 function shieldHit(
   m: MatchState,
-  { a, attacker, entity, fromX, v, box, kind, damage: base, stale, dir, at, move }: Connection,
+  { a, attacker, entity, fromX, v, box, kind, damage: base, stale, dir, at, move }: Guarded,
   again: boolean,
 ): void {
   const damage = base * stale;
@@ -580,7 +586,7 @@ function shieldHit(
  */
 function parry(
   m: MatchState,
-  { a, attacker, entity, fromX, v, box, damage: base, stale, dir, at, move }: Connection,
+  { a, attacker, entity, fromX, v, box, damage: base, stale, dir, at, move }: Guarded,
   again: boolean,
 ): void {
   const damage = base * stale;
@@ -605,6 +611,47 @@ function parry(
     x: at.x,
     y: at.y,
   });
+}
+
+/**
+ * A stage hazard's hit (src/sim/hazards.ts) on `v` meets its shield as any other hit does, read from `v`'s state as
+ * `resolveHits` reads a fighter's hit: parried in a shield drop's parry window, else blocked by a held shield with
+ * shield damage, shieldstun and pushback away from `fromX`. It credits nobody (`attacker` -1, no move), nobody else
+ * freezes, and a parry counts as an indirect hit's. Shieldstun uses the formula's general case (SHIELDSTUN_MULT
+ * 'other'), since a hazard is no smash attack, aerial or projectile. Returns what happened, or null, landing
+ * nothing, when `v` has no shield up, so the hazard strikes.
+ *
+ * A shield blocks a hazard as it blocks any hit. SmashWiki, Shield: "A shield protects the user from a majority of attacks;
+ * more specifically, any that are not grabs or determined to be unblockable". SmashWiki, Spear Pillar, on Dialga
+ * and Palkia's laser: "It can be shielded and, in Ultimate, reflected or absorbed." SmashWiki, Perfect shield:
+ * "Because it is technically a shield, it is ineffective against grabs and unblockable attacks", so whatever a
+ * shield blocks can be parried.
+ */
+export function guardStageHit(
+  m: MatchState,
+  v: FighterState,
+  hit: {
+    box: Pick<HitboxDef, 'damage' | 'hitlag' | 'effect' | 'shieldDamage'>;
+    fromX: number;
+    dir: 1 | -1;
+    at: { x: number; y: number };
+  },
+): 'parry' | 'shield' | null {
+  const { parry: parrying, shielding } = victim(v, m.frame);
+  if (!parrying && !shielding) return null;
+  const h: Guarded = {
+    ...hit,
+    a: null,
+    attacker: -1,
+    v,
+    kind: 'other',
+    damage: hit.box.damage,
+    stale: 1,
+    move: null,
+  };
+  if (parrying) parry(m, h, false);
+  else shieldHit(m, h, false);
+  return parrying ? 'parry' : 'shield';
 }
 
 /** The attacker's motion and the hitbox an autolink or position-vector hit needs after hitlag, captured on contact. */
