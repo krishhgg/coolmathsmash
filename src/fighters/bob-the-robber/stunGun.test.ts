@@ -416,15 +416,16 @@ describe("Bob the Robber: Stun Gun (Zero Suit Samus's Paralyzer)", () => {
   });
 
   it("a CPU's move probe plays it through, and a CPU fights on through paralysis, the same way every time", () => {
-    // CPUs choose moves by their own hitboxes, and this one's are on the shot, so the probe sees none.
+    // Its hitboxes are all on the shot, so the probe sees none of Bob's own; the CPU follows the shot instead.
     const probe = knowledge('bob-the-robber', 'battlefield').ground.neutralB!;
     expect(probe).toMatchObject({ busy: STUN_GUN.faf - 1, first: -1 });
+    // A CPU without a shot walks into Bob's. A Fireboy CPU's Fireballs clank with Bob's shots or hit him first.
     const play = () => {
       const m = createMatch({
         seed: 1,
         stage: 'battlefield',
         stocks: 3,
-        ports: [{ fighter: 'bob-the-robber' }, { fighter: 'fireboy' }],
+        ports: [{ fighter: 'bob-the-robber' }, { fighter: 'redball' }],
       });
       const [a, v] = m.fighters as [FighterState, FighterState];
       runPorts(m, 20, []);
