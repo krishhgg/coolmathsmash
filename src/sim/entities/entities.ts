@@ -1,6 +1,7 @@
 import { allFighters } from '../../fighters/registry';
 import { emit } from '../events';
 import { inHitlag, type Ctx } from '../fighter';
+import { inFinalSmash } from '../finalSmash';
 import type { MatchState } from '../match';
 import type { Vec } from '../vec';
 import type { PlacedHitbox } from '../combat/hits';
@@ -33,6 +34,8 @@ export interface SpawnOptions {
   move?: string | null;
   /** That move's charge level (0 to 1, default 0): its hits deal up to EntityDef.chargeDamage times their damage. */
   charge?: number;
+  /** That move is part of a Final Smash (EntityState.final). */
+  final?: boolean;
 }
 
 /** Put a new entity into the match. Its frame 1 is this frame: it shows and hits at `pos` and starts moving next frame. */
@@ -55,6 +58,7 @@ export function spawnEntity(m: MatchState, o: SpawnOptions): EntityState {
     hitlag: 0,
     hitlagAt: -1,
     move: o.move ?? null,
+    final: o.final ?? false,
     stale: 0,
     damageMul: chargeScale(o.charge ?? 0, def.chargeDamage ?? 1),
     reflects: 0,
@@ -85,6 +89,7 @@ export function spawnFromMove(x: Ctx, s: SpawnDef): void {
     facing: f.facing,
     move: f.move,
     charge: chargeLevel(f),
+    final: inFinalSmash(f),
   });
 }
 

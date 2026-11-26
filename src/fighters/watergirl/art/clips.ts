@@ -180,7 +180,10 @@ function waterStream(recovery: number): AnimClip {
   };
 }
 
-const { clips: base } = fireboy;
+/** Fireboy's clips, without his Final Smash (Fire Blast): Watergirl has no Final Smash move of her own yet. */
+const base: Record<string, AnimClip> = Object.fromEntries(
+  Object.entries(fireboy.clips).filter(([name]) => name !== 'finalSmash' && name !== 'finalSmashAir'),
+);
 
 /**
  * Watergirl's clips: Fireboy's, with the water thrown further where her hitboxes reach further (jabs, ftilt,
