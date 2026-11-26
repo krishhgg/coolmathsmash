@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { flattenPath, transformPath } from './geometry';
+import { flattenPath, poseBounds, slotsCovering, transformPath } from './geometry';
+import { samplePose } from './sample';
+import type { FighterArt } from './types';
 
 describe('transformPath', () => {
   // Every command, absolute and relative, with a relative move after a close (relative to the subpath start).
@@ -20,5 +22,42 @@ describe('transformPath', () => {
       expect(poly.length).toBe(want[p]!.length);
       poly.forEach((v, i) => expect(v).toBeCloseTo(want[p]![i]!, 2));
     });
+  });
+});
+
+describe('poseBounds', () => {
+  // A 2 by 2 body standing on the floor, and a decoration slot (a dust puff, say) that `brake` fills with the
+  // same square two units lower, so it hangs below the floor.
+  const art: FighterArt = {
+    height: 2,
+    icon: '',
+    palettes: { default: {} },
+    rig: {
+      bones: [
+        { name: 'root', x: 0, y: 0 },
+        { name: 'fx', parent: 'root', x: 0, y: 2 },
+      ],
+      slots: [
+        { name: 'body', bone: 'root', symbol: 'square' },
+        { name: 'puff', bone: 'fx', symbol: null, decor: true },
+      ],
+      symbols: { square: [{ d: 'M-1 -2L1 -2L1 0L-1 0Z', fill: '#000000' }] },
+    },
+    clips: {
+      idle: { length: 0, keys: [{ frame: 0 }] },
+      brake: { length: 0, swaps: { puff: 'square' }, keys: [{ frame: 0 }] },
+    },
+  };
+
+  it('measures the slots drawn in the pose', () => {
+    expect(poseBounds(art, samplePose(art, 'idle', 0, 0))).toEqual([-1, -2, 1, 0]);
+  });
+
+  it('counts decorations, which the renderer draws like any other slot', () => {
+    expect(poseBounds(art, samplePose(art, 'brake', 0, 0))).toEqual([-1, -2, 1, 2]);
+  });
+
+  it('still leaves decorations out of hit tests', () => {
+    expect(slotsCovering(art, samplePose(art, 'brake', 0, 0), 0, 1)).toEqual([]);
   });
 });

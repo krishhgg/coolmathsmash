@@ -370,11 +370,12 @@ function windPush({ v, box, shielding, percent, crouch, dir, rage }: Connection)
 }
 
 /**
- * Add `damage` to a fighter's meter: x1.2 in 1v1 and x its statuses' damageTaken (the meter only, not knockback),
- * capped at 999%.
+ * Add `damage` to a fighter's meter: x1.2 in a 1v1 with items off, and x its statuses' damageTaken (the meter only, not
+ * knockback), capped at 999%.
  */
 export function addDamage(m: MatchState, v: FighterState, damage: number): void {
-  const mul = (m.players.length === 2 ? ONE_V_ONE_DAMAGE : 1) * damageTaken(v);
+  const oneVOne = m.players.length === 2 && !m.config.items;
+  const mul = (oneVOne ? ONE_V_ONE_DAMAGE : 1) * damageTaken(v);
   v.damage = Math.min(DAMAGE_MAX, v.damage + damage * mul);
 }
 
