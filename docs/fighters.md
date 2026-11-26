@@ -497,6 +497,11 @@ finalSmashCinematic: {
 },
 ```
 
+Johnny Upgrade's Max Upgrade (`src/fighters/johnny/finalSmash.ts`) is the roster's trap, on Cloud's Omnislash: a jet
+dash whose grab box catches the first opponent it reaches, then 18 hold hits (1, 3, fourteen of 2.2, 5 and 4%) and a 10%
+release, 53.8% in all, as SmashWiki lists them. SmashWiki and ultimateframedata.com have no timing or knockback for
+Omnislash, so its frames and the release's knockback are estimates, the release tuned to SmashWiki's 22% KO.
+
 - **Catching.** The trap catches like any command grab: the nearest grabbable fighter in front, through shields. Ultimate
   traps every fighter its hitbox touches; this one holds the first. Papa Louie's Conveyor Oven
   (`src/fighters/papa-louie/finalSmash.ts`) is the roster example, on Steve's House of Boom, which traps only one too: its
