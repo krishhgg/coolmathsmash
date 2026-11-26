@@ -64,9 +64,10 @@ export const reticleSymbols = {
 
 // ---------------------------------------------------------------------------------------------------------
 // The marks on a locked foe, one drawing per mark by its rank on that foe (PropArt.stack): the first three draw a ring
-// of red corner brackets round the middle of the body, each larger than the last, and every mark draws a diamond in a
-// column above the foe's head, so the diamonds count the shots coming and the rings stop at three. Each squeezes in
-// and out on a two-drawing loop (fxLock1 to fxLock5).
+// of red corner brackets round the middle of the body, each larger than the last, and every mark draws a diamond on a
+// ladder up the first ring's right edge, so the diamonds count the shots coming and the rings stop at three. The ladder
+// sits beside the body, level with its middle, clear of the overhead player tag, which starts above the head. Each
+// squeezes in and out on a two-drawing loop (fxLock1 to fxLock5).
 
 /** How many marks on one foe draw a ring; the rest draw only their diamond. */
 export const LOCK_RINGS = 3;
@@ -89,16 +90,20 @@ function ring(rank: number, squeeze: number): PathShape[] {
   ];
 }
 
-/** Diamond `rank` in the column above the foe's head. */
-function pip(rank: number, squeeze: number): PathShape {
-  const y = -(9.0 + 1.8 * rank);
-  const [hw, hh] = [0.62 * squeeze, 0.82 * squeeze];
+/** Where the diamonds go: up the first ring's right edge, from below the middle of the body to above it. */
+export const LOCK_PIP = { x: 5.2, bottom: 4.4, step: 2.2, halfWidth: 0.75, halfHeight: 1.0 };
+
+/** Diamond `rank` on the ladder; the first is the lowest, so the ladder shortens from the top as shots land. */
+export function lockPip(rank: number, squeeze: number): PathShape {
+  const { x, bottom, step, halfWidth, halfHeight } = LOCK_PIP;
+  const y = bottom - step * rank;
+  const [hw, hh] = [halfWidth * squeeze, halfHeight * squeeze];
   return inked(
     poly([
-      [0, y - hh],
-      [hw, y],
-      [0, y + hh],
-      [-hw, y],
+      [x, y - hh],
+      [x + hw, y],
+      [x, y + hh],
+      [x - hw, y],
     ]),
     'aim',
     INK,
@@ -107,7 +112,7 @@ function pip(rank: number, squeeze: number): PathShape {
 
 const mark = (rank: number, squeeze: number): PathShape[] => [
   ...(rank < LOCK_RINGS ? ring(rank, squeeze) : []),
-  pip(rank, squeeze === 1 ? 1 : 0.85),
+  lockPip(rank, squeeze === 1 ? 1 : 0.85),
 ];
 export const lockSymbols = Object.fromEntries(
   [1, 2, 3, 4, 5].flatMap((n) => [

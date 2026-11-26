@@ -161,9 +161,10 @@ export const fullArsenalProps: Record<string, PropArt> = {
   },
   /**
    * A mark on a locked foe, squeezing in and out. Every mark on one foe sits on the same spot, so each draws by its
-   * rank there (PropArt.stack): the first three a ring, each larger than the last, and every one a diamond above the
-   * foe's head. Two shots coming show two rings and two diamonds, five show three rings and five diamonds, and one goes
-   * as each shot lands. Drawn above the bursts (PropArt.above), so the count shows while they burn.
+   * rank there (PropArt.stack): the first three a ring, each larger than the last, and every one a diamond on a ladder
+   * beside the body, below the overhead player tag. Two shots coming show two rings and two diamonds, five show three
+   * rings and five diamonds, and one goes as each shot lands. Drawn above the bursts (PropArt.above), so the count shows
+   * while they burn.
    */
   lockMark: { ...prop(LOCK_STACK[0]!, 1), stack: LOCK_STACK, above: true },
   /** The shots, turned along their flight. */

@@ -11,10 +11,14 @@ import { input } from '../sim/testing/sim';
 import { finalTrapTester, noFinalTester } from '../sim/testing/finalSmash';
 import { gadgets } from '../sim/testing/gadgets';
 import { EntityView, entityArt, layerFighters, propPlacement, propSymbol } from './entities';
-import { FighterView, fighterArt } from './fighterView';
+import { FighterView, fighterArt, headTop } from './fighterView';
 import { drawPlanetEntity } from './items';
 import { Renderer } from './renderer';
-import type { PropArt } from './rig/types';
+import { lockPip } from '../fighters/raftwars/art/arsenalParts';
+import { MAX_ZOOM } from './camera';
+import { POINTER, TAG_H, TAG_LIFT, tagWidth } from './hud/tags';
+import { shapesBounds } from './rig/geometry';
+import type { PathShape, PropArt } from './rig/types';
 
 /** A test-only fighter whose entities have no art, so they always draw the disc. */
 registerFighter(gadgets);
@@ -123,6 +127,33 @@ describe('propSymbol', () => {
     expect(outer).toBeGreaterThan(inner + 2);
     m.entities = [marks[1]!];
     expect(widths()).toEqual([inner]);
+  });
+
+  it("keeps Full Arsenal's diamonds clear of every fighter's overhead tag, at any zoom", () => {
+    // The renderer points each tag TAG_LIFT above the head (headTop, renderer.ts) and draws the pill above that point
+    // (placeTag): POINTER + TAG_H pixels up and tagWidth wide, so in world units it grows as the camera pulls out. A
+    // mark sits on the middle of its foe's body, half the fighter's height up (fullArsenal.ts).
+    const prop = entityArt('raftwars/lockMark')!.prop;
+    const drawings = prop.stack!.flatMap((name) => (prop.symbols[name] as { loop: string[] }).loop);
+    const pips = drawings.map((name) => (prop.symbols[name] as PathShape[]).at(-1)!);
+    pips.forEach((p, i) => expect(p).toEqual(lockPip(Math.floor(i / 2), i % 2 ? 0.85 : 1)));
+    const roster = Object.values(allFighters()).filter((def) => fighterArt(def));
+    expect(roster.length).toBeGreaterThan(10);
+    for (const def of roster) {
+      const tip = headTop(def) + TAG_LIFT;
+      const middle = def.stats.height / 2;
+      for (const zoom of [MAX_ZOOM, 3, 2, 1]) {
+        const half = tagWidth('CPU') / 2 / zoom;
+        const tag = { x0: -half, x1: half, y0: tip, y1: tip + (POINTER + TAG_H) / zoom };
+        for (const p of pips) {
+          const [x0, y0, x1, y1] = shapesBounds([p]);
+          // Rig y is down from the mark; the tag's box is in units up from the feet.
+          const pip = { x0, x1, y0: middle - y1, y1: middle - y0 };
+          const overlaps = pip.x0 < tag.x1 && tag.x0 < pip.x1 && pip.y0 < tag.y1 && tag.y0 < pip.y1;
+          expect(overlaps, `${def.id} at zoom ${zoom}`).toBe(false);
+        }
+      }
+    }
   });
 
   it('draws a mark above a burst on the same spot, whichever came first', () => {
