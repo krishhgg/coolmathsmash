@@ -121,7 +121,7 @@ export function applyStatus(
   opts: { damage?: number; knockback?: number; source?: number; frames?: number; level?: number } = {},
 ): StatusState | null {
   const def = statusDef(kind);
-  if (def.coat) return applyCoat(m, f, kind, def, def.coat, opts);
+  if (def.coat) return applyCoat(m, f, kind, def, opts);
   const max = def.max ?? Infinity;
   const length = Math.min(
     max,
@@ -151,9 +151,9 @@ function applyCoat(
   f: FighterState,
   kind: string,
   def: StatusDef,
-  coat: NonNullable<StatusDef['coat']>,
   opts: { source?: number; level?: number },
 ): StatusState | null {
+  const coat = def.coat!;
   const on = statusOf(f, kind);
   const level = Math.min(coat.max, (on?.level ?? 0) + (opts.level ?? coat.add));
   if (level <= 0) return on ?? null;
