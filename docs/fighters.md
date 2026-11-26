@@ -239,7 +239,7 @@ or reaching full charge, carries on with the move.
   press. `storeAtFull: true` stores the charge and ends the move once it is full; otherwise the move waits at full
   charge. Samus's Charge Shot and Donkey Kong's Giant Punch are `{ tap: true, storeAtFull: true }`, and so is
   Wheely's Rev Up (`src/fighters/wheely/moves.ts`), on Giant Punch. CPUs press Special again on a tap move's charge
-  frame, so they fire it uncharged (`tapToFire` in `src/ai/knowledge.ts`).
+  frame, at once for an uncharged blast or after up to 40 frames of charge (`chargeInput` in `src/ai/knowledge.ts`).
 - **Variants and forms.** A move and its `air` variant share one stored charge (Ultimate: Samus's grounded and
   aerial Charge Shot). A stored charge belongs to the form that stored it. After a `transform`, the new form's move
   of the same name starts uncharged, and the charge is back after transforming again. Only a KO as the storing form
@@ -773,6 +773,16 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   Attack. The Items rule, spawning and the Coolmath Planet are in docs/items.md.
 - **Events.** Entities report `entitySpawn`, `entityDestroy` (with the reason), `reflect`, `absorb` and `entityHit`,
   and their hits are `hit` and `shieldHit` events carrying the `entity` id (`docs/sim-events.md`).
+- **CPUs.** CPUs need nothing extra to use a projectile. The move probe (`src/ai/knowledge.ts`) records each entity
+  a move puts out: kind, frame, offset, velocity, lifetime and the strongest hitbox of the entity or what it turns
+  into (a bomb's burst). `src/ai/shots.ts` puts those entities out on a copy of the match and plays their flight
+  against the opponent's predicted path, so a CPU fires when the shot would meet the opponent. Its own controller is
+  neutral in that copy, so a minion steered by the stick is predicted badly; list such a move in the fighter's
+  `ai.ts` `avoid`. A special with a `charge` frame is probed twice, tapped and charged for up to 40 frames (Special
+  held, or a tap-charged move pressed again), and the CPU picks either (Bob the Robber's Stun Gun at full charge, Raft Wars' Aimed Shot at 40 of
+  its 112 frames). The flight copy keeps a charged entity's damage multiplier. A shot is worth less the longer it leaves the CPU busy after
+  the opponent could run in, unless it lands first or would meet the runner before the runner's quickest hit; then
+  it holds the opponent up for its hitstun plus any freezing status (paralysis).
 
 ## Art
 

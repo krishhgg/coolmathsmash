@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createCpu } from '../../ai';
 import { knowledge } from '../../ai/knowledge';
+import { groundMove } from '../../ai/programs';
+import { neutralInput } from '../../input/types';
 import { chargeMultiplier } from '../../sim/actions/charge';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../../sim/match';
@@ -208,12 +210,40 @@ describe('Wheely: Rev Up (Giant Punch input model)', () => {
   });
 });
 
+/** Wheely (P1) runs the CPU's grounded Rev Up program for `hold` frames of charge; the charge it fires with. */
+function cpuRevUp(m: MatchState, hold: number): number {
+  const f = m.fighters[0]!;
+  const program = groundMove('neutralB', 1, hold);
+  for (let t = 0; t < 300; t++) {
+    const input = program.step(t, f);
+    if (!input) break;
+    stepMatch(m, [input, neutralInput()]);
+    if (f.move === 'neutralB' && f.actionFrame === REV_UP.charge) return f.charge;
+  }
+  throw new Error(`Rev Up held for ${hold} never fired`);
+}
+
 describe('Wheely: Rev Up for CPUs', () => {
-  it('the CPU probe presses Special again and sees the uncharged blast', () => {
+  it('the CPU probe presses Special again and sees the uncharged blast, and a blast after 40 frames of revs', () => {
     const probe = knowledge('wheely', 'battlefield').ground.neutralB!;
     expect(probe.first).toBe(REV_UP.hit[0] - 1);
     expect(probe.damage).toBe(10);
     expect(probe.active.at(-1)!.dx).toBeGreaterThan(20);
+    expect(probe.held).toBeUndefined();
+    const charged = probe.charged!;
+    expect(charged.held).toBe(40);
+    expect([charged.first, charged.busy]).toEqual([probe.first + 40, probe.busy + 40]);
+    expect(charged.endDx).toBeGreaterThan(probe.endDx + 10);
+  });
+
+  it("the CPU's Rev Up fires with the revs it picked, and a kept full charge still blasts at once", () => {
+    expect(cpuRevUp(duel(), 0)).toBe(0);
+    expect(cpuRevUp(duel(), 40)).toBe(40);
+    for (const hold of [0, 40]) {
+      const m = duel();
+      revToFull(m);
+      expect(cpuRevUp(m, hold)).toBe(REV_UP.chargeFrames);
+    }
   });
 
   it('CPUs blast with it in a Wheely ditto, and never sit revving', () => {
@@ -243,6 +273,8 @@ describe('Wheely: Rev Up for CPUs', () => {
       }
     }
     expect(blasts).toBeGreaterThan(0);
+    // The charged probe's blast hits on frame 58, past the 45 frames ahead a CPU that doesn't shoot reads its opponent
+    // (cpu.ts, HORIZON), so the CPU doesn't pick it yet.
     expect(longest).toBe(0);
   });
 });
