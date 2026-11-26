@@ -11,6 +11,7 @@ import { gadgets } from './testing/gadgets';
 import { MOBILITY_TEST_FIGHTERS, testFloater, testHover } from './testing/mobility';
 import { testCharger } from './testing/charge';
 import { marioReference as mario } from './testing/reference';
+import { testStatus } from './testing/statuses';
 import { tetherTester } from './testing/tethers';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from './testing/sim';
 
@@ -458,5 +459,41 @@ describe('entity events', () => {
     runPorts(crate, 1, [{}, {}]);
     expect(of(crate, 'entityHit')).toMatchObject([{ id: 1, attacker: 0, damage: 12, hp: -2 }]);
     expect(of(crate, 'entityDestroy')).toMatchObject([{ id: 1, reason: 'broken' }]);
+  });
+});
+
+describe('status events', () => {
+  registerFighter(testStatus);
+
+  it("a status reports its start on the hit's frame, after the hit, and its end on its last frame", () => {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: testStatus.id }, { fighter: mario.id }, { fighter: mario.id }],
+    });
+    m.fighters.forEach((f, i) => {
+      const x = [-20, -10, 60][i]!;
+      Object.assign(f, { pos: { x, y: 0 }, prevPos: { x, y: 0 }, facing: i === 0 ? 1 : -1, intangible: 0 });
+    });
+    runPorts(m, 20, []);
+    attack(m, 0, 'ftilt');
+    for (let i = 0; i < 10 && of(m, 'statusStart').length === 0; i++) runPorts(m, 1, []);
+    const types = m.events.map((e) => e.type);
+    expect(types.indexOf('hit')).toBeLessThan(types.indexOf('statusStart'));
+    expect(of(m, 'statusStart')).toEqual([
+      { type: 'statusStart', port: 1, status: 'test-status/warm', frames: 90, source: 0 },
+    ]);
+    const lag = m.fighters[1]!.hitlag;
+    expect(lag).toBeGreaterThan(0);
+    let frames = 0;
+    while (of(m, 'statusEnd').length === 0 && frames < 200) {
+      runPorts(m, 1, []);
+      frames++;
+    }
+    expect(of(m, 'statusEnd')).toEqual([
+      { type: 'statusEnd', port: 1, status: 'test-status/warm', reason: 'expired' },
+    ]);
+    expect(frames).toBe(lag + 90); // paused through hitlag, then 90 frames
   });
 });

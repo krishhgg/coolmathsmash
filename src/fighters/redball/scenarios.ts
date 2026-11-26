@@ -70,6 +70,27 @@ export const scenarios: FighterScenarios = {
       refs: ['smash/attack-active-*', `${RB}/ingame-roll-vs-box-*`, `${RB}/assist-gray-square-01*`],
     },
     {
+      name: 'redball-squared',
+      description:
+        'Red Ball grabs Fireboy and down-throws him (Sit-Squash), which leaves him Squared; capture 40 frames in.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'redball' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: 0, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: 10, y: 0 }, facing: -1 } },
+      ],
+      script: [
+        { port: 0, from: 4, to: 5, buttons: ['grab'] },
+        { port: 0, from: 24, to: 25, y: -100 },
+      ],
+      capture: {
+        label: "P2's Squared status, 40 frames old",
+        when: (s) => s.fighters[1]!.statuses[0]?.age === 40,
+      },
+      motion: { before: 50, after: 30 },
+      refs: [`${RB}/assist-squarified-01*`, `${RB}/assist-gray-square-01*`],
+    },
+    {
       name: 'redball-sheet-ground',
       description:
         'Red Ball idle, rolling, jumping and hanging from the ledge, then every ground attack on its first active frame.',

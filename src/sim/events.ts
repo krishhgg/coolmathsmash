@@ -1,6 +1,7 @@
 import type { HitboxDef, TetherLatch } from '../fighters/types';
 import type { DestroyReason } from './entities/types';
 import type { MatchState } from './match';
+import type { StatusEndReason } from './statuses';
 import type { TerrainElement } from './stage';
 
 type Side = 'left' | 'right' | 'top' | 'bottom';
@@ -101,6 +102,15 @@ export type SimEvent =
   | { type: 'float'; port: number; phase: 'start' | 'end' }
   /** A fuel hover burned its last fuel while thrusting. */
   | { type: 'fuelEmpty'; port: number }
+  /** A status went on a fighter (not when one already on it is applied again); `source` is the port credited, -1 none. */
+  | { type: 'statusStart'; port: number; status: string; frames: number; source: number }
+  /** A status came off: it ran out (`expired`, mashing included), the fighter was KO'd, or a script cleared it. */
+  | { type: 'statusEnd'; port: number; status: string; reason: StatusEndReason }
+  /**
+   * A status's tick damaged its fighter, with no hitlag or knockback. `damage` is what it added to their %;
+   * `source` is the port credited, -1 none.
+   */
+  | { type: 'statusDamage'; port: number; status: string; damage: number; source: number }
   /** A scheduled stage piece appeared (`on`) or vanished (docs/stage-geometry.md). */
   | { type: 'stagePiece'; piece: 'solid' | 'platform'; index: number; on: boolean }
   /** A moving solid squeezed a fighter against other geometry and the fighter popped out on top of it. */

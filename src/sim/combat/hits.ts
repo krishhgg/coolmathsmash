@@ -14,6 +14,7 @@ import type { CompiledStage } from '../stage';
 import { destroyEntity, entityDef, entityHitboxes, sweepEntities } from '../entities/entities';
 import type { EntityState } from '../entities/types';
 import { leaveGround, restoreAirOptions, surfaceRange, surfaceY } from '../movement';
+import { applyStatus } from '../statuses';
 import {
   AUTOLINK,
   AUTOLINK_GROUND_ANGLE,
@@ -422,7 +423,10 @@ export function strike(
   return result;
 }
 
-/** Damage always adds up; a fighter attacker freezes for hitlag, but an entity and its owner do not. */
+/**
+ * Damage always adds up; a fighter attacker freezes for hitlag, but an entity and its owner do not. A box with a
+ * `status` puts it on the victim after the hit event, its length taken from the % the hit added.
+ */
 function hit(m: MatchState, h: Connection, again: boolean): void {
   const { kb, lag, added } = strike(m, h.v, h, again);
   // One swing can connect several times a frame (a parry among them): the attacker keeps the longest freeze.
@@ -441,6 +445,7 @@ function hit(m: MatchState, h: Connection, again: boolean): void {
     x: h.at.x,
     y: h.at.y,
   });
+  if (h.box.status) applyStatus(m, h.v, h.box.status, { damage: added, source: h.attacker });
 }
 
 /**

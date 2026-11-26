@@ -10,12 +10,33 @@ import type { FighterState } from '../fighter';
 import { createMatch, type MatchState } from '../match';
 import { surfaceRange } from '../movement';
 import { posedStage } from '../movingStage';
-import { COUNTER_TEST_FIGHTERS } from '../testing/counter';
+import { COUNTER_TEST_FIGHTERS, counterTesterMarth, marthCounterattack } from '../testing/counter';
 import { marioReference } from '../testing/reference';
 import { attack, runPorts } from '../testing/sim';
+import { testStatus } from '../testing/statuses';
 import { knockback } from './formulas';
 
 for (const def of COUNTER_TEST_FIGHTERS) registerFighter(def);
+registerFighter(testStatus);
+
+/** Marth's Counter whose counterattack flowers (test-status/flower), to show the answer applies its own statuses. */
+registerFighter(
+  defineFighter({
+    ...counterTesterMarth,
+    id: 'test-counter-status',
+    name: 'Counter tester with a flowering answer',
+    moves: {
+      ...counterTesterMarth.moves,
+      downBHit: {
+        ...marthCounterattack,
+        hits: marthCounterattack.hits.map((w) => ({
+          ...w,
+          boxes: w.boxes.map((b) => ({ ...b, status: 'test-status/flower' })),
+        })),
+      },
+    },
+  }),
+);
 
 /** The Mario reference with a 45% hit (probe's box otherwise), to reach the counter's 50% cap. */
 registerFighter(
@@ -207,6 +228,25 @@ describe('counters (MoveDef.counter), Marth-style', () => {
     expect(ofType(m, 'hit')).toEqual([]);
     expect([v.action, grabber.action]).toEqual(['grabbed', 'grabHold']);
     expect([v.hitlag, a.hitlag, v.intangible, v.damage]).toEqual([0, 0, 0, 0]);
+  });
+
+  it("applies no status from a caught hit, and the counterattack's own status lands as usual", () => {
+    // test-status's jab is a 5% box that flowers (Ultimate's flower: 20 + 40 x damage frames), out on its frame 3.
+    const { m, a, v } = counterAt(
+      10,
+      'jab',
+      3,
+      duel({ attacker: 'test-status', counterer: 'test-counter-status' }),
+    );
+    expect(ofType(m, 'counter')).toMatchObject([{ port: 1, attacker: 0 }]);
+    expect(ofType(m, 'statusStart')).toEqual([]);
+    expect(v.statuses).toEqual([]);
+    const { hit } = untilAnswer(m);
+    expect(ofType(m, 'statusStart')).toMatchObject([
+      { port: 0, status: 'test-status/flower', frames: Math.floor(20 + 40 * hit.damage), source: 1 },
+    ]);
+    expect(a.statuses.map((s) => s.kind)).toEqual(['test-status/flower']);
+    expect(v.statuses).toEqual([]);
   });
 
   it("hits an entity as hard as a fighter: a 50% counterattack breaks Snail Bob's 12 HP crate", () => {
