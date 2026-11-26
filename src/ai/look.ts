@@ -39,7 +39,10 @@ export type Driver = (t: number, f: Readonly<FighterState>) => InputFrame;
 
 const idle: Driver = () => neutralInput();
 
-/** A one-fighter copy of the match holding a clone of `f` (and of its controller, when given). */
+/**
+ * A one-fighter copy of the match holding a clone of `f` (and of its controller, when given), on the same frame of
+ * the stage with the same hazards setting, so moving pieces, schedules and hazards play out as they will.
+ */
 export function soloMatch(
   state: Readonly<MatchState>,
   f: Readonly<FighterState>,
@@ -50,8 +53,10 @@ export function soloMatch(
     stage: state.config.stage,
     stocks: Math.max(1, f.stocks),
     ports: [{ fighter: f.fighter, tapJump: state.players[f.port]?.tapJump ?? true }],
+    hazards: state.config.hazards,
   });
   m.frame = state.frame;
+  m.stage = state.stage;
   m.fighters[0] = { ...structuredClone(f as FighterState), port: 0 };
   if (control) m.players[0]!.control = structuredClone(control as ControlState);
   return m;
