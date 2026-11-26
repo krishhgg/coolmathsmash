@@ -27,13 +27,6 @@ const ACTIONS: Record<string, number> = {
 };
 
 /**
- * Fighters whose clips still follow the old timings because another PR was changing their art when the rest were
- * retimed. Their check is expected to fail; take a fighter off this list once its clips match. Watergirl draws
- * Fireboy's clips, so she matches through his.
- */
-const WAITING = ['snailbob'];
-
-/**
  * Each action whose clip is not as long as the action, as `action: clip length/last key (want n)`. An action with
  * no clip of its own or a stand-in is drawn with idle and has nothing to match.
  */
@@ -54,12 +47,7 @@ function drift(id: string): string[] {
 const drawn = Object.keys(allFighters()).filter((id) => fighterArt(allFighters()[id]!));
 
 describe.each(drawn)('%s', (id) => {
-  const check = WAITING.includes(id) ? it.fails : it;
-  check('draws every dodge, roll, tech and getup over the whole action', () => {
+  it('draws every dodge, roll, tech and getup over the whole action', () => {
     expect(drift(id)).toEqual([]);
   });
-});
-
-it('only waits on fighters that have art', () => {
-  for (const id of WAITING) expect(drawn, id).toContain(id);
 });

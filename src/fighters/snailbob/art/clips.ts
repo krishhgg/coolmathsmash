@@ -1,4 +1,5 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import {
   AIR,
@@ -702,3 +703,11 @@ export const clips: Record<string, AnimClip> = {
   ...attacks,
   ...specials,
 };
+
+/**
+ * Dodges on the shared timings (src/sim/constants.ts): keys inside the intangible and travel windows stay put and
+ * only the recovery after them stretches or shrinks. Spot dodge 25 frames, forward roll 29, back roll 34.
+ */
+clips.spotDodge = retimeClip(clips.spotDodge!, 25, [[17, 17]]);
+clips.rollForward = retimeClip(clips.rollForward!, 29, [[20, 20]]);
+clips.rollBack = retimeClip(clips.rollBack!, 34, [[20, 20]]);
