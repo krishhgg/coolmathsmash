@@ -1,4 +1,5 @@
 import type { Pose } from '../../../render/rig/author';
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import {
   BLINK,
@@ -958,6 +959,19 @@ export const clips: Record<string, AnimClip> = {
     ],
   },
 };
+
+/**
+ * Dodges on the shared timings (src/sim/constants.ts): keys inside the intangible and travel windows stay put and
+ * only the recovery after them stretches or shrinks. Spot dodge 25 frames, forward roll 29, back roll 34.
+ */
+clips.spotDodge = retimeClip(clips.spotDodge!, 25, [[17, 17]]);
+clips.rollForward = retimeClip(clips.rollForward!, 29, [[22, 22]]);
+clips.rollBack = retimeClip(clips.rollBack!, 34, [[22, 22]]);
+/** The tech roll on the getup roll's timeline: the sim's travel ends on frame 28 instead of 30, and 35 frames in all. */
+clips.getupRoll = retimeClip(clips.techRoll!, 35, [
+  [4, 4],
+  [30, 28],
+]);
 
 /** Angles of the pose helpers, for the tests. */
 export const authored = { STAND, HANG, rotOf, grip };
