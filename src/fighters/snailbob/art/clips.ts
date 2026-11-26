@@ -709,3 +709,11 @@ clips.getupRollBack = retimeClip(clips.rollBack!, 35, [
   [4, 4],
   [20, 28],
 ]);
+
+/**
+ * Dodges on the shared timings (src/sim/constants.ts): keys inside the intangible and travel windows stay put and
+ * only the recovery after them stretches or shrinks. Spot dodge 25 frames, forward roll 29, back roll 34.
+ */
+clips.spotDodge = retimeClip(clips.spotDodge!, 25, [[17, 17]]);
+clips.rollForward = retimeClip(clips.rollForward!, 29, [[20, 20]]);
+clips.rollBack = retimeClip(clips.rollBack!, 34, [[20, 20]]);

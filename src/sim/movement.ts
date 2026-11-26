@@ -9,7 +9,7 @@ import { stickY } from './control';
 import { getFighter } from '../fighters/registry';
 import type { FighterStats } from '../fighters/types';
 import { resetMobility } from './mobility';
-import type { Ctx, FighterState, GroundRef } from './fighter';
+import { inHitlag, type Ctx, type FighterState, type GroundRef } from './fighter';
 import { emit } from './events';
 import type { MatchState } from './match';
 import { edgeMaxX, edgeMinX, floorY, ledgePresent, type CompiledStage, type Edge } from './stage';
@@ -165,7 +165,7 @@ export function pushApart(m: MatchState, stage: CompiledStage): void {
       const a = fs[i]!;
       const b = fs[j]!;
       if (!a.ground || !b.ground || Math.abs(a.pos.y - b.pos.y) > 1) continue;
-      if (a.hitlag > 0 || b.hitlag > 0 || isFrozen(a) || isFrozen(b)) continue;
+      if (inHitlag(m, a) || inHitlag(m, b) || isFrozen(a) || isFrozen(b)) continue;
       const reach = (getFighter(a.fighter).stats.width + getFighter(b.fighter).stats.width) / 2;
       const dx = b.pos.x - a.pos.x;
       const overlap = reach - Math.abs(dx);
