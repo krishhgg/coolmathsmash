@@ -1,5 +1,5 @@
 import { spawnEntity } from '../../sim/entities/entities';
-import type { EntityCtx, EntityDef } from '../../sim/entities/types';
+import type { EntityCtx, EntityDef, EntityState } from '../../sim/entities/types';
 import type { Ctx } from '../../sim/fighter';
 import type { HitboxDef, MoveDef } from '../types';
 
@@ -26,8 +26,8 @@ import type { HitboxDef, MoveDef } from '../types';
  *   ball's is a normal one.
  * - Staleness: SmashWiki's stale-move article says "each projectile fired will have its staleness set to the move's
  *   staleness" and "only one projectile produced per animation can count in the queue". The first ball to connect
- *   stales the move once, and every ball of the same use takes its multiplier (shareStale), so each deals 8% x1.05
- *   fresh, and all 16 together 128% before it.
+ *   stales the move once, and every ball of the same use (useOf) takes its multiplier (shareStale), so each deals 8%
+ *   x1.05 fresh, and all 16 together 128% before it.
  */
 export const RAIN = {
   /** Move frame of the first ball, and the last frame of the move. */
@@ -116,7 +116,21 @@ function drop(x: Ctx, i: number): void {
     move: f.move,
     final: true,
   });
-  e.data.use = m.frame - f.actionFrame;
+  e.data.n = i;
+  e.data.use = useOf(m, e, i);
+}
+
+/**
+ * Which use of Ball Rain ball `i` belongs to: the first ball's id, handed down from the ball dropped before it, which
+ * is still falling (drops are at most 23 frames apart and a ball takes over 60 to leave the stage). Not a clock: while
+ * another fighter's Final Smash holds Red Ball still, his move frame stops and the match frame doesn't.
+ */
+function useOf(m: Ctx['m'], e: EntityState, i: number): number {
+  if (i === 0) return e.id;
+  const before = m.entities
+    .filter((o) => o.kind === e.kind && o.owner === e.owner && o.data.n === i - 1)
+    .at(-1);
+  return typeof before?.data.use === 'number' ? before.data.use : e.id;
 }
 
 /**

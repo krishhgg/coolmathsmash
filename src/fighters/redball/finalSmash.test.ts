@@ -5,8 +5,9 @@ import { knockback } from '../../sim/combat/formulas';
 import type { EntityState } from '../../sim/entities/types';
 import type { SimEvent } from '../../sim/events';
 import type { FighterState } from '../../sim/fighter';
-import { finalReach } from '../../sim/finalSmash';
+import { FINAL_SMASH, finalReach } from '../../sim/finalSmash';
 import { createMatch, stepMatch, type MatchState } from '../../sim/match';
+import { finalDirectTester } from '../../sim/testing/finalSmash';
 import { koPercent } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { input, type Hold } from '../../sim/testing/sim';
@@ -42,14 +43,28 @@ const balls = (m: MatchState) => m.entities.filter((e) => e.kind === 'redball/ba
 
 /**
  * Red Ball at `redX` facing right, a Mario-weight target at `targetX` on the floor at `percent`, and a third fighter
- * at the left ledge (three players: no 1v1 damage multiplier). Red Ball starts Ball Rain on the last frame stepped.
+ * (`third`, default the Mario reference) near the left ledge (three players: no 1v1 damage multiplier). Red Ball starts
+ * Ball Rain on the last frame stepped.
  */
-function rain(opts: { targetX?: number; percent?: number; redX?: number; air?: boolean; hold?: Hold } = {}) {
+function rain(
+  opts: {
+    targetX?: number;
+    percent?: number;
+    redX?: number;
+    air?: boolean;
+    hold?: Hold;
+    third?: string;
+  } = {},
+) {
   const m = createMatch({
     seed: 1,
     stage: 'battlefield',
     stocks: 3,
-    ports: [{ fighter: 'redball' }, { fighter: marioReference.id }, { fighter: marioReference.id }],
+    ports: [
+      { fighter: 'redball' },
+      { fighter: marioReference.id },
+      { fighter: opts.third ?? marioReference.id },
+    ],
   });
   const xs = [opts.redX ?? -60, opts.targetX ?? 0, -78];
   m.fighters.forEach((f, i) => {
@@ -231,6 +246,24 @@ describe('Ball Rain (Final Smash), on PK Starstorm', () => {
     for (const h of all) expect(h.damage).toBeCloseTo(8 * 0.91, 6);
     expect(a.staleQueue.slice(0, 3)).toEqual(['finalSmash', 'finalSmash', 'jab']);
     expect(m.entities).toEqual([]);
+  });
+
+  it("keeps one stale multiplier when another fighter's Final Smash freezes the rain halfway", () => {
+    const { m, a, v, step } = rain({ third: finalDirectTester.id });
+    const other = m.fighters[2]!;
+    // Move frame 100: balls 1 and 2 are out, ball 2 hits the target after the freeze, balls 4 and 8 drop after it.
+    const seen = step(99);
+    expect(a.actionFrame).toBe(100);
+    other.finalReady = true;
+    seen.push(...step(1, [{}, {}, SPECIAL]));
+    expect(other.move).toBe('finalSmash');
+    seen.push(...step(FINAL_SMASH.freeze));
+    expect(a.actionFrame).toBe(101);
+    seen.push(...step(finalSmash.faf + RAIN.lifetime));
+    const hits = hitsOn(seen, v.port);
+    expect(hits.length).toBeGreaterThanOrEqual(2);
+    for (const h of hits) expect(h.damage).toBeCloseTo(8 * 1.05, 9);
+    expect(a.staleQueue.filter((n) => n === 'finalSmash')).toEqual(['finalSmash']);
   });
 
   it(`KOs a Mario-weight target from the ledge at ${STARSTORM_KO.ledge}% and centre stage at ${STARSTORM_KO.centre}%, as PK Starstorm's meteor does`, () => {
