@@ -63,37 +63,58 @@ export const reticleSymbols = {
 };
 
 // ---------------------------------------------------------------------------------------------------------
-// A mark on a locked foe: four red corner brackets round the middle of the body, squeezing in and out (fxLock).
+// The marks on a locked foe, one drawing per mark by its rank on that foe (PropArt.stack): the first three draw a ring
+// of red corner brackets round the middle of the body, each larger than the last, and every mark draws a diamond in a
+// column above the foe's head, so the diamonds count the shots coming and the rings stop at three. Each squeezes in
+// and out on a two-drawing loop (fxLock1 to fxLock5).
 
-function brackets(w: number, h: number): PathShape[] {
+/** How many marks on one foe draw a ring; the rest draw only their diamond. */
+export const LOCK_RINGS = 3;
+
+/** Ring `rank`'s corner brackets: wider and taller each rank, growing up more than down so it stays out of the floor. */
+function ring(rank: number, squeeze: number): PathShape[] {
+  const w = (5.2 + 1.5 * rank) * squeeze;
+  const top = (7.6 + 1.6 * rank) * squeeze;
+  const bottom = (7.6 + 0.5 * rank) * squeeze;
   const arm = 1.6;
-  const corner = (sx: number, sy: number): P[] => [
-    [sx * (w - arm), sy * h],
-    [sx * w, sy * h],
-    [sx * w, sy * (h - arm)],
+  const corner = (sx: number, y: number, sy: number): P[] => [
+    [sx * (w - arm), y],
+    [sx * w, y],
+    [sx * w, y - sy * arm],
   ];
-  const corners = [
-    [-1, -1],
-    [1, -1],
-    [1, 1],
-    [-1, 1],
-  ].map(([sx, sy]) => corner(sx!, sy!));
+  const corners = [corner(-1, -top, -1), corner(1, -top, -1), corner(1, bottom, 1), corner(-1, bottom, 1)];
   return [
     ...corners.flatMap((c) => strokes(c, 0.7, 'line')),
     ...corners.flatMap((c) => strokes(c, 0.38, 'aim')),
-    inked(
-      poly([
-        [0, -h - 2.2],
-        [0.75, -h - 1.2],
-        [0, -h - 0.2],
-        [-0.75, -h - 1.2],
-      ]),
-      'aim',
-      INK,
-    ),
   ];
 }
-export const lockSymbols = { fxLockA: brackets(5.2, 7.6), fxLockB: brackets(4.6, 6.9) };
+
+/** Diamond `rank` in the column above the foe's head. */
+function pip(rank: number, squeeze: number): PathShape {
+  const y = -(9.0 + 1.8 * rank);
+  const [hw, hh] = [0.62 * squeeze, 0.82 * squeeze];
+  return inked(
+    poly([
+      [0, y - hh],
+      [hw, y],
+      [0, y + hh],
+      [-hw, y],
+    ]),
+    'aim',
+    INK,
+  );
+}
+
+const mark = (rank: number, squeeze: number): PathShape[] => [
+  ...(rank < LOCK_RINGS ? ring(rank, squeeze) : []),
+  pip(rank, squeeze === 1 ? 1 : 0.85),
+];
+export const lockSymbols = Object.fromEntries(
+  [1, 2, 3, 4, 5].flatMap((n) => [
+    [`fxLock${n}A`, mark(n - 1, 1)],
+    [`fxLock${n}B`, mark(n - 1, 0.9)],
+  ]),
+) as Record<string, PathShape[]>;
 
 // ---------------------------------------------------------------------------------------------------------
 // The brother's spyglass, in its own space: the eyepiece at the origin, the lens end along +x. A brass toy

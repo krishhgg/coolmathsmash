@@ -150,8 +150,8 @@ const lob = (frame: number, speed: number) => ({
   to: frame + 8,
 });
 
-/** How much larger each further mark on one foe draws. */
-export const LOCK_STACK = 0.4;
+/** The marks' drawings by their rank on one foe (arsenalParts.ts): rings for the first three, a diamond for each. */
+export const LOCK_STACK = ['fxLock1', 'fxLock2', 'fxLock3', 'fxLock4', 'fxLock5'];
 
 export const fullArsenalProps: Record<string, PropArt> = {
   /** The crosshair, spinning; the lab shows it where it appears, ahead of the kids. */
@@ -160,11 +160,12 @@ export const fullArsenalProps: Record<string, PropArt> = {
     preview: { finalSmash: { frame: ARSENAL.reticle, x: ARSENAL.start.x, y: ARSENAL.start.y } },
   },
   /**
-   * A mark on a locked foe, squeezing in and out. Every mark on one foe sits on the same spot, so each one after the
-   * first draws a ring 40% larger, with its own diamond above: two shots coming show two rings, and a ring goes as each
-   * shot lands (PropArt.stack).
+   * A mark on a locked foe, squeezing in and out. Every mark on one foe sits on the same spot, so each draws by its
+   * rank there (PropArt.stack): the first three a ring, each larger than the last, and every one a diamond above the
+   * foe's head. Two shots coming show two rings and two diamonds, five show three rings and five diamonds, and one goes
+   * as each shot lands. Drawn above the bursts (PropArt.above), so the count shows while they burn.
    */
-  lockMark: { ...prop('fxLock', 1), stack: LOCK_STACK },
+  lockMark: { ...prop(LOCK_STACK[0]!, 1), stack: LOCK_STACK, above: true },
   /** The shots, turned along their flight. */
   volleyBall: { ...prop('shotBall', 1.5, true), preview: { finalSmash: lob(ARSENAL.fire[0], 2.4) } },
   volleyGrenade: { ...prop('volleyGrenade', 1.8), preview: { finalSmash: lob(ARSENAL.fire[1], 2.4) } },

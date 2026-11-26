@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { createCpu } from '../../ai/index';
 import { planScenario, type GameScenario } from '../../harness/scenarios';
 import { neutralInput } from '../../input/types';
-import { propStack } from '../../render/entities';
+import { propSymbol } from '../../render/entities';
+import { shapesBounds } from '../../render/rig/geometry';
+import type { PathShape } from '../../render/rig/types';
 import { samplePose } from '../../render/rig/sample';
 import { knockback } from '../../sim/combat/formulas';
 import { compiledStage } from '../../sim/context';
@@ -17,6 +19,7 @@ import { marioReference } from '../../sim/testing/reference';
 import { input, type Hold } from '../../sim/testing/sim';
 import { registerFighter } from '../registry';
 import { art } from './art';
+import { LOCK_RINGS } from './art/arsenalParts';
 import { LOCK_STACK, shotMuzzle } from './art/fullArsenal';
 import {
   ARSENAL,
@@ -359,27 +362,46 @@ describe('Full Arsenal (Final Smash), on Covering Fire', () => {
     expect(arcHeight(180, 7, 180)).toBe(180);
   });
 
-  it('draws two marks on one foe as two rings and one as one, losing a ring as each shot lands', () => {
+  it('draws two marks on one foe as two rings and one as one, losing one as each shot lands', () => {
     const { m, foes } = arsenal(-40, [0, 40, -78]);
     hunt(m);
     const prop = art.projectiles!.lockMark!;
-    expect(prop.stack).toBe(LOCK_STACK);
+    expect(prop.stack).toEqual(LOCK_STACK);
     const marks = (port: number) => of(m, 'lockMark').filter((e) => e.data.target === port);
-    const rings = (port: number) => marks(port).map((e) => propStack(m, e, prop));
+    const drawn = (port: number) => marks(port).map((e) => propSymbol(m, e, prop));
     const counts = foes.map((f) => marks(f.port).length);
     expect([...counts].sort()).toEqual([1, 2, 2]);
-    foes.forEach((f, i) => expect(rings(f.port)).toEqual(counts[i] === 2 ? [1, 1 + LOCK_STACK] : [1]));
-    // Each foe's drawn rings, frame by frame, as the shots land: one fewer each time, to none.
-    const seen = foes.map((f) => [rings(f.port).length]);
+    foes.forEach((f, i) => expect(drawn(f.port)).toEqual(LOCK_STACK.slice(0, counts[i])));
+    // Each foe's drawn marks, frame by frame, as the shots land: always ranks 1 to n, one fewer each time, to none.
+    const seen = foes.map((f) => [drawn(f.port).length]);
     for (let i = 0; i < ARSENAL.faf + ARSENAL.flight; i++) {
       step(m, 1);
       foes.forEach((f, k) => {
-        const now = rings(f.port);
-        expect(now).toEqual(now.map((_, j) => 1 + j * LOCK_STACK));
+        const now = drawn(f.port);
+        expect(now).toEqual(LOCK_STACK.slice(0, now.length));
         if (now.length !== seen[k]!.at(-1)) seen[k]!.push(now.length);
       });
     }
     expect(seen).toEqual(counts.map((n) => (n === 2 ? [2, 1, 0] : [1, 0])));
+  });
+
+  it('caps the rings at three on a lone foe with five marks, a diamond each counting all five', () => {
+    const { m } = arsenal(-40, [0]);
+    hunt(m);
+    const prop = art.projectiles!.lockMark!;
+    const drawn = of(m, 'lockMark').map((e) => propSymbol(m, e, prop));
+    expect(drawn).toEqual(LOCK_STACK);
+    // The first three drawings carry a ring, over 15 units tall; the last two are only a diamond.
+    const height = (name: string) => {
+      const [, y0, , y1] = shapesBounds(art.rig.symbols[`${name}A`] as PathShape[]);
+      return y1 - y0;
+    };
+    const heights = LOCK_STACK.map(height);
+    expect(heights.slice(0, LOCK_RINGS).every((h) => h > 15)).toBe(true);
+    expect(heights.slice(LOCK_RINGS).every((h) => h < 2.5)).toBe(true);
+    // The third ring reaches at most 1.5 lower than the first, so it stays out of the floor.
+    const bottom = (name: string) => shapesBounds(art.rig.symbols[`${name}A`] as PathShape[])[3];
+    expect(bottom(LOCK_STACK[2]!) - bottom(LOCK_STACK[0]!)).toBeLessThanOrEqual(1.5);
   });
 
   it('takes a lock mark away when its shot is gone without bursting', () => {
@@ -473,7 +495,7 @@ describe('Full Arsenal (Final Smash), on Covering Fire', () => {
       ['reticle', 'lockMark', ...SHOTS, 'volleyBlast'].map((name) => [name, props[name]?.symbol]),
     ).toEqual([
       ['reticle', 'fxReticle'],
-      ['lockMark', 'fxLock'],
+      ['lockMark', 'fxLock1'],
       ['volleyBall', 'shotBall'],
       ['volleyGrenade', 'volleyGrenade'],
       ['volleyRocket', 'volleyRocket'],
@@ -487,7 +509,7 @@ describe('Full Arsenal (Final Smash), on Covering Fire', () => {
     expect(drawing(1)).toBe(0);
     expect(drawing(BLAST.lifetime)).toBe(blast.loop.length - 1);
     expect(Math.floor(((BLAST.lifetime + 1) * blast.fps) / 60)).toBe(blast.loop.length);
-    for (const name of ['fxReticle', 'fxLock', 'volleyGrenade', 'volleyRocket', 'fxBlast']) {
+    for (const name of ['fxReticle', ...LOCK_STACK, 'volleyGrenade', 'volleyRocket', 'fxBlast']) {
       const loop = art.rig.symbols[name] as { loop: string[] };
       for (const s of loop.loop) expect(art.rig.symbols[s], s).toBeDefined();
     }

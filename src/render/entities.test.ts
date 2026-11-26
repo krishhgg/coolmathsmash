@@ -10,7 +10,7 @@ import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { input } from '../sim/testing/sim';
 import { finalTrapTester, noFinalTester } from '../sim/testing/finalSmash';
 import { gadgets } from '../sim/testing/gadgets';
-import { EntityView, entityArt, layerFighters, propPlacement, propStack } from './entities';
+import { EntityView, entityArt, layerFighters, propPlacement, propSymbol } from './entities';
 import { FighterView, fighterArt } from './fighterView';
 import { drawPlanetEntity } from './items';
 import { Renderer } from './renderer';
@@ -88,8 +88,8 @@ describe('propPlacement', () => {
   });
 });
 
-describe('propStack', () => {
-  it('draws each stack prop on one spot larger than the one before it, from the state, and closes up as they go', () => {
+describe('propSymbol', () => {
+  it('draws each stack prop on one spot by its rank there, from the state, and counts down as they go', () => {
     const m = createMatch({
       seed: 1,
       stage: 'battlefield',
@@ -98,29 +98,50 @@ describe('propStack', () => {
     });
     const mark = (owner: number, x: number) =>
       spawnEntity(m, { kind: 'raftwars/lockMark', owner, pos: { x, y: 7 } });
-    const [a, b, c, apart, theirs] = [mark(0, 10), mark(0, 10), mark(0, 10), mark(0, -20), mark(1, 10)];
+    const marks = [0, 1, 2, 3, 4, 5].map(() => mark(0, 10));
+    const [apart, theirs] = [mark(0, -20), mark(1, 10)];
     const prop = entityArt('raftwars/lockMark')!.prop;
-    const step = prop.stack!;
-    expect(step).toBeGreaterThan(0);
-    const size = (e: EntityState) => propStack(m, e, prop);
-    // Three on one spot nest; one elsewhere, or another owner's on the same spot, starts its own stack.
-    expect([a, b, c].map(size)).toEqual([1, 1 + step, 1 + 2 * step]);
-    expect([apart, theirs].map(size)).toEqual([1, 1]);
-    // Without `stack` a prop never grows.
+    const stack = prop.stack!;
+    const symbol = (e: EntityState) => propSymbol(m, e, prop);
+    // Six on one spot draw by rank, the sixth as the last of the stack; one elsewhere, or another owner's on the same
+    // spot, starts its own stack.
+    expect(marks.map(symbol)).toEqual([...stack, stack.at(-1)]);
+    expect([apart, theirs].map(symbol)).toEqual([stack[0], stack[0]]);
+    // Without `stack` a prop draws its own symbol.
     const ball = spawnEntity(m, { kind: 'fireboy/fireball', owner: 0, pos: { x: 10, y: 7 } });
-    expect(propStack(m, ball, entityArt('fireboy/fireball')!.prop)).toBe(1);
+    expect(propSymbol(m, ball, entityArt('fireboy/fireball')!.prop)).toBe('fxBall');
 
+    // The view draws the rank's drawing, and swaps it when a mark below goes.
+    m.entities = [marks[0]!, marks[1]!];
+    for (const e of m.entities) e.age = 1;
     const view = new EntityView();
-    const sizes = () => {
+    const widths = () => {
       view.draw(m, 1, ['default', 'default']);
-      return (view.props.children as Container[]).map((v) => v.scale.y);
+      return (view.over.children as Container[]).map((c) => (c.children[0] as Graphics).context.bounds.width);
     };
-    expect(sizes().slice(0, 3)).toEqual([1, 1 + step, 1 + 2 * step]);
-    // The first goes (its shot landed): the others close up.
-    m.entities = m.entities.filter((e) => e !== a);
-    expect(sizes().slice(0, 2)).toEqual([1, 1 + step]);
-    m.entities = m.entities.filter((e) => e !== b);
-    expect(sizes()[0]).toBe(1);
+    const [inner, outer] = widths() as [number, number];
+    expect(outer).toBeGreaterThan(inner + 2);
+    m.entities = [marks[1]!];
+    expect(widths()).toEqual([inner]);
+  });
+
+  it('draws a mark above a burst on the same spot, whichever came first', () => {
+    const m = createMatch({ seed: 1, stage: 'battlefield', stocks: 3, ports: [{ fighter: 'raftwars' }] });
+    spawnEntity(m, { kind: 'raftwars/lockMark', owner: 0, pos: { x: 10, y: 7 } });
+    spawnEntity(m, { kind: 'raftwars/volleyBlast', owner: 0, pos: { x: 10, y: 7 }, final: true });
+    expect(entityArt('raftwars/lockMark')!.prop.above).toBe(true);
+    const view = new EntityView();
+    view.draw(m, 1, ['default']);
+    const [markView] = view.over.children as [Container];
+    const [burstView] = view.props.children as [Container];
+    expect(markView.position).toMatchObject({ x: 10, y: -7 });
+    expect(burstView.position).toMatchObject({ x: 10, y: -7 });
+    expect(view.container.getChildIndex(view.over)).toBeGreaterThan(view.container.getChildIndex(view.props));
+    // A later mark still goes above an earlier burst.
+    spawnEntity(m, { kind: 'raftwars/lockMark', owner: 0, pos: { x: 10, y: 7 } });
+    view.draw(m, 1, ['default']);
+    expect(view.over.children).toHaveLength(2);
+    expect(view.props.children).toEqual([burstView]);
   });
 });
 
