@@ -71,6 +71,11 @@ describe('duck art', () => {
       expect(art.clips[name]?.length, name).toBe(move.faf - 1);
   });
 
+  it("draws Running Ram's charge with a clip one frame per charge frame, up to a full charge", () => {
+    expect(art.clips.sideBCharge!.length).toBe(moves.sideB!.chargeFrames);
+    expect(art.clips.sideBCharge!.loop).toBeFalsy();
+  });
+
   it('only references bones, slots and symbols that exist, with keys in order inside the clip', () => {
     const bones = new Set(art.rig.bones.map((b) => b.name));
     const slots = new Set(art.rig.slots.map((s) => s.name));

@@ -541,3 +541,63 @@ export const fxStar: PathShape[] = (() => {
     { d: circle(0, 0, 0.28), fill: 'starCore' },
   ];
 })();
+
+/**
+ * The charge glow, radius 1: a soft disc fading out from a pale core. Running Ram's charge grows it and swaps in the
+ * brighter drawings as the charge builds (`fxGlow1` to `fxGlow3`).
+ */
+const glow = (core: number, mid: number): PathShape[] => [
+  {
+    d: circle(0, 0, 1),
+    fill: {
+      type: 'radial',
+      cx: 0,
+      cy: 0,
+      r: 1,
+      stops: [
+        { offset: 0, color: 'glowCore', alpha: core },
+        { offset: 0.5, color: 'glow', alpha: mid },
+        { offset: 1, color: 'glow', alpha: 0 },
+      ],
+    },
+  },
+];
+export const fxGlows: Record<string, PathShape[]> = {
+  fxGlow1: glow(0.5, 0.25),
+  fxGlow2: glow(0.7, 0.4),
+  fxGlow3: glow(0.9, 0.55),
+};
+
+/** One fluffed-up feather pointing out from the belly's centre at `deg` (y down), its base hidden under the belly. */
+function tuft(deg: number, len: number): PathShape[] {
+  const base = BODY_R - 0.55;
+  const pts: P[] = [
+    [base, -0.5],
+    [base + 0.55 * len, -0.42],
+    [base + 1.1 * len, -0.08],
+    [base + 1.25 * len, 0.05],
+    [base + 0.75 * len, 0.36],
+    [base, 0.46],
+  ];
+  return [{ d: blob(place(pts, deg, 0, 0)), fill: 'body', stroke: { color: 'line', width: LINE * 0.8 } }];
+}
+
+/**
+ * Ruffled feathers: tufts standing up round the back and top of the belly, centred on it. Three drawings with each
+ * tuft turned and stretched a little differently, for Running Ram's charge to flicker through on the match clock.
+ */
+const TUFTS: [number, number][] = [
+  [150, 0.9],
+  [178, 1.15],
+  [205, 1.0],
+  [232, 1.1],
+  [258, 0.95],
+  [284, 0.8],
+];
+const ruffle = (turn: number[], grow: number[]): PathShape[] =>
+  TUFTS.flatMap(([deg, len], i) => tuft(deg + turn[i % turn.length]!, len * grow[i % grow.length]!));
+export const ruffles: Record<string, PathShape[]> = {
+  ruffleA: ruffle([0, 6, -4], [1, 0.9, 1.1]),
+  ruffleB: ruffle([-6, -2, 5], [1.12, 1, 0.92]),
+  ruffleC: ruffle([5, -5, 1], [0.92, 1.12, 1]),
+};
