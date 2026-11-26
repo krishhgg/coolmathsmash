@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createCpu } from '../../ai';
 import { neutralInput } from '../../input/types';
+import { isIntangible } from '../../sim/actions/registry';
 import { knockback } from '../../sim/combat/formulas';
 import type { SimEvent } from '../../sim/events';
 import type { FighterState } from '../../sim/fighter';
@@ -28,7 +29,12 @@ const WAVE_KIND = 'watergirl/wave';
  */
 function waveMatch(
   percent = 0,
-  { air = false, fighter = 'watergirl', press = SPECIAL, hold = {} as Hold } = {},
+  {
+    air = false,
+    fighter = 'watergirl',
+    press = SPECIAL,
+    hold = {},
+  }: { air?: boolean; fighter?: string; press?: Hold; hold?: Hold } = {},
 ): { m: MatchState; a: FighterState; v: FighterState } {
   const m = createMatch({
     seed: 1,
@@ -279,7 +285,7 @@ describe('Tidal Wave (Final Smash), on Mario Finale', () => {
     const { m, a } = waveMatch();
     for (let i = 0; i < finalSmash.faf - 2; i++) {
       step(m, 1, [i % 2 ? SWAP : {}]);
-      expect([a.fighter, a.move]).toEqual(['watergirl', 'finalSmash']);
+      expect([a.fighter, a.move, isIntangible(a)]).toEqual(['watergirl', 'finalSmash', true]);
     }
   });
 
