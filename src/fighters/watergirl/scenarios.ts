@@ -1,8 +1,9 @@
 import type { FighterScenarios } from '../../harness/scenarios';
+import { WAVE } from './finalSmash';
 
 /**
  * Watergirl's capture states (docs/hill-climb.md). She is only reached by Fireboy's swap in play, but the harness
- * can start a match with her, so she gets the standard set against Fireboy, plus Water Stream. Like his, the
+ * can start a match with her, so she gets the standard set against Fireboy, plus Water Stream and Tidal Wave. Like his, the
  * references are Smash Ultimate's presentation frames only while the rig wears the placeholder mannequin (KRI-29).
  */
 export const scenarios: FighterScenarios = {
@@ -35,6 +36,25 @@ export const scenarios: FighterScenarios = {
       },
       motion: { before: 50, after: 45 },
       requires: ['move:neutralB'],
+      refs: ['smash/attack-active-*'],
+    },
+    {
+      name: 'watergirl-tidal-wave',
+      description:
+        'Watergirl holds the Final Smash charge and presses neutral special on frame 10: Tidal Wave (Mario Finale) breaks on its frame 65 and rolls over Fireboy at 30%, 30 units ahead.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'watergirl' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -60, y: 0 }, facing: 1, finalReady: true } },
+        { port: 1, state: { pos: { x: -30, y: 0 }, facing: -1, damage: 30 } },
+      ],
+      script: [{ port: 0, from: 10, to: 11, buttons: ['special'] }],
+      capture: {
+        label: 'The wave 8 frames out, over Fireboy',
+        when: (s) => s.fighters[0]!.move === 'finalSmash' && s.fighters[0]!.actionFrame === WAVE.frame + 8,
+      },
+      motion: { before: 70, after: 60 },
+      requires: ['move:finalSmash'],
       refs: ['smash/attack-active-*'],
     },
   ],
