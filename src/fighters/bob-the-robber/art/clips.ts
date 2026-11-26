@@ -1,8 +1,7 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
-import { flattenPath, poseBounds } from '../../../render/rig/geometry';
-import { samplePose } from '../../../render/rig/sample';
+import { flattenPath } from '../../../render/rig/geometry';
 import { retimeClip } from '../../../render/rig/timing';
-import type { AnimClip, FighterArt, Key } from '../../../render/rig/types';
+import type { AnimClip, Key } from '../../../render/rig/types';
 import {
   AIR,
   ANGRY,
@@ -26,9 +25,11 @@ import {
   continuous,
   feet,
   floor,
+  floorContact,
   fx,
   hands,
   key,
+  lift,
   mix,
   worldRot,
   type Pt,
@@ -58,9 +59,6 @@ function corner(frame: number, moveEnd: number, inward: number): Pt {
   const t = smooth(Math.min(1, frame / moveEnd));
   return [GX - (GX + inward) * t, GY * (1 - Math.min(1, 1.6 * t))];
 }
-
-/** Moves a standing pose up by `dy` (feet included), for poses the engine has not finished lifting. */
-const lift = (pose: Pose, dy: number): Pose => mix(pose, { body: { y: (pose.body?.y ?? 0) - dy } });
 
 const rad = (deg: number) => (deg * Math.PI) / 180;
 
@@ -303,31 +301,6 @@ const SHIELD = hands(
   [3.0, -4.82],
   -1,
 );
-
-/** Bake contact poses on whole frames so joint tweens can't put a shoe, sleeve or beanie below the floor. */
-function floorContact(clip: AnimClip, settle = true): AnimClip {
-  const art: FighterArt = { rig, clips: { contact: clip }, palettes: { default: {} }, height: 0, icon: '' };
-  const keys = new Map(clip.keys.map((k) => [k.frame, k]));
-  return {
-    ...clip,
-    keys: Array.from({ length: clip.length + 1 }, (_, frame) => {
-      const sampled = samplePose(art, 'contact', frame, frame);
-      const bottom = poseBounds(art, sampled)[3];
-      const pose: Pose = Object.fromEntries(
-        rig.bones.map(({ name, x, y, rot = 0, sx = 1, sy = 1 }) => {
-          const p = sampled.local[name]!;
-          return [name, { x: p.x - x, y: p.y - y, rot: p.rot - rot, sx: p.sx / sx, sy: p.sy / sy }];
-        }),
-      );
-      const { ease, swaps, z } = keys.get(frame) ?? {};
-      return key(frame, lift(pose, settle ? bottom : Math.max(0, bottom)), {
-        ease: ease === 'step' ? 'step' : 'linear',
-        swaps,
-        z,
-      });
-    }),
-  };
-}
 
 const grounded = (pose: Pose): Pose => floorContact({ length: 0, keys: [key(0, pose)] }).keys[0]!.pose!;
 
@@ -822,11 +795,20 @@ export const clips: Record<string, AnimClip> = {
       key(20, mix(AIR, { body: { sy: 1.02 } })),
     ]),
   },
-  ledgeAttack: {
-    length: 55,
-    swaps: GRIP,
-    keys: continuous([...climbKeys(20, LEDGE_INWARD, 12, 1.5), ...ledgeSweep(13)]),
-  },
+  ledgeAttack: floorContact(
+    {
+      length: 55,
+      /** The engine's ledge attack has no hitbox yet: this is where the sweep lands. */
+      active: [[22, 22]],
+      swaps: GRIP,
+      keys: continuous(
+        // The sweep starts from where the climb leaves him standing, so his legs don't snap into the crouch.
+        [...climbKeys(20, LEDGE_INWARD, 12, 1.5), ...ledgeSweep(13, climb(12, 20, LEDGE_INWARD, 18))],
+        { onScreen: true },
+      ),
+    },
+    false,
+  ),
   shieldBreak: {
     length: 40,
     swaps: FRONT_DAZED,
