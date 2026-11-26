@@ -630,7 +630,10 @@ dthrow: { ..., throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55
 - **Freezing.** A `freeze` status holds the fighter as hitlag does: no action, physics or timers, and the launch waits
   for it. It ticks on every frame from the one after it went on, hitlag included, so a hit that applies one freezes the
   victim for the longer of its hitlag and the status. Other statuses pause while it lasts, and other fighters can't
-  push it, on the frame it runs out too. The renderer shakes the fighter and flickers it in the status's `color`.
+  push it, on the frame it runs out too. Its own hitboxes, grab boxes, reflectors and absorbers do nothing while it is
+  frozen, as in hitlag, so a move it was frozen in (armor took the hit) goes on when the freeze ends. It can still be
+  hit by fighters, projectiles and stage hazards. On the frame a freeze goes on the fighter still acts, so it can be
+  pushed and land hits then. The renderer shakes the fighter and flickers it in the status's `color`.
 - **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status. With `endOnHit`, a later
   hit that lands (not on a shield), a pummel or a throw's hold hit included, takes it off, reported as `statusEnd` with
   reason `hit`. That hit's hitlag and launch take over, and no hit landing on the same frame can put the same status
