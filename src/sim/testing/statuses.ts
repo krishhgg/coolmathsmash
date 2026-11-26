@@ -70,7 +70,7 @@ export const testStatus = defineFighter({
     /** Kept across stocks. */
     coins: { max: 99, onKo: 'keep' },
     /** Fills by half the % dealt and all the % taken; held full, it holds `charged`, like Cloud's Limit. */
-    charge: { max: 10, dealt: 0.5, taken: 1, full: 'test-status/charged' },
+    charge: { max: 100, dealt: 0.5, taken: 1, full: 'test-status/charged' },
   },
   moves: {
     /** A 5% strike that flowers. */

@@ -614,10 +614,10 @@ describe('meters filled by damage (MeterDef dealt, taken and full)', () => {
 
   it('put the full status on at the end of the frame a hit fills the meter', () => {
     const { m, a, v } = pair();
-    setMeter(a, 'charge', 8);
+    setMeter(a, 'charge', 98);
     attack(m, 0, 'ftilt');
     const seen = stepUntil(m, 'hit');
-    expect(meter(a, 'charge')).toBe(10);
+    expect(meter(a, 'charge')).toBe(100);
     expect(statusOf(a, CHARGED)).toMatchObject({ frames: 30, since: m.frame - 1, source: 0 });
     expect(seen.filter((e) => e.type === 'statusStart' && e.status === CHARGED)).toEqual([
       { type: 'statusStart', port: 0, status: CHARGED, frames: 30, source: 0 },
@@ -627,11 +627,11 @@ describe('meters filled by damage (MeterDef dealt, taken and full)', () => {
 
   it('hold the full status until it runs out, then empty the meter', () => {
     const { m, a } = pair();
-    setMeter(a, 'charge', 10);
+    setMeter(a, 'charge', 100);
     runPorts(m, 1, []);
     expect(hasStatus(a, CHARGED)).toBe(true);
     runPorts(m, 29, []);
-    expect([hasStatus(a, CHARGED), meter(a, 'charge')]).toEqual([true, 10]);
+    expect([hasStatus(a, CHARGED), meter(a, 'charge')]).toEqual([true, 100]);
     runPorts(m, 1, []);
     expect(m.events).toContainEqual({ type: 'statusEnd', port: 0, status: CHARGED, reason: 'expired' });
     expect([hasStatus(a, CHARGED), meter(a, 'charge')]).toEqual([false, 0]);
@@ -639,10 +639,10 @@ describe('meters filled by damage (MeterDef dealt, taken and full)', () => {
 
   it('take the full status off at the end of the frame the meter is spent', () => {
     const { m, a } = pair();
-    setMeter(a, 'charge', 10);
+    setMeter(a, 'charge', 100);
     runPorts(m, 1, []);
     expect(hasStatus(a, CHARGED)).toBe(true);
-    expect(spendMeter(a, 'charge', 10)).toBe(true);
+    expect(spendMeter(a, 'charge', 100)).toBe(true);
     runPorts(m, 1, []);
     expect(m.events).toContainEqual({ type: 'statusEnd', port: 0, status: CHARGED, reason: 'cleared' });
     expect(hasStatus(a, CHARGED)).toBe(false);
@@ -650,7 +650,7 @@ describe('meters filled by damage (MeterDef dealt, taken and full)', () => {
 
   it('a KO takes the full status off and empties the meter', () => {
     const { m, a } = pair();
-    setMeter(a, 'charge', 10);
+    setMeter(a, 'charge', 100);
     runPorts(m, 1, []);
     Object.assign(a, { pos: { x: -400, y: 20 }, ground: null, action: 'fall' });
     runPorts(m, 1, []);
