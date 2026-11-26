@@ -68,7 +68,7 @@ Cross-check: I ran all 15 vectors through the calculator's own `formulas.js`/`kn
 - **Hitstun** = floor(max(kb × 0.4, 5)) − 1. Ultimate always subtracts 1 frame, even for tumble and electric hits; Smash 4 added the frame back ([SmashWiki: Hitstun](https://www.ssbwiki.com/Hitstun); params `damage_frame_mul` 0.4, `damage_frame_min` 5). Flinch hits always deal at least 4 frames.
 - **Tumble** starts at 32 hitstun frames before modifiers, which means kb ≥ 80 ([SmashWiki: Tumbling](https://www.ssbwiki.com/Tumbling); param `damage_level3` 32). The flinch animations change at 15 and 21 frames (`damage_level1/2`).
 - **Balloon speed-up** applies to tumble hits only, not set knockback. The un-sped first actionable frame (FAF = hitstun + 1) maps to a speed multiplier from 1× to 6× as FAF goes from 30 to 80. That multiplier applies to the first knockback frame and shrinks each frame by (FAF₀·0.3 − faf)/(FAF₀·0.3 − FAF₀). The wiki's examples: 90 KB gives 33 frames of hitstun and 145 KB gives 41 ([SmashWiki: Hitstun](https://www.ssbwiki.com/Hitstun); calc `GetSpeedUpFAF`; params `damage_fly_speed_up_*`: 30, 80, end rate 70, max mag 6, angle rate 100. Angle rate 100 means the launch angle has no effect). Vectors: FAF 30 → 30, 36 → 34, 40 → 36, 50 → 39, 58 → 42, 80 → 50, 100 → 62.
-- **Hitstun canceling.** Air dodge from frame 40 if launch speed ≤ 2.5. Aerial from frame 45 if launch speed ≤ 2.0 (calc `parameters.hitstunCancel`; params `damage_fly_escape_frame` 40, `damage_fly_escape_speed` 2.5). The 40 and 45 frame windows themselves are not sped up ([SmashWiki: Hitstun](https://www.ssbwiki.com/Hitstun)).
+- **Hitstun canceling.** A tumbling fighter can air dodge after 40 frames of hitstun if its launch speed is below 2.5, and use an aerial after 45 frames if its launch speed is below 2.0 (params `damage_fly_escape_frame` 40, `damage_fly_escape_speed` 2.5, `damage_fly_attack_frame` 45 and `damage_fly_attack_speed` 2 in the [common.prc dump](https://github.com/fudgepop01/amiibo_research/blob/523374aaf3f1b7fa67370f83bec4a53b256ac944/research/paramDecoding/common/param/common.xml)). The calculator's `HitstunCancel` makes the first cancel frames 41 and 46, numbered like FAF = hitstun + 1, and compares launch speed with `<`. The 40 and 45 frames are real frames that balloon speed-up does not shorten, but the launch speed is measured after the speed-up has decayed it ([SmashWiki: Hitstun](https://www.ssbwiki.com/Hitstun); [SmashWiki: Hitstun canceling](https://www.ssbwiki.com/Hitstun_canceling)). Both pages name only air dodges and aerial attacks, so specials and jumps wait for hitstun to end. The engine's aerial cancel (`HITSTUN_CANCEL_AERIAL` in `src/sim/constants.ts`) opens on frame 46. Its air dodge cancel (`HITSTUN_CANCEL_AIR_DODGE`) opens on frame 40 at 2.5 or less, one frame before the calculator's.
 
 ## 4. Launch
 
@@ -146,7 +146,7 @@ Mario frame data from [UFD Mario](https://ultimateframedata.com/mario), which li
 - **Directional air dodges don't cause helplessness.** SmashWiki describes them as "much like air dodges in Melee, except without causing helplessness", with "a total duration of over a full second" ([SmashWiki: Air dodge](https://www.ssbwiki.com/Air_dodge)). After the totals above the fighter can act again, but it gets no second air dodge until it lands, is hit or grabs a ledge.
 - **One air dodge per airtime.** It refreshes on landing, on being hit, or on grabbing a ledge ([SmashWiki: Air dodge](https://www.ssbwiki.com/Air_dodge)). Ultimate's air dodges average 49–50 frames, up from 32–33 in Smash 4.
 - **Dodge staling** (params `escape_penalty_*`; meaning inferred from names): penalties are counted within 60 frames of a dodge ending, up to 5, and one is removed every 120 frames. Each penalty slows spot dodge and forward roll by 0.06 and back roll by 0.10; air dodges are not slowed.
-- **Inputs:** spot dodge needs stick y ≤ −0.7 within a 4-frame flick. Rolls need |stick x| ≥ 0.7 within a 4-frame flick. The air-dodge direction threshold is 0.66 (param sheet).
+- **Inputs:** spot dodge needs stick y ≤ −0.7 within a 4-frame flick. Rolls need |stick x| ≥ 0.7 within a 4-frame flick. The air-dodge direction threshold is 0.66 of the stick's length; a shorter stick gives a neutral air dodge (param sheet; `escape_stick_y`, `escape_flick_y`, `escape_fb_stick_x`, `escape_fb_flick_x`, `escape_air_slide_stick`). The engine's values are `DODGE_FLICK` and `AIR_DODGE_DIRECTIONAL.stick` in `src/sim/constants.ts`.
 
 ## 8. Ledge (edge)
 
@@ -189,7 +189,7 @@ Mario frame data from [UFD Mario](https://ultimateframedata.com/mario), which li
   - Fast fall starts 1 frame after the apex (v ≤ 0).
   - Airtime = simulated frames − 1.
   - Misses: Mewtwo FH 51 vs 52, Dr. Mario SH 40 vs 34 and SHFF 28 vs 23 (possibly a UFD data error), Kirby SHFF 27 vs 26, Snake SH 36 vs 37.
-- **Fast fall:** tap down (stick ≤ −0.66 within a 4-frame flick) **while falling** and not tumbling. vy is set straight to the fast-fall speed with no acceleration. It ends on landing, knockback or jump ([SmashWiki: Fast-fall](https://www.ssbwiki.com/Fast-fall); params `dive_*`). The fast-fall/fall ratio is 1.6 for 83 of 89 fighters; the others use 1.316, 1.4 or 1.9 (calc fighter data).
+- **Fast fall:** tap down (stick ≤ −0.66 within a 4-frame flick) **while falling** and not tumbling. vy is set straight to the fast-fall speed with no acceleration. It ends on landing, knockback or jump ([SmashWiki: Fast-fall](https://www.ssbwiki.com/Fast-fall); params `dive_*`). The fast-fall/fall ratio is 1.6 for 83 of 89 fighters; the others use 1.316, 1.4 or 1.9 (calc fighter data). The engine's threshold and window are `FAST_FALL_FLICK` in `src/sim/constants.ts`.
 - **Air acceleration** = base + add × |stick x|, up to air speed. Mario's is 0.01 + 0.07 ([SmashWiki: Air acceleration](https://www.ssbwiki.com/Air_acceleration)). Air friction slows the fighter when there is no input.
 - **Hard caps:** air speed x 2.5 and fall speed 10 (params `air_speed_x_limit`, `air_speed_y_limit`).
 - **Jump counts:** 80 fighters have 2. Banjo, Charizard and Ridley have 3; Pit and Dark Pit 4; King Dedede 5; Kirby, Meta Knight and Jigglypuff 6 ([SmashWiki: Double jump](https://www.ssbwiki.com/Double_jump)).
@@ -198,10 +198,10 @@ Mario frame data from [UFD Mario](https://ultimateframedata.com/mario), which li
 
 ## 10. Ground movement and input
 
-- **Buffer:** SmashWiki puts Ultimate's buffer window at 9 frames. An input held through the end of an animation is also buffered, however early it was pressed, if it is still held when that window opens ([SmashWiki: Buffer](https://www.ssbwiki.com/Buffer)). The params are `precede` 7 and `precede_extension` 2; that 7 + 2 is the wiki's 9 is a reading of the names, not confirmed.
+- **Buffer:** SmashWiki puts Ultimate's buffer window at 9 frames. An input held through the end of an animation is also buffered, however early it was pressed, if it is still held when that window opens ([SmashWiki: Buffer](https://www.ssbwiki.com/Buffer)). The params are `precede` 7 and `precede_extension` 2; that 7 + 2 is the wiki's 9 is a reading of the names, not confirmed. The engine follows the wiki: a 9-frame window (`INPUT_BUFFER_FRAMES`), counted from the last frame the button was held (`HOLD_BUFFER`), so a tap stays buffered for 9 frames and a held button until 9 frames after it is let go.
 - **Dash:** a fast turnaround is possible in the first 5 frames of an initial dash. Mario's initial dash lasts 10 frames, so he runs from frame 11 (UFD Dash Turnaround: fast 1–5, buffered 6–10, full dash 11), and his pivot dash lasts 12. Dash speed is kept for 6 frames ([UFD stats](https://ultimateframedata.com/stats) Dash Turnaround and Dash and Run; params `turn_dash_frame` 5, `dash_speed_keep_frame` 6; [MMSP](https://gamebanana.com/mods/38616) gives the same 6).
 - **Dash speed keep:** for those first 6 frames the control energy applies no acceleration and no brake, whatever the stick does. From frame 7 the dash moves on run physics: with the stick forward it accelerates by run accel up to run speed, and speed above run speed brakes by `ground_brake` × `run_brake_brake_mul` (1.0), which is traction. With the stick neutral or back the target is 0, so the dash slides out at traction while it plays to its end. Mario: 1.936 for 6 frames, then 1.834 and 1.76 held, or 1.834, 1.732, ... released (decompiled `FighterKineticEnergyControl::update`, [blu-dev/energy_id src/control.rs](https://github.com/blu-dev/energy_id/blob/412138bdec8a9704bae38559226e244c0ad8a555/src/control.rs); `run_brake_brake_mul` from the [common.prc dump](https://github.com/fudgepop01/amiibo_research/blob/523374aaf3f1b7fa67370f83bec4a53b256ac944/research/paramDecoding/common/param/common.xml)). The engine's value is `DASH_SPEED_KEEP_FRAMES` in `src/sim/constants.ts`.
-- **Stick thresholds:** dash 0.85, run 0.75.
+- **Stick thresholds:** dash 0.85 (`dash_stick_x`), run 0.75 (`run_stick_x`), run turnaround −0.6 (`turn_run_stick_x`; [common.prc dump](https://github.com/fudgepop01/amiibo_research/blob/523374aaf3f1b7fa67370f83bec4a53b256ac944/research/paramDecoding/common/param/common.xml)). The engine dashes on a flick past `DASH_THRESHOLD` (0.85); a run brake runs again past `RUN_THRESHOLD` (0.75) and turns past `TURN_RUN_THRESHOLD` (0.6).
 - **Keyboards are digital,** so walking and tilt attacks need a modifier key (see section 18).
 - **Speed ranges in the cast:** walk 0.62–1.575, initial dash 1.45–2.45, run 1.18–3.85 u/frame. Ground friction (traction) is 0.076–0.138 (section 17).
 
@@ -238,7 +238,7 @@ Mario frame data from [UFD Mario](https://ultimateframedata.com/mario), which li
 ## 13. Platforms
 
 - **Soft (pass-through) platforms** can be jumped through from below (calc stage data `passthroughAngle` 90).
-- **Platform drop:** tap down while standing or walking on a platform. You can't drop while running, attacking, crouching or shielding; a lightly tilted stick crouches instead ([Dragdown: Grounded movement](https://dragdown.wiki/wiki/SSBU/System_Mechanics/Grounded_Movement)). Drop thresholds: stick y ≤ −0.6875 within a 6-frame flick, and the fighter starts falling at vy −0.5 (params `pass_stick_y`, `pass_flick_y`, `pass_speed_y`).
+- **Platform drop:** tap down while standing or walking on a platform. You can't drop while running, attacking, crouching or shielding; a lightly tilted stick crouches instead ([Dragdown: Grounded movement](https://dragdown.wiki/wiki/SSBU/System_Mechanics/Grounded_Movement)). Drop thresholds: stick y ≤ −0.6875 within a 6-frame flick, and the fighter starts falling at vy −0.5 (params `pass_stick_y`, `pass_flick_y`, `pass_speed_y`). The engine's values are `PLATFORM_DROP_FLICK` in `src/sim/constants.ts`. A falling fighter holding the stick down past the same −0.6875 passes through platforms; no source gives a separate value for that.
 - **No source gives a platform-drop duration in frames.** PROPOSAL: drop on the frame the flick registers.
 
 ## 14. Grabs
@@ -369,7 +369,7 @@ Other cast extremes ([SmashWiki: Gravity](https://www.ssbwiki.com/Gravity)): Fox
 
 ## 19. Per-frame update order (PROPOSAL, built on the cited rules)
 
-1. Read input and push it into the 7-frame buffer.
+1. Read input and push it into the 9-frame buffer.
 2. If the fighter is in hitlag, freeze it, accept SDI flicks, and skip the remaining steps.
 3. Run state transitions: jumpsquat (3), shield drop (11), landing lag, and so on.
 4. Update the fighter's own velocity:
@@ -403,6 +403,7 @@ Other cast extremes ([SmashWiki: Gravity](https://www.ssbwiki.com/Gravity)): Fox
 | hitlag with 3+ players | SmashWiki: factor on computed hitlag | calc: scales the damage term | 2-player vectors only; implement the wiki form if needed |
 | floor tech speed limit | param 6.0 | calc 3 for floors | 6 for walls and ceilings, 3 for floors |
 | landing lag numbers | params (lag frames) | UFD (frames until actionable) | not a conflict: UFD = param + 1 |
+| buffer window | SmashWiki 9 frames | params `precede` 7, `precede_extension` 2 | **9** (the wiki's window; 7 + 2 may be the same 9) |
 
 ## 22. Not found or uncertain
 

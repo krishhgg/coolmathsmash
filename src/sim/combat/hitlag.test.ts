@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getFighter } from '../../fighters/registry';
+import { registerEntity, spawnEntity } from '../entities/entities';
 import type { FighterState } from '../fighter';
 import { createMatch, type MatchState } from '../match';
 import { marioReference as mario } from '../testing/reference';
@@ -37,6 +38,38 @@ function pointBlank(players: number): { m: MatchState; a: FighterState; v: Fight
 }
 
 const hits = (m: MatchState) => m.events.filter((e) => e.type === 'hit');
+
+const box = (damage: number, radius: number) => ({
+  id: 0,
+  x: 0,
+  y: 0,
+  radius,
+  damage,
+  angle: 361,
+  kbg: 50,
+  bkb: 20,
+});
+const still = { floor: 'pass', wall: 'pass' } as const;
+/** A hittable turret whose box is always out and goes through everyone it touches. */
+const TURRET = 'test-hitlag/turret';
+registerEntity(TURRET, {
+  ...still,
+  radius: 3,
+  hp: 100,
+  pierce: true,
+  hits: [{ frames: [1, 600], boxes: [box(3, 4)] }],
+});
+/** A 6% shot, used up by the first thing it hits. */
+const PELLET = 'test-hitlag/pellet';
+registerEntity(PELLET, {
+  ...still,
+  radius: 1.5,
+  lifetime: 10,
+  hits: [{ frames: [1, 10], boxes: [box(6, 1.5)] }],
+});
+/** A hittable entity with no hitboxes of its own. */
+const CRATE = 'test-hitlag/crate';
+registerEntity(CRATE, { ...still, radius: 3, hp: 100 });
 
 /** Widths overlap: pushApart would shove two grounded fighters this close apart on any frame they act. */
 function overlapping(a: FighterState, b: FighterState): boolean {
@@ -122,5 +155,37 @@ describe('hitlag', () => {
       if (m.events.some((e) => e.type === 'stageHit')) landed.push(frame);
     }
     expect(landed).toEqual([LAG + 1]);
+  });
+
+  it("keeps a frozen entity's hitboxes off fighters and entities on every hitlag frame, and lands them on the first frame after", () => {
+    const m = testMatch({ players: 2 });
+    const [a, b] = m.fighters as [FighterState, FighterState];
+    stand(a, 0, 1);
+    stand(b, 80, -1);
+    // Port 1's turret floats beside port 0, a crate of port 0's on its other side, both inside its box. Port 0's pellet
+    // hits it on its first frame, before its box can land on anyone.
+    const turret = spawnEntity(m, { kind: TURRET, owner: 1, pos: { x: 6, y: 8 } });
+    spawnEntity(m, { kind: PELLET, owner: 0, pos: { x: 6, y: 8 } });
+    const crate = spawnEntity(m, { kind: CRATE, owner: 0, pos: { x: 10, y: 8 } });
+    run(m, 1);
+    const lag = hitlagFrames(6);
+    expect(lag).toBe(9);
+    expect(m.events.filter((e) => e.type === 'entityHit')).toMatchObject([{ id: turret.id, attacker: 0 }]);
+    expect([turret.hitlag, turret.age]).toEqual([lag, 1]);
+
+    const landed: { fighter: number[]; entity: number[] } = { fighter: [], entity: [] };
+    for (let frame = 1; frame <= lag + 1; frame++) {
+      run(m, 1);
+      if (hits(m).some((e) => e.entity === turret.id && e.victim === 0)) landed.fighter.push(frame);
+      if (m.events.some((e) => e.type === 'entityHit' && e.id === crate.id)) landed.entity.push(frame);
+      // Frozen: it doesn't age (its hit windows wait) until the frame after its last hitlag frame.
+      const frozen = frame <= lag;
+      expect({ frame, hitlag: turret.hitlag, age: turret.age }).toEqual({
+        frame,
+        hitlag: frozen ? lag - frame : 0,
+        age: frozen ? 1 : 2,
+      });
+    }
+    expect(landed).toEqual({ fighter: [lag + 1], entity: [lag + 1] });
   });
 });

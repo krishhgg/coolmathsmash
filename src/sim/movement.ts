@@ -1,8 +1,8 @@
 import {
-  DOWN_FLICK_THRESHOLD,
   HARD_LANDING_AIRTIME,
   HELPLESS_AIR_SPEED,
   LEDGE_MAX_GRABS,
+  PLATFORM_DROP_FLICK,
   PUSH_STIFFNESS,
 } from './constants';
 import { stickY } from './control';
@@ -168,7 +168,7 @@ export function pushApart(m: MatchState, stage: CompiledStage): void {
       const a = fs[i]!;
       const b = fs[j]!;
       if (!a.ground || !b.ground || Math.abs(a.pos.y - b.pos.y) > 1) continue;
-      if (inHitlag(m, a) || inHitlag(m, b) || isFrozen(a) || isFrozen(b)) continue;
+      if (inHitlag(m, a) || inHitlag(m, b) || isFrozen(m, a) || isFrozen(m, b)) continue;
       const reach = (getFighter(a.fighter).stats.width + getFighter(b.fighter).stats.width) / 2;
       const dx = b.pos.x - a.pos.x;
       const overlap = reach - Math.abs(dx);
@@ -298,7 +298,7 @@ function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
     if (crossing(prev.y - yPrev, f.pos.y - yNow)) return { kind: 'solid', index: stage.edges.indexOf(e) };
   }
   if (movingDown) {
-    const passing = stickY(x.c) <= -DOWN_FLICK_THRESHOLD;
+    const passing = stickY(x.c) <= -PLATFORM_DROP_FLICK.stick;
     for (let i = 0; i < stage.geo.platforms.length; i++) {
       const p = stage.geo.platforms[i]!;
       if (!stage.present.platforms[i]) continue;
