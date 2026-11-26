@@ -15,13 +15,13 @@ const SIDE_SPECIAL: Hold = { x: 100, buttons: ['special'] };
 const { dash: DASH, active: ACTIVE, end: END } = STRAFE_DASH;
 const HIT = (damage: number) => damage * FRESHNESS_BONUS * ONE_V_ONE_DAMAGE;
 
-/** Runner at `x` facing right against the Mario reference standing at `x + gap`, both settled. */
-function duel(x: number, gap: number, damage = 0) {
+/** Runner at `x` facing right against `foe` (the Mario reference) standing at `x + gap`, both settled. */
+function duel(x: number, gap: number, damage = 0, foe = marioReference.id) {
   const m = createMatch({
     seed: 1,
     stage: 'battlefield',
     stocks: 3,
-    ports: [{ fighter: 'runner' }, { fighter: marioReference.id }],
+    ports: [{ fighter: 'runner' }, { fighter: foe }],
   });
   run(m, 10);
   const [runner, mario] = m.fighters as [FighterState, FighterState];
@@ -162,15 +162,45 @@ describe('Runner: Strafe Dash hits', () => {
     },
   );
 
-  it('the trail reaches back to where she stood two frames before', () => {
+  it('the trail runs from her feet back to where the burst began, and never past it', () => {
     expect(TRAIL[0]).toBe(0);
-    expect(TRAIL.at(-1)).toBeCloseTo(-2 * DASH_SPEED, 6);
     const m = testMatch({ fighter: 'runner', x: -70 });
     const f = m.fighters[0]!;
     run(m, 1, SIDE_SPECIAL);
-    run(m, ACTIVE[0] - 1);
-    const boxes = activeHitboxes(f).map((h) => h.x);
-    expect(Math.min(...boxes)).toBeCloseTo(-70, 6);
+    run(m, DASH[0] - 2);
+    expect(f.actionFrame).toBe(DASH[0] - 1);
+    const start = f.pos.x;
+    run(m, ACTIVE[0] - DASH[0]);
+    const backEdges: number[] = [];
+    for (let frame = ACTIVE[0]; frame <= ACTIVE[1]; frame++) {
+      run(m, 1);
+      expect(f.actionFrame).toBe(frame);
+      backEdges.push(Math.min(...activeHitboxes(f).map((h) => h.x - h.box.radius)));
+    }
+    expect(backEdges[0]).toBeCloseTo(start, 6);
+    for (const edge of backEdges) expect(edge).toBeGreaterThanOrEqual(start - 1e-9);
+  });
+
+  it.each(['fireboy', marioReference.id])(
+    "doesn't hit %s standing 8 units behind where she started, as the in-game capture found it did",
+    (foe) => {
+      const { m, mario: behind } = duel(-50, -8, 40, foe);
+      run(m, 1, SIDE_SPECIAL);
+      run(m, moves.sideB!.faf);
+      expect(behind.damage).toBe(40);
+      expect(behind.launch).toBeNull();
+    },
+  );
+
+  it("in the air doesn't hit a foe 6 units behind where she started either", () => {
+    const { m, mario } = duel(-50, -6, 40);
+    placeInAir(m, -50, 20);
+    for (let i = 0; i < 40; i++) {
+      Object.assign(mario, { pos: { x: -56, y: 20 }, vel: { x: 0, y: 0 }, ground: null, action: 'fall' });
+      run(m, 1, i === 0 ? SIDE_SPECIAL : {});
+    }
+    expect(m.fighters[0]!.move).toBe('sideBAir');
+    expect(mario.damage).toBe(40);
   });
 
   it('in the air it hits for 5% at 60 degrees', () => {
