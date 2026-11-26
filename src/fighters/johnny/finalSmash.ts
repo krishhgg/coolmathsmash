@@ -91,7 +91,6 @@ export const finalSmash: MoveDef = {
   faf: MAX_UPGRADE.faf,
   final: { still: true, range: MAX_UPGRADE_RANGE },
   commandGrab: 'finalSmashCinematic',
-  drift: false,
   hits: [
     {
       frames: [dash.from, dash.to],
