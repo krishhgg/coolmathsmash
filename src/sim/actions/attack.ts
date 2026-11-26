@@ -264,6 +264,7 @@ export const ATTACK: Record<string, ActionDef> = {
     physics: 'air',
     intangible: moveIntangible,
     drift: (x) => moveOf(x.f)?.drift ?? true,
+    gravity: (x) => moveOf(x.f)?.gravity ?? true,
     ledge: (x) => {
       const from = moveOf(x.f)?.ledgeFrom;
       return from === undefined ? false : from;

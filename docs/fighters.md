@@ -165,6 +165,11 @@ fsmash: {
     it around and reverses its horizontal speed, as in Ultimate). Neutral, side and down specials can by default
     and up specials can't. Set `bReverse: false` where the Ultimate analogue can't, as Falcon Punch can't. Holding
     the stick behind on the press still turns any special around (docs/physics-reference.md section 10).
+  - `gravity: false` turns off gravity while an airborne move plays, so its script alone sets the vertical speed.
+  - `fallThrough: false` lands on soft platforms even with the stick held down. Ultimate's aerial attacks and most
+    specials can't fall through them (SmashWiki, "Platform"), but the engine lets any airborne fighter holding down
+    drop through unless the move opts out. Snail Bob's Shell Pound (`src/fighters/snailbob/shellPound.ts`, Bowser
+    Bomb) uses both, with `drift: false`, for a stall and a 9-unit-a-frame drop that land on platforms.
   - `fastFall: false` stops a down flick from fast-falling while an airborne move plays, as in Ultimate's specials
     (the Duck's Running Ram).
   - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
