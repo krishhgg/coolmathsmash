@@ -59,6 +59,7 @@ feeds back into the simulation.
 | `fuelEmpty`     | `port`                                                                                            | a fuel hover burns its last fuel while thrusting                                                                                                   |
 | `statusStart`   | `port`, `status` (kind), `frames`, `source`                                                       | a status goes on a fighter, after the `hit` that applied it, but not when applied again while on; `source` is the port credited, -1 for none       |
 | `statusEnd`     | `port`, `status` (kind), `reason` (`expired`, `ko`, `cleared`)                                    | a status comes off: it ran out (mashing included), the fighter was KO'd, or a script cleared it                                                    |
+| `statusDamage`  | `port`, `status` (kind), `damage`, `source`                                                       | a status's tick damages its fighter, with no hitlag or knockback; `damage` is what it added, `source` the port credited                            |
 
 `x` and `y` are world units with y up. `action` events come last in a frame, one per fighter whose action
 differs from the frame before, which also covers states without their own event: `shield`, `spotDodge`,

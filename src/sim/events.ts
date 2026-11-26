@@ -92,6 +92,11 @@ export type SimEvent =
   | { type: 'statusStart'; port: number; status: string; frames: number; source: number }
   /** A status came off: it ran out (`expired`, mashing included), the fighter was KO'd, or a script cleared it. */
   | { type: 'statusEnd'; port: number; status: string; reason: StatusEndReason }
+  /**
+   * A status's tick damaged its fighter, with no hitlag or knockback. `damage` is what it added to their %;
+   * `source` is the port credited, -1 none.
+   */
+  | { type: 'statusDamage'; port: number; status: string; damage: number; source: number }
   /** A scheduled stage piece appeared (`on`) or vanished (docs/stage-geometry.md). */
   | { type: 'stagePiece'; piece: 'solid' | 'platform'; index: number; on: boolean }
   /** A moving solid squeezed a fighter against other geometry and the fighter popped out on top of it. */

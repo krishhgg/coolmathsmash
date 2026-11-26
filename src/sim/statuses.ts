@@ -112,8 +112,8 @@ function end(m: MatchState, f: FighterState, s: StatusState, reason: StatusEndRe
 
 /**
  * One frame of every status on the fighter, oldest first: mashing cuts it, its script runs, its tick deals damage
- * (no hitlag, no knockback), then it counts down and ends at 0. Runs only on frames the fighter acts, from the
- * frame after the status went on.
+ * (no hitlag, no knockback, reported as `statusDamage`), then it counts down and ends at 0. Runs only on frames the
+ * fighter acts, from the frame after the status went on.
  */
 export function tickStatuses(x: Ctx): void {
   const { m, f, c } = x;
@@ -128,7 +128,17 @@ export function tickStatuses(x: Ctx): void {
     if (def.mash) s.frames -= stick * def.mash.stick + buttons * def.mash.button;
     def.script?.(x, s);
     if (!f.statuses.includes(s)) continue;
-    if (def.tick && s.age % def.tick.every === 0) addDamage(m, f, def.tick.damage);
+    if (def.tick && s.age % def.tick.every === 0) {
+      const before = f.damage;
+      addDamage(m, f, def.tick.damage);
+      emit(m, {
+        type: 'statusDamage',
+        port: f.port,
+        status: s.kind,
+        damage: f.damage - before,
+        source: s.source,
+      });
+    }
     s.frames--;
     if (s.frames <= 0) end(m, f, s, 'expired');
   }

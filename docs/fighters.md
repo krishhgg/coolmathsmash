@@ -526,7 +526,8 @@ dthrow: { ..., throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55
 - **Ticking.** Every status ticks once on each frame the fighter acts, from the frame after it went on. Hitlag pauses
   it. Each tick, in order: `mash` cuts frames for a new stick direction or a button press (pressing doesn't use up the
   input), `script(x, status)` runs (after the action, before physics), and `tick` adds `damage` % on every `every`th
-  frame with no hitlag or knockback. Then it counts down one frame and ends at 0. Ending emits `statusEnd`.
+  frame with no hitlag or knockback, reported as `statusDamage` so the results count it for the victim and the
+  source. Then it counts down one frame and ends at 0. Ending emits `statusEnd`.
 - **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status.
 - **State.** `FighterState.statuses` lists `{ kind, frames, age, since, source }`, oldest first. `frames` is what is
   left, `age` counts ticks from 1 and `source` is the port credited (-1 for none). Use `hasStatus` and `statusOf`

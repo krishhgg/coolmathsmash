@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { COUNTDOWN_FRAMES, MatchSession } from '../../session/match';
 import type { SimEvent } from '../../sim/events';
 import { statusOf } from '../../sim/statuses';
 import { runPorts, type Hold } from '../../sim/testing/sim';
@@ -74,6 +75,39 @@ describe('Red Ball: Squared (Sit-Squash leaves them squared)', () => {
     expect(ends).toEqual([{ type: 'statusEnd', port: 1, status: KIND, reason: 'expired' }]);
     expect(Math.floor(372 / 21)).toBe(17);
     expect(v.damage - added).toBeCloseTo(17 * 1.2, 9);
+  });
+
+  it("reports each tick as statusDamage, and the results count Squared's 20.4% for both players", () => {
+    const { m, v } = downThrow();
+    const session = new MatchSession(
+      {
+        config: m.config,
+        controllers: [
+          { kind: 'human', device: null },
+          { kind: 'human', device: null },
+        ],
+      },
+      { stocks: 3, minutes: 0, items: false },
+    );
+    const ticks: Extract<SimEvent, { type: 'statusDamage' }>[] = [];
+    while (statusOf(v, KIND)) {
+      runPorts(m, 1, [{}, {}]);
+      session.observe(m);
+      for (const e of m.events) if (e.type === 'statusDamage') ticks.push(e);
+    }
+    expect(ticks).toHaveLength(17);
+    for (const e of ticks) {
+      expect(e).toMatchObject({ port: 1, status: KIND, source: 0 });
+      expect(e.damage).toBeCloseTo(1.2, 9);
+    }
+
+    m.frame = Math.max(m.frame, COUNTDOWN_FRAMES);
+    m.events = [];
+    v.stocks = 0;
+    session.observe(m);
+    const [p1, p2] = session.result!.players;
+    expect(p1!.stats.damageDealt).toBeCloseTo(20.4, 9);
+    expect(p2!.stats.damageTaken).toBeCloseTo(20.4, 9);
   });
 
   it('mashing shakes it off faster: 16 frames a new stick direction, 28.8 a button press', () => {
