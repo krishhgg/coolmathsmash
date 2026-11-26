@@ -367,9 +367,12 @@ describe('Ball Rain (Final Smash), on PK Starstorm', () => {
     expect(me.move).toBe('finalSmash');
   });
 
-  it('has a clip on its frame data and the ball drawn in his rig as a prop', () => {
+  it('has a clip on its frame data and the ball drawn in his rig as a prop behind the fighters', () => {
     expect(art.clips.finalSmash?.length).toBe(finalSmash.faf - 1);
     expect(art.projectiles?.ball?.symbol).toBe('fxRainBall');
+    // As big as the hitbox, and behind the fighters so whoever it falls on still shows.
+    expect(art.projectiles?.ball?.scale).toBeCloseTo(RAIN.radius / 5.25, 9);
+    expect(art.projectiles?.ball?.behind).toBe(true);
     expect(art.rig.symbols.fxRainBall).toBeDefined();
   });
 });

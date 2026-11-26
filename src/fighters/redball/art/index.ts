@@ -31,13 +31,15 @@ export const art: FighterArt = {
   ledgeGrip: LEDGE_GRIP,
   projectiles: {
     /**
-     * Ball Rain's balls: drawn at Red Ball's size and scaled up to their radius-16 hitbox. The lab shows the first
-     * one dropping in front of him on its frame, as it falls on Battlefield.
+     * Ball Rain's balls: drawn at Red Ball's size and scaled up to their radius-16 hitbox, behind the fighters so
+     * whoever one falls on still shows through it. The lab shows one dropping in front of him on the first drop frame,
+     * as the second ball falls on Battlefield.
      */
     ball: {
       symbols: rig.symbols,
       symbol: 'fxRainBall',
       scale: RAIN.radius / R,
+      behind: true,
       preview: { finalSmash: { frame: RAIN_FRAMES[0]!, x: 40, y: 90, ...preview() } },
     },
   },

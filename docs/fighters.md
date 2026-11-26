@@ -455,7 +455,8 @@ A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned b
 `fireboy/blast` entity that crosses the stage and keeps burning after Fireboy can act, as Mario's fireballs do. Red
 Ball's Ball Rain (`src/fighters/redball/finalSmash.ts`) covers the whole stage instead, on PK Starstorm: its script drops
 `redball/ball` entities with `spawnEntity` from the top of the stage's middle rather than from his feet, passing
-`final: true` and the move, and `final.range` tells CPUs how far ahead it reaches. The test fighter's is a plain hitbox:
+`final: true` and the move, and `final.range` tells CPUs how far ahead it reaches. Its balls draw behind the fighters
+(`PropArt.behind`), so whoever one falls on still shows. The test fighter's is a plain hitbox:
 
 ```ts
 finalSmash: {
