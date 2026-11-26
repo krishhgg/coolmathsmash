@@ -282,5 +282,24 @@ export const scenarios: FighterScenarios = {
       requires: ['move:chargeRoll3'],
       refs: ['smash/run-*', `${RB}/ingame-roll-vs-box-*`],
     },
+    {
+      name: 'redball-ball-rain',
+      description:
+        'Red Ball holds the Final Smash charge and calls Ball Rain (neutral special); capture the first ball to hit Fireboy, standing 70 units in front.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'redball' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -40, y: 0 }, facing: 1, finalReady: true } },
+        { port: 1, state: { pos: { x: 30, y: 0 }, facing: -1 } },
+      ],
+      script: [{ port: 0, from: 4, to: 5, buttons: ['special'] }],
+      capture: {
+        label: "P2's damage rises",
+        when: (s, prev) => s.fighters[1]!.damage > prev.fighters[1]!.damage,
+      },
+      motion: { before: 150, after: 40 },
+      requires: ['move:finalSmash'],
+      refs: [`${RB}/ingame-gameplay-*`, `${RB}/cutscene-expressions-*`],
+    },
   ],
 };
