@@ -6,7 +6,9 @@ import { INPUT_BUFFER_FRAMES } from './constants';
 import { createMatch, stepMatch, type MatchState } from './match';
 import { attack, input, placeInAir, run, type Hold } from './testing/sim';
 import { FRESHNESS_BONUS, isTumble, shieldBreakStun } from './combat/formulas';
-import { getFighter } from '../fighters/registry';
+import { getFighter, registerFighter } from '../fighters/registry';
+import { defineFighter } from '../fighters/types';
+import { marioReference } from './testing/reference';
 import ref from './reference/physics-constants.json';
 import type { ButtonName } from '../input/types';
 
@@ -35,6 +37,18 @@ function grounded(ports = 1): MatchState {
   settle(m);
   return m;
 }
+
+/**
+ * Reference Mario with Captain Falcon's 15-frame initial dash (UFD stats, Dash Turnaround: fast 1-5, buffer window
+ * 6-15, full dash 16), long enough for a flick back after frame 5 to leave the input buffer before the dash ends.
+ */
+const LONG_DASH = defineFighter({
+  ...marioReference,
+  id: 'test-long-initial-dash',
+  selectable: false,
+  stats: { ...marioReference.stats, dashFrames: 15 },
+});
+registerFighter(LONG_DASH);
 
 describe('ground movement', () => {
   it('dashes at the initial dash speed for the dash window, then runs', () => {
@@ -125,28 +139,30 @@ describe('ground movement', () => {
     expect(flickBack(8, 9)).toEqual({ frame: 11, action: 'dash', vx: -1.936 });
   });
 
-  it('a late flick back leaves the buffer after INPUT_BUFFER_FRAMES unless the stick is still held back', () => {
-    // Snail Bob's initial dash is long enough that a flick back after frame 5 can age out of the buffer by its end.
-    const end = getFighter('snailbob').stats.dashFrames + 1;
+  it('a late flick back leaves the buffer INPUT_BUFFER_FRAMES after the stick lets go', () => {
+    const end = LONG_DASH.stats.dashFrames + 1;
     const flick = end - INPUT_BUFFER_FRAMES;
     expect(flick).toBeGreaterThan(5);
-    expect(flickBack(flick + 1, flick + 2, 'snailbob')?.frame).toBe(end);
-    expect(flickBack(flick, flick + 1, 'snailbob')).toBe(null);
-    expect(flickBack(flick, Infinity, 'snailbob')?.frame).toBe(end);
+    // Flicked back for one frame: in the buffer until INPUT_BUFFER_FRAMES after that frame.
+    expect(flickBack(flick + 1, flick + 2, LONG_DASH.id)?.frame).toBe(end);
+    expect(flickBack(flick, flick + 1, LONG_DASH.id)).toBe(null);
+    // The hold buffer counts from the last frame the stick was held back, as it does for a button: held on frame
+    // flick + 1 is still in the buffer at the end, and held to the end always is.
+    expect(flickBack(flick, flick + 2, LONG_DASH.id)?.frame).toBe(end);
+    expect(flickBack(flick, Infinity, LONG_DASH.id)?.frame).toBe(end);
   });
 
   it('a second late flick back refreshes the buffer, as a new button press does', () => {
-    // Snail Bob's 13-frame dash: flicked back on frame 6 and let go, then flicked again 2 frames before the end and
-    // let go. The first flick is too old by frame 14; the second is still in the buffer, so he dashes back then.
-    const end = getFighter('snailbob').stats.dashFrames + 1;
+    // Flicked back for one frame on frame 6, then for one frame 2 frames before the end. The first flick is out of the
+    // buffer by the end; the second is still in it, so the fighter dashes back then.
+    const end = LONG_DASH.stats.dashFrames + 1;
     const first = end - INPUT_BUFFER_FRAMES - 1;
     const second = end - 2;
     expect(first).toBeGreaterThan(5);
+    expect(flickBack(first, first + 1, LONG_DASH.id)).toBe(null);
     const hold = (frame: number): Hold =>
       frame === first || frame === second ? { x: -100 } : frame < first - 1 ? { x: 100 } : {};
-    expect(turnAround('snailbob', hold)?.frame).toBe(end);
-    // One flick held past the threshold for 2 frames is one input: it ages from its first frame and is gone by then.
-    expect(flickBack(end - INPUT_BUFFER_FRAMES, end - INPUT_BUFFER_FRAMES + 2, 'snailbob')).toBe(null);
+    expect(turnAround(LONG_DASH.id, hold)?.frame).toBe(end);
   });
 
   it('a tapped dash holds 1.95 u/f for 6 frames, then slides out at traction (Ultimate: dash_speed_keep_frame 6)', () => {

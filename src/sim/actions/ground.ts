@@ -91,8 +91,8 @@ export const GROUND: Record<string, ActionDef> = {
    * Initial dash, dashFrames long: dash speed for its first DASH_SPEED_KEEP_FRAMES, then run physics, so a stick held
    * forward eases it to run speed and a neutral or backward stick slides it out at traction. A flick back on its first
    * TURN_DASH_FRAMES frames restarts it the other way at once (dash dance). A later flick back is buffered: the dash
-   * plays on and restarts the other way on the frame it ends, if the flick is still in the input buffer then or the
-   * stick is still held back (Ultimate's hold buffer).
+   * plays on and restarts the other way on the frame it ends if the flick is still in the input buffer then. As for a
+   * button (`buffered`), the hold buffer counts the window from the last frame the stick was held back.
    */
   dash: {
     physics: 'ground',
@@ -109,11 +109,9 @@ export const GROUND: Record<string, ActionDef> = {
         // button press does; the frames that one flick stays past the threshold don't.
         if (f.dashBackAt < 0 || c.neutralX > f.dashBackAt) f.dashBackAt = c.frame;
       }
+      if (HOLD_BUFFER && f.dashBackAt >= 0 && sx <= -DASH_THRESHOLD) f.dashBackAt = c.frame;
       if (f.actionFrame > s.dashFrames) {
-        const stored = f.dashBackAt >= 0;
-        const inBuffer = stored && c.frame - f.dashBackAt < INPUT_BUFFER_FRAMES;
-        const held = stored && HOLD_BUFFER && sx <= -DASH_THRESHOLD;
-        if (inBuffer || held) return dashBack(x);
+        if (f.dashBackAt >= 0 && c.frame - f.dashBackAt < INPUT_BUFFER_FRAMES) return dashBack(x);
         return setAction(x, sx > 0 ? 'run' : 'idle');
       }
       if (f.actionFrame <= DASH_SPEED_KEEP_FRAMES) f.vel.x = f.facing * s.dashInitialSpeed;
