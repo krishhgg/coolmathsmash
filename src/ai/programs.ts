@@ -205,14 +205,19 @@ export function dropJump(toward: number): Program {
 /**
  * A grounded move: wait until actionable on the ground (out of a shield drop), then input it facing `facing`. A grab
  * comes straight out of the shield instead (Grab with Shield still held), so it keeps holding Shield until then.
+ * With `hold`, the move's buttons stay held once it starts until it has that many frames of charge (a charged
+ * special, MoveProbe.charged).
  */
-export function groundMove(move: string, facing: 1 | -1): Program {
+export function groundMove(move: string, facing: 1 | -1, hold = 0): Program {
   const input = GROUND_INPUTS[move] ?? DASH_INPUTS[move];
   return {
-    name: `ground:${move}`,
+    name: `ground:${move}${hold ? `:held${hold}` : ''}`,
     interruptible: false,
     holds: move === 'grab',
     step(t, f) {
+      if (input && f.move === move && f.action === 'attack' && f.charge < hold) {
+        return press({ buttons: input.buttons ?? 0 });
+      }
       if (t > 40 || (f.move === move && f.action === 'attack')) return null;
       if (move === 'grab' && f.action === 'shieldStun') return press({ buttons: Btn.Shield });
       if (move === 'grab' && f.action === 'shield') return press({ buttons: Btn.Grab | Btn.Shield });
