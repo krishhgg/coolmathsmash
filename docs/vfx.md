@@ -28,7 +28,7 @@ effect draws a character.
 | `entityHit`               | Spark where a hittable entity was struck; nobody shakes                                              |
 | `shieldBreak`             | Shatter from the cracked bubble                                                                      |
 | `ko`                      | KO blast; the KO'd fighter's launch smoke shrinks away                                               |
-| `hit` in 1v1, strong      | Special Zoom (blue), or Finish Zoom (red) when it will KO (below); none during a Final Smash         |
+| `hit` in 1v1, strong      | Special Zoom (blue), or Finish Zoom (red) when it will KO (below); none during or from a Final Smash |
 | `finalSmash`              | Final Smash zoom (gold) on the user, over the activation freeze, with any number of players          |
 | `jump`, `land`            | Dust at the feet (more for a full hop or a laggy landing)                                            |
 | `action` from `respawn`   | The respawn platform shrinks away                                                                    |
@@ -47,10 +47,12 @@ Ultimate's zoom on a decisive 1v1 hit lives in `src/render/zoom.ts`, with the KO
   KO. Ultimate lists the moves instead; this roster has no such list.
 - A Finish Zoom on the other fighter takes over a running Special Zoom; otherwise a new zoom waits for the running
   one to end.
-- Never during a Final Smash. A Final Smash's activation has its own zoom instead (SmashWiki, Final Smash: "Most Final
-  Smashes cause the camera to temporarily zoom in on the user when activated"): gold, on the middle of the user's body,
-  with any number of players, for exactly the frames the sim holds everyone else still (`FINAL_SMASH.freeze`). It
-  outranks both hit zooms.
+- Never during a Final Smash, and never from one. A hit whose event carries `final` (from a Final Smash move, or from
+  an entity one put out, like Ball Rain's balls still falling after Red Ball can act) starts none, and neither does
+  another hit on a fighter that a Final Smash's hit launches on the same frame. A Final Smash's activation has its own
+  zoom instead (SmashWiki, Final Smash: "Most Final Smashes cause the camera to temporarily zoom in on the user when
+  activated"): gold, on the middle of the user's body, with any number of players, for exactly the frames the sim
+  holds everyone else still (`FINAL_SMASH.freeze`). It outranks both hit zooms.
 - The zoom follows its victim's live freeze, so it always ends on the frame the victim actually launches. A hit
   landing during the freeze (a returning projectile) replaces the freeze and the pending launch, so it decides the
   zoom again from the new launch, keeping its start and contact point; a launch that is now neither a KO nor strong

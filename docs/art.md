@@ -62,7 +62,12 @@ rig point `(6, -6)`.
   fighter's `art.projectiles` (Fireboy's `fireball` draws for `fireboy/fireball`). The prop wears its owner's
   costume, mirrors with the entity's facing, and plays its symbol loops on the entity's age, so a flicker starts on
   its first drawing at spawn. Set `align: true` on a streak or comet to turn it to its velocity, tail behind.
-  Props draw over fighters. A prop with a `front` symbol draws its `symbol` behind every fighter and its `front` over
+  Props draw over fighters, so a prop that spawns in front of its thrower can cover the thrower's face. An entity is
+  first drawn on age 1, where it spawned, and the renderer draws it between its last two positions, so age 2 can
+  still show it there. Open the loop on a drawing that stays clear of the thrower for those frames: Watergirl's Water
+  Stream pumps (`src/fighters/watergirl/art/pumps.ts`) show a small spout in front of her hands on ages 1 to 3, and
+  their art test checks every pump against her head's drawn box.
+  A prop with a `front` symbol draws its `symbol` behind every fighter and its `front` over
   only the fighters standing on that entity, with everyone else over it (`layerFighters` in
   `src/render/entities.ts`): the Raft Wars kids' Duck Raft sits behind fighters, and its rim band covers the feet of
   whoever stands in it and nobody else. Set `behind: true` to draw the whole prop behind the fighters, for one big

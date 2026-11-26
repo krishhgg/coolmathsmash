@@ -480,7 +480,9 @@ finalSmash: {
 ```
 
 A **trapping** Final Smash is a command grab (above) whose cinematic is `final` too. The first fighter its boxes catch
-is held through the cinematic's `holdHits` and launched by its `throw`; nobody else moves until the release:
+is held through the cinematic's `holdHits` and launched by its `throw`; nobody else moves until the release. Snail Bob's
+Shell Ship (`src/fighters/snailbob/finalSmash.ts`), on Captain Falcon's Blue Falcon, catches on frames 28-30, so it takes
+`final.freeze: 26` to end the activation freeze before then. The test fighter's:
 
 ```ts
 finalSmash: {

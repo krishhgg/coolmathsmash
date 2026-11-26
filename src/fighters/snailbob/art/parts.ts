@@ -61,7 +61,14 @@ export const gloss: PathShape[] = [
  * The spiral: one broad band (about 1.6 turns) that widens as it winds out from the centre at the origin to its
  * outer end at angle `end` (degrees, 90 = down), as on the games' shells, with lighter segment ticks across it.
  */
-function spiralBand(r0: number, r1: number, w0: number, w1: number, turns: number, end: number): PathShape[] {
+export function spiralBand(
+  r0: number,
+  r1: number,
+  w0: number,
+  w1: number,
+  turns: number,
+  end: number,
+): PathShape[] {
   const total = turns * Math.PI * 2;
   const steps = 56;
   const at = (i: number, side: number): Pt => {
