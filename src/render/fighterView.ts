@@ -3,6 +3,7 @@ import { isIntangible } from '../sim/actions/registry';
 import { SHIELD_MAX } from '../sim/constants';
 import type { FighterState } from '../sim/fighter';
 import type { MatchConfig } from '../sim/match';
+import { statusDef } from '../sim/statuses';
 import type { FighterDef } from '../fighters/types';
 import { PORT_COLORS } from './debug/inputDisplay';
 import { drawFinalGlow } from './items';
@@ -98,6 +99,19 @@ export function shieldRadius(def: FighterDef, shieldHp: number): number {
   return Math.max(0, def.stats.shieldSize * ((shieldHp / SHIELD_MAX) * 0.85 + 0.15));
 }
 
+/** Badges blink for the last second of a status. */
+export const BADGE_BLINK_FRAMES = 60;
+const BADGE = 3.2;
+
+/** The badge colours to draw this frame: one per status with a `color`, oldest first, blinking near their end. */
+export function statusBadges(f: FighterState, frame: number): string[] {
+  return f.statuses.flatMap((s) => {
+    const color = statusDef(s.kind).color;
+    if (!color || (s.frames <= BADGE_BLINK_FRAMES && frame % 8 >= 4)) return [];
+    return [color];
+  });
+}
+
 /** Frames the parry flash lasts (render only; Ultimate shows a bright flash on the parrying fighter). */
 export const PARRY_FLASH_FRAMES = 12;
 
@@ -110,6 +124,8 @@ export class FighterView {
   private readonly shield = new Graphics();
   /** The rainbow aura of a fighter holding a Final Smash charge (FighterState.finalReady). */
   private readonly glow = new Graphics();
+  /** Status badges beside the head (the overhead tag takes the space above it). */
+  private readonly badges = new Graphics();
   private readonly shieldColor: string;
   /** The colour flash (smash charge, respawn invincibility); never made in `lite`, where it is the blink instead. */
   private flash: ColorMatrixFilter | null = null;
@@ -148,7 +164,7 @@ export class FighterView {
     this.top = this.art?.height ?? h;
     this.label.position.set(0, -this.top - 5);
     this.label.visible = false;
-    this.container.addChild(this.glow, this.body, this.shield, this.parryFlash, this.label);
+    this.container.addChild(this.glow, this.body, this.shield, this.parryFlash, this.badges, this.label);
   }
 
   /** Start the parry flash; `frame` is the match frame after the parry. */
@@ -208,6 +224,15 @@ export class FighterView {
         );
     }
     this.drawParryFlash(frame - this.parryAt);
+    this.badges.clear();
+    const bx = this.def.stats.width / 2 + 1.2;
+    statusBadges(f, frame).forEach((color, i) => {
+      const y = -this.top + 0.6 + i * (BADGE + 0.8);
+      this.badges
+        .roundRect(bx, y, BADGE, BADGE, 0.5)
+        .fill(color)
+        .stroke({ color: '#ffffff', width: 0.45, alpha: 0.9 });
+    });
     this.label.visible = debug;
     if (debug) this.label.text = `${f.move ?? f.action} ${f.actionFrame}`;
   }
