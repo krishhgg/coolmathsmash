@@ -6,6 +6,7 @@ import { createMatch, stepMatch, type MatchState } from './match';
 import { attack, input, run, type Hold } from './testing/sim';
 import { FRESHNESS_BONUS, isTumble } from './combat/formulas';
 import { getFighter } from '../fighters/registry';
+import ref from './reference/physics-constants.json';
 import type { ButtonName } from '../input/types';
 
 /**
@@ -393,11 +394,13 @@ describe('dodges', () => {
 });
 
 describe('ledge', () => {
-  function hang(percent = 0) {
+  /** A fighter falling onto Battlefield's left ledge; the next frame is the grab frame. */
+  function hang(percent = 0, airtime = 0) {
     const m = grounded();
     const f = P(m);
     const L = getStage('battlefield').ledges[0]!;
     f.damage = percent;
+    f.airFrames = airtime;
     f.pos.x = L.x + L.side * 3;
     f.pos.y = L.y - 6;
     f.prevPos = { ...f.pos };
@@ -435,29 +438,74 @@ describe('ledge', () => {
     const { m, f } = hang();
     run(m, 1);
     expect(f.action).toBe('ledgeCatch');
-    run(m, 10);
+    run(m, 19);
     expect(f.action).toBe('ledgeHang');
     expect(isIntangible(f)).toBe(true);
     run(m, 320);
     expect(f.action).not.toBe('ledgeHang');
   });
 
-  it('reaches the ledge-getup options in Ultimate order of speed', () => {
+  it('the ledge catch lasts 19 frames counting the grab frame, so the hang acts on frame 20 (Ultimate)', () => {
     const { m, f } = hang();
-    run(m, 10);
-    run(m, 2, { x: 100 });
-    expect(f.action).toBe('ledgeClimb');
-    let frames = 0;
-    while (f.action === 'ledgeClimb' && frames < 60) {
-      stepMatch(m, [input({})]);
-      frames++;
+    run(m, 1);
+    expect(f.action).toBe('ledgeCatch');
+    // Hold toward the stage from the frame after the grab: the climb starts on the first actionable frame.
+    let frame = 1;
+    while (f.action !== 'ledgeClimb' && frame < 60) {
+      stepMatch(m, [input({ x: 100 })]);
+      frame++;
     }
-    expect(frames).toBeLessThanOrEqual(34);
-    expect(f.ground).not.toBeNull();
+    expect(frame).toBe(ref.ledge.first_actionable_frame);
+    expect(frame - 1).toBe(ref.ledge.catch_animation_frames);
   });
 
-  it.todo('the ledge catch animation lasts 19 frames (Ultimate), not 8');
-  it.todo('ledge intangibility follows 60*airtime/300 + 44 - 44*%/120 + 19 (23-123 frames), not a flat 60');
+  it.each(
+    ref.ledge.intangibility_test_vectors.map(
+      (v) => [v.airtime_frames, v.percent, v.expected_frames_incl_19f_catch] as const,
+    ),
+  )(
+    'ledge intangibility follows 60*airtime/300 + 44 - 44*%%/120 + 19: %s airtime frames at %s%% is %s frames',
+    (airtime, percent, expected) => {
+      const { m, f } = hang(percent, airtime);
+      // Frames counted from the grab frame while the fighter hangs untouched.
+      const intangible: number[] = [];
+      for (let frame = 1; frame <= 200; frame++) {
+        stepMatch(m, [input({})]);
+        if (isIntangible(f)) intangible.push(frame);
+      }
+      expect(intangible.length).toBe(expected);
+      expect(intangible[0]).toBe(1);
+      expect(intangible.at(-1)).toBe(expected);
+    },
+  );
+
+  it.each([
+    // Mario, UFD Ledge Stats (physics-reference section 8): intangible frames, then total + 1.
+    ['climb', { x: 100 }, [1, 33], 35],
+    ['roll', { buttons: ['shield'] }, [1, 25], 46],
+    ['attack', { buttons: ['attack'] }, [1, 26], 56],
+    ['jump', { buttons: ['jump'] }, [1, 12], 15],
+  ] as [string, Parameters<typeof input>[0], [number, number], number][])(
+    'ledge %s getup is intangible on frames %j and actionable on frame %i (Ultimate)',
+    (name, hold, [from, until], faf) => {
+      const { m, f } = hang();
+      run(m, 40);
+      expect(f.action).toBe('ledgeHang');
+      const intangible: number[] = [];
+      let actionable = -1;
+      for (let frame = 1; frame <= 80 && actionable < 0; frame++) {
+        stepMatch(m, [input(frame === 1 ? hold : {})]);
+        if (isIntangible(f)) intangible.push(frame);
+        if (!f.action.startsWith('ledge')) actionable = frame;
+      }
+      expect(intangible[0]).toBe(from);
+      expect(intangible.at(-1)).toBe(until);
+      expect(intangible.length).toBe(until - from + 1);
+      expect(actionable).toBe(faf);
+      // Climb, roll and attack end standing on the stage; the jump ends airborne in a normal jump.
+      expect(f.ground === null).toBe(name === 'jump');
+    },
+  );
 });
 
 describe('stage and camera', () => {
