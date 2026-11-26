@@ -112,7 +112,8 @@ variety comes from `hash01(n)` (a fixed integer hash). Build Graphics once and o
    pixels at the reference camera plus a depth). Reuse `parallax.ts` and `util.ts` from Battlefield.
 3. Use the stage lab scene to view a registered stage at any camera
    (`?scene=stage&stage=<id>&x=0&y=20&zoom=4.5&frame=0`, api `camera(x, y, zoom)`, `frame(n)`, `collision(on)`) and check
-   alignment with `&collision=1`.
+   alignment with `&collision=1`. The lab draws a stage without a view with the game's placeholder, and its zoom
+   stops at the game camera's `MAX_ZOOM` (`src/render/camera.ts`), the resolution stage art caches at.
 4. Add a coverage test like `parallax.test.ts` and pin the geometry numbers the art uses.
 5. Capture the stage at the default camera and zoomed in on a platform for the PR and the judge panel.
 
