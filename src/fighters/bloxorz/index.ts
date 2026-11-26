@@ -1,4 +1,5 @@
 import { defineFighter } from '../types';
+import { art } from './art';
 import { moves } from './moves';
 import { stats } from './stats';
 import { STANDING, TIP_ACTIONS } from './tip';
@@ -11,4 +12,5 @@ export const fighter = defineFighter({
   stats,
   moves,
   actions: TIP_ACTIONS,
+  art,
 });
