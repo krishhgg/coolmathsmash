@@ -7,6 +7,7 @@ import {
   BACK_ARM_IN_FRONT,
   BATON,
   CROUCH,
+  DOWN,
   FRONT_ARM_OVER_HEAD,
   GRIN,
   HURT,
@@ -117,13 +118,40 @@ const lowWith = (lean: Pose) => feet(mix(LOW, lean), floor(-2.4, -0.86), floor(2
 /** READY turned or shifted by `lean`, with the feet planted again. */
 const readyWith = (lean: Pose) => feet(mix(READY, lean), floor(-1.6), floor(1.5));
 
-/** The opponent held by the collar at the front fist. */
-const HOLD = hands(
-  feet({ body: { rot: 6 }, hip: { y: 0.45 } }, floor(-1.8), floor(1.6)),
-  [0.6, -5.4],
-  [4.6, -7.2],
-  -1,
-);
+/**
+ * CROUCH turned or shifted by `lean`, with the feet planted again and both knees bent forward as in his stances.
+ * CROUCH bows the back knee out, so a tween from a stance flips that leg through straight and sinks the shoe.
+ */
+const crouchWith = (lean: Pose) => feet(mix(CROUCH, lean), floor(-1.5), floor(1.6));
+
+/**
+ * Adds a spin to keys made with the baton held still: `spin` gives the degrees it adds on each of its keys, and
+ * every key after the last of them keeps `wound`, the whole turns it leaves, so the baton carries on round instead
+ * of unwinding. `continuous` would fold each half turn back the short way, so the spin goes on after it.
+ */
+const spun = (keys: Key[], spin: Record<number, number>, wound: number): Key[] => {
+  const end = Math.max(...Object.keys(spin).map(Number));
+  return keys.map((k) => {
+    const deg = spin[k.frame] ?? (k.frame > end ? wound : 0);
+    return k.pose && deg ? { ...k, pose: mix(k.pose, { baton: { rot: k.pose.baton!.rot! + deg } }) } : k;
+  });
+};
+
+/** The opponent held by the collar at the front fist, the body turned or shifted by `lean`. */
+const holdWith = (lean: Pose) =>
+  hands(
+    feet(mix({ body: { rot: 6 }, hip: { y: 0.45 } }, lean), floor(-1.8), floor(1.6)),
+    [0.6, -5.4],
+    [4.6, -7.2],
+    -1,
+  );
+const HOLD = holdWith({});
+
+/**
+ * Upright poses for turning edge-on to the camera. Squashing a leaning body across tips one foot down through the
+ * floor and lifts the other off it; squashing an upright one leaves both feet where they are.
+ */
+const UPRIGHT = { body: { rot: 0 } };
 
 export const strikeKey = (
   frame: number,
@@ -160,18 +188,8 @@ const UTILT_REST = trail(
 const TWIRL = (size: number) => ({ fx4: fx(1.8, -10.6, 0, size) });
 /** Degrees the twirl adds to the baton on its keys: it spins counterclockwise, a half turn every two frames. */
 const UTILT_SPIN: Record<number, number> = { 5: -90, 7: -270, 9: -450, 11: -630, 13: -810 };
-const UTILT_SPIN_END = 13;
 /** Whole turns the baton keeps after the twirl, so the finishing stroke carries on round and nothing unwinds. */
 const UTILT_WOUND = -1080;
-/**
- * Adds the twirl to keys made with the baton held still. `continuous` would fold each half turn back the short
- * way, so the spin goes on after it.
- */
-const twirled = (keys: Key[]): Key[] =>
-  keys.map((k) => {
-    const deg = UTILT_SPIN[k.frame] ?? (k.frame > UTILT_SPIN_END ? UTILT_WOUND : 0);
-    return k.pose && deg ? { ...k, pose: mix(k.pose, { baton: { rot: k.pose.baton!.rot! + deg } }) } : k;
-  });
 
 const DTILT_BACK = swing(LOW, [1.0, -3.0], 166, -1);
 /** Halfway round the sweep the baton points at the viewer, so it is drawn short instead of through the floor. */
@@ -220,11 +238,19 @@ const FSMASH_HIT = reachF(swing(lungeWith({ body: { rot: 8, x: 1.6 } }, -1.6), [
 /** The stroke carries on down until the tip nearly touches the floor in front of him. */
 const FSMASH_FOLLOW = swing(lungeWith({ body: { rot: 20, x: 1.4 } }, -2.2), [4.2, -5.8], 45);
 
-const USMASH_LOW = swing(mix(CROUCH, { body: { rot: 4 } }), [2.6, -3.6], 40);
+/** Crouched for the spin, the baton forward and low with its tip clear of the floor. */
+const USMASH_LOW = swing(crouchWith({ body: { rot: 4 } }), [2.6, -3.6], 20);
 const USMASH_HAND: Pt = [0.8, -12.2];
 const USMASH_UP = (deg: number) =>
-  reachF(swing(mix(STANCE, { body: { rot: -2 }, hip: { y: 0.2 } }), USMASH_HAND, deg), USMASH_HAND);
+  reachF(swing(stanceWith({ body: { rot: -2 }, hip: { y: 0.2 } }), USMASH_HAND, deg), USMASH_HAND);
 const ROTOR = { fx4: fx(USMASH_HAND[0], USMASH_HAND[1] - 0.6, 0, 6.8) };
+/**
+ * Degrees the rotor adds to the baton on its keys: counterclockwise, 100 a frame from the moment it is up. Faster
+ * than half a turn a frame, the eye reads a spin as going backwards.
+ */
+const USMASH_SPIN: Record<number, number> = { 10: -100, 12: -300, 14: -500, 16: -700, 18: -900, 20: -1100 };
+/** Whole turns the baton keeps after the spin, so it stops straight up instead of unwinding. */
+const USMASH_WOUND = -1080;
 
 const DSMASH_HIT = swing(lowWith({ body: { rot: 26 } }), [3.6, -2.2], 4, -1);
 const DSMASH_WIND = swing(lowWith({ body: { rot: 10 } }), [1.4, -4.6], -40, -1);
@@ -269,6 +295,14 @@ const reachBoth = (pose: Pose, f: Pt, b: Pt): Pose => {
   const k = Math.max(1, Math.hypot(b[0] - sx, b[1] - sy) / 2.68);
   return hands(reachF(mix(pose, { armB: { sy: k }, foreB: { sy: k } }), f), b, f, -1);
 };
+
+/** Both fists drawn back to his shoulders for the grab. */
+const GRAB_WIND = hands(stanceWith({ body: { rot: -4 } }), [0.0, -7.2], [1.6, -7.6]);
+const GRAB_REACH = reachBoth(lungeWith({ body: { rot: 16 } }, -2.6), [6.0, -7.4], [5.2, -6.8]);
+const PIVOT_REACH = reachBoth(lungeWith({ body: { rot: 18, x: 1.4 } }, -2.2), [6.8, -7.4], [6.2, -6.8]);
+const FTHROW = reachBoth(lungeWith({ body: { rot: 18, x: 1.4 } }, -2.2), [6.2, -7.8], [5.6, -6.4]);
+/** Stretched up on his toes under the throw. */
+const UTHROW_REACH = stanceWith({ body: { rot: -6, sy: 1.04 } });
 
 // Specials ---------------------------------------------------------------------------------------------------
 
@@ -400,7 +434,7 @@ export const attacks: Record<string, AnimClip> = {
       [15, 17],
     ],
     swaps: { ...ANGRY, ...BATON },
-    keys: twirled(
+    keys: spun(
       continuous(
         [
           key(0, BATON_READY, { ease: 'out', z: FRONT_ARM_OVER_HEAD }),
@@ -422,6 +456,8 @@ export const attacks: Record<string, AnimClip> = {
         ],
         { onScreen: true },
       ),
+      UTILT_SPIN,
+      UTILT_WOUND,
     ),
   },
   dtilt: {
@@ -484,35 +520,47 @@ export const attacks: Record<string, AnimClip> = {
       key(49, BATON_READY),
     ]),
   },
-  usmash: {
-    length: 51,
-    active: [
-      [10, 11],
-      [13, 14],
-      [16, 17],
-      [19, 20],
-      [23, 25],
-    ],
-    swaps: { ...ANGRY, ...BATON },
-    keys: [
-      key(0, BATON_READY, { ease: 'out' }),
-      key(6, USMASH_LOW, { ease: 'in' }),
-      key(9, USMASH_UP(-60), {
-        ease: 'linear',
-        swaps: { ...SHOUT, ...BATON, fxBack: 'twirl' },
-        z: FRONT_ARM_OVER_HEAD,
-      }),
-      ...[10, 12, 14, 16, 18, 20].map((f, i) =>
-        key(f, mix(USMASH_UP(-60 - 200 * (i + 1)), ROTOR), { ease: 'linear' }),
+  usmash: floorContact(
+    {
+      length: 51,
+      active: [
+        [10, 11],
+        [13, 14],
+        [16, 17],
+        [19, 20],
+        [23, 25],
+      ],
+      swaps: { ...ANGRY, ...BATON },
+      keys: spun(
+        continuous(
+          [
+            // The baton goes up in front of his face, so it is over his head from the start.
+            key(0, BATON_READY, { ease: 'out', z: FRONT_ARM_OVER_HEAD }),
+            key(6, USMASH_LOW, { ease: 'in' }),
+            // The rotor blur shows from here, so it is placed over his fist here too, not left at his feet.
+            key(9, mix(USMASH_UP(-60), ROTOR), {
+              ease: 'linear',
+              swaps: { ...SHOUT, ...BATON, fxBack: 'twirl' },
+            }),
+            ...[10, 12, 14, 16, 18, 20].map((f) => key(f, mix(USMASH_UP(-60), ROTOR), { ease: 'linear' })),
+            key(21, USMASH_UP(-100), { ease: 'out', swaps: { ...SHOUT, ...BATON } }),
+            strikeKey(23, trail(USMASH_UP(-90), true), { ...SHOUT, ...BATON, smear: 'smear90' }),
+            key(25, trail(USMASH_UP(-90), true), { ease: 'out' }),
+            // The smear stays over his head until this key puts it away. Tweened toward its rest at his feet, it slid
+            // through the floor on 26-28.
+            key(30, trail(USMASH_UP(-80), true), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
+            key(40, swing(STANCE, [2.6, -6.6], -50), { ease: 'inOut' }),
+            // The baton stays over his head while it comes down past his face, and goes back under it at the end.
+            key(51, BATON_READY, { z: {} }),
+          ],
+          { onScreen: true },
+        ),
+        USMASH_SPIN,
+        USMASH_WOUND,
       ),
-      key(21, USMASH_UP(-100), { ease: 'out', swaps: { ...SHOUT, ...BATON } }),
-      strikeKey(23, trail(USMASH_UP(-90), true), { ...SHOUT, ...BATON, smear: 'smear90' }),
-      key(25, trail(USMASH_UP(-90), true), { ease: 'out' }),
-      key(30, USMASH_UP(-80), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
-      key(40, swing(STANCE, [2.6, -6.6], -50), { ease: 'inOut', z: {} }),
-      key(51, BATON_READY),
-    ],
-  },
+    },
+    false,
+  ),
   dsmash: floorContact(
     {
       length: 47,
@@ -551,7 +599,8 @@ export const attacks: Record<string, AnimClip> = {
       swaps: { ...HURT, ...BATON },
       keys: continuous(
         [
-          key(0, mix(LOW, { body: { rot: -70, y: 2.0 } }), { ease: 'out' }),
+          // From the pose he lies in when down, baton in hand.
+          key(0, aim(DOWN, 'baton', -45), { ease: 'out' }),
           key(10, DSMASH_WIND, { ease: 'in', swaps: { ...ANGRY, ...BATON } }),
           strikeKey(17, trail(swing(LOW, [4.0, -3.2], 10, -1)), { ...SHOUT, ...BATON, smear: 'smear90' }),
           // Evenly into the turn: eased, the forearm would swing 96 degrees in one frame.
@@ -655,19 +704,26 @@ export const attacks: Record<string, AnimClip> = {
       key(49, AIR, { swaps: SIDE }),
     ],
   },
-  grab: {
-    length: 35,
-    active: [[7, 8]],
-    swaps: SIDE,
-    keys: [
-      key(0, READY, { ease: 'out' }),
-      key(4, hands(mix(STANCE, { body: { rot: -4 } }), [0.0, -7.2], [1.6, -7.6]), { ease: 'in' }),
-      strikeKey(7, reachBoth(mix(LUNGE, { body: { rot: 16 } }), [6.0, -7.4], [5.2, -6.8]), ANGRY),
-      key(8, reachBoth(mix(LUNGE, { body: { rot: 16 } }), [6.0, -7.4], [5.2, -6.8]), { ease: 'inOut' }),
-      key(16, hands(STANCE, [1.0, -6.4], [3.0, -6.8]), { ease: 'inOut', swaps: SIDE }),
-      key(35, READY),
-    ],
-  },
+  grab: floorContact(
+    {
+      length: 35,
+      active: [[7, 8]],
+      swaps: SIDE,
+      keys: continuous(
+        [
+          // Evenly into the wind-up: eased, the forearms would fold 73 degrees in one frame.
+          key(0, READY, { ease: 'linear' }),
+          key(4, GRAB_WIND, { ease: 'in' }),
+          strikeKey(7, GRAB_REACH, ANGRY),
+          key(8, GRAB_REACH, { ease: 'inOut' }),
+          key(16, hands(STANCE, [1.0, -6.4], [3.0, -6.8]), { ease: 'inOut', swaps: SIDE }),
+          key(35, READY),
+        ],
+        { onScreen: true },
+      ),
+    },
+    false,
+  ),
   dashGrab: floorContact(
     {
       length: 43,
@@ -689,25 +745,31 @@ export const attacks: Record<string, AnimClip> = {
     },
     false,
   ),
-  pivotGrab: {
-    length: 38,
-    active: [[11, 12]],
-    swaps: SIDE,
-    keys: [
-      key(0, mix(READY, { body: { sx: -1, rot: 10 } }), { ease: 'in' }),
-      key(5, mix(STANCE, { body: { sx: -0.15 } }), { ease: 'out', swaps: { ...SIDE, face: 'face3qWide' } }),
-      key(7, hands(mix(STANCE, { body: { rot: -4 } }), [0.0, -7.2], [1.6, -7.6]), {
-        ease: 'in',
-        swaps: SIDE,
-      }),
-      strikeKey(11, reachBoth(mix(LUNGE, { body: { rot: 18, x: 1.4 } }), [6.8, -7.4], [6.2, -6.8]), ANGRY),
-      key(12, reachBoth(mix(LUNGE, { body: { rot: 18, x: 1.4 } }), [6.8, -7.4], [6.2, -6.8]), {
-        ease: 'inOut',
-      }),
-      key(20, hands(STANCE, [1.0, -6.4], [3.0, -6.8]), { ease: 'inOut', swaps: SIDE }),
-      key(38, READY),
-    ],
-  },
+  pivotGrab: floorContact(
+    {
+      length: 38,
+      active: [[11, 12]],
+      swaps: SIDE,
+      keys: continuous(
+        [
+          // Still facing the way he was, leaning into it. He draws his fists back evenly as he turns: in the two
+          // frames after the turn, they would fold 125 degrees in one.
+          key(0, turned(readyWith({ body: { rot: -10 } })), { ease: 'linear' }),
+          key(5, mix(hands(stanceWith(UPRIGHT), [0.0, -7.2], [1.6, -7.6]), { body: { sx: -0.15 } }), {
+            ease: 'out',
+            swaps: { ...SIDE, face: 'face3qWide' },
+          }),
+          key(7, GRAB_WIND, { ease: 'in', swaps: SIDE }),
+          strikeKey(11, PIVOT_REACH, ANGRY),
+          key(12, PIVOT_REACH, { ease: 'inOut' }),
+          key(20, hands(STANCE, [1.0, -6.4], [3.0, -6.8]), { ease: 'inOut', swaps: SIDE }),
+          key(38, READY),
+        ],
+        { onScreen: true },
+      ),
+    },
+    false,
+  ),
   grabHold: {
     length: 30,
     loop: true,
@@ -725,66 +787,85 @@ export const attacks: Record<string, AnimClip> = {
       key(6, HOLD),
     ],
   },
-  fthrow: {
-    length: 29,
-    active: [[12, 12]],
-    swaps: { ...ANGRY, handF: 'fist', handB: 'fist' },
-    keys: [
-      key(0, HOLD, { ease: 'out' }),
-      key(8, hands(mix(STANCE, { body: { rot: -6, x: -0.4 } }), [1.6, -6.8], [2.6, -7.0], -1), {
-        ease: 'in',
-      }),
-      strikeKey(12, reachBoth(mix(LUNGE, { body: { rot: 18, x: 1.4 } }), [6.2, -7.8], [5.6, -6.4]), {
-        ...SHOUT,
-        handF: 'handOpen',
-        handB: 'handOpen',
-      }),
-      key(16, reachBoth(mix(LUNGE, { body: { rot: 18, x: 1.4 } }), [6.2, -7.8], [5.6, -6.4]), {
-        ease: 'inOut',
-      }),
-      key(29, READY, { swaps: SIDE }),
-    ],
-  },
-  bthrow: {
-    length: 43,
-    active: [[22, 22]],
-    swaps: { ...ANGRY, handB: 'fist', handF: 'fist' },
-    keys: [
-      key(0, HOLD, { ease: 'out' }),
-      key(8, mix(HOLD, { body: { sx: 0.2 } }), { ease: 'in' }),
-      key(12, turned(swing(STANCE, [1.0, -9.8], -120)), {
-        ease: 'inOut',
-        swaps: { ...ANGRY, ...BATON },
-        z: FRONT_ARM_OVER_HEAD,
-      }),
-      key(18, turned(swing(mix(STANCE, { body: { rot: -6 } }), [0.8, -10.0], -130)), { ease: 'in' }),
-      strikeKey(22, turned(trail(JAB3_BONK)), { ...SHOUT, ...BATON, smear: 'smear90' }),
-      key(24, turned(trail(JAB3_BONK)), { ease: 'out' }),
-      key(30, turned(swing(LUNGE, [3.4, -6.6], 50)), { ease: 'inOut', swaps: { ...GRIN, ...BATON }, z: {} }),
-      key(38, mix(BATON_READY, { body: { sx: -0.2 } }), { ease: 'out' }),
-      key(43, READY, { swaps: SIDE }),
-    ],
-  },
-  uthrow: {
-    length: 37,
-    active: [[16, 16]],
-    swaps: { ...ANGRY, handF: 'fist', handB: 'fist' },
-    keys: [
-      key(0, HOLD, { ease: 'out' }),
-      key(8, hands(mix(CROUCH, { body: { rot: 4 } }), [2.6, -4.4], [3.6, -4.6], -1), { ease: 'in' }),
-      strikeKey(
-        16,
-        reachBoth(mix(STANCE, { body: { rot: -6, sy: 1.04 } }), [1.8, -12.0], [0.6, -11.8]),
-        { ...SHOUT, handF: 'handOpen', handB: 'handOpen' },
-        { z: ARMS_OVER_HEAD },
+  fthrow: floorContact(
+    {
+      length: 29,
+      active: [[12, 12]],
+      swaps: { ...ANGRY, handF: 'fist', handB: 'fist' },
+      keys: continuous(
+        [
+          key(0, HOLD, { ease: 'out' }),
+          key(8, hands(stanceWith({ body: { rot: -6, x: -0.4 } }), [1.6, -6.8], [2.6, -7.0], -1), {
+            ease: 'in',
+          }),
+          strikeKey(12, FTHROW, { ...SHOUT, handF: 'handOpen', handB: 'handOpen' }),
+          key(16, FTHROW, { ease: 'inOut' }),
+          key(29, READY, { swaps: SIDE }),
+        ],
+        { onScreen: true },
       ),
-      key(20, reachBoth(mix(STANCE, { body: { rot: -6, sy: 1.04 } }), [1.8, -12.2], [0.6, -12.0]), {
-        ease: 'inOut',
-      }),
-      key(28, hands(STANCE, [-0.4, -9.0], [2.0, -9.6]), { ease: 'inOut', swaps: GRIN, z: {} }),
-      key(37, READY, { swaps: SIDE }),
-    ],
-  },
+    },
+    false,
+  ),
+  bthrow: floorContact(
+    {
+      length: 43,
+      active: [[22, 22]],
+      swaps: { ...ANGRY, handB: 'fist', handF: 'fist' },
+      keys: continuous(
+        [
+          key(0, HOLD, { ease: 'out' }),
+          key(8, mix(holdWith(UPRIGHT), { body: { sx: 0.2 } }), { ease: 'in' }),
+          key(12, turned(swing(STANCE, [1.0, -9.8], -120)), {
+            ease: 'inOut',
+            swaps: { ...ANGRY, ...BATON },
+            z: FRONT_ARM_OVER_HEAD,
+          }),
+          key(18, turned(swing(stanceWith({ body: { rot: -6 } }), [0.8, -10.0], -130)), { ease: 'in' }),
+          strikeKey(22, turned(trail(JAB3_BONK)), { ...SHOUT, ...BATON, smear: 'smear90' }),
+          key(24, turned(trail(JAB3_BONK)), { ease: 'out' }),
+          key(30, turned(swing(lungeWith({}, -2.6), [3.4, -6.6], 50)), {
+            ease: 'inOut',
+            swaps: { ...GRIN, ...BATON },
+          }),
+          // Back under his head once the baton is clear of it, edge-on as he turns back.
+          key(38, mix(swing(stanceWith(UPRIGHT), [2.6, -5.8], -60), { body: { sx: -0.2 } }), {
+            ease: 'out',
+            z: {},
+          }),
+          // The baton is put away on the last frame; aimed up, it rises with the fist instead of dipping into the
+          // floor.
+          key(43, aim(READY, 'baton', -60), { swaps: SIDE }),
+        ],
+        { onScreen: true },
+      ),
+    },
+    false,
+  ),
+  uthrow: floorContact(
+    {
+      length: 37,
+      active: [[16, 16]],
+      swaps: { ...ANGRY, handF: 'fist', handB: 'fist' },
+      keys: continuous(
+        [
+          key(0, HOLD, { ease: 'out' }),
+          key(8, hands(crouchWith({ body: { rot: 4 } }), [2.6, -4.4], [3.6, -4.6], -1), { ease: 'in' }),
+          strikeKey(
+            16,
+            reachBoth(UTHROW_REACH, [1.8, -12.0], [0.6, -11.8]),
+            { ...SHOUT, handF: 'handOpen', handB: 'handOpen' },
+            { z: ARMS_OVER_HEAD },
+          ),
+          key(20, reachBoth(UTHROW_REACH, [1.8, -12.2], [0.6, -12.0]), { ease: 'inOut' }),
+          key(28, hands(STANCE, [-0.4, -9.0], [2.0, -9.6]), { ease: 'inOut', swaps: GRIN, z: {} }),
+          key(37, READY, { swaps: SIDE }),
+        ],
+        { onScreen: true },
+      ),
+    },
+    false,
+  ),
   dthrow: floorContact(
     {
       length: 37,

@@ -9,6 +9,7 @@ import {
   BLINK,
   BREATHE,
   CROUCH,
+  DOWN,
   FRONT,
   FRONT_ARM_OVER_HEAD,
   FRONT_BLINK,
@@ -27,6 +28,7 @@ import {
   floor,
   floorContact,
   fx,
+  grounded,
   hands,
   key,
   lift,
@@ -302,8 +304,6 @@ const SHIELD = hands(
   -1,
 );
 
-const grounded = (pose: Pose): Pose => floorContact({ length: 0, keys: [key(0, pose)] }).keys[0]!.pose!;
-
 /** A tucked flip: hips up under the chin, knees forward and wrists wrapped around the shins. */
 const BALL = (() => {
   const tuck: Pose = {
@@ -436,21 +436,6 @@ const TUMBLE: Pose = mix(AIR, {
   shinF: { rot: 80 },
   thighB: { rot: 45 },
   shinB: { rot: 10 },
-});
-
-/** Flat on his back, head behind him, beanie askew, knees up. */
-const DOWN: Pose = grounded({
-  body: { rot: -90, x: 0.9 },
-  neck: { rot: 4 },
-  hat: { rot: 16, x: -0.2 },
-  armF: { rot: 20 },
-  foreF: { rot: 20 },
-  armB: { rot: -10 },
-  foreB: { rot: 10 },
-  thighF: { rot: -5 },
-  shinF: { rot: 45 },
-  thighB: { rot: 10 },
-  shinB: { rot: 35 },
 });
 
 /** Dazed on his feet, swaying side to side under a ring of stars. */
