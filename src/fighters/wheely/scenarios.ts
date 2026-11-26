@@ -83,6 +83,26 @@ export const scenarios: FighterScenarios = {
       refs: ['smash/attack-active-*', `${W}/video-thumb-ingame-driving-*`, `${W}/official-art-01*`],
     },
     {
+      name: 'wheely-full-throttle',
+      description:
+        'Wheely holds a Final Smash charge and fires Full Throttle (neutral special) at Fireboy 30 units ahead at 40%: ' +
+        'he revs, crashes through and traps him, backs up and rams him; capture the run-over, the 20% hit.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'wheely' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -45, y: 0 }, facing: 1, finalReady: true } },
+        { port: 1, state: { pos: { x: -15, y: 0 }, facing: -1, damage: 40 } },
+      ],
+      script: [{ port: 0, from: 10, to: 12, buttons: ['special'] }],
+      capture: {
+        label: "P2's damage jumps 20% or more (the run-over)",
+        when: (s, prev) => s.fighters[1]!.damage - prev.fighters[1]!.damage >= 20,
+      },
+      motion: { before: 80, after: 45 },
+      requires: ['move:finalSmash', 'move:finalSmashCinematic'],
+      refs: ['smash/attack-active-*', `${W}/video-thumb-ingame-driving-*`, `${W}/official-art-01*`],
+    },
+    {
       name: 'wheely-ramp-jump',
       description: 'Wheely launches off the ramp with his up special; capture the top of the arc.',
       page: { kind: 'game' },

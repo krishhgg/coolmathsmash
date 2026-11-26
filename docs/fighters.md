@@ -485,6 +485,10 @@ finalSmashCinematic: {
 },
 ```
 
+Wheely's Full Throttle (`src/fighters/wheely/finalSmash.ts`) is the roster example, on Captain Falcon's Blue Falcon: its
+boxes come out on frame 28, so it sets `final.freeze: 26` to free the others just before them, and its cinematic lands
+the Blue Falcon's hits as `holdHits` and its final launch as the `throw`.
+
 - **Catching.** The trap catches like any command grab: the nearest grabbable fighter in front, through shields. Ultimate
   traps every fighter its hitbox touches; this one holds the first.
 - **Landing.** A `final` move that lands carries on from the same frame, as with `continuesOnLanding`: the charge is
