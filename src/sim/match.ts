@@ -7,6 +7,7 @@ import { resolveEntityContacts } from './entities/contacts';
 import { stepEntities } from './entities/step';
 import type { EntityState } from './entities/types';
 import { emit, type SimEvent } from './events';
+import { createItems, stepItems, type ItemsState } from './items/spawn';
 import { pushApart } from './movement';
 import { stageHits } from './hazards';
 import { advanceStage, posedStage, stageStateAt, type StageState } from './movingStage';
@@ -27,6 +28,8 @@ export interface MatchConfig {
   ports: PortConfig[];
   /** Stage hazards (damage zones, stage hitboxes, conveyors, pieces flagged `hazard`); off for legal play. Default on. */
   hazards?: boolean;
+  /** The Items rule: items (the Coolmath Planet) spawn during the match (src/sim/items, docs/items.md). Default off. */
+  items?: boolean;
 }
 
 export interface PlayerState {
@@ -49,6 +52,8 @@ export interface MatchState {
   events: SimEvent[];
   /** Where each solid and platform is on this frame (moving and vanishing pieces, src/sim/movingStage.ts). */
   stage: StageState;
+  /** The item spawner's timers (src/sim/items/spawn.ts); idle while the Items rule is off. */
+  items: ItemsState;
 }
 
 export const DEFAULT_MATCH: MatchConfig = {
@@ -72,6 +77,7 @@ export function createMatch(config: MatchConfig = DEFAULT_MATCH): MatchState {
     nextEntityId: 1,
     events: [],
     stage: stageStateAt(stage, 0, undefined, config.hazards !== false),
+    items: createItems(),
   };
 }
 
@@ -83,9 +89,10 @@ export function stepMatch(state: MatchState, inputs: readonly InputFrame[]): voi
   for (const f of state.fighters) stepFighter(state, f, state.players[f.port]!);
   pushApart(state, posedStage(state));
   advanceStage(state);
+  stepItems(state);
   stepEntities(state);
   const owed = resolveEntityContacts(state);
-  resolveHits(state, (struck) => stageHits(state, struck));
+  resolveHits(state, posedStage(state), (struck) => stageHits(state, struck));
   state.fighters.forEach((f, i) => (f.hitlag = Math.max(f.hitlag, owed[i]!)));
   state.fighters.forEach((f, i) => {
     if (f.action !== before[i]) emit(state, { type: 'action', port: f.port, from: before[i]!, to: f.action });

@@ -1,6 +1,9 @@
 import { chromium, type Browser } from '@playwright/test';
 
-/** The flags playwright.config.ts uses: WebGL through SwiftShader, so headless capture needs no GPU. */
+/**
+ * WebGL through SwiftShader, so headless capture needs no GPU. playwright.config.ts adds `--disable-gpu-rasterization`
+ * for the menus; captures keep GPU raster so their PNGs stay comparable with earlier runs.
+ */
 export const CHROMIUM_ARGS = [
   '--use-angle=swiftshader',
   '--enable-unsafe-swiftshader',
