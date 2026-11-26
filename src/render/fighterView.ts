@@ -26,6 +26,7 @@ const STAND_INS: Record<string, string> = {
   downBound: 'down',
   getupRoll: 'techRoll',
   dizzyWake: 'dizzy',
+  trumped: 'fall',
 };
 
 /** The clip each roll action draws when it rolls away from the fighter's facing (backRoll). */
