@@ -100,7 +100,8 @@ solid and `stageHit` a stage hazard hitting a fighter (docs/sim-events.md), for 
 
 The placeholder renderer draws static pieces once and moving ones every frame from `MatchState.stage`,
 interpolated between frames (`src/render/stagePieces.ts`). Absent pieces show as faint ghosts and pieces
-about to vanish blink for 45 frames, so a stage's art should telegraph a vanish at least that early. With
+about to vanish blink for 45 frames, so a stage's art should telegraph a vanish at least that early. A stage
+view with `pieces` (docs/stages.md) draws its own moving pieces instead. With
 hazards on, damage zones are tinted by element and stage hitboxes are grey discs, faint while they are not out.
 
 ## Stage hazards
@@ -172,6 +173,17 @@ and it shuts again when the schedule brings it back (a solid that reappears arou
 out). Fighters walk across the seams as across one floor, because a floor of another solid that meets a floor's
 end at the same height continues it. Flag it `hazard: true` so it stays shut with hazards off. A falling or
 tilting floor works the same way with a `motion`.
+
+### What CPUs see
+
+CPUs read the stage through `stageInfo(state)` (`src/ai/stage.ts`), built each frame from `posedStage`: moved
+pieces are where they are, an absent piece catches nothing and an absent solid's ledges can't be grabbed. Ground
+that vanishes within the next 45 frames (`STEADY_FRAMES`) does not count as somewhere to stand or land. With
+hazards on, a CPU walks up to a gap, an open trapdoor or a damage zone that hurts it and stops 4 units short,
+steers its drifts toward safe landings, and walks off ground it should not stay on: a damage zone, ground about
+to vanish, or a belt that would carry it into either within 45 frames. Look-ahead copies of the match
+(`soloMatch` in `src/ai/look.ts`) keep the stage's frame and the hazards setting, so predictions see the same
+trapdoors and belts.
 
 ## The testbed
 

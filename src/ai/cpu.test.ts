@@ -167,7 +167,7 @@ describe('CPU grabs', () => {
     const self = {
       f: me!,
       k: knowledge('fireboy', 'battlefield'),
-      info: stageInfo('battlefield'),
+      info: stageInfo(m),
       groundDelay: 0,
       jumpDelay: 0,
     };

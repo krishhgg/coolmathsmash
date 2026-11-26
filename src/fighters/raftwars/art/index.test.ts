@@ -2,7 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
-import { LEDGE_ATTACK, LEDGE_CLIMB, LEDGE_JUMP, LEDGE_ROLL } from '../../../sim/constants';
+import {
+  GETUP_ROLL,
+  LEDGE_ATTACK,
+  LEDGE_CLIMB,
+  LEDGE_JUMP,
+  LEDGE_ROLL,
+  ROLL_BACK,
+  ROLL_FORWARD,
+  SPOT_DODGE,
+} from '../../../sim/constants';
 import { placeInAir, run, testMatch, until } from '../../../sim/testing/sim';
 import { moves } from '../moves';
 import { stats } from '../stats';
@@ -28,9 +37,9 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   shieldDrop: 11,
   shieldBreak: 40,
   dizzy: 'loop',
-  spotDodge: 27,
-  rollForward: 31,
-  rollBack: 31,
+  spotDodge: SPOT_DODGE.faf - 1,
+  rollForward: ROLL_FORWARD.faf - 1,
+  rollBack: ROLL_BACK.faf - 1,
   airDodge: 49,
   ledgeCatch: 8,
   ledgeHang: 'loop',
@@ -43,6 +52,7 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   down: 'loop',
   techInPlace: 26,
   techRoll: 40,
+  getupRoll: GETUP_ROLL.faf - 1,
   getupStand: 29,
   grabHold: 'loop',
   grabbed: 'loop',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FIGHTERS } from '../fighters/registry';
+import { allFighters } from '../fighters/registry';
 import { ANNOUNCER_DUCK, announce, announceWinner, announcerSound } from './announcer';
 import { ANNOUNCED_FIGHTERS, ANNOUNCER_LINES, soundDef } from './bank';
 import { AudioEngine } from './engine';
@@ -34,7 +34,7 @@ describe('announcer', () => {
   });
 
   it('names every fighter in the game', () => {
-    expect(Object.keys(FIGHTERS).filter((id) => !announcerSound(`fighter:${id}`))).toEqual([]);
+    expect(Object.keys(allFighters()).filter((id) => !announcerSound(`fighter:${id}`))).toEqual([]);
   });
 
   it('uses the same name for both Bloxorz forms', () => {
