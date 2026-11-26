@@ -403,6 +403,24 @@ function floorRoll(length: number, turned: number, crouch: number): AnimClip {
   });
 }
 
+/**
+ * A backward roll over `length` frames: from standing into a crouch, one turn back from `start` to `end`, a
+ * crouch at `crouch`, then standing.
+ */
+function floorBackRoll(length: number, start: number, end: number, crouch: number): AnimClip {
+  return floorContact({
+    length,
+    swaps: SIDE,
+    keys: continuous([
+      key(0, READY, { ease: 'out' }),
+      key(4, grounded(CROUCH), { ease: 'out' }),
+      ...rollKeys(start, end, -1),
+      key(crouch, grounded(mix(CROUCH, { body: { rot: -344 } })), { ease: 'out' }),
+      key(length, mix(READY, { body: { rot: -356 } })),
+    ]),
+  });
+}
+
 const PIVOT = feet({ hip: { y: 0.34 }, neck: { y: 0.1 } }, floor(-1.05), floor(1.05), true);
 
 const LEDGE_INWARD = 6.25;
@@ -712,17 +730,7 @@ export const clips: Record<string, AnimClip> = {
       key(29, mix(READY, { body: { rot: 360, sx: -1 } })),
     ]),
   }),
-  rollBack: floorContact({
-    length: 34,
-    swaps: SIDE,
-    keys: continuous([
-      key(0, READY, { ease: 'out' }),
-      key(4, grounded(CROUCH), { ease: 'out' }),
-      ...rollKeys(6, 22, -1),
-      key(27, grounded(mix(CROUCH, { body: { rot: -344 } })), { ease: 'out' }),
-      key(34, mix(READY, { body: { rot: -356 } })),
-    ]),
-  }),
+  rollBack: floorBackRoll(34, 6, 22, 27),
   airDodge: {
     length: 49,
     swaps: BLINK,
@@ -735,11 +743,11 @@ export const clips: Record<string, AnimClip> = {
     ],
   },
   ledgeCatch: {
-    length: 8,
+    length: 19,
     swaps: { ...GRIP, face: 'face3qWide' },
     keys: continuous(
-      Array.from({ length: 9 }, (_, frame) => {
-        const t = 1 - smooth(frame / 8);
+      Array.from({ length: 20 }, (_, frame) => {
+        const t = 1 - smooth(frame / 19);
         return key(
           frame,
           hang({
@@ -747,7 +755,7 @@ export const clips: Record<string, AnimClip> = {
             thighF: { rot: -22 - 36 * t },
             thighB: { rot: 19 + 28 * t },
           }),
-          { ease: 'linear', ...(frame === 0 ? { z: GRIP_ORDER } : frame === 8 ? { swaps: GRIP } : {}) },
+          { ease: 'linear', ...(frame === 0 ? { z: GRIP_ORDER } : frame === 19 ? { swaps: GRIP } : {}) },
         );
       }),
     ),
@@ -779,7 +787,7 @@ export const clips: Record<string, AnimClip> = {
     keys: continuous([...climbKeys(30, LEDGE_INWARD, 30), key(34, READY, { z: {} })]),
   },
   ledgeRoll: {
-    length: 50,
+    length: 45,
     swaps: GRIP,
     keys: continuous([
       ...climbKeys(40, 25, 9, 12 / 9),
@@ -796,7 +804,7 @@ export const clips: Record<string, AnimClip> = {
         };
       }),
       key(39, mix(grounded(CROUCH), { body: { rot: 368 } }), { ease: 'out' }),
-      key(50, mix(READY, { body: { rot: 364 } })),
+      key(45, mix(READY, { body: { rot: 364 } })),
     ]),
   },
   ledgeJump: {
@@ -899,6 +907,9 @@ export const clips: Record<string, AnimClip> = {
   techRoll: floorRoll(40, 26, 31),
   /** The tech roll on the getup roll's shorter timeline: the turn ends two frames sooner, as the travel does. */
   getupRoll: floorRoll(35, 24, 29),
+  /** Tech and getup rolls away from the facing: the back roll with its frames moved onto each action's travel. */
+  techRollBack: floorBackRoll(40, 7, 31, 35),
+  getupRollBack: floorBackRoll(35, 7, 29, 32),
   grabbed: {
     length: 20,
     loop: true,

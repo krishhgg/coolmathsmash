@@ -1,6 +1,7 @@
 import type { HitboxDef, TetherLatch } from '../fighters/types';
 import type { DestroyReason } from './entities/types';
 import type { MatchState } from './match';
+import type { StatusEndReason } from './statuses';
 import type { TerrainElement } from './stage';
 
 type Side = 'left' | 'right' | 'top' | 'bottom';
@@ -66,6 +67,20 @@ export type SimEvent =
   /** A fighter transformed into another fighter (Fireboy and Watergirl's swap). */
   | { type: 'transform'; port: number; from: string; to: string }
   /**
+   * `port`'s counter caught a hit at (x, y) and its counterattack `move` starts. `attacker` is credited with the
+   * caught hit (an entity's owner, -1 for nobody) and `damage` is what that hit would have dealt.
+   */
+  | {
+      type: 'counter';
+      port: number;
+      attacker: number;
+      entity?: number;
+      move: string;
+      damage: number;
+      x: number;
+      y: number;
+    }
+  /**
    * A move's charge reached full, was stored for later (stored charge) or was let go; `level` is how charged it is
    * (0-1). An uncharged move fires without an event.
    */
@@ -87,6 +102,15 @@ export type SimEvent =
   | { type: 'float'; port: number; phase: 'start' | 'end' }
   /** A fuel hover burned its last fuel while thrusting. */
   | { type: 'fuelEmpty'; port: number }
+  /** A status went on a fighter (not when one already on it is applied again); `source` is the port credited, -1 none. */
+  | { type: 'statusStart'; port: number; status: string; frames: number; source: number }
+  /** A status came off: it ran out (`expired`, mashing included), the fighter was KO'd, or a script cleared it. */
+  | { type: 'statusEnd'; port: number; status: string; reason: StatusEndReason }
+  /**
+   * A status's tick damaged its fighter, with no hitlag or knockback. `damage` is what it added to their %;
+   * `source` is the port credited, -1 none.
+   */
+  | { type: 'statusDamage'; port: number; status: string; damage: number; source: number }
   /** A scheduled stage piece appeared (`on`) or vanished (docs/stage-geometry.md). */
   | { type: 'stagePiece'; piece: 'solid' | 'platform'; index: number; on: boolean }
   /** A moving solid squeezed a fighter against other geometry and the fighter popped out on top of it. */
@@ -115,6 +139,13 @@ export type SimEvent =
       x: number;
       y: number;
     }
+  /** An idle fighter picked up an item (EntityDef.pickup); its `entityDestroy` (reason `pickup`) follows. */
+  | { type: 'itemPickup'; port: number; id: number; kind: string }
+  /**
+   * A fighter broke the Coolmath Planet and now holds a Final Smash charge (`FighterState.finalReady`). There is no
+   * Final Smash yet; this is what one will start from.
+   */
+  | { type: 'finalReady'; port: number; x: number; y: number }
   /** A tether line left the hand towards (`x`, `y`), its full-range end. */
   | { type: 'tetherFire'; port: number; x: number; y: number }
   /** A fighter-targeting line touched a hurtbox at (`x`, `y`), before the move chooses how to respond. */
