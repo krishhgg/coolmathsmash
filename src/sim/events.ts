@@ -67,6 +67,20 @@ export type SimEvent =
   /** A fighter transformed into another fighter (Fireboy and Watergirl's swap). */
   | { type: 'transform'; port: number; from: string; to: string }
   /**
+   * `port`'s counter caught a hit at (x, y) and its counterattack `move` starts. `attacker` is credited with the
+   * caught hit (an entity's owner, -1 for nobody) and `damage` is what that hit would have dealt.
+   */
+  | {
+      type: 'counter';
+      port: number;
+      attacker: number;
+      entity?: number;
+      move: string;
+      damage: number;
+      x: number;
+      y: number;
+    }
+  /**
    * A move's charge reached full, was stored for later (stored charge) or was let go; `level` is how charged it is
    * (0-1). An uncharged move fires without an event.
    */
@@ -125,6 +139,13 @@ export type SimEvent =
       x: number;
       y: number;
     }
+  /** An idle fighter picked up an item (EntityDef.pickup); its `entityDestroy` (reason `pickup`) follows. */
+  | { type: 'itemPickup'; port: number; id: number; kind: string }
+  /**
+   * A fighter broke the Coolmath Planet and now holds a Final Smash charge (`FighterState.finalReady`). There is no
+   * Final Smash yet; this is what one will start from.
+   */
+  | { type: 'finalReady'; port: number; x: number; y: number }
   /** A tether line left the hand towards (`x`, `y`), its full-range end. */
   | { type: 'tetherFire'; port: number; x: number; y: number }
   /** A fighter-targeting line touched a hurtbox at (`x`, `y`), before the move chooses how to respond. */
