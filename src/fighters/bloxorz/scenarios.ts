@@ -14,7 +14,7 @@ function sheets(fighter: 'bloxorz' | 'bloxorz-lying'): LabScenario[] {
     {
       name: `${fighter}-sheet-moves`,
       description: `Bloxorz block (${form}) at rest, mid-tip, jumping, defending, hanging and hurt.`,
-      page: lab('7'),
+      page: lab('4.5'),
       calls: [
         {
           fn: 'sheet',
@@ -47,7 +47,7 @@ function sheets(fighter: 'bloxorz' | 'bloxorz-lying'): LabScenario[] {
     {
       name: `${fighter}-sheet-ground`,
       description: `Bloxorz block (${form}): every ground attack on its first active frame.`,
-      page: lab('5'),
+      page: lab('4'),
       calls: [
         {
           fn: 'sheet',
@@ -73,7 +73,7 @@ function sheets(fighter: 'bloxorz' | 'bloxorz-lying'): LabScenario[] {
     {
       name: `${fighter}-sheet-air`,
       description: `Bloxorz block (${form}): aerials, grabs, Roll, Switch Bridge and Heavy Switch on their first active frames, and the throws on their release frames.`,
-      page: lab('5'),
+      page: lab('4'),
       calls: [
         {
           fn: 'sheet',
