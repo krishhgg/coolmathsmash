@@ -78,7 +78,7 @@ export function resolveEntityContacts(m: MatchState): number[] {
 
 function reflectOrAbsorb(m: MatchState, f: FighterState, e: EntityState): boolean {
   const def = entityDef(e.kind);
-  const power = entityPower(e);
+  const power = entityPower(m, e);
   const absorber = isAbsorbable(def) ? touching(activeAbsorbers(f), e) : undefined;
   if (absorber && power <= (absorber.maxDamage ?? ABSORB_DEFAULTS.maxDamage)) {
     const before = f.damage;
@@ -133,7 +133,7 @@ function attackEntity(m: MatchState, f: FighterState, e: EntityState): number {
   const def = entityDef(e.kind);
   if (isHittable(def))
     return damageEntity(m, e, hit, damage, Math.sign(e.pos.x - f.pos.x) || f.facing, f.port);
-  if (!def.transcendent && entityHitboxes(e).length > 0 && entityPower(e) <= damage + PRIORITY_RANGE)
+  if (!def.transcendent && entityHitboxes(m, e).length > 0 && entityPower(m, e) <= damage + PRIORITY_RANGE)
     destroyEntity(m, e, 'clank');
   return 0;
 }
@@ -146,12 +146,12 @@ function entitiesMeet(m: MatchState, a: EntityState, b: EntityState): void {
   if (isHittable(hitB) && entityHits(m, a, b)) return;
   if (isHittable(hitA) && entityHits(m, b, a)) return;
   if (isHittable(hitA) || isHittable(hitB) || hitA.transcendent || hitB.transcendent) return;
-  const boxesA = entityHitboxes(a);
-  const boxesB = entityHitboxes(b);
+  const boxesA = entityHitboxes(m, a);
+  const boxesB = entityHitboxes(m, b);
   if (!boxesA.some((p) => boxesB.some((q) => circlesTouch(p.x, p.y, p.box.radius, q.x, q.y, q.box.radius))))
     return;
-  const pa = entityPower(a);
-  const pb = entityPower(b);
+  const pa = entityPower(m, a);
+  const pb = entityPower(m, b);
   if (pa <= pb + PRIORITY_RANGE) destroyEntity(m, a, 'clank');
   if (pb <= pa + PRIORITY_RANGE) destroyEntity(m, b, 'clank');
 }
@@ -159,7 +159,7 @@ function entitiesMeet(m: MatchState, a: EntityState, b: EntityState): void {
 /** Entity `a`'s hitbox on hittable entity `v`, once per entity; `a` is used up unless it pierces. */
 function entityHits(m: MatchState, a: EntityState, v: EntityState): boolean {
   if (a.hitEntities.includes(v.id)) return false;
-  const hit = entityHitboxes(a)
+  const hit = entityHitboxes(m, a)
     .filter((h) => !h.box.pushOnly && touchesBody(v, h.x, h.y, h.box.radius))
     .sort((p, q) => p.box.id - q.box.id)[0];
   if (!hit) return false;
