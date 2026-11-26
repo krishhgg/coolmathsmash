@@ -1,4 +1,5 @@
-import type { PathShape } from '../../../render/rig/types';
+import type { Paint, PathShape } from '../../../render/rig/types';
+import { STRAFE_DASH } from '../timing';
 
 /**
  * The Runner's parts, drawn from scratch in Run 3's style: flat grey shapes inside a heavy dark outline, one big
@@ -502,3 +503,71 @@ export const dust: PathShape[] = [
     },
   },
 ];
+
+/** Points turned `deg` clockwise about the origin (rig space is y down), then moved to (dx, dy). */
+const place = (pts: readonly (readonly [number, number])[], deg: number, dx: number, dy: number) => {
+  const r = (deg * Math.PI) / 180;
+  return pts.map(
+    ([x, y]) => [dx + x * Math.cos(r) - y * Math.sin(r), dy + x * Math.sin(r) + y * Math.cos(r)] as const,
+  );
+};
+
+/** A palette colour at `alpha` at the front (+x), fading to under half of it at the back: an afterimage's wash. */
+const wash = (color: string, alpha: number, back: number, front: number): Paint => ({
+  type: 'linear',
+  x0: back,
+  y0: 0,
+  x1: front,
+  y1: 0,
+  stops: [
+    { offset: 0, color, alpha: alpha * 0.4 },
+    { offset: 1, color, alpha },
+  ],
+});
+
+/** Her legs streaming back off the bottom of a dashing body (body space, before the lean). */
+const LEG_SMEAR: [number, number][] = [
+  [1.4, 2.9],
+  [1.9, 4.4],
+  [0.4, 5.3],
+  [-2.6, 5.5],
+  [-5.6, 4.9],
+  [-2.4, 3.7],
+];
+
+/** How far a dashing body leans into the dash (degrees) and how it stretches along it, as in the burst pose. */
+const DASH_LEAN = 34;
+const DASH_STRETCH = [1.16, 0.88] as const;
+
+/**
+ * One afterimage, centred at (x, y): her round body leaning into the dash, its ink ring, her eye and her legs
+ * streaming behind, all washed out to `alpha`. No antennae, so the costumes that wear ears or a crest instead
+ * leave the same ghosts.
+ */
+function ghost(x: number, y: number, alpha: number): PathShape[] {
+  const stretch = (pts: readonly (readonly [number, number])[]) =>
+    pts.map(([px, py]) => [px * DASH_STRETCH[0], py * DASH_STRETCH[1]] as const);
+  const at = (pts: readonly (readonly [number, number])[]) => blob(place(stretch(pts), DASH_LEAN, x, y));
+  const [ex, ey] = place(stretch([EYE]), DASH_LEAN, x, y)[0]!;
+  return [
+    { d: at(LEG_SMEAR), fill: wash('skinLo', alpha, x - 6, x + 2) },
+    { d: at(grow(BODY_PTS, 1 + LINE / 3.8)) + at(BODY_PTS), fill: wash('line', alpha * 0.6, x - 5, x + 4.5) },
+    { d: at(BODY_PTS), fill: wash('skin', alpha, x - 5, x + 4.5) },
+    { d: ellipse(ex, ey, EYE_RX, EYE_RY), fill: wash('eye', alpha, ex - 1, ex + 1) },
+  ];
+}
+
+/** Height of a dashing body's centre above the floor (rig space, so negative). */
+const DASH_BODY_Y = -5.6;
+
+/**
+ * Strafe Dash's afterimages, on the fx bone at her feet: a ghost of her at each of the trail's boxes behind her
+ * (STRAFE_DASH.trail), each fainter than the one in front, the way Fox Illusion strings copies of Fox along his
+ * path. `afterimagesFaint` is the same string a beat later, nearly gone.
+ */
+export const afterimages: PathShape[] = STRAFE_DASH.trail
+  .slice(1)
+  .flatMap((x, i) => ghost(x, DASH_BODY_Y, 0.62 - 0.17 * i));
+export const afterimagesFaint: PathShape[] = STRAFE_DASH.trail
+  .slice(1)
+  .flatMap((x, i) => ghost(x, DASH_BODY_Y, 0.3 - 0.09 * i));

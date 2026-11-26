@@ -44,3 +44,32 @@ export const GRAVITY_SWITCH = {
   /** Special ends it from this frame. */
   cancelFrom: 10,
 };
+
+/**
+ * Strafe Dash's timeline (Fox Illusion, strafe-dash.ts). She coils until `dash[0]`, bursts forward through `dash`
+ * and slides out from `end`; the afterimage trail that hits is out on `active`, Fox's 25-29. A shield stops the
+ * burst and skips to `end`. Fox Illusion's FAF is 56 on the ground and 73 in the air, with 16 frames of landing lag.
+ */
+export const STRAFE_DASH = {
+  dash: [24, 28] as [number, number],
+  active: [25, 29] as [number, number],
+  end: 29,
+  groundFaf: 56,
+  airFaf: 73,
+  landingLag: 16,
+  /**
+   * Units per frame through the burst. SmashWiki gives no dash speed, only that the move "can quickly cover about
+   * half of the length of Final Destination" (Fox Illusion), which is 80 units of its 160-unit main stage
+   * (docs/physics-reference.md, section 16). Five frames at 11.6 and the 22.1-unit slide out of 2.5 make 80.1.
+   */
+  speed: 11.6,
+  /**
+   * Where the afterimage trail's boxes sit (forward of her feet), and so her afterimages: evenly from her feet back to
+   * where the burst began. On the first active frame she has burst 2 x 11.6 = 23.2 units, so the back box (radius 4)
+   * sits 19.2 behind her and its edge ends on the start, never past it. Fox's hitbox rides his afterimages, which
+   * "trail behind the character" (ultimateframedata.com), and Ultimate sweeps hitboxes between frames. Boxes here
+   * stand still, so four of them cover the ground she has burst over and catch whoever she passed, point blank
+   * included, but no one behind where she started.
+   */
+  trail: [0, -6.4, -12.8, -19.2],
+};

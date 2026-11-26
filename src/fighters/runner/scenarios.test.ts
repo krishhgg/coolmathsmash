@@ -53,7 +53,7 @@ describe("Runner's game scenarios", () => {
 
   it('cover every special move, on the ground and in the air', () => {
     const required = new Set(games.flatMap((s) => s.requires ?? []));
-    for (const move of ['neutralB', 'neutralBAir', 'upB', 'downB', 'downBAir'])
+    for (const move of ['neutralB', 'neutralBAir', 'sideB', 'sideBAir', 'upB', 'downB', 'downBAir'])
       expect(required.has(`move:${move}`), move).toBe(true);
   });
 

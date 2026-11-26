@@ -19,7 +19,7 @@ const box = (
 const grabBox = (id: number, x: number, y: number, radius: number) =>
   box(id, x, y, radius, { damage: 0, angle: 0, kbg: 0, bkb: 0, grab: true });
 
-/** Shell Pound: the frame the shell starts to plunge, and its speed. */
+/** Shell Plunge (down air): the frame the shell starts to plunge, and its speed. */
 export const DAIR_PLUNGE_FROM = 13;
 export const DAIR_PLUNGE_SPEED = 2.8;
 
@@ -271,7 +271,7 @@ export const moves: Record<string, MoveDef> = {
     ],
   },
   /**
-   * Shell Pound (the video's ground pound): Bob hangs for a moment, rising a little, then drops shell-first.
+   * Shell Plunge (the video's ground pound): Bob hangs for a moment, rising a little, then drops shell-first.
    * The early drop meteors (frames 16-20), the rest of the drop hits normally, and landing always turns into the
    * shockwave and its lag (`dairLand`), so `landingLag` only mirrors that. The script owns the fall, so it marks
    * him fast-falling to keep a down flick from overriding it; if the move ends in the air he keeps falling fast.
@@ -305,7 +305,7 @@ export const moves: Record<string, MoveDef> = {
       } else f.vel.y = -DAIR_PLUNGE_SPEED;
     },
   },
-  /** Shell Pound landing: the shockwave on both sides, then the shell's landing lag. */
+  /** Shell Plunge landing: the shockwave on both sides, then the shell's landing lag. */
   dairLand: {
     kind: 'other',
     faf: 30,
