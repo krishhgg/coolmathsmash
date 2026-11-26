@@ -1,4 +1,5 @@
-import { chargeMultiplier, moveOf } from '../actions/attack';
+import { moveOf } from '../actions/attack';
+import { chargeMultiplier } from '../actions/charge';
 import { inWindow } from '../actions/registry';
 import { activeHitboxes, type PlacedHitbox } from '../combat/hits';
 import { GRAVITY_BONUS_BASE, hitlagFrames, knockback, launch } from '../combat/formulas';
@@ -125,7 +126,7 @@ function reflectOrAbsorb(m: MatchState, f: FighterState, e: EntityState): boolea
 function attackEntity(m: MatchState, f: FighterState, e: EntityState): number {
   if (f.hitEntities.includes(e.id)) return 0;
   const hit = activeHitboxes(f)
-    .filter((h) => !h.box.grab && touchesBody(e, h.x, h.y, h.box.radius))
+    .filter((h) => !h.box.grab && !h.box.pushOnly && touchesBody(e, h.x, h.y, h.box.radius))
     .sort((p, q) => p.box.id - q.box.id)[0];
   if (!hit) return 0;
   f.hitEntities.push(e.id);
@@ -160,7 +161,7 @@ function entitiesMeet(m: MatchState, a: EntityState, b: EntityState): void {
 function entityHits(m: MatchState, a: EntityState, v: EntityState): boolean {
   if (a.hitEntities.includes(v.id)) return false;
   const hit = entityHitboxes(a)
-    .filter((h) => touchesBody(v, h.x, h.y, h.box.radius))
+    .filter((h) => !h.box.pushOnly && touchesBody(v, h.x, h.y, h.box.radius))
     .sort((p, q) => p.box.id - q.box.id)[0];
   if (!hit) return false;
   a.hitEntities.push(v.id);

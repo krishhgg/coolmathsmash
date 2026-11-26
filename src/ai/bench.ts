@@ -2,7 +2,7 @@ import type { InputFrame } from '../input/types';
 import { createMatch, stepMatch, type MatchConfig, type MatchState } from '../sim/match';
 import type { Replay } from '../sim/replay';
 import { createCpu } from './index';
-import { stageInfo } from './stage';
+import { staticStage } from './stage';
 
 /**
  * Headless CPU-vs-CPU matches for the benchmark (scripts/ai-bench.ts) and tests: fixed seeds, no renderer, every
@@ -14,6 +14,8 @@ export interface CpuMatchOptions {
   levels: number[];
   fighters?: string[];
   stage?: string;
+  /** Stage hazards (MatchConfig.hazards); on by default. */
+  hazards?: boolean;
   stocks?: number;
   /** Time limit in frames (default 8 minutes). */
   maxFrames?: number;
@@ -48,6 +50,7 @@ export function runCpuMatch(o: CpuMatchOptions): CpuMatchResult {
   const config: MatchConfig = {
     seed: o.seed,
     stage: o.stage ?? 'battlefield',
+    ...(o.hazards === undefined ? {} : { hazards: o.hazards }),
     stocks: o.stocks ?? 3,
     ports: Array.from({ length: n }, (_, i) => ({ fighter: o.fighters?.[i] ?? 'fireboy' })),
   };
@@ -97,7 +100,7 @@ function winner(state: MatchState): number | null {
 
 function zone(state: MatchState, port: number): KoEvent['zone'] {
   const { x, y } = state.fighters[port]!.pos;
-  const b = stageInfo(state.config.stage).blast;
+  const b = staticStage(state.config.stage).blast;
   const gaps = { left: x - b.left, right: b.right - x, top: b.top - y, bottom: y - b.bottom };
   return (Object.keys(gaps) as KoEvent['zone'][]).reduce((a, k) => (gaps[k] < gaps[a] ? k : a));
 }

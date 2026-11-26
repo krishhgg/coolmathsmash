@@ -112,7 +112,8 @@ variety comes from `hash01(n)` (a fixed integer hash). Build Graphics once and o
    pixels at the reference camera plus a depth). Reuse `parallax.ts` and `util.ts` from Battlefield.
 3. Use the stage lab scene to view a registered stage at any camera
    (`?scene=stage&stage=<id>&x=0&y=20&zoom=4.5&frame=0`, api `camera(x, y, zoom)`, `frame(n)`, `collision(on)`) and check
-   alignment with `&collision=1`.
+   alignment with `&collision=1`. The lab draws a stage without a view with the game's placeholder, and its zoom
+   stops at the game camera's `MAX_ZOOM` (`src/render/camera.ts`), the resolution stage art caches at.
 4. Add a coverage test like `parallax.test.ts` and pin the geometry numbers the art uses.
 5. Capture the stage at the default camera and zoomed in on a platform for the PR and the judge panel.
 
@@ -123,3 +124,21 @@ Games planet. The main platform is a sandstone cap carved with a math frieze ove
 medallion and a red and a blue gem; the soft platforms are thin slabs whose hanging gems are red (left),
 green (top) and blue (right). The background (sky, sun rays, ringed planet, mountains, floating ruins with a pi arch
 and a small temple front, a cloud sea, waterfalls) sits in screen space with the depths above.
+
+## Truck Convoy
+
+`src/stages/wheely-trucks/`: Wheely's stage. The fight is on the roof of a car carrier driving right along a viaduct:
+the 160-unit deck runs over the trailer and the cab-over cab, which has Wheely-style eyes on its windscreen. The two
+soft platforms are the upper decks of two car haulers in the far lane (`HAULERS` in `geometry.ts`), 26 above the deck
+from 23 to 61 out each side. With hazards on they are traffic (`HAULER_MOTION`, a 24 s loop never faster than 0.45 units
+a frame): level with the carrier for 4 s, a brake tap of 1.5 units over 45 frames, falling back 36 units together, level
+again, then pulling ahead 36. The brake lights are on whenever a hauler drops back, so the tap warns 45 frames before
+the real move. Each hauler has a low lamp on its chassis, which the carrier's hull covers while the hauler is beside it,
+and a high one under its upper deck, above the carrier's deck, which shows through the tap (`view.test.ts` checks
+nothing drawn later covers it). At the far end of each move one deck hangs 17 units past a ledge, as a recovery spot or
+an edge-guard perch, and its inner end is always over the carrier. With hazards off the haulers stay level with the
+carrier. The view places the haulers through `pieces`.
+
+The road, the viaduct's side and its piers are world art that slides left at `ROAD_SPEED` (2 units a frame), and
+the backdrop's clouds, mountains and valley slide by their depth times that speed, so the parallax reads as speed
+while the trucks hold still. The stage plays the `wheely-trucks` music track because its id matches.

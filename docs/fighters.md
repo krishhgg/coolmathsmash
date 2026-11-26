@@ -80,9 +80,9 @@ without a move simply does nothing for that input.
 
 ```ts
 fsmash: {
-  kind: 'smash',          // 'smash' | 'aerial' | 'projectile' | 'other': sets shieldstun (and smash charge)
+  kind: 'smash',          // 'smash' | 'aerial' | 'projectile' | 'other': sets shieldstun (and which button charges)
   faf: 50,                // first actionable frame
-  charge: 12,             // smash attacks: holding the input pauses here, up to 60 frames, up to 1.4x damage
+  charge: 12,             // holding the input pauses here, up to 60 frames, up to 1.4x damage (see Charging)
   hits: [
     {
       frames: [15, 17],   // inclusive
@@ -117,6 +117,10 @@ fsmash: {
     contact (forward and up). It pulls the target's middle toward that point over `frames` (rounded up)
     and then drops its launch speed. Stage collision still applies. A vector works with any angle; without
     one, `368` falls back to `367`.
+- **Windboxes.** `pushOnly: true` applies knockback without damage, hitlag, hitstun or interruption. It pushes
+  grounded targets horizontally without lifting them, and shields ignore it. Use `damage: 0`; windbox
+  projectiles can be reflected or absorbed as usual, but heal nothing on absorption. Watergirl's Water Stream
+  (`src/fighters/watergirl/waterStream.ts`) is the example: F.L.U.D.D.'s windbox pumps, stronger with charge.
 - **Direction.** A hit launches along the attacker's facing unless its box sets `direction`: `'back'` for boxes
   behind him (back aerials, the rear hit of a down smash) and `'away'` for boxes around his body (spins, up
   attacks), which send the target away from his centre.
@@ -196,6 +200,32 @@ stage. The debug overlay uses the same capsule.
 
 Every move start, hit and landing is reported as a sim event (`docs/sim-events.md`). Audio and effects key off
 move names, so keep them to the canonical names above.
+
+### Charging
+
+`charge` is the frame a move pauses on while it charges (`src/sim/actions/charge.ts`). Smash attacks charge while
+Attack or the C-stick is held. Any other move with `charge` (a special) charges while Special is held. Letting go,
+or reaching full charge, carries on with the move.
+
+- **`chargeFrames`** is the hold for a full charge (default 60, Ultimate's smash attacks).
+- **`chargeDamage`** is the damage multiplier at full charge (default 1.4, Ultimate's smash attacks). Less charge
+  scales linearly from 1, and knockback grows through the damage. The test charger's side special sets
+  `chargeDamage: 2.2`, so its 10% hitbox reaches 22%.
+- **Speeds and distances.** A move script reads `chargeLerp(f, uncharged, full)` for a value at the current charge
+  level (a dash speed), or `chargeLevel(f)` (0 to 1).
+- **Stored charge.** `storeCharge: {}` lets shield, an air dodge or a jump cancel the charge and keep it in
+  `storedCharge`. The move's next use starts from it (a full one fires at once) and spends it when it fires.
+  Releasing Special fires. With `tap: true` the move charges by itself and fires on the next Special or Attack
+  press. `storeAtFull: true` stores the charge and ends the move once it is full; otherwise the move waits at full
+  charge. Samus's Charge Shot and Donkey Kong's Giant Punch are `{ tap: true, storeAtFull: true }`.
+- **Variants and forms.** A move and its `air` variant share one stored charge (Ultimate: Samus's grounded and
+  aerial Charge Shot). A stored charge belongs to the form that stored it. After a `transform`, the new form's move
+  of the same name starts uncharged, and the charge is back after transforming again. Only a KO as the storing form
+  loses it (Ultimate: Squirtle keeps Water Gun's charge through Pokemon Change).
+- A charging move, and a fighter holding a stored charge for its current form, glow behind the fighter
+  (`src/render/chargeGlow.ts`, placeholder art).
+- `src/sim/testing/charge.ts` (`test-charger`, registered for tests and `?harness`) has one move of each kind.
+- Charging emits `charge` events (`full`, `store`, `fire`) with the charge level (`docs/sim-events.md`).
 
 ### Grabs and throws
 

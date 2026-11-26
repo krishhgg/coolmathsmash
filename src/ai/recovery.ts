@@ -3,6 +3,7 @@ import { Btn, neutralInput, type InputFrame } from '../input/types';
 import type { ControlState } from '../sim/control';
 import type { FighterState } from '../sim/fighter';
 import type { MatchState } from '../sim/match';
+import { ledgePresent } from '../sim/stage';
 import { actionable, type FighterKnowledge } from './knowledge';
 import { STICK, press } from './inputs';
 import type { CpuLevel } from './levels';
@@ -43,10 +44,13 @@ export interface RecoveryPlan {
 
 type Ledge = { x: number; y: number; side: -1 | 1 };
 
-/** The ledge to recover to: the nearest one horizontally. */
+/** The ledge to recover to: the nearest one horizontally that is there this frame. */
 export function targetLedge(info: StageInfo, x: number): Ledge | null {
   let best: Ledge | null = null;
-  for (const l of info.c.geo.ledges) if (!best || Math.abs(l.x - x) < Math.abs(best.x - x)) best = l;
+  info.c.geo.ledges.forEach((l, i) => {
+    if (!ledgePresent(info.c, i)) return;
+    if (!best || Math.abs(l.x - x) < Math.abs(best.x - x)) best = l;
+  });
   return best;
 }
 
@@ -77,6 +81,12 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
     const sx = Math.abs(ds) < 2 ? Math.round(ds * 30) : Math.sign(ds) * STICK.full;
     const i = neutralInput();
     i.x = Math.max(-100, Math.min(100, sx));
+    // A fuel hover (an up special with `action: 'hover'`) thrusts only while Special stays held, so keep holding
+    // it until a fall from here would land on the stage; letting go then drops onto it.
+    if (f.action === 'hover' && floorBelow(info, f.pos.x, f.pos.y) === null) {
+      i.buttons = Btn.Special;
+      return i;
+    }
     if (f.ground !== null || !actionable(f) || f.action === 'helpless') return i;
     const dir = (Math.sign(d) || 1) as 1 | -1;
     if (!jumped && t >= p.jumpAt && f.jumpsUsed < k.stats.jumps) {

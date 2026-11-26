@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import ref from '../reference/physics-constants.json';
-import { SMASH_CHARGE_FRAMES } from '../actions/attack';
+import { SMASH_CHARGE_FRAMES } from '../actions/charge';
 import { SHIELD_DEPLETION } from '../constants';
 import type { FighterState } from '../fighter';
 import type { MatchState } from '../match';

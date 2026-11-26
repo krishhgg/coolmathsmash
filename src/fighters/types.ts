@@ -97,6 +97,8 @@ export interface HitboxDef {
   /** Extra shield damage on top of the move's damage. */
   shieldDamage?: number;
   effect?: 'normal' | 'fire' | 'electric';
+  /** Windbox: apply knockback without damage, hitlag or hitstun. Shields ignore it. */
+  pushOnly?: boolean;
   /**
    * Which way the hit launches (Ultimate's LR check): along the attacker's facing (default), against it for hits
    * behind him, or away from his centre for hits that surround him.
@@ -115,7 +117,7 @@ export interface HitboxDef {
 }
 
 /** A throw's release hit: a hitbox without a position, since it lands on the held fighter wherever they are. */
-export type ThrowHitDef = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius' | 'grab' | 'direction'> & {
+export type ThrowHitDef = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius' | 'grab' | 'direction' | 'pushOnly'> & {
   /** 'back' launches behind the thrower (back throws). */
   direction?: 'forward' | 'back';
 };
@@ -201,8 +203,22 @@ export interface MoveDef {
    */
   landingLag?: number;
   autoCancel?: [number, number][];
-  /** Smash attacks: holding the input pauses the move on this frame for up to 60 frames, for up to 1.4x damage. */
+  /**
+   * Charging (src/sim/actions/charge.ts): the move pauses on this frame while it charges, for up to `chargeFrames`.
+   * Smash attacks charge while Attack or the C-stick is held, other moves (specials) while Special is held.
+   */
   charge?: number;
+  /** Frames of charge for a full charge (default 60, Ultimate's smash attacks). */
+  chargeFrames?: number;
+  /** Damage multiplier at full charge (default 1.4); less charge scales linearly from 1. */
+  chargeDamage?: number;
+  /**
+   * Stored charge: shield, an air dodge or a jump while charging keeps the charge for the move's next use by this
+   * form. `tap` charges without holding Special and fires on the next Special or Attack press (otherwise releasing
+   * Special fires); `storeAtFull` stores the charge and ends the move once it is full (otherwise the move waits at
+   * full charge). Samus's Charge Shot and Donkey Kong's Giant Punch are `{ tap: true, storeAtFull: true }`.
+   */
+  storeCharge?: { tap?: boolean; storeAtFull?: boolean };
   /**
    * Jab combos: Attack (pressed, buffered or held) with no stick direction during `window` (inclusive) cancels this
    * grounded move into `move`, the next hit of the combo (jab -> jab2 -> jab3).
