@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import { moveClipFrame } from '../../../render/rig/timing';
 import {
   GETUP_ROLL,
   LEDGE_ATTACK,
@@ -15,6 +16,7 @@ import { placeInAir, run, testMatch, until } from '../../../sim/testing/sim';
 import { moves } from '../moves';
 import { stats } from '../stats';
 import { art } from '.';
+import { frameData } from './attacks';
 
 /** Engine actions and their canonical clip lengths (loops: any length; holds: not looping). */
 const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
@@ -82,10 +84,123 @@ describe('raft wars art', () => {
     }
   });
 
-  it('ends each move clip it has at the move FAF', () => {
-    for (const [name, move] of Object.entries(moves))
-      if (art.clips[name]) expect(art.clips[name].length, name).toBe(move.faf - 1);
+  it('has a clip per move, FAF - 1 long and keyed on its hit windows, or the frame it fires or throws', () => {
+    for (const [name, move] of Object.entries(moves)) {
+      const clip = art.clips[name];
+      expect(clip, name).toBeDefined();
+      expect(clip!.length, name).toBe(move.faf - 1);
+      const impact = move.spawn?.[0]?.frame ?? move.throw?.frame ?? move.pummel?.frame;
+      const windows = move.hits.length ? move.hits.map((h) => h.frames) : [[impact, impact]];
+      expect(clip!.active, name).toEqual(windows);
+      for (let f = 0; f < move.faf; f++) expect(moveClipFrame(clip!, f, move), `${name}@${f}`).toBe(f);
+    }
   });
+
+  it('keys the clips to the frame data in the moves', () => {
+    const { FAF, SPAWNS, GRAB_BOXES } = frameData;
+    for (const [name, move] of Object.entries(moves)) {
+      expect(FAF[name], name).toBe(move.faf);
+      const spawns = (move.spawn ?? []).map(({ frame, x, y, vx, vy }) => ({
+        frame,
+        x,
+        y,
+        vx: vx ?? 0,
+        vy: vy ?? 0,
+      }));
+      expect(SPAWNS[name] ?? [], name).toEqual(spawns);
+    }
+    for (const [name, [x, y]] of Object.entries(GRAB_BOXES))
+      expect(moves[name]!.hits[0]!.boxes[0], name).toMatchObject({ x, y: -y });
+  });
+
+  it('pops the launcher on the frame each ball spawns, with the muzzle where the ball appears', () => {
+    for (const [name, move] of Object.entries(moves)) {
+      if (!move.spawn || name === 'sideB') continue;
+      const frame = move.spawn[0]!.frame;
+      const before = samplePose(art, name, frame - 1, frame - 1);
+      expect(before.symbols.flash, `${name}@${frame - 1}`).toBeNull();
+      const pose = samplePose(art, name, frame, frame);
+      expect(pose.symbols.flash, `${name}@${frame}`).toBe('fxPop');
+      const { tx, ty } = pose.world.muzzle!;
+      const [s] = move.spawn;
+      expect(Math.hypot(tx - s!.x, ty + s!.y), `${name} muzzle`).toBeLessThan(1.6);
+      for (const { x, y } of move.spawn) {
+        const pops = art.rig.slots.filter((slot) => {
+          if (pose.symbols[slot.name] !== 'fxPop') return false;
+          const m = pose.world[slot.bone]!;
+          return Math.hypot(m.tx - x, m.ty + y) < 1.8;
+        });
+        expect(pops.length, `${name} pop at (${x}, ${y})`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('lets go of the grenade on the frame it spawns, from the throwing hand', () => {
+    const { frame, x, y } = moves.sideB!.spawn![0]!;
+    const held = samplePose(art, 'sideB', frame - 1, frame - 1);
+    expect(held.symbols.held).toBe('grenade');
+    const { tx, ty } = held.world.handF!;
+    expect(Math.hypot(tx - x, ty + y)).toBeLessThan(2.5);
+    expect(samplePose(art, 'sideB', frame, frame).symbols.held).toBeNull();
+  });
+
+  it('only shows effects and props in the move clips where a key placed them', () => {
+    const fxSlots = art.rig.slots.filter((s) => /^(fx|hit)/.test(s.bone));
+    const strays = new Set<string>();
+    for (const name of Object.keys(moves))
+      for (let f = 0, clip = art.clips[name]!; f <= clip.length; f++) {
+        const pose = samplePose(art, name, f, f);
+        for (const slot of [...fxSlots, art.rig.slots.find((s) => s.name === 'rocket')!]) {
+          const m = pose.world[slot.bone]!;
+          if (pose.symbols[slot.name] && Math.hypot(m.tx, m.ty) < 0.01)
+            strays.add(`${name}@${f} ${slot.name}`);
+        }
+      }
+    expect([...strays]).toEqual([]);
+  });
+
+  it('keeps grounded moves out of the floor, standing moves planted and aerials above it', () => {
+    const standing = [
+      'jab',
+      'ftilt',
+      'utilt',
+      'dtilt',
+      'fsmash',
+      'grab',
+      'pummel',
+      'fthrow',
+      'uthrow',
+      'sideB',
+    ];
+    const ground = [
+      ...standing,
+      'dashAttack',
+      'usmash',
+      'dsmash',
+      'getupAttack',
+      'dashGrab',
+      'pivotGrab',
+      'bthrow',
+    ];
+    for (const name of [...ground, 'dthrow'])
+      for (let f = 0; f <= art.clips[name]!.length; f++) {
+        const [, , , bottom] = poseBounds(art, samplePose(art, name, f, f));
+        expect(bottom, `${name}@${f} sinks`).toBeLessThan(0.35);
+        if (standing.includes(name)) expect(bottom, `${name}@${f} floats`).toBeGreaterThan(-0.6);
+      }
+    // The down air points the launcher at its ball, which spawns a unit under their feet.
+    for (const [name, floor] of [
+      ['nair', 0.1],
+      ['fair', 0.1],
+      ['bair', 0.1],
+      ['uair', 0.1],
+      ['dair', 0.6],
+    ] as const)
+      for (let f = 0; f <= art.clips[name]!.length; f++) {
+        const [, , , bottom] = poseBounds(art, samplePose(art, name, f, f));
+        expect(bottom, `${name}@${f}`).toBeLessThan(floor);
+      }
+  }, 20_000);
 
   it('only references bones, slots and symbols that exist, with keys in order inside the clip', () => {
     const bones = new Set(art.rig.bones.map((b) => b.name));
