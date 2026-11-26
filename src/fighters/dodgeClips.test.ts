@@ -3,6 +3,7 @@ import { clipFor, fighterArt } from '../render/fighterView';
 import {
   GETUP_ROLL,
   GETUP_STAND,
+  GRAB,
   ROLL_BACK,
   ROLL_FORWARD,
   SPOT_DODGE,
@@ -14,7 +15,8 @@ import { allFighters } from './registry';
 
 /**
  * Timed ground actions shared by every fighter. Each ends on its FAF, so the clip the renderer draws for it
- * (its own or a stand-in) lasts FAF - 1 frames, with its last key on the last frame (docs/art.md).
+ * (its own or a stand-in) lasts FAF - 1 frames, with its last key on the last frame (docs/art.md). Grab release
+ * ends after frame GRAB.releaseLag (src/sim/actions/grab.ts), so its clip lasts GRAB.releaseLag frames.
  */
 const ACTIONS: Record<string, number> = {
   spotDodge: SPOT_DODGE.faf - 1,
@@ -24,14 +26,15 @@ const ACTIONS: Record<string, number> = {
   techRoll: TECH_ROLL.faf - 1,
   getupStand: GETUP_STAND.faf - 1,
   getupRoll: GETUP_ROLL.faf - 1,
+  grabRelease: GRAB.releaseLag,
 };
 
 /**
  * Fighters whose clips still follow the old timings because another PR was changing their art when the rest were
  * retimed. Their check is expected to fail; take a fighter off this list once its clips match. Watergirl draws
- * Fireboy's clips, so she matches through his.
+ * Fireboy's clips, so she matches through his. Raft Wars' grabRelease is 30 frames, one longer than the action.
  */
-const WAITING = ['snailbob'];
+const WAITING = ['raftwars', 'snailbob'];
 
 /**
  * Each action whose clip is not as long as the action, as `action: clip length/last key (want n)`. An action with
@@ -55,7 +58,7 @@ const drawn = Object.keys(allFighters()).filter((id) => fighterArt(allFighters()
 
 describe.each(drawn)('%s', (id) => {
   const check = WAITING.includes(id) ? it.fails : it;
-  check('draws every dodge, roll, tech and getup over the whole action', () => {
+  check('draws every dodge, roll, tech, getup and grab release over the whole action', () => {
     expect(drift(id)).toEqual([]);
   });
 });
