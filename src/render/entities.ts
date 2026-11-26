@@ -56,6 +56,28 @@ export function propPlacement(e: EntityState, prop: PropArt, alpha: number): Pro
   return { x, y, scaleX, rotation, frame: e.age };
 }
 
+/** Two props closer than this on both axes are on one spot, for `stack`. */
+const ONE_SPOT = 0.01;
+
+/**
+ * The symbol `e`'s prop draws, from the match state alone. A `stack` prop (PropArt.stack) draws by its rank among the
+ * props of its kind and owner still on its spot, in spawn order: `stack[0]` for the first, `stack[1]` for the next,
+ * the last one for any past the end. Other props draw their `symbol`.
+ */
+export function propSymbol(state: MatchState, e: EntityState, prop: PropArt): string {
+  if (!prop.stack?.length) return prop.symbol;
+  const before = state.entities.filter(
+    (o) =>
+      o.id < e.id &&
+      !o.dead &&
+      o.kind === e.kind &&
+      o.owner === e.owner &&
+      Math.abs(o.pos.x - e.pos.x) <= ONE_SPOT &&
+      Math.abs(o.pos.y - e.pos.y) <= ONE_SPOT,
+  ).length;
+  return prop.stack[Math.min(before, prop.stack.length - 1)]!;
+}
+
 /**
  * Entities drawn straight into `g` in spawn order: items with art (the Coolmath Planet, src/render/items.ts) as drawn,
  * everything else as the placeholder: projectiles as discs, hittable entities as rounded squares, ringed in the
@@ -79,7 +101,8 @@ function drawPlain(g: Graphics, e: EntityState, alpha: number, frame: number): v
  * as long as its entity and only swaps shared symbol geometry (docs/art.md, "Rendering"), with no filters, so `lite`
  * quality draws it as cheaply as a fighter. A prop with a `front` symbol draws its body into `back`, which the
  * renderer puts under the fighters, and its front into `fronts`, which goes over only the fighters standing in it
- * (layerFighters). A `behind` prop draws whole into `back` (Ball Rain's balls). World units, y down.
+ * (layerFighters). A `behind` prop draws whole into `back` (Ball Rain's balls), an `above` prop into `over`, over every
+ * other prop, and a `stack` prop draws by its rank on its spot (propSymbol). World units, y down.
  */
 export class EntityView {
   readonly container = new Container();
@@ -94,11 +117,13 @@ export class EntityView {
   readonly discs = new Graphics();
   /** Prop views, drawn over the discs. */
   readonly props = new Container();
+  /** Views of `above` props, drawn over every other prop (Full Arsenal's marks over its bursts). */
+  readonly over = new Container();
   /** One view per entity id, built for its kind and costume, with its front view if the prop has one. */
   private readonly views = new Map<number, { key: string; view: PropView; front: PropView | null }>();
 
   constructor() {
-    this.container.addChild(this.discs, this.props);
+    this.container.addChild(this.discs, this.props, this.over);
   }
 
   /** `costumes` is each port's palette name (Renderer); a prop takes its owner's, or `default` without one. */
@@ -113,18 +138,20 @@ export class EntityView {
       }
       seen.add(e.id);
       const palette = (e.owner >= 0 && costumes[e.owner]) || 'default';
-      const key = `${e.kind}|${palette}`;
+      const symbol = propSymbol(state, e, found.prop);
+      const key = `${e.kind}|${palette}|${symbol}`;
       let held = this.views.get(e.id);
       if (held?.key !== key) {
         if (held) dispose(held);
         const front = found.prop.front;
         held = {
           key,
-          view: createPropView(found.art, found.name, palette),
+          view: createPropView(found.art, found.name, palette, symbol),
           front: front ? createPropView(found.art, found.name, palette, front) : null,
         };
         this.views.set(e.id, held);
-        (held.front || found.prop.behind ? this.back : this.props).addChild(held.view.container);
+        const layer = held.front || found.prop.behind ? this.back : found.prop.above ? this.over : this.props;
+        layer.addChild(held.view.container);
         if (held.front) this.fronts.addChild(held.front.container);
       }
       const at = propPlacement(e, found.prop, alpha);
