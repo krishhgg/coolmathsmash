@@ -139,6 +139,13 @@ export type SimEvent =
       x: number;
       y: number;
     }
+  /** An idle fighter picked up an item (EntityDef.pickup); its `entityDestroy` (reason `pickup`) follows. */
+  | { type: 'itemPickup'; port: number; id: number; kind: string }
+  /**
+   * A fighter broke the Coolmath Planet and now holds a Final Smash charge (`FighterState.finalReady`). There is no
+   * Final Smash yet; this is what one will start from.
+   */
+  | { type: 'finalReady'; port: number; x: number; y: number }
   /** A tether line left the hand towards (`x`, `y`), its full-range end. */
   | { type: 'tetherFire'; port: number; x: number; y: number }
   /** A fighter-targeting line touched a hurtbox at (`x`, `y`), before the move chooses how to respond. */
