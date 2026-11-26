@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { isIntangible } from '../../sim/actions/registry';
 import { activeHitboxes } from '../../sim/combat/hits';
 import type { FighterState } from '../../sim/fighter';
-import { koPercent, type KoHit, type KoSetup } from '../../sim/testing/ko';
+import { koPercent, type KoSetup } from '../../sim/testing/ko';
 import { attack, placeInAir, run, runPorts, testMatch, until } from '../../sim/testing/sim';
 import { moves as fireboyMoves } from '../fireboy/moves';
 import type { MoveDef } from '../types';
@@ -69,18 +69,22 @@ describe('Watergirl: damage (roster sheet, W column)', () => {
     ['utilt', 5.5],
     ['dtilt', 6.5],
     ['dashAttack', 8],
-    ['fsmash', 15],
-    ['usmash', 13],
     ['nair', 7.5],
     ['fair', 11],
     ['uair', 7],
     ['pummel', 1.3],
     ['fthrow', 8],
-    ['bthrow', 10],
     ['uthrow', 7],
     ['dthrow', 5],
   ] as const)('%s: %s%%', (move, dmg) => {
     expect(damage(moves[move]!)).toBe(dmg);
+  });
+
+  it("fsmash, usmash, bthrow and Geyser's finisher take Mario's damage, not the roster's 15, 13, 10 and 2", () => {
+    expect(damage(moves.fsmash!)).toBe(17.8);
+    expect(moves.fsmash!.hits[0]!.boxes.map((b) => b.damage)).toEqual([17.8, 14.7]);
+    expect(damage(moves.usmash!)).toBe(14);
+    expect(moves.bthrow!.throw!.hit.damage).toBe(11);
   });
 
   it("dsmash and bair take Mario's damage, not the roster's 11 and 10, so they KO where his do (kill percents below)", () => {
@@ -89,11 +93,11 @@ describe('Watergirl: damage (roster sheet, W column)', () => {
     expect(moves.bair!.hits[1]!.boxes.map((b) => b.damage)).toEqual([7]);
   });
 
-  it('multi-hit moves: dsmash 10 then 12, dair 1.2 x5 + 5, Geyser 2 x4 + 2', () => {
+  it('multi-hit moves: dsmash 10 then 12, dair 1.2 x5 + 5, Geyser 2 x4 + 3', () => {
     const windows = (move: string) => moves[move]!.hits.map((w) => Math.max(...w.boxes.map((b) => b.damage)));
     expect(windows('dsmash')).toEqual([10, 12]);
     expect(windows('dair')).toEqual([1.2, 1.2, 1.2, 1.2, 1.2, 5]);
-    expect(windows('upB')).toEqual([2, 2, 2, 2, 2]);
+    expect(windows('upB')).toEqual([2, 2, 2, 2, 3]);
   });
 
   it('nothing she does burns', () => {
@@ -256,7 +260,7 @@ describe('Watergirl: Geyser (up special)', () => {
     expect(f.landingLag).toBe(30);
   });
 
-  it('carries an opponent standing beside her through all five hits: 10%', () => {
+  it('carries an opponent standing beside her through all five hits: 11%', () => {
     const m = testMatch({ fighter: 'watergirl', players: 2 });
     const [a, v] = m.fighters as [FighterState, FighterState];
     const at = { x: a.pos.x + 4 * a.facing, y: a.pos.y };
@@ -271,7 +275,7 @@ describe('Watergirl: Geyser (up special)', () => {
       last = v.damage;
     }
     expect(hits).toBe(5);
-    expect(v.damage).toBeCloseTo(10 * 1.05 * 1.2, 6);
+    expect(v.damage).toBeCloseTo(11 * 1.05 * 1.2, 6);
   });
 });
 
@@ -350,22 +354,28 @@ describe('Watergirl: kill percents (koPercent: Mario at the Battlefield ledge, f
   const ko = (move: string, air = false) => atLedge({ fighter: 'watergirl', move }, air);
 
   /**
-   * Mario's hitboxes and SSBU-Calculator thresholds from ko.test.ts. Where roster damage differs, apply the KO
-   * difference between the two raw damage values to the calculator threshold.
+   * Mario's kill percents from ko.test.ts: SSBU-Calculator's KO calculator (rubendal/SSBU-Calculator 233590e) run
+   * headless on Mario's 13.0.1 hitboxes, Mario at Battlefield's ledge, fresh, no rage, no DI. Each move takes Mario's
+   * damage, angle, BKB and KBG, so it must KO within 5 points of his own number, with no shift for damage.
    */
   it.each([
-    ['fsmash', { damage: 17.8, angle: 361, kbg: 99, bkb: 25 }, 15, 64.8, false],
-    ['usmash', { damage: 14, angle: 83, kbg: 94, bkb: 32 }, 13, 124.5, false],
-    ['bthrow', { damage: 11, angle: 45, kbg: 66, bkb: 70, direction: 'back' }, 10, 130.5, false],
-    ['uthrow', { damage: 7, angle: 90, kbg: 72, bkb: 70 }, 7, 240.6, false],
-    ['uair', { damage: 7, angle: 75, kbg: 135, bkb: 10 }, 7, 186.2, true],
-  ] satisfies [string, KoHit, number, number, boolean][])(
-    "%s KOs within 5 points of Mario's",
-    (move, hit, damage, reference, air) => {
-      const delta = hit.damage === damage ? 0 : atLedge({ ...hit, damage }, air) - atLedge(hit, air);
-      expect(Math.abs(ko(move, air) - (reference + delta))).toBeLessThanOrEqual(5);
-    },
-  );
+    { move: 'fsmash', analogue: "Mario's fsmash sweetspot", sourced: 64.8 }, // 17.8%, 361°, BKB 25, KBG 99
+    { move: 'usmash', analogue: "Mario's usmash", sourced: 124.5 }, // 14%, 83°, BKB 32, KBG 94
+    { move: 'bthrow', analogue: "Mario's bthrow", sourced: 130.5 }, // 11%, 45°, BKB 70, KBG 66
+    { move: 'uthrow', analogue: "Mario's uthrow", sourced: 240.6 }, // 7%, 90°, BKB 70, KBG 72
+    { move: 'uair', analogue: "Mario's uair", sourced: 186.2, air: true }, // 7%, 75°, BKB 10, KBG 135
+  ])('$move KOs within 5 points of $analogue at $sourced%', ({ move, sourced, air }) => {
+    expect(Math.abs(ko(move, air) - sourced)).toBeLessThanOrEqual(5);
+  });
+
+  /**
+   * Geyser's finisher against Super Jump Punch's (3%, 60°, BKB 50, KBG 145): SSBU-Calculator's KO calculator, run
+   * headless the same way on Mario's 13.0.1 hitbox (ultimate-hitboxes.com, RSN-Bran/ultimate-hitboxes ead416b), KOs
+   * Mario standing at the ledge from 238.1%. Neither is a kill move, but the finisher is Mario's hit.
+   */
+  it("Geyser's finisher KOs within 5 points of Super Jump Punch's at 238.1%", () => {
+    expect(Math.abs(ko('upB') - 238.1)).toBeLessThanOrEqual(5);
+  });
 
   it("fair KOs within 5 points of Toon Link's forward aerial at her damage", () => {
     const reference = atLedge({ damage: 11, angle: 361, kbg: 98, bkb: 35 }, true);
@@ -406,12 +416,12 @@ describe('Watergirl: kill percents (koPercent: Mario at the Battlefield ledge, f
     },
   );
 
-  it('at the ledge fsmash KOs earlier than bair, then usmash and bthrow', () => {
-    const bair = ko('bair', true);
-    const usmash = ko('usmash');
-    expect(ko('fsmash')).toBeLessThan(bair);
-    expect(bair).toBeLessThan(usmash);
-    expect(usmash).toBeLessThan(ko('bthrow'));
+  /** Mario's own back air and up smash KO within half a point of each other (124.9, 124.5), so neither leads. */
+  it('at the ledge fsmash KOs well before bair and usmash, and usmash before bthrow', () => {
+    const fsmash = ko('fsmash');
+    expect(fsmash + 40).toBeLessThan(ko('bair', true));
+    expect(fsmash + 40).toBeLessThan(ko('usmash'));
+    expect(ko('usmash')).toBeLessThan(ko('bthrow'));
   });
 
   it("her forward smash kills later than Fireboy's", () => {

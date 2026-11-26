@@ -17,6 +17,7 @@ import {
 import type { Ctx, FighterState } from '../fighter';
 import type { MatchState } from '../match';
 import { restoreAirOptions } from '../movement';
+import { endStatusesOnHit } from '../statuses';
 import { moveOf, playMove, startMove } from './attack';
 import { setAction, type ActionDef } from './registry';
 
@@ -237,6 +238,7 @@ function heldHit(m: MatchState, a: FighterState, again: boolean): void {
     a.holdHitsLanded++;
     const before = v.damage;
     addDamage(m, v, h.damage);
+    endStatusesOnHit(m, v);
     a.hitlag = v.hitlag = hitlagFrames(h.damage, { mult: h.hitlag });
     emit(m, { type: 'pummel', attacker: a.port, victim: v.port, damage: v.damage - before });
   }
