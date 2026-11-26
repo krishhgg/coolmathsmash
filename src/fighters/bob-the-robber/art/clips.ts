@@ -23,6 +23,7 @@ import {
   TUCK,
   WIDE,
   aim,
+  continuous,
   feet,
   floor,
   fx,
@@ -35,6 +36,7 @@ import {
 import { attacks, ledgeSweep } from './attacks';
 import { FORE_ARM, SHIN, THIGH, UPPER_ARM, shoe } from './parts';
 import { rig } from './rig';
+import { shadowStepClips } from './shadowStep';
 import { stunGunClips } from './stunGun';
 
 /**
@@ -185,23 +187,6 @@ function climb(frame: number, moveEnd: number, inward: number, phase = frame): P
     return gripHands(base, front, back, -30 + 20 * push);
   }
   return hands(base, [cx + dx - 1.7, cy + dy - 0.95], [cx + dx + 2.5, cy + dy - 2.4], -1);
-}
-
-/** Keep equivalent limb and prop angles on the short side of the tween across an IK wrap. */
-function continuous(keys: Key[]): Key[] {
-  const angles: Record<string, number> = {};
-  return keys.map((k) => {
-    if (!k.pose) return k;
-    const pose = { ...k.pose };
-    for (const { name } of rig.bones) {
-      const prev = angles[name];
-      let r = pose[name]?.rot ?? 0;
-      if (name !== 'body' && prev !== undefined) r += 360 * Math.round((prev - r) / 360);
-      if (r !== 0 || pose[name]?.rot !== undefined) pose[name] = { ...pose[name], rot: r };
-      angles[name] = r;
-    }
-    return { ...k, pose };
-  });
 }
 
 /**
@@ -942,6 +927,7 @@ export const clips: Record<string, AnimClip> = {
   },
   ...attacks,
   ...stunGunClips,
+  ...shadowStepClips,
 };
 
 /**

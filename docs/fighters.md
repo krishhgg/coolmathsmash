@@ -224,6 +224,10 @@ or reaching full charge, carries on with the move.
   `chargeDamage: 2.2`, so its 10% hitbox reaches 22%.
 - **Speeds and distances.** A move script reads `chargeLerp(f, uncharged, full)` for a value at the current charge
   level (a dash speed), or `chargeLevel(f)` (0 to 1).
+- **Projectiles.** An entity whose EntityDef sets `chargeDamage` hits for up to that many times its damage at the
+  spawning move's full charge, linearly from 1 (`chargeScale(level, full)`), so its knockback grows too. A move's
+  `spawn` passes the move's charge level; a script passes `charge: chargeLevel(f)` to `spawnEntity`. The multiplier
+  goes into the entity's `damageMul`, so reflections stack on it. The Raft Wars kids' Aimed Shot is the example.
 - **Scripts while charging.** The script runs once a frame while the move is held, with `actionFrame` on the frame
   before the charge frame. That frame's spawns, `rehit` windows and `transform` happen once, on the way in.
 - **Stored charge.** `storeCharge: {}` lets shield, an air dodge or a jump cancel the charge and keep it in
@@ -335,7 +339,7 @@ beastChew: {
 ### Counters
 
 A move with `counter` blocks hits and answers them with a counterattack. Marth's Counter in Ultimate, from the test
-fixtures in `src/sim/testing/counter.ts` until Bob's Shadow Step exists:
+fixtures in `src/sim/testing/counter.ts`:
 
 ```ts
 downB: {
@@ -367,7 +371,10 @@ downBHit: {
 - **The freeze.** The counterer goes straight into the counterattack `move` and freezes with the attacker for
   `freeze` frames (default 21, Marth's). The counterattack's frame 1 is the last frozen frame, so its frame numbers
   are Ultimate's and Marth's swing lands 25 frames after the catch. The counterer is intangible through the freeze,
-  and the counterattack's own `intangible` takes over from frame 1.
+  and the counterattack's own `intangible` takes over from frame 1. A counter whose Ultimate analogue doesn't freeze
+  the counterer counts its counterattack frames from the catch; take `freeze - 1` off them so the hit lands on the
+  same frame after the catch. Bob the Robber's Shadow Step (`src/fighters/bob-the-robber/specials.ts`) does this
+  with Double Team's frames and a 12-frame freeze.
 - **Facing.** The counterer turns to face the hit. With `behind` it reappears that many units behind the attacker
   instead, facing their back, as Lucario's Double Team does: on the attacker's floor (held to its ends), or in the
   air beside an airborne attacker.
@@ -619,7 +626,7 @@ dthrow: { ..., throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55
 - **Freezing.** A `freeze` status holds the fighter as hitlag does: no action, physics or timers, and the launch waits
   for it. It ticks on every frame from the one after it went on, hitlag included, so a hit that applies one freezes the
   victim for the longer of its hitlag and the status. Other statuses pause while it lasts, and other fighters can't
-  push it. The renderer shakes the fighter and flickers it in the status's `color`.
+  push it, on the frame it runs out too. The renderer shakes the fighter and flickers it in the status's `color`.
 - **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status. With `endOnHit`, a later
   hit that lands (not on a shield), a pummel or a throw's hold hit included, takes it off, reported as `statusEnd` with
   reason `hit`. That hit's hitlag and launch take over, and no hit landing on the same frame can put the same status

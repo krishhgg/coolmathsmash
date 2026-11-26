@@ -76,14 +76,18 @@ describe('bob the robber art', () => {
     }
   });
 
-  it('has a clip for every move, ending at FAF - 1 with its hit windows (throw, pummel or shot frame) active', () => {
-    expect(moves.length).toBe(28);
+  it('has a clip for every move, ending at FAF - 1 with its hit windows (throw, pummel, shot frame or counter window) active', () => {
+    expect(moves.length).toBe(30);
     for (const [name, move] of moves) {
       const clip = art.clips[name];
       expect(clip, name).toBeDefined();
       expect(clip!.length, name).toBe(move.faf - 1);
       const impact = move.throw?.frame ?? move.pummel?.frame ?? STUN_GUN.shot;
-      const windows = move.hits.length ? move.hits.map((h) => h.frames) : [[impact, impact]];
+      const windows = move.hits.length
+        ? move.hits.map((h) => h.frames)
+        : move.counter
+          ? [move.counter.window]
+          : [[impact, impact]];
       expect(clip!.active, name).toEqual(windows);
     }
   });
