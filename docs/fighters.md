@@ -432,10 +432,11 @@ upB: {
   by up to `stickAdjust` degrees towards the stick's forward or back. Its tip reaches full range evenly over
   `travel` frames, and each frame the line from the hand to the tip is cast through the stage (`castSegment`).
 - **Aiming.** With `aimed: { speed }` a reticle starts on the fighter and walks with the stick at `speed` units a
-  frame while special is held, clamped to `range`; the move waits on the frame before `frame`, the fighter keeps
-  drifting (aimed tethers don't fast-fall), and releasing special fires at the reticle. With
-  `aimed.quick: { frames }`, releasing special within `frames` of pressing it while the stick points somewhere
-  fires at full range in that 8-way direction instead. A reticle still on the fighter fires nothing.
+  frame while special is held, clamped to `range`; the move waits on the frame before `frame`, running its script
+  once a frame there as a charging move does, the fighter keeps drifting (aimed tethers don't fast-fall), and
+  releasing special fires at the reticle. With `aimed.quick: { frames }`, releasing special within `frames` of
+  pressing it while the stick points somewhere fires at full range in that 8-way direction instead. A reticle still
+  on the fighter fires nothing.
 - **Anchoring.** The first thing the line touches anchors it if `latch` lists it: `ledge` (any ledge the line
   passes within `TETHER.ledgeSnap`, 10 units, of from off the stage, if nobody holds it and the fighter still has
   ledge grabs), `surface` (any solid edge or platform, from either side) or `sky` (empty air at full range).
