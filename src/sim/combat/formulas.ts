@@ -27,8 +27,8 @@ export function rageMultiplier(attackerPercent: number): number {
 export const KNOCKBACK_MAX = 2500;
 export const CROUCH_CANCEL_KB = 0.85;
 /**
- * In Ultimate, a match started with two players and items off makes damage taken x1.2 on the meter; knockback,
- * hitstun and hitlag ignore it (SmashWiki: 1v1 multiplier). addDamage (hits.ts) checks only the player count.
+ * In a match started with two players and items off, damage taken is x1.2 on the meter; knockback, hitstun and
+ * hitlag ignore it (SmashWiki: 1v1 multiplier). addDamage (hits.ts) applies it.
  */
 export const ONE_V_ONE_DAMAGE = 1.2;
 
