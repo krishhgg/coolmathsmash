@@ -52,6 +52,25 @@ const papa: Palette = {
   ovenDark: '#3a1d14',
   flame: '#ff8a1e',
   flameHi: '#ffe36a',
+  // Conveyor Oven (the Final Smash): the belt, the flour it throws up, and the oven's iron, stone and smoke.
+  belt: '#3a3733',
+  beltHi: '#7a746b',
+  beltFrame: '#cf2a2f',
+  beltFrameLo: '#931b20',
+  trim: '#fff1d6',
+  steel: '#a9b2bb',
+  steelLo: '#5f6770',
+  steelHi: '#e6ebf0',
+  flour: '#fdf6e6',
+  flourLo: '#dccdb0',
+  flourHi: '#ffffff',
+  brickHi: '#d27a5c',
+  iron: '#4d4e55',
+  ironLo: '#2e2f35',
+  ironHi: '#8e919a',
+  stone: '#c2b39e',
+  stoneLo: '#8f8170',
+  smoke: '#d9d5cf',
 };
 
 /**
