@@ -102,6 +102,31 @@ function sheets(fighter: 'bloxorz' | 'bloxorz-lying'): LabScenario[] {
       ],
       refs: ['smash/attack-active-*', `${BX}/ability-switch-types-*`, `${BX}/ingame-fall-*`],
     },
+    {
+      name: `${fighter}-sheet-back-rolls`,
+      description: `Bloxorz block (${form}): a tech roll away from its facing through its travel (frames 4 to 30), then the getup roll away from it.`,
+      page: lab('4.5'),
+      calls: [
+        {
+          fn: 'sheet',
+          args: [
+            [
+              'techRollBack@0',
+              'techRollBack@8',
+              'techRollBack@13',
+              'techRollBack@18',
+              'techRollBack@23',
+              'techRollBack@30',
+              'techRollBack@40',
+              'getupRollBack@0',
+              'getupRollBack@14',
+              'getupRollBack@35',
+            ],
+          ],
+        },
+      ],
+      refs: [`${BX}/ingame-roll-*`, `${BX}/ingame-lying-*`],
+    },
   ];
 }
 

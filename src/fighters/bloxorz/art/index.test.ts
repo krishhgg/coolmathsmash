@@ -79,8 +79,10 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   down: 'loop',
   getupStand: GETUP_STAND.faf - 1,
   getupRoll: GETUP_ROLL.faf - 1,
+  getupRollBack: GETUP_ROLL.faf - 1,
   techInPlace: TECH_IN_PLACE.faf - 1,
   techRoll: TECH_ROLL.faf - 1,
+  techRollBack: TECH_ROLL.faf - 1,
   respawn: 'loop',
   grabHold: 'loop',
   grabbed: 'loop',
@@ -291,6 +293,21 @@ describe('bloxorz block art', () => {
     expect(-ly0).toBeLessThan(12 + dy + 0.6);
     expect(lx0).toBeCloseTo(-12, 1);
     expect(lx1 - lx0).toBeLessThan(24 + dx + 0.6);
+  });
+
+  it('rolls out of a tech or knockdown away from the facing by turning the other way from the same pose', () => {
+    for (const [form, a] of FORMS)
+      for (const roll of ['techRoll', 'getupRoll']) {
+        const turn = (clip: string, f: number) => samplePose(a, clip, f, f).local.pivot!.rot;
+        const end = a.clips[roll]!.length;
+        const back = `${roll}Back`;
+        expect(a.clips[back]!.length, `${form} ${back}`).toBe(end);
+        expect(turn(back, 0), `${form} ${back}`).toBeCloseTo(turn(roll, 0), 5);
+        expect(turn(back, end) - turn(back, 0), `${form} ${back}`).toBeCloseTo(
+          -(turn(roll, end) - turn(roll, 0)),
+          5,
+        );
+      }
   });
 
   it('hangs from the ledge where the engine puts the block, in both forms', () => {

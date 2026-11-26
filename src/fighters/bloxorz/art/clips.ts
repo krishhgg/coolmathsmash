@@ -672,6 +672,9 @@ export function actionClips(form: Form): Record<string, AnimClip> {
     }),
     techRoll: bake(TECH_ROLL.faf - 1, false, (f) => rollOut(f, TECH_ROLL.move)),
     getupRoll: bake(GETUP_ROLL.faf - 1, false, (f) => rollOut(f, GETUP_ROLL.move)),
+    /** Tech and getup rolls away from the facing (the renderer's back roll for those actions). */
+    techRollBack: bake(TECH_ROLL.faf - 1, false, (f) => rollOut(f, TECH_ROLL.move, -1)),
+    getupRollBack: bake(GETUP_ROLL.faf - 1, false, (f) => rollOut(f, GETUP_ROLL.move, -1)),
     respawn: bake(60, true, (f) => ({ block: rest(F, breathe(f, 60)) })),
     grabHold: bake(30, true, (f) => ({
       block: rock(F, (F === STAND ? 22 : -10) + 1.2 * Math.sin((2 * Math.PI * f) / 30)),
@@ -728,11 +731,13 @@ export function actionClips(form: Form): Record<string, AnimClip> {
 
   /**
    * Rolling out of a tech or a knockdown: the block turns over in place while the engine slides it over `move`,
-   * and squashes as it lands on the frame the slide ends.
+   * and squashes as it lands on the frame the slide ends. `dir` 1 rolls along the facing, -1 away from it. Both
+   * start from the knocked-down pose (a Standing block on its side), so a backward roll turns the other way from
+   * there rather than replaying the dodge back roll, which starts upright.
    */
-  function rollOut(f: number, move: readonly [number, number]): Frame {
+  function rollOut(f: number, move: readonly [number, number], dir: 1 | -1 = 1): Frame {
     const u = travelled(move, f);
-    const turn = F === STAND ? 90 + 270 * u : 180 * u;
+    const turn = F === STAND ? 90 + dir * 270 * u : dir * 180 * u;
     const end = move[1];
     const v =
       1 -
