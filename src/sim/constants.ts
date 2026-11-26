@@ -274,6 +274,16 @@ export const RUN_BRAKE_FRAMES = 14;
 export const DASH_SPEED_KEEP_FRAMES = 6;
 
 /**
+ * Ultimate's turn_dash_frame (common params: 5): a flick back on frames 1-5 of an initial dash, counted from the
+ * dash's first frame, turns it into a dash the other way at once. A flick back later in the initial dash goes into the
+ * input buffer and the dash back comes out on the frame the dash ends; once the run starts, back is the run
+ * turnaround. UFD stats, Dash Turnaround, Mario: "Fast (Initial Dash)" frames 1-5, "Normal (Buffer Window)" 6-10,
+ * "Slow (Full Dash)" 11. SmashWiki, Dashdance: in Ultimate "any character is free to dash back without the laggy
+ * skid animation as long as the run phase of the dash has not begun". See docs/physics-reference.md section 10.
+ */
+export const TURN_DASH_FRAMES = 5;
+
+/**
  * Tech (Ultimate): Shield pressed within TECH_WINDOW frames before a tumble landing techs it, and a press locks
  * out the next one for TECH_LOCKOUT frames. Floors only allow it at launch speeds up to TECH_MAX_SPEED (calc).
  */
