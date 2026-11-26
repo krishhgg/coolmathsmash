@@ -2,6 +2,7 @@ import type { PathShape, Rig, Slot } from '../../../render/rig/types';
 import {
   BRO_ARM,
   FORE_ARM,
+  MUZZLE,
   SHIN,
   THIGH,
   UPPER_ARM,
@@ -11,12 +12,16 @@ import {
   broParts,
   faces,
   fxBall,
+  fxBoom,
   fxFlames,
+  fxPop,
   fxPuff,
   fxSpark,
   fxSpeed,
+  fxSplash,
   fxStar,
   fxSweat,
+  grenade,
   gun,
   hat,
   head,
@@ -61,7 +66,9 @@ function partSymbols(all: Record<string, Part>): Record<string, PathShape[]> {
  * everything. The big kid is drawn three-quarters from the front: his near arm and leg (`F`) hang from the -x
  * side and draw in front, the far ones (`B`) from +x behind. `ring` rides his hips, `gun` (the launcher on its
  * strap) his chest, and `bro`, the little brother, sits on the back of the ring holding on to him. `rocket` and
- * `fx1`-`fx3` are free bones placed in rig space.
+ * `fx1`-`fx3` are free bones placed in rig space. `muzzle` sits on the end of the barrel for the launcher's pop,
+ * `handF` holds a prop (the grenade) in the near fist, and `hit1`/`hit2` place effects that are the hit itself (a
+ * splash, a burst, a rocket's flame), so unlike the decor `fx` slots they count as drawn parts.
  */
 export const rig: Rig = {
   bones: [
@@ -95,6 +102,10 @@ export const rig: Rig = {
     { name: 'fx1', parent: 'root', x: 0, y: 0 },
     { name: 'fx2', parent: 'root', x: 0, y: 0 },
     { name: 'fx3', parent: 'root', x: 0, y: 0 },
+    { name: 'muzzle', parent: 'gun', x: MUZZLE[0], y: MUZZLE[1] },
+    { name: 'handF', parent: 'foreF', x: 0, y: FORE_ARM + 0.35 },
+    { name: 'hit1', parent: 'root', x: 0, y: 0 },
+    { name: 'hit2', parent: 'root', x: 0, y: 0 },
   ],
   slots: [
     { name: 'fxBack', bone: 'fx3', symbol: null, decor: true },
@@ -118,8 +129,12 @@ export const rig: Rig = {
     { name: 'hat', bone: 'hat', symbol: 'hat' },
     { name: 'gun', bone: 'gun', symbol: 'gun' },
     ...limbSlots('armF', 'foreF', 'upperArm', 'fist'),
+    { name: 'held', bone: 'handF', symbol: null },
     { name: 'fx1', bone: 'fx1', symbol: null, decor: true },
     { name: 'fx2', bone: 'fx2', symbol: null, decor: true },
+    { name: 'flash', bone: 'muzzle', symbol: null, decor: true },
+    { name: 'hit1', bone: 'hit1', symbol: null },
+    { name: 'hit2', bone: 'hit2', symbol: null },
   ],
   symbols: {
     head,
@@ -142,6 +157,10 @@ export const rig: Rig = {
     fxSpark,
     fxSweat,
     fxBall,
+    fxPop,
+    fxSplash,
+    fxBoom,
+    grenade,
     ...fxFlames,
     /** The rocket's exhaust flickering on the match clock. */
     fxFlame: { loop: ['fxFlameA', 'fxFlameB'], fps: 20 },
