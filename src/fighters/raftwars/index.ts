@@ -1,4 +1,5 @@
 import { defineFighter } from '../types';
+import { art } from './art';
 import { entities } from './entities';
 import { grenadeEntities } from './grenade';
 import { moves } from './moves';
@@ -11,4 +12,5 @@ export const fighter = defineFighter({
   stats,
   moves,
   entities: { ...entities, ...grenadeEntities },
+  art,
 });

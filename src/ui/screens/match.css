@@ -19,40 +19,29 @@
   width: auto;
   max-width: 1100px;
   filter: drop-shadow(0 10px 0 rgb(0 0 0 / 0.25));
-  animation: callout-pop 420ms cubic-bezier(0.2, 1.6, 0.4, 1) both;
 }
 
-.callout-slot[data-label='GO!'] .callout {
-  height: 430px;
-  margin-top: 60px;
-  animation-name: callout-go;
+/*
+ * 3, 2, 1 and GO! sit in the band above the fighters, whose heads stay below about y 300 at the start, and move
+ * frame by frame (calloutPose). The lettering fills the middle 63% of each SVG's height, so a 250 px number spans
+ * y 87-245, where Ultimate's numbers sit, and the 420 px GO! spans y 24-290. Both grow and unfold from the bottom of
+ * the lettering, never down toward the fighters.
+ */
+.callout-slot.is-countdown {
+  top: 0;
+  height: auto;
+  align-items: flex-start;
 }
 
-@keyframes callout-pop {
-  0% {
-    transform: scale(2.4);
-    opacity: 0;
-  }
-  45% {
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1);
-  }
+.is-countdown .callout {
+  margin-top: 32px;
+  transform-origin: 50% 84%;
+  will-change: transform, opacity;
 }
 
-@keyframes callout-go {
-  0% {
-    transform: scale(0.2) rotate(-6deg);
-    opacity: 0;
-  }
-  60% {
-    transform: scale(1.12) rotate(1deg);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1);
-  }
+.is-countdown[data-label='GO!'] .callout {
+  height: 420px;
+  margin-top: -68px;
 }
 
 .callout-slot.is-finale {
