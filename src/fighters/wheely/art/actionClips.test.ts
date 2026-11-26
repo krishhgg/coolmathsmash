@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { clipFor } from '../../../render/fighterView';
 import { poseBounds } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
-import { GETUP_STAND, GRAB } from '../../../sim/constants';
+import { GETUP_ROLL, GETUP_STAND, GRAB } from '../../../sim/constants';
 import { run, testMatch } from '../../../sim/testing/sim';
 import { fighter } from '..';
 import { stats } from '../stats';
@@ -27,6 +27,28 @@ describe('Wheely playtest poses', () => {
     expect(samplePose(art, getupClip, f.actionFrame, m.frame).local.body!.rot).toBe(360);
     run(m, 1);
     expect(f.action).toBe('idle');
+  });
+
+  it('flips backwards off the roof on a getup roll away from his facing', () => {
+    const m = testMatch({ fighter: 'wheely' });
+    const f = m.fighters[0]!;
+    Object.assign(f, { action: 'down', actionFrame: 1, facing: 1 });
+    run(m, 1, { x: -100 });
+    expect(f.action).toBe('getupRoll');
+    expect(f.dodgeDir.x).toBe(-1);
+    const rot: number[] = [];
+    while (f.action === 'getupRoll') {
+      const [clip, frame] = clipFor(fighter, art, f);
+      expect(clip).toBe('getupRollBack');
+      rot.push(samplePose(art, clip, frame, m.frame).local.body!.rot);
+      run(m, 1);
+    }
+    expect(rot.length).toBe(GETUP_ROLL.faf - 1);
+    expect(Math.cos((rot[0]! * Math.PI) / 180)).toBeCloseTo(-1, 2);
+    expect(rot.at(-1)).toBe(-360);
+    const flip = rot.slice(rot.indexOf(Math.max(...rot)));
+    expect(flip.every((r, i) => i === 0 || r <= flip[i - 1]!)).toBe(true);
+    expect(flip[0]! - flip.at(-1)!).toBeGreaterThanOrEqual(180);
   });
 
   it('reaches the held fighter with the door through the idle hold and on pummel impact', () => {

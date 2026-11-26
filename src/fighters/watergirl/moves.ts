@@ -2,6 +2,7 @@ import type { HitboxDef, MoveDef } from '../types';
 import { stickX } from '../../sim/control';
 import { moves as fireboyMoves } from '../fireboy/moves';
 import { swap } from '../fireboy/swap';
+import { waterStream } from './waterStream';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -389,6 +390,8 @@ export const moves: Record<string, MoveDef> = {
       }
     },
   },
+  /** Water Stream (neutral special): src/fighters/watergirl/waterStream.ts. */
+  ...waterStream,
   /** Swap (down special): Fireboy takes over. */
   downB: swap('fireboy'),
   ...templeMirror,
