@@ -28,9 +28,34 @@ effect draws a character.
 | `entityHit`               | Spark where a hittable entity was struck; nobody shakes                                              |
 | `shieldBreak`             | Shatter from the cracked bubble                                                                      |
 | `ko`                      | KO blast; the KO'd fighter's launch smoke shrinks away                                               |
+| `hit` in 1v1, strong      | Special Zoom (blue), or Finish Zoom (red) when it will KO (below)                                    |
 | `jump`, `land`            | Dust at the feet (more for a full hop or a laggy landing)                                            |
 | `action` from `respawn`   | The respawn platform shrinks away                                                                    |
 | a fighter in tumble, fast | Launch smoke along the frame's path, and speed lines past 5.5 units per frame                        |
+
+## Special Zoom and Finish Zoom
+
+Ultimate's zoom on a decisive 1v1 hit lives in `src/render/zoom.ts`, with the KO prediction in
+`src/render/koPredict.ts`. The rules come from SmashWiki's Special Zoom article, quoted in `zoom.ts`:
+
+- Only with exactly two players (Ultimate: "nearly non-existent" with more).
+- Finish Zoom, red: `predictKo` says the pending launch crosses a blast zone before hitstun ends. It runs Ultimate's
+  launch from `formulas.ts` and the sim's tumble physics with the stick neutral and no stage collision, because
+  Ultimate's check "does not account for obstructions or DI". With a clear path it matches the sim frame for frame.
+- Special Zoom, blue: a hit of at least 150 knockback (`SPECIAL_ZOOM_KB`, the camera's severe shake) that will not
+  KO. Ultimate lists the moves instead; this roster has no such list.
+- A Finish Zoom on the other fighter takes over a running Special Zoom; otherwise a new zoom waits for the running
+  one to end.
+- The zoom follows its victim's live freeze, so it always ends on the frame the victim actually launches. A hit
+  landing during the freeze (a returning projectile) replaces the freeze and the pending launch, so it decides the
+  zoom again from the new launch, keeping its start and contact point; a launch that is now neither a KO nor strong
+  ends the zoom on that frame.
+
+SmashWiki gives no length, and Ultimate's slowdown would stretch sim frames. So the zoom plays over the victim's
+hitlag, the frames the sim already holds both fighters still: the camera pushes in on the contact point over 4
+frames (to 120 units across, twice the camera's closest), holds, and cuts back to the normal camera on the launch frame.
+The flash tints everything behind the fighters and draws streaks pointing at the impact, in screen pixels like the
+KO blast. `Camera.viewFor` takes the zoom as a `Focus`, so screen shake still applies on top.
 
 ## Determinism
 
@@ -70,5 +95,5 @@ and sparkles; launch smoke and dust skip the light lobe on each puff and fill th
 | Smash charge  | flash toward #FFF4B0 for 2 of every 8 frames, down to 1 of 4 at full charge; ±0.15 units shake   |
 
 Capture scenarios for each effect: `hit-spark`, `hit-spark-weak`, `projectile-spark`, `launch-smoke`, `ko-blast`,
-`shield-hit`, `shield-break`, `smash-charge`, `respawn-halo` and `land-dust` (`npm run capture -- --only <names>`,
+`shield-hit`, `shield-break`, `smash-charge`, `respawn-halo`, `land-dust`, `finish-zoom` and `special-zoom` (`npm run capture -- --only <names>`,
 with `--quality full` for the full look).

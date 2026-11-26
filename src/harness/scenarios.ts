@@ -420,6 +420,34 @@ const CORE: Scenario[] = [
     requires: ['move:fsmash', 'action:ko'],
   },
   {
+    name: 'finish-zoom',
+    description:
+      "P2 at 150% KOd by P1 forward smash: the Finish Zoom, red, 8 frames into the hit's 18-frame hitlag.",
+    page: { kind: 'game' },
+    patches: faceOff({ damage: 150 }),
+    script: FSMASH,
+    capture: {
+      label: 'P2 hit, hitlag down to 10',
+      when: (s) => P2(s).launch !== null && P2(s).hitlag === 10,
+    },
+    motion: { before: 12, after: 24 },
+    requires: ['move:fsmash', 'action:ko'],
+  },
+  {
+    name: 'special-zoom',
+    description:
+      'P2 at 60% hit by P1 forward smash, strong but no KO from centre stage: the Special Zoom, blue, 8 frames in.',
+    page: { kind: 'game' },
+    patches: faceOff({ damage: 60 }),
+    script: FSMASH,
+    capture: {
+      label: 'P2 hit, hitlag down to 10',
+      when: (s) => P2(s).launch !== null && P2(s).hitlag === 10,
+    },
+    motion: { before: 12, after: 24 },
+    requires: ['move:fsmash'],
+  },
+  {
     name: 'shield-hit',
     description:
       "P2 forward smash into P1's shield: the bubble's white flash and wobble 3 frames after the hit.",

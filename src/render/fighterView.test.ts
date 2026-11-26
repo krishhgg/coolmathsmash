@@ -100,4 +100,20 @@ describe('clipFor through a tether reel', () => {
       new Set([`upB@${seen[hang]!.frame}`]),
     );
   });
+  it('plays the art’s own tetherPull clip from the reel’s first frame instead, when it has one', () => {
+    const redball = getFighter('redball');
+    const m = testMatch({ fighter: 'redball' });
+    const f = placeInAir(m, 104, -6, -1);
+    runPorts(m, 1, [{ x: -100, buttons: ['special'] }]);
+    const seen: { action: string; clip: string; frame: number }[] = [];
+    for (let i = 0; i < 30 && f.action !== 'ledgeCatch'; i++) {
+      runPorts(m, 1, []);
+      const [clip, frame] = clipFor(redball, fighterArt(redball)!, f);
+      seen.push({ action: f.action, clip, frame });
+    }
+    const pull = seen.filter((s) => s.action === 'tetherPull');
+    expect(pull.length).toBeGreaterThan(2);
+    expect(pull.map((s) => [s.clip, s.frame])).toEqual(pull.map((_, i) => ['tetherPull', i + 1]));
+    expect(seen.filter((s) => s.action === 'aerial').every((s) => s.clip === 'sideBAir')).toBe(true);
+  });
 });
