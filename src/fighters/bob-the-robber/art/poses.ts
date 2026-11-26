@@ -1,5 +1,7 @@
 import { pointOf, reach, type Pose } from '../../../render/rig/author';
-import type { BonePose, Key } from '../../../render/rig/types';
+import { poseBounds } from '../../../render/rig/geometry';
+import { samplePose } from '../../../render/rig/sample';
+import type { AnimClip, BonePose, FighterArt, Key } from '../../../render/rig/types';
 import { ANKLE } from './parts';
 import { FOOT, HAND, rig } from './rig';
 
@@ -59,6 +61,34 @@ export function mix(...poses: Pose[]): Pose {
   const out: Pose = {};
   for (const p of poses) for (const [bone, bp] of Object.entries(p)) out[bone] = { ...out[bone], ...bp };
   return out;
+}
+
+/** Moves a standing pose up by `dy` (feet included), for poses the engine has not finished lifting. */
+export const lift = (pose: Pose, dy: number): Pose => mix(pose, { body: { y: (pose.body?.y ?? 0) - dy } });
+
+/** Bake contact poses on whole frames so joint tweens can't put a shoe, sleeve or beanie below the floor. */
+export function floorContact(clip: AnimClip, settle = true): AnimClip {
+  const art: FighterArt = { rig, clips: { contact: clip }, palettes: { default: {} }, height: 0, icon: '' };
+  const keys = new Map(clip.keys.map((k) => [k.frame, k]));
+  return {
+    ...clip,
+    keys: Array.from({ length: clip.length + 1 }, (_, frame) => {
+      const sampled = samplePose(art, 'contact', frame, frame);
+      const bottom = poseBounds(art, sampled)[3];
+      const pose: Pose = Object.fromEntries(
+        rig.bones.map(({ name, x, y, rot = 0, sx = 1, sy = 1 }) => {
+          const p = sampled.local[name]!;
+          return [name, { x: p.x - x, y: p.y - y, rot: p.rot - rot, sx: p.sx / sx, sy: p.sy / sy }];
+        }),
+      );
+      const { ease, swaps, z } = keys.get(frame) ?? {};
+      return key(frame, lift(pose, settle ? bottom : Math.max(0, bottom)), {
+        ease: ease === 'step' ? 'step' : 'linear',
+        swaps,
+        z,
+      });
+    }),
+  };
 }
 
 /** World rotation of a bone in `pose` (degrees; 0 = its rest axes line up with the rig's). */

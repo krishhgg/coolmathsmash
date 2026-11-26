@@ -20,6 +20,7 @@ import {
   continuous,
   feet,
   floor,
+  floorContact,
   fx,
   hands,
   key,
@@ -110,6 +111,12 @@ const TIPTOE = 0.75;
 const lungeWith = (lean: Pose, back: number) =>
   feet(mix(LUNGE, lean), floor(back, -TIPTOE), floor(2.6), false, [30, 0]);
 
+/** LOW turned or shifted by `lean`, with the feet planted again. */
+const lowWith = (lean: Pose) => feet(mix(LOW, lean), floor(-2.4, -0.86), floor(2.2), false, [35, 0]);
+
+/** READY turned or shifted by `lean`, with the feet planted again. */
+const readyWith = (lean: Pose) => feet(mix(READY, lean), floor(-1.6), floor(1.5));
+
 /** The opponent held by the collar at the front fist. */
 const HOLD = hands(
   feet({ body: { rot: 6 }, hip: { y: 0.45 } }, floor(-1.8), floor(1.6)),
@@ -182,6 +189,9 @@ const SLIDE = feet(
   false,
   [40, -15],
 );
+/** SLIDE turned or shifted by `lean`, with the feet planted again. */
+const slideWith = (lean: Pose) =>
+  feet(mix(SLIDE, lean), floor(-2.8, -0.95), floor(2.8, -0.11), false, [40, -15]);
 const DASH_WIND = aim(hands(SLIDE, [-2.6, -7.4], [2.4, -5.4]), 'sackH', 130);
 const DASH_HIT = aim(reachB(hands(SLIDE, [5.0, -5.9], [2.6, -4.4]), [5.0, -5.9]), 'sackH', -84);
 const DASH_LATE = aim(reachB(hands(SLIDE, [4.7, -5.5], [2.6, -4.4]), [4.7, -5.5]), 'sackH', -66);
@@ -216,8 +226,8 @@ const USMASH_UP = (deg: number) =>
   reachF(swing(mix(STANCE, { body: { rot: -2 }, hip: { y: 0.2 } }), USMASH_HAND, deg), USMASH_HAND);
 const ROTOR = { fx4: fx(USMASH_HAND[0], USMASH_HAND[1] - 0.6, 0, 6.8) };
 
-const DSMASH_HIT = swing(mix(LOW, { body: { rot: 26 } }), [3.6, -2.2], 4, -1);
-const DSMASH_WIND = swing(mix(LOW, { body: { rot: 10 } }), [1.4, -4.6], -40, -1);
+const DSMASH_HIT = swing(lowWith({ body: { rot: 26 } }), [3.6, -2.2], 4, -1);
+const DSMASH_WIND = swing(lowWith({ body: { rot: 10 } }), [1.4, -4.6], -40, -1);
 
 // Aerials ----------------------------------------------------------------------------------------------------
 
@@ -299,14 +309,16 @@ const TWIRL_POSE = (deg: number) =>
  * The ledge attack's low baton sweep once Bob is up on the stage, from frame `from` (`clips.ts` draws the climb
  * before it). The engine's ledge attack has no hitbox yet; the swing lands on frame 22, its last intangible frame.
  */
-export const ledgeSweep = (from: number): Key[] => [
-  key(from, swing(LOW, [2.2, -3.6], -30, -1), { ease: 'out', swaps: { ...ANGRY, ...BATON } }),
-  key(18, DTILT_BACK, { ease: 'in' }),
+export const ledgeSweep = (from: number, start: Pose = swing(LOW, [2.2, -3.6], -30, -1)): Key[] => [
+  key(from, aim(start, 'baton', -30), { ease: 'out', swaps: { ...ANGRY, ...BATON } }),
+  // Held back until the sweep: tweened over three frames, the baton would swing down through the floor.
+  key(18, DTILT_BACK, { ease: 'step' }),
   key(21, DTILT_MID, { ease: 'linear' }),
   strikeKey(22, DTILT_SWEEP, { ...SHOUT, ...BATON, smear: 'smear90' }),
   key(25, DTILT_SWEEP, { ease: 'out' }),
-  key(31, swing(LOW, [3.0, -2.8], 30, -1), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
-  key(55, READY, { swaps: SIDE }),
+  key(31, swing(LOW, [3.0, -2.8], 22, -1), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
+  // The baton is put away on the last frame; aimed up, it rises with the fist instead of dipping into the floor.
+  key(55, aim(READY, 'baton', -60), { swaps: SIDE }),
 ];
 
 export const attacks: Record<string, AnimClip> = {
@@ -501,52 +513,65 @@ export const attacks: Record<string, AnimClip> = {
       key(51, BATON_READY),
     ],
   },
-  dsmash: {
-    length: 47,
-    active: [
-      [7, 8],
-      [15, 16],
-    ],
-    swaps: { ...ANGRY, ...BATON },
-    keys: [
-      key(0, BATON_READY, { ease: 'out' }),
-      key(4, DSMASH_WIND, { ease: 'in' }),
-      strikeKey(7, trail(DSMASH_HIT), { ...SHOUT, ...BATON, smear: 'smear90' }),
-      key(8, trail(DSMASH_HIT), { ease: 'inOut' }),
-      key(10, DSMASH_HIT, { ease: 'in', swaps: { ...ANGRY, ...BATON } }),
-      key(13, mix(DSMASH_WIND, { body: { sx: -0.2 } }), { ease: 'out' }),
-      strikeKey(15, turned(trail(DSMASH_HIT)), { ...SHOUT, ...BATON, smear: 'smear90' }),
-      key(16, turned(trail(DSMASH_HIT)), { ease: 'inOut' }),
-      key(20, turned(DSMASH_HIT), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
-      key(30, mix(BATON_READY, { body: { sx: -0.2 } }), { ease: 'out' }),
-      key(36, BATON_READY),
-      key(47, BATON_READY),
-    ],
-  },
-  getupAttack: {
-    length: 45,
-    active: [
-      [17, 18],
-      [25, 26],
-    ],
-    swaps: { ...HURT, ...BATON },
-    keys: [
-      key(0, mix(LOW, { body: { rot: -70, y: 2.0 } }), { ease: 'out' }),
-      key(10, DSMASH_WIND, { ease: 'in', swaps: { ...ANGRY, ...BATON } }),
-      strikeKey(17, trail(swing(LOW, [4.0, -3.2], 10, -1)), { ...SHOUT, ...BATON, smear: 'smear90' }),
-      key(18, trail(swing(LOW, [4.0, -3.2], 10, -1)), { ease: 'inOut' }),
-      key(21, mix(DSMASH_WIND, { body: { sx: -0.2 } }), { ease: 'out', swaps: { ...ANGRY, ...BATON } }),
-      strikeKey(25, turned(trail(swing(LOW, [4.0, -3.2], 10, -1))), {
-        ...SHOUT,
-        ...BATON,
-        smear: 'smear90',
-      }),
-      key(26, turned(trail(swing(LOW, [4.0, -3.2], 10, -1))), { ease: 'inOut' }),
-      key(32, turned(BATON_READY), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
-      key(38, mix(BATON_READY, { body: { sx: -0.2 } }), { ease: 'out' }),
-      key(45, READY, { swaps: SIDE }),
-    ],
-  },
+  dsmash: floorContact(
+    {
+      length: 47,
+      active: [
+        [7, 8],
+        [15, 16],
+      ],
+      swaps: { ...ANGRY, ...BATON },
+      keys: continuous(
+        [
+          key(0, BATON_READY, { ease: 'out' }),
+          key(4, DSMASH_WIND, { ease: 'in' }),
+          strikeKey(7, trail(DSMASH_HIT), { ...SHOUT, ...BATON, smear: 'smear90' }),
+          key(8, trail(DSMASH_HIT), { ease: 'inOut' }),
+          key(10, DSMASH_HIT, { ease: 'in', swaps: { ...ANGRY, ...BATON } }),
+          key(13, mix(DSMASH_WIND, { body: { sx: -0.2 } }), { ease: 'out' }),
+          strikeKey(15, turned(trail(DSMASH_HIT)), { ...SHOUT, ...BATON, smear: 'smear90' }),
+          key(16, turned(trail(DSMASH_HIT)), { ease: 'inOut' }),
+          key(20, turned(DSMASH_HIT), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
+          key(30, mix(BATON_READY, { body: { sx: -0.2 } }), { ease: 'out' }),
+          key(36, BATON_READY),
+          key(47, BATON_READY),
+        ],
+        { onScreen: true },
+      ),
+    },
+    false,
+  ),
+  getupAttack: floorContact(
+    {
+      length: 45,
+      active: [
+        [17, 18],
+        [25, 26],
+      ],
+      swaps: { ...HURT, ...BATON },
+      keys: continuous(
+        [
+          key(0, mix(LOW, { body: { rot: -70, y: 2.0 } }), { ease: 'out' }),
+          key(10, DSMASH_WIND, { ease: 'in', swaps: { ...ANGRY, ...BATON } }),
+          strikeKey(17, trail(swing(LOW, [4.0, -3.2], 10, -1)), { ...SHOUT, ...BATON, smear: 'smear90' }),
+          // Evenly into the turn: eased, the forearm would swing 96 degrees in one frame.
+          key(18, trail(swing(LOW, [4.0, -3.2], 10, -1)), { ease: 'linear' }),
+          key(21, mix(DSMASH_WIND, { body: { sx: -0.2 } }), { ease: 'out', swaps: { ...ANGRY, ...BATON } }),
+          strikeKey(25, turned(trail(swing(LOW, [4.0, -3.2], 10, -1))), {
+            ...SHOUT,
+            ...BATON,
+            smear: 'smear90',
+          }),
+          key(26, turned(trail(swing(LOW, [4.0, -3.2], 10, -1))), { ease: 'inOut' }),
+          key(32, turned(BATON_READY), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
+          key(38, mix(BATON_READY, { body: { sx: -0.2 } }), { ease: 'out' }),
+          key(45, BATON_READY, { swaps: SIDE }),
+        ],
+        { onScreen: true },
+      ),
+    },
+    false,
+  ),
   nair: {
     length: 39,
     active: [
@@ -643,21 +668,27 @@ export const attacks: Record<string, AnimClip> = {
       key(35, READY),
     ],
   },
-  dashGrab: {
-    length: 43,
-    active: [[10, 11]],
-    swaps: SIDE,
-    keys: [
-      key(0, mix(READY, { body: { rot: 12 } }), { ease: 'out' }),
-      key(6, hands(mix(SLIDE, { body: { rot: 4 } }), [0.0, -7.2], [1.6, -7.6]), { ease: 'in' }),
-      strikeKey(10, reachBoth(mix(SLIDE, { body: { rot: 22, x: 1.6 } }), [6.6, -7.4], [6.0, -6.8]), ANGRY),
-      key(11, reachBoth(mix(SLIDE, { body: { rot: 22, x: 1.6 } }), [6.6, -7.4], [6.0, -6.8]), {
-        ease: 'inOut',
-      }),
-      key(20, hands(STANCE, [1.0, -6.4], [3.0, -6.8]), { ease: 'inOut', swaps: SIDE }),
-      key(43, READY),
-    ],
-  },
+  dashGrab: floorContact(
+    {
+      length: 43,
+      active: [[10, 11]],
+      swaps: SIDE,
+      keys: continuous(
+        [
+          key(0, readyWith({ body: { rot: 12 } }), { ease: 'out' }),
+          key(6, hands(slideWith({ body: { rot: 4 } }), [0.0, -7.2], [1.6, -7.6]), { ease: 'in' }),
+          strikeKey(10, reachBoth(slideWith({ body: { rot: 22, x: 1.6 } }), [6.6, -7.4], [6.0, -6.8]), ANGRY),
+          key(11, reachBoth(slideWith({ body: { rot: 22, x: 1.6 } }), [6.6, -7.4], [6.0, -6.8]), {
+            ease: 'inOut',
+          }),
+          key(20, hands(STANCE, [1.0, -6.4], [3.0, -6.8]), { ease: 'inOut', swaps: SIDE }),
+          key(43, READY),
+        ],
+        { onScreen: true },
+      ),
+    },
+    false,
+  ),
   pivotGrab: {
     length: 38,
     active: [[11, 12]],
@@ -754,24 +785,32 @@ export const attacks: Record<string, AnimClip> = {
       key(37, READY, { swaps: SIDE }),
     ],
   },
-  dthrow: {
-    length: 37,
-    active: [[18, 18]],
-    swaps: { ...ANGRY, handF: 'fist', handB: 'fist' },
-    keys: [
-      key(0, HOLD, { ease: 'out' }),
-      key(10, hands(mix(STANCE, { body: { rot: -4 } }), [1.6, -9.6], [2.8, -9.8]), {
-        ease: 'in',
-        z: ARMS_OVER_HEAD,
-      }),
-      strikeKey(18, hands(mix(LOW, { body: { rot: 30 } }), [4.2, -1.8], [5.0, -1.6], -1), SHOUT, { z: {} }),
-      key(22, hands(mix(LOW, { body: { rot: 28 } }), [4.2, -1.6], [5.0, -1.4], -1), {
-        ease: 'inOut',
-        swaps: GRIN,
-      }),
-      key(37, READY, { swaps: SIDE }),
-    ],
-  },
+  dthrow: floorContact(
+    {
+      length: 37,
+      active: [[18, 18]],
+      swaps: { ...ANGRY, handF: 'fist', handB: 'fist' },
+      keys: continuous(
+        [
+          key(0, HOLD, { ease: 'out' }),
+          key(10, hands(stanceWith({ body: { rot: -4 } }), [1.6, -9.6], [2.8, -9.8]), {
+            ease: 'in',
+            z: ARMS_OVER_HEAD,
+          }),
+          strikeKey(18, hands(lowWith({ body: { rot: 30 } }), [4.2, -1.8], [5.0, -1.6], -1), SHOUT, {
+            z: {},
+          }),
+          key(22, hands(lowWith({ body: { rot: 28 } }), [4.2, -1.6], [5.0, -1.4], -1), {
+            ease: 'inOut',
+            swaps: GRIN,
+          }),
+          key(37, READY, { swaps: SIDE }),
+        ],
+        { onScreen: true },
+      ),
+    },
+    false,
+  ),
   sideB: {
     length: 49,
     active: [
