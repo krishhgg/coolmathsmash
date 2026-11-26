@@ -32,7 +32,7 @@ function stepTether(x: Ctx, t: TetherDef): void {
   if (f.tether?.kind === 'out') travel(x, t);
 }
 
-/** The reticle walks with the stick while special is held, and the move waits on the frame before `t.frame`. */
+/** The reticle walks with the stick while special is held, while playMove holds the move before `t.frame`. */
 function aim(x: Ctx, t: TetherDef, aimed: NonNullable<TetherDef['aimed']>): void {
   const { f, c } = x;
   f.aim ??= { x: 0, y: 0 };
@@ -43,7 +43,6 @@ function aim(x: Ctx, t: TetherDef, aimed: NonNullable<TetherDef['aimed']>): void
       { x: f.aim.x + (s.x / len) * aimed.speed, y: f.aim.y + (s.y / len) * aimed.speed },
       t.range,
     );
-    if (f.actionFrame === t.frame) f.actionFrame--;
     return;
   }
   const released = (c.prev.buttons & Btn.Special) !== 0;
