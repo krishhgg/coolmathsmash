@@ -120,8 +120,16 @@ export const AIR_DODGE_DIRECTIONAL = {
  * formulas.ts ledgeIntangibility (airtime and %, 23-123 frames counting the catch).
  */
 export const LEDGE_MAX_GRABS = 6;
-export const LEDGE_HANG_MAX = 300;
-export const LEDGE_REGRAB_LOCK = 20;
+/**
+ * Hang frames after the catch; the fighter lets go on the next one (param cliff_catch_time_quick 0x168 = 360;
+ * SmashWiki's 6.5 s is rounded, physics-reference sections 8 and 21).
+ */
+export const LEDGE_HANG_MAX = 360;
+/**
+ * Frames after letting go of a ledge before a ledge can be caught again (param cliff_no_catch_frame 0x2C = 44,
+ * physics-reference section 8). Being hit sets LEDGE_HIT_LOCK instead.
+ */
+export const LEDGE_REGRAB_LOCK = 44;
 /**
  * The catch lasts 19 frames counting the grab frame, so the hang acts on frame 20 (physics-reference section 8;
  * SmashWiki Edge, "lasts 19 frames by default, preventing action until frame 20"; data viewer cliff_catch
