@@ -3,6 +3,7 @@ import { getFighter } from '../fighters/registry';
 import { Btn, neutralInput } from '../input/types';
 import { hurtbox } from '../sim/combat/hits';
 import type { FighterState } from '../sim/fighter';
+import { spawnEntity } from '../sim/entities/entities';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { input, run as play, testMatch } from '../sim/testing/sim';
 import { STICK, press } from './inputs';
@@ -160,5 +161,50 @@ describe('look-ahead', () => {
       expect(solo.stage, `frame ${i}`).toEqual(m.stage);
     }
     expect(solo.stageFrame).toBe(m.stageFrame);
+  });
+
+  it("keeps an entity's hits on fighters the look-ahead doesn't hold, so Johnny's upgraded laser still bursts", () => {
+    // Three players: Johnny's upgraded laser hits a Red Ball standing in front of another, and bursts there on the
+    // next frame, the burst's 14 units reaching the one behind. The look-ahead of the one behind, taken between the
+    // two frames, holds neither Johnny nor the first Red Ball, but the laser in it has still hit someone.
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'johnny' }, { fighter: 'redball' }, { fighter: 'redball' }],
+    });
+    for (let i = 0; i < 30; i++)
+      stepMatch(
+        m,
+        m.players.map(() => neutralInput()),
+      );
+    const at = (f: FighterState, x: number, facing: 1 | -1) =>
+      Object.assign(f, { pos: { x, y: 0 }, prevPos: { x, y: 0 }, facing });
+    at(m.fighters[0]!, -40, 1);
+    at(m.fighters[1]!, 31, -1);
+    at(m.fighters[2]!, 20, -1);
+    spawnEntity(m, {
+      kind: 'johnny/megaLaser',
+      owner: 0,
+      pos: { x: -27.2, y: 8 },
+      vel: { x: 4.6, y: 0 },
+      move: 'neutralB',
+    });
+    let first = -1;
+    for (let i = 0; first < 0 && i < 40; i++) {
+      stepMatch(
+        m,
+        m.players.map(() => neutralInput()),
+      );
+      if (m.events.some((e) => e.type === 'hit' && e.victim === 2)) first = i;
+    }
+    expect(first).toBeGreaterThanOrEqual(0);
+    expect(m.entities.map((e) => [e.kind, e.hitVictims])).toEqual([['johnny/megaLaser', [2]]]);
+    const solo = soloMatch(m, m.fighters[1]!);
+    setEntities(solo, m.fighters[0]!, m.entities, 1);
+    const ahead = run(solo, 40).map((s) => [s.action, s.x, s.y, s.vx, s.vy]);
+    expect(ahead).toEqual(played(m, 40));
+    expect(m.fighters[1]!.damage).toBeGreaterThan(0);
+    expect(solo.fighters[0]!.damage).toBe(m.fighters[1]!.damage);
   });
 });

@@ -68,6 +68,12 @@ export function soloMatch(
 
 /** The port that stands in for the owner of the entities setEntities puts into a look-ahead. */
 const OWNER = 1;
+/**
+ * Where setEntities files an entity's hit on a fighter the look-ahead doesn't hold: real port p becomes ABSENT + p,
+ * a port no fighter there has, so the hit still counts (an entity that pierces doesn't hit that fighter again, and
+ * one that reacts to having hit, like Johnny's upgraded laser bursting, still does) without touching anyone.
+ */
+const ABSENT = OWNER + 1;
 
 /**
  * Make `entities` (fighter `owner`'s, as they were on some frame of the match) the ones `owner` has out in `m`, a
@@ -75,8 +81,8 @@ const OWNER = 1;
  * fighter as they will: a grenade bursts on it, a shot already in the air connects. The first call adds a port
  * standing in for the owner, out of play (as with no stocks left), so nothing hits, grabs or pushes it; each call
  * sets it to `owner` as given. It gives the entities what they read from their owner: its rage, its stale queue, and
- * where it is for one that flies home. The copies keep their ids and their hits so far. Nothing changes while the
- * owner has nothing out.
+ * where it is for one that flies home. The copies keep their ids and their hits so far, those on other fighters
+ * under ports the look-ahead doesn't hold (ABSENT). Nothing changes while the owner has nothing out.
  */
 export function setEntities(
   m: MatchState,
@@ -99,7 +105,7 @@ export function setEntities(
   });
   m.entities = m.entities.filter((e) => e.owner !== OWNER);
   for (const e of entities) {
-    const hitVictims = e.hitVictims.includes(victim) ? [0] : [];
+    const hitVictims = e.hitVictims.map((p) => (p === victim ? 0 : ABSENT + p));
     m.entities.push({ ...structuredClone(e as EntityState), owner: OWNER, hitVictims });
     m.nextEntityId = Math.max(m.nextEntityId, e.id + 1);
   }
