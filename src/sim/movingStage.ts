@@ -2,13 +2,21 @@ import { finalSmashLeavesGround } from './actions/attack';
 import { breakGrab } from './actions/grab';
 import { dropLedge } from './actions/ledge';
 import { actionDef, enterAction } from './actions/registry';
-import { PLATFORM_DROP_FLICK } from './constants';
 import { compiledStage, makeCtx } from './context';
-import { stickY } from './control';
 import { emit } from './events';
 import type { Ctx, GroundRef } from './fighter';
 import type { MatchState } from './match';
-import { crossing, ecb, land, leaveGround, pushOffCorner, pushOut, surfaceRange, surfaceY } from './movement';
+import {
+  crossing,
+  ecb,
+  land,
+  leaveGround,
+  passesPlatforms,
+  pushOffCorner,
+  pushOut,
+  surfaceRange,
+  surfaceY,
+} from './movement';
 import {
   edgeMaxX,
   edgeMinX,
@@ -118,10 +126,14 @@ export function stageStateAt(
  * through a fighter's feet catches them; a solid running into a fighter pushes it out, and a fighter squeezed
  * between that solid and other geometry pops out on top of it; a fighter whose piece vanishes falls.
  * Collision uses each fighter's motion relative to each solid, so nothing tunnels however fast a piece moves.
+ * While a Final Smash holds the others (MatchState.finalHold) the stage stands still with them: "All stage hazards
+ * are paused during a Final Smash" (SmashWiki, Stage hazard), so its clock (MatchState.stageFrame) waits, and no
+ * piece moves, vanishes or carries anyone.
  */
 export function advanceStage(m: MatchState): void {
   const before = m.stage;
-  m.stage = stageStateAt(compiledStage(m.config.stage).geo, m.frame + 1, before, hazardsOn(m));
+  if (!m.finalHold) m.stageFrame++;
+  m.stage = stageStateAt(compiledStage(m.config.stage).geo, m.stageFrame, before, hazardsOn(m));
   const changed = (p: PieceState, i: number, was: PieceState[]) =>
     p.dx !== 0 || p.dy !== 0 || p.on !== was[i]!.on;
   const moved =
@@ -260,7 +272,7 @@ function risesThroughFeet(x: Ctx, prev: Vec, e: Edge, rise: number): boolean {
  */
 function catchOnPlatform(x: Ctx, before: StageState, carry: Vec): void {
   const { f, m, stage } = x;
-  if (stickY(x.c) <= -PLATFORM_DROP_FLICK.stick) return;
+  if (passesPlatforms(x)) return;
   for (let i = 0; i < stage.geo.platforms.length; i++) {
     const p = m.stage.platforms[i]!;
     const plat = stage.geo.platforms[i]!;

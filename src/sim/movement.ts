@@ -75,9 +75,12 @@ function connectedFloor(stage: CompiledStage, g: GroundRef, x: number): GroundRe
   return null;
 }
 
-/** Speed of the conveyor belt a grounded fighter stands on: 0 off a belt, or with hazards off. */
+/**
+ * Speed of the conveyor belt a grounded fighter stands on: 0 off a belt, with hazards off, or while a Final Smash's
+ * hold stops the stage (advanceStage).
+ */
 export function conveyorSpeed(x: Ctx, g: GroundRef): number {
-  if (x.m.config.hazards === false) return 0;
+  if (x.m.config.hazards === false || x.m.finalHold) return 0;
   const geo = x.stage.geo;
   const piece = g.kind === 'platform' ? geo.platforms[g.index]! : geo.solids[x.stage.edges[g.index]!.solid]!;
   return piece.conveyor ?? 0;
@@ -285,6 +288,17 @@ export function airDrift(x: Ctx, maxSpeed: number): void {
   }
 }
 
+/**
+ * True when the fighter holds down far enough to pass through soft platforms (PLATFORM_DROP_FLICK), unless its move
+ * keeps it on them (MoveDef.fallThrough false, as Shell Pound does). Fighter movement and moving-platform catches
+ * (movingStage.ts) both ask this, so holding down never changes which surface such a move lands on.
+ */
+export function passesPlatforms(x: Ctx): boolean {
+  const { f } = x;
+  const move = f.move ? getFighter(f.fighter).moves?.[f.move] : undefined;
+  return stickY(x.c) <= -PLATFORM_DROP_FLICK.stick && move?.fallThrough !== false;
+}
+
 /** Resolve the ECB against the stage after one sub-step. Returns the surface landed on, if any. */
 function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
   const { f, stage } = x;
@@ -297,7 +311,7 @@ function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
     if (crossing(prev.y - yPrev, f.pos.y - yNow)) return { kind: 'solid', index: stage.edges.indexOf(e) };
   }
   if (movingDown) {
-    const passing = stickY(x.c) <= -PLATFORM_DROP_FLICK.stick;
+    const passing = passesPlatforms(x);
     for (let i = 0; i < stage.geo.platforms.length; i++) {
       const p = stage.geo.platforms[i]!;
       if (!stage.present.platforms[i]) continue;
