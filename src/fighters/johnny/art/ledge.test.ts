@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
-import { LEDGE_ATTACK, LEDGE_CLIMB, LEDGE_ROLL } from '../../../sim/constants';
+import { LEDGE_ATTACK, LEDGE_CATCH_FRAMES, LEDGE_CLIMB, LEDGE_ROLL } from '../../../sim/constants';
 import { stats } from '../stats';
 import { art } from '.';
 import { GRIP_TARGETS } from './ledge';
@@ -10,7 +10,7 @@ import { HAND } from './rig';
 describe("johnny's ledge clips", () => {
   it('holds the ledge corner with both fists until release', () => {
     for (const [clip, frames] of [
-      ['ledgeCatch', [8]],
+      ['ledgeCatch', [LEDGE_CATCH_FRAMES]],
       ['ledgeHang', [0, 15, 30, 45, 59]],
       ['ledgeJump', [0, 2, 4]],
     ] as const) {

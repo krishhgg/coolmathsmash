@@ -224,7 +224,7 @@ const PUNCH_HIT = mix(PUNCH, { fx1: star([10.9, -9.6], 1.3), fx2: trail([4.6, -9
 
 export const ledge: Record<string, AnimClip> = {
   ledgeCatch: {
-    length: 8,
+    length: 19,
     swaps: { ...GRIT, ...FISTS },
     keys: [
       key(
@@ -241,7 +241,7 @@ export const ledge: Record<string, AnimClip> = {
           z: HEAD_IN_FRONT,
         },
       ),
-      key(8, HANG),
+      key(19, HANG),
     ],
   },
 
