@@ -4,6 +4,7 @@ import type { FighterArt } from '../../../render/rig/types';
 import { moveClips } from './attacks';
 import { LIE, STAND, type Form } from './bake';
 import { actionClips, grip } from './clips';
+import { finalSmashClips } from './finalSmash';
 import { palettes } from './palettes';
 import { rig } from './rig';
 import { iconSymbols } from './symbols';
@@ -33,7 +34,7 @@ function formArt(form: Form, height: number): FighterArt {
   return {
     height,
     rig,
-    clips: { ...actionClips(form), ...moveClips(form) },
+    clips: { ...actionClips(form), ...moveClips(form), ...finalSmashClips(form) },
     palettes,
     icon,
     ledgeGrip: grip(form),
