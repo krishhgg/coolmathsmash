@@ -74,6 +74,8 @@ export interface FighterState {
   moveStale: number;
   /** Frames the current move has charged (0 to its chargeFrames). */
   charge: number;
+  /** A counterattack's damage (MoveDef.counter): its boxes deal at least this. 0 outside a counterattack. */
+  counterDamage: number;
   /**
    * A charge kept for the next use of `move` by the form `fighter` (stored charge), spent when that move fires; lost
    * on a KO as that form.
@@ -129,6 +131,8 @@ export interface FighterState {
   statuses: StatusState[];
   /** Meter values by name (FighterDef.meters, src/sim/meters.ts). */
   meters: Record<string, number>;
+  /** Holds a Final Smash charge: broke the Coolmath Planet (src/sim/items/planet.ts) and has not lost it yet. */
+  finalReady: boolean;
 }
 
 export function createFighter(
@@ -172,6 +176,7 @@ export function createFighter(
     hitEntities: [],
     moveStale: 0,
     charge: 0,
+    counterDamage: 0,
     storedCharge: null,
     staleQueue: [],
     intangible: 0,
@@ -192,6 +197,7 @@ export function createFighter(
     stageHitLock: 0,
     statuses: [],
     meters: createMeters(getFighter(fighterId)),
+    finalReady: false,
   };
 }
 
