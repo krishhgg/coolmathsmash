@@ -3,9 +3,11 @@ import { allFighters } from '../fighters/registry';
 import { activeAbsorbers, activeReflectors } from '../sim/entities/contacts';
 import { entityDef, entityHitboxes, isHittable } from '../sim/entities/entities';
 import type { EntityState } from '../sim/entities/types';
+import { PLANET } from '../sim/items/planet';
 import type { MatchState } from '../sim/match';
 import { PORT_COLORS } from './debug/inputDisplay';
 import { fighterArt } from './fighterView';
+import { drawPlanetEntity } from './items';
 import type { FighterArt, PropArt } from './rig/types';
 import { createPropView, type PropView } from './rig/view';
 
@@ -52,11 +54,16 @@ export function propPlacement(e: EntityState, prop: PropArt, alpha: number): Pro
   return { x, y, scaleX, rotation, frame: e.age };
 }
 
-/** The placeholder: projectiles as discs, hittable entities as rounded squares, ringed in the owner's port colour. */
-function drawDisc(g: Graphics, e: EntityState, alpha: number): void {
+/**
+ * Entities drawn straight into `g` in spawn order: items with art (the Coolmath Planet, src/render/items.ts) as drawn,
+ * everything else as the placeholder: projectiles as discs, hittable entities as rounded squares, ringed in the
+ * owner's port colour (white when nobody owns it).
+ */
+function drawPlain(g: Graphics, e: EntityState, alpha: number, frame: number): void {
   const def = entityDef(e.kind);
   const x = e.prevPos.x + (e.pos.x - e.prevPos.x) * alpha;
   const y = -(e.prevPos.y + (e.pos.y - e.prevPos.y) * alpha);
+  if (e.kind === PLANET) return drawPlanetEntity(g, e, x, y, frame);
   const color = e.owner >= 0 ? PORT_COLORS[e.owner % PORT_COLORS.length]! : '#ffffff';
   const r = def.radius;
   if (isHittable(def)) g.roundRect(x - r, y - r, r * 2, r * 2, r * 0.3);
@@ -65,13 +72,14 @@ function drawDisc(g: Graphics, e: EntityState, alpha: number): void {
 }
 
 /**
- * The match's entities. Kinds with art (`entityArt`) draw their fighter's prop in the owner's costume; the rest draw
- * the placeholder disc. Each prop's view lives as long as its entity and only swaps shared symbol geometry
- * (docs/art.md, "Rendering"), with no filters, so `lite` quality draws it as cheaply as a fighter. World units, y down.
+ * The match's entities. Kinds with fighter art (`entityArt`) draw their fighter's prop in the owner's costume; the
+ * rest draw into `discs` as before (the Coolmath Planet's drawing, else the placeholder disc). Each prop's view lives
+ * as long as its entity and only swaps shared symbol geometry (docs/art.md, "Rendering"), with no filters, so `lite`
+ * quality draws it as cheaply as a fighter. World units, y down.
  */
 export class EntityView {
   readonly container = new Container();
-  /** Placeholder discs, redrawn every frame. */
+  /** Entities without fighter art (the planet item and placeholder discs), redrawn every frame. */
   readonly discs = new Graphics();
   /** Prop views, drawn over the discs. */
   readonly props = new Container();
@@ -89,7 +97,7 @@ export class EntityView {
     for (const e of state.entities) {
       const found = entityArt(e.kind);
       if (!found) {
-        drawDisc(this.discs, e, alpha);
+        drawPlain(this.discs, e, alpha, state.frame);
         continue;
       }
       seen.add(e.id);

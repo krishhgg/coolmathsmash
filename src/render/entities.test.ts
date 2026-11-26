@@ -1,11 +1,13 @@
-import type { Graphics } from 'pixi.js';
+import { Graphics } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import { allFighters, getFighter } from '../fighters/registry';
 import { spawnEntity } from '../sim/entities/entities';
 import type { EntityState } from '../sim/entities/types';
+import { PLANET } from '../sim/items/planet';
 import { createMatch, type MatchState } from '../sim/match';
 import { EntityView, entityArt, propPlacement } from './entities';
 import { fighterArt } from './fighterView';
+import { drawPlanetEntity } from './items';
 import type { PropArt } from './rig/types';
 
 function match(): MatchState {
@@ -30,6 +32,7 @@ describe('entityArt', () => {
     expect(entityArt('fireboy/nothing')).toBeNull();
     expect(entityArt('nobody/fireball')).toBeNull();
     expect(entityArt('planet')).toBeNull();
+    expect(entityArt(PLANET)).toBeNull();
   });
 
   it("every projectile drawing names one of its fighter's entities, so matches use it", () => {
@@ -114,6 +117,25 @@ describe('EntityView', () => {
     m.entities = [];
     view.draw(m, 1, ['default', 'default']);
     expect(view.discs.context.instructions).toHaveLength(0);
+  });
+
+  it('draws the Coolmath Planet with its item drawing, not a disc', () => {
+    const m = match();
+    const planet = spawnEntity(m, { kind: PLANET, owner: -1, pos: { x: 0, y: 30 } });
+    const view = new EntityView();
+    view.draw(m, 1, ['default', 'default']);
+    expect(view.props.children).toHaveLength(0);
+    const expected = new Graphics();
+    drawPlanetEntity(expected, planet, 0, -30, m.frame);
+    const actions = (g: Graphics) => g.context.instructions.map((i) => i.action);
+    expect(actions(view.discs)).toEqual(actions(expected));
+    const box = (g: Graphics) => {
+      const { minX, minY, maxX, maxY } = g.context.bounds;
+      return [minX, minY, maxX, maxY];
+    };
+    expect(box(view.discs)).toEqual(box(expected));
+    // A placeholder disc of the planet's radius would be one fill and stroke, far fewer instructions.
+    expect(actions(view.discs).length).toBeGreaterThan(2);
   });
 
   it("dresses a prop in its owner's costume and rebuilds it when a reflection changes owner", () => {
