@@ -1,4 +1,5 @@
 import { defineFighter } from '../types';
+import { lyingArt } from './art';
 import { lyingMoves } from './moves';
 import { stats } from './stats';
 import { LYING, TIP_ACTIONS } from './tip';
@@ -14,5 +15,6 @@ export const lying = defineFighter({
   stats: { ...stats, width: 24, height: 12 },
   moves: lyingMoves,
   actions: TIP_ACTIONS,
+  art: lyingArt,
   selectable: false,
 });

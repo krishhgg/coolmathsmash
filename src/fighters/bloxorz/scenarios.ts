@@ -1,11 +1,114 @@
-import type { FighterScenarios } from '../../harness/scenarios';
+import type { FighterScenarios, LabScenario } from '../../harness/scenarios';
 
 const BX = 'characters/bloxorz';
 
 /**
+ * Lab contact sheets of one form (`bloxorz` Standing or `bloxorz-lying`): its movement and defence clips, every
+ * ground move on its first active frame, then the aerials, grabs and specials on theirs and the throws on their
+ * release frames. Lying's own Tip Over hits from frame 8.
+ */
+function sheets(fighter: 'bloxorz' | 'bloxorz-lying'): LabScenario[] {
+  const form = fighter === 'bloxorz' ? 'Standing' : 'Lying';
+  const lab = (zoom: string) => ({ kind: 'lab', scene: 'fighter', params: { fighter, zoom } }) as const;
+  return [
+    {
+      name: `${fighter}-sheet-moves`,
+      description: `Bloxorz block (${form}) at rest, mid-tip, jumping, defending, hanging and hurt.`,
+      page: lab('7'),
+      calls: [
+        {
+          fn: 'sheet',
+          args: [
+            [
+              'idle@0',
+              'walk@7',
+              'run@5',
+              'crouch@10',
+              'jump@4',
+              'doubleJump@8',
+              'fall@8',
+              'helpless@10',
+              'shield@8',
+              'spotDodge@10',
+              'rollForward@12',
+              'airDodge@12',
+              'ledgeHang@0',
+              'ledgeClimb@12',
+              'hitstun@2',
+              'tumble@8',
+              'down@0',
+              'taunt@30',
+            ],
+          ],
+        },
+      ],
+      refs: [`${BX}/ingame-idle-*`, `${BX}/ingame-roll-*`, `${BX}/ingame-lying-*`, `${BX}/ingame-fall-*`],
+    },
+    {
+      name: `${fighter}-sheet-ground`,
+      description: `Bloxorz block (${form}): every ground attack on its first active frame.`,
+      page: lab('5'),
+      calls: [
+        {
+          fn: 'sheet',
+          args: [
+            [
+              'jab@5',
+              'jab2@6',
+              fighter === 'bloxorz' ? 'ftilt@12' : 'ftilt@8',
+              'utilt@9',
+              'dtilt@8',
+              'dashAttack@10',
+              'fsmash@20',
+              'usmash@14',
+              'dsmash@13',
+              'getupAttack@17',
+              'ledgeAttack@24',
+            ],
+          ],
+        },
+      ],
+      refs: ['smash/attack-active-*', `${BX}/ingame-roll-*`, `${BX}/ingame-lying-*`],
+    },
+    {
+      name: `${fighter}-sheet-air`,
+      description: `Bloxorz block (${form}): aerials, grabs, Roll, Switch Bridge and Heavy Switch on their first active frames, and the throws on their release frames.`,
+      page: lab('5'),
+      calls: [
+        {
+          fn: 'sheet',
+          args: [
+            [
+              'nair@8',
+              'fair@11',
+              'bair@10',
+              'uair@9',
+              'dair@16',
+              'grab@9',
+              'dashGrab@11',
+              'pivotGrab@12',
+              'pummel@1',
+              'fthrow@16',
+              'bthrow@30',
+              'uthrow@20',
+              'dthrow@22',
+              'sideB@12',
+              'upB@20',
+              'upB@34',
+              'downB@14',
+            ],
+          ],
+        },
+      ],
+      refs: ['smash/attack-active-*', `${BX}/ability-switch-types-*`, `${BX}/ingame-fall-*`],
+    },
+  ];
+}
+
+/**
  * Bloxorz block's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus tipping, lying down, the jab chain, Roll and Heavy Switch. References live in the Captain drive's
- * refs/.
+ * Fireboy, plus tipping, lying down, the jab chain, Roll and Heavy Switch, and lab sheets of both forms. References
+ * live in the Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'bloxorz',
@@ -160,5 +263,7 @@ export const scenarios: FighterScenarios = {
       requires: ['move:upB'],
       refs: ['smash/ledge-hang-*', `${BX}/ingame-fall-*`],
     },
+    ...sheets('bloxorz'),
+    ...sheets('bloxorz-lying'),
   ],
 };
