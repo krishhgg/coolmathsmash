@@ -3,6 +3,7 @@ import { spawnEntity } from '../../sim/entities/entities';
 import type { EntityCtx, EntityDef, EntityState } from '../../sim/entities/types';
 import type { Ctx, FighterState } from '../../sim/fighter';
 import type { HitboxDef, MoveDef } from '../types';
+import * as SimMath from '../../sim/math';
 
 /**
  * Red Ball's Final Smash, Ball Rain: red balls rain down across the stage (the roster plan's "ball-rain final"), on
@@ -104,7 +105,7 @@ export const ball: EntityDef = {
 export function ballVelocity(i: number, dropY: number): { x: number; y: number } {
   const lane = RAIN_LANES[i]!;
   const speed = RAIN.speed + RAIN.speedUp * i;
-  const len = Math.hypot(lane, dropY);
+  const len = SimMath.hypot(lane, dropY);
   return { x: (lane / len) * speed, y: (-dropY / len) * speed };
 }
 

@@ -5,6 +5,7 @@ import { edgeMaxX, edgeMinX, floorY, type Edge } from '../stage';
 import { clamp, type Vec } from '../vec';
 import { destroyEntity, entityDef, sweepEntities } from './entities';
 import type { EntityCtx, EntityState } from './types';
+import * as SimMath from '../math';
 
 const EPS = 0.001;
 /** Movement is split into sub-steps no longer than this, so fast entities never tunnel through thin geometry. */
@@ -66,7 +67,7 @@ function moveEntity(x: EntityCtx): void {
     if (touched === 'floor') sy = 0;
   }
   if (e.dead) return;
-  const speed = Math.hypot(e.kb.x, e.kb.y);
+  const speed = SimMath.hypot(e.kb.x, e.kb.y);
   const k = speed > LAUNCH_DECAY ? (speed - LAUNCH_DECAY) / speed : 0;
   e.kb.x *= k;
   e.kb.y *= k;
