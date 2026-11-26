@@ -1,6 +1,6 @@
 import type { Pose } from '../../../render/rig/author';
 import type { AnimClip, Key } from '../../../render/rig/types';
-import { AIR_DODGE_NEUTRAL, ROLL_BACK, ROLL_FORWARD, SPOT_DODGE } from '../../../sim/constants';
+import { AIR_DODGE_NEUTRAL, ROLL_FORWARD, SPOT_DODGE } from '../../../sim/constants';
 import {
   AIR,
   BACK_ARM_OVER_HEAD,
@@ -26,7 +26,8 @@ import {
 
 /**
  * Johnny's dodges on the shared timings (src/sim/constants.ts): each ground clip lasts the action's FAF - 1 frames.
- * The sim moves him through a roll, so the clips only turn him; they never slide him along the floor.
+ * The sim moves him through a roll, so the clips only turn him; they never slide him along the floor. His back roll
+ * is drawn with the tech and getup rolls (tech.ts), which are built from it.
  */
 
 const IDLE_FEET = { footF: { sx: -1 } };
@@ -184,18 +185,6 @@ export const dodges: Record<string, AnimClip> = {
       key(23, mix(PIVOT, { body: { rot: 360, sx: 0.92 } }), { ease: 'step' }),
       key(24, mix(PIVOT, { body: { rot: 360, sx: -0.92 } }), { ease: 'out', swaps: { ...GRIT, ...GUARD } }),
       key(ROLL_FORWARD.faf - 1, mix(STANCE, { body: { rot: 360, sx: -1 } })),
-    ]),
-  }),
-
-  rollBack: onFloor({
-    length: ROLL_BACK.faf - 1,
-    swaps: { ...GRIT, ...FISTS },
-    keys: shortTurns([
-      key(0, STANCE, { ease: 'in' }),
-      key(3, mix(UNROLL, { body: { rot: -6 } }), { ease: 'in' }),
-      ...somersault(5, 20, 0, -360),
-      key(24, mix(UNROLL, { body: { rot: -348 } }), { ease: 'out' }),
-      key(ROLL_BACK.faf - 1, mix(STANCE, { body: { rot: -360 } }), { swaps: { ...GRIT, ...GUARD } }),
     ]),
   }),
 

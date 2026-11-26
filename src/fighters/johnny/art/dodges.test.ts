@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { poseBounds } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
-import { AIR_DODGE_NEUTRAL, ROLL_BACK, ROLL_FORWARD, SPOT_DODGE } from '../../../sim/constants';
+import { AIR_DODGE_NEUTRAL, ROLL_FORWARD, SPOT_DODGE } from '../../../sim/constants';
 import { art } from '.';
 
 /** Each dodge clip lasts its action's FAF - 1 frames, with its last key on that frame (docs/art.md). */
 const LENGTHS: Record<string, number> = {
   spotDodge: SPOT_DODGE.faf - 1,
   rollForward: ROLL_FORWARD.faf - 1,
-  rollBack: ROLL_BACK.faf - 1,
   airDodge: AIR_DODGE_NEUTRAL.faf - 1,
 };
 
@@ -23,8 +22,8 @@ describe("johnny's dodges", () => {
     }
   });
 
-  it('keeps him on the floor through the spot dodge and both rolls, never sinking or lifting off', () => {
-    for (const name of ['spotDodge', 'rollForward', 'rollBack'])
+  it('keeps him on the floor through the spot dodge and forward roll, never sinking or lifting off', () => {
+    for (const name of ['spotDodge', 'rollForward'])
       for (let f = 0; f <= art.clips[name]!.length; f++) {
         const bottom = poseBounds(art, samplePose(art, name, f, f))[3];
         expect(bottom, `${name}@${f} sinks`).toBeLessThan(0.35);
@@ -37,13 +36,12 @@ describe("johnny's dodges", () => {
       expect(poseBounds(art, samplePose(art, 'airDodge', f, f))[3], `airDodge@${f}`).toBeLessThanOrEqual(0.4);
   });
 
-  it('ends the forward roll turned round, as the sim turns him when it ends, and the back roll facing ahead', () => {
+  it('ends the forward roll turned round, as the sim turns him when it ends, and the spot dodge facing ahead', () => {
     const facing = (name: string) => {
       const f = art.clips[name]!.length;
       return Math.sign(samplePose(art, name, f, f).world.body!.a);
     };
     expect(facing('rollForward')).toBe(-1);
-    expect(facing('rollBack')).toBe(1);
     expect(facing('spotDodge')).toBe(1);
   });
 });
