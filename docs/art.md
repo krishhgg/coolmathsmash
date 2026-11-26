@@ -39,7 +39,8 @@ rig point `(6, -6)`.
   stretched forearm never skews the fist.
 - **Slots** `{ name, bone, symbol, decor? }` are the layers, back to front. Limbs use two slots per segment
   (outline symbols first, then fills) so the joint has no visible seam, the way Flash artists inked tubes.
-  `decor` slots (a glow or shadow) are drawn but left out of bounds and hitbox-coverage checks.
+  `decor` slots (a glow or shadow) are left out of hitbox-coverage checks, but `poseBounds` counts them, since
+  the renderer draws them like any other slot.
 - **Clips** are Flash-style timelines with two layers per key. The pose layer: a key with `pose` is a full
   pose (bones it does not mention return to rest) and tweens to the next posed key with its `ease`. The symbol
   layer: `swaps` (slot -> symbol, or `null` to hide) and `z` (slot -> draw order; slot _i_ draws at _i_, so
