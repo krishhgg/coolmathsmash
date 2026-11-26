@@ -555,17 +555,27 @@
   box-shadow:
     0 3px 0 #b88a00,
     0 0 0 2px #fff,
-    0 0 16px 4px rgb(255 228 15 / 0.75);
+    0 0 6px 1px rgb(255 228 15 / 0.5);
   color: var(--ink);
+}
+
+/*
+ * The wide glow pulses by fading this layer. An opacity animation runs on the compositor; animating box-shadow
+ * repainted the keyboard every frame, which costs a CPU-rasterizing browser a full repaint per frame.
+ */
+.kb-key.is-lit::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 16px 4px rgb(255 228 15 / 0.75);
+  pointer-events: none;
   animation: ctl-glow 1s ease-in-out infinite;
 }
 
 @keyframes ctl-glow {
   50% {
-    box-shadow:
-      0 3px 0 #b88a00,
-      0 0 0 2px #fff,
-      0 0 6px 1px rgb(255 228 15 / 0.5);
+    opacity: 0;
   }
 }
 
