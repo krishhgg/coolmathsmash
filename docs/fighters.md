@@ -461,7 +461,11 @@ A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned b
 Ball's Ball Rain (`src/fighters/redball/finalSmash.ts`) covers the whole stage instead, on PK Starstorm: its script drops
 `redball/ball` entities with `spawnEntity` from the top of the stage's middle rather than from his feet, passing
 `final: true` and the move, and `final.range` tells CPUs how far ahead it reaches. Its balls draw behind the fighters
-(`PropArt.behind`), so whoever one falls on still shows. The test fighter's is a plain hitbox:
+(`PropArt.behind`), so whoever one falls on still shows. The Duck's Evolved Stomp (`src/fighters/duck/finalSmash.ts`) is
+Ganon, The Demon King: a paralysing burst, then a shockwave that runs along the floor and breaks up at its edge. Both
+are entities, as Ganon is an article, so the Duck never freezes in his own hits' hitlag and his frames stay Ganon's.
+They are one use of the move, so the shockwave hits at the multiplier the burst staled the move with (`moveStale`), not
+a second, staler one. The test fighter's is a plain hitbox:
 
 ```ts
 finalSmash: {
@@ -492,6 +496,19 @@ finalSmashCinematic: {
   throw: { frame: 100, hit: { damage: 16, angle: 45, kbg: 70, bkb: 90 } },
 },
 ```
+
+Johnny Upgrade's Max Upgrade (`src/fighters/johnny/finalSmash.ts`) is the roster's trap, on Cloud's Omnislash: a jet
+dash whose grab box catches the first opponent it reaches, then 18 hold hits (1, 3, fourteen of 2.2, 5 and 4%) and a 10%
+release, 53.8% in all, as SmashWiki lists them. SmashWiki and ultimateframedata.com have no timing or knockback for
+Omnislash, so its frames and the release's knockback are estimates, the release tuned to SmashWiki's 22% KO.
+
+Bob the Robber's Lights Out (`src/fighters/bob-the-robber/finalSmash.ts`) is another, on
+Joker's All-Out Attack from its 13.0.1 game scripts and `param_final`: a 65-frame hold (`final.freeze`, the script's
+SLOW_OPPONENT), an 80-unit dash whose catch boxes are out from frame 67 to 77, and a 444-frame cinematic of nine
+`holdHits` (3%, seven of 3.8%, 7%) and a 13% `throw`. Its cinematic's art covers the stage and the other fighters
+with a dark sheet in a `decor` slot: a fighter playing a Final Smash draws over all the others, above any raft rim
+(`layerFighters` in `src/render/entities.ts`), and never shows the intangibility blink (`intangibleBlink` in
+`src/render/fighterView.ts`).
 
 - **Catching.** The trap catches like any command grab: the nearest grabbable fighter in front, through shields. Ultimate
   traps every fighter its hitbox touches; this one holds the first. Papa Louie's Conveyor Oven
