@@ -267,9 +267,14 @@ export class Cpu {
       return null;
     }
     if (p.t === 0 && !p.holds) {
-      const reused = (i.buttons & this.last.buttons) !== 0;
+      // A program's first press is let go for a frame when the last input held it, so the sim sees a new press. Not
+      // Shield held into a shield or its stun: the shield took the press it started with, and a new one there stays
+      // in the buffer, so a jump out of the shield air dodges with it on its first frame in the air.
+      const shielding = me.action === 'shield' || me.action === 'shieldStun';
+      const again = this.last.buttons & ~(shielding ? Btn.Shield : 0);
+      const reused = (i.buttons & again) !== 0;
       const cAgain = (i.cx !== 0 || i.cy !== 0) && (this.last.cx !== 0 || this.last.cy !== 0);
-      if (reused || cAgain) return { ...i, buttons: i.buttons & ~this.last.buttons, cx: 0, cy: 0 };
+      if (reused || cAgain) return { ...i, buttons: i.buttons & ~again, cx: 0, cy: 0 };
     }
     p.t++;
     return i;
