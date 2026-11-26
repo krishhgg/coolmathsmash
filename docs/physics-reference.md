@@ -2,7 +2,7 @@
 
 Baseline: **Super Smash Bros. Ultimate v13.0.1** (final patch), compared with Brawlhalla and MultiVersus. Every number below has a source link. Where sources disagree, both values are given and one is picked with a reason (summary in section 21). Values marked **ESTIMATE** or **PROPOSAL** are the researcher's own work, not measured game data.
 
-Companion file: `physics-constants.json` (same folder). It holds the same numbers in machine-readable form. Every object with numbers in it has a `_source` key that points into its `sources` map, and the test vectors are reproduced exactly by the script in section 23.
+Companion file: `src/sim/reference/physics-constants.json`. It holds the same numbers in machine-readable form. Every object with numbers in it has a `_source` key that points into its `sources` map, and the test vectors are reproduced exactly by the script in section 23.
 
 ## 0. How to use this
 
@@ -132,17 +132,18 @@ Shield stats in Ultimate ([SmashWiki: Shield](https://www.ssbwiki.com/Shield) ta
 
 ## 7. Dodges
 
-Mario frame data from [UFD Mario](https://ultimateframedata.com/mario). Most of the cast is close to this; see the UFD stats tables.
+Mario frame data from [UFD Mario](https://ultimateframedata.com/mario), which lists total frames. SmashWiki's Ultimate air dodge table gives the same air dodge totals for Mario ([SmashWiki: Air dodge](https://www.ssbwiki.com/Air_dodge)). Most of the cast is close to this; see the UFD stats tables.
 
-| dodge | first actionable / total | intangible | notes |
+| dodge | total frames | intangible | notes |
 |---|---|---|---|
 | spot dodge | 20 if cancelled / 25 full | 3–17 | |
 | forward roll | 29 | 4–15 | distance cast median 31.755 u (26.53–39.73), Mario 32.17 ([SmashWiki: Roll](https://www.ssbwiki.com/Roll)) |
 | back roll | 34 | 5–16 | median 31.47 u (26.44–36.56), Mario 30.63 |
 | neutral air dodge | 52 | 3–29 | landing lag 10; keeps momentum |
-| directional air dodge | down 71, diagonal down 77, side 87, diagonal up 102, up 116 | 3–21 | landing lag 11–19 (max 20 per [MMSP](https://gamebanana.com/mods/38616)); distance 20 u fresh, 13.33 u fully stale; ends in helpless fall |
+| directional air dodge | down 71, diagonal down 77, side 87, diagonal up 102, up 116 | 3–21 | landing lag 11–19 (max 20 per [MMSP](https://gamebanana.com/mods/38616)); distance 20 u fresh, 13.33 u fully stale; not helpless afterwards |
 
-- **Ground dodge frames are totals.** SmashWiki labels the spot dodge and roll numbers above as total frames, so the first actionable frame is one later: spot dodge 26, forward roll 30, back roll 35. The data viewer has no CancelFrame for `escape`, `escape_f` or `escape_b` (they end with their animation); for ledge getups its CancelFrame is UFD's total + 1 (climb 34 and 35). A spot dodge can be cancelled 5 frames early into any ground attack or special, but not a grab or dash attack ([SmashWiki: Spot dodge](https://www.ssbwiki.com/Spot_dodge)), so an attack comes out on frame 21. The engine's values are in `src/sim/constants.ts` (`SPOT_DODGE`, `ROLL_FORWARD`, `ROLL_BACK`).
+- **Dodge frames are totals.** UFD and SmashWiki label the numbers above as total frames, so the first actionable frame is one later: spot dodge 26, forward roll 30, back roll 35, neutral air dodge 53, and directional air dodge 72 down, 78 diagonally down, 88 sideways, 103 diagonally up and 117 up. The data viewer has no CancelFrame for `escape`, `escape_f`, `escape_b`, `escape_air` or `escape_air_slide` (they end with their animation); for ledge getups its CancelFrame is UFD's total + 1 (climb 34 and 35). A spot dodge can be cancelled 5 frames early into any ground attack or special, but not a grab or dash attack ([SmashWiki: Spot dodge](https://www.ssbwiki.com/Spot_dodge)), so an attack comes out on frame 21. The engine's values are in `src/sim/constants.ts` (`SPOT_DODGE`, `ROLL_FORWARD`, `ROLL_BACK`, `AIR_DODGE_NEUTRAL`, `AIR_DODGE_DIRECTIONAL`).
+- **Directional air dodges don't cause helplessness.** SmashWiki describes them as "much like air dodges in Melee, except without causing helplessness", with "a total duration of over a full second" ([SmashWiki: Air dodge](https://www.ssbwiki.com/Air_dodge)). After the totals above the fighter can act again, but it gets no second air dodge until it lands, is hit or grabs a ledge.
 - **One air dodge per airtime.** It refreshes on landing, on being hit, or on grabbing a ledge ([SmashWiki: Air dodge](https://www.ssbwiki.com/Air_dodge)). Ultimate's air dodges average 49–50 frames, up from 32–33 in Smash 4.
 - **Dodge staling** (params `escape_penalty_*`; meaning inferred from names): penalties are counted within 60 frames of a dodge ending, up to 5, and one is removed every 120 frames. Each penalty slows spot dodge and forward roll by 0.06 and back roll by 0.10; air dodges are not slowed.
 - **Inputs:** spot dodge needs stick y ≤ −0.7 within a 4-frame flick. Rolls need |stick x| ≥ 0.7 within a 4-frame flick. The air-dodge direction threshold is 0.66 (param sheet).
@@ -197,8 +198,8 @@ Mario frame data from [UFD Mario](https://ultimateframedata.com/mario). Most of 
 
 ## 10. Ground movement and input
 
-- **Buffer:** 7 frames, plus 2 more for held inputs (`precede`, `precede_extension`).
-- **Dash:** a fast turnaround is possible in the first 5 frames of an initial dash. Mario's initial dash lasts 10 frames and his pivot dash 12. Dash speed is kept for 6 frames ([UFD stats](https://ultimateframedata.com/stats) Dash Turnaround and Dash and Run; params `turn_dash_frame` 5, `dash_speed_keep_frame` 6; [MMSP](https://gamebanana.com/mods/38616) gives the same 6).
+- **Buffer:** SmashWiki puts Ultimate's buffer window at 9 frames. An input held through the end of an animation is also buffered, however early it was pressed, if it is still held when that window opens ([SmashWiki: Buffer](https://www.ssbwiki.com/Buffer)). The params are `precede` 7 and `precede_extension` 2; that 7 + 2 is the wiki's 9 is a reading of the names, not confirmed.
+- **Dash:** a fast turnaround is possible in the first 5 frames of an initial dash. Mario's initial dash lasts 10 frames, so he runs from frame 11 (UFD Dash Turnaround: fast 1–5, buffered 6–10, full dash 11), and his pivot dash lasts 12. Dash speed is kept for 6 frames ([UFD stats](https://ultimateframedata.com/stats) Dash Turnaround and Dash and Run; params `turn_dash_frame` 5, `dash_speed_keep_frame` 6; [MMSP](https://gamebanana.com/mods/38616) gives the same 6).
 - **Dash speed keep:** for those first 6 frames the control energy applies no acceleration and no brake, whatever the stick does. From frame 7 the dash moves on run physics: with the stick forward it accelerates by run accel up to run speed, and speed above run speed brakes by `ground_brake` × `run_brake_brake_mul` (1.0), which is traction. With the stick neutral or back the target is 0, so the dash slides out at traction while it plays to its end. Mario: 1.936 for 6 frames, then 1.834 and 1.76 held, or 1.834, 1.732, ... released (decompiled `FighterKineticEnergyControl::update`, [blu-dev/energy_id src/control.rs](https://github.com/blu-dev/energy_id/blob/412138bdec8a9704bae38559226e244c0ad8a555/src/control.rs); `run_brake_brake_mul` from the [common.prc dump](https://github.com/fudgepop01/amiibo_research/blob/523374aaf3f1b7fa67370f83bec4a53b256ac944/research/paramDecoding/common/param/common.xml)). The engine's value is `DASH_SPEED_KEEP_FRAMES` in `src/sim/constants.ts`.
 - **Stick thresholds:** dash 0.85, run 0.75.
 - **Keyboards are digital,** so walking and tilt attacks need a modifier key (see section 18).
@@ -386,7 +387,7 @@ Other cast extremes ([SmashWiki: Gravity](https://www.ssbwiki.com/Gravity)): Fox
 - **Mario-like middleweight airtimes:** short hop 40, full hop 56, short hop + fast fall 28, full hop + fast fall 39. Fox-like fast faller: 24, 36, 17 and 27.
 - **Shield:** a full shield lasts 50/0.15 ≈ 333 frames (5.6 s) while held from full. Shield drop takes 11 frames. The parry window is the first 5 frames of the drop.
 - **Ledge:** the catch is actionable on frame 20. A 7th regrab is impossible before landing. Intangibility is 63 frames at 0% with no airtime.
-- **Tumble:** reached at kb 80. Neutral air dodge FAF is 52. Directional air dodges end in helpless fall and allow one dodge per airtime.
+- **Tumble:** reached at kb 80. A neutral air dodge lasts 52 frames, so its FAF is 53. Directional air dodges don't cause helplessness, and a fighter gets one air dodge per airtime.
 - **Feel:** Battlefield platforms are reachable with one full hop (36.33 u for Mario versus a platform at 24.12 u). The top platform needs a double jump or a full hop from a side platform.
 
 ## 21. Disagreements and decisions
