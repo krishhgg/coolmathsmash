@@ -228,6 +228,8 @@ or reaching full charge, carries on with the move.
   spawning move's full charge, linearly from 1 (`chargeScale(level, full)`), so its knockback grows too. A move's
   `spawn` passes the move's charge level; a script passes `charge: chargeLevel(f)` to `spawnEntity`. The multiplier
   goes into the entity's `damageMul`, so reflections stack on it. The Raft Wars kids' Aimed Shot is the example.
+- **Scripts while charging.** The script runs once a frame while the move is held, with `actionFrame` on the frame
+  before the charge frame. That frame's spawns, `rehit` windows and `transform` happen once, on the way in.
 - **Stored charge.** `storeCharge: {}` lets shield, an air dodge or a jump cancel the charge and keep it in
   `storedCharge`. The move's next use starts from it (a full one fires at once) and spends it when it fires.
   Releasing Special fires. With `tap: true` the move charges by itself and fires on the next Special or Attack
