@@ -85,6 +85,13 @@ function spiralBand(r0: number, r1: number, w0: number, w1: number, turns: numbe
 
 /** The spiral (on the spin bone, so shell moves can spin it). */
 export const spiral: PathShape[] = spiralBand(0.15, 2.75, 0.35, 1.15, 1.6, 70);
+/**
+ * The spiral turned a further quarter, half and three quarters clockwise: the cels of Shell Spin's rev, which
+ * spins on the match clock while the move holds its rev frame.
+ */
+export const spiral2 = spiralBand(0.15, 2.75, 0.35, 1.15, 1.6, 160);
+export const spiral3 = spiralBand(0.15, 2.75, 0.35, 1.15, 1.6, 250);
+export const spiral4 = spiralBand(0.15, 2.75, 0.35, 1.15, 1.6, 340);
 
 /** The lip: the wide, ridged mantle band where the shell rests on the body. */
 const LIP = blob([
@@ -688,6 +695,22 @@ export const spinRing: PathShape[] = [
   ink(blob(arc(0, 0, 6.2, 6.2, 250, 330, 6), false), 0.12),
   ink(blob(arc(0, 0, 6.2, 6.2, 70, 150, 6), false), 0.12),
 ];
+/**
+ * Shell Spin's whirl around a ball of radius about 5 centred on the origin: a pale smear over its top, bright at
+ * the leading (front) end like spinRing's, and three motion streaks 60 degrees apart, advanced `step` degrees.
+ * It stays above the ball's centre, so it never cuts into the floor under a grounded roll. Three cels 20 degrees
+ * apart repeat the pattern exactly, so the loop reads as one steady clockwise spin.
+ */
+function revRingAt(step: number): PathShape[] {
+  const streaks = [-60, 0, 60, 120, 180]
+    .map((a) => [Math.max(190, 190 + step + a), Math.min(350, 224 + step + a)] as const)
+    .filter(([a0, a1]) => a1 - a0 >= 8)
+    .map(([a0, a1]) => ink(blob(arc(0, 0, 6.3, 6.3, a0, a1, 6), false), 0.16));
+  return [{ d: crescent(4.7, 6.0, 192, 345), fill: smearPaint(-6, 0, 4, -5) }, ...streaks];
+}
+export const revRing1 = revRingAt(0);
+export const revRing2 = revRingAt(20);
+export const revRing3 = revRingAt(40);
 /** One sweeping crescent ahead of the origin (+x), for a shell striking to one side. */
 export const sideSmear: PathShape[] = [
   { d: crescent(3.0, 6.0, -55, 55), fill: smearPaint(1, -5, 6, 0, 0.85) },
@@ -813,3 +836,113 @@ function flameCel(len: number, w: number, lean: number): PathShape[] {
 export const flame1 = flameCel(5.6, 0.95, 0.25);
 export const flame2 = flameCel(6.7, 1.05, -0.35);
 export const flame3 = flameCel(4.9, 0.9, 0.05);
+
+/* ---------------------------------------------------------------- Crate Drop (fx bones, and the crate prop) */
+
+/**
+ * The crane remote, gripped at the origin: a yellow pendant control box with a black band, a big red button, a
+ * small green one below it and a stubby antenna with a red tip. `pressed` pushes the red button in.
+ */
+function remoteDrawing(pressed: boolean): PathShape[] {
+  const box = blob([
+    [-0.78, 0.45, true],
+    [-0.86, -1.2],
+    [-0.78, -2.75, true],
+    [0.78, -2.75, true],
+    [0.86, -1.2],
+    [0.78, 0.45, true],
+  ]);
+  return [
+    inkedFill(capsule([0.42, -2.7], [0.62, -4.3], 0.12, 0.1), 'steel', LINE * 1.2),
+    inkedFill(ellipse(0.63, -4.42, 0.3, 0.3), 'knob', LINE),
+    inkedFill(box, 'hazard', LINE * 1.8),
+    fill(
+      poly([
+        [-0.86, -0.35],
+        [0.86, -0.35],
+        [0.82, 0.45],
+        [-0.8, 0.45],
+      ]),
+      'hazardLo',
+    ),
+    fill(ellipse(-0.45, -2.05, 0.14, 0.42), 'powHi'),
+    inkedFill(ellipse(0, -1.85, 0.62, 0.6), 'hazardLo', LINE * 0.8),
+    pressed
+      ? inkedFill(ellipse(0, -1.78, 0.48, 0.3), 'girderLo', LINE * 0.8)
+      : inkedFill(ellipse(0, -1.98, 0.5, 0.5), 'knob', LINE * 0.8),
+    ...(pressed ? [] : [fill(ellipse(-0.16, -2.18, 0.17, 0.12), 'gloss')]),
+    inkedFill(ellipse(0, -0.78, 0.26, 0.24), 'slime', LINE * 0.6),
+  ];
+}
+export const remote: PathShape[] = remoteDrawing(false);
+export const remotePressed: PathShape[] = remoteDrawing(true);
+
+/** Radio waves from the antenna tip at the origin: `count` arcs each side, opening up and out. */
+function signalArcs(count: number): PathShape[] {
+  return Array.from({ length: count }, (_, i) => {
+    const r = 0.9 + i * 0.75;
+    const w = 0.24 - i * 0.03;
+    return [
+      ink(blob(arc(0, 0, r, r, -60, 0, 6), false), w),
+      ink(blob(arc(0, 0, r, r, -180, -120, 6), false), w),
+    ];
+  }).flat();
+}
+export const signal1 = signalArcs(1);
+export const signal2 = signalArcs(2);
+export const signal3 = signalArcs(3);
+
+/** Half the crate's side, as the engine's CRATE_RADIUS: the drawing fills the entity's 10-unit body. */
+const CRATE = 5;
+const board = (x0: number, y0: number, x1: number, y1: number) =>
+  poly([
+    [x0, y0],
+    [x1, y0],
+    [x1, y1],
+    [x0, y1],
+  ]);
+/**
+ * Crate Drop's construction crate, centred on the origin: a frame of boards around a planked face, a diagonal
+ * brace, nail heads in the corners and a hazard-striped band across the top. Lit from the top left like Bob.
+ */
+export const crate: PathShape[] = (() => {
+  const c = CRATE;
+  const b = 1.15;
+  const inner = board(-c + b, -c + b, c - b, c - b);
+  const brace = poly([
+    [-c + b, c - b - 0.25],
+    [-c + b, c - b],
+    [-c + b + 0.95, c - b],
+    [c - b, -c + b + 0.25],
+    [c - b, -c + b],
+    [c - b - 0.95, -c + b],
+  ]);
+  const nails = [-1, 1].flatMap((sx) => [-1, 1].map((sy) => [sx * (c - b / 2), sy * (c - b / 2)] as const));
+  return [
+    inkedFill(board(-c, -c, c, c), 'wood', LINE * 2.2),
+    fill(`${board(-c, -c, c, c)}${board(-c + b, -c + b, c, c)}`, 'woodHi'),
+    fill(`${board(-c, -c + b, c, c)}${board(-c, -c + b, c - b, c - b)}`, 'woodLo'),
+    inkedFill(inner, 'wood', LINE * 1.2),
+    ink([-1.25, 1.25].map((y) => `M${n(-c + b)} ${n(y)}L${n(c - b)} ${n(y)}`).join(''), LINE * 0.6),
+    fill(board(-c + b, -c + b, c - b, -c + b + 0.5), 'woodLo'),
+    inkedFill(brace, 'woodHi', LINE * 1.2),
+    fill(board(-c, -c, c, -c + b), 'hazard'),
+    ...[-3.6, -1.6, 0.4, 2.4, 4.4].map((x) =>
+      fill(
+        poly([
+          [x - 0.55, -c],
+          [x + 0.45, -c],
+          [x - 0.25, -c + b],
+          [x - 1.25, -c + b],
+        ]).replace(/-?[\d.]+ -?[\d.]+/g, (pt) => {
+          const [px, py] = pt.split(' ').map(Number) as [number, number];
+          return `${n(Math.max(-c, Math.min(c, px)))} ${n(py)}`;
+        }),
+        'hazardLo',
+      ),
+    ),
+    ink(`M${n(-c)} ${n(-c + b)}L${n(c)} ${n(-c + b)}`, LINE * 1.2),
+    ...nails.map(([x, y]) => inkedFill(ellipse(x, y, 0.22, 0.22), 'steel', LINE * 0.5)),
+    ink(board(-c, -c, c, c), LINE * 2.2),
+  ];
+})();
