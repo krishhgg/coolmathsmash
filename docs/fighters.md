@@ -39,7 +39,7 @@ Donkey Kong, Bowser, Fox, Jigglypuff) and adjust.
 | `height`, `width`                                        | body size: the hurtbox capsule and the environment box (feet at the origin) | 15, 8            | 15, 8               | (estimate)       |
 | `walkSpeed`, `walkAccelBase`, `walkAccelAdd`             | max walk speed; acceleration = base + add × stick                           | 1.1              | 1.155               | 0.62–1.575       |
 | `groundFriction`                                         | traction: speed lost per frame when not accelerating                        | 0.1              | 0.102               | 0.076–0.138      |
-| `dashInitialSpeed`, `dashFrames`                         | initial dash speed and length (dash-dance window)                           | 1.95, 11         | 1.936, 10           | 1.45–2.45        |
+| `dashInitialSpeed`, `dashFrames`                         | initial dash speed and length; a flick back after frame 5 turns at its end  | 1.95, 11         | 1.936, 10           | 1.45–2.45        |
 | `runSpeed`, `runAccelBase`, `runAccelAdd`                | run speed and acceleration                                                  | 1.85             | 1.76                | 1.18–3.85        |
 | `airSpeed`, `airAccelBase`, `airAccelAdd`, `airFriction` | air drift                                                                   | 1.15             | 1.208               | 0.735–1.344      |
 | `gravity`, `fallSpeed`, `fastFallSpeed`                  | per-frame gravity and terminal speeds                                       | 0.09, 1.55, 2.48 | 0.087, 1.5, 2.4     | 0.053–0.23       |
@@ -467,6 +467,9 @@ finalSmashCinematic: {
   traps every fighter its hitbox touches; this one holds the first.
 - **Landing.** A `final` move that lands carries on from the same frame, as with `continuesOnLanding`: the charge is
   already spent, so a fall, or a moving platform rising under a `still` user, can't cut it short.
+- **Losing the floor.** The same goes the other way (`finalSmashLeavesGround`): when a platform vanishes or moves out
+  from under the user, or a conveyor belt carries it off an end, a grounded `final` move plays on in the air from the
+  same frame, and a trap's cinematic keeps its catch, whichever of the two loses the floor first.
 - **CPUs.** A CPU holding the charge presses neutral special once an opponent is inside the Final Smash's reach in front
   (`finalReach`: its boxes, or `final.range` for one that spawns its blast), and otherwise leaves neutral special out of
   its attacks.

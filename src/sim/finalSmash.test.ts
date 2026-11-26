@@ -5,6 +5,7 @@ import { registerFighter } from '../fighters/registry';
 import type { InputFrame } from '../input/types';
 import { isIntangible } from './actions/registry';
 import { knockback } from './combat/formulas';
+import { activeHitboxes } from './combat/hits';
 import { spawnEntity } from './entities/entities';
 import type { SimEvent } from './events';
 import type { FighterState } from './fighter';
@@ -48,16 +49,33 @@ function config(fighters: string[], items = false): MatchConfig {
 
 /** Everyone standing on Battlefield's main stage at `xs`, facing the middle, after the match has settled. */
 function match(fighters: string[], xs: number[], items = false): MatchState {
-  const m = createMatch(config(fighters, items));
+  return matchOn(
+    config(fighters, items),
+    xs.map((x) => [x, 0]),
+  );
+}
+
+/** Everyone standing at `spots` ([x, floor y]) on `config`'s stage, facing the middle, after the match has settled. */
+function matchOn(config: MatchConfig, spots: [number, number][]): MatchState {
+  const m = createMatch(config);
   m.fighters.forEach((f, i) => {
-    const x = xs[i]!;
-    Object.assign(f, { pos: { x, y: 1 }, prevPos: { x, y: 1 }, vel: { x: 0, y: 0 }, ground: null });
+    const [x, y] = spots[i]!;
+    Object.assign(f, { pos: { x, y: y + 1 }, prevPos: { x, y: y + 1 }, vel: { x: 0, y: 0 }, ground: null });
     Object.assign(f, { action: 'fall', actionFrame: 1, facing: x <= 0 ? 1 : -1, intangible: 0 });
   });
   step(m, 30);
   for (const f of m.fighters) expect(f.action).toBe('idle');
   return m;
 }
+
+/** Step until the frame `m` plays next is `frame`. */
+function stepTo(m: MatchState, frame: number): void {
+  step(m, frame - m.frame);
+}
+
+/** The engine testbed's platform 1 (x -12 to 12, y 58) is there for frames 0-199 of every 300 and gone for 200-299. */
+const VANISHES = 200;
+const testbed = (fighters: string[]): MatchConfig => ({ ...config(fighters), stage: 'testbed' });
 
 /** Step `frames` frames, port i holding holds[i]; returns every event. */
 function step(m: MatchState, frames: number, holds: Hold[] = []): SimEvent[] {
@@ -161,6 +179,86 @@ describe('Final Smash activation', () => {
       expect([a.move, a.actionFrame]).toEqual(['finalSmash', f]);
     }
     expect(landed).toBe(true);
+  });
+
+  it('carries on when its platform vanishes under it: the move, its frame and the freeze go on (testbed platform 1)', () => {
+    const m = matchOn(testbed([DIRECT, NONE]), [
+      [-4, 58],
+      [60, 0],
+    ]);
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    stepTo(m, VANISHES - 10);
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    const held = where(v);
+    let fell = -1;
+    for (let i = 0; i < FREEZE; i++) {
+      step(m, 1);
+      if (fell < 0 && a.ground === null) fell = i;
+      expect([a.move, a.actionFrame, where(v)]).toEqual(['finalSmash', i + 2, held]);
+    }
+    // Activated on frame 190; the stage takes on frame 200's pose at the end of frame 199, the freeze's ninth.
+    expect(fell).toBe(8);
+    // Airborne and `still`: it holds where the platform was, and its boxes open on their frames.
+    expect([a.action, a.pos.y]).toEqual(['aerial', 58]);
+    step(m, finalBlast.hits[0]!.frames[0] - FREEZE - 1);
+    expect([a.move, a.actionFrame, activeHitboxes(a).length]).toEqual(['finalSmash', 42, 2]);
+  });
+
+  it("keeps a trap's catch when its platform vanishes mid-cinematic: both fall and the throw still lands", () => {
+    // Both port orders: whichever of the two loses the floor first, the grab holds.
+    for (const order of [
+      [TRAP, NONE],
+      [NONE, TRAP],
+    ]) {
+      const user = order.indexOf(TRAP);
+      const xs = [-8, 6];
+      const m = matchOn(
+        testbed(order),
+        order.map((_, i) => [xs[i === user ? 0 : 1]!, 58]),
+      );
+      const a = m.fighters[user]!;
+      const v = m.fighters[1 - user]!;
+      stepTo(m, VANISHES - 60);
+      a.finalReady = true;
+      const press: Hold[] = [{}, {}];
+      press[user] = SPECIAL;
+      step(m, 1, press);
+      step(m, finalTrap.hits[0]!.frames[0] - 1);
+      expect([a.action, v.action, a.grabPartner]).toEqual(['grabThrow', 'grabbed', v.port]);
+      expect(m.frame).toBeLessThan(VANISHES);
+      let fell = false;
+      const seen: SimEvent[] = [];
+      while (a.grabPartner >= 0 && seen.length < 1000) {
+        seen.push(...step(m, 1).filter((e) => e.type === 'pummel' || e.type === 'throw'));
+        fell ||= a.ground === null;
+        if (a.grabPartner >= 0) expect([a.move, v.action]).toEqual(['finalSmashCinematic', 'grabbed']);
+      }
+      expect(fell).toBe(true);
+      expect(seen.map((e) => e.type)).toEqual(['pummel', 'pummel', 'pummel', 'throw']);
+      expect(a.actionFrame).toBe(finalCinematic.throw!.frame);
+    }
+  });
+
+  it("carries on when a conveyor belt carries the user off its end (Papa's Pizzeria, hazards on)", () => {
+    const m = matchOn({ ...config([DIRECT, NONE]), stage: 'hazard-testbed' }, [
+      [-25, 0],
+      [80, 0],
+    ]);
+    const [a] = m.fighters as [FighterState, FighterState];
+    // Belt 0 runs x -75 to -35 at y 30, carrying whoever stands on it right at 0.6 a frame.
+    Object.assign(a, {
+      pos: { x: -37, y: 30 },
+      prevPos: { x: -37, y: 30 },
+      ground: { kind: 'platform', index: 0 },
+    });
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    for (let i = 0; i < FREEZE; i++) {
+      step(m, 1);
+      expect([a.move, a.actionFrame]).toEqual(['finalSmash', i + 2]);
+    }
+    expect([a.ground, a.pos.x > -35]).toEqual([null, true]);
   });
 
   it('comes out of a dash, a run and a crouch, states a special starts from', () => {

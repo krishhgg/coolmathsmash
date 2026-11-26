@@ -1,3 +1,4 @@
+import { finalSmashLeavesGround } from './actions/attack';
 import { breakGrab } from './actions/grab';
 import { dropLedge } from './actions/ledge';
 import { actionDef, enterAction } from './actions/registry';
@@ -291,6 +292,7 @@ function standOn(x: Ctx, g: GroundRef): void {
 /** The stage left the fighter without ground: a grab it is in ends, and it falls unless launched or in hitstun. */
 function loseGround(x: Ctx): void {
   const { f, m } = x;
+  if (finalSmashLeavesGround(x)) return leaveGround(x);
   if (f.grabPartner >= 0) breakGrab(m, f);
   const keep = f.launch !== null || f.action === 'hitstun' || actionDef(f).physics === 'air';
   leaveGround(x);

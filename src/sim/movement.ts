@@ -22,6 +22,7 @@ import {
   speedUp,
   VERTICAL_LAUNCH_FALL_SPEED,
 } from './combat/formulas';
+import { finalSmashLeavesGround } from './actions/attack';
 import { breakGrab } from './actions/grab';
 import { actionDef, enterAction } from './actions/registry';
 
@@ -112,6 +113,7 @@ export function groundMove(x: Ctx): void {
     return;
   }
   f.pos.x = nx;
+  if (finalSmashLeavesGround(x)) return leaveGround(x);
   if (f.grabPartner >= 0) breakGrab(x.m, f);
   leaveGround(x);
   // As when the stage takes the surface away (movingStage.ts loseGround), hitstun carries on in the air.

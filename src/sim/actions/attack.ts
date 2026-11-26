@@ -17,7 +17,7 @@ import { moveDef } from '../sharedMoves';
 import type { Ctx, FighterState } from '../fighter';
 import { HELPLESS_LANDING_LAG } from '../constants';
 import { spawnFromMove } from '../entities/entities';
-import { freezeOf } from '../finalSmash';
+import { freezeOf, inFinalSmash } from '../finalSmash';
 import { pickUpItem } from '../items/pickup';
 import { leaveGround, normalLandingLag } from '../movement';
 import { fastFallCheck } from './air';
@@ -222,6 +222,25 @@ export function playMove(x: Ctx): MoveDef | null {
     f.fighter = move.transform.into;
   }
   return move;
+}
+
+/**
+ * The floor went out from under `x.f` (its platform vanished or moved away, or a conveyor belt carried it off): a Final
+ * Smash has spent its charge, so it carries on, as a landing carries one on (`aerial`'s land). A grounded one plays on
+ * in the air from the same frame, and a trap's cinematic keeps its catch, the user's end and the held fighter's alike.
+ * True when it did; the caller then only leaves the ground.
+ */
+export function finalSmashLeavesGround(x: Ctx): boolean {
+  const { f, m } = x;
+  const holder = f.action === 'grabbed' ? m.fighters[f.grabPartner] : undefined;
+  if (holder?.grabPartner === f.port && holder.action === 'grabThrow' && inFinalSmash(holder)) return true;
+  if (!inFinalSmash(f)) return false;
+  if (f.action === 'attack') {
+    const { move, actionFrame } = f;
+    enterAction(x, 'aerial', actionFrame);
+    f.move = move;
+  }
+  return true;
 }
 
 /** Intangible on the move's `intangible` frames, and on every frame of a Final Smash. */
