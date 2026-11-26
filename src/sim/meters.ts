@@ -6,7 +6,10 @@
 
 import { getFighter } from '../fighters/registry';
 import type { FighterDef } from '../fighters/types';
+import type { SimEvent } from './events';
 import type { Ctx, FighterState } from './fighter';
+import type { MatchState } from './match';
+import { applyStatus, clearStatus, hasStatus } from './statuses';
 
 export interface MeterDef {
   /** A full meter. Values stay between 0 and `max`. */
@@ -19,6 +22,19 @@ export interface MeterDef {
   grounded?: boolean;
   /** On a KO: `reset` to `start` (default) or `keep` the value into the next stock. */
   onKo?: 'reset' | 'keep';
+  /**
+   * Gain per % of damage this fighter deals to another fighter (hits, its projectiles' hits, pummels and throw hold
+   * hits, and its statuses' damage) and per % it takes from anything, counted as the % the damage added. Shields
+   * and entities don't count. Cloud's Limit Gauge in Ultimate is 0.667 per % dealt and 1 per % taken.
+   */
+  dealt?: number;
+  taken?: number;
+  /**
+   * A status kind ("<fighter id>/<name>") the fighter holds while the meter is full: it goes on at the end of the
+   * frame the meter fills and comes off at the end of the frame the meter is spent. When it runs out or a KO takes it
+   * off, the meter empties. Cloud's Limit Break lasts 900 frames, then the gauge empties.
+   */
+  full?: string;
 }
 
 /** Every meter of `def` at its start value. */
@@ -65,6 +81,59 @@ export function tickMeters(x: Ctx): void {
   for (const [name, m] of Object.entries(def.meters ?? {})) {
     if (!m.regen || (m.grounded && !f.ground)) continue;
     addMeter(f, name, m.regen);
+  }
+}
+
+/** The frame's damage events as (dealer port or -1, taker port, % added), in the order they happened. */
+function damageOf(e: SimEvent): [number, number, number] | null {
+  switch (e.type) {
+    case 'hit':
+    case 'pummel':
+      return [e.attacker, e.victim, e.damage];
+    case 'statusDamage':
+      return [e.source, e.port, e.damage];
+    case 'stageHit':
+      return [-1, e.victim, e.damage];
+    default:
+      return null;
+  }
+}
+
+/**
+ * End of a frame, after every hit: meters with `dealt` or `taken` gain from the frame's damage events in the order
+ * they happened, then each meter with a `full` status puts it on, takes it off, or empties when it ran out or a KO
+ * took it off this frame. Fighters go in port order and meters in the order each fighter declares them.
+ */
+export function settleMeters(m: MatchState): void {
+  for (const e of m.events) {
+    const damage = damageOf(e);
+    if (!damage) continue;
+    const [dealer, taker, amount] = damage;
+    for (const port of dealer === taker ? [taker] : [dealer, taker]) {
+      const f = m.fighters[port];
+      if (!f) continue;
+      for (const [name, def] of Object.entries(getFighter(f.fighter).meters ?? {})) {
+        const rate = port === taker ? def.taken : def.dealt;
+        if (rate) addMeter(f, name, amount * rate);
+      }
+    }
+  }
+  for (const f of m.fighters) {
+    for (const [name, def] of Object.entries(getFighter(f.fighter).meters ?? {})) {
+      if (!def.full) continue;
+      const ended = m.events.some(
+        (e) =>
+          e.type === 'statusEnd' &&
+          e.port === f.port &&
+          e.status === def.full &&
+          (e.reason === 'expired' || e.reason === 'ko'),
+      );
+      const on = hasStatus(f, def.full);
+      if (ended) setMeter(f, name, 0);
+      else if (meter(f, name) >= def.max && !on && f.action !== 'ko' && f.action !== 'out')
+        applyStatus(m, f, def.full, { source: f.port });
+      else if (meter(f, name) < def.max && on) clearStatus(m, f, def.full);
+    }
   }
 }
 

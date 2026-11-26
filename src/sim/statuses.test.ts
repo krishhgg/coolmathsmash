@@ -17,6 +17,7 @@ import { testStatus } from './testing/statuses';
 registerFighter(testStatus);
 
 const FLOWER = 'test-status/flower';
+const CHARGED = 'test-status/charged';
 const WARM = 'test-status/warm';
 const STUN = 'test-status/stun';
 const INK = 'test-status/ink';
@@ -761,7 +762,7 @@ describe('statuses: a KO from a ledge hang', () => {
 describe('meters', () => {
   it('start at their start values', () => {
     const { a } = versus(3);
-    expect(a.meters).toEqual({ ammo: 3, heat: 0, hop: 1, coins: 0 });
+    expect(a.meters).toEqual({ ammo: 3, heat: 0, hop: 1, coins: 0, charge: 0 });
   });
 
   it('spendMeter spends only what is there: three shots, then nothing', () => {
@@ -817,5 +818,113 @@ describe('meters', () => {
     runPorts(m, 30, []);
     expect(a.action).toBe('ko');
     expect(meter(a, 'heat')).toBe(10); // no regen or drain while off screen
+  });
+});
+
+describe('meters filled by damage (MeterDef dealt, taken and full)', () => {
+  /** Two status fixtures 10 apart, P1 facing P2, and a parked Mario: three players, so no 1v1 multiplier. */
+  function pair(): { m: MatchState; a: FighterState; v: FighterState } {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'test-status' }, { fighter: 'test-status' }, { fighter: 'reference-mario' }],
+    });
+    runPorts(m, 10, []);
+    const [a, v, far] = m.fighters as [FighterState, FighterState, FighterState];
+    for (const [f, x, facing] of [
+      [a, 0, 1],
+      [v, 10, -1],
+      [far, -60, 1],
+    ] as const) {
+      Object.assign(f, { pos: { x, y: a.pos.y }, ground: a.ground, action: 'idle', actionFrame: 1, facing });
+      f.prevPos = { ...f.pos };
+      f.intangible = 0;
+    }
+    return { m, a, v };
+  }
+
+  it('gain from the % a hit adds: half of it for the attacker, all of it for the victim', () => {
+    const { m, a, v } = pair();
+    attack(m, 0, 'ftilt');
+    stepUntil(m, 'hit');
+    expect(v.damage).toBeCloseTo(4.2, 9); // 4%, fresh x1.05
+    expect(meter(a, 'charge')).toBeCloseTo(2.1, 9);
+    expect(meter(v, 'charge')).toBeCloseTo(4.2, 9);
+  });
+
+  it("count a status's damage for its source and its victim, and a projectile's for its owner", () => {
+    const { m, a, v } = pair();
+    attack(m, 0, 'jab');
+    stepUntil(m, 'hit');
+    const hit = v.damage;
+    stepUntil(m, 'statusDamage');
+    expect(v.damage - hit).toBe(1);
+    expect(meter(a, 'charge')).toBeCloseTo((hit + 1) / 2, 9);
+    expect(meter(v, 'charge')).toBeCloseTo(hit + 1, 9);
+    clearStatus(m, v, FLOWER);
+    setMeter(a, 'charge', 0);
+    setMeter(v, 'charge', 0);
+    runPorts(m, 30, []);
+    const before = v.damage;
+    attack(m, 0, 'neutralB');
+    const seen = stepUntil(m, 'hit');
+    expect(seen.find((e) => e.type === 'hit')).toHaveProperty('entity');
+    expect(meter(a, 'charge')).toBeCloseTo((v.damage - before) / 2, 9);
+    expect(meter(v, 'charge')).toBeCloseTo(v.damage - before, 9);
+  });
+
+  it('a shield hit fills nothing', () => {
+    const { m, a, v } = pair();
+    Object.assign(v, { action: 'shield', actionFrame: 1 });
+    attack(m, 0, 'ftilt');
+    stepUntil(m, 'shieldHit', [{}, { buttons: ['shield'] }]);
+    expect([meter(a, 'charge'), meter(v, 'charge')]).toEqual([0, 0]);
+  });
+
+  it('put the full status on at the end of the frame a hit fills the meter', () => {
+    const { m, a, v } = pair();
+    setMeter(a, 'charge', 98);
+    attack(m, 0, 'ftilt');
+    const seen = stepUntil(m, 'hit');
+    expect(meter(a, 'charge')).toBe(100);
+    expect(statusOf(a, CHARGED)).toMatchObject({ frames: 30, since: m.frame - 1, source: 0 });
+    expect(seen.filter((e) => e.type === 'statusStart' && e.status === CHARGED)).toEqual([
+      { type: 'statusStart', port: 0, status: CHARGED, frames: 30, source: 0 },
+    ]);
+    expect(hasStatus(v, CHARGED)).toBe(false);
+  });
+
+  it('hold the full status until it runs out, then empty the meter', () => {
+    const { m, a } = pair();
+    setMeter(a, 'charge', 100);
+    runPorts(m, 1, []);
+    expect(hasStatus(a, CHARGED)).toBe(true);
+    runPorts(m, 29, []);
+    expect([hasStatus(a, CHARGED), meter(a, 'charge')]).toEqual([true, 100]);
+    runPorts(m, 1, []);
+    expect(m.events).toContainEqual({ type: 'statusEnd', port: 0, status: CHARGED, reason: 'expired' });
+    expect([hasStatus(a, CHARGED), meter(a, 'charge')]).toEqual([false, 0]);
+  });
+
+  it('take the full status off at the end of the frame the meter is spent', () => {
+    const { m, a } = pair();
+    setMeter(a, 'charge', 100);
+    runPorts(m, 1, []);
+    expect(hasStatus(a, CHARGED)).toBe(true);
+    expect(spendMeter(a, 'charge', 100)).toBe(true);
+    runPorts(m, 1, []);
+    expect(m.events).toContainEqual({ type: 'statusEnd', port: 0, status: CHARGED, reason: 'cleared' });
+    expect(hasStatus(a, CHARGED)).toBe(false);
+  });
+
+  it('a KO takes the full status off and empties the meter', () => {
+    const { m, a } = pair();
+    setMeter(a, 'charge', 100);
+    runPorts(m, 1, []);
+    Object.assign(a, { pos: { x: -400, y: 20 }, ground: null, action: 'fall' });
+    runPorts(m, 1, []);
+    expect(a.action).toBe('ko');
+    expect([hasStatus(a, CHARGED), meter(a, 'charge')]).toEqual([false, 0]);
   });
 });
