@@ -14,12 +14,15 @@ type Side = 'left' | 'right' | 'top' | 'bottom';
 export type SimEvent =
   /**
    * A hit landed. `damage` is what it added to the victim's %; `x`, `y` is the hitbox centre. An entity's hit
-   * carries its `entity` id and credits its owner as `attacker` (-1 for nobody).
+   * carries its `entity` id and credits its owner as `attacker` (-1 for nobody). `final` marks a Final Smash's hit:
+   * from a move marked `final` (MoveDef.final) or an entity one put out (EntityState.final), whatever its owner plays
+   * by the time it lands.
    */
   | {
       type: 'hit';
       attacker: number;
       entity?: number;
+      final?: true;
       victim: number;
       move: string | null;
       damage: number;
