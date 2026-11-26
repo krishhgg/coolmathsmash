@@ -29,9 +29,9 @@ import { HALF_W } from './symbols';
  * 29 to 34. On a miss it lies there and rocks back up by frame 99. Lying, it first stands up (frames 0-4).
  *
  * The cinematic, with the catch held about 11 units in front (the engine's hold: half of both widths plus 1): the
- * punch lands on frame 1 and the catch slides in over the toppled block, which draws under every fighter until it
- * splits (TOPPLED), so the catch stays in view. The level's tiles flip up out of the floor in a wave from the block, and the block splits
- * into its two cubes, one either side of the catch. They take turns rocking their top corners into it on the 31
+ * punch lands on frame 1 and the catch slides in over the toppled block, which draws under every fighter until its
+ * cubes come apart on frame 3 (CUBES_FROM), so the catch stays in view. The level's tiles flip up out of the floor in a
+ * wave from the block, and the block splits into its two cubes, one either side of the catch. They take turns rocking their top corners into it on the 31
  * barrage frames, then the far cube hops back over it onto the near one, the block re-forms, jumps and slams the
  * heavy switch on frame 139: the bridge tile under the catch flips up on its hinge and flings it. The tiles then fall
  * away, as a Bloxorz level does when it is finished.
@@ -45,6 +45,12 @@ const F = STAND;
  * tiles and effects stay in the block's own layer, over everyone (a Final Smash user draws on top).
  */
 export const TOPPLED: [number, number] = [25, 85];
+
+/**
+ * The cinematic frame the two cubes first show, already coming apart. Until then the whole block lies toppled in its
+ * `under` slots: the catch frame, the punch (held through its hitlag) and the split's flash on frame 2.
+ */
+export const CUBES_FROM = 3;
 
 /** Where the cubes stand through the barrage: either side of a catch held 11 units in front. */
 const CUBE_A = -1;
@@ -234,19 +240,20 @@ function activation(f: number): Frame {
 function cinematic(f: number): Frame {
   const extra = level(f);
   // The punch: the toppled block on the catch, held through the punch's hitlag while the catch slides in over it.
-  // Its spark flashes above the catch's head, so the catch stays in view.
-  if (f <= 1) {
+  // Its spark flashes above the catch's head, so the catch stays in view. On frame 2 the split flashes at the seam.
+  if (f < CUBES_FROM) {
     return {
       block: rock(F, 90, { sx: 0.9, sy: 1.03 }),
       under: true,
       fx: {
         starA: f === 1 ? { sym: 'burst', x: 12, y: -19, sx: 0.75, sy: 0.75 } : undefined,
+        starB: f === 2 ? { sym: 'burst', x: 18, y: -7, sx: 0.5, sy: 0.5 } : undefined,
         ...landing(18, 12, f, 1.2, 14),
       },
       extra,
     };
   }
-  // The split: the halves pop apart, the near cube hopping back past the catch.
+  // The split: the halves pop apart from frame 2's flash, the near cube hopping back past the catch.
   if (f <= 5) {
     const u = tl(f, [
       [2, 0, 'out'],

@@ -15,7 +15,7 @@ import { input, type Hold } from '../../sim/testing/sim';
 import { samplePose } from '../../render/rig/sample';
 import { getFighter, registerFighter } from '../registry';
 import { art, lyingArt } from './art';
-import { TOPPLED } from './art/finalSmash';
+import { CUBES_FROM, TOPPLED } from './art/finalSmash';
 import { LEVEL_TILES } from './art/rig';
 import { BARRAGE, REACH, SPLIT, finalSmash, finalSmashCinematic } from './finalSmash';
 import { LYING, STANDING } from './tip';
@@ -216,7 +216,7 @@ describe('Split Switch (Final Smash), on Jungle Rush', () => {
     }
   });
 
-  it('slides the catch in at 1.5 units a frame, near or far, and has it in place before the cubes split on frame 2', () => {
+  it("slides the catch in at 1.5 units a frame, near or far, and has it in place when the punch's hitlag ends (frame 2)", () => {
     expect(finalSmashCinematic.pull).toBe(BARRAGE.pull);
     expect(BARRAGE.pull).toBe(1.5);
     // Mario next to the block, Mario at the farthest a standing one is caught (45 out), and the farthest catch on the
@@ -424,7 +424,7 @@ describe('Split Switch (Final Smash), on Jungle Rush', () => {
       const own = drawn(block.container);
       const label = `${a.move}@${a.actionFrame}`;
       const cinematic = a.move === 'finalSmashCinematic';
-      if (cinematic ? a.actionFrame < 2 : a.actionFrame >= TOPPLED[0]) {
+      if (cinematic ? a.actionFrame < CUBES_FROM : a.actionFrame >= TOPPLED[0]) {
         // The block lies under the foe; only its dust and the punch's spark go over.
         expect(lying.length, label).toBe(2);
         expect(Math.max(...at(lying)), label).toBeLessThan(Math.min(...foeAt));
@@ -439,9 +439,11 @@ describe('Split Switch (Final Smash), on Jungle Rush', () => {
       step(m, 1);
     }
     expect(v.damage).toBeGreaterThan(60);
-    // The catch frame, the punch's frame and its 30 frames of hitlag; then every barrage frame and its hitlag.
-    expect(toppled).toBe(32);
-    expect(split).toBe(BARRAGE.finish - 2 + 31 * 2);
+    // The catch frame, the punch's frame and its 30 frames of hitlag, and the split's flash on frame 2; then every frame
+    // of the cubes and the barrage's hitlag up to the fling.
+    expect(CUBES_FROM).toBe(3);
+    expect(toppled).toBe(33);
+    expect(split).toBe(BARRAGE.finish - CUBES_FROM + 31 * 2);
   });
 
   it('keeps the numbers the art reads in a module the art can load first', async () => {
