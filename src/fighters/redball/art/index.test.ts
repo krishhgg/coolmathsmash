@@ -80,6 +80,7 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   neutralSpecial: 'hold',
   sideSpecial: 'hold',
   upSpecial: 'hold',
+  downSpecial: 'hold',
   tetherPull: 'hold',
 };
 

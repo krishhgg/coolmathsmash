@@ -97,7 +97,7 @@ export const groundPoundMoves: Record<string, MoveDef> = {
     drift: false,
     ledgeFrom: POUND.fall,
     hits: [
-      { frames: [POUND.takeoff, POUND.takeoff], boxes: [box(0, 6, 6, 7, RISE)] },
+      { frames: [POUND.takeoff, POUND.takeoff], boxes: [box(0, 4, 6, 7, RISE)] },
       { frames: [POUND.fall, HOLD], rehit: true, boxes: [box(0, 0, 5.5, 6.8, SLAM)] },
     ],
     script(x) {

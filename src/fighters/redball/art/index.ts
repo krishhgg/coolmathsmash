@@ -12,6 +12,7 @@ const aliases = {
   neutralSpecial: attacks.neutralB,
   upSpecial: attacks.upB,
   sideSpecial: attacks.sideB,
+  downSpecial: attacks.downB,
   /** Tongue Lash in the air has the same timing and tongue; only its knockback differs. */
   sideBAir: attacks.sideB,
 };

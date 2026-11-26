@@ -657,4 +657,88 @@ export const attacks = {
       key(45, mix(body(), roll(360))),
     ],
   },
+  /**
+   * Ground Pound: squashes, springs straight up off a ring of air with speed lines under him, flips forward on the
+   * way up, spreads at the peak with his eyes on the floor, then drops stretched with the lines above him. The
+   * last frame is the drop, which the move holds until he lands.
+   */
+  downB: {
+    length: 34,
+    active: [
+      [7, 7],
+      [27, 34],
+    ],
+    swaps: GRIT_UP,
+    keys: [
+      key(0, ground()),
+      key(3, ground(1.25, 0.78), { ease: 'out' }),
+      key(5, ground(1.45, 0.62), { ease: 'out' }),
+      key(6, mix(ground(0.8, 1.32, 1.0), fx('fx1', 0.5, 0, 0.9)), { swaps: { ...SHOUT, fx1: 'ring' } }),
+      key(7, mix(ground(0.82, 1.3, 1.0), fx('fx1', 0.5, 1.4, 1.1), fx('fx3', 0, 1.2, 1, -90)), {
+        swaps: { ...SHOUT, fx1: 'ring', fxBack: 'speed' },
+        ease: 'out',
+      }),
+      key(10, mix(body(0.86, 1.18), roll(10), fx('fx1', 0.5, 4.5, 1.7), fx('fx3', 0, 2.2, 1.15, -90))),
+      key(11, undefined, { swaps: WHEE }),
+      key(13, mix(body(0.92, 1.1), roll(60))),
+      key(22, mix(body(0.98, 1.02), roll(330)), { ease: 'out' }),
+      key(25, mix(body(1.2, 0.86, 0, -0.4), roll(360)), { swaps: GRIT_DOWN, ease: 'in' }),
+      key(26, mix(body(1.22, 0.84, 0, -0.4), roll(360))),
+      key(27, mix(body(0.86, 1.2, 0, 0.6), roll(360), speed(0, -12.2, 1.1, 90)), {
+        swaps: { ...GRIT_DOWN, fxBack: 'speed' },
+      }),
+      key(34, mix(body(0.85, 1.22, 0, 0.7), roll(360), speed(0, -12.6, 1.18, 90))),
+    ],
+  },
+  /** Ground Pound in the air: a little pop and a forward flip, spreads to aim, then the same stretched drop. */
+  downBAir: {
+    length: 26,
+    active: [
+      [19, 19],
+      [20, 26],
+    ],
+    swaps: GRIT,
+    keys: [
+      key(0, body()),
+      key(2, body(1.15, 0.88), { ease: 'out' }),
+      key(5, mix(body(0.9, 1.1, 0, -0.6), roll(-10)), { swaps: WHEE }),
+      key(14, mix(body(1, 1), roll(330)), { ease: 'out' }),
+      key(16, mix(body(1.18, 0.87, 0, -0.3), roll(360)), { swaps: GRIT_DOWN, ease: 'in' }),
+      key(18, mix(body(0.84, 1.24, 0, 0.9), roll(360), speed(0, -12, 1, 90)), {
+        swaps: { ...GRIT_DOWN, fxBack: 'speed' },
+      }),
+      key(26, mix(body(0.85, 1.22, 0, 0.7), roll(360), speed(0, -12.6, 1.18, 90))),
+    ],
+  },
+  /**
+   * Ground Pound's landing: splats flat with a ring under him and a wave rolling out each side over the shockwave's
+   * frames (3-12), then pops back up into a little rebound and settles.
+   */
+  downBLand: {
+    length: 39,
+    active: [[3, 12]],
+    swaps: GRIT_DOWN,
+    keys: [
+      key(
+        0,
+        mix(ground(1.6, 0.5), fx('fx1', 4.5, 0, 0.8), fx('fx2', -4.5, 0, -0.8, 0, 0.8), fx('fx3', 0, 0, 1.8)),
+        { swaps: { fx1: 'wave', fx2: 'wave', fxBack: 'ring' }, ease: 'out' },
+      ),
+      key(
+        2,
+        mix(ground(1.88, 0.42), fx('fx1', 6.2, 0, 1.0), fx('fx2', -6.2, 0, -1.0, 0, 1.0), fx('fx3', 0, 0, 2.4)),
+      ),
+      key(
+        12,
+        mix(ground(1.86, 0.43), fx('fx1', 11, 0, 0.9), fx('fx2', -11, 0, -0.9, 0, 0.9), fx('fx3', 0, 0, 3.4)),
+        { ease: 'in' },
+      ),
+      key(13, undefined, { swaps: {} }),
+      key(17, ground(0.88, 1.14, 0, 1.6), { ease: 'out' }),
+      key(21, ground(0.97, 1.03, 0, 2.2), { ease: 'in' }),
+      key(25, ground(1.22, 0.8), { swaps: DETERMINED, ease: 'out' }),
+      key(30, ground(0.96, 1.04)),
+      key(39, ground()),
+    ],
+  },
 } satisfies Record<string, MoveClip>;
