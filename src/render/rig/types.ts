@@ -79,7 +79,7 @@ export interface Slot {
   bone: string;
   /** Symbol shown when no clip swaps it; null hides the slot (effects). */
   symbol: string | null;
-  /** Decoration such as a glow: drawn, but left out of bounds and hit tests. */
+  /** Decoration such as a glow: drawn and counted in bounds, but left out of hit tests. */
   decor?: boolean;
 }
 
