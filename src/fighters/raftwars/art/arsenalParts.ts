@@ -233,7 +233,7 @@ function turnPath(d: string, deg: number): string {
 // ---------------------------------------------------------------------------------------------------------
 // The burst where a shot comes down: Covering Fire's missile blast, radius 23, drawn at world scale. A white
 // flash, then the orange boom with its yellow core and a ring of smoke puffs, then the smoke rolling out and
-// thinning. Four drawings over the burst's 20 frames (fxBlast, 12 fps).
+// thinning. Four drawings over the burst's 19 frames (fxBlast, 12 fps).
 
 const R = BLAST.radius;
 /** Puffs round the boom: angle, distance and size as fractions of the blast radius. */

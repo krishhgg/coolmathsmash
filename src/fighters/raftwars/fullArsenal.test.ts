@@ -358,7 +358,7 @@ describe('Full Arsenal (Final Smash), on Covering Fire', () => {
     }
   });
 
-  it('draws the crosshair, the marks, every shot and the bursts as props, the bursts for their 20 frames', () => {
+  it('draws the crosshair, the marks, every shot and the bursts as props, each burst playing its loop once', () => {
     const props = art.projectiles!;
     expect(
       ['reticle', 'lockMark', ...SHOTS, 'volleyBlast'].map((name) => [name, props[name]?.symbol]),
@@ -372,8 +372,12 @@ describe('Full Arsenal (Final Smash), on Covering Fire', () => {
       ['volleyRocket', 'volleyRocket'],
       ['volleyBlast', 'fxBlast'],
     ]);
+    // A prop's loop runs on the entity's age, from 1: the burst ends on its last drawing and never wraps to its first.
     const blast = art.rig.symbols.fxBlast as { loop: string[]; fps: number };
-    expect(blast.loop.length * (60 / blast.fps)).toBe(BLAST.lifetime);
+    const drawing = (age: number) => Math.floor((age * blast.fps) / 60) % blast.loop.length;
+    expect(drawing(1)).toBe(0);
+    expect(drawing(BLAST.lifetime)).toBe(blast.loop.length - 1);
+    expect(Math.floor(((BLAST.lifetime + 1) * blast.fps) / 60)).toBe(blast.loop.length);
     for (const name of ['fxReticle', 'fxLock', 'volleyGrenade', 'volleyRocket', 'fxBlast']) {
       const loop = art.rig.symbols[name] as { loop: string[] };
       for (const s of loop.loop) expect(art.rig.symbols[s], s).toBeDefined();

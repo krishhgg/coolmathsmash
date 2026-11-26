@@ -197,7 +197,7 @@ export const rig: Rig = {
       fps: 20,
     },
     ...blastSymbols,
-    /** The burst plays once over its 20 frames: four drawings, five frames each. */
+    /** The burst plays once over its 19 frames: four drawings, five frames each (the first four). */
     fxBlast: { loop: ['fxBlastA', 'fxBlastB', 'fxBlastC', 'fxBlastD'], fps: 12 },
   },
 };

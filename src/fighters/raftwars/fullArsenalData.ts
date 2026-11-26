@@ -84,8 +84,11 @@ export const BLAST = {
   radius: 23,
   /** Frames its hitbox is out (an estimate). */
   active: 2,
-  /** Frames the burst is drawn. */
-  lifetime: 20,
+  /**
+   * Frames the burst is drawn: its four drawings at 12 fps, five frames each, the first one four frames long because
+   * a prop's loop runs on the entity's age, which starts at 1.
+   */
+  lifetime: 19,
 } as const;
 
 /** How far ahead it reaches, for CPUs: the crosshair covers the stage, so Battlefield's width. */

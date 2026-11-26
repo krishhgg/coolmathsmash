@@ -495,6 +495,10 @@ finalSmashCinematic: {
   does. A trap's cinematic never loses its floor, since the stage stands still while it holds the others.
 - **Projectiles.** An entity a `final` move puts out is marked at spawn (`EntityState.final`), so it stays unblockable
   however long it lasts, after its owner acts again or turns into another fighter (Fireboy's Swap).
+- **Holding a frame.** A Final Smash of no fixed length holds one frame from its script with `holdFrame`, as a charge
+  holds its charge frame, and its clip shows the frame before it meanwhile. The Raft Wars kids' Full Arsenal
+  (`src/fighters/raftwars/fullArsenal.ts`, Snake's Covering Fire) holds frame 43 while its crosshair, an entity steered
+  by the owner's stick (`EntityCtx.c`), hunts for up to 300 frames, then plays on and fires at the marks it left.
 - **CPUs.** A CPU holding the charge presses neutral special once an opponent is inside the Final Smash's reach in front
   (`finalReach`: its boxes, or `final.range` for one that spawns its blast), and otherwise leaves neutral special out of
   its attacks.
