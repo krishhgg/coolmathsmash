@@ -9,7 +9,8 @@ import { knockback } from './formulas';
 
 /**
  * The Mario reference with armored moves (heavy armor on frames 1-30, armor that holds below 100 knockback, and armor
- * that holds against hits under 12%), its 2.5% jab and a standing grab.
+ * that holds against hits under 12%, plus copies of the last two whose breaking hit deals half damage), its 2.5% jab
+ * and a standing grab.
  */
 registerFighter(
   defineFighter({
@@ -20,6 +21,18 @@ registerFighter(
       brace: { kind: 'other', faf: 50, hits: [], armor: { frames: [1, 30] } },
       tough: { kind: 'other', faf: 50, hits: [], armor: { frames: [1, 30], threshold: 100 } },
       stone: { kind: 'other', faf: 50, hits: [], armor: { frames: [1, 30], damageThreshold: 12 } },
+      toughHalf: {
+        kind: 'other',
+        faf: 50,
+        hits: [],
+        armor: { frames: [1, 30], threshold: 100, breakDamageMul: 0.5 },
+      },
+      stoneHalf: {
+        kind: 'other',
+        faf: 50,
+        hits: [],
+        armor: { frames: [1, 30], damageThreshold: 12, breakDamageMul: 0.5 },
+      },
       jab: marioReference.moves.jab,
       grab: {
         kind: 'other',
@@ -118,6 +131,42 @@ describe('armor (MoveDef.armor)', () => {
     const strong = probed('stone', 0).v;
     expect(probe.damage * 1.05).toBeGreaterThanOrEqual(12);
     expect(strong.launch).not.toBeNull();
+  });
+
+  it("a breaking hit adds breakDamageMul of its damage, at full knockback and hitlag (Kirby's Stone: 0.5)", () => {
+    const full = probed('stone', 0);
+    const half = probed('stoneHalf', 0);
+    expect(full.v.damage).toBeCloseTo(probe.damage * 1.05 * 1.2, 6);
+    expect(half.v.damage).toBeCloseTo(probe.damage * 1.05 * 0.5 * 1.2, 6);
+    expect(half.v.launch).not.toBeNull();
+    expect(half.v.launch).toEqual(full.v.launch);
+    expect(half.v.hitlag).toBe(full.v.hitlag);
+    expect(half.v.action).toBe(full.v.action);
+    const added = half.m.events.find((e) => e.type === 'hit')!;
+    expect(added).toMatchObject({ damage: half.v.damage, kb: full.v.launch!.kb });
+  });
+
+  it('hits the armor holds add their full damage with breakDamageMul set', () => {
+    const jabbed = (move: string) => {
+      const { m, v } = duel(0, 'test-armor');
+      attack(m, 1, move);
+      attack(m, 0, 'jab');
+      runPorts(m, 3, [{}, {}]);
+      expect([v.action, v.move, v.launch]).toEqual(['attack', move, null]);
+      return v.damage;
+    };
+    const jab = marioReference.moves.jab.hits[0]!.boxes[0]!;
+    expect(jabbed('stoneHalf')).toBeCloseTo(jab.damage * 1.05 * 1.2, 6);
+    expect(jabbed('stoneHalf')).toBe(jabbed('stone'));
+  });
+
+  it('breakDamageMul also halves a hit that breaks knockback-threshold armor', () => {
+    const { v } = probed('toughHalf', 120);
+    expect(v.action).toBe('tumble');
+    expect(v.damage).toBeCloseTo(120 + probe.damage * 1.05 * 0.5 * 1.2, 6);
+    const low = probed('toughHalf', 20).v;
+    expect([low.action, low.launch]).toEqual(['attack', null]);
+    expect(low.damage).toBeCloseTo(20 + probe.damage * 1.05 * 1.2, 6);
   });
 
   it('does not stop a grab', () => {

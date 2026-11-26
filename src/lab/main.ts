@@ -1,9 +1,6 @@
 import { Application, Text } from 'pixi.js';
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../config';
-import type { LabScene } from './types';
-
-const modules = import.meta.glob<{ scene: LabScene }>('./scenes/*.ts');
-const sceneName = (path: string) => path.replace('./scenes/', '').replace(/\.ts$/, '');
+import { SCENES } from './sceneList';
 
 declare global {
   interface Window {
@@ -25,9 +22,9 @@ async function boot(): Promise<void> {
   });
   root.appendChild(app.canvas);
 
-  const names = Object.keys(modules).map(sceneName).sort();
+  const names = Object.keys(SCENES).sort();
   const name = params.get('scene') ?? '';
-  const loader = modules[`./scenes/${name}.ts`];
+  const loader = Object.hasOwn(SCENES, name) ? SCENES[name] : undefined;
   if (!loader) {
     const list = new Text({
       text: `Lab scenes (?scene=name):\n${names.join('\n')}`,

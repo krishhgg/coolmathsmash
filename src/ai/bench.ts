@@ -2,7 +2,7 @@ import type { InputFrame } from '../input/types';
 import { createMatch, stepMatch, type MatchConfig, type MatchState } from '../sim/match';
 import type { Replay } from '../sim/replay';
 import { createCpu } from './index';
-import { stageInfo } from './stage';
+import { staticStage } from './stage';
 
 /**
  * Headless CPU-vs-CPU matches for the benchmark (scripts/ai-bench.ts) and tests: fixed seeds, no renderer, every
@@ -100,7 +100,7 @@ function winner(state: MatchState): number | null {
 
 function zone(state: MatchState, port: number): KoEvent['zone'] {
   const { x, y } = state.fighters[port]!.pos;
-  const b = stageInfo(state.config.stage).blast;
+  const b = staticStage(state.config.stage).blast;
   const gaps = { left: x - b.left, right: b.right - x, top: b.top - y, bottom: y - b.bottom };
   return (Object.keys(gaps) as KoEvent['zone'][]).reduce((a, k) => (gaps[k] < gaps[a] ? k : a));
 }

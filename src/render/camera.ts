@@ -12,6 +12,14 @@ export interface CameraView {
   zoom: number;
 }
 
+/** A point the drawn view leans toward: `weight` 0 keeps the camera's view, 1 centres `x`, `y` at `zoom`. */
+export interface Focus {
+  x: number;
+  y: number;
+  zoom: number;
+  weight: number;
+}
+
 const MARGIN_X = 55;
 const MARGIN_TOP = 35;
 const MARGIN_BOTTOM = 25;
@@ -155,13 +163,18 @@ export class Camera {
   }
 
   /**
-   * The view to draw `state` with: the smoothed view once stepped to its frame, shaken by the live screen shakes
-   * (which never feed back into the smoothing), else that frame's target.
+   * The view to draw `state` with: the smoothed view once stepped to its frame, leaning toward `focus` (the Special
+   * and Finish Zoom, zoom.ts) and shaken by the live screen shakes (neither feeds back into the smoothing), else that
+   * frame's target.
    */
-  viewFor(state: MatchState, stage: StageGeometry): CameraView {
+  viewFor(state: MatchState, stage: StageGeometry, focus: Focus | null = null): CameraView {
     const v = this.view;
     if (!v || this.frame !== state.frame) return cameraTarget(state, stage);
+    const w = focus?.weight ?? 0;
+    const x = focus ? v.x + (focus.x - v.x) * w : v.x;
+    const y = focus ? v.y + (focus.y - v.y) * w : v.y;
+    const zoom = focus ? v.zoom * (focus.zoom / v.zoom) ** w : v.zoom;
     const s = shakeOffset(this.shakes, state.frame);
-    return { x: v.x - s.x / v.zoom, y: v.y + s.y / v.zoom, zoom: v.zoom };
+    return { x: x - s.x / zoom, y: y + s.y / zoom, zoom };
   }
 }

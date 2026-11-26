@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { hashState } from '../../engine/hash';
-import { FIGHTERS } from '../../fighters/registry';
+import { allFighters } from '../../fighters/registry';
 import { isIntangible } from '../../sim/actions/registry';
 import { createMatch, type MatchState } from '../../sim/match';
 import { motionOffset, stageStateAt } from '../../sim/movingStage';
@@ -52,7 +52,7 @@ describe('Truck Convoy collision', () => {
       { x1: 23, x2: 61, y: 26 },
     ]);
     expect(stage.platforms.every((p) => p.hazard === true)).toBe(true);
-    const tallest = Math.max(...Object.values(FIGHTERS).map((f) => f.stats.height));
+    const tallest = Math.max(...Object.values(allFighters()).map((f) => f.stats.height));
     expect(HAULERS.y - RIG.top).toBeGreaterThan(tallest);
   });
 
