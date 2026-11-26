@@ -102,6 +102,7 @@ describe('Fluffy: stats (roster sheet 8)', () => {
 });
 
 describe('Fluffy: frame data (roster sheet 8)', () => {
+  // The kill moves deal their analogue's damage instead of the roster's: fsmash, bair and the four other aerials.
   it.each([
     ['jab', 3, 2],
     ['jab2', 3, 2],
@@ -113,11 +114,11 @@ describe('Fluffy: frame data (roster sheet 8)', () => {
     ['fsmash', 16, 16],
     ['usmash', 13, 14],
     ['dsmash', 10, 12],
-    ['nair', 5, 8],
-    ['fair', 9, 10],
+    ['nair', 5, 11],
+    ['fair', 9, 8],
     ['bair', 9, 10.5],
-    ['uair', 6, 7],
-    ['dair', 12, 10],
+    ['uair', 6, 6.5],
+    ['dair', 12, 11],
     ['grab', 12, 0],
   ])('%s comes out on frame %i and deals %s%%', (move, frame, dmg) => {
     expect(startup(move)).toBe(frame);
@@ -214,6 +215,60 @@ describe('Fluffy: kill percents against his Ultimate analogues', () => {
     ['bthrow', "Mario's bthrow", { damage: 11, angle: 45, kbg: 66, bkb: 70 }, {}],
   ] as const)('%s kills within 5 points of %s', (move, _analogue, hit, setup) => {
     expect(Math.abs(ko(move, setup) - koPercent({ hit, ...setup })!)).toBeLessThanOrEqual(5);
+  });
+
+  /**
+   * Sourced kill percents for the other aerials: SSBU-Calculator's KO calculator (rubendal/SSBU-Calculator 233590e,
+   * js/knockback.js Distance, run headless with ko.test.ts's setup: Mario airborne at Battlefield's ledge, x 79.9,
+   * fresh, no rage, no DI) on the analogue's 13.0.1 hitbox from ultimate-hitboxes.com (RSN-Bran/ultimate-hitboxes
+   * ead416b, server/data). SmashWiki's Jigglypuff (SSBU)/Neutral aerial and Min Min (SSBU)/Up aerial and /Down aerial
+   * tables give the same values; its Min Min (SSBU)/Forward aerial page gives the Dragon arm KBG 87, not 90, which
+   * KOs at 143.2. The down air's late hit is its own box; koPercent on the move counts the meteor, below.
+   */
+  it.each([
+    {
+      move: 'nair',
+      hit: { fighter: 'fluffy', move: 'nair' },
+      analogue: "Jigglypuff's clean nair", // 11%, 361°, BKB 30, KBG 100
+      sourced: 108.8,
+    },
+    {
+      move: 'fair',
+      hit: { fighter: 'fluffy', move: 'fair' },
+      analogue: "Min Min's Dragon fair", // 8%, 361°, BKB 50, KBG 90
+      sourced: 137.3,
+    },
+    {
+      move: 'uair',
+      hit: { fighter: 'fluffy', move: 'uair' },
+      analogue: "Min Min's 6.5% uair box", // 6.5%, 70°, BKB 40, KBG 130
+      sourced: 173.8,
+    },
+    {
+      move: 'dair late hit',
+      hit: moves.dair!.hits[1]!.boxes[0]!,
+      analogue: "Min Min's late dair", // 9%, 55°, BKB 80, KBG 60
+      sourced: 195.3,
+    },
+  ] satisfies { move: string; hit: KoSetup['hit']; analogue: string; sourced: number }[])(
+    '$move KOs within 5 points of $analogue at $sourced%',
+    ({ hit, sourced }) => {
+      const percent = koPercent({ hit, air: true });
+      expect(percent).not.toBeNull();
+      expect(Math.abs(percent! - sourced)).toBeLessThanOrEqual(5);
+    },
+  );
+
+  /**
+   * The down air's meteor, on Mario airborne 10 units past the ledge, where a downward hit can KO. The calculator
+   * puts Min Min's meteor (11%, 285°, BKB 30, KBG 90) at 54.6% there, but under balloon speed-up its KO check reads
+   * a launch speed from earlier in the launch, which KOs meteors 6 to 8 points early (#263). So the meteor is held to
+   * Min Min's hit through koPercent from the same setup instead.
+   */
+  it("dair's meteor KOs within 5 points of Min Min's meteor 10 units past the ledge", () => {
+    const setup = { air: true, from: { x: 90, y: 0 } };
+    const minMin = koPercent({ hit: { damage: 11, angle: 285, kbg: 90, bkb: 30 }, ...setup })!;
+    expect(Math.abs(ko('dair', setup) - minMin)).toBeLessThanOrEqual(5);
   });
 
   it('forward smash kills earliest, then down smash, back air, back throw and up smash', () => {
