@@ -1,6 +1,7 @@
 import type { HitboxDef, MoveDef } from '../types';
 import { Btn } from '../../input/types';
-import { SMASH_CHARGE_FRAMES, startMove } from '../../sim/actions/attack';
+import { startMove } from '../../sim/actions/attack';
+import { SMASH_CHARGE_FRAMES } from '../../sim/actions/charge';
 import { isHeld } from '../../sim/control';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */

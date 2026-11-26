@@ -4,8 +4,9 @@ const RB = 'characters/red-ball';
 
 /**
  * Red Ball's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus his four jumps, the Cube Squash bounce, a full Charge Roll and lab sheets of every move on its
- * first active frame (zoom 10 keeps the lunges inside their cells). References live in the Captain drive's refs/.
+ * Fireboy, plus his four jumps, the Cube Squash bounce, a full Charge Roll, Tongue Lash on a shield and reeling to
+ * a ledge, and lab sheets of every move on its first active frame (zoom 10 keeps the lunges inside their cells; the
+ * tongue sheet uses 5 for its 28-unit tongue). References live in the Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'redball',
@@ -177,6 +178,72 @@ export const scenarios: FighterScenarios = {
       page: { kind: 'lab', scene: 'fighter', params: { fighter: 'redball', palette: 'evil' } },
       calls: [{ fn: 'sheet', args: [['idle@0', 'run@6', 'fsmash@16', 'taunt@50', 'shield@10']] }],
       refs: [`${RB}/assist-gray-square-01*`, `${RB}/assist-squarified-01*`, `${RB}/cutscene-expressions-*`],
+    },
+    {
+      name: 'redball-sheet-tongue',
+      description:
+        'Tongue Lash: the wind-up, the tongue half out, at full length on its first hit frame and snapping back, then the reel to a ledge.',
+      page: { kind: 'lab', scene: 'fighter', params: { fighter: 'redball', zoom: '5' } },
+      calls: [
+        {
+          fn: 'sheet',
+          args: [['sideB@10', 'sideB@13', 'sideB@15', 'sideB@22', 'tetherPull@1', 'tetherPull@6']],
+        },
+      ],
+      refs: [`${RB}/video-roster-art-*`, `${RB}/cutscene-expressions-*`],
+    },
+    {
+      name: 'redball-tongue-shield',
+      description:
+        'Red Ball lashes Tongue Lash (side special) at a shielding Fireboy 24 units away; capture the tip hitting the shield.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'redball' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -12, y: 0 }, facing: 1 } },
+        { port: 1, state: { pos: { x: 12, y: 0 }, facing: -1 } },
+      ],
+      script: [
+        { port: 1, from: 2, to: 120, buttons: ['shield'] },
+        { port: 0, from: 30, x: 100, buttons: ['special'] },
+      ],
+      capture: {
+        label: 'P2 goes into shieldstun',
+        when: (s, prev) =>
+          s.fighters[1]!.action === 'shieldStun' && prev.fighters[1]!.action !== 'shieldStun',
+      },
+      motion: { before: 20, after: 24 },
+      requires: ['move:sideB'],
+      refs: ['smash/attack-active-*', 'smash/shield-0*', `${RB}/video-roster-art-*`],
+    },
+    {
+      name: 'redball-tongue-ledge',
+      description:
+        'Red Ball falls off the right side of Battlefield, below the ledge, and Tongue Lashes towards it; capture the reel ending in a ledge catch.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'redball' }, { fighter: 'fireboy' }] },
+      patches: [
+        {
+          port: 0,
+          state: {
+            pos: { x: 104, y: -5 },
+            vel: { x: 0, y: 0 },
+            ground: null,
+            action: 'fall',
+            jumpsUsed: 4,
+            facing: -1,
+          },
+        },
+        { port: 1, state: { pos: { x: 20, y: 0 } } },
+      ],
+      script: [{ port: 0, from: 2, x: -100, buttons: ['special'] }],
+      capture: {
+        label: 'P1 catches the ledge',
+        when: (s, prev) =>
+          s.fighters[0]!.action === 'ledgeCatch' && prev.fighters[0]!.action !== 'ledgeCatch',
+      },
+      motion: { before: 22, after: 12 },
+      requires: ['move:sideBAir', 'action:tetherPull'],
+      refs: ['smash/ledge-hang-*', `${RB}/ingame-swing-*`],
     },
     {
       name: 'redball-charge-roll',
