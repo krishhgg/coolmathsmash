@@ -55,6 +55,12 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   taunt: 60,
 };
 
+/**
+ * How far below the floor (rig y 0) a drawn part may reach in a grounded clip. Tweening between the planted
+ * stand and crouch dips the feet by up to 0.19.
+ */
+const FLOOR = 0.2;
+
 describe('fireboy art', () => {
   it('has every canonical clip with its length', () => {
     for (const [name, len] of Object.entries(LENGTHS)) {
@@ -118,6 +124,12 @@ describe('fireboy art', () => {
     expect(-y0).toBeLessThan(15.5);
     expect(x1 - x0).toBeGreaterThan(7.5);
     expect(x1 - x0).toBeLessThan(9);
+  });
+
+  it('keeps every drawn part on or above the floor through both rolls', () => {
+    for (const name of ['rollForward', 'rollBack'])
+      for (let f = 0; f <= art.clips[name]!.length; f++)
+        expect(poseBounds(art, samplePose(art, name, f, f))[3], `${name}@${f}`).toBeLessThan(FLOOR);
   });
 
   it('has costumes with the same colour keys, an icon and a fireball', () => {

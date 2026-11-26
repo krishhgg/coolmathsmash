@@ -1130,3 +1130,141 @@ const flame = (len: number, wide: number): PathShape[] => [
   ),
 ];
 export const fxFlames = { fxFlameA: flame(2.4, 1), fxFlameB: flame(1.9, 1.15) };
+
+// ---------------------------------------------------------------------------------------------------------
+// Attack effects and props.
+
+/**
+ * The launcher's muzzle pop, in muzzle space: the origin is the end of the barrel and the blast fans out along +x.
+ * A jagged yellow flash with a white core, the way Flash games drew a shot.
+ */
+const POP: P[] = [
+  [0, -0.5],
+  [0.45, -1.7],
+  [0.95, -0.8],
+  [2.0, -1.6],
+  [1.65, -0.45],
+  [2.85, 0],
+  [1.65, 0.45],
+  [2.0, 1.6],
+  [0.95, 0.8],
+  [0.45, 1.7],
+  [0, 0.5],
+];
+export const fxPop: PathShape[] = [
+  inked(poly(POP), 'star', INK * 1.2),
+  fill(poly(place(POP, 0.15, 0, 0.55, 0.5)), 'spark'),
+];
+
+/** A hand grenade for the side special, in hand space: an olive body on the fist, its lever and pin ring on top. */
+export const grenade: PathShape[] = [
+  ...solid(
+    [
+      [-0.32, -0.95, 0],
+      [0.32, -0.95, 0],
+      [0.32, -0.6, 0],
+      [-0.32, -0.6, 0],
+    ],
+    'buckle',
+  ),
+  inked(ellipse(-0.55, -1.05, 0.3, 0.3) + ellipse(-0.55, -1.05, 0.14, 0.14), 'buckle', INK),
+  ...strokes(
+    [
+      [0.25, -0.95],
+      [0.75, -0.7],
+      [0.85, -0.1],
+    ],
+    0.22,
+    'line',
+  ),
+  ...solid(
+    [
+      [-0.85, -0.15],
+      [-0.6, -0.68],
+      [0, -0.8],
+      [0.6, -0.68],
+      [0.85, -0.15],
+      [0.7, 0.55],
+      [0, 0.85],
+      [-0.7, 0.55],
+    ],
+    'grenade',
+  ),
+  fill(
+    smooth([
+      [0.85, -0.15],
+      [0.7, 0.55],
+      [0, 0.85],
+      [-0.55, 0.62],
+      [0.1, 0.55],
+      [0.55, 0.15],
+    ]),
+    'grenadeLo',
+  ),
+  ...strokes(
+    [
+      [-0.75, 0.05],
+      [0.78, 0.05],
+    ],
+    INK,
+  ),
+  ...strokes(
+    [
+      [0, -0.78],
+      [0, 0.82],
+    ],
+    INK,
+  ),
+  fill(ellipse(-0.38, -0.38, 0.2, 0.12), 'grenadeHi'),
+];
+
+/** A splash of pool water thrown up from the floor, in splash space: the origin is its foot, the spray rises up -y. */
+const SPLASH: P[] = [
+  [-2.1, 0, 0],
+  [-1.85, -1.2],
+  [-2.45, -2.6, 0],
+  [-1.15, -1.75],
+  [-0.85, -3.6, 0],
+  [-0.15, -2.1],
+  [0.45, -3.9, 0],
+  [0.85, -2.0],
+  [1.95, -3.1, 0],
+  [1.4, -1.25],
+  [2.4, -1.5, 0],
+  [2.1, 0, 0],
+];
+export const fxSplash: PathShape[] = [
+  fill(smooth(inflate(SPLASH, LINE)), 'line'),
+  fill(smooth(SPLASH), 'splash'),
+  fill(
+    smooth([
+      [-1.6, 0, 0],
+      [-1.0, -1.1],
+      [0.2, -1.4],
+      [1.2, -0.9],
+      [1.6, 0, 0],
+    ]),
+    'splashLo',
+  ),
+  fill(ellipse(-0.75, -2.35, 0.16, 0.42), 'splashHi'),
+  fill(ellipse(0.4, -2.75, 0.14, 0.38), 'splashHi'),
+  ...[
+    [-2.9, -3.3, 0.32],
+    [-0.4, -4.5, 0.28],
+    [1.3, -4.3, 0.34],
+    [2.85, -2.4, 0.3],
+  ].map(([x, y, r]) => inked(ellipse(x!, y!, r!, r! * 1.25), 'splash', INK)),
+];
+
+/** A rocket's burst, radius about 3 at scale 1: an orange flash round a yellow core, white smoke puffs at its edge. */
+export const fxBoom: PathShape[] = [
+  ...[
+    [-2.2, -1.6, 1.05],
+    [2.3, -1.3, 0.95],
+    [-2.1, 1.9, 0.9],
+    [2.1, 2.0, 1.0],
+  ].map(([x, y, r]) => inked(ellipse(x!, y!, r!), 'puff', INK)),
+  inked(star(0, 0, 3.2, 1.9, 9, -80), 'flame', INK * 1.3),
+  fill(star(0, 0, 1.9, 1.1, 9, -60), 'flameCore'),
+  fill(ellipse(0, 0, 0.8), 'spark'),
+];
