@@ -519,6 +519,7 @@ function counterattack(m: MatchState, posed: CompiledStage, h: Connection, c: Co
     hitEntities: [],
     moveStale: 0,
     charge: 0,
+    bReverseFrom: -1,
     counterDamage: Math.min(c.max ?? COUNTER.max, caught * (c.multiplier ?? COUNTER.multiplier)),
     hitlag: Math.max(0, freeze - 1),
     intangible: Math.max(f.intangible, 1),
