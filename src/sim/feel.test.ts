@@ -434,15 +434,39 @@ describe('ledge', () => {
     }
   });
 
-  it('hangs, is intangible, and the hang lasts up to 300 frames', () => {
+  it('hangs for 360 frames after the catch, then lets go (Ultimate cliff_catch_time_quick)', () => {
     const { m, f } = hang();
     run(m, 1);
     expect(f.action).toBe('ledgeCatch');
     run(m, 19);
     expect(f.action).toBe('ledgeHang');
     expect(isIntangible(f)).toBe(true);
-    run(m, 320);
-    expect(f.action).not.toBe('ledgeHang');
+    let frames = 0;
+    while (f.action === 'ledgeHang' && frames < 400) {
+      frames++;
+      run(m, 1);
+    }
+    expect(frames).toBe(ref.ledge.hang_max_frames);
+    expect(f.action).toBe('fall');
+    expect(f.ledge).toBe(-1);
+  });
+
+  it('after letting go, catches no ledge until 44 frames later (Ultimate cliff_no_catch_frame)', () => {
+    const { m, f } = hang();
+    run(m, 30);
+    expect(f.action).toBe('ledgeHang');
+    const L = getStage('battlefield').ledges[0]!;
+    run(m, 1, { y: -100 });
+    expect(f.action).toBe('fall');
+    // Hold the fighter where it would catch the ledge, falling, until it does; frame 0 is the release.
+    let caught = 0;
+    for (let t = 1; t <= 60 && !caught; t++) {
+      Object.assign(f, { pos: { x: L.x + L.side * 3, y: L.y - 6 }, vel: { x: 0, y: 0 } });
+      f.prevPos = { ...f.pos };
+      run(m, 1);
+      if (f.action.startsWith('ledge')) caught = t;
+    }
+    expect(caught).toBe(ref.ledge.no_regrab_after_release_frames);
   });
 
   it('the ledge catch lasts 19 frames counting the grab frame, so the hang acts on frame 20 (Ultimate)', () => {
