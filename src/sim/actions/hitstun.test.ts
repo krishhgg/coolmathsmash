@@ -1,22 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { HITSTUN_CANCEL_AERIAL } from '../constants';
+import { VERTICAL_LAUNCH_FALL_SPEED } from '../combat/formulas';
+import { HITSTUN_CANCEL_AERIAL, HITSTUN_CANCEL_AIR_DODGE } from '../constants';
 import type { FighterState } from '../fighter';
 import type { MatchState } from '../match';
+import { marioReference as mario } from '../testing/reference';
 import { placeInAir, run, testMatch, type Hold } from '../testing/sim';
 
 /**
- * Fighter 0 airborne with a pending set-knockback launch at 45 degrees, as a hit leaves it once hitlag ends. Set
- * knockback gets no balloon speed-up and no tumble gravity bonus, so the launch speed is kb x 0.03 and drops by
- * 0.051 a frame: frame n of hitstun starts at kb x 0.03 - 0.051 x (n - 1).
+ * Fighter 0 airborne with a pending set-knockback launch (45 degrees unless `angle` says otherwise), as a hit leaves
+ * it once hitlag ends. Set knockback gets no balloon speed-up and no tumble gravity bonus, so the launch speed is
+ * kb x 0.03 and drops by 0.051 a frame: frame n of hitstun starts at kb x 0.03 - 0.051 x (n - 1).
  */
-function launched(kb: number, fighter?: string): MatchState {
-  const m = testMatch({ fighter });
+function launched(kb: number, opts: { fighter?: string; angle?: number } = {}): MatchState {
+  const m = testMatch({ fighter: opts.fighter });
   const f = placeInAir(m, -100, 40);
   Object.assign(f, {
     action: 'tumble',
     actionFrame: 0,
     hitstun: 0,
-    launch: { kb, angle: 45, dir: 1, setKnockback: true },
+    launch: { kb, angle: opts.angle ?? 45, dir: 1, setKnockback: true },
   });
   return m;
 }
@@ -64,7 +66,7 @@ describe('hitstun cancel by aerial', () => {
   it('takes C-stick aerials, but not specials or jumps', () => {
     const frame = HITSTUN_CANCEL_AERIAL.after + 1;
     // The reference fighter has no fair; Snail Bob does. launched() leaves it facing right.
-    expect(pressOn(launched(130, 'snailbob'), frame, { cx: 100 }).f.move).toBe('fair');
+    expect(pressOn(launched(130, { fighter: 'snailbob' }), frame, { cx: 100 }).f.move).toBe('fair');
     expect(pressOn(launched(130), frame, { buttons: ['special'] }).f.action).toBe('tumble');
     expect(pressOn(launched(130), frame, { buttons: ['jump'] }).f.action).toBe('tumble');
   });
@@ -97,5 +99,42 @@ describe('hitstun cancel by aerial', () => {
     expect(on39.speed).toBeLessThan(HITSTUN_CANCEL_AERIAL.below);
     expect(on39.f.action).toBe('tumble');
     expect(pressOn(launched(100), 40, attack).f.action).toBe('aerial');
+  });
+});
+
+describe('a hitstun cancel ends hitstun', () => {
+  /**
+   * kb 130 straight up: a near-vertical launch, which falls with DamageFlyTop gravity capped at 1.8 only while
+   * hitstun lasts (51 frames here). Cancel on `frame` with `hold`, then fall for 80 frames. Without the cancel ending
+   * hitstun the fighter would keep that 1.8 cap; with it, it eases back to its own fall speed of 1.5.
+   */
+  function cancelUpLaunch(frame: number, hold: Hold, action: string) {
+    const m = launched(130, { angle: 90 });
+    const r = pressOn(m, frame, hold);
+    expect(r.f.flyTop).toBe(true);
+    expect(r.hitstun).toBeGreaterThan(0);
+    expect(r.f.action).toBe(action);
+    const stunAfter = r.f.hitstun;
+    let fastest = 0;
+    for (let i = 0; i < 80; i++) {
+      run(m, 1);
+      fastest = Math.min(fastest, r.f.vel.y);
+    }
+    expect(r.f.ground).toBeNull();
+    return { stunAfter, fastest, vy: r.f.vel.y };
+  }
+
+  it("after an aerial: hitstun reads 0 and the fall eases back to the fighter's own fall speed", () => {
+    const r = cancelUpLaunch(HITSTUN_CANCEL_AERIAL.after + 1, attack, 'aerial');
+    expect(r.stunAfter).toBe(0);
+    expect(r.fastest).toBeGreaterThan(-VERTICAL_LAUNCH_FALL_SPEED);
+    expect(r.vy).toBeCloseTo(-mario.stats.fallSpeed, 6);
+  });
+
+  it("after an air dodge: hitstun reads 0 and the fall eases back to the fighter's own fall speed", () => {
+    const r = cancelUpLaunch(HITSTUN_CANCEL_AIR_DODGE.from, { buttons: ['shield'] }, 'airDodge');
+    expect(r.stunAfter).toBe(0);
+    expect(r.fastest).toBeGreaterThan(-VERTICAL_LAUNCH_FALL_SPEED);
+    expect(r.vy).toBeCloseTo(-mario.stats.fallSpeed, 6);
   });
 });

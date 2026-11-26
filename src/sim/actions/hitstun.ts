@@ -30,7 +30,8 @@ export const HITSTUN: Record<string, ActionDef> = {
   /**
    * Launched into tumble. No control during hitstun except Ultimate's hitstun cancels once the launch has slowed:
    * an air dodge, or an aerial (not a special or a jump). SmashWiki (Hitstun canceling) names only those two, and
-   * counts the 40 and 45 frames in real frames while balloon speed-up still shrinks the launch speed. Afterwards
+   * counts the 40 and 45 frames in real frames while balloon speed-up still shrinks the launch speed. A cancel
+   * ends hitstun, so a near-vertical launch stops using DamageFlyTop gravity and the 1.8 fall cap. Afterwards
    * the fighter drifts and acts like falling. Landing in tumble techs if Shield was pressed in the last
    * TECH_WINDOW frames (a tech roll with the stick held sideways), else it is a missed tech.
    */
@@ -48,6 +49,7 @@ export const HITSTUN: Record<string, ActionDef> = {
           speed < HITSTUN_CANCEL_AERIAL.below &&
           airAttack(x, false)
         ) {
+          f.hitstun = 0;
           return;
         }
         const slow = speed <= HITSTUN_CANCEL_AIR_DODGE.maxSpeed;
@@ -58,6 +60,7 @@ export const HITSTUN: Record<string, ActionDef> = {
           buffered(c, Btn.Shield)
         ) {
           consume(c, Btn.Shield);
+          f.hitstun = 0;
           setAction(x, 'airDodge');
         }
         return;
