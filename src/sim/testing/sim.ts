@@ -6,9 +6,11 @@ import { buttonBit, neutralInput, type ButtonName, type InputFrame } from '../..
 import { createMatch, stepMatch, type MatchState } from '../match';
 import { compiledStage } from '../step';
 import type { FighterState } from '../fighter';
+import { testCharger } from './charge';
 import { marioReference } from './reference';
 
 registerFighter(marioReference);
+registerFighter(testCharger);
 registerStage(testbed);
 registerStage(hazardTestbed);
 
@@ -26,13 +28,13 @@ export function input(h: Hold = {}): InputFrame {
 
 /** A 1-player (or n-player) match on Battlefield (or `stage`) with the Mario reference fighter, settled on the ground. */
 export function testMatch(
-  opts: { fighter?: string; players?: number; x?: number; stage?: string } = {},
+  opts: { fighter?: string; players?: number; x?: number; stage?: string; stocks?: number } = {},
 ): MatchState {
   const fighter = opts.fighter ?? marioReference.id;
   const m = createMatch({
     seed: 1,
     stage: opts.stage ?? 'battlefield',
-    stocks: 3,
+    stocks: opts.stocks ?? 3,
     ports: Array.from({ length: opts.players ?? 1 }, () => ({ fighter })),
   });
   if (opts.x !== undefined) m.fighters[0]!.pos.x = opts.x;

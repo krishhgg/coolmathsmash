@@ -8,15 +8,19 @@ import type { StageGeometry } from '../sim/stage';
 import { tetherOrigin } from '../sim/actions/tether';
 import { activeHitboxes, hurtbox } from '../sim/combat/hits';
 import { Camera } from './camera';
+import { drawChargeGlows } from './chargeGlow';
 import { EventLog } from './debug/eventLog';
 import { drawEntities, drawEntityBoxes } from './entities';
 import { InputDisplay } from './debug/inputDisplay';
 import { drawMobility } from './debug/mobility';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud, OverheadTags } from './hud';
-import { drawStagePieces, isMoving } from './stagePieces';
+import { placeholderStage } from './placeholderStage';
+import { drawStagePieces } from './stagePieces';
+import { paint } from './vfx/paint';
 import { fighterFx, Vfx } from './vfx/system';
 import { VfxView } from './vfx/view';
+import { Zoom, zoomFlashShapes, zoomFocus } from './zoom';
 
 /** Stage art: src/stages/<id>/view.ts exports createStageView (docs/stages.md). Stages without one draw flat. */
 const STAGE_VIEWS = import.meta.glob<{ createStageView: () => StageView }>('../stages/*/view.ts', {
@@ -50,12 +54,15 @@ export class Renderer {
   readonly eventLog = new EventLog();
   readonly camera = new Camera();
   readonly vfx = new Vfx();
+  readonly zoom = new Zoom();
   private readonly vfxView: VfxView;
   private readonly inputDisplay = new InputDisplay();
   readonly matchHud = new MatchHud();
   private readonly tags = new OverheadTags();
   private readonly stageLayer = new Container();
   private readonly stagePieces = new Graphics();
+  /** The Special and Finish Zoom flash, in screen pixels behind the fighters (like the KO blast). */
+  private readonly zoomFlash = new Graphics();
   private readonly fighterLayer = new Container();
   private readonly foregroundLayer = new Container();
   private stageView: StageView | null = null;
@@ -71,6 +78,7 @@ export class Renderer {
   });
   private readonly boxes = new Graphics();
   private readonly entities = new Graphics();
+  private readonly glows = new Graphics();
   private fighters: FighterView[] = [];
   /** Fighter id each view was built for; a transform swaps the view. */
   private fighterIds: string[] = [];
@@ -88,8 +96,10 @@ export class Renderer {
     this.world.addChild(
       this.stageLayer,
       this.stagePieces,
+      this.zoomFlash,
       this.vfxView.screen,
       this.vfxView.behind,
+      this.glows,
       this.fighterLayer,
       this.entities,
       this.vfxView.front,
@@ -162,19 +172,31 @@ export class Renderer {
     this.camera.step(state, getStage(state.config.stage));
     this.matchHud.step(state);
     this.vfx.step(state);
+    this.zoom.step(state);
+    for (const e of state.events) {
+      if (e.type === 'parry')
+        this.fighters[state.fighters.findIndex((f) => f.port === e.victim)]?.parried(state.frame);
+    }
   }
 
   /** Draw `state`; `alpha` interpolates between the previous and current simulated frame. */
   render(state: MatchState, alpha: number): void {
     this.sync(state);
     const fx = this.vfx.at(state);
-    const view = this.camera.viewFor(state, this.stage!);
+    const zoom = this.zoom.at(state);
+    const view = this.camera.viewFor(state, this.stage!, zoom && zoomFocus(zoom, state.frame));
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
-    this.vfxView.screen.scale.set(1 / view.zoom);
-    this.vfxView.screen.position.set(-this.world.x / view.zoom, -this.world.y / view.zoom);
+    for (const screen of [this.vfxView.screen, this.zoomFlash]) {
+      screen.scale.set(1 / view.zoom);
+      screen.position.set(-this.world.x / view.zoom, -this.world.y / view.zoom);
+    }
+    this.zoomFlash.clear();
+    if (zoom) paint(this.zoomFlash, zoomFlashShapes(zoom, state.frame, view, this.quality === 'lite'));
     this.stageView?.update(state.frame, view);
-    drawStagePieces(this.stagePieces, this.stage!, state, alpha);
+    this.stageView?.pieces?.(state.stage, alpha);
+    drawStagePieces(this.stagePieces, this.stage!, state, alpha, !this.stageView?.pieces);
+    drawChargeGlows(this.glows, state, alpha);
     state.fighters.forEach((f, i) =>
       this.fighters[i]?.update(
         f,
@@ -210,7 +232,7 @@ export class Renderer {
     this.inputDisplay.container.visible = this.overlays.inputs;
     if (this.overlays.inputs) this.inputDisplay.update(state.players);
     this.eventLog.container.visible = this.overlays.events;
-    if (this.overlays.events) this.eventLog.update();
+    if (this.overlays.events) this.eventLog.update(state);
     if (this.quality === 'full')
       this.app.renderer.render({ container: this.background, target: this.backdrop, clear: true });
     this.app.render();
@@ -245,24 +267,4 @@ export class Renderer {
     }
     drawEntityBoxes(g, state);
   }
-}
-
-/** Collision geometry drawn flat, for stages without art. */
-function placeholderStage(stage: StageGeometry): Graphics {
-  const g = new Graphics();
-  for (const solid of stage.solids) {
-    if (isMoving(solid)) continue;
-    g.poly(solid.points.flatMap(([x, y]) => [x, -y])).fill('#7a5230');
-    const top = solid.points.filter(([, y]) => y === Math.max(...solid.points.map((p) => p[1])));
-    const xs = top.map(([x]) => x);
-    g.rect(
-      Math.min(...xs),
-      -Math.max(...solid.points.map((p) => p[1])),
-      Math.max(...xs) - Math.min(...xs),
-      3,
-    ).fill('#3d8f3a');
-  }
-  for (const p of stage.platforms)
-    if (!isMoving(p)) g.roundRect(p.x1, -p.y, p.x2 - p.x1, 2.2, 1.1).fill('#d9d2c0');
-  return g;
 }

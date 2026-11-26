@@ -24,17 +24,41 @@ const STAND_INS: Record<string, string> = {
   getupRoll: 'techRoll',
 };
 
+/**
+ * A tether's reel and hang keep the move's name and play on its clip (clipFor), unless the art has a clip named
+ * after the action: that plays from the reel's own first frame instead (Red Ball's tongue reel).
+ */
+const REEL_ACTIONS = new Set(['tetherPull', 'tetherHang']);
+
 export function fighterArt(def: FighterDef): FighterArt | undefined {
   return def.art as FighterArt | undefined;
 }
 
-/** The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. */
+/**
+ * The move frame `f` is drawn on. A tether's reel keeps the move but restarts the action frame, so tetherPull
+ * counts on from the move frame the line anchored on, and tetherHang holds the move frame the reel arrived on.
+ */
+function moveFrame(f: FighterState): number {
+  const from = f.tether?.moveFrame;
+  if (from === undefined) return f.actionFrame;
+  if (f.action === 'tetherPull') return from + f.actionFrame - 1;
+  if (f.action === 'tetherHang') return from;
+  return f.actionFrame;
+}
+
+/**
+ * The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. A tether move's clip
+ * plays on through the reel, held on the clip's `reel` frame (AnimClip.reel) until the fighter arrives, unless the
+ * art has its own clip for the reel (REEL_ACTIONS).
+ */
 export function clipFor(def: FighterDef, art: FighterArt, f: FighterState): [string, number] {
-  const own = f.move ?? f.action;
+  const reeling = REEL_ACTIONS.has(f.action);
+  const own = f.move && !(reeling && art.clips[f.action]) ? f.move : f.action;
   const name = art.clips[own] ? own : (STAND_INS[own] ?? 'idle');
   const clip = art.clips[name];
   if (!clip || !f.move || name !== f.move) return [name, f.actionFrame];
-  return [name, moveClipFrame(clip, f.actionFrame, def.moves?.[f.move])];
+  const frame = moveClipFrame(clip, moveFrame(f), def.moves?.[f.move]);
+  return [name, reeling && clip.reel !== undefined ? Math.min(frame, clip.reel) : frame];
 }
 
 /**
@@ -60,6 +84,9 @@ export function shieldRadius(def: FighterDef, shieldHp: number): number {
   return Math.max(0, def.stats.shieldSize * ((shieldHp / SHIELD_MAX) * 0.85 + 0.15));
 }
 
+/** Frames the parry flash lasts (render only; Ultimate shows a bright flash on the parrying fighter). */
+export const PARRY_FLASH_FRAMES = 12;
+
 /** One fighter: its rig posed from the action and frame, plus shield and debug label. World units, y down. */
 export class FighterView {
   readonly container = new Container();
@@ -73,6 +100,10 @@ export class FighterView {
   /** The colour flash (smash charge, respawn invincibility); never made in `lite`, where it is the blink instead. */
   private flash: ColorMatrixFilter | null = null;
   private flashing = false;
+  /** The parry burst over the body. */
+  private readonly parryFlash = new Graphics({ blendMode: 'add' });
+  /** Match frame of this fighter's last parry (render state only). */
+  private parryAt = -Infinity;
   /** Height of the head above the feet, in world units; the overhead tag points here. */
   readonly top: number;
   private readonly label = new Text({
@@ -103,7 +134,12 @@ export class FighterView {
     this.top = this.art?.height ?? h;
     this.label.position.set(0, -this.top - 5);
     this.label.visible = false;
-    this.container.addChild(this.glow, this.body, this.shield, this.label);
+    this.container.addChild(this.glow, this.body, this.shield, this.parryFlash, this.label);
+  }
+
+  /** Start the parry flash; `frame` is the match frame after the parry. */
+  parried(frame: number): void {
+    this.parryAt = frame;
   }
 
   /** `fx`: the jitter, flash and latest shield hit the effects put on this fighter (src/render/vfx). */
@@ -157,7 +193,20 @@ export class FighterView {
           ),
         );
     }
+    this.drawParryFlash(frame - this.parryAt);
     this.label.visible = debug;
     if (debug) this.label.text = `${f.move ?? f.action} ${f.actionFrame}`;
+  }
+
+  /** A white burst and a pale yellow ring around the body, fading out over PARRY_FLASH_FRAMES. */
+  private drawParryFlash(t: number): void {
+    this.parryFlash.clear();
+    if (t < 0 || t >= PARRY_FLASH_FRAMES) return;
+    const k = t / PARRY_FLASH_FRAMES;
+    const fade = (1 - k) * (1 - k);
+    const r = this.def.stats.shieldSize;
+    const y = -this.def.stats.height / 2;
+    this.parryFlash.circle(0, y, r * (1.1 - 0.3 * k)).fill({ color: '#ffffff', alpha: 0.85 * fade });
+    this.parryFlash.circle(0, y, r * (1.1 + 0.9 * k)).stroke({ color: '#fff3a8', width: 1.4, alpha: fade });
   }
 }

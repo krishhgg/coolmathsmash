@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AIR_DODGE_NEUTRAL,
+  INFINITE_STOCKS,
   LEDGE_INTANGIBILITY,
   LEDGE_MAX_GRABS,
   LEDGE_GETUP_INTANGIBILITY_SCALE,
@@ -440,11 +441,11 @@ describe('dodges', () => {
   });
 
   it.each([
-    ['rollForward', 100, ROLL_FORWARD, -1],
-    ['rollBack', -100, ROLL_BACK, 1],
+    ['rollForward', 100, ROLL_FORWARD, -1, S.rollDistance],
+    ['rollBack', -100, ROLL_BACK, 1, S.backRollDistance],
   ] as const)(
-    '%s: travels the roll distance on its own intangible frames and FAF',
-    (name, x, spec, facing) => {
+    '%s: travels its own distance on its own intangible frames and FAF',
+    (name, x, spec, facing, distance) => {
       const m = testMatch();
       const f = fighter(m);
       run(m, 5, { buttons: ['shield'] });
@@ -458,7 +459,7 @@ describe('dodges', () => {
         if (isIntangible(f)) intangible.push(f.actionFrame);
         run(m, 1);
       }
-      expect(Math.abs(f.pos.x - x0)).toBeCloseTo(S.rollDistance, 1);
+      expect(Math.abs(f.pos.x - x0)).toBeCloseTo(distance, 1);
       expect([intangible[0], intangible.at(-1)]).toEqual(spec.intangible);
       expect(last + 1).toBe(spec.faf);
       expect(f.facing).toBe(facing);
@@ -507,6 +508,20 @@ describe('blast zones and respawn', () => {
     run(m, 1, { x: 100 });
     expect(f.action).toBe('fall');
     expect(f.intangible).toBe(RESPAWN_INVINCIBILITY - 1);
+  });
+
+  it('keeps every stock under Infinite stock and respawns after the 99th fall and beyond', () => {
+    const m = testMatch({ stocks: INFINITE_STOCKS });
+    const f = fighter(m);
+    let kos = 0;
+    for (let fall = 1; fall <= 120; fall++) {
+      placeInAir(m, 0, -130);
+      until(m, (g) => g.action === 'ko');
+      kos += m.events.filter((e) => e.type === 'ko' && e.stocks === INFINITE_STOCKS).length;
+      expect(f.stocks).toBe(INFINITE_STOCKS);
+      until(m, (g) => g.action === 'respawn');
+    }
+    expect(kos).toBe(120);
   });
 });
 

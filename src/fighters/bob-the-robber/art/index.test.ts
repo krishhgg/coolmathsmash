@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { poseBounds, shapesBounds, shapesContain, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import { moveClipFrame } from '../../../render/rig/timing';
 import type { PathShape } from '../../../render/rig/types';
+import {
+  GETUP_ROLL,
+  GETUP_STAND,
+  GRAB,
+  LEDGE_ATTACK,
+  ROLL_BACK,
+  ROLL_FORWARD,
+  SPOT_DODGE,
+  TECH_IN_PLACE,
+  TECH_ROLL,
+} from '../../../sim/constants';
 import { fighter } from '..';
 import { art } from '.';
 
@@ -21,17 +33,33 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   land: 4,
   shield: 'hold',
   shieldDrop: 11,
-  spotDodge: 27,
-  rollForward: 31,
-  rollBack: 31,
+  spotDodge: SPOT_DODGE.faf - 1,
+  rollForward: ROLL_FORWARD.faf - 1,
+  rollBack: ROLL_BACK.faf - 1,
   airDodge: 49,
   ledgeCatch: 8,
   ledgeHang: 'loop',
   ledgeClimb: 34,
   ledgeRoll: 50,
   ledgeJump: 20,
+  ledgeAttack: LEDGE_ATTACK.faf - 1,
   helpless: 'loop',
+  hitstun: 20,
+  tumble: 'loop',
+  down: 'loop',
+  getupStand: GETUP_STAND.faf - 1,
+  getupRoll: GETUP_ROLL.faf - 1,
+  techInPlace: TECH_IN_PLACE.faf - 1,
+  techRoll: TECH_ROLL.faf - 1,
+  grabbed: 'loop',
+  grabHold: 'loop',
+  grabRelease: GRAB.releaseLag,
+  shieldBreak: 40,
+  dizzy: 'loop',
+  respawn: 'loop',
 };
+
+const moves = Object.entries(fighter.moves ?? {});
 
 describe('bob the robber art', () => {
   it('has every action clip with its length', () => {
@@ -42,6 +70,38 @@ describe('bob the robber art', () => {
       else if (typeof len === 'number') expect(clip!.length, name).toBe(len);
       else expect(clip!.loop, name).toBeFalsy();
     }
+  });
+
+  it('has a clip for every move, ending at FAF - 1 with its hit windows (or throw or pummel frame) active', () => {
+    expect(moves.length).toBe(26);
+    for (const [name, move] of moves) {
+      const clip = art.clips[name];
+      expect(clip, name).toBeDefined();
+      expect(clip!.length, name).toBe(move.faf - 1);
+      const impact = move.throw?.frame ?? move.pummel?.frame;
+      const windows = move.hits.length ? move.hits.map((h) => h.frames) : [[impact, impact]];
+      expect(clip!.active, name).toEqual(windows);
+    }
+  });
+
+  it("reaches into every hitbox's inner half with a drawn part on the move's active frames", () => {
+    const probes = [
+      [0, 0],
+      ...[0, 1, 2, 3, 4, 5, 6, 7].map((i) => [Math.cos(i * 0.785), Math.sin(i * 0.785)]),
+    ];
+    const misses: string[] = [];
+    for (const [name, move] of moves)
+      for (const { frames, boxes } of move.hits)
+        for (let f = frames[0]; f <= frames[1]; f++) {
+          const pose = samplePose(art, name, moveClipFrame(art.clips[name]!, f, move), f);
+          for (const { x, y, radius } of boxes) {
+            const hit = probes.some(
+              ([dx, dy]) => slotsCovering(art, pose, x + dx! * radius * 0.5, -y - dy! * radius * 0.5).length,
+            );
+            if (!hit) misses.push(`${name}@${f} (${x}, ${y})`);
+          }
+        }
+    expect(misses).toEqual([]);
   });
 
   it('only references bones, slots and symbols that exist, with keys in order inside the clip', () => {

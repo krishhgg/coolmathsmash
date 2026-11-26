@@ -1,6 +1,7 @@
 import { getFighter } from '../../fighters/registry';
 import { DEVICES, deviceLabel, keyboardIndex, type DeviceId } from '../../session/devices';
 import { costumeColors, fighterCostumes, fighterIcon, rosterTiles } from '../../session/roster';
+import { INFINITE_STOCKS } from '../../sim/constants';
 import {
   CPU_LEVELS,
   MAX_PLAYERS,
@@ -61,7 +62,7 @@ function gridShape(count: number): { cols: number; rows: number; tileW: number; 
 
 export function rulesSummary(setup: MatchSetup): string {
   const { stocks, minutes } = setup.rules;
-  const stock = stocks >= 99 ? 'Infinite Stock' : `${stocks} Stock`;
+  const stock = stocks >= INFINITE_STOCKS ? 'Infinite Stock' : `${stocks} Stock`;
   return minutes > 0 ? `${stock} · ${minutes}:00` : stock;
 }
 

@@ -1,6 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { VIEW_WIDTH } from '../../config';
 import type { SimEvent } from '../../sim/events';
+import type { MatchState } from '../../sim/match';
 
 const LINES = 16;
 const WIDTH = 420;
@@ -13,6 +14,8 @@ function describe(e: SimEvent): string {
       return `${p(e.attacker)} hit ${p(e.victim)} ${e.move ?? ''} +${n(e.damage)}% kb ${n(e.kb)}${e.tumble ? ' tumble' : ''}`;
     case 'shieldHit':
       return `${p(e.attacker)} hit ${p(e.victim)}'s shield ${e.move ?? ''} (${n(e.shieldHp)} left)`;
+    case 'parry':
+      return `${p(e.victim)} parried ${p(e.attacker)} ${e.move ?? ''}`;
     case 'ko':
       return `${p(e.port)} KO ${e.side}, ${e.stocks} left`;
     case 'jump':
@@ -58,7 +61,10 @@ function describe(e: SimEvent): string {
   }
 }
 
-/** Debug overlay: the latest sim events, one line each, newest at the bottom. */
+/**
+ * Debug overlay: the latest sim events, one line each, newest at the bottom. A new match (a different `state.config`,
+ * as the renderer and MatchHud tell matches apart) starts the log empty.
+ */
 export class EventLog {
   readonly container = new Container();
   private readonly lines: string[] = [];
@@ -67,6 +73,7 @@ export class EventLog {
     style: { fontFamily: 'monospace', fontSize: 12, fill: '#ffffff', lineHeight: 15 },
   });
   private dirty = false;
+  private config: unknown = null;
 
   constructor() {
     const bg = new Graphics()
@@ -77,14 +84,29 @@ export class EventLog {
     this.container.addChild(bg, this.text);
   }
 
-  record(events: readonly SimEvent[], frame: number): void {
+  /** The lines as drawn on the last update. */
+  get shown(): string {
+    return this.text.text;
+  }
+
+  /** Forget the last match's lines when `state` is from another one. */
+  private sync(state: Pick<MatchState, 'config'>): void {
+    if (this.config === state.config) return;
+    this.config = state.config;
+    this.lines.length = 0;
+    this.dirty = true;
+  }
+
+  record(events: readonly SimEvent[], state: Pick<MatchState, 'config' | 'frame'>): void {
+    this.sync(state);
     if (events.length === 0) return;
-    for (const e of events) this.lines.push(`${String(frame).padStart(5)} ${describe(e)}`);
+    for (const e of events) this.lines.push(`${String(state.frame).padStart(5)} ${describe(e)}`);
     this.lines.splice(0, Math.max(0, this.lines.length - LINES));
     this.dirty = true;
   }
 
-  update(): void {
+  update(state: Pick<MatchState, 'config'>): void {
+    this.sync(state);
     if (!this.dirty) return;
     this.text.text = this.lines.join('\n');
     this.dirty = false;

@@ -1,5 +1,6 @@
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../config';
 import type { SimEvent } from '../sim/events';
+import type { FighterState } from '../sim/fighter';
 import type { MatchState } from '../sim/match';
 import type { StageGeometry } from '../sim/stage';
 
@@ -11,12 +12,43 @@ export interface CameraView {
   zoom: number;
 }
 
-const MARGIN_X = 45;
+/** A point the drawn view leans toward: `weight` 0 keeps the camera's view, 1 centres `x`, `y` at `zoom`. */
+export interface Focus {
+  x: number;
+  y: number;
+  zoom: number;
+  weight: number;
+}
+
+const MARGIN_X = 55;
 const MARGIN_TOP = 35;
 const MARGIN_BOTTOM = 25;
-const MIN_WIDTH = 150;
-export const MAX_ZOOM = 9;
+/**
+ * The narrowest view in game units. At 240 a 1v1 at Battlefield's spawns shows the 160-unit deck across 67% of the
+ * screen (Ultimate: about 60%), and both lips stay in frame while a fighter dashes from its spawn to either side.
+ */
+const MIN_WIDTH = 240;
+/** The closest the camera gets, in pixels per unit: MIN_WIDTH across the screen. Stage art caches at this resolution. */
+export const MAX_ZOOM = VIEW_WIDTH / MIN_WIDTH;
 export const SMOOTHING = 0.12;
+/**
+ * How fast the view widens while a fighter flies from a tumble launch. A KO launch covers 25-45 units a frame once
+ * hitlag ends; at SMOOTHING the victim left the screen 1-3 frames before it reached the camera bounds, at 0.6 it
+ * stays on screen until it passes them.
+ */
+export const LAUNCH_SMOOTHING = 0.6;
+
+/** Hitlag is over and tumble hitstun is still running: the fighter is flying from a launch. */
+const flying = (f: FighterState) => f.action === 'tumble' && f.hitlag === 0 && f.hitstun > 0;
+
+/**
+ * The easing rate toward `target` from `view`: LAUNCH_SMOOTHING while a fighter is flying from a launch and the
+ * target is wider than the view, else SMOOTHING. Narrowing stays slow, so a fighter falling back does not snap the
+ * view in.
+ */
+export function smoothingFor(state: MatchState, view: CameraView, target: CameraView): number {
+  return target.zoom < view.zoom && state.fighters.some(flying) ? LAUNCH_SMOOTHING : SMOOTHING;
+}
 
 /** Frame-everyone target: the fighters' bounding box plus margins, kept inside the stage's camera bounds. */
 export function cameraTarget(state: MatchState, stage: StageGeometry): CameraView {
@@ -119,24 +151,30 @@ export class Camera {
       ...(next ? this.shakes.filter((s) => state.frame - s.start < s.frames) : []),
       ...shakesFrom(state.events, state.frame),
     ];
-    this.view = next
-      ? {
-          x: v.x + (target.x - v.x) * SMOOTHING,
-          y: v.y + (target.y - v.y) * SMOOTHING,
-          zoom: v.zoom + (target.zoom - v.zoom) * SMOOTHING,
-        }
-      : target;
+    if (next) {
+      const k = smoothingFor(state, v, target);
+      this.view = {
+        x: v.x + (target.x - v.x) * k,
+        y: v.y + (target.y - v.y) * k,
+        zoom: v.zoom + (target.zoom - v.zoom) * k,
+      };
+    } else this.view = target;
     this.frame = state.frame;
   }
 
   /**
-   * The view to draw `state` with: the smoothed view once stepped to its frame, shaken by the live screen shakes
-   * (which never feed back into the smoothing), else that frame's target.
+   * The view to draw `state` with: the smoothed view once stepped to its frame, leaning toward `focus` (the Special
+   * and Finish Zoom, zoom.ts) and shaken by the live screen shakes (neither feeds back into the smoothing), else that
+   * frame's target.
    */
-  viewFor(state: MatchState, stage: StageGeometry): CameraView {
+  viewFor(state: MatchState, stage: StageGeometry, focus: Focus | null = null): CameraView {
     const v = this.view;
     if (!v || this.frame !== state.frame) return cameraTarget(state, stage);
+    const w = focus?.weight ?? 0;
+    const x = focus ? v.x + (focus.x - v.x) * w : v.x;
+    const y = focus ? v.y + (focus.y - v.y) * w : v.y;
+    const zoom = focus ? v.zoom * (focus.zoom / v.zoom) ** w : v.zoom;
     const s = shakeOffset(this.shakes, state.frame);
-    return { x: v.x - s.x / v.zoom, y: v.y + s.y / v.zoom, zoom: v.zoom };
+    return { x: x - s.x / zoom, y: y + s.y / zoom, zoom };
   }
 }
