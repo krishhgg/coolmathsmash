@@ -170,31 +170,39 @@ describe('air probes of moves that end in a helpless fall', () => {
   });
 
   // 60 units beside either ledge, 20 and 50 under it, with the double jump left (src/ai/testing/recovery.ts). Before,
-  // a level 9 Wheely was KO'd from all four on every seed.
+  // a level 9 Wheely was KO'd from all four on every seed. From 50 under he needs Ramp Jump; from 20 under, now that
+  // recovery plans double jump before their special (src/ai/recovery.ts), a double jump alone gets him back on some
+  // seeds.
   it.each([
-    [-140, -20],
-    [-140, -50],
-    [140, -20],
-    [140, -50],
-  ])('a level 9 Wheely Ramp Jumps back to the stage from (%d, %d) on every seed', (x, y) => {
-    const ends: string[] = [];
-    for (let seed = 1; seed <= 5; seed++) {
-      const m = drill(STAGE, x, y, 'wheely');
-      const f = m.fighters[0]!;
-      const cpu = createCpu({ port: 0, level: 9, seed });
-      let ramp = false;
-      let end = 'stuck';
-      for (let i = 0; i < 600; i++) {
-        stepMatch(m, [cpu.input(m), neutralInput()]);
-        if (f.move === 'upB') ramp = true;
-        if (f.stocks < 3) end = 'ko';
-        else if (f.ground !== null || f.action === 'ledgeHang') end = 'back';
-        if (end !== 'stuck') break;
+    [-140, -20, false],
+    [-140, -50, true],
+    [140, -20, false],
+    [140, -50, true],
+  ])(
+    'a level 9 Wheely gets back to the stage from (%d, %d) on every seed, with Ramp Jump: %s',
+    (x, y, needs) => {
+      const ends: string[] = [];
+      for (let seed = 1; seed <= 5; seed++) {
+        const m = drill(STAGE, x, y, 'wheely');
+        const f = m.fighters[0]!;
+        const cpu = createCpu({ port: 0, level: 9, seed });
+        let ramp = false;
+        let end = 'stuck';
+        for (let i = 0; i < 600; i++) {
+          stepMatch(m, [cpu.input(m), neutralInput()]);
+          if (f.move === 'upB') ramp = true;
+          if (f.stocks < 3) end = 'ko';
+          else if (f.ground !== null || f.action === 'ledgeHang') end = 'back';
+          if (end !== 'stuck') break;
+        }
+        ends.push(`seed ${seed}: ${end}${ramp ? ' with Ramp Jump' : ''}`);
       }
-      ends.push(`seed ${seed}: ${end}${ramp ? ' with Ramp Jump' : ''}`);
-    }
-    expect(ends).toEqual([1, 2, 3, 4, 5].map((seed) => `seed ${seed}: back with Ramp Jump`));
-  });
+      const back = ends.map((e) => e.replace(' with Ramp Jump', ''));
+      expect(back).toEqual([1, 2, 3, 4, 5].map((seed) => `seed ${seed}: back`));
+      if (needs) expect(ends).toEqual(back.map((e) => `${e} with Ramp Jump`));
+      else expect(ends.some((e) => e.endsWith('with Ramp Jump'))).toBe(true);
+    },
+  );
 });
 
 describe('a recovery that carries the CPU back over the stage', () => {
