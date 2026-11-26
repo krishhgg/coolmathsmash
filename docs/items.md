@@ -5,7 +5,8 @@ The stage select's **Items** rule sets `MatchConfig.items` (`resolveMatch`, `src
 entities do. Items are entities (docs/fighters.md, "Entities and projectiles") registered as `item/<name>` with
 `registerEntity`. They are plain data in `MatchState.entities`, so replays and state hashes cover them. All their
 randomness comes from the match RNG (`MatchState.rng`). With the rule off, nothing in `stepItems` runs and the RNG
-is never drawn from, so matches without items play exactly as before.
+is never drawn from, so matches without items play exactly as before. With it on, a two-player match doesn't get the
+1v1 damage multiplier (x1.2 damage taken), as in Ultimate (`addDamage`, docs/physics-reference.md section 2).
 
 The Coolmath Planet is the only item so far.
 

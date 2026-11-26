@@ -229,6 +229,8 @@ or reaching full charge, carries on with the move.
   `chargeDamage: 2.2`, so its 10% hitbox reaches 22%.
 - **Speeds and distances.** A move script reads `chargeLerp(f, uncharged, full)` for a value at the current charge
   level (a dash speed), or `chargeLevel(f)` (0 to 1).
+- **Scripts while charging.** The script runs once a frame while the move is held, with `actionFrame` on the frame
+  before the charge frame. That frame's spawns, `rehit` windows and `transform` happen once, on the way in.
 - **Stored charge.** `storeCharge: {}` lets shield, an air dodge or a jump cancel the charge and keep it in
   `storedCharge`. The move's next use starts from it (a full one fires at once) and spends it when it fires.
   Releasing Special fires. With `tap: true` the move charges by itself and fires on the next Special or Attack

@@ -13,6 +13,7 @@ import {
 import { buffered, consume, stickX, stickY } from '../control';
 import type { Ctx, FighterState } from '../fighter';
 import { floorAt, hangAt, hangPos, restoreAirOptions } from '../movement';
+import { startMove } from './attack';
 import { consumeJump, wantsJump } from './common';
 import { inWindow, setAction, type ActionDef } from './registry';
 
@@ -80,7 +81,7 @@ export const LEDGE: Record<string, ActionDef> = {
     },
   },
 
-  /** Hanging: jump, attack, shield (roll), toward/up (climb) or away/down (drop). Lets go after 5 seconds. */
+  /** Hanging: jump, attack, shield (roll), toward/up (climb) or away/down (drop). Lets go after LEDGE_HANG_MAX frames. */
   ledgeHang: {
     physics: 'none',
     update(x) {
@@ -94,7 +95,8 @@ export const LEDGE: Record<string, ActionDef> = {
       if (buffered(c, Btn.Attack) || buffered(c, Btn.Special)) {
         consume(c, Btn.Attack);
         consume(c, Btn.Special);
-        return setAction(x, 'ledgeAttack');
+        startMove(x, 'ledgeAttack', 'ledgeAttack');
+        return;
       }
       if (buffered(c, Btn.Shield)) {
         consume(c, Btn.Shield);
