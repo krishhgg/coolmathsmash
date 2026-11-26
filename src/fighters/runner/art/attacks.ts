@@ -15,6 +15,8 @@ import {
   P,
   SHOUT,
   STAND,
+  ants,
+  hands,
   key,
   mix,
   type Pt,
@@ -325,7 +327,7 @@ function floorSpin(side: 1 | -1): Pose {
   return hitting(
     P({
       x: -0.3,
-      y: 3.1,
+      y: 2.6,
       sy: 0.9,
       sx: 1.06,
       rot: -18,
@@ -362,6 +364,29 @@ const NEAR_LEG_IN_FRONT = {
 };
 const SPIN_FRONT = floorSpin(1);
 const SPIN_BACK = floorSpin(-1);
+
+/**
+ * Getup attack wind-up and recovery: sitting back on the floor on her near hand, knees up and soles planted.
+ * `knees` matches the spin pose it leads into or out of, so the legs never fold through the floor between them.
+ */
+function floorSit(knees: [1 | -1, 1 | -1], feet: [Pt, Pt], lean: number): Pose {
+  return P({
+    x: -0.3,
+    y: 2.3,
+    sy: 0.92,
+    sx: 1.05,
+    rot: lean,
+    legs: feet,
+    knees,
+    arms: [
+      [2.4, -9.4],
+      [-6.0, -1.0],
+    ],
+    ant: [-14, 6],
+  });
+}
+/** Flat on her back as she lies down (clips.ts DOWN), lifted so nothing dips through the floor. */
+const LIE = mix(DOWN, { body: { y: 2.1 } });
 
 /** Scissor Kick: the far leg scoops up, then the near leg cuts across. */
 const SCISSOR1 = hitting(
@@ -955,13 +980,52 @@ export const attacks: Record<string, AnimClip> = {
     46,
     [[16, 21]],
     [
-      key(0, DOWN, { ease: 'inOut' }),
-      key(7, mix(TUCK, { body: { x: -0.8, y: BALL_Y, rot: -110 } }), { ease: 'inOut' }),
-      key(13, mix(TUCK, { body: { x: -0.2, y: BALL_Y, rot: -20 } }), { ease: 'in' }),
+      key(0, LIE, { ease: 'inOut' }),
+      key(7, ants(hands(mix(TUCK, { body: { x: -0.8, y: 2.0, rot: -100 } }), null, [-6.2, -3.8]), -95, -85), {
+        ease: 'inOut',
+      }),
+      key(
+        12,
+        floorSit(
+          [1, 1],
+          [
+            [2.6, -0.2],
+            [1.2, -0.2],
+          ],
+          -22,
+        ),
+        { ease: 'out' },
+      ),
+      key(
+        15,
+        floorSit(
+          [1, 1],
+          [
+            [3.2, -2.4],
+            [-3.2, -8.4],
+          ],
+          -26,
+        ),
+        { ease: 'in' },
+      ),
       ...strike(16, 18, SPIN_FRONT, { ...STREAK2, ...SHOUT }),
       ...strike(19, 21, SPIN_BACK, { ...STREAK2, ...AWAY }, NEAR_LEG_IN_FRONT),
       key(22, SPIN_BACK, { swaps: { ...NO_FX, ...AWAY } }),
-      key(27, mix(TUCK, { body: { y: BALL_Y, rot: 10 } }), { swaps: FACE, z: {} }),
+      key(
+        24,
+        mix(
+          floorSit(
+            [1, 1],
+            [
+              [-3.4, -6.6],
+              [4.8, -5.0],
+            ],
+            -10,
+          ),
+          { body: { y: 1.7 } },
+        ),
+      ),
+      key(27, mix(TUCK, { body: { y: BALL_Y - 2.3, rot: 20 } }), { ease: 'in', swaps: FACE, z: {} }),
       key(33, CROUCH),
       key(45, READY),
     ],
