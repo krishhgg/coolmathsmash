@@ -1,6 +1,7 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import { attacks } from './attacks';
+import { dodges } from './dodges';
 import { laser } from './laser';
 import { ledge } from './ledge';
 import {
@@ -13,6 +14,7 @@ import {
   HURT,
   PALM_B,
   PALM_F,
+  PIVOT,
   SHOUT,
   SMIRK,
   STANCE,
@@ -28,6 +30,7 @@ import {
   type Pt,
 } from './poses';
 import { rig } from './rig';
+import { tech } from './tech';
 
 /**
  * Johnny's movement, defence and hurt clips, posed after the 2012 game's drawings: the bow-legged fighting stance
@@ -255,17 +258,6 @@ const DASH_DRIVE = fist(
   1,
 );
 
-/** Turnaround pivot: squared up to the camera, fists on his hips, boots splayed; nearly the same drawing either way round. */
-const PIVOT = hands(
-  mix(
-    feet({ hip: { y: 0.45 }, armF: { x: -0.35 }, armB: { x: 0.35 }, neck: { y: 0.15 } }, [3.5, 0], [-3.1, 0]),
-    IDLE_FEET,
-  ),
-  [4.3, -4.6],
-  [-3.6, -4.7],
-  -1,
-  1,
-);
 /** The skid out of the turn: weight back on the heels, guard coming up. */
 const TURN_SKID = hands(
   mix(feet({ hip: { y: 0.55 }, body: { rot: -8, x: -0.5 } }, [3.3, 0], [-2.9, 0]), IDLE_FEET),
@@ -689,6 +681,8 @@ export const clips: Record<string, AnimClip> = {
     ],
   },
   ...attacks,
+  ...dodges,
   ...laser,
   ...ledge,
+  ...tech,
 };
