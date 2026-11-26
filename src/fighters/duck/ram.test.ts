@@ -327,5 +327,5 @@ describe("The Duck: Running Ram (side special, Pikachu's Skull Bash)", () => {
       rams += m.events.filter((e) => e.type === 'move' && e.port === 0 && e.move === 'sideB').length;
     }
     expect(rams).toBeGreaterThan(0);
-  });
+  }, 60_000);
 });

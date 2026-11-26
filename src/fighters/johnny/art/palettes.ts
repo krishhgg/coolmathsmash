@@ -49,6 +49,15 @@ const original: Palette = {
   laser: '#36e8ff',
   laserHi: '#efffff',
   laserLine: '#0a4fa8',
+  magnet: '#e0242a',
+  magnetHi: '#ff7a6a',
+  magnetLo: '#9c1014',
+  magnetLine: '#3e0608',
+  coin: '#ffd21a',
+  coinHi: '#fff6b0',
+  coinLo: '#d08a00',
+  coinLine: '#6a3c00',
+  field: '#bff4ff',
 };
 
 /**
