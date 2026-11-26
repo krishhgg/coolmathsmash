@@ -2,6 +2,7 @@ import {
   HARD_LANDING_AIRTIME,
   HELPLESS_AIR_SPEED,
   LEDGE_MAX_GRABS,
+  LEDGE_TRUMP,
   PLATFORM_DROP_FLICK,
   PUSH_STIFFNESS,
 } from './constants';
@@ -528,18 +529,28 @@ export function tryLedgeGrab(x: Ctx): void {
     const frontReach = rx >= 0 ? reach : reach * 0.6;
     if (Math.abs(rx) > frontReach || ry < s.height * 0.4 || ry > s.height * 1.15) continue;
     const holder = ledgeHolder(m, i, f);
-    if (holder) {
-      holder.ledge = -1;
-      holder.ledgeLock = 30;
-      holder.intangible = 0;
-      holder.vel.x = L.side * 0.5;
-      holder.vel.y = 0;
-      holder.action = 'fall';
-      holder.actionFrame = 0;
-    }
+    if (holder) trump(holder, L.side);
     grabLedge(x, i);
     return;
   }
+}
+
+/**
+ * Push `holder` off the ledge on side `side`, which another fighter has just caught (LEDGE_TRUMP): it lets go
+ * straight out from the stage, without control or intangibility, and keeps its double jump as a drop does. Its
+ * frame 1 is its next step, so the frames count the same whichever of the two steps first.
+ */
+function trump(holder: FighterState, side: number): void {
+  holder.ledge = -1;
+  holder.ledgeLock = LEDGE_TRUMP.regrabLock;
+  holder.intangible = LEDGE_TRUMP.intangible;
+  holder.vel.x = side * LEDGE_TRUMP.speedX;
+  holder.vel.y = LEDGE_TRUMP.speedY;
+  holder.airFrames = 0;
+  holder.jumpsUsed = 1;
+  holder.action = 'trumped';
+  holder.actionFrame = 0;
+  holder.move = null;
 }
 
 export function grabLedge(x: Ctx, i: number): void {
