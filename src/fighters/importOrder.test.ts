@@ -1,5 +1,5 @@
-// Keep this import first. fluffy/index.ts loads sim code that loads the registry while Fluffy's own `fighter`
-// export is still unset, which used to throw "Cannot read properties of undefined (reading 'id')".
+// Keep this import first. fluffy/index.ts used to load sim code that loaded the registry while Fluffy's own `fighter`
+// export was still unset, which threw "Cannot read properties of undefined (reading 'id')".
 import { fighter as fluffy } from './fluffy/index';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FighterDef } from './types';

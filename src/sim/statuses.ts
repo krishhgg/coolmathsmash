@@ -5,7 +5,7 @@
  * clears them. See docs/fighters.md, "Statuses and meters".
  */
 
-import { getFighter } from '../fighters/registry';
+import { getFighter } from '../fighters/lookup';
 import { MASH_BUTTONS, mashDir } from './actions/grab';
 import { addDamage } from './combat/hits';
 import { justPressed } from './control';
