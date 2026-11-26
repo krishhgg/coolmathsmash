@@ -1208,6 +1208,46 @@ function bolt(glow: number): PathShape[] {
 
 export const laserBolt = { laserBolt0: bolt(1), laserBolt1: bolt(0.85) };
 
+/**
+ * Upgraded Laser's bolt, in its own space: a big round head (the hit's centre on the origin) on a fat streak trailing
+ * back 11 units, a white core and a coin-gold rim. Half as tall as the 5.5 hit radius, as the laser's bolt is to its
+ * 1.44. Two frames flicker the glow.
+ */
+function megaBolt(glow: number): PathShape[] {
+  return [
+    inked(
+      smooth([
+        [3.3, 0],
+        [2.5, -2.5 * glow],
+        [0, -2.85 * glow],
+        [-4.5, -1.7 * glow, 0],
+        [-11, -0.5, 0],
+        [-11, 0.5, 0],
+        [-4.5, 1.7 * glow, 0],
+        [0, 2.85 * glow],
+        [2.5, 2.5 * glow],
+      ]),
+      'laser',
+      'coinLo',
+      0.2,
+    ),
+    fill(
+      smooth([
+        [2.3, 0],
+        [1.5, -1.45 * glow],
+        [-1.5, -1.3 * glow],
+        [-8.5, -0.2, 0],
+        [-8.5, 0.2, 0],
+        [-1.5, 1.3 * glow],
+        [1.5, 1.45 * glow],
+      ]),
+      'laserHi',
+    ),
+  ];
+}
+
+export const megaLaserBolt = { megaBolt0: megaBolt(1), megaBolt1: megaBolt(0.88) };
+
 export const parts: Record<string, Part> = {
   upperArm: upperArm(NEAR),
   upperArmFar: upperArm(FAR),

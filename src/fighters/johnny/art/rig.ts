@@ -9,6 +9,7 @@ import {
   head,
   impact,
   laserBolt,
+  megaLaserBolt,
   mouths,
   muzzleFlash,
   parts,
@@ -94,6 +95,8 @@ export const rig: Rig = {
     muzzleFlash,
     ...laserBolt,
     laserBolt: { loop: ['laserBolt0', 'laserBolt1'], fps: 30 },
+    ...megaLaserBolt,
+    megaBolt: { loop: ['megaBolt0', 'megaBolt1'], fps: 30 },
     ...coinSymbols,
   },
 };

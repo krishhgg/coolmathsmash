@@ -179,7 +179,8 @@ function bigShotKeys(shot: number, settle: number, holdTo: number, base: Pose, t
     key(shot - 1, aimed, { ease: 'linear' }),
     key(shot, mix(aimed, bigFlash(tip)), { ease: 'linear', swaps: BIG_FLASH }),
     key(shot + 1, bigKick(base, tip), { ease: 'out', swaps: { ...SWAPS, ...GRIT, fx1: 'muzzleFlash' } }),
-    key(shot + 3, bigRecoil(base, tip), { ease: 'inOut', swaps: {} }),
+    key(shot + 2, undefined, { swaps: {} }),
+    key(shot + 3, bigRecoil(base, tip), { ease: 'inOut' }),
     key(settle, aimed, { ease: 'linear' }),
     key(holdTo, aimed, { ease: 'inOut' }),
   ];

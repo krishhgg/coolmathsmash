@@ -38,13 +38,13 @@ export const art: FighterArt = {
       },
     },
     /**
-     * Upgraded Laser's bolt: the laser's bolt scaled from its 1.44 hit radius to Limit Blade Beam's 5.5, from the frame
-     * after the shot. Its burst has no drawing yet; matches draw every entity as a placeholder.
+     * Upgraded Laser's bolt, from the frame after the shot. Its burst has no drawing yet; matches draw every entity
+     * as a placeholder.
      */
     megaLaser: {
       symbols: rig.symbols,
-      symbol: 'laserBolt',
-      scale: 5.5 / LASER.radius,
+      symbol: 'megaBolt',
+      scale: 1,
       preview: {
         neutralBUpgraded: { frame: 7, x: MUZZLE.x + LASER.speed, y: MUZZLE.y, vx: LASER.speed },
         neutralBUpgradedAir: { frame: 6, x: MUZZLE.x + LASER.speed, y: MUZZLE.airY, vx: LASER.speed },
