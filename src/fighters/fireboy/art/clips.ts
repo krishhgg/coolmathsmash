@@ -318,6 +318,20 @@ const TUMBLE_FLAIL = mix(TUMBLE, {
 /** Rolled into the ball: the head's ball resting on the floor. */
 const ROLL_BALL: Pose = { body: { y: 3.05 } };
 
+/** How far the hips ride up inside the ball in `ROLL_TUCK`. The neck drops as far, so the head stays put. */
+const ROLL_LIFT = 1.6;
+
+/**
+ * The rolls' ball. `ROLL_BALL` puts the hips 1.05 below the floor, and the legs show through it on the frames
+ * where the body tweens into and out of the ball. This pose lifts the hips inside the head and plants the feet
+ * as in the crouch. The head stays where `ROLL_BALL` puts it.
+ */
+const ROLL_TUCK = hands(
+  feet(mix(ROLL_BALL, { hip: { y: -ROLL_LIFT }, neck: { y: ROLL_LIFT } }), [-0.8, 0], [0.9, 0], true),
+  [-1.35, -0.6],
+  [1.5, -0.7],
+);
+
 export const clips: Record<string, AnimClip> = {
   idle: {
     length: 96,
@@ -484,8 +498,8 @@ export const clips: Record<string, AnimClip> = {
     keys: [
       key(0, STAND, { ease: 'out' }),
       key(4, CROUCH, { ease: 'out' }),
-      key(6, ROLL_BALL, { ease: 'linear', swaps: { ...NO_BODY, ...SIDE_ANGRY } }),
-      key(23, ROLL_BALL, { ease: 'out', swaps: {} }),
+      key(6, ROLL_TUCK, { ease: 'linear', swaps: { ...NO_BODY, ...SIDE_ANGRY } }),
+      key(23, ROLL_TUCK, { ease: 'out', swaps: {} }),
       key(25, mix(CROUCH, { body: { sx: -1 } }), { ease: 'out' }),
       key(29, mix(STAND, { body: { sx: -1 } })),
     ],
@@ -496,8 +510,8 @@ export const clips: Record<string, AnimClip> = {
     keys: [
       key(0, STAND, { ease: 'out' }),
       key(4, CROUCH, { ease: 'out' }),
-      key(6, mix(ROLL_BALL, { body: { sx: -1 } }), { ease: 'linear', swaps: { ...NO_BODY, ...SIDE_ANGRY } }),
-      key(23, mix(ROLL_BALL, { body: { sx: -1 } }), { ease: 'out', swaps: {} }),
+      key(6, mix(ROLL_TUCK, { body: { sx: -1 } }), { ease: 'linear', swaps: { ...NO_BODY, ...SIDE_ANGRY } }),
+      key(23, mix(ROLL_TUCK, { body: { sx: -1 } }), { ease: 'out', swaps: {} }),
       key(27, CROUCH, { ease: 'out' }),
       key(34, STAND),
     ],
