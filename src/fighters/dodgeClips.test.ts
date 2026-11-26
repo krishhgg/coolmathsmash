@@ -36,22 +36,29 @@ const ACTIONS: Record<string, number> = {
  */
 const WAITING = ['snailbob'];
 
+/** Actions drawn with a back roll when they roll away from the facing (clipFor). */
+const BACK_ROLLS = ['techRoll', 'getupRoll'];
+
 /**
- * Each action whose clip is not as long as the action, as `action: clip length/last key (want n)`. An action with
- * no clip of its own or a stand-in is drawn with idle and has nothing to match.
+ * Each action whose clip is not as long as the action, as `action: clip length/last key (want n)`; the tech and
+ * getup rolls are checked rolling both ways. An action with no clip of its own or a stand-in is drawn with idle
+ * and has nothing to match.
  */
 function drift(id: string): string[] {
   const def = allFighters()[id]!;
   const art = fighterArt(def)!;
-  return Object.entries(ACTIONS).flatMap(([action, want]) => {
-    const [name] = clipFor(def, art, { action, actionFrame: 0 } as FighterState);
-    const clip = name === 'idle' ? undefined : art.clips[name];
-    if (!clip) return [];
-    const last = clip.keys[clip.keys.length - 1]?.frame;
-    return clip.length === want && last === want
-      ? []
-      : [`${action}: ${name} ${clip.length}/${last} (want ${want})`];
-  });
+  return Object.entries(ACTIONS).flatMap(([action, want]) =>
+    (BACK_ROLLS.includes(action) ? [1, -1] : [1]).flatMap((dir) => {
+      const f = { action, actionFrame: 0, facing: 1, dodgeDir: { x: dir, y: 0 } } as FighterState;
+      const [name] = clipFor(def, art, f);
+      const clip = name === 'idle' ? undefined : art.clips[name];
+      if (!clip) return [];
+      const last = clip.keys[clip.keys.length - 1]?.frame;
+      return clip.length === want && last === want
+        ? []
+        : [`${action}${dir < 0 ? ' back' : ''}: ${name} ${clip.length}/${last} (want ${want})`];
+    }),
+  );
 }
 
 const drawn = Object.keys(allFighters()).filter((id) => fighterArt(allFighters()[id]!));

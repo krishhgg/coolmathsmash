@@ -24,7 +24,7 @@ export const stats: FighterStats = {
   /** Between Steve and Kazuya: a slow start. */
   dashInitialSpeed: 1.5,
   dashFrames: 11,
-  /** Little Mac's top speed, reached 40 frames into the run (0.024 units/frame²). */
+  /** Little Mac's top speed, reached 40 frames after the dash stops holding its speed (0.024 units/frame²). */
   runSpeed: 2.464,
   runAccelBase: 0.004,
   runAccelAdd: 0.02,
