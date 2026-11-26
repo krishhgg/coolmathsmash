@@ -236,8 +236,9 @@ describe('Wheely: Rev Up for CPUs', () => {
         m.fighters.forEach((f, port) => {
           const rev = f.move?.startsWith('neutralB') ?? false;
           if (rev && f.actionFrame === REV_UP.hit[0]) blasts++;
-          revving[port] = rev && f.charge > 0 && f.actionFrame < REV_UP.charge ? revving[port]! + 1 : 0;
-          longest = Math.max(longest, revving[port]!);
+          const held = rev && f.charge > 0 && f.actionFrame < REV_UP.charge ? revving[port]! + 1 : 0;
+          revving[port] = held;
+          longest = Math.max(longest, held);
         });
       }
     }
