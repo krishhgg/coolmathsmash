@@ -19,6 +19,9 @@ const props = {
   smearSolid: '#fff6d8',
   pow: '#ffd21f',
   powHi: '#fff6b0',
+  flame: '#ff9a1a',
+  flameHi: '#fff27a',
+  flameLo: '#e8401c',
 };
 
 /** Bob as the 2010 games draw him: brown-orange shell, bright green body, pink-rimmed eyes. */
