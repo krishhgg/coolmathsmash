@@ -5,6 +5,9 @@ import {
   eyeWide,
   fallLines,
   fist,
+  flame1,
+  flame2,
+  flame3,
   foot,
   foot1,
   foot2,
@@ -34,6 +37,7 @@ import {
   pow,
   pupil,
   pupilSmall,
+  rocket,
   shell,
   shockwave,
   sideSmear,
@@ -83,7 +87,8 @@ export const BODY_Y = -4.5;
  * flipping it turns the whole snail; `shell` is the shell's centre and `spin` the spiral's, which shell moves
  * spin. The neck rises from the front of the foot to the head; two two-segment eyestalks rise from the head, each
  * carrying an eye with a pupil and a lid. The little arms come out of the neck only to punch and grab. `fx1`-`fx4`
- * are free bones for props and smears placed in rig space.
+ * are free bones for props and smears placed in rig space. `rocket` carries Rocket Hover's booster behind the
+ * shell (the base of its canister) and `flame` its exhaust at the nozzle; both are hidden outside the move.
  */
 export const rig: Rig = {
   bones: [
@@ -92,6 +97,8 @@ export const rig: Rig = {
     { name: 'foot', parent: 'body', x: 0, y: -BODY_Y, localScale: true },
     { name: 'shell', parent: 'body', x: SHELL_X, y: SHELL_Y - BODY_Y },
     { name: 'spin', parent: 'shell', x: -1.0, y: 0.4 },
+    { name: 'rocket', parent: 'shell', x: -5.0, y: 2.4 },
+    { name: 'flame', parent: 'rocket', x: 0, y: 0.85 },
     { name: 'neck', parent: 'foot', x: 3.3, y: -1.0 },
     { name: 'head', parent: 'neck', x: 0.9, y: -2.9 },
     { name: 'mouth', parent: 'head', x: 1.2, y: 0.5 },
@@ -115,6 +122,8 @@ export const rig: Rig = {
   slots: [
     { name: 'smearBack', bone: 'fx3', symbol: null },
     { name: 'fxBack', bone: 'fx4', symbol: null },
+    { name: 'flame', bone: 'flame', symbol: null },
+    { name: 'rocket', bone: 'rocket', symbol: null },
     ...limbSlots('armB', 'foreB', null, null),
     { name: 'footLine', bone: 'foot', symbol: 'footLine' },
     { name: 'neckLine', bone: 'neck', symbol: 'neckLine' },
@@ -152,6 +161,12 @@ export const rig: Rig = {
     footCrawlLine: { loop: ['foot1Line', 'foot2Line', 'foot3Line'], fps: 9 },
     footRush: { loop: ['foot1', 'foot2', 'foot3'], fps: 18 },
     footRushLine: { loop: ['foot1Line', 'foot2Line', 'foot3Line'], fps: 18 },
+    rocket,
+    flame1,
+    flame2,
+    flame3,
+    /** Rocket Hover's exhaust flickers on the match clock, so it keeps burning while the move's last pose holds. */
+    flame: { loop: ['flame1', 'flame2', 'flame3', 'flame2'], fps: 20 },
     shell,
     spiral,
     gloss,
