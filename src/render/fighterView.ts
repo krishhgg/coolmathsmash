@@ -91,13 +91,29 @@ function airDodgeFrame(clip: AnimClip, f: FighterState): number {
 }
 
 /**
- * The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. A tech or getup roll
+ * The clip a status on `f` draws it in (StatusDef.clip), newest status first, on the status's own frames: Runner's
+ * Tunnel Flip leaves its victims dazed in their `dizzy` clip. Undefined when no status names a clip the art has.
+ */
+export function statusClip(art: FighterArt, f: FighterState): [string, number] | undefined {
+  for (let i = f.statuses.length - 1; i >= 0; i--) {
+    const s = f.statuses[i]!;
+    const clip = statusDef(s.kind).clip;
+    const name = clip && (f.ground ? clip.ground : (clip.air ?? clip.ground));
+    if (name && art.clips[name]) return [name, s.age];
+  }
+  return undefined;
+}
+
+/**
+ * The clip and clip frame that show `f`; a status that names a clip shows it first (statusClip). move clips are retimed onto the move's frame data. A tech or getup roll
  * away from the facing draws a back roll (backRoll). A tether move's clip plays on through the reel, held on the
  * clip's `reel` frame (AnimClip.reel) until the fighter arrives, unless the art has its own clip for the reel
  * (REEL_ACTIONS). A move waiting on its charge frame plays the art's charge clip, if it has one, on the frames
  * charged so far.
  */
 export function clipFor(def: FighterDef, art: FighterArt, f: FighterState): [string, number] {
+  const held = statusClip(art, f);
+  if (held) return held;
   const hold = f.move ? def.moves?.[f.move]?.charge : undefined;
   const charging = hold !== undefined && f.charge > 0 && f.actionFrame === hold - 1;
   const charge = charging ? chargeClipName(art, f.move!) : undefined;

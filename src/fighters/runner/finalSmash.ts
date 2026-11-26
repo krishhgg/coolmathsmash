@@ -43,7 +43,9 @@ const LATE_TARGETS: HitboxDef['targets'][] = ['both', 'ground', 'ground'];
 
 /**
  * Stuck: held where they stand, as Ultimate's sleep holds its victims, until it runs out, a hit lands or they mash out.
- * Four kinds, since a box's status takes its length from the status: one per stuck length in the sleep boxes.
+ * Four kinds, since a box's status takes its length from the status: one per stuck length in the sleep boxes. They are
+ * drawn dazed in their shield-break `dizzy` clip (Ultimate's sleepers doze standing), or tumbling in the air, where
+ * Ultimate's airborne sleepers are "put in an inactionable tumble state" (SmashWiki, "Asleep").
  */
 const stuck = (frames: number): StatusDef => ({
   frames,
@@ -51,6 +53,7 @@ const stuck = (frames: number): StatusDef => ({
   endOnHit: true,
   mash: { stick: 8, button: 14.4 },
   color: '#9fcde8',
+  clip: { ground: 'dizzy', air: 'tumble' },
 });
 
 export const STUCK = {
