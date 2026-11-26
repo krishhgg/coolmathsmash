@@ -83,7 +83,6 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   ledgeAttack: LEDGE_ATTACK.faf - 1,
   hitstun: 20,
   tumble: 'loop',
-  knockdown: 'loop',
   down: 'loop',
   getupStand: GETUP_STAND.faf - 1,
   getupRoll: GETUP_ROLL.faf - 1,
