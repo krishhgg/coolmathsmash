@@ -84,6 +84,12 @@ the line can anchor. Without it the clip plays on to its end. A reel that needs 
 named after the action instead: when the art has a `tetherPull` or `tetherHang` clip, the reel plays it from the
 reel's first frame (Red Ball's `tetherPull`, his tongue shortening towards the ledge).
 
+A charging move (`MoveDef.charge`) holds its clip on the charge frame. To draw the charge building instead, add a
+clip named `<move>Charge`, one frame per frame of charge (length `chargeFrames`): while the move holds its charge, the
+renderer plays it at the frames charged so far (`clipFor` in `src/render/fighterView.ts`), and the move clip takes
+over again when it fires. Wheely's `neutralBCharge` (`src/fighters/wheely/art/revUp.ts`) shakes harder and puffs
+bigger as the revs build, and flashes as they top out.
+
 ## Pose checklist
 
 Check each row at match scale, facing both ways. In the fighter lab, inspect the start, strongest silhouette

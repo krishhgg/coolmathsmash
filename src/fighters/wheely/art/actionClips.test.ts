@@ -3,8 +3,9 @@ import { clipFor } from '../../../render/fighterView';
 import { poseBounds } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import { GETUP_STAND, GRAB } from '../../../sim/constants';
-import { run, testMatch } from '../../../sim/testing/sim';
+import { run, testMatch, until } from '../../../sim/testing/sim';
 import { fighter } from '..';
+import { REV_UP } from '../revUp';
 import { stats } from '../stats';
 import { art } from '.';
 
@@ -38,6 +39,27 @@ describe('Wheely playtest poses', () => {
       ['pummel', fighter.moves.pummel!.pummel!.frame],
     ] as const) {
       expect(poseBounds(door, samplePose(art, clip, frame, frame))[2], clip).toBeGreaterThanOrEqual(nearEdge);
+    }
+  });
+
+  it('revs on the charge clip at the revs so far, and plays the blast clip once he lets go', () => {
+    const m = testMatch({ fighter: 'wheely' });
+    const f = m.fighters[0]!;
+    run(m, 1, { buttons: ['special'] });
+    run(m, 3);
+    expect(clipFor(fighter, art, f)).toEqual(['neutralB', 4]);
+    until(m, (g) => g.charge === 40);
+    expect(clipFor(fighter, art, f)).toEqual(['neutralBCharge', 40]);
+    run(m, 1, { buttons: ['special'] });
+    expect(clipFor(fighter, art, f)).toEqual(['neutralB', REV_UP.charge]);
+  });
+
+  it('draws the rev for every charge frame, with the flash only as the revs top out', () => {
+    for (const name of ['neutralBCharge', 'neutralBAirCharge']) {
+      expect(art.clips[name]!.length).toBe(REV_UP.chargeFrames);
+      const flash = (revs: number) => samplePose(art, name, revs, revs).symbols.prop;
+      expect(flash(REV_UP.chargeFrames - 8)).toBeNull();
+      expect(flash(REV_UP.chargeFrames)).toBe('fxFlash');
     }
   });
 });

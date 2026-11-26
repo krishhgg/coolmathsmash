@@ -49,9 +49,9 @@ export const testCharger = defineFighter({
       script: rush(12, 28, 1.2, 2.6),
     },
     /**
-     * Held stored charge, the shape planned for Wheely's Rev Up: hold Special to rev for up to 90 frames, release to
-     * blast forward, 8% to 24%; shield keeps the charge for next time. Ultimate's stored charges are all tap moves
-     * (downB below); this is Skull Bash's hold with storage added.
+     * Held stored charge: hold Special to charge for up to 90 frames, release to rush forward, 8% to 24%; shield keeps
+     * the charge for next time. Ultimate's stored charges are all tap moves (downB below, and Wheely's Rev Up); this is
+     * Skull Bash's hold with storage added.
      */
     neutralB: {
       kind: 'other',

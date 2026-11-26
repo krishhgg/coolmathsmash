@@ -6,7 +6,8 @@ import type { FighterState } from '../../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../../sim/match';
 import { koPercent } from '../../sim/testing/ko';
 import { placeInAir, run, until, type Hold } from '../../sim/testing/sim';
-import { moves, REV_UP } from './moves';
+import { moves } from './moves';
+import { REV_UP } from './revUp';
 
 const SPECIAL: Hold = { buttons: ['special'] };
 const SHIELD: Hold = { buttons: ['shield'] };
@@ -201,7 +202,9 @@ describe('Wheely: Rev Up (Giant Punch input model)', () => {
     expect(full).not.toBeNull();
     expect(giantPunch).not.toBeNull();
     expect(Math.abs(full! - giantPunch!)).toBeLessThanOrEqual(5);
-    expect(koPercent({ hit: { fighter: 'wheely', move: 'neutralB' }, from: 'centre' })).toBeGreaterThan(full! + 100);
+    expect(koPercent({ hit: { fighter: 'wheely', move: 'neutralB' }, from: 'centre' })).toBeGreaterThan(
+      full! + 100,
+    );
   });
 });
 

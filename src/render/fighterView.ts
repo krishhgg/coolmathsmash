@@ -46,11 +46,25 @@ function moveFrame(f: FighterState): number {
 }
 
 /**
- * The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. A tether move's clip
- * plays on through the reel, held on the clip's `reel` frame (AnimClip.reel) until the fighter arrives, unless the
- * art has its own clip for the reel (REEL_ACTIONS).
+ * While a move holds its charge frame (MoveDef.charge) with some charge built, the art's `<move>Charge` clip, if it has
+ * one, at the frames charged so far: the drawing builds with the charge (Wheely's Rev Up). Else null, and the move
+ * clip holds on its charge frame.
+ */
+function chargeClip(def: FighterDef, art: FighterArt, f: FighterState): [string, number] | null {
+  const hold = f.move === null ? undefined : def.moves?.[f.move]?.charge;
+  if (hold === undefined || f.charge <= 0 || f.actionFrame >= hold) return null;
+  const name = `${f.move}Charge`;
+  return art.clips[name] ? [name, f.charge] : null;
+}
+
+/**
+ * The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. A charging move can play
+ * its own charge clip (chargeClip). A tether move's clip plays on through the reel, held on the clip's `reel` frame
+ * (AnimClip.reel) until the fighter arrives, unless the art has its own clip for the reel (REEL_ACTIONS).
  */
 export function clipFor(def: FighterDef, art: FighterArt, f: FighterState): [string, number] {
+  const charging = chargeClip(def, art, f);
+  if (charging) return charging;
   const reeling = REEL_ACTIONS.has(f.action);
   const own = f.move && !(reeling && art.clips[f.action]) ? f.move : f.action;
   const name = art.clips[own] ? own : (STAND_INS[own] ?? 'idle');
