@@ -19,6 +19,7 @@ import {
   ground,
   key,
   lick,
+  lickAt,
   look,
   mix,
   roll,
@@ -40,6 +41,15 @@ const HOLD: Pose = lick(mix(body(1.02, 0.98, 0.5), roll(4)), [7.2, -5.4]);
 /** A tongue lash at rig point `to` from a lean `dx` forward. */
 const lash = (dx: number, to: readonly [number, number], sx = 1.06, sy = 0.96): Pose =>
   lick(mix(body(sx, sy, dx), roll(4)), to);
+
+/**
+ * Tongue Lash: leaning into the lash, with the tongue's tip centre at `LASH_TIP`, so the drawn tip reaches the
+ * tether's 28 units and the tongue runs over every hitbox centre (specials.ts TONGUE_LASH.along).
+ */
+const LASH_LEAN: Pose = mix(body(1.12, 0.92, 1.5), roll(0));
+const LASH_TIP = [27.5, -6.6] as const;
+/** Speed lines trailing back along the outgoing tongue from `x` (rig units), tilted with it. */
+const lashLines = (x: number, s = 1): Pose => fx('fx3', x, -3.46 - (x - 4.58) * 0.137, s, -8);
 
 /** Swirl arcs around the ball and speed lines behind it. */
 const swirl = (x: number, y = -R, s = 1): Pose => fx('fx4', x, y, s);
@@ -590,6 +600,31 @@ export const attacks = {
   chargeRoll1: chargeRoll(30, 26, GRIT, 1),
   chargeRoll2: chargeRoll(40, 36, GRIT, 2),
   chargeRoll3: chargeRoll(50, 48, GRIT, 3),
+  /**
+   * Tongue Lash: rears back with his mouth wide, then lunges and the tongue whips straight out to its full 28
+   * units (half way on frame 13, full on 14, as the tether line travels), lashes on 15-17 and snaps back in.
+   */
+  sideB: {
+    length: 47,
+    active: [[15, 17]],
+    keys: [
+      key(0, body()),
+      key(4, mix(body(0.95, 1.05, -0.5), roll(-8)), { swaps: MOUTH_OPEN }),
+      key(10, mix(body(0.88, 1.13, -1.5), roll(-16)), { ease: 'out' }),
+      key(12, mix(body(1.04, 0.97, 0.4), roll(-3), TONGUE_IN), { swaps: LICK_AIM }),
+      key(13, mix(lickAt(LASH_LEAN, [16, -5.1]), lashLines(14, 0.8)), {
+        swaps: { ...LICK_AIM, fxBack: 'speed' },
+      }),
+      key(14, mix(lickAt(LASH_LEAN, LASH_TIP), lashLines(25, 1.1))),
+      key(15, lickAt(mix(body(1.14, 0.9, 1.6), roll(1)), LASH_TIP), { swaps: LICK_AIM }),
+      key(17, lickAt(LASH_LEAN, LASH_TIP)),
+      key(21, lash(1.0, [15.5, -5.2])),
+      key(25, lash(0.7, [7.5, -4.6], 1.02, 0.98)),
+      key(28, mix(body(1, 1, 0.4), TONGUE_IN), { swaps: MOUTH_OPEN }),
+      key(33, body(0.98, 1.02, 0.2), { swaps: DETERMINED }),
+      key(47, body()),
+    ],
+  },
   /** Mega Bounce: squashes flat, then springs up stretched off a ring of air, flipping as he goes. */
   upB: {
     length: 45,

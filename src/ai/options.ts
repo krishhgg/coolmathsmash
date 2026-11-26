@@ -33,6 +33,8 @@ export interface Attack {
   /** Where it ends up (offstage checks). */
   endX: number;
   endY: number;
+  /** Aerials: where the drift comes down, which can be past endX when the move ends in the air. */
+  landX?: number;
   score: number;
 }
 
@@ -196,6 +198,7 @@ function aerialHits(
       busy: Math.min(land, inputAt + p.def.faf) + lag,
       endX: a.x[end]!,
       endY: a.y[end]!,
+      landX: a.x[Math.min(land, a.x.length - 1)]!,
       score: 0,
     });
   }
