@@ -149,15 +149,18 @@ describe("Runner: Strafe Dash (side special) on Fox Illusion's Ultimate data", (
 });
 
 describe('Runner: Strafe Dash hits', () => {
-  it.each([3, 25, 50])('the afterimage trail hits Mario %s units ahead for 8%% at 85 degrees', (gap) => {
-    const { m, runner, mario } = duel(-60, gap, 30);
-    run(m, 1, SIDE_SPECIAL);
-    for (let i = 0; i < 40 && mario.damage === 30; i++) run(m, 1);
-    expect(runner.actionFrame).toBeGreaterThanOrEqual(ACTIVE[0]);
-    expect(runner.actionFrame).toBeLessThanOrEqual(ACTIVE[1]);
-    expect(mario.damage).toBeCloseTo(30 + HIT(8), 6);
-    expect(mario.launch).toMatchObject({ angle: 85, dir: 1 });
-  });
+  it.each([3, 25, 50])(
+    'the afterimage trail hits Mario %s units ahead with the grounded hit: 8 damage at 85 degrees',
+    (gap) => {
+      const { m, runner, mario } = duel(-60, gap, 30);
+      run(m, 1, SIDE_SPECIAL);
+      for (let i = 0; i < 40 && mario.damage === 30; i++) run(m, 1);
+      expect(runner.actionFrame).toBeGreaterThanOrEqual(ACTIVE[0]);
+      expect(runner.actionFrame).toBeLessThanOrEqual(ACTIVE[1]);
+      expect(mario.damage).toBeCloseTo(30 + HIT(8), 6);
+      expect(mario.launch).toMatchObject({ angle: 85, dir: 1 });
+    },
+  );
 
   it('the trail reaches back to where she stood two frames before', () => {
     expect(TRAIL[0]).toBe(0);
@@ -213,7 +216,7 @@ describe("Runner: Strafe Dash kill % against Fox Illusion's (Mario at the Battle
   it.each([
     ['sideB', { damage: 8, angle: 85, bkb: 35, kbg: 110 }, false],
     ['sideBAir', { damage: 5, angle: 60, bkb: 15, kbg: 148 }, true],
-  ] as const)('%s kills within 5%% of Fox Illusion', (move, fox, air) => {
+  ] as const)('%s kills within 5 points of Fox Illusion', (move, fox, air) => {
     const ours = koPercent({ hit: { fighter: 'runner', move }, from, air });
     const analogue = koPercent({ hit: fox, from, air });
     expect(ours).not.toBeNull();
