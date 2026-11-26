@@ -1,5 +1,6 @@
 import type { HitboxDef, MoveDef } from '../types';
 import { downB, downBHit, sideB, upB } from './specials';
+import { finalSmash, finalSmashAir, finalSmashCinematic } from './finalSmash';
 import { neutralB, neutralBAir } from './stunGun';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
@@ -353,4 +354,7 @@ export const moves: Record<string, MoveDef> = {
   upB,
   downB,
   downBHit,
+  finalSmash,
+  finalSmashAir,
+  finalSmashCinematic,
 };

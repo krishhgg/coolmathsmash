@@ -2,6 +2,8 @@ import { shapesBounds } from '../../../render/rig/geometry';
 import type { ArtSymbol, PathShape, Rig, SymbolLoop } from '../../../render/rig/types';
 import {
   FACE,
+  aura,
+  burst,
   candy,
   dizzyPupils,
   dust,
@@ -21,6 +23,7 @@ import {
   tip,
   wave,
   witchHat,
+  wrap,
   type FurStyle,
 } from './parts';
 
@@ -90,6 +93,8 @@ export const rig: Rig = {
     { name: 'prop', bone: 'fx1', symbol: null },
     { name: 'fx', bone: 'fx3', symbol: null, decor: true },
     { name: 'sweat', bone: 'face', symbol: null, decor: true },
+    /** Impact flashes, over everything (Fuzz Frenzy). */
+    { name: 'burst', bone: 'fx2', symbol: null, decor: true },
   ],
   symbols: {
     ...furs,
@@ -121,5 +126,11 @@ export const rig: Rig = {
     witchHat,
     sweat,
     thrustSmear,
+    /** Fuzz Frenzy (art/finalSmash.ts): the power-up halo, impact flashes and the grabber coiled round a catch. */
+    aura0: aura(0),
+    aura1: aura(1),
+    aura: { loop: ['aura0', 'aura1'], fps: 12 },
+    ...Object.fromEntries(range(3).map((i) => [`burst${i}`, burst(i * 11)])),
+    wrap,
   },
 };
