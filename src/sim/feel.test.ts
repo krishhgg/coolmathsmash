@@ -8,7 +8,6 @@ import { FRESHNESS_BONUS, isTumble, shieldBreakStun } from './combat/formulas';
 import { getFighter } from '../fighters/registry';
 import ref from './reference/physics-constants.json';
 import type { ButtonName } from '../input/types';
-import ref from './reference/physics-constants.json';
 
 /**
  * Feel metrics: the moment-to-moment behaviours a Smash player feels, measured frame by frame against
