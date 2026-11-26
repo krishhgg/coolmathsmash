@@ -1,9 +1,10 @@
 import { Btn } from '../../input/types';
-import { HITSTUN_CANCEL_AIR_DODGE, PARRY, TECH_LOCKOUT } from '../constants';
+import { HITSTUN_CANCEL_AERIAL, HITSTUN_CANCEL_AIR_DODGE, PARRY, TECH_LOCKOUT } from '../constants';
 import { buffered, consume, isHeld, justPressed } from '../control';
 import type { Ctx } from '../fighter';
 import { launchTimeScale } from '../movement';
 import { airActionable } from './air';
+import { airAttack } from './attack';
 import { breakShield } from './defense';
 import { tumbleLanding } from './knockdown';
 import { setAction, type ActionDef } from './registry';
@@ -27,9 +28,12 @@ export const HITSTUN: Record<string, ActionDef> = {
   },
 
   /**
-   * Launched into tumble. No control during hitstun except Ultimate's hitstun-cancel air dodge once the launch
-   * has slowed; afterwards the fighter drifts and acts like falling. Landing in tumble techs if Shield was
-   * pressed in the last TECH_WINDOW frames (a tech roll with the stick held sideways), else it is a missed tech.
+   * Launched into tumble. No control during hitstun except Ultimate's hitstun cancels once the launch has slowed:
+   * an air dodge, or an aerial (not a special or a jump). SmashWiki (Hitstun canceling) names only those two, and
+   * counts the 40 and 45 frames in real frames while balloon speed-up still shrinks the launch speed. A cancel
+   * ends hitstun, so a near-vertical launch stops using DamageFlyTop gravity and the 1.8 fall cap. Afterwards
+   * the fighter drifts and acts like falling. Landing in tumble techs if Shield was pressed in the last
+   * TECH_WINDOW frames (a tech roll with the stick held sideways), else it is a missed tech.
    */
   tumble: {
     physics: 'air',
@@ -39,7 +43,16 @@ export const HITSTUN: Record<string, ActionDef> = {
       const { f, c, m } = x;
       if (justPressed(c, Btn.Shield) && m.frame - f.techPressAt >= TECH_LOCKOUT) f.techPressAt = m.frame;
       if (f.hitstun > 0 && !hitstunOver(x)) {
-        const slow = Math.hypot(f.kb.x, f.kb.y) <= HITSTUN_CANCEL_AIR_DODGE.maxSpeed;
+        const speed = Math.hypot(f.kb.x, f.kb.y);
+        if (
+          f.actionFrame > HITSTUN_CANCEL_AERIAL.after &&
+          speed < HITSTUN_CANCEL_AERIAL.below &&
+          airAttack(x, false)
+        ) {
+          f.hitstun = 0;
+          return;
+        }
+        const slow = speed <= HITSTUN_CANCEL_AIR_DODGE.maxSpeed;
         if (
           f.actionFrame >= HITSTUN_CANCEL_AIR_DODGE.from &&
           slow &&
@@ -47,6 +60,7 @@ export const HITSTUN: Record<string, ActionDef> = {
           buffered(c, Btn.Shield)
         ) {
           consume(c, Btn.Shield);
+          f.hitstun = 0;
           setAction(x, 'airDodge');
         }
         return;
