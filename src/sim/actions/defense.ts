@@ -1,7 +1,7 @@
 import { Btn } from '../../input/types';
 import {
-  DASH_THRESHOLD,
   DIZZY,
+  DODGE_FLICK,
   PARRY,
   ROLL_BACK,
   ROLL_FORWARD,
@@ -83,12 +83,12 @@ export const DEFENSE: Record<string, ActionDef> = {
         consumeJump(x);
         return setAction(x, 'jumpSquat');
       }
-      const fl = flickX(c, DASH_THRESHOLD);
+      const fl = flickX(c, DODGE_FLICK.stick, DODGE_FLICK.frames);
       if (fl !== 0) {
         f.dodgeDir = { x: fl, y: 0 };
         return setAction(x, fl === f.facing ? 'rollForward' : 'rollBack');
       }
-      if (flickDown(c)) return setAction(x, 'spotDodge');
+      if (flickDown(c, DODGE_FLICK)) return setAction(x, 'spotDodge');
       if (!isHeld(c, Btn.Shield) && f.actionFrame >= SHIELD_MIN_HOLD) return setAction(x, 'shieldDrop');
       f.shieldHp -= SHIELD_DEPLETION;
       if (f.shieldHp <= 0) breakShield(x);

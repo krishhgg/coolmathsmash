@@ -1,10 +1,10 @@
 import { Btn } from '../../input/types';
 import {
-  DASH_THRESHOLD,
   DOWN_AUTO_GETUP,
   DOWN_BOUNCE_FRAMES,
   GETUP_ROLL,
   GETUP_STAND,
+  GETUP_STICK,
   TECH_IN_PLACE,
   TECH_MAX_SPEED,
   TECH_ROLL,
@@ -66,7 +66,7 @@ function getup(x: Ctx): boolean {
     return true;
   }
   const sx = stickX(c);
-  if (Math.abs(sx) >= DASH_THRESHOLD) {
+  if (Math.abs(sx) >= GETUP_STICK) {
     f.dodgeDir = { x: Math.sign(sx), y: 0 };
     setAction(x, 'getupRoll');
     return true;
@@ -77,7 +77,7 @@ function getup(x: Ctx): boolean {
     setAction(x, 'getupStand');
     return true;
   }
-  if (stickY(c) >= DASH_THRESHOLD) {
+  if (stickY(c) >= GETUP_STICK) {
     setAction(x, 'getupStand');
     return true;
   }

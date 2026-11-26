@@ -39,6 +39,8 @@
   "ssbw_gravity": "https://www.ssbwiki.com/Gravity",
   "ssbw_air_acceleration": "https://www.ssbwiki.com/Air_acceleration",
   "ssbw_fast_fall": "https://www.ssbwiki.com/Fast-fall",
+  "ssbw_buffer": "https://www.ssbwiki.com/Buffer",
+  "common_prc": "https://github.com/fudgepop01/amiibo_research/blob/523374aaf3f1b7fa67370f83bec4a53b256ac944/research/paramDecoding/common/param/common.xml",
   "ssbw_short_hop": "https://www.ssbwiki.com/Short_hop",
   "ssbw_double_jump": "https://www.ssbwiki.com/Double_jump",
   "ssbw_wall_jump": "https://www.ssbwiki.com/Wall_jump",
@@ -1155,6 +1157,8 @@
  "movement": {
   "buffer_frames": 7,
   "buffer_hold_extension_frames": 2,
+  "buffer_window_frames": 9,
+  "hold_buffer": "a press made any time before the window, held until the window opens, is buffered",
   "dash_turnaround_fast_frames": 5,
   "dash_speed_keep_frames": 6,
   "re_dash_frame": 15,
@@ -1162,8 +1166,9 @@
   "mario_pivot_dash_frames": 12,
   "dash_stick_x": 0.85,
   "run_stick_x": 0.75,
+  "turn_run_stick_x": -0.6,
   "walk_max_stick_note": "walk speed scales with stick tilt; keyboard needs a walk modifier",
-  "_source": "params_sheet (precede 7, precede_extension 2, turn_dash_frame 5, dash_speed_keep_frame 6, re_dash_frame 0xF, dash_stick_x 0.85, run_stick_x 0.75); ufd_stats (Dash and Run Speed, Dash Turnaround); mmsp"
+  "_source": "ssbw_buffer (9-frame window, hold buffer); params_sheet (precede 7, precede_extension 2, turn_dash_frame 5, dash_speed_keep_frame 6, re_dash_frame 0xF, dash_stick_x 0.85, run_stick_x 0.75); common_prc (turn_run_stick_x -0.6); ufd_stats (Dash and Run Speed, Dash Turnaround); mmsp"
  },
  "tech": {
   "window_frames": 11,
