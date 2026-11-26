@@ -98,16 +98,19 @@ export const GROUND: Record<string, ActionDef> = {
     friction: false,
     update(x) {
       const { f, s, c } = x;
-      if (f.actionFrame === 1) f.dashBackAt = 0;
+      if (f.actionFrame === 1) f.dashBackAt = -1;
       if (groundActionable(x)) return;
       const sx = stickX(c) * f.facing;
       if (flickX(c, DASH_THRESHOLD) === -f.facing) {
         if (f.actionFrame <= TURN_DASH_FRAMES) return dashBack(x);
-        if (f.dashBackAt === 0) f.dashBackAt = f.actionFrame;
+        // A new flick (the stick went back through neutral since the stored one) refreshes the buffer, as a new
+        // button press does; the frames that one flick stays past the threshold don't.
+        if (f.dashBackAt < 0 || c.neutralX > f.dashBackAt) f.dashBackAt = c.frame;
       }
       if (f.actionFrame > s.dashFrames) {
-        const inBuffer = f.dashBackAt > 0 && f.actionFrame - f.dashBackAt < INPUT_BUFFER_FRAMES;
-        const held = f.dashBackAt > 0 && HOLD_BUFFER && sx <= -DASH_THRESHOLD;
+        const stored = f.dashBackAt >= 0;
+        const inBuffer = stored && c.frame - f.dashBackAt < INPUT_BUFFER_FRAMES;
+        const held = stored && HOLD_BUFFER && sx <= -DASH_THRESHOLD;
         if (inBuffer || held) return dashBack(x);
         return setAction(x, sx > 0 ? 'run' : 'idle');
       }

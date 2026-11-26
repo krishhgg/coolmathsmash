@@ -91,14 +91,19 @@ describe('ground movement', () => {
    * speed then, or null if it never turns.
    */
   function flickBack(flick: number, release = Infinity, fighter = 'reference-mario') {
+    return turnAround(fighter, (frame) =>
+      frame < flick - 1 ? { x: 100 } : frame === flick - 1 || frame >= release ? {} : { x: -100 },
+    );
+  }
+
+  /** The fighter's first frame facing left under `hold` (frame 1 is the first input), or null if it never turns. */
+  function turnAround(fighter: string, hold: (frame: number) => Hold) {
     const m = createMatch({ seed: 1, stage: 'battlefield', stocks: 3, ports: [{ fighter }] });
     const f = P(m);
     f.pos.x = 0;
     settle(m);
     for (let frame = 1; frame <= 30; frame++) {
-      const hold =
-        frame < flick - 1 ? { x: 100 } : frame === flick - 1 || frame >= release ? {} : { x: -100 };
-      stepMatch(m, [input(hold)]);
+      stepMatch(m, [input(hold(frame))]);
       if (frame > 1 && f.facing === -1) return { frame, action: f.action, vx: f.vel.x };
     }
     return null;
@@ -128,6 +133,20 @@ describe('ground movement', () => {
     expect(flickBack(flick + 1, flick + 2, 'snailbob')?.frame).toBe(end);
     expect(flickBack(flick, flick + 1, 'snailbob')).toBe(null);
     expect(flickBack(flick, Infinity, 'snailbob')?.frame).toBe(end);
+  });
+
+  it('a second late flick back refreshes the buffer, as a new button press does', () => {
+    // Snail Bob's 13-frame dash: flicked back on frame 6 and let go, then flicked again 2 frames before the end and
+    // let go. The first flick is too old by frame 14; the second is still in the buffer, so he dashes back then.
+    const end = getFighter('snailbob').stats.dashFrames + 1;
+    const first = end - INPUT_BUFFER_FRAMES - 1;
+    const second = end - 2;
+    expect(first).toBeGreaterThan(5);
+    const hold = (frame: number): Hold =>
+      frame === first || frame === second ? { x: -100 } : frame < first - 1 ? { x: 100 } : {};
+    expect(turnAround('snailbob', hold)?.frame).toBe(end);
+    // One flick held past the threshold for 2 frames is one input: it ages from its first frame and is gone by then.
+    expect(flickBack(end - INPUT_BUFFER_FRAMES, end - INPUT_BUFFER_FRAMES + 2, 'snailbob')).toBe(null);
   });
 
   it('a tapped dash holds 1.95 u/f for 6 frames, then slides out at traction (Ultimate: dash_speed_keep_frame 6)', () => {
