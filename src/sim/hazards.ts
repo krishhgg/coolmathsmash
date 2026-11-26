@@ -128,17 +128,17 @@ function hitboxContact(geo: StageGeometry, v: FighterState, frame: number): Cont
 /**
  * After the fighters' hits and before grabs are resolved (resolveHits): each fighter a hazard touches takes that
  * hazard's hit and joins `struck`, at most one stage hit per frame and none while `stageHitLock` (the hazard's
- * `rehit`) runs. Hazards skip intangible fighters and fighters already in hitlag. A raised shield blocks them and a
- * shield drop's parry window parries them, as it does any hit (guardStageHit), with `shieldHit` or `parry` and no
+ * `rehit`) runs. Hazards skip intangible fighters and fighters already in hitlag; a fighter frozen by a status
+ * (StatusDef.freeze, paralysis) is still hit once its hitlag is over. A raised shield blocks them and a shield drop's
+ * parry window parries them, as it does any hit (guardStageHit), with `shieldHit` or `parry` and no
  * `stageHit`; the rehit wait still follows.
  *
  * Armor takes them like any hit. SmashWiki, Armor: "Armor is the concept of sustaining hitlag and damage, but not
  * sustaining any (or sustaining reduced) knockback", and "Grab hitboxes ignore all variations of armor." A hazard
  * is a hitbox, not a grab.
  *
- * Counters: SmashWiki gives no rule for hazards. Counterattack only says "Should any normally blockable attack hit
- * the user during these guard frames, the attack will be blocked", which on its face takes in a blockable hazard
- * (docs/stage-geometry.md).
+ * Counters don't catch them: a hazard goes through an open counter (MoveDef.counter, docs/fighters.md). SmashWiki
+ * gives no rule for hazards (docs/stage-geometry.md).
  */
 export function stageHits(m: MatchState, struck: Set<FighterState>): void {
   for (const f of m.fighters) if (f.stageHitLock > 0) f.stageHitLock--;

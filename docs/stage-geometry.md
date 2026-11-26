@@ -161,7 +161,7 @@ a fighter's hit: Ultimate's knockback formula, hitlag, a launch with DI when hit
 and the 1v1 damage multiplier. There is no attacker, so there is no staleness or rage and only the victim
 freezes. A fighter takes at most one stage hit per frame (zones first, then stage hitboxes, lowest index first),
 and then `stageHitLock`, the hazard's `rehit`, keeps all stage hazards off them. Hazards skip intangible
-fighters and fighters already in hitlag. Stage hits land before the frame's grabs are resolved, so they count
+fighters and fighters already in hitlag (not a fighter paralyzed past its hitlag). Stage hits land before the frame's grabs are resolved, so they count
 like any other hit on a grab: a held fighter armours through them until they add up to `GRAB.breakDamage` (a
 lava hit breaks free at once, goo takes a few), and a struck holder lets go.
 
@@ -177,7 +177,7 @@ A blocked or parried hit still starts the hazard's `rehit` wait. The tests are i
 - The parry window (shield drop frames 1-5) parries it: no %, no shield damage and no shieldstun. A hazard has no
   attacker to freeze, so the defender's freeze follows `PARRY`'s rule for an indirect hit (its hitlag - 1).
 - Armor (`MoveDef.armor`) takes its damage and hitlag, and it launches only past the armor's thresholds.
-- There are no counters in the game yet (see below).
+- An open counter (`MoveDef.counter`) doesn't catch it: the hazard goes through, as docs/fighters.md describes.
 
 A blocked hit emits `shieldHit` and a parried one `parry`, with `attacker` -1, no `entity` and `move` null,
 instead of `stageHit` (docs/sim-events.md).
@@ -200,7 +200,7 @@ Two points SmashWiki does not settle:
   Counterattack, Hitbox, Stage hazard, Witch Time, Counter and Marth (SSBU)/Down special pages say nothing about
   hazards, and [Counterattack](https://www.ssbwiki.com/Counterattack) says "Should any normally blockable attack
   hit the user during these guard frames, the attack will be blocked", which on its face includes a blockable
-  hazard. Decide the rule when counters land.
+  hazard. The engine lets hazards through counters (#195); if Ultimate turns out to block them, change that rule.
 - Unblockable hazards. [Norfair](https://www.ssbwiki.com/Norfair) says its magma can be "in Brawl and SSB4,
   shielded, and perfect shielded with decent timing", which suggests Ultimate's can't be. Hazards here have no
   unblockable flag, so a shield blocks every one of them.
