@@ -1,6 +1,7 @@
 import type { Pose } from '../../../render/rig/author';
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip } from '../../../render/rig/types';
-import { GETUP_ROLL, GETUP_STAND, TECH_IN_PLACE, TECH_ROLL } from '../../../sim/constants';
+import { GETUP_ROLL, GETUP_STAND, ROLL_BACK, TECH_IN_PLACE, TECH_ROLL } from '../../../sim/constants';
 import {
   FISTS,
   FIST_B,
@@ -26,8 +27,9 @@ import {
 } from './poses';
 
 /**
- * Johnny on the floor: lying down after a missed tech, the techs that catch the landing, and the getups. Each
- * timed clip lasts its action's FAF - 1 frames (src/sim/constants.ts), and the sim moves him through the rolls.
+ * Johnny on the floor: lying down after a missed tech, the techs that catch the landing, and the getups, with the
+ * back roll they reuse. Each timed clip lasts its action's FAF - 1 frames (src/sim/constants.ts), and the sim moves
+ * him through the rolls. A tech or getup roll away from his facing draws its `Back` clip (src/render/fighterView.ts).
  */
 
 const IDLE_FEET = { footF: { sx: -1 } };
@@ -111,6 +113,22 @@ const CROUCHED = hands(
   -1,
 );
 
+/**
+ * The back roll from his shield: sits back, somersaults backwards while the sim slides him (its travel is frames 4
+ * to 20) and comes up in his guard facing ahead. The back tech roll is this retimed onto the tech roll's travel.
+ */
+const BACK_ROLL: AnimClip = {
+  length: ROLL_BACK.faf - 1,
+  swaps: { ...GRIT, ...FISTS },
+  keys: shortTurns([
+    key(0, STANCE, { ease: 'in' }),
+    key(3, mix(CROUCHED, { body: { rot: -6 } }), { ease: 'in' }),
+    ...somersault(5, 20, 0, -360),
+    key(24, mix(CROUCHED, { body: { rot: -348 } }), { ease: 'out' }),
+    key(ROLL_BACK.faf - 1, mix(STANCE, { body: { rot: -360 } }), { swaps: { ...GRIT, ...GUARD } }),
+  ]),
+};
+
 export const tech: Record<string, AnimClip> = {
   down: {
     length: 40,
@@ -156,6 +174,26 @@ export const tech: Record<string, AnimClip> = {
   }),
 
   getupRoll: onFloor({
+    length: GETUP_ROLL.faf - 1,
+    swaps: { ...GRIT, ...PALM_F, ...FIST_B },
+    keys: shortTurns([
+      key(0, DOWN, { ease: 'in' }),
+      key(3, grounded(mix(TUCK, { body: { rot: -80 } })), { ease: 'linear', swaps: { ...GRIT, ...FISTS } }),
+      ...somersault(4, 22, -80, 360),
+      key(25, mix(CROUCHED, { body: { rot: 368 } }), { ease: 'inOut' }),
+      key(GETUP_ROLL.faf - 1, mix(STANCE, { body: { rot: 360 } }), { swaps: { ...GRIT, ...GUARD } }),
+    ]),
+  }),
+
+  rollBack: onFloor(BACK_ROLL),
+  techRollBack: onFloor(
+    retimeClip(BACK_ROLL, TECH_ROLL.faf - 1, [
+      [4, 4],
+      [20, 30],
+    ]),
+  ),
+
+  getupRollBack: onFloor({
     length: GETUP_ROLL.faf - 1,
     swaps: { ...GRIT, ...PALM_F, ...FIST_B },
     keys: shortTurns([
