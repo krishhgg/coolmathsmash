@@ -14,7 +14,7 @@ import type { CompiledStage } from '../stage';
 import { destroyEntity, entityDef, entityHitboxes, sweepEntities } from '../entities/entities';
 import type { EntityState } from '../entities/types';
 import { leaveGround, restoreAirOptions, surfaceRange, surfaceY } from '../movement';
-import { applyStatus } from '../statuses';
+import { applyStatus, endStatusesOnHit } from '../statuses';
 import {
   AUTOLINK,
   AUTOLINK_GROUND_ANGLE,
@@ -24,6 +24,7 @@ import {
   AUTOLINK_SPEED_MAX,
   AUTOLINK_VORTEX_FRAMES,
   AUTOLINK_VY_MIN,
+  HITLAG,
   hitlagFrames,
   hitstunFrames,
   isAutolink,
@@ -96,6 +97,12 @@ export function touches(h: PlacedHitbox, body: Hurtbox): boolean {
 
 export function hittable(f: FighterState): boolean {
   return f.action !== 'ko' && f.action !== 'out' && !isIntangible(f);
+}
+
+/** Whether `box` can hit `v` where it is now (HitboxDef.targets): on the ground, or airborne (ledge hangs included). */
+export function targetable(box: Pick<HitboxDef, 'targets'>, v: FighterState): boolean {
+  const targets = box.targets ?? 'both';
+  return targets === 'both' || (targets === 'ground') === (v.ground !== null);
 }
 
 /** One connection, with everything about both sides captured before any of this frame's hits land. */
@@ -205,7 +212,9 @@ function entityHits(e: EntityState, fighters: FighterState[], hits: Connection[]
   for (const v of fighters) {
     if (v.port === e.owner || e.hitVictims.includes(v.port) || !hittable(v)) continue;
     const body = hurtbox(v, getFighter(v.fighter).stats);
-    const hit = boxes.filter((h) => touches(h, body)).sort((p, q) => p.box.id - q.box.id)[0];
+    const hit = boxes
+      .filter((h) => targetable(h.box, v) && touches(h, body))
+      .sort((p, q) => p.box.id - q.box.id)[0];
     if (!hit) continue;
     e.hitVictims.push(v.port);
     if (!hit.box.pushOnly && e.stale === 0) e.stale = owner && e.move ? stale(owner, e.move) : 1;
@@ -272,7 +281,7 @@ export function applyHit(
   const at = { x: v.pos.x, y: v.pos.y + getFighter(v.fighter).stats.height / 2 };
   const contact = connection(a, v, box, at, m.frame);
   if (box.pushOnly) windPush(contact);
-  else hit(m, contact, again);
+  else hit(m, contact, again, new Map());
 }
 
 /**
@@ -296,11 +305,12 @@ export function contactHit(
 /**
  * Find every hit this frame from the state before any of them lands, then apply them all, so two fighters
  * whose moves connect on the same frame trade. Each move hits a fighter once (per rehit window), lowest
- * hitbox id first. Hits on an open counter are caught instead. Grab boxes are found from the same state and
- * resolved after the hits (grab.ts), so an attack beats a grab on the same frame. `stage` lands the stage hazards'
- * hits (src/sim/hazards.ts) between the two, adding its victims to `struck`, so they break grabs like any other hit.
- * Counterattacks start last, for counterers no grab or hazard took this frame; `posed` is the stage as it stands this
- * frame, for a counter that reappears on a floor.
+ * hitbox id first among the boxes that can hit it where it is (HitboxDef.targets), windboxes included. Hits on an
+ * open counter are caught instead. Grab boxes are found from the same state and resolved after the hits (grab.ts), so
+ * an attack beats a grab on the same frame. `stage` lands the stage hazards' hits (src/sim/hazards.ts) between the
+ * two, adding its victims to `struck`, so they break grabs like any other hit. Counterattacks start last, for
+ * counterers no grab or hazard took this frame; `posed` is the stage as it stands this frame, for a counter that
+ * reappears on a floor.
  */
 export function resolveHits(
   m: MatchState,
@@ -317,7 +327,9 @@ export function resolveHits(
     for (const v of m.fighters) {
       if (v === a || a.hitVictims.includes(v.port) || !hittable(v)) continue;
       const body = hurtbox(v, getFighter(v.fighter).stats);
-      const hit = boxes.filter((h) => touches(h, body)).sort((p, q) => p.box.id - q.box.id)[0];
+      const hit = boxes
+        .filter((h) => targetable(h.box, v) && touches(h, body))
+        .sort((p, q) => p.box.id - q.box.id)[0];
       if (hit) found.push({ v, box: hit.box, at: { x: hit.x, y: hit.y } });
     }
     for (const { v, box, at } of found) {
@@ -328,6 +340,7 @@ export function resolveHits(
   const used = m.entities.filter((e) => entityHits(e, m.fighters, hits, m.frame));
   const caught: Connection[] = [];
   const struck = new Set<FighterState>();
+  const ended: EndedOnHit = new Map();
   for (const h of hits) {
     // A windbox deals nothing, so it pushes a fighter in an open counter without setting it off.
     if (h.box.pushOnly) {
@@ -342,7 +355,7 @@ export function resolveHits(
     struck.add(h.v);
     if (h.parry) parry(m, h, again);
     else if (h.shielding) shieldHit(m, h, again);
-    else hit(m, h, again);
+    else hit(m, h, again, ended);
   }
   for (const e of used) destroyEntity(m, e, 'hit');
   sweepEntities(m);
@@ -404,14 +417,15 @@ export interface Strike {
  * on one victim on the same frame (`again`), the strongest knockback is the launch and the longest hitlag is
  * the freeze. An armored victim takes hits below both its thresholds without launching; the hit that breaks through
  * adds only `breakDamageMul` of its damage, judged and launched on the full damage. A held fighter stays in the grab,
- * the damage counting toward breaking it. Returns the knockback, the hitlag and the % added.
+ * the damage counting toward breaking it. The hit takes off the victim's statuses that end on a hit. Returns the
+ * knockback, the hitlag, the % added and the kinds of status it took off.
  */
 export function strike(
   m: MatchState,
   v: FighterState,
   { box, damage: base, stale, rage, dir, percent, crouch, armor, link }: Strike,
   again: boolean,
-): { kb: number; lag: number; added: number } {
+): { kb: number; lag: number; added: number; ended: string[] } {
   const kb = knockback({
     percent,
     damage: base,
@@ -427,9 +441,10 @@ export function strike(
   const armored = armor !== null && kb < armor.kb && damage < armor.damage;
   const before = v.damage;
   addDamage(m, v, armor && !armored ? damage * armor.breakDamageMul : damage);
+  const ended = endStatusesOnHit(m, v);
   const lag = hitlagFrames(damage, { mult: box.hitlag, electric: box.effect === 'electric', crouch });
   v.hitlag = again ? Math.max(v.hitlag, lag) : lag;
-  const result = { kb, lag, added: v.damage - before };
+  const result = { kb, lag, added: v.damage - before, ended };
   if (armored) return result;
   const held = grabArmour(m, v, damage);
   if (again && v.launch && v.launch.kb >= kb) return result;
@@ -443,10 +458,20 @@ export function strike(
 
 /**
  * Damage always adds up; a fighter attacker freezes for hitlag, but an entity and its owner do not. A box with a
- * `status` puts it on the victim after the hit event, its length taken from the % the hit added.
+ * `status` puts it on the victim after the hit event, its length taken from the % the hit added and its knockback
+ * scaled like its hitlag, unless a hit in the same batch took that status off (StatusDef.endOnHit).
  */
-function hit(m: MatchState, h: Connection, again: boolean): void {
-  const { kb, lag, added } = strike(m, h.v, h, again);
+/**
+ * The kinds of status each victim's hits have taken off in one batch of hits (StatusDef.endOnHit), so no hit in the
+ * batch puts back one that another just took off, whichever lands first.
+ */
+type EndedOnHit = Map<FighterState, string[]>;
+
+function hit(m: MatchState, h: Connection, again: boolean, batch: EndedOnHit): void {
+  const struck = strike(m, h.v, h, again);
+  const { kb, lag, added } = struck;
+  const ended = [...(batch.get(h.v) ?? []), ...struck.ended];
+  batch.set(h.v, ended);
   // One swing can connect several times a frame (a parry among them): the attacker keeps the longest freeze.
   if (h.a) h.a.hitlag = Math.max(h.a.hitlag, lag);
   emit(m, {
@@ -463,7 +488,10 @@ function hit(m: MatchState, h: Connection, again: boolean): void {
     x: h.at.x,
     y: h.at.y,
   });
-  if (h.box.status) applyStatus(m, h.v, h.box.status, { damage: added, source: h.attacker });
+  if (h.box.status && !ended.includes(h.box.status)) {
+    const knockback = kb * (h.box.hitlag ?? 1) * (h.crouch ? HITLAG.crouch : 1);
+    applyStatus(m, h.v, h.box.status, { damage: added, knockback, source: h.attacker });
+  }
 }
 
 /**
