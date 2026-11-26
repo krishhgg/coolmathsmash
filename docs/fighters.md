@@ -471,11 +471,11 @@ kos({ hit: { fighter: 'fireboy', move: 'bthrow' } }, 150); // does it KO from 15
 Kill-% tests take each move's angle, BKB and KBG from its Ultimate analogue and assert `koPercent` within about 5
 points of that analogue's own kill % from the same setup (CREW.md, "Knockback values and kill percents").
 
-It returns the lowest % (to 0.1) from which the hit KOs the target: the target crosses a blast zone **before its
-hitstun ends**, with no input other than the optional DI stick, which is the definition the community KO calculator
-uses. Defaults: the Mario reference (weight 98) standing at Battlefield's ledge (`from: 'ledge'`, launched toward
-the near blast zone), fresh (×1.05), no rage, no DI. `from` also takes `'centre'` or a point, `target` another
-fighter id, `attackerPercent` adds rage.
+It returns the lowest % (to 0.1) from which the hit KOs the target: the target crosses a blast zone, or the meteor
+blast line below, **before its hitstun ends**, with no input other than the optional DI stick, which is the definition
+the community KO calculator uses. Defaults: the Mario reference (weight 98) standing at Battlefield's ledge
+(`from: 'ledge'`, launched toward the near blast zone), fresh (×1.05), no rage, no DI. `from` also takes `'centre'` or
+a point, `target` another fighter id, `attackerPercent` adds rage.
 
 A `{ fighter, move }` hit lands the way the real hit connects:
 
@@ -510,12 +510,21 @@ Captain Falcon's own moves (a test fighter with his 13.0.1 hitboxes), through th
 | fair knee (22%, 32°, 81/30), Mario standing            | 56.0                           | 55.2   |
 | uair (10%, 66°, 96/20), Mario lifted to y 14.5         | 180.8                          | 184.9  |
 
-The up air's gap isn't placement: raw 62–70° hits run about 4 points late in the engine from any height.
+The up air's gap isn't placement or engine physics. The calculator's KO check reads its vertical launch speed by
+simulation step but its positions by displayed frame, so under balloon speed-up its top-zone 2.4 rule sees a speed from
+up to 30 steps earlier. With that one read fixed it gives 185.0 for the up air and 126.0, 187.9 and 243.8 for Mario's
+up smash, up air and up throw, all within 0.4 of the engine (`ko.test.ts`). The same stale read makes its meteor KOs
+6 to 8 points early.
 
 So with Ultimate-standard knockback an 18% smash KOs Mario at the ledge in the 60s, not near 100%. SmashWiki agrees:
-Mario's fsmash sweetspot "is capable of KOing most characters reliably at 70% near the ledge". Two engine rules
-matter for vertical kills: a 70–110° tumble launch falls with `damageFlyTopGravity` capped at 1.8 during hitstun,
-and the top blast zone only KOs at a vertical launch speed of at least 2.4 or 30 units past it.
+Mario's fsmash sweetspot "is capable of KOing most characters reliably at 70% near the ledge". Three engine rules
+matter for vertical kills (`src/sim/blastZones.ts`):
+
+- A 70–110° tumble launch falls with `damageFlyTopGravity` capped at 1.8 during hitstun.
+- The top blast zone only KOs at a vertical launch speed of at least 2.4 or 30 units past it.
+- Ultimate's meteor blast line: a fighter launched downward is KO'd 25 units under the camera's lower limit if it falls
+  at 3 or more there, launch speed and its own together, before it reaches the bottom blast zone (SmashWiki, "Meteor
+  smash"). On Battlefield that is y −105.
 
 ### Tuning tools
 
