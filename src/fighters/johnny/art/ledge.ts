@@ -69,7 +69,7 @@ const RELEASE: Pose = mix(AIR, {
 
 export const ledge: Record<string, AnimClip> = {
   ledgeCatch: {
-    length: 8,
+    length: 19,
     swaps: { ...GRIT, ...FISTS },
     keys: [
       key(
@@ -86,7 +86,7 @@ export const ledge: Record<string, AnimClip> = {
           z: HEAD_IN_FRONT,
         },
       ),
-      key(8, HANG),
+      key(19, HANG),
     ],
   },
 

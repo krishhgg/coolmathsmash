@@ -2,7 +2,6 @@ import {
   DOWN_FLICK_THRESHOLD,
   HARD_LANDING_AIRTIME,
   HELPLESS_AIR_SPEED,
-  LEDGE_INTANGIBILITY,
   LEDGE_MAX_GRABS,
   PUSH_STIFFNESS,
 } from './constants';
@@ -15,7 +14,13 @@ import { emit } from './events';
 import type { MatchState } from './match';
 import { edgeMaxX, edgeMinX, floorY, ledgePresent, type CompiledStage, type Edge } from './stage';
 import { approach, type Vec } from './vec';
-import { DAMAGE_FLY_TOP_GRAVITY, LAUNCH_DECAY, speedUp, VERTICAL_LAUNCH_FALL_SPEED } from './combat/formulas';
+import {
+  DAMAGE_FLY_TOP_GRAVITY,
+  LAUNCH_DECAY,
+  ledgeIntangibility,
+  speedUp,
+  VERTICAL_LAUNCH_FALL_SPEED,
+} from './combat/formulas';
 import { breakGrab } from './actions/grab';
 import { actionDef, enterAction } from './actions/registry';
 
@@ -486,7 +491,8 @@ export function grabLedge(x: Ctx, i: number): void {
   f.fastFalling = false;
   f.jumpsUsed = 0;
   f.airDodgeUsed = false;
-  f.intangible = f.ledgeFresh ? LEDGE_INTANGIBILITY : 0;
+  // The counter also ticks on the grab frame, so +1 leaves exactly ledgeIntangibility frames counting this one.
+  f.intangible = f.ledgeFresh ? ledgeIntangibility(f.airFrames, f.damage) + 1 : 0;
   f.ledgeFresh = false;
   hangAt(x);
   enterAction(x, 'ledgeCatch', 0);
