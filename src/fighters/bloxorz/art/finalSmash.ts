@@ -29,7 +29,8 @@ import { HALF_W } from './symbols';
  * 29 to 34. On a miss it lies there and rocks back up by frame 99. Lying, it first stands up (frames 0-4).
  *
  * The cinematic, with the catch held about 11 units in front (the engine's hold: half of both widths plus 1): the
- * punch lands on frame 1, the level's tiles flip up out of the floor in a wave from the block, and the block splits
+ * punch lands on frame 1 and the catch slides in over the toppled block, which draws under every fighter until it
+ * splits (TOPPLED), so the catch stays in view. The level's tiles flip up out of the floor in a wave from the block, and the block splits
  * into its two cubes, one either side of the catch. They take turns rocking their top corners into it on the 31
  * barrage frames, then the far cube hops back over it onto the near one, the block re-forms, jumps and slams the
  * heavy switch on frame 139: the bridge tile under the catch flips up on its hinge and flings it. The tiles then fall
@@ -37,6 +38,13 @@ import { HALF_W } from './symbols';
  */
 
 const F = STAND;
+
+/**
+ * Activation frames on which the block lies toppled (falling over from 25, back up by 85): it draws in its `under`
+ * slots, under every fighter, as it does through the punch, so the foe it lands on stays in view over it. The cubes,
+ * tiles and effects stay in the block's own layer, over everyone (a Final Smash user draws on top).
+ */
+export const TOPPLED: [number, number] = [25, 85];
 
 /** Where the cubes stand through the barrage: either side of a catch held 11 units in front. */
 const CUBE_A = -1;
@@ -198,6 +206,7 @@ function activation(f: number): Frame {
   const block = rock(F, deg, { sx, sy, x: shudder });
   return {
     block,
+    under: f >= TOPPLED[0] && f <= TOPPLED[1],
     fx: {
       starB: glyph
         ? {
@@ -224,10 +233,11 @@ function activation(f: number): Frame {
 /** The cinematic, frame `f`. */
 function cinematic(f: number): Frame {
   const extra = level(f);
-  // The punch: the toppled block on the catch, held through the punch's hitlag.
+  // The punch: the toppled block on the catch, held through the punch's hitlag while the catch slides in over it.
   if (f <= 1) {
     return {
       block: rock(F, 90, { sx: 0.9, sy: 1.03 }),
+      under: true,
       fx: {
         starA: f === 1 ? { sym: 'burst', x: 11, y: -9, sx: 1.25, sy: 1.25 } : undefined,
         ...landing(18, 12, f, 1.2, 14),

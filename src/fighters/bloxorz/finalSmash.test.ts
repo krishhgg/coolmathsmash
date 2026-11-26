@@ -1,15 +1,21 @@
+import { Container, Graphics } from 'pixi.js';
 import { describe, expect, it, vi } from 'vitest';
 import { createCpu } from '../../ai';
+import { layerFighters } from '../../render/entities';
+import { FighterView } from '../../render/fighterView';
+import type { FighterArt } from '../../render/rig/types';
 import type { SimEvent } from '../../sim/events';
 import type { FighterState } from '../../sim/fighter';
 import { finalReach, freezeOf } from '../../sim/finalSmash';
 import { createMatch, stepMatch, type MatchState } from '../../sim/match';
 import { koPercent } from '../../sim/testing/ko';
+import { noFinalTester } from '../../sim/testing/finalSmash';
 import { marioReference } from '../../sim/testing/reference';
 import { input, type Hold } from '../../sim/testing/sim';
 import { samplePose } from '../../render/rig/sample';
 import { getFighter, registerFighter } from '../registry';
 import { art, lyingArt } from './art';
+import { TOPPLED } from './art/finalSmash';
 import { LEVEL_TILES } from './art/rig';
 import { BARRAGE, REACH, SPLIT, finalSmash, finalSmashCinematic } from './finalSmash';
 import { LYING, STANDING } from './tip';
@@ -337,7 +343,7 @@ describe('Split Switch (Final Smash), on Jungle Rush', () => {
       return {
         tiles: LEVEL_TILES.filter((t) => p.symbols[t]).length,
         cubes: [p.symbols.cubeA, p.symbols.cubeB].filter(Boolean).length,
-        block: p.symbols.face !== null,
+        block: (p.symbols.face ?? p.symbols.faceUnder) !== null,
       };
     };
     for (let f = 0; f < finalSmash.faf; f++) expect(shown('finalSmash', f).tiles).toBe(0);
@@ -346,6 +352,96 @@ describe('Split Switch (Final Smash), on Jungle Rush', () => {
     for (const f of [...BARRAGE.fast, ...BARRAGE.late]) expect(shown('finalSmashCinematic', f).cubes).toBe(2);
     expect(shown('finalSmashCinematic', BARRAGE.finish)).toEqual({ tiles: 12, cubes: 0, block: true });
     expect(shown('finalSmashCinematic', BARRAGE.faf - 1)).toEqual({ tiles: 0, cubes: 0, block: true });
+  });
+
+  it("draws the foe over the toppled block from the topple to the split, and the cubes and tiles over it after, in the renderer's layer order", () => {
+    // The foe is the Final Smash tester without one, as in Runner's tunnel test: Fireboy's rig, like the block's, has
+    // gradients, which Pixi builds only on a browser canvas. The block's own art goes in with its gradients flattened.
+    const flat: FighterArt = {
+      ...art,
+      rig: {
+        ...art.rig,
+        symbols: Object.fromEntries(
+          Object.entries(art.rig.symbols).map(([name, sym]) => [
+            name,
+            Array.isArray(sym)
+              ? sym.map((p) => (typeof p.fill === 'object' ? { ...p, fill: p.fill.stops[0]!.color } : p))
+              : sym,
+          ]),
+        ),
+      },
+    };
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: STANDING }, { fighter: noFinalTester.id }, { fighter: MARIO }],
+    });
+    m.fighters.forEach((f, i) => {
+      const x = [BLOCK_X, BLOCK_X + 30, 70][i]!;
+      Object.assign(f, { pos: { x, y: 1 }, prevPos: { x, y: 1 }, vel: { x: 0, y: 0 }, ground: null });
+      Object.assign(f, { action: 'fall', actionFrame: 1, facing: i ? -1 : 1 });
+    });
+    step(m, 30);
+    // The renderer's world, fighters' part: the under layer, then the raft layer, then the fighter layer.
+    const views = [
+      new FighterView({ ...getFighter(STANDING), art: flat }, 0, 'default', true),
+      new FighterView(getFighter(noFinalTester.id), 1, 'default', true),
+    ] as const;
+    const under = new Container();
+    const boat = new Container({ sortableChildren: true });
+    const rest = new Container({ sortableChildren: true });
+    const world = new Container();
+    world.addChild(under, boat, rest);
+    for (const view of views) under.addChild(view.under);
+    /** The visible drawings under `root` in the order Pixi draws them. */
+    const drawn = (root: Container): Graphics[] => {
+      if (!root.visible) return [];
+      if (root instanceof Graphics) return root.context.instructions.length ? [root] : [];
+      const kids = root.sortableChildren
+        ? [...root.children].sort((p, q) => p.zIndex - q.zIndex)
+        : root.children;
+      return kids.flatMap((c) => drawn(c));
+    };
+    const [block, foe] = views;
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    a.finalReady = true;
+    step(m, 1, [SPECIAL]);
+    let toppled = 0;
+    let split = 0;
+    while (a.move !== null) {
+      m.fighters.slice(0, 2).forEach((f, i) => views[i].update(f, 1, m.frame, false));
+      layerFighters(
+        m,
+        views.map((view) => view.container),
+        boat,
+        rest,
+      );
+      const order = drawn(world);
+      const at = (gs: Graphics[]) => gs.map((g) => order.indexOf(g));
+      const foeAt = at(drawn(foe.container));
+      const lying = drawn(block.under);
+      const own = drawn(block.container);
+      const label = `${a.move}@${a.actionFrame}`;
+      const cinematic = a.move === 'finalSmashCinematic';
+      if (cinematic ? a.actionFrame < 2 : a.actionFrame >= TOPPLED[0]) {
+        // The block lies under the foe; only its dust and the punch's spark go over.
+        expect(lying.length, label).toBe(2);
+        expect(Math.max(...at(lying)), label).toBeLessThan(Math.min(...foeAt));
+        if (cinematic) toppled++;
+      } else if (cinematic && a.actionFrame < BARRAGE.finish) {
+        // Split: the cubes and the tiles draw over the foe, and nothing of the block goes under it.
+        expect(lying, label).toEqual([]);
+        expect(own.length, label).toBeGreaterThan(4);
+        expect(Math.min(...at(own)), label).toBeGreaterThan(Math.max(...foeAt));
+        split++;
+      }
+      step(m, 1);
+    }
+    expect(v.damage).toBeGreaterThan(60);
+    // The catch frame, the punch's frame and its 30 frames of hitlag; then every barrage frame and its hitlag.
+    expect(toppled).toBe(32);
+    expect(split).toBe(BARRAGE.finish - 2 + 31 * 2);
   });
 
   it('keeps the numbers the art reads in a module the art can load first', async () => {

@@ -9,8 +9,9 @@ export const LEVEL_TILES = Array.from({ length: 12 }, (_, i) => `lt${i}`);
  * centre for spins) and carries the rotation; `block` sits on it, offset to the block's centre, turned 0 when
  * standing and 90 when lying, and scaled along its own axes (x across, y along its length) for squash and stretch.
  * `cubeA`/`cubeB` are the two cubes the block splits into in its taunt and Final Smash; `fx1`-`fx7` place effects
- * in rig space, and `lt0`-`lt11` the Final Smash's level tiles, which draw behind everything else. Clips key every
- * bone on every frame, so rests are all zero.
+ * in rig space, and `lt0`-`lt11` the Final Smash's level tiles, which draw behind everything else. `bevelUnder` and
+ * `faceUnder` draw the block under every fighter (Slot.under) while its Final Smash lies toppled on the one it caught.
+ * Clips key every bone on every frame, so rests are all zero.
  */
 export const rig: Rig = {
   bones: [
@@ -27,6 +28,8 @@ export const rig: Rig = {
     { name: 'back', bone: 'fx1', symbol: null, decor: true },
     { name: 'bevel', bone: 'block', symbol: 'bevel0' },
     { name: 'face', bone: 'block', symbol: 'face' },
+    { name: 'bevelUnder', bone: 'block', symbol: null, under: true },
+    { name: 'faceUnder', bone: 'block', symbol: null, under: true },
     { name: 'cubeBevelA', bone: 'cubeA', symbol: null },
     { name: 'cubeA', bone: 'cubeA', symbol: null },
     { name: 'cubeBevelB', bone: 'cubeB', symbol: null },
