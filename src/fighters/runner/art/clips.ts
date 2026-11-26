@@ -1080,6 +1080,65 @@ export const clips: Record<string, AnimClip> = {
       ),
     ],
   },
+  /**
+   * Pushed apart after a grab ends without a throw (either side): she is jolted back on her heels with her arms
+   * thrown forward, skids back with dust kicked up where she slides, then crouches and settles into her stance.
+   * As long as GRAB.releaseLag.
+   */
+  grabRelease: {
+    length: 29,
+    swaps: SHOUT,
+    keys: [
+      key(
+        0,
+        mix(
+          P({
+            x: -0.5,
+            y: 0.9,
+            rot: -18,
+            legs: [
+              [3.2, 0],
+              [-1.6, 0],
+            ],
+            arms: [
+              [4.4, -7.8],
+              [-4.8, -5.0],
+            ],
+            ant: [-30, -24],
+          }),
+          { fx3: { x: -3.2, y: 0, sx: 1.4, sy: 1.0 } },
+        ),
+        { ease: 'out', swaps: { ...SHOUT, fxBack: 'dust' } },
+      ),
+      key(
+        7,
+        mix(
+          P({
+            x: -0.3,
+            y: 1.4,
+            rot: -9,
+            sy: 0.95,
+            sx: 1.03,
+            legs: [
+              [3.0, 0],
+              [-2.2, 0],
+            ],
+            arms: [
+              [6.0, -6.4],
+              [-5.6, -6.8],
+            ],
+            ant: [-16, -12],
+          }),
+          { fx3: { x: -4.9, y: 0, sx: 2.4, sy: 1.4 } },
+        ),
+        { ease: 'inOut', swaps: { ...ANGRY, fxBack: 'dust' } },
+      ),
+      key(13, mix(CROUCH, { fx3: { x: -6.6, y: 0, sx: 3.0, sy: 0.4 } }), { ease: 'inOut' }),
+      key(15, undefined, { swaps: { ...ANGRY, fxBack: null } }),
+      key(20, READY, { swaps: FACE }),
+      key(29, READY),
+    ],
+  },
 };
 
 /** The tech roll on the getup roll's timeline: the sim's travel ends on frame 28 instead of 30, and 35 frames in all. */
