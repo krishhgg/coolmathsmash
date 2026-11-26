@@ -1,6 +1,7 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
 import { flattenPath, poseBounds } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, FighterArt, Key } from '../../../render/rig/types';
 import {
   AIR,
@@ -942,3 +943,9 @@ export const clips: Record<string, AnimClip> = {
   ...attacks,
   ...stunGunClips,
 };
+
+/**
+ * The air dodge on the neutral dodge's 52 frames (AIR_DODGE_NEUTRAL): keys inside the intangible window (3 to 29)
+ * stay put and only the recovery after it stretches. A directional dodge plays the same clip over its own length.
+ */
+clips.airDodge = retimeClip(clips.airDodge!, 52, [[29, 29]]);

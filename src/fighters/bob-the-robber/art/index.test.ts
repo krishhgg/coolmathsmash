@@ -4,6 +4,7 @@ import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
 import type { PathShape } from '../../../render/rig/types';
 import {
+  AIR_DODGE_NEUTRAL,
   GETUP_ROLL,
   GETUP_STAND,
   GRAB,
@@ -39,7 +40,7 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   spotDodge: SPOT_DODGE.faf - 1,
   rollForward: ROLL_FORWARD.faf - 1,
   rollBack: ROLL_BACK.faf - 1,
-  airDodge: 49,
+  airDodge: AIR_DODGE_NEUTRAL.faf - 1,
   ledgeCatch: 19,
   ledgeHang: 'loop',
   ledgeClimb: 34,

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { allFighters, getFighter, registerFighter } from '../fighters/registry';
 import { defineFighter, type FighterDef } from '../fighters/types';
-import { GETUP_ROLL, LEDGE_JUMP, SHIELD_MAX, TECH_ROLL } from '../sim/constants';
+import {
+  AIR_DODGE_DIRECTIONAL,
+  AIR_DODGE_NEUTRAL,
+  GETUP_ROLL,
+  LEDGE_JUMP,
+  SHIELD_MAX,
+  TECH_ROLL,
+} from '../sim/constants';
 import { createFighter } from '../sim/fighter';
 import { quickGrapple, tetherTester } from '../sim/testing/tethers';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../sim/testing/sim';
@@ -88,6 +95,42 @@ describe('clipFor on tech and getup rolls', () => {
           }
     },
   );
+});
+
+describe('clipFor on air dodges', () => {
+  const fireboy = getFighter('fireboy');
+
+  /** The clip frame Fireboy's air dodge draws on `frame` of a dodge toward `dir`. */
+  function drawn(frame: number, x: number, y: number): number {
+    const f = createFighter(0, fireboy.id, [0, 0, 1], 3);
+    Object.assign(f, { action: 'airDodge', actionFrame: frame, move: null, dodgeDir: { x, y } });
+    const [clip, at] = clipFor(fireboy, fighterArt(fireboy)!, f);
+    expect(clip).toBe('airDodge');
+    return at;
+  }
+
+  it('plays a neutral dodge frame for frame', () => {
+    for (let frame = 1; frame < AIR_DODGE_NEUTRAL.faf; frame++) expect(drawn(frame, 0, 0)).toBe(frame);
+  });
+
+  it('draws the neutral intangible window over a directional one, then slows the recovery to the dodge end', () => {
+    const [start, end] = AIR_DODGE_DIRECTIONAL.intangible;
+    const length = fighterArt(fireboy)!.clips.airDodge!.length;
+    /** Straight down, straight forward and straight up: fafByAngle's first, middle and last entries. */
+    const dirs: [number, number, number][] = [
+      [0, -1, 0],
+      [1, 0, 2],
+      [0, 1, 4],
+    ];
+    for (const [x, y, row] of dirs) {
+      const last = AIR_DODGE_DIRECTIONAL.fafByAngle[row]! - 1;
+      expect(drawn(start, x, y)).toBe(AIR_DODGE_NEUTRAL.intangible[0]);
+      expect(drawn(end, x, y)).toBe(AIR_DODGE_NEUTRAL.intangible[1]);
+      expect(drawn(last, x, y)).toBe(length);
+      const frames = Array.from({ length: last }, (_, t) => drawn(t + 1, x, y));
+      expect(frames).toEqual([...frames].sort((a, b) => a - b));
+    }
+  });
 });
 
 describe('clipFor through a tether reel', () => {

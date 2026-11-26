@@ -72,6 +72,12 @@ neither stops early nor holds a pose. `src/fighters/dodgeClips.test.ts` checks e
 changes, move the keys rather than cutting them; `retimeClip` in `src/render/rig/timing.ts` re-keys a whole clip,
 which is how the getup rolls reuse the tech rolls.
 
+`airDodge` follows the same rule for the neutral dodge: 52 frames (`AIR_DODGE_NEUTRAL.faf - 1`), played frame for
+frame. A directional dodge lasts 71 to 116 frames by stick angle (`AIR_DODGE_DIRECTIONAL.fafByAngle`), and the
+renderer plays the same clip over it (`clipFor`): clip frames 3 to 29, the neutral intangible window, are drawn over
+the directional one (3 to 21), and the rest of the clip slows to end on the dodge's last frame. Draw the twist
+inside frames 3 to 29 and the recovery into the fall pose after them. `dodgeClips.test.ts` checks both.
+
 Tech roll and getup roll keep the fighter's facing, so one away from it is a back roll. The renderer draws
 `techRollBack` or `getupRollBack` for it, falling back to `rollBack`. Build both from `rollBack` with `retimeClip`,
 moving its travel frames (4 to 20) onto the action's (4 to 30 for a tech roll, 4 to 28 for a getup roll). Wheely
