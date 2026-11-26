@@ -370,7 +370,7 @@ const PIVOT_GRAB = fist(
 
 // --- Holding, pummel and throws. --------------------------------------------------------------------------
 /** Holding someone by the collar at arm's length, the near fist cocked. */
-const HOLD = fist(
+export const HOLD = fist(
   fist(feet({ body: { rot: 6, x: 0.6 }, hip: { y: 0.4 } }, [3.4, 0], [-2.2, 0]), 'B', [6.8, -9.0], 1.2),
   'F',
   [0.6, -9.8],
