@@ -26,6 +26,46 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
  */
 const PROPELLER = { from: 6, lift: 1.7, burst: 28, to: 36, rise: 3, taper: 0.25, steer: 0.9 };
 
+/**
+ * Parmesan Shaker's shots, from the Ice Climbers' Blizzard (SmashWiki, "Ice Climbers (SSBU)/Down special"): nine shots
+ * 5 frames apart from frame 16, each a clean hit for 2 frames, mid for 4 and late for 3, flying 2.8 units a frame from
+ * the shaker's cap. Each box sits where the shot is halfway through its phase, so the clean box is 1.4 units out, the
+ * mid 9.8 and the late 19.6.
+ */
+export const SHAKER = {
+  cap: { x: 6.5, y: 8 },
+  first: 16,
+  every: 5,
+  shots: 9,
+  speed: 2.8,
+  phases: [
+    { frames: 2, damage: 1.8, kbg: 50, radius: 5 },
+    { frames: 4, damage: 1, kbg: 50, radius: 4 },
+    { frames: 3, damage: 1, kbg: 20, radius: 2.5 },
+  ],
+};
+
+/** One shot's three windows: clean (a rehit window, so each shot can land), mid and late. */
+const shakerShot = (shot: number): MoveDef['hits'] => {
+  let from = SHAKER.first + shot * SHAKER.every;
+  let t = 0;
+  return SHAKER.phases.map((p, id) => {
+    const frames: [number, number] = [from, from + p.frames - 1];
+    const x = Math.round((SHAKER.cap.x + SHAKER.speed * (t + (p.frames - 1) / 2)) * 100) / 100;
+    from += p.frames;
+    t += p.frames;
+    const hit = {
+      damage: p.damage,
+      angle: 361,
+      kbg: p.kbg,
+      bkb: 10,
+      hitlag: 0.5,
+      status: 'papa-louie/cheesed',
+    };
+    return { frames, ...(id === 0 && { rehit: true }), boxes: [box(id, x, SHAKER.cap.y, p.radius, hit)] };
+  });
+};
+
 const fire = 'fire' as const;
 const away = 'away' as const;
 
@@ -383,6 +423,19 @@ export const moves: Record<string, MoveDef> = {
     faf: 40,
     hits: [],
     spawn: [{ frame: 14, entity: 'pepperBomb', x: 6, y: 9, vx: 1.25, vy: 1.55, max: 2 }],
+  },
+  /**
+   * Parmesan Shaker (side special): holds the Parmesan shaker out in front and shakes a burst of grated cheese a short
+   * way ahead, nine shots that Cheese whoever they hit (statuses.ts). Hitboxes only, no projectile. Its Ultimate
+   * analogue is the Ice Climbers' Blizzard, the special that sprays a short cone on one press (SmashWiki, "Ice Climbers
+   * (SSBU)/Down special"; ultimateframedata.com): FAF 85; each shot 1.8% clean, 1% mid and late, at the Sakurai angle
+   * with 10 base knockback, 50 growth (20 late), radius 5, 4 and 2.5, and x0.5 hitlag (SHAKER above). Each shot hits a
+   * fighter once. Projectile shieldstun, as Blizzard's shards are projectiles.
+   */
+  sideB: {
+    kind: 'projectile',
+    faf: 85,
+    hits: Array.from({ length: SHAKER.shots }, (_, i) => shakerShot(i)).flat(),
   },
   /**
    * Paddle Propeller (up special): spins the paddle overhead like a rotor and rises about 60 units, five 1% hits
