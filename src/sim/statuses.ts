@@ -20,6 +20,12 @@ export interface StatusDef {
    */
   frames: number;
   perDamage?: number;
+  /**
+   * Frames per unit of the applying hit's knockback, scaled the way its hitlag is (the box's hitlag multiplier, x0.67 on
+   * a crouch cancel), added to the length before it is floored. Ultimate's paralysis is floor(1 + knockback x hitlag
+   * multiplier x crouch): `frames: 1, perKnockback: 1`.
+   */
+  perKnockback?: number;
   max?: number;
   /** Applying it again while it lasts: `add` the new length (the flower stacks), or `refresh` to the longer one. */
   stack?: 'add' | 'refresh';
@@ -29,6 +35,17 @@ export interface StatusDef {
   mash?: { stick: number; button: number };
   /** Runs on every frame of the status, after the fighter's action and before its physics. Deterministic only. */
   script?: (x: Ctx, status: StatusState) => void;
+  /**
+   * Freezes the fighter while it lasts, as hitlag does: no action, physics or timers, and a launch waits for it. It
+   * ticks on every frame from the one after it went on, hitlag frames included, so the freeze after a hit that
+   * applies it is the longer of the hit's hitlag and the status (Ultimate's paralysis takes the place of hitlag).
+   */
+  freeze?: boolean;
+  /**
+   * A later hit on the fighter (not on a shield), a pummel or a throw's hold hit included, takes it off, and no hit
+   * landing with it can put it back on (Ultimate's paralysis).
+   */
+  endOnHit?: boolean;
   /** Presentation only: the colour of its badge over the fighter's head. */
   color?: string;
 }
@@ -47,7 +64,7 @@ export interface StatusState {
   source: number;
 }
 
-export type StatusEndReason = 'expired' | 'ko' | 'cleared';
+export type StatusEndReason = 'expired' | 'ko' | 'cleared' | 'hit';
 
 /** The StatusDef of kind "<fighter id>/<name>". */
 export function statusDef(kind: string): StatusDef {
@@ -65,21 +82,32 @@ export function hasStatus(f: FighterState, kind: string): boolean {
   return statusOf(f, kind) !== undefined;
 }
 
+/** A freezing status (StatusDef.freeze) holds `f`: like a fighter in hitlag, it isn't pushed by others. */
+export function isFrozen(f: FighterState): boolean {
+  return f.statuses.some((s) => statusDef(s.kind).freeze);
+}
+
 /**
- * Put status `kind` on `f`, or apply it again (StatusDef.stack). Its length comes from the StatusDef and
- * `damage` (the % the applying hit added) unless `frames` gives one. A length under one frame applies nothing.
+ * Put status `kind` on `f`, or apply it again (StatusDef.stack). Its length comes from the StatusDef, `damage` (the %
+ * the applying hit added) and `knockback` (the hit's knockback scaled like its hitlag, StatusDef.perKnockback) unless
+ * `frames` gives one. A length under one frame applies nothing.
  */
 export function applyStatus(
   m: MatchState,
   f: FighterState,
   kind: string,
-  opts: { damage?: number; source?: number; frames?: number } = {},
+  opts: { damage?: number; knockback?: number; source?: number; frames?: number } = {},
 ): StatusState | null {
   const def = statusDef(kind);
   const max = def.max ?? Infinity;
   const length = Math.min(
     max,
-    opts.frames ?? Math.floor(def.frames + (def.perDamage ?? 0) * (opts.damage ?? 0)),
+    opts.frames ??
+      Math.floor(
+        def.frames +
+          (def.perDamage ?? 0) * (opts.damage ?? 0) +
+          (def.perKnockback ?? 0) * (opts.knockback ?? 0),
+      ),
   );
   if (length < 1) return null;
   const on = statusOf(f, kind);
@@ -100,6 +128,16 @@ export function clearStatus(m: MatchState, f: FighterState, kind: string): void 
   if (s) end(m, f, s, 'cleared');
 }
 
+/**
+ * A hit landed on `f`: take off its statuses that end on a hit (StatusDef.endOnHit). Ones that went on this frame stay,
+ * so hits landing together end the same statuses whatever order they land in. Returns the kinds it took off.
+ */
+export function endStatusesOnHit(m: MatchState, f: FighterState): string[] {
+  const ended = f.statuses.filter((s) => s.since !== m.frame && statusDef(s.kind).endOnHit);
+  for (const s of ended) end(m, f, s, 'hit');
+  return ended.map((s) => s.kind);
+}
+
 /** A KO clears every status. */
 export function clearStatusesOnKo(m: MatchState, f: FighterState): void {
   for (const s of [...f.statuses]) end(m, f, s, 'ko');
@@ -111,11 +149,27 @@ function end(m: MatchState, f: FighterState, s: StatusState, reason: StatusEndRe
 }
 
 /**
- * One frame of every status on the fighter, oldest first: mashing cuts it, its script runs, its tick deals damage
- * (no hitlag, no knockback, reported as `statusDamage`), then it counts down and ends at 0. Runs only on frames the
- * fighter acts, from the frame after the status went on.
+ * One frame of every status on the fighter but the freezing ones, oldest first: mashing cuts it, its script runs, its
+ * tick deals damage (no hitlag, no knockback, reported as `statusDamage`), then it counts down and ends at 0. Runs only
+ * on frames the fighter acts, from the frame after the status went on.
  */
 export function tickStatuses(x: Ctx): void {
+  tick(x, false);
+}
+
+/**
+ * One frame of the fighter's freezing statuses (StatusDef.freeze), ticked like any status but on every frame, hitlag
+ * included. True when one was on from before this frame: the fighter is frozen and doesn't act this frame, so the
+ * frame a freeze runs out is still frozen, as with hitlag.
+ */
+export function tickFreezes(x: Ctx): boolean {
+  const { m, f } = x;
+  const frozen = f.statuses.some((s) => s.since !== m.frame && statusDef(s.kind).freeze);
+  if (frozen) tick(x, true);
+  return frozen;
+}
+
+function tick(x: Ctx, freezing: boolean): void {
   const { m, f, c } = x;
   if (f.statuses.length === 0) return;
   const dir = mashDir(c.cur);
@@ -124,6 +178,7 @@ export function tickStatuses(x: Ctx): void {
   for (const s of [...f.statuses]) {
     if (!f.statuses.includes(s) || s.since === m.frame) continue;
     const def = statusDef(s.kind);
+    if ((def.freeze ?? false) !== freezing) continue;
     s.age++;
     if (def.mash) s.frames -= stick * def.mash.stick + buttons * def.mash.button;
     def.script?.(x, s);
