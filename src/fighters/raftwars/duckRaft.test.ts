@@ -177,6 +177,46 @@ describe('Raft Wars Kids: Duck Raft (down special)', () => {
     expect(raft.dead).toBe(false);
   });
 
+  it('leaves a pop where it was when it breaks, wears out or is replaced, which lasts 11 frames and does nothing', () => {
+    const POP = 'raftwars/duckRaftPop';
+    const pops = (m: MatchState) => m.entities.filter((e) => e.kind === POP);
+    const check = (m: MatchState, gone: EntityState) => {
+      const [p] = pops(m);
+      expect(p, 'pop').toBeDefined();
+      expect([p!.pos, p!.facing, p!.owner]).toEqual([gone.pos, gone.facing, gone.owner]);
+      expect(entityPlatform(p!)).toBeNull();
+      run(m, DUCK_RAFT.popFrames - p!.age);
+      expect(pops(m)).toEqual([p]);
+      run(m, 1);
+      expect(pops(m)).toEqual([]);
+    };
+
+    // Worn out.
+    const worn = testMatch({ fighter: 'raftwars' });
+    const left = throwRaft(worn);
+    until(worn, () => left.dead);
+    check(worn, left);
+
+    // Replaced by the next throw.
+    const twice = testMatch({ fighter: 'raftwars' });
+    const first = throwRaft(twice);
+    until(twice, (f) => f.action === 'idle');
+    throwRaft(twice);
+    check(twice, first);
+
+    // Broken by Fireboy's forward smash.
+    const m = duel();
+    const raft = throwRaft(m);
+    until(m, (f) => f.action === 'idle');
+    Object.assign(m.fighters[0]!, { pos: { x: -70, y: 0 }, prevPos: { x: -70, y: 0 } });
+    placeFireboy(m, raft.pos.x + 9, 0);
+    runPorts(m, 10, [{}, {}]);
+    attack(m, 1, 'fsmash');
+    until(m, () => raft.dead);
+    expect(destroyed(m, raft)).toMatchObject({ reason: 'broken' });
+    check(m, raft);
+  });
+
   it('keeps one raft per player: a new one takes the old one away', () => {
     const m = testMatch({ fighter: 'raftwars' });
     const first = throwRaft(m);

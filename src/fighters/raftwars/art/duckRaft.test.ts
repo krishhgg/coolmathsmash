@@ -4,7 +4,7 @@ import { samplePose } from '../../../render/rig/sample';
 import type { PathShape } from '../../../render/rig/types';
 import { DUCK_RAFT } from '../duckRaftData';
 import { LINE } from './parts';
-import { RIM } from './raft';
+import { RIM, RIM_BAND, popDrawings } from './raft';
 import { art } from '.';
 
 const raft = art.rig.symbols.duckRaft as PathShape[];
@@ -40,6 +40,31 @@ describe('raft wars art: Duck Raft', () => {
     expect(-RIM - DUCK_RAFT.deck).toBeCloseTo(0.95, 6);
     expect(x0).toBeLessThan(-DUCK_RAFT.width / 2);
     expect(x1).toBeGreaterThan(DUCK_RAFT.width / 2);
+  });
+
+  it('draws the raft behind fighters and only its rim band over them: the hull top down to just under the deck', () => {
+    const prop = art.projectiles!.duckRaft!;
+    expect([prop.symbol, prop.front]).toEqual(['duckRaft', 'duckRaftRim']);
+    const rim = shapesBounds(art.rig.symbols.duckRaftRim as PathShape[]);
+    const hull = shapesBounds(raft);
+    // Down to RIM_BAND, past the deck, so the soles of whoever stands on it are behind it.
+    expect(rim[3]).toBeCloseTo(RIM_BAND, 6);
+    expect(RIM_BAND).toBeGreaterThan(-DUCK_RAFT.deck);
+    expect(RIM_BAND - -DUCK_RAFT.deck).toBeLessThan(0.5);
+    // The same top edge as the hull (rim, ink included), and as wide as the deck and more.
+    expect(rim[1]).toBeCloseTo(RIM - 0.45 - LINE, 0);
+    expect(rim[0]).toBeLessThan(-DUCK_RAFT.width / 2 - 1);
+    expect(rim[2]).toBeGreaterThan(DUCK_RAFT.width / 2 + 1);
+    expect(rim[1]).toBeGreaterThan(hull[1]);
+  });
+
+  it('pops in four drawings, three frames each, that stay above the floor the ground raft sat on', () => {
+    expect(art.rig.symbols.duckRaftPop).toEqual({ loop: Object.keys(popDrawings), fps: 20 });
+    expect(Object.keys(popDrawings)).toHaveLength(4);
+    expect(4 * 3 - 1).toBe(DUCK_RAFT.popFrames);
+    for (const [name, shapes] of Object.entries(popDrawings))
+      expect(shapesBounds(shapes)[3], name).toBeLessThanOrEqual(DUCK_RAFT.bottom + 0.05);
+    expect(art.projectiles!.duckRaftPop!.symbol).toBe('duckRaftPop');
   });
 
   it('previews the raft in the lab where the ground throw puts it, from the frame it appears', () => {

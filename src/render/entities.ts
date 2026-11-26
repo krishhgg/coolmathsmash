@@ -75,16 +75,19 @@ function drawPlain(g: Graphics, e: EntityState, alpha: number, frame: number): v
  * The match's entities. Kinds with fighter art (`entityArt`) draw their fighter's prop in the owner's costume; the
  * rest draw into `discs` as before (the Coolmath Planet's drawing, else the placeholder disc). Each prop's view lives
  * as long as its entity and only swaps shared symbol geometry (docs/art.md, "Rendering"), with no filters, so `lite`
- * quality draws it as cheaply as a fighter. World units, y down.
+ * quality draws it as cheaply as a fighter. A prop with a `front` symbol draws its body into `back`, which the
+ * renderer puts under the fighters, and only its front over them. World units, y down.
  */
 export class EntityView {
   readonly container = new Container();
+  /** Bodies of props with a `front` (Duck Raft's raft), drawn behind the fighters. */
+  readonly back = new Container();
   /** Entities without fighter art (the planet item and placeholder discs), redrawn every frame. */
   readonly discs = new Graphics();
   /** Prop views, drawn over the discs. */
   readonly props = new Container();
-  /** One view per entity id, built for its kind and costume. */
-  private readonly views = new Map<number, { key: string; view: PropView }>();
+  /** One view per entity id, built for its kind and costume, with its front view if the prop has one. */
+  private readonly views = new Map<number, { key: string; view: PropView; front: PropView | null }>();
 
   constructor() {
     this.container.addChild(this.discs, this.props);
@@ -105,24 +108,37 @@ export class EntityView {
       const key = `${e.kind}|${palette}`;
       let held = this.views.get(e.id);
       if (held?.key !== key) {
-        held?.view.container.destroy({ children: true });
-        held = { key, view: createPropView(found.art, found.name, palette) };
+        if (held) dispose(held);
+        const front = found.prop.front;
+        held = {
+          key,
+          view: createPropView(found.art, found.name, palette),
+          front: front ? createPropView(found.art, found.name, palette, front) : null,
+        };
         this.views.set(e.id, held);
-        this.props.addChild(held.view.container);
+        (held.front ? this.back : this.props).addChild(held.view.container);
+        if (held.front) this.props.addChild(held.front.container);
       }
       const at = propPlacement(e, found.prop, alpha);
-      const c = held.view.container;
-      c.position.set(at.x, at.y);
-      c.scale.x = at.scaleX;
-      c.rotation = at.rotation;
-      held.view.update(at.frame);
+      for (const view of held.front ? [held.view, held.front] : [held.view]) {
+        const c = view.container;
+        c.position.set(at.x, at.y);
+        c.scale.x = at.scaleX;
+        c.rotation = at.rotation;
+        view.update(at.frame);
+      }
     }
     for (const [id, held] of this.views) {
       if (seen.has(id)) continue;
-      held.view.container.destroy({ children: true });
+      dispose(held);
       this.views.delete(id);
     }
   }
+}
+
+function dispose(held: { view: PropView; front: PropView | null }): void {
+  held.view.container.destroy({ children: true });
+  held.front?.container.destroy({ children: true });
 }
 
 /**

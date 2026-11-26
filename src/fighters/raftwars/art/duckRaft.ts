@@ -115,10 +115,17 @@ export const duckRaftClips: Record<string, AnimClip> = {
   },
 };
 
-/** The raft in a match; the lab previews it where the ground throw puts it, from the frame it appears. */
+/**
+ * The raft in a match: drawn behind fighters, its rim over them (art/raft.ts). The lab previews it where the ground
+ * throw puts it, from the frame it appears.
+ */
 export const duckRaftProp: PropArt = {
   symbols: rig.symbols,
   symbol: 'duckRaft',
+  front: 'duckRaftRim',
   scale: 1,
   preview: { downB: { frame: DUCK_RAFT.place, x: DUCK_RAFT.ground.x, y: DUCK_RAFT.ground.y } },
 };
+
+/** The pop where a raft was, played once on the pop entity's age. */
+export const duckRaftPopProp: PropArt = { symbols: rig.symbols, symbol: 'duckRaftPop', scale: 1 };

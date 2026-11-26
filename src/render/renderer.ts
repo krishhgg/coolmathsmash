@@ -100,6 +100,7 @@ export class Renderer {
       this.vfxView.screen,
       this.vfxView.behind,
       this.glows,
+      this.entities.back,
       this.fighterLayer,
       this.entities.container,
       this.vfxView.front,

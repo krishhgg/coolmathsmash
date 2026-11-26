@@ -1,15 +1,18 @@
+import { flattenPath } from '../../../render/rig/geometry';
 import type { PathShape } from '../../../render/rig/types';
 import { DUCK_RAFT } from '../duckRaftData';
 import { LINE, INK } from './parts';
-import { bezier, ellipse, inflate, smooth, strokes, type P } from './shapes';
+import { bezier, ellipse, inflate, place, poly, smooth, strokes, turn, type P } from './shapes';
 
 /**
  * Duck Raft's drawings, by hand in the kids' flat Flash look: a yellow inflatable duck boat seen from the side, its
- * head and orange bill up at the bow and a little tail at the stern, and the folded raft the big kid throws.
+ * head and orange bill up at the bow and a little tail at the stern, the folded raft the big kid throws, and the pop
+ * when it goes.
  *
- * Raft space is the entity's: origin at its centre, y down, the bow (+x) the way it faces. The hull's rim is drawn
- * 0.95 above the deck the sim stands fighters on (DUCK_RAFT.deck), and the raft draws over fighters, so whoever stands
- * on it stands in the boat, the near side of the hull hiding their feet. Its bottom is DUCK_RAFT.bottom down.
+ * Raft space is the entity's: origin at its centre, y down, the bow (+x) the way it faces. Its bottom is
+ * DUCK_RAFT.bottom down. The whole raft draws behind fighters, so its head and hull never hide anyone. Only `duckRaftRim`,
+ * the top band of the hull from its rim (0.95 above the deck the sim stands fighters on) to just under the deck, draws
+ * over them, so whoever stands on it stands in the boat with their feet behind the rim (PropArt.front).
  */
 
 const fill = (d: string, color: string): PathShape => ({ d, fill: color });
@@ -59,20 +62,26 @@ const HULL_SHADE: P[] = [
   [-8.2, 1.05],
 ];
 
-/** The print of a folded wing on the hull's side: a rounded top and three scallops along its back edge. */
-const WING: P[] = [
-  [-3.9, -1.3],
-  [-1.6, -1.95],
-  [1.2, -1.75],
-  [2.9, -1.0],
-  [1.4, -0.6],
-  [-0.1, -0.15],
-  [-1.0, -0.6, 0],
-  [-1.7, 0.05],
-  [-2.6, -0.45, 0],
-  [-3.3, 0.1],
-  [-3.7, -0.6, 0],
-];
+/** The print of a folded wing on the hull's side, below the rim band: a rounded top and three scallops behind. */
+const WING: P[] = place(
+  [
+    [-3.9, -1.3],
+    [-1.6, -1.95],
+    [1.2, -1.75],
+    [2.9, -1.0],
+    [1.4, -0.6],
+    [-0.1, -0.15],
+    [-1.0, -0.6, 0],
+    [-1.7, 0.05],
+    [-2.6, -0.45, 0],
+    [-3.3, 0.1],
+    [-3.7, -0.6, 0],
+  ],
+  0,
+  1.2,
+  1,
+  0.85,
+);
 
 /** The neck rising from the bow into a round head. */
 const HEAD: P[] = [
@@ -139,7 +148,7 @@ export const duckRaft: PathShape[] = [
   fill(smooth(HULL_SHADE), 'duckLo'),
   ...strokes(bezier([-6.6, -1.6], [-5.0, -1.85], [-3.4, -1.95], [-2.0, -1.9], 5), 0.42, 'duckHi'),
   inked(smooth(WING), 'duckLo', INK),
-  ...strokes(bezier([-2.9, -1.05], [-1.8, -1.35], [-0.2, -1.3], [1.4, -1.05], 5), INK * 0.8),
+  ...strokes(bezier([-2.9, 0.31], [-1.8, 0.05], [-0.2, 0.1], [1.4, 0.31], 5), INK * 0.8),
   inked(ellipse(-6.2, 0.15, 0.42, 0.36), 'buckle', INK),
   fill(ellipse(-6.2, 0.15, 0.16, 0.13), 'line'),
 ];
@@ -196,4 +205,125 @@ export const raftBundle: PathShape[] = [
   fill(ellipse(0.95, -1.8, 0.12, 0.15), 'pupil'),
 ];
 
-export const raftSymbols = { duckRaft, raftBundle };
+/** Where the rim band ends: just under the deck, so it covers the soles of whoever stands on it. */
+export const RIM_BAND = DECK + 0.3;
+
+/** The part of a smooth closed outline above y `cut` (y down), closed along the cut. */
+function above(pts: readonly P[], cut: number): string {
+  const flat = flattenPath(smooth(pts), 12)[0]!;
+  const ring: [number, number][] = [];
+  for (let i = 0; i < flat.length; i += 2) ring.push([flat[i]!, flat[i + 1]!]);
+  const start = ring.findIndex(([, y]) => y > cut);
+  const out: [number, number][] = [];
+  for (let k = 0; k < ring.length; k++) {
+    const [ax, ay] = ring[(start + k) % ring.length]!;
+    const [bx, by] = ring[(start + k + 1) % ring.length]!;
+    if (ay <= cut) out.push([ax, ay]);
+    if (ay > cut !== by > cut) {
+      const t = (cut - ay) / (by - ay);
+      out.push([ax + (bx - ax) * t, cut]);
+    }
+  }
+  return poly(out);
+}
+
+/**
+ * The hull's top band, drawn over fighters: the same ink, fill and highlight as the hull from its rim down to
+ * RIM_BAND, cut straight along the bottom where it meets the hull drawn behind them.
+ */
+export const duckRaftRim: PathShape[] = [
+  // The ink stops a little above the fill's cut, so the fill hides its edge and no seam shows on the hull.
+  fill(above(inflate(HULL, LINE), RIM_BAND - 0.15), 'line'),
+  fill(above(HULL, RIM_BAND), 'duck'),
+  ...strokes(bezier([-6.6, -1.6], [-5.0, -1.85], [-3.4, -1.95], [-2.0, -1.9], 5), 0.42, 'duckHi'),
+];
+
+/** A torn scrap of yellow vinyl, about a unit across, at (x, y) scaled by `s` and turned `deg` degrees. */
+const SCRAP: P[] = [
+  [-0.75, -0.35],
+  [0.1, -0.6],
+  [0.8, -0.3],
+  [0.55, 0.45],
+  [-0.2, 0.3],
+  [-0.65, 0.5],
+];
+function scrap(x: number, y: number, s: number, deg: number, color = 'duck'): PathShape[] {
+  const pts = place(turn(SCRAP, deg), x, y, s);
+  return [fill(poly(inflate(pts, 0.2)), 'line'), fill(poly(pts), color)];
+}
+
+/** A puff of air from the burst raft: three inked white lobes. */
+function puff(x: number, y: number, r: number): PathShape[] {
+  return [
+    inked(ellipse(x - r * 0.7, y + r * 0.2, r * 0.65), 'puff', INK),
+    inked(ellipse(x + r * 0.75, y + r * 0.25, r * 0.6), 'puff', INK),
+    inked(ellipse(x, y, r), 'puff', INK),
+    fill(ellipse(x - r * 0.3, y - r * 0.35, r * 0.35, r * 0.22), 'puffHi'),
+  ];
+}
+
+/** The scraps' directions (degrees, 0 forward, -90 up) and spins: up and out, none down through the floor. */
+const SCRAPS: [number, number][] = [
+  [-170, 20],
+  [-135, -40],
+  [-100, 70],
+  [-65, -15],
+  [-30, 50],
+  [-5, -60],
+  [175, 110],
+];
+/** The burst on its four drawings: how far the scraps have flown, how far they have fallen, and their size. */
+const FLIGHT: [number, number, number][] = [
+  [3.0, 0, 1.15],
+  [7.0, 0.3, 1.05],
+  [10.0, 1.0, 0.9],
+  [12.5, 2.0, 0.75],
+];
+
+/** A jagged burst `rx` by `ry` with `count` points, centred at (x, y): flatter than a star, as wide as the hull. */
+function burst(x: number, y: number, rx: number, ry: number, inner: number, count: number, deg = -90): P[] {
+  return Array.from({ length: count * 2 }, (_, i): P => {
+    const a = ((deg + (i * 180) / count) * Math.PI) / 180;
+    const k = i % 2 ? inner : 1;
+    return [x + Math.cos(a) * rx * k, y + Math.sin(a) * ry * k];
+  });
+}
+
+function popDrawing(k: number): PathShape[] {
+  const [dist, fall, size] = FLIGHT[k]!;
+  const at = (deg: number, d = dist): [number, number] => [
+    Math.cos((deg * Math.PI) / 180) * d,
+    -1 + Math.sin((deg * Math.PI) / 180) * d * 0.75 + fall,
+  ];
+  const scraps = SCRAPS.flatMap(([deg, spin]) => scrap(...at(deg), size, spin + k * 55));
+  const bill = scrap(...at(-35, dist * 1.1), size * 0.9, 30 + k * 70, 'beak');
+  const flash =
+    k === 0
+      ? [
+          fill(poly(burst(0.5, -1.8, 10.8, 4.3, 0.62, 12)), 'line'),
+          fill(poly(burst(0.5, -1.8, 10.2, 3.9, 0.62, 12)), 'spark'),
+          fill(poly(burst(0.5, -1.8, 6.2, 2.4, 0.6, 12, -75)), 'duck'),
+        ]
+      : [];
+  const puffs = [
+    [],
+    [...puff(-4.2, -1.6, 1.5), ...puff(0.2, -3.0, 1.9), ...puff(4.3, -1.2, 1.5)],
+    [...puff(-5.6, -2.6, 1.9), ...puff(0.4, -4.4, 2.3), ...puff(5.4, -2.2, 1.8)],
+    [...puff(-6.4, -4.0, 1.0), ...puff(0.6, -6.0, 1.3), ...puff(6.0, -3.6, 0.9)],
+  ][k]!;
+  return [...flash, ...puffs, ...scraps, ...bill];
+}
+
+/** The pop's four drawings, three frames each (DUCK_RAFT.popFrames). */
+export const popDrawings = Object.fromEntries(
+  ['A', 'B', 'C', 'D'].map((n, k) => [`duckRaftPop${n}`, popDrawing(k)]),
+) as Record<string, PathShape[]>;
+
+export const raftSymbols = {
+  duckRaft,
+  duckRaftRim,
+  raftBundle,
+  ...popDrawings,
+  /** The raft popping when it breaks, wears out or is replaced: once through on the pop entity's age. */
+  duckRaftPop: { loop: Object.keys(popDrawings), fps: 20 },
+};

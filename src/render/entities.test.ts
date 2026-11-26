@@ -128,6 +128,30 @@ describe('EntityView', () => {
     expect(view.discs.context.instructions).toHaveLength(0);
   });
 
+  it('draws a prop with a front behind the fighters and only its front over them, and drops both views', () => {
+    const m = createMatch({ seed: 1, stage: 'battlefield', stocks: 3, ports: [{ fighter: 'raftwars' }] });
+    const raft = spawnEntity(m, { kind: 'raftwars/duckRaft', owner: 0, pos: { x: 4, y: 2.5 }, facing: -1 });
+    const view = new EntityView();
+    view.draw(m, 1, ['default']);
+    expect(view.back.children).toHaveLength(1);
+    expect(view.props.children).toHaveLength(1);
+    const [body] = view.back.children as [Container];
+    const [rim] = view.props.children as [Container];
+    for (const c of [body, rim]) {
+      expect(c.position).toMatchObject({ x: 4, y: -2.5 });
+      expect(c.scale.x).toBe(-1);
+    }
+    const bounds = (c: Container) => (c.children[0] as Graphics).context.bounds;
+    // The rim is the top band of the hull: as wide, and much shorter than the raft with its head.
+    expect(bounds(rim).maxY - bounds(rim).minY).toBeLessThan((bounds(body).maxY - bounds(body).minY) / 3);
+    expect(bounds(rim).width).toBeGreaterThan(14);
+
+    m.entities = m.entities.filter((e) => e !== raft);
+    view.draw(m, 1, ['default']);
+    expect(view.back.children).toHaveLength(0);
+    expect(view.props.children).toHaveLength(0);
+  });
+
   it('draws the Coolmath Planet with its item drawing, not a disc', () => {
     const m = match();
     const planet = spawnEntity(m, { kind: PLANET, owner: -1, pos: { x: 0, y: 30 } });

@@ -3,7 +3,7 @@ import { symbolsToSvg } from '../../../render/rig/svg';
 import type { FighterArt, PropArt } from '../../../render/rig/types';
 import { aimedShotClips, aimedShotProp } from './aimedShot';
 import { attacks, frameData } from './attacks';
-import { duckRaftClips, duckRaftProp } from './duckRaft';
+import { duckRaftClips, duckRaftPopProp, duckRaftProp } from './duckRaft';
 import { LEDGE_GRIP, clips } from './clips';
 import { hat, head } from './parts';
 import { palettes } from './palettes';
@@ -55,6 +55,11 @@ export const art: FighterArt = {
   clips: { ...clips, ...attacks, ...aimedShotClips, ...duckRaftClips },
   palettes,
   ledgeGrip: LEDGE_GRIP,
-  projectiles: { ...projectiles, aimedShot: aimedShotProp, duckRaft: duckRaftProp },
+  projectiles: {
+    ...projectiles,
+    aimedShot: aimedShotProp,
+    duckRaft: duckRaftProp,
+    duckRaftPop: duckRaftPopProp,
+  },
   icon: symbolsToSvg(rig.symbols, ['head', 'face', 'hat'], palettes.default, iconBox()),
 };

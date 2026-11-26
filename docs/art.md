@@ -59,6 +59,8 @@ rig point `(6, -6)`.
   fighter's `art.projectiles` (Fireboy's `fireball` draws for `fireboy/fireball`). The prop wears its owner's
   costume, mirrors with the entity's facing, and plays its symbol loops on the entity's age, so a flicker starts on
   its first drawing at spawn. Set `align: true` on a streak or comet to turn it to its velocity, tail behind.
+  Props draw over fighters. A prop with a `front` symbol draws its `symbol` behind them and only `front` over them:
+  the Raft Wars kids' Duck Raft sits behind fighters, and its rim band covers the feet of whoever stands in it.
   Kinds without art draw the placeholder disc (`src/render/entities.ts`).
 
 Sampling is a pure function of `(clip, frame, globalFrame)`: no clocks and no randomness, so replays and the
