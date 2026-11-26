@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyHit } from './combat/hits';
 import { LAUNCH_DECAY, VERTICAL_LAUNCH_FALL_SPEED } from './combat/formulas';
-import { TOP_KO_MARGIN, TOP_KO_MIN_SPEED } from './constants';
+import { METEOR_KO_DEPTH, METEOR_KO_MIN_SPEED, TOP_KO_MARGIN, TOP_KO_MIN_SPEED } from './constants';
 import type { FighterState } from './fighter';
 import type { HitboxDef } from '../fighters/types';
 import { marioReference as mario } from './testing/reference';
@@ -80,5 +80,36 @@ describe('the top blast zone', () => {
     });
     run(m, 1);
     expect(f.kb.y).toBeCloseTo(2 - LAUNCH_DECAY, 6);
+  });
+});
+
+/**
+ * Ultimate's meteor blast line (SmashWiki, "Meteor smash"): a fighter meteor smashed with a total launch speed of 3 or
+ * more when it reaches about 25 units below the camera boundary is KO'd there. Battlefield's camera bottom is -80, so
+ * the line is at -105. Each case starts in tumble off the stage's side and runs one frame.
+ */
+describe('the meteor blast line', () => {
+  const at = (y: number, kbY: number, velY: number) => {
+    const m = testMatch();
+    const f = m.fighters[0]!;
+    Object.assign(f, { pos: { x: 150, y }, ground: null, action: 'tumble', actionFrame: 30, hitstun: 30 });
+    Object.assign(f, { vel: { x: 0, y: velY }, kb: { x: 0, y: kbY } });
+    run(m, 1);
+    return f.action;
+  };
+  const line = -80 - METEOR_KO_DEPTH;
+
+  it('KOs a meteor smashed fighter below it falling at 3 or more, launch and own speed together', () => {
+    expect(at(line - 1, -2, -1.5)).toBe('ko');
+    expect(at(line + 2, -2, -1.5)).toBe('ko');
+  });
+
+  it('lets a slower meteor through, and anything above the line', () => {
+    expect(at(line - 1, -1.2, -1.5)).not.toBe('ko');
+    expect(at(line + 10, -2, -1.5)).not.toBe('ko');
+  });
+
+  it('needs a downward launch: a fighter falling under its own speed alone survives it', () => {
+    expect(at(line - 5, 0, -METEOR_KO_MIN_SPEED - 0.4)).not.toBe('ko');
   });
 });
