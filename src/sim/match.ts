@@ -32,6 +32,12 @@ export interface MatchConfig {
   hazards?: boolean;
   /** The Items rule: items (the Coolmath Planet) spawn during the match (src/sim/items, docs/items.md). Default off. */
   items?: boolean;
+  /**
+   * Whether the 1v1 rule's x1.2 damage taken applies (addDamage in src/sim/combat/hits.ts). Unset, it does in a match
+   * of two players with items off. The CPU's look-ahead copies of a match (src/ai/look.ts) hold a different number
+   * of players and set it from the match they copy.
+   */
+  oneVOne?: boolean;
 }
 
 export interface PlayerState {

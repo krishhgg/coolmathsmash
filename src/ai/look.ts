@@ -2,7 +2,7 @@ import { getFighter } from '../fighters/registry';
 import type { FighterStats } from '../fighters/types';
 import { neutralInput, type InputFrame } from '../input/types';
 import { isIntangible } from '../sim/actions/registry';
-import { activeHitboxes, hurtbox, type Hurtbox, type PlacedHitbox } from '../sim/combat/hits';
+import { activeHitboxes, hurtbox, oneVOne, type Hurtbox, type PlacedHitbox } from '../sim/combat/hits';
 import { LAUNCH_DECAY } from '../sim/combat/formulas';
 import { createControl, type ControlState } from '../sim/control';
 import type { EntityState } from '../sim/entities/types';
@@ -42,7 +42,8 @@ const idle: Driver = () => neutralInput();
 
 /**
  * A one-fighter copy of the match holding a clone of `f` (and of its controller, when given), on the same frame of
- * the stage with the same hazards setting, so moving pieces, schedules and hazards play out as they will.
+ * the stage with the same hazards setting, so moving pieces, schedules and hazards play out as they will. It keeps
+ * the match's 1v1 damage rule (MatchConfig.oneVOne), which counts players.
  */
 export function soloMatch(
   state: Readonly<MatchState>,
@@ -55,6 +56,7 @@ export function soloMatch(
     stocks: Math.max(1, f.stocks),
     ports: [{ fighter: f.fighter, tapJump: state.players[f.port]?.tapJump ?? true }],
     hazards: state.config.hazards,
+    oneVOne: oneVOne(state),
   });
   m.frame = state.frame;
   m.stage = state.stage;

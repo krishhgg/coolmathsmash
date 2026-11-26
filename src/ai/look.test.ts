@@ -125,4 +125,26 @@ describe('look-ahead', () => {
     expect(ahead.map((s) => [s.action, s.x, s.y, s.vx, s.vy])).toEqual(played(m, 40));
     expect(solo.fighters[0]!.damage).toBe(m.fighters[1]!.damage);
   });
+
+  it("keeps the match's 1v1 damage rule in a look-ahead, with or without a stand-in for the owner", () => {
+    // x1.2 damage taken applies to a 1v1 with items off. With a third fighter in the match it doesn't, whatever the
+    // look-ahead's own count of players (the Red Ball, plus a stand-in for Raft Wars when his grenade is out).
+    for (const others of [0, 1]) {
+      const m = facingOff(-45, 90, others);
+      stepMatch(m, [
+        press({ x: STICK.special, buttons: Btn.Special }),
+        ...m.players.slice(1).map(() => neutralInput()),
+      ]);
+      for (let i = 1; i < 40; i++)
+        stepMatch(
+          m,
+          m.players.map(() => neutralInput()),
+        );
+      const solo = soloMatch(m, m.fighters[1]!);
+      setEntities(solo, m.fighters[0]!, m.entities, 1);
+      const ahead = run(solo, 90).map((s) => [s.action, s.x, s.y, s.vx, s.vy]);
+      expect(ahead, `${others + 2} players`).toEqual(played(m, 90));
+      expect(solo.fighters[0]!.damage, `${others + 2} players`).toBe(m.fighters[1]!.damage);
+    }
+  });
 });
