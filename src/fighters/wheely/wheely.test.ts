@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { activeHitboxes, hurtbox, touches } from '../../sim/combat/hits';
+import { DASH_SPEED_KEEP_FRAMES } from '../../sim/constants';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, type MatchState } from '../../sim/match';
 import { koPercent } from '../../sim/testing/ko';
@@ -73,14 +74,16 @@ describe('Wheely: car handling', () => {
     expect(touches({ box, x: f.pos.x - 7 * facing, y: f.pos.y + 5.5 }, body)).toBe(false);
   });
 
-  it('starts slow and builds to top speed over the first 40 frames of the run', () => {
+  it('starts slow and builds to top speed over 40 frames once the dash stops holding its speed', () => {
     const m = testMatch({ fighter: 'wheely' });
     const f = m.fighters[0]!;
     run(m, 1, { x: 100 });
     expect(f.action).toBe('dash');
     expect(Math.abs(f.vel.x)).toBeCloseTo(stats.dashInitialSpeed, 6);
+    // Ultimate's dash_speed_keep_frame: dash speed for 6 frames, then the run acceleration takes over mid-dash.
+    run(m, DASH_SPEED_KEEP_FRAMES - 1, { x: 100 });
+    expect(Math.abs(f.vel.x)).toBeCloseTo(stats.dashInitialSpeed, 6);
     let frames = 0;
-    while (f.action !== 'run') run(m, 1, { x: 100 });
     while (Math.abs(f.vel.x) < stats.runSpeed - 1e-9) {
       run(m, 1, { x: 100 });
       frames++;
