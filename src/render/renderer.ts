@@ -16,6 +16,7 @@ import { drawMobility } from './debug/mobility';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
 import { MatchHud, OverheadTags } from './hud';
 import { placeholderStage } from './placeholderStage';
+import { ReticleView } from './reticle';
 import { drawStagePieces } from './stagePieces';
 import { paint } from './vfx/paint';
 import { fighterFx, Vfx } from './vfx/system';
@@ -78,6 +79,7 @@ export class Renderer {
   });
   private readonly boxes = new Graphics();
   private readonly entities = new EntityView();
+  private readonly reticles = new ReticleView();
   private readonly glows = new Graphics();
   private fighters: FighterView[] = [];
   /** Fighter id each view was built for; a transform swaps the view. */
@@ -102,6 +104,7 @@ export class Renderer {
       this.glows,
       this.fighterLayer,
       this.entities.container,
+      this.reticles.container,
       this.vfxView.front,
       this.foregroundLayer,
       this.boxes,
@@ -207,6 +210,7 @@ export class Renderer {
       ),
     );
     this.entities.draw(state, alpha, this.costumes);
+    this.reticles.draw(state, alpha, this.costumes);
     this.vfxView.draw(fx, state, view, alpha);
     this.drawBoxes(state);
     this.tags.update(

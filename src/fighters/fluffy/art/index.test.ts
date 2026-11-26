@@ -103,6 +103,16 @@ describe('fluffy art', () => {
     for (const frame of reel) expect(samplePose(art, 'neutralB', frame, 0).symbols.grabLine).toBe('line');
   });
 
+  it("leaves Point Grapple's reticle to the renderer, which draws it at the real aim (art.reticle)", () => {
+    const clip = art.clips.neutralB!;
+    for (let f = 0; f <= clip.length; f++)
+      expect(Object.values(samplePose(art, 'neutralB', f, f).symbols), `neutralB@${f}`).not.toContain(
+        'reticle',
+      );
+    expect(art.reticle?.symbol).toBe('reticle');
+    expect(art.reticle?.preview?.neutralB).toMatchObject({ frame: 0, to: 23 });
+  });
+
   it('never sinks into the floor while grounded', () => {
     for (const name of ['idle', 'walk', 'run', 'crouch', 'jumpSquat', 'land', 'runBrake', 'turn'])
       for (let f = 0; f <= art.clips[name]!.length; f++)

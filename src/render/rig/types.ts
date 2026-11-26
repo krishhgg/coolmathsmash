@@ -172,6 +172,8 @@ export interface PropPreview {
   /** Units it moves each frame after `frame`. */
   vx?: number;
   vy?: number;
+  /** The last clip frame it is drawn on. Default: on to the clip's end. */
+  to?: number;
 }
 
 export interface FighterArt {
@@ -191,6 +193,12 @@ export interface FighterArt {
   /** Standalone SVG markup (with viewBox) of the head, for HUD stocks and portraits. */
   icon: string;
   projectiles?: Record<string, PropArt>;
+  /**
+   * The reticle of an aimed tether move (TetherDef.aimed), drawn by the renderer at the fighter's aim
+   * (FighterState.aim) while the move aims and the line flies at it (src/render/reticle.ts), in the fighter's costume.
+   * Its `preview` places it in lab sheets of the move's clip.
+   */
+  reticle?: PropArt;
   /** Where the hands hold the ledge in ledge clips (rig space): the ledge's top corner belongs here. */
   ledgeGrip?: [number, number];
 }

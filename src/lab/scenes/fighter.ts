@@ -2,7 +2,7 @@ import { Container, Graphics, Text, type Application } from 'pixi.js';
 import { VIEW_HEIGHT, VIEW_WIDTH } from '../../config';
 import { sheetLayout } from '../sheet';
 import type { FighterArt } from '../../render/rig/types';
-import { createPropView, createRigView, type RigView } from '../../render/rig/view';
+import { createRigView, propView, type RigView } from '../../render/rig/view';
 import type { LabScene } from '../types';
 
 const fighters = import.meta.glob<{ art: FighterArt }>('../../fighters/*/art/index.ts');
@@ -71,7 +71,10 @@ export const scene: LabScene = {
       view.container.parent?.addChild(g);
     };
 
-    /** Projectiles over the clips that fire them (art.projectiles' previews); in game the engine spawns and moves them. */
+    /**
+     * Projectiles over the clips that fire them, and the reticle over the clip that aims it (their previews); in game
+     * the engine spawns and moves the projectiles, and the renderer draws the reticle at the real aim.
+     */
     const projectiles = (
       parent: Container,
       clip: string,
@@ -79,10 +82,10 @@ export const scene: LabScene = {
       globalFrame: number,
       zoom: number,
     ) => {
-      for (const [prop, { preview }] of Object.entries(art.projectiles ?? {})) {
-        const at = preview?.[clip];
-        if (!at || frame < at.frame) continue;
-        const view = createPropView(art, prop, palette);
+      for (const prop of [...Object.values(art.projectiles ?? {}), ...(art.reticle ? [art.reticle] : [])]) {
+        const at = prop.preview?.[clip];
+        if (!at || frame < at.frame || frame > (at.to ?? Infinity)) continue;
+        const view = propView(art, prop, palette);
         view.update(globalFrame);
         const t = frame - at.frame;
         view.container.position.set((at.x + t * (at.vx ?? 0)) * zoom, -(at.y + t * (at.vy ?? 0)) * zoom);

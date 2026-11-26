@@ -26,15 +26,19 @@ import {
 
 const STAND: Ball = {};
 
-/** Point Grapple's default target: up and ahead, where the reticle starts. */
-const TARGET: Pt = [22, -19];
+/**
+ * Point Grapple's typical target, up and ahead: where the clip draws the grabber going, and where the lab shows the
+ * reticle (art.reticle; in a match the renderer draws it at the real aim).
+ */
+export const TARGET: Pt = [22, -19];
 /** How far the line still has to go as the engine pulls him in, by frames after the latch. */
 const toward = (t: number): Pt => [TARGET[0] * (1 - 0.6 * t), TARGET[1] * (1 - 0.6 * t)];
 const from: Pt = [1.5, -6.5];
 
 export const SPECIALS: Record<string, AnimClip> = {
   /**
-   * Point Grapple: aims IQ Ball's reticle, fires the grabber at it, latches, and is reeled up the line. The line
+   * Point Grapple: aims (the renderer draws IQ Ball's reticle at the aim, src/render/reticle.ts), fires the grabber
+   * at it, latches, and is reeled up the line. The line
    * anchors by 23 at the latest (fired on 12, 12 frames out), so a long reel holds on 28, pulled along with the line
    * still nearly at full length, until the reel arrives.
    */
@@ -43,10 +47,7 @@ export const SPECIALS: Record<string, AnimClip> = {
     reel: 28,
     swaps: FOCUS,
     keys: [
-      key(0, ball({ look: [0.3, -0.2], fx2: at(10, -9, 0.2) }), {
-        ease: 'out',
-        swaps: { ...FOCUS, reticle: 'reticle' },
-      }),
+      key(0, ball({ look: [0.3, -0.2] }), { ease: 'out' }),
       key(
         8,
         ball({
@@ -54,15 +55,14 @@ export const SPECIALS: Record<string, AnimClip> = {
           sy: 0.88,
           look: [0.5, -0.45],
           face: { y: 0.2 },
-          fx2: at(TARGET[0], TARGET[1], 1.15, 45),
         }),
         {
           ease: 'inOut',
         },
       ),
-      key(11, ball({ sx: 1.16, sy: 0.84, look: [0.5, -0.5], fx2: at(TARGET[0], TARGET[1], 1, 90) }), {
+      key(11, ball({ sx: 1.16, sy: 0.84, look: [0.5, -0.5] }), {
         ease: 'in',
-        swaps: { ...FOCUS, reticle: 'reticle', fur: 'furPuff' },
+        swaps: { ...FOCUS, fur: 'furPuff' },
       }),
       key(
         12,
@@ -72,11 +72,10 @@ export const SPECIALS: Record<string, AnimClip> = {
           tilt: -10,
           look: [0.5, -0.5],
           grab: { from, to: [8, -12] },
-          fx2: at(TARGET[0], TARGET[1], 1, 90),
         }),
         {
           ease: 'linear',
-          swaps: { ...FOCUS, ...GRAB, reticle: 'reticle' },
+          swaps: { ...FOCUS, ...GRAB },
         },
       ),
       key(
@@ -87,7 +86,6 @@ export const SPECIALS: Record<string, AnimClip> = {
           tilt: -12,
           look: [0.5, -0.5],
           grab: { from, to: [17, -18] },
-          fx2: at(TARGET[0], TARGET[1], 1, 90),
         }),
         {
           ease: 'linear',
@@ -101,11 +99,10 @@ export const SPECIALS: Record<string, AnimClip> = {
           tilt: -20,
           look: [0.5, -0.5],
           grab: { from, to: TARGET },
-          fx2: at(TARGET[0], TARGET[1], 1.3, 90),
         }),
         {
           ease: 'out',
-          swaps: { ...SHOCK, ...GRAB, reticle: 'reticle' },
+          swaps: { ...SHOCK, ...GRAB },
         },
       ),
       key(
@@ -117,7 +114,6 @@ export const SPECIALS: Record<string, AnimClip> = {
           tilt: -40,
           look: [0.5, -0.5],
           grab: { from, to: toward(0.2) },
-          fx2: at(...toward(0.2), 1.1, 90),
         }),
         {
           ease: 'linear',

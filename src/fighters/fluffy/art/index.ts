@@ -6,7 +6,7 @@ import { LOCOMOTION } from './clips';
 import { palettes } from './palettes';
 import { FACE, eyes, pupils } from './parts';
 import { rig } from './rig';
-import { SPECIALS } from './specials';
+import { SPECIALS, TARGET } from './specials';
 import { LEDGE_GRIP, STATES } from './states';
 
 /** The ball with its eyes in body space, for the HUD icon (the face sits on the ball at FACE). */
@@ -33,5 +33,15 @@ export const art: FighterArt = {
   projectiles: {
     /** Candy Frisbee's spinning candy (radius 2.2). */
     candy: { symbols: rig.symbols, symbol: 'candy', scale: 1 },
+  },
+  /**
+   * IQ Ball's reticle for Point Grapple, drawn at the real aim in a match. The lab shows it on the clip's target
+   * until frame 23, the latest the line anchors.
+   */
+  reticle: {
+    symbols: rig.symbols,
+    symbol: 'reticle',
+    scale: 1,
+    preview: { neutralB: { frame: 0, to: 23, x: TARGET[0], y: -TARGET[1] } },
   },
 };

@@ -60,6 +60,10 @@ rig point `(6, -6)`.
   costume, mirrors with the entity's facing, and plays its symbol loops on the entity's age, so a flicker starts on
   its first drawing at spawn. Set `align: true` on a streak or comet to turn it to its velocity, tail behind.
   Kinds without art draw the placeholder disc (`src/render/entities.ts`).
+- **Reticles.** `reticle` is a `PropArt` the renderer draws at the fighter's aim (`FighterState.aim`) during an
+  aimed tether move (`TetherDef.aimed`), from the press until the line anchors or misses, in the port's costume
+  (`src/render/reticle.ts`). Keep it out of the move's clip, which can't know where the stick aims. Its `preview`
+  shows it in lab sheets of the clip, up to clip frame `to` (Fluffy's IQ Ball reticle on `neutralB`, frames 0-23).
 
 Sampling is a pure function of `(clip, frame, globalFrame)`: no clocks and no randomness, so replays and the
 frame-capture harness always draw the same picture.
