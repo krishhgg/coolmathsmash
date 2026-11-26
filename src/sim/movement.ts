@@ -305,36 +305,133 @@ function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
     if (e.kind === 'floor' || !stage.present.solids[e.solid]) continue;
     pushOut(f, prev, e, box);
   }
+  for (const e of stage.edges) {
+    if (e.corner && stage.present.solids[e.solid]) pushOffCorner(f, prev, e, box);
+  }
   return null;
 }
 
-/** Push the ECB back out through edge `e` if it crossed it since `prev`, removing velocity into it. True if it did. */
+/** The collision box's sides as [from, to] indices into ecb(), counter-clockwise: feet, right, top, left. */
+const BOX_SIDES = [
+  [0, 3],
+  [3, 1],
+  [1, 2],
+  [2, 0],
+] as const;
+
+/**
+ * Push the ECB off the stage corner at the start of edge `e` if the corner came into the diamond since `prev`,
+ * removing velocity into it. True if it did. pushOut only checks the diamond's points against edges, so without
+ * this a fighter rising or drifting past a corner (a side wall meeting the underside, a ledge) takes the corner
+ * into its box, ends up inside the solid and rises out through its floor. Ultimate's ECB diamond keeps out of
+ * solid ground as a shape: rising into the underside the fighter stops or slides along it, never into it.
+ *
+ * The corner came in if it is inside the diamond now and was not at `prev`, or if its path crossed one of the
+ * diamond's sides (past a narrow tip of the diamond it can cross in and out within one sub-step). The push is the
+ * shallowest one back through such a side that moves the fighter in a direction between the outward normals of
+ * the corner's two edges. A side whose push points into either edge is a diamond point against that edge
+ * instead, which pushOut handles.
+ */
+export function pushOffCorner(f: FighterState, prev: { x: number; y: number }, e: Edge, box: Vec[]): boolean {
+  const n1 = e.corner!;
+  const n2 = e.n;
+  const turn = n1.x * n2.y - n1.y * n2.x;
+  // The corner relative to the fighter now and at `prev`.
+  const now = { x: e.a.x - f.pos.x, y: e.a.y - f.pos.y };
+  const was = { x: e.a.x - prev.x, y: e.a.y - prev.y };
+  // Most corners are nowhere near: skip them unless the corner's path overlaps the box's bounds.
+  let [left, right, bottom, top] = [Infinity, -Infinity, Infinity, -Infinity];
+  for (const v of box) {
+    left = Math.min(left, v.x);
+    right = Math.max(right, v.x);
+    bottom = Math.min(bottom, v.y);
+    top = Math.max(top, v.y);
+  }
+  const far =
+    Math.max(now.x, was.x) < left ||
+    Math.min(now.x, was.x) > right ||
+    Math.max(now.y, was.y) < bottom ||
+    Math.min(now.y, was.y) > top;
+  if (far) return false;
+  const dNow: number[] = [];
+  const dPrev: number[] = [];
+  const normals: Vec[] = [];
+  for (const [i, j] of BOX_SIDES) {
+    const p = box[i]!;
+    const q = box[j]!;
+    const len = Math.hypot(q.x - p.x, q.y - p.y);
+    const n = { x: (q.y - p.y) / len, y: (p.x - q.x) / len };
+    normals.push(n);
+    dNow.push((now.x - p.x) * n.x + (now.y - p.y) * n.y);
+    dPrev.push((was.x - p.x) * n.x + (was.y - p.y) * n.y);
+  }
+  const entered = dNow.every((d) => d < 0) && dPrev.some((d) => d >= -EPS);
+  let side: Vec | null = null;
+  let depth = Infinity;
+  for (let k = 0; k < BOX_SIDES.length; k++) {
+    const n = normals[k]!;
+    if (dNow[k]! >= 0 || -dNow[k]! >= depth) continue;
+    // The fighter moves along -n: it must lie between n1 and n2.
+    if ((n1.x * -n.y + n1.y * n.x) * turn < -EPS || (-n.x * n2.y + n.y * n2.x) * turn < -EPS) continue;
+    if (!entered) {
+      if (dPrev[k]! < -EPS) continue;
+      // Where the corner crossed the side's line: on the side itself, or past the diamond's end of it.
+      const s = dPrev[k]! > 0 ? dPrev[k]! / (dPrev[k]! - dNow[k]!) : 0;
+      const p = box[BOX_SIDES[k]![0]]!;
+      const q = box[BOX_SIDES[k]![1]]!;
+      const cx = was.x + (now.x - was.x) * s - p.x;
+      const cy = was.y + (now.y - was.y) * s - p.y;
+      const u = (cx * (q.x - p.x) + cy * (q.y - p.y)) / ((q.x - p.x) ** 2 + (q.y - p.y) ** 2);
+      if (u < 0 || u > 1) continue;
+    }
+    side = n;
+    depth = -dNow[k]!;
+  }
+  if (!side) return false;
+  f.pos.x -= side.x * (depth + EPS);
+  f.pos.y -= side.y * (depth + EPS);
+  const into = (v: Vec) => {
+    const d = v.x * side.x + v.y * side.y;
+    if (d > 0) {
+      v.x -= d * side.x;
+      v.y -= d * side.y;
+    }
+  };
+  into(f.vel);
+  into(f.kb);
+  return true;
+}
+
+/**
+ * Push the ECB back out through edge `e` if any of its points crossed the edge since `prev`, by the deepest one,
+ * removing velocity into it. True if it did. Every point counts: the one deepest past the edge's line can be past
+ * the edge's end (beside a corner) while another crosses the edge itself.
+ */
 export function pushOut(
   f: FighterState,
   prev: { x: number; y: number },
   e: Edge,
   box: { x: number; y: number }[],
 ): boolean {
-  let support = box[0]!;
-  let best = Infinity;
-  for (const v of box) {
-    const d = v.x * e.n.x + v.y * e.n.y;
-    if (d < best) {
-      best = d;
-      support = v;
-    }
-  }
-  const px = f.pos.x + support.x;
-  const py = f.pos.y + support.y;
-  const dNow = (px - e.a.x) * e.n.x + (py - e.a.y) * e.n.y;
-  const dPrev = (prev.x + support.x - e.a.x) * e.n.x + (prev.y + support.y - e.a.y) * e.n.y;
-  if (!crossing(dPrev, dNow)) return false;
   const ex = e.b.x - e.a.x;
   const ey = e.b.y - e.a.y;
-  const t = ((px - e.a.x) * ex + (py - e.a.y) * ey) / (ex * ex + ey * ey);
-  if (t < -0.05 || t > 1.05) return false;
-  f.pos.x += e.n.x * (-dNow + EPS);
-  f.pos.y += e.n.y * (-dNow + EPS);
+  let depth = 0;
+  for (const v of box) {
+    const px = f.pos.x + v.x;
+    const py = f.pos.y + v.y;
+    const dNow = (px - e.a.x) * e.n.x + (py - e.a.y) * e.n.y;
+    const dPrev = (prev.x + v.x - e.a.x) * e.n.x + (prev.y + v.y - e.a.y) * e.n.y;
+    if (!crossing(dPrev, dNow) || -dNow <= depth) continue;
+    // Where along the edge the point crossed its line, not where it ended up.
+    const k = dPrev > 0 ? dPrev / (dPrev - dNow) : 0;
+    const cx = px + (prev.x - f.pos.x) * (1 - k);
+    const cy = py + (prev.y - f.pos.y) * (1 - k);
+    const t = ((cx - e.a.x) * ex + (cy - e.a.y) * ey) / (ex * ex + ey * ey);
+    if (t >= e.span[0] && t <= e.span[1]) depth = -dNow;
+  }
+  if (depth === 0) return false;
+  f.pos.x += e.n.x * (depth + EPS);
+  f.pos.y += e.n.y * (depth + EPS);
   const into = (v: { x: number; y: number }) => {
     const d = v.x * e.n.x + v.y * e.n.y;
     if (d < 0) {
