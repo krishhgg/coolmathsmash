@@ -178,7 +178,8 @@ fsmash: {
     (the Duck's Running Ram).
   - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
     `neutralB: { ..., air: 'neutralBAir' }`. The variant is its own move, so it has its own frame data and clip,
-    and the `move` event carries its name.
+    and the `move` event carries its name. The CPU's air probe of the input plays the variant too
+    (`MoveProbe.plays` in `src/ai/knowledge.ts`).
 - **Transform.** `transform: { frame, into }` turns the fighter into fighter `into` on that frame of the move
   (Zelda/Sheik style). FighterState carries over (%, stocks, position, momentum), and stats, moves and art switch;
   `into` needs a move of the same name, which plays the rest of the move. Fireboy and Watergirl's down special
