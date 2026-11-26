@@ -102,6 +102,46 @@ describe('hitstun cancel by aerial', () => {
   });
 });
 
+const dodge: Hold = { buttons: ['shield'] };
+
+describe('hitstun cancel by air dodge', () => {
+  it('opens after 40 frames of hitstun: no air dodge on frame 40, an air dodge on frame 41', () => {
+    // kb 130: launch speed 3.9, already below 2.5 at 1.911 by frame 40.
+    const on40 = pressOn(launched(130), HITSTUN_CANCEL_AIR_DODGE.after, dodge);
+    expect(on40.speed).toBeCloseTo(1.911, 3);
+    expect(on40.f.action).toBe('tumble');
+
+    const on41 = pressOn(launched(130), HITSTUN_CANCEL_AIR_DODGE.after + 1, dodge);
+    expect(on41.speed).toBeCloseTo(1.86, 3);
+    expect(on41.hitstun).toBe(12);
+    expect(on41.f.action).toBe('airDodge');
+  });
+
+  it('waits for the launch speed to drop below 2.5', () => {
+    // kb 160: 63 frames of hitstun, launch speed 4.8. Frame 46 starts at 2.505, frame 47 at 2.454.
+    for (const frame of [41, 46]) {
+      const r = pressOn(launched(160), frame, dodge);
+      expect(r.speed, `frame ${frame}`).toBeGreaterThanOrEqual(HITSTUN_CANCEL_AIR_DODGE.below);
+      expect(r.f.action, `frame ${frame}`).toBe('tumble');
+    }
+    const on47 = pressOn(launched(160), 47, dodge);
+    expect(on47.speed).toBeCloseTo(2.454, 3);
+    expect(on47.f.action).toBe('airDodge');
+  });
+
+  it('stays shut at a launch speed of exactly 2.5', () => {
+    // kb 160 on frame 41, its launch set to (1.5, 2): speed exactly 2.5.
+    const m = launched(160);
+    const f = m.fighters[0]!;
+    run(m, HITSTUN_CANCEL_AIR_DODGE.after);
+    f.kb = { x: 1.5, y: 2 };
+    expect(speed(f)).toBe(HITSTUN_CANCEL_AIR_DODGE.below);
+    run(m, 1, dodge);
+    expect(f.hitstun).toBeGreaterThan(0);
+    expect(f.action).toBe('tumble');
+  });
+});
+
 describe('a hitstun cancel ends hitstun', () => {
   /**
    * kb 130 straight up: a near-vertical launch, which falls with DamageFlyTop gravity capped at 1.8 only while
@@ -132,7 +172,7 @@ describe('a hitstun cancel ends hitstun', () => {
   });
 
   it("after an air dodge: hitstun reads 0 and the fall eases back to the fighter's own fall speed", () => {
-    const r = cancelUpLaunch(HITSTUN_CANCEL_AIR_DODGE.from, { buttons: ['shield'] }, 'airDodge');
+    const r = cancelUpLaunch(HITSTUN_CANCEL_AIR_DODGE.after + 1, dodge, 'airDodge');
     expect(r.stunAfter).toBe(0);
     expect(r.fastest).toBeGreaterThan(-VERTICAL_LAUNCH_FALL_SPEED);
     expect(r.vy).toBeCloseTo(-mario.stats.fallSpeed, 6);
