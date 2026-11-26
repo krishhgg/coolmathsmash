@@ -58,7 +58,7 @@ export interface Attack {
 export interface Target {
   /** Predicted target, t = 0 being the frame about to be simulated. */
   path: Sample[];
-  /** Spacing misjudgement added to the target's x. */
+  /** Spacing misjudgement added to the target's x, for the fighter's own hitboxes (shots go without it: shotOf). */
   errX: number;
   /** Frames from now until grabs can catch it again (regrab immunity after escaping a grab). */
   grabbableIn: number;
@@ -161,10 +161,14 @@ function shotOf(
   target: Target,
 ): (ShotHit & { stops?: true }) | null {
   if (!me.state || !p.shot) return null;
-  const { errX, rush } = target;
-  const hit = shotHit(me.state, me.f, p, offset, facing, place, { path: target.far ?? target.path, errX });
+  // The flight is scored against the predicted target as it is, without the spacing error (Target.errX). That error
+  // is drawn again on every decision, so against an opponent standing just past a shot's reach one draw soon brings
+  // it within reach, and the shot comes out and falls short: a level 9 Raft Wars' tapped Aimed Shot at a Red Ball
+  // standing 90 units away (src/ai/shots.test.ts).
+  const { rush } = target;
+  const hit = shotHit(me.state, me.f, p, offset, facing, place, { path: target.far ?? target.path, errX: 0 });
   if (!hit || !rush || hit.t <= rush.arrive) return hit;
-  const met = shotHit(me.state, me.f, p, offset, facing, place, { path: rush.path, errX });
+  const met = shotHit(me.state, me.f, p, offset, facing, place, { path: rush.path, errX: 0 });
   return met && met.t < rush.strikes ? { ...hit, stops: true } : hit;
 }
 
