@@ -21,7 +21,8 @@ const drawn = Object.values(allFighters()).flatMap((def) => {
 
 /**
  * clipFor (src/render/fighterView.ts) looks a clip up by the running move's name, else the action's (or a back
- * roll's), and draws idle for any name it doesn't find. A clip under any other name never plays.
+ * roll's), and draws idle for any name it doesn't find. A move that charges also plays `<move>Charge`
+ * (chargeClipName) while it holds its charge frame. A clip under any other name never plays.
  */
 describe.each(drawn)('%s clip names', (id, def, art) => {
   const waived = [...NOT_PLAYED_YET['*']!, ...(NOT_PLAYED_YET[id] ?? [])];
@@ -29,7 +30,8 @@ describe.each(drawn)('%s clip names', (id, def, art) => {
     ACTIONS[name] !== undefined ||
     RENDERER_NAMES.has(name) ||
     def.actions?.[name] !== undefined ||
-    def.moves?.[name] !== undefined;
+    def.moves?.[name] !== undefined ||
+    (name.endsWith('Charge') && def.moves?.[name.slice(0, -'Charge'.length)]?.charge !== undefined);
 
   it('names each clip after an engine action, a back roll or one of its moves', () => {
     const unknown = Object.keys(art.clips).filter((name) => !known(name) && !waived.includes(name));

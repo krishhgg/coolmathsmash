@@ -1,5 +1,6 @@
 import type { HitboxDef, MoveDef } from '../types';
 import { stickX } from '../../sim/control';
+import { runningRam } from './ram';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -317,6 +318,8 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     spawn: [10, 15, 20].map((frame) => ({ frame, entity: 'seed', x: 6.4, y: 6.6, vx: 2.1 })),
   },
+  /** Running Ram (side special): a charged headfirst dash on Pikachu's Skull Bash (ram.ts). */
+  sideB: runningRam,
   /**
    * Flight Training (up special): the flying-training mini-game as a recovery. A rapid flapping climb of about 100
    * units from frame 4, steered left and right with the stick (Pit's Power of Flight). No hitbox; it leaves him

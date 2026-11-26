@@ -273,6 +273,8 @@ export interface MoveDef {
   continuesOnLanding?: boolean;
   /** Airborne moves: false turns off the stick's air drift (and air friction) while the move plays, for scripted paths. */
   drift?: boolean;
+  /** Airborne moves: false stops a down flick from fast-falling while the move plays (Ultimate's specials). */
+  fastFall?: boolean;
   /**
    * Ground/air variants (Ultimate's SpecialN and SpecialAirN): started in the air, this move plays the move named
    * `air` instead, which is also the clip and the name in the `move` event.
