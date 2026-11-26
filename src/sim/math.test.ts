@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import * as SimMath from './math';
 
 type Fn = 'sin' | 'cos' | 'atan' | 'atan2' | 'asin' | 'hypot';
-const call = (fn: Fn, args: number[]): number => (SimMath[fn] as (...a: number[]) => number)(...args);
-const engine = (fn: Fn, args: number[]): number => (Math[fn] as (...a: number[]) => number)(...args);
+const call = (fn: Fn, args: number[]): number => SimMath[fn](...(args as [number, number]));
+const engine = (fn: Fn, args: number[]): number => Math[fn](...(args as [number, number]));
 
 const bits = new DataView(new ArrayBuffer(8));
 /** Where `x` falls in the ordered list of doubles. */

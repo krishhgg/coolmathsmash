@@ -9,9 +9,10 @@
  *
  * `sin`, `cos`, `atan`, `atan2` and `asin` are ports of fdlibm 5.3 (the library V8 13 uses), so they return the
  * bits Node returned before, for every argument the game passes (sin and cos: |x| up to 2^19 * pi/2; beyond that
- * they stay deterministic but lose accuracy). `hypot` is V8's own two-argument algorithm. Code that feeds the
- * simulation's state (src/sim, src/fighters, src/stages and src/ai, outside art and views) must use these;
- * eslint.config.js bans the `Math` versions there.
+ * they stay deterministic but lose accuracy). Their constants are fdlibm's, each written as the shortest decimal that
+ * reads back as the same double. `hypot` is V8's own two-argument algorithm. Code that feeds the simulation's state
+ * (src/sim, src/fighters, src/stages and src/ai, outside art and views) must use these; eslint.config.js bans the
+ * `Math` versions there.
  */
 
 const bits = new DataView(new ArrayBuffer(8));
@@ -37,12 +38,12 @@ function fromWords(hi: number, lo: number): number {
 
 // sin and cos on [-pi/4, pi/4]: fdlibm's k_sin.c and k_cos.c. `y` is the tail of the reduced argument x + y.
 
-const S1 = -1.66666666666666324348e-1;
-const S2 = 8.33333333332248946124e-3;
-const S3 = -1.98412698298579493134e-4;
-const S4 = 2.75573137070700676789e-6;
-const S5 = -2.50507602534068634195e-8;
-const S6 = 1.58969099521155010221e-10;
+const S1 = -0.16666666666666632;
+const S2 = 0.00833333333332249;
+const S3 = -0.0001984126982985795;
+const S4 = 0.0000027557313707070068;
+const S5 = -2.5050760253406863e-8;
+const S6 = 1.58969099521155e-10;
 
 function kernelSin(x: number, y: number, iy: number): number {
   const ix = high(x) & 0x7fffffff;
@@ -54,12 +55,12 @@ function kernelSin(x: number, y: number, iy: number): number {
   return x - (z * (0.5 * y - v * r) - y - v * S1);
 }
 
-const C1 = 4.16666666666666019037e-2;
-const C2 = -1.38888888888741095749e-3;
-const C3 = 2.48015872894767294178e-5;
-const C4 = -2.75573143513906633035e-7;
-const C5 = 2.0875723212981748279e-9;
-const C6 = -1.13596475577881948265e-11;
+const C1 = 0.0416666666666666;
+const C2 = -0.001388888888887411;
+const C3 = 0.00002480158728947673;
+const C4 = -2.7557314351390663e-7;
+const C5 = 2.087572321298175e-9;
+const C6 = -1.1359647557788195e-11;
 
 function kernelCos(x: number, y: number): number {
   const ix = high(x) & 0x7fffffff;
@@ -76,13 +77,13 @@ function kernelCos(x: number, y: number): number {
 // Argument reduction: fdlibm's e_rem_pio2.c for |x| up to 2^19 * pi/2. pi/2 is split into 33-bit pieces so that
 // n * piece is exact; the tails catch what each piece leaves out.
 
-const INV_PIO2 = 6.36619772367581382433e-1;
-const PIO2_1 = 1.57079632673412561417;
-const PIO2_1T = 6.07710050650619224932e-11;
-const PIO2_2 = 6.0771005063039659766e-11;
-const PIO2_2T = 2.02226624879595063154e-21;
-const PIO2_3 = 2.0222662487111664558e-21;
-const PIO2_3T = 8.47842766036889956997e-32;
+const INV_PIO2 = 0.6366197723675814;
+const PIO2_1 = 1.5707963267341256;
+const PIO2_1T = 6.077100506506192e-11;
+const PIO2_2 = 6.077100506303966e-11;
+const PIO2_2T = 2.0222662487959506e-21;
+const PIO2_3 = 2.0222662487111665e-21;
+const PIO2_3T = 8.4784276603689e-32;
 
 /** High words of n * pi/2 for n = 1..32: an x whose high word differs cannot lose many bits to cancellation. */
 const NPIO2_HW = [
@@ -200,17 +201,14 @@ export function cos(x: number): number {
 
 // atan: fdlibm's s_atan.c. atan(x) = atan(c) + atan((x - c) / (1 + x * c)) for c in {0.5, 1, 1.5, Infinity}.
 
-const ATAN_HI = [
-  4.63647609000806093515e-1, 7.85398163397448278999e-1, 9.82793723247329054082e-1, 1.570796326794896558,
-];
+const ATAN_HI = [0.4636476090008061, 0.7853981633974483, 0.982793723247329, 1.5707963267948966];
 const ATAN_LO = [
-  2.26987774529616870924e-17, 3.06161699786838301793e-17, 1.39033110312309984516e-17,
-  6.12323399573676603587e-17,
+  2.2698777452961687e-17, 3.061616997868383e-17, 1.3903311031230998e-17, 6.123233995736766e-17,
 ];
 const AT = [
-  3.33333333333329318027e-1, -1.99999999998764832476e-1, 1.42857142725034663711e-1, -1.1111110405462355788e-1,
-  9.09088713343650656196e-2, -7.69187620504482999495e-2, 6.66107313738753120669e-2,
-  -5.83357013379057348645e-2, 4.97687799461593236017e-2, -3.6531572744216915527e-2, 1.62858201153657823623e-2,
+  0.3333333333333293, -0.19999999999876483, 0.14285714272503466, -0.11111110405462356, 0.09090887133436507,
+  -0.0769187620504483, 0.06661073137387531, -0.058335701337905735, 0.049768779946159324,
+  -0.036531572744216916, 0.016285820115365782,
 ] as const;
 
 /** Math.atan, the same in every engine. */
@@ -255,9 +253,9 @@ export function atan(x: number): number {
 }
 
 const PI = 3.141592653589793;
-const PI_O_2 = 1.570796326794896558;
-const PI_O_4 = 7.85398163397448279e-1;
-const PI_LO = 1.2246467991473531772e-16;
+const PI_O_2 = 1.5707963267948966;
+const PI_O_4 = 0.7853981633974483;
+const PI_LO = 1.2246467991473532e-16;
 
 /** Math.atan2, the same in every engine (fdlibm's e_atan2.c). */
 export function atan2(y: number, x: number): number {
@@ -308,19 +306,19 @@ export function atan2(y: number, x: number): number {
 // asin: fdlibm's e_asin.c, a rational approximation R(x^2) = (asin(x) - x) / x^3 on [0, 0.5] and
 // asin(x) = pi/2 - 2 * asin(sqrt((1 - x) / 2)) above it.
 
-const PIO2_HI = 1.570796326794896558;
-const PIO2_LO = 6.12323399573676603587e-17;
-const PIO4_HI = 7.85398163397448279e-1;
-const PS0 = 1.66666666666666657415e-1;
-const PS1 = -3.25565818622400915405e-1;
-const PS2 = 2.01212532134862925881e-1;
-const PS3 = -4.00555345006794114027e-2;
-const PS4 = 7.91534994289814532176e-4;
-const PS5 = 3.4793310759602116757e-5;
-const QS1 = -2.40339491173441421878;
-const QS2 = 2.02094576023350569471;
-const QS3 = -6.8828397160545329303e-1;
-const QS4 = 7.70381505559019352791e-2;
+const PIO2_HI = 1.5707963267948966;
+const PIO2_LO = 6.123233995736766e-17;
+const PIO4_HI = 0.7853981633974483;
+const PS0 = 0.16666666666666666;
+const PS1 = -0.3255658186224009;
+const PS2 = 0.20121253213486293;
+const PS3 = -0.04005553450067941;
+const PS4 = 0.0007915349942898145;
+const PS5 = 0.00003479331075960212;
+const QS1 = -2.403394911734414;
+const QS2 = 2.0209457602335057;
+const QS3 = -0.6882839716054533;
+const QS4 = 0.07703815055590194;
 
 /** Math.asin, the same in every engine. */
 export function asin(x: number): number {
