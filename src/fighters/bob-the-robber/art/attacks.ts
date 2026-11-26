@@ -35,11 +35,11 @@ import { rig } from './rig';
  */
 
 /** Holds the night-stick in the front fist at `wrist`, pointing `deg` (0 forward, -90 up, 90 down). */
-const swing = (pose: Pose, wrist: Pt, deg: number, bend: 1 | -1 = 1): Pose =>
+export const swing = (pose: Pose, wrist: Pt, deg: number, bend: 1 | -1 = 1): Pose =>
   aim(hands(pose, null, wrist, bend), 'baton', deg);
 
 /** Stretches the front arm so the wrist reaches `wrist` from where the shoulder is in `pose`. */
-function reachF(pose: Pose, wrist: Pt, slack = 1): Pose {
+export function reachF(pose: Pose, wrist: Pt, slack = 1): Pose {
   const [sx, sy] = pointOf(rig, pose, 'armF');
   const k = Math.max(1, (Math.hypot(wrist[0] - sx, wrist[1] - sy) * slack) / 2.68);
   return mix(pose, { armF: { sy: k }, foreF: { sy: k } });
@@ -64,15 +64,19 @@ const smearAt = (pivot: Pt, deg: number, radius: number, back = false, squash = 
  * A smear from the grip's shoulder that reaches the baton's tip in `pose`: the arc a Flash animator draws behind
  * a swing, trailing back from the leading edge.
  */
-function trail(pose: Pose, back = false, extra = 0.3, squash = 1): Pose {
+export function trail(pose: Pose, back = false, extra = 0.3, squash = 1): Pose {
   const pivot = pointOf(rig, pose, 'armF');
   const [tx, ty] = pointOf(rig, pose, 'baton', 7.5, 0);
   const deg = (Math.atan2(ty - pivot[1], tx - pivot[0]) * 180) / Math.PI;
   return mix(pose, smearAt(pivot, deg, Math.hypot(tx - pivot[0], ty - pivot[1]) + extra, back, squash));
 }
 
-const STANCE = feet({ body: { rot: 6 }, hip: { y: 0.45 }, neck: { rot: -4 } }, floor(-1.8), floor(1.8));
-const LUNGE = feet(
+export const STANCE = feet(
+  { body: { rot: 6 }, hip: { y: 0.45 }, neck: { rot: -4 } },
+  floor(-1.8),
+  floor(1.8),
+);
+export const LUNGE = feet(
   { body: { rot: 14, x: 1.0 }, hip: { y: 0.8 }, neck: { rot: -8 } },
   floor(-2.6),
   floor(2.6),
@@ -86,7 +90,7 @@ const LOW = feet(
   false,
   [35, 0],
 );
-const BATON_READY = swing(STANCE, [2.6, -5.8], -60);
+export const BATON_READY = swing(STANCE, [2.6, -5.8], -60);
 
 /** The opponent held by the collar at the front fist. */
 const HOLD = hands(
@@ -96,7 +100,7 @@ const HOLD = hands(
   -1,
 );
 
-const strikeKey = (
+export const strikeKey = (
   frame: number,
   pose: Pose,
   swaps: Key['swaps'],
