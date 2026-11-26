@@ -40,7 +40,9 @@ export const SPECIAL_STICK_X = 0.6;
  * - B-reverse: the stick at least `stickX` behind the fighter on frames `window` of the special, 1 to 4 frames after
  *   the press ("In Ultimate, the direction input must be within 4 frames of the special input"), turns it around
  *   and reverses its horizontal momentum ("turning around and reversing their momentum"), on the ground and in the
- *   air. Once per special. Neutral, side and down specials allow it ("In Brawl, SSB4 and Ultimate, most side special
+ *   air. Once per special. The window counts frames since the press, so a charge holding the move on its charge
+ *   frame doesn't stretch it; charging specials can be B-reversed (Samus's Charge Shot is an exception only "prior
+ *   to Ultimate"). Neutral, side and down specials allow it ("In Brawl, SSB4 and Ultimate, most side special
  *   moves can be reversed in the first few frames", SmashWiki "Side special move"); up specials don't, since
  *   SmashWiki only describes reversing them as a turnaround. "Not every special move can be B-reversed":
  *   MoveDef.bReverse opts a move out (Falcon Punch, Warlock Punch, Disable) or an up special in.

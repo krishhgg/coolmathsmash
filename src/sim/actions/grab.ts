@@ -99,7 +99,8 @@ export const GRAB_ACTIONS: Record<string, ActionDef> = {
   grabPummel: {
     physics: 'ground',
     update(x) {
-      if (x.f.actionFrame >= playMove(x).faf) setAction(x, 'grabHold');
+      const move = playMove(x);
+      if (move && x.f.actionFrame >= move.faf) setAction(x, 'grabHold');
     },
   },
 
@@ -112,7 +113,8 @@ export const GRAB_ACTIONS: Record<string, ActionDef> = {
     drift: (x) => moveOf(x.f)?.drift ?? true,
     intangible: (f) => f.grabPartner >= 0,
     update(x) {
-      if (x.f.actionFrame >= playMove(x).faf) setAction(x, x.f.ground ? 'idle' : 'fall');
+      const move = playMove(x);
+      if (move && x.f.actionFrame >= move.faf) setAction(x, x.f.ground ? 'idle' : 'fall');
     },
     land() {},
   },
@@ -322,7 +324,7 @@ function grab(m: MatchState, a: FighterState, v: FighterState): void {
     hitVictims: [],
     holdHitsLanded: 0,
     moveStale: 0,
-    bReversible: false,
+    bReverseFrom: -1,
   });
   Object.assign(v, {
     action: 'grabbed',

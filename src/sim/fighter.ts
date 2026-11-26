@@ -70,10 +70,18 @@ export interface FighterState {
   hitEntities: number[];
   /** Stale multiplier of the current move activation, fixed when it first connects (0 = not connected yet). */
   moveStale: number;
-  /** Frames the current smash attack was charged (0-60). */
+  /** Frames the current move has charged (0 to its chargeFrames). */
   charge: number;
-  /** The current move is a special started by Special that can still be B-reversed (SPECIAL_REVERSE). */
-  bReversible: boolean;
+  /**
+   * Match frame the current special started on, while it can still be B-reversed (SPECIAL_REVERSE); -1 when it
+   * can't. The window counts frames since the press, so a charge holding the move's frame doesn't stretch it.
+   */
+  bReverseFrom: number;
+  /**
+   * A charge kept for the next use of `move` by the form `fighter` (stored charge), spent when that move fires; lost
+   * on a KO as that form.
+   */
+  storedCharge: { fighter: string; move: string; frames: number } | null;
   /** Names of the last moves that hit, most recent first (stale-move negation). */
   staleQueue: string[];
   /** Intangibility from outside the current action (ledge grab, respawn), counting down. */
@@ -163,7 +171,8 @@ export function createFighter(
     hitEntities: [],
     moveStale: 0,
     charge: 0,
-    bReversible: false,
+    bReverseFrom: -1,
+    storedCharge: null,
     staleQueue: [],
     intangible: 0,
     ledge: -1,

@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { registerFighter } from '../../fighters/registry';
 import { defineFighter, type MoveDef } from '../../fighters/types';
 import { SPECIAL_REVERSE } from '../constants';
+import type { SimEvent } from '../events';
 import type { MatchState } from '../match';
 import ref from '../reference/physics-constants.json';
+import { testCharger } from '../testing/charge';
 import { marioReference } from '../testing/reference';
 import { placeInAir, run, testMatch, type Hold } from '../testing/sim';
 
@@ -40,6 +42,15 @@ registerFighter(
     ...marioReference,
     id: 'test-no-b-reverse',
     moves: { neutralB: special({ drift: false, bReverse: false }) },
+  }),
+);
+
+/** A held-charge neutral special whose charge frame is inside the B-reverse window, so a charge holds it there. */
+registerFighter(
+  defineFighter({
+    ...marioReference,
+    id: 'test-b-reverse-early-charge',
+    moves: { neutralB: special({ charge: 3, chargeFrames: 60 }) },
   }),
 );
 
@@ -260,5 +271,100 @@ describe('B-reverse (Ultimate: the stick behind within 4 frames of the special i
     run(m, 1, { x: -100 });
     expect(f.actionFrame).toBe(3);
     expect(f.facing).toBe(1);
+  });
+});
+
+/**
+ * Charged specials (src/sim/actions/charge.ts). SmashWiki "B-reversing" lists "Samus's Charge Shot (prior to
+ * Ultimate)" among the moves that can't be B-reversed, so in Ultimate a charging special can be. The test charger's
+ * downB is the Charge Shot role (tap stored charge) and its sideB the Skull Bash role (held charge).
+ */
+describe('B-reverse and turnaround on charged specials', () => {
+  const chargeShot: Hold = { y: -100, buttons: ['special'] };
+
+  it("Charge Shot's role: B-reversed on frame 3, it turns, reverses the drift and keeps charging", () => {
+    const m = testMatch({ fighter: testCharger.id });
+    const f = placeInAir(m, 0, 150, 1);
+    f.vel.x = 1;
+    run(m, 1, chargeShot);
+    expect(f.move).toBe('downB');
+    run(m, 1);
+    const before = f.vel.x;
+    expect(before).toBeGreaterThan(0);
+    run(m, 1, { x: -100 });
+    expect(f.facing).toBe(-1);
+    expect(f.vel.x).toBeLessThan(0);
+    run(m, 20);
+    expect(f).toMatchObject({ move: 'downB', facing: -1 });
+    expect(f.charge).toBeGreaterThan(0);
+    const seen: SimEvent[] = [];
+    run(m, 1, { buttons: ['special'] });
+    seen.push(...m.events);
+    run(m, 1);
+    seen.push(...m.events);
+    expect(seen).toContainEqual(expect.objectContaining({ type: 'charge', phase: 'fire' }));
+    expect(f.facing).toBe(-1);
+  });
+
+  it("Skull Bash's role: a side special B-reversed while it charges rushes the other way", () => {
+    const m = testMatch({ fighter: testCharger.id });
+    const f = m.fighters[0]!;
+    run(m, 1, { x: 100, buttons: ['special'] });
+    expect(f).toMatchObject({ move: 'sideB', facing: 1 });
+    run(m, 1, { buttons: ['special'] });
+    run(m, 1, { x: -100, buttons: ['special'] });
+    expect(f.facing).toBe(-1);
+    run(m, 20, { buttons: ['special'] });
+    expect(f.charge).toBeGreaterThan(0);
+    run(m, 1);
+    run(m, 6);
+    expect(f.move).toBe('sideB');
+    expect(f.actionFrame).toBeGreaterThanOrEqual(12);
+    expect(f.vel.x).toBeLessThan(0);
+  });
+
+  it('a full stored Charge Shot fires at once and can still be turned around or B-reversed', () => {
+    const store = () => {
+      const m = testMatch({ fighter: testCharger.id });
+      const f = m.fighters[0]!;
+      run(m, 1, chargeShot);
+      for (let i = 0; i < 200 && !f.storedCharge; i++) run(m, 1);
+      expect(f.storedCharge).toMatchObject({ move: 'downB', frames: 120 });
+      run(m, 5);
+      expect(f.action).toBe('idle');
+      return { m, f };
+    };
+
+    const a = store();
+    run(a.m, 1, { x: -60, y: -100, buttons: ['special'] });
+    expect(a.f).toMatchObject({ move: 'downB', facing: -1 });
+
+    const b = store();
+    run(b.m, 1, chargeShot);
+    run(b.m, 1);
+    run(b.m, 1, { x: -100 });
+    expect(b.f.facing).toBe(-1);
+    for (let i = 0; i < 10 && b.f.actionFrame <= 10; i++) run(b.m, 1);
+    expect(b.f).toMatchObject({ move: 'downB', charge: 120, storedCharge: null, facing: -1 });
+  });
+
+  it('the window counts frames since the press, not the move frame a charge holds still', () => {
+    const late = testMatch({ fighter: 'test-b-reverse-early-charge' });
+    const f = placeInAir(late, 0, 150, 1);
+    run(late, 1, { buttons: ['special'] });
+    run(late, 15, { buttons: ['special'] });
+    expect(f.move).toBe('neutralB');
+    expect(f.charge).toBeGreaterThan(5);
+    expect(f.actionFrame).toBeGreaterThanOrEqual(SPECIAL_REVERSE.window[0]);
+    expect(f.actionFrame).toBeLessThanOrEqual(SPECIAL_REVERSE.window[1]);
+    run(late, 1, { x: -100, buttons: ['special'] });
+    expect(f.facing).toBe(1);
+
+    const early = testMatch({ fighter: 'test-b-reverse-early-charge' });
+    const g = placeInAir(early, 0, 150, 1);
+    run(early, 1, { buttons: ['special'] });
+    run(early, 1, { buttons: ['special'] });
+    run(early, 1, { x: -100, buttons: ['special'] });
+    expect(g.facing).toBe(-1);
   });
 });
