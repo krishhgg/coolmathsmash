@@ -6,14 +6,13 @@ import { hurtbox } from '../sim/combat/hits';
 import { hitstunFrames, knockback, shieldstunFrames } from '../sim/combat/formulas';
 import { GRAB, SHIELD_DROP_FRAMES } from '../sim/constants';
 import { statusDef, statusLength } from '../sim/statuses';
-import type { EntityState } from '../sim/entities/types';
 import type { FighterState } from '../sim/fighter';
 import { finalReach } from '../sim/finalSmash';
 import { stepMatch, type MatchState } from '../sim/match';
 import { STICK, TURNING_MOVES, press } from './inputs';
 import { actionable, knowledge, type FighterKnowledge } from './knowledge';
 import { cpuLevel, type CpuLevel } from './levels';
-import { overlaps, run, setEntities, soloMatch, type Driver, type Sample } from './look';
+import { overlaps, run, runAmong, soloMatch, type Driver, type OwnFrame, type Sample } from './look';
 import { findAttacks, type Attack, type Self, type Target } from './options';
 import {
   airAerial,
@@ -75,8 +74,8 @@ export class Cpu {
   readonly lv: CpuLevel;
   private readonly rng: { rng: number };
   private history: FighterState[][] = [];
-  /** The CPU's own live entities on each frame of `history`. */
-  private ownHistory: EntityState[][] = [];
+  /** The CPU's own fighter and live entities on each frame of `history`. */
+  private ownHistory: OwnFrame[] = [];
   private prog: (Program & { t: number }) | null = null;
   private last: InputFrame = neutralInput();
   private nextThink = 0;
@@ -136,10 +135,12 @@ export class Cpu {
   }
 
   private remember(state: Readonly<MatchState>): void {
-    this.history.push(state.fighters.map(snapshot));
-    this.ownHistory.push(
-      state.entities.filter((e) => e.owner === this.port && !e.dead).map((e) => structuredClone(e)),
-    );
+    const frame = state.fighters.map(snapshot);
+    this.history.push(frame);
+    this.ownHistory.push({
+      f: frame[this.port]!,
+      entities: state.entities.filter((e) => e.owner === this.port && !e.dead).map((e) => structuredClone(e)),
+    });
     if (this.history.length > HISTORY) {
       this.history.shift();
       this.ownHistory.shift();
@@ -518,12 +519,7 @@ export class Cpu {
     m.nextEntityId = state.nextEntityId;
     const info = stageInfo(state);
     const drive = assumedInput(snap, info, state);
-    const me = state.fighters[this.port]!;
-    const own = (back: number) => this.ownHistory[this.ownHistory.length - 1 - back]!;
-    const samples = run(m, lag + Math.max(horizon, HORIZON) + 1, (t, f) => {
-      if (t === 0 || t === lag) setEntities(m, me, own(lag - t), opp.port);
-      return drive(t, f);
-    });
+    const samples = runAmong(m, lag + Math.max(horizon, HORIZON) + 1, drive, lag, this.ownHistory, opp.port);
     const far = samples.slice(lag);
     while (far.length < Math.max(horizon, HORIZON)) far.push(far.at(-1) ?? samplesFallback(snap));
     if (horizon <= HORIZON) return { path: far, snap };

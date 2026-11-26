@@ -70,9 +70,10 @@ const OWNER = 1;
  * Make `entities` (fighter `owner`'s, as they were on some frame of the match) the ones `owner` has out in `m`, a
  * soloMatch of another fighter (`victim`, its port in the match), in place of any it had, so their hits land on that
  * fighter as they will: a grenade bursts on it, a shot already in the air connects. The first call adds a port
- * standing in for the owner, out of play (as with no stocks left) where it stands, so nothing hits, grabs or pushes
- * it; it gives the entities what they read from their owner: its rage, its stale queue, and where it is for one that
- * flies home. The copies keep their ids and their hits so far. Nothing changes while the owner has nothing out.
+ * standing in for the owner, out of play (as with no stocks left), so nothing hits, grabs or pushes it; each call
+ * sets it to `owner` as given. It gives the entities what they read from their owner: its rage, its stale queue, and
+ * where it is for one that flies home. The copies keep their ids and their hits so far. Nothing changes while the
+ * owner has nothing out.
  */
 export function setEntities(
   m: MatchState,
@@ -84,19 +85,49 @@ export function setEntities(
     if (!entities.length) return;
     m.config.ports.push({ fighter: owner.fighter });
     m.players.push({ port: OWNER, tapJump: true, control: createControl() });
-    m.fighters.push({
-      ...createFighter(OWNER, owner.fighter, [owner.pos.x, owner.pos.y, owner.facing], 0),
-      action: 'out',
-      damage: owner.damage,
-      staleQueue: [...owner.staleQueue],
-    });
+    m.fighters.push({ ...createFighter(OWNER, owner.fighter, [0, 0, 1], 0), action: 'out' });
   }
+  Object.assign(m.fighters[OWNER]!, {
+    pos: { ...owner.pos },
+    prevPos: { ...owner.pos },
+    facing: owner.facing,
+    damage: owner.damage,
+    staleQueue: [...owner.staleQueue],
+  });
   m.entities = m.entities.filter((e) => e.owner !== OWNER);
   for (const e of entities) {
     const hitVictims = e.hitVictims.includes(victim) ? [0] : [];
     m.entities.push({ ...structuredClone(e as EntityState), owner: OWNER, hitVictims });
     m.nextEntityId = Math.max(m.nextEntityId, e.id + 1);
   }
+}
+
+/** A fighter and the entities it had out, on one frame of a match (what the CPU remembers of itself). */
+export interface OwnFrame {
+  f: Readonly<FighterState>;
+  entities: readonly Readonly<EntityState>[];
+}
+
+/**
+ * `run` for `m`, a soloMatch of a fighter (`victim`, its port in the match) as it was `lag` frames ago, with another
+ * fighter's entities playing out too, so their hits move it. `mine` holds that fighter's last frames, the latest
+ * last. Its entities start as they were `lag` frames ago, with the fighter as it was then standing in as their owner,
+ * so one that has hit since still hits, staled and raged as it was. When the run reaches the latest frame, the
+ * entities out then replace them and the stand-in takes the fighter as it is.
+ */
+export function runAmong(
+  m: MatchState,
+  frames: number,
+  drive: Driver,
+  lag: number,
+  mine: readonly OwnFrame[],
+  victim: number,
+): Sample[] {
+  const at = (back: number) => mine[mine.length - 1 - back]!;
+  return run(m, frames, (t, f) => {
+    if (t === 0 || t === lag) setEntities(m, at(lag - t).f, at(lag - t).entities, victim);
+    return drive(t, f);
+  });
 }
 
 export function sample(f: Readonly<FighterState>, stats: FighterStats): Sample {

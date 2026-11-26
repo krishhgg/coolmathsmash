@@ -2,10 +2,46 @@ import { describe, expect, it } from 'vitest';
 import { getFighter } from '../fighters/registry';
 import { Btn, neutralInput } from '../input/types';
 import { hurtbox } from '../sim/combat/hits';
-import { createMatch, stepMatch } from '../sim/match';
+import type { FighterState } from '../sim/fighter';
+import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { input, testMatch } from '../sim/testing/sim';
 import { STICK, press } from './inputs';
-import { run, sample, setEntities, soloMatch } from './look';
+import { run, runAmong, sample, setEntities, soloMatch, type OwnFrame } from './look';
+
+/** Raft Wars at x, facing a Red Ball at x + d, and `others` more Red Balls standing far off, on Battlefield. */
+function facingOff(x: number, d: number, others = 0): MatchState {
+  const ports = [
+    { fighter: 'raftwars' },
+    { fighter: 'redball' },
+    ...Array.from({ length: others }, () => ({ fighter: 'redball' })),
+  ];
+  const m = createMatch({ seed: 1, stage: 'battlefield', stocks: 3, ports });
+  for (let i = 0; i < 30; i++)
+    stepMatch(
+      m,
+      m.players.map(() => neutralInput()),
+    );
+  Object.assign(m.fighters[0]!, { pos: { x, y: 0 }, prevPos: { x, y: 0 }, facing: 1 });
+  Object.assign(m.fighters[1]!, { pos: { x: x + d, y: 0 }, prevPos: { x: x + d, y: 0 }, facing: -1 });
+  m.fighters
+    .slice(2)
+    .forEach((f, i) =>
+      Object.assign(f, { pos: { x: -70 + i * 6, y: 0 }, prevPos: { x: -70 + i * 6, y: 0 } }),
+    );
+  return m;
+}
+
+/** Step `m` `frames` frames with nobody pressing anything, sampling port 1 (the Red Ball) after each. */
+function played(m: MatchState, frames: number): unknown[][] {
+  const stats = getFighter('redball').stats;
+  return Array.from({ length: frames }, () => {
+    stepMatch(
+      m,
+      m.players.map(() => neutralInput()),
+    );
+    return sample(m.fighters[1]!, stats);
+  }).map((s) => [s.action, s.x, s.y, s.vx, s.vy]);
+}
 
 describe('look-ahead', () => {
   it('samples each frame with the stats of the form the fighter is in by then', () => {
@@ -60,5 +96,33 @@ describe('look-ahead', () => {
     expect(solo.entities.map((e) => [e.kind, e.owner])).toEqual([['raftwars/grenade', 1]]);
     setEntities(solo, m.fighters[0]!, [], 1);
     expect([solo.fighters[1]!.action, solo.entities.length]).toEqual(['out', 0]);
+  });
+
+  it("replays the owner's shot from when the opponent was last seen with the owner as it was then", () => {
+    // A forward tilt shot hits the Red Ball 80 units away, and 4 frames later the look-ahead starts from the Red Ball
+    // 8 frames back, as a level 9 CPU sees it. The replayed shot is staled by Raft Wars' queue from then (fresh,
+    // x1.05), as in the match, not by today's, which holds this very hit (x0.91).
+    const m = facingOff(-40, 80);
+    const mine: OwnFrame[] = [];
+    const seen: FighterState[] = [];
+    let hit = -1;
+    for (let i = 0; hit < 0 || i <= hit + 4; i++) {
+      stepMatch(m, [
+        i === 0 ? press({ x: STICK.tilt, buttons: Btn.Attack }) : neutralInput(),
+        neutralInput(),
+      ]);
+      if (m.events.some((e) => e.type === 'hit' && e.entity !== undefined)) hit = i;
+      mine.push({
+        f: structuredClone(m.fighters[0]!),
+        entities: structuredClone(m.entities.filter((e) => e.owner === 0)),
+      });
+      seen.push(structuredClone(m.fighters[1]!));
+    }
+    expect(m.fighters[1]!.damage).toBeCloseTo(6 * 1.05 * 1.2, 5);
+    const lag = 8;
+    const solo = soloMatch(m, seen.at(-1 - lag)!);
+    const ahead = runAmong(solo, lag + 40, () => neutralInput(), lag, mine, 1).slice(lag);
+    expect(ahead.map((s) => [s.action, s.x, s.y, s.vx, s.vy])).toEqual(played(m, 40));
+    expect(solo.fighters[0]!.damage).toBe(m.fighters[1]!.damage);
   });
 });
