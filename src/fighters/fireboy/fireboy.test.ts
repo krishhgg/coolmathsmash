@@ -449,6 +449,28 @@ describe('Fireboy: kill percents (koPercent: Mario at the Battlefield ledge, fre
   });
 });
 
+describe("Fireboy: Temple Mirror knockback (Mario's Cape in Ultimate)", () => {
+  const box = moves.sideB!.hits[0]!.boxes[0]!;
+
+  it("uses the Cape's hit from the 13.0.1 data: 7%, 110 degrees, set knockback 80, KBG 100, BKB 0, 4 shield damage", () => {
+    expect(box).toMatchObject({ damage: 7, angle: 110, wbkb: 80, kbg: 100, bkb: 0, shieldDamage: 4 });
+  });
+
+  /**
+   * The Cape is set knockback, so SSBU-Calculator's KO calculator (rubendal/SSBU-Calculator 233590e, run headless with
+   * ko.test.ts's setup) finds no KO percent for it on Mario: "Move doesn't KO at 999%", from the ledge or centre stage.
+   * Without the set knockback the mirror KOd Mario from the ledge at 287.4%.
+   */
+  it('never KOs Mario by 999%, from the ledge or centre stage, standing or airborne', () => {
+    for (const from of ['ledge', 'centre'] as const) {
+      expect(koPercent({ hit: { fighter: 'fireboy', move: 'sideB' }, from })).toBeNull();
+      expect(koPercent({ hit: { fighter: 'fireboy', move: 'sideB' }, from, air: true })).toBeNull();
+    }
+    const { wbkb: _, ...scaling } = box;
+    expect(koPercent({ hit: scaling })).not.toBeNull();
+  });
+});
+
 describe("Fireboy: Fireball knockback (Mario's Fire Ball clean hit in Ultimate)", () => {
   const box = entities.fireball!.hits![0]!.boxes[0]!;
   const { damage, angle, kbg, bkb } = box;
