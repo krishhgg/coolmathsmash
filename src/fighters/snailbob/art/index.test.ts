@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { flattenPath, poseBounds, slotsCovering } from '../../../render/rig/geometry';
+import { flattenPath, poseBounds, shapesBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import { moveClipFrame } from '../../../render/rig/timing';
-import { moves } from '../moves';
+import type { PathShape } from '../../../render/rig/types';
+import { CRATE_RADIUS, entities } from '../entities';
+import { SPIN_REV_FRAME, SPIN_ROLL, moves } from '../moves';
 import { stats } from '../stats';
 import { art } from '.';
 
@@ -50,11 +52,10 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
 };
 
 /**
- * Specials are drawn one by one (specials.ts) and checked in their own tests; this file's coverage checks are for
- * the standard, grab and throw moveset.
+ * Every move but Rocket Hover, which has no hit or spawn to key its clip to and is checked in its own test below.
+ * Crate Drop keys its spawn frame as its active window, as Fireboy's fireball does.
  */
-const SPECIALS = ['neutralB', 'sideB', 'upB', 'downB'];
-const drawnMoves = Object.entries(moves).filter(([name]) => !SPECIALS.includes(name));
+const drawnMoves = Object.entries(moves).filter(([name]) => name !== 'upB');
 
 describe('snail bob art', () => {
   it('has every canonical clip, and a clip with active windows for every standard move', () => {
@@ -147,6 +148,66 @@ describe('snail bob art', () => {
         expect([symbols.rocket, symbols.flame], `${name}@${f}`).toEqual([null, null]);
       }
     }
+  });
+
+  it('keeps Shell Spin and Crate Drop on the floor: the shell rolls on its rim and the foot stays planted', () => {
+    const off: string[] = [];
+    for (const name of ['sideB', 'neutralB']) {
+      const clip = art.clips[name]!;
+      for (let f = 0; f <= clip.length; f++)
+        for (const g of [0, 1, 2, 3]) {
+          const bottom = poseBounds(art, samplePose(art, name, f, f + g))[3];
+          if (Math.abs(bottom) > 0.3) off.push(`${name}@${f}: ${bottom.toFixed(2)}`);
+        }
+    }
+    expect(off).toEqual([]);
+  });
+
+  it("revs Shell Spin on the move's rev frame and keeps it spinning while Special holds that frame", () => {
+    const clip = art.clips.sideB!;
+    expect(clip.length).toBe(moves.sideB!.faf - 1);
+    expect(clip.active).toEqual([SPIN_ROLL]);
+    const rev = moveClipFrame(clip, SPIN_REV_FRAME, moves.sideB);
+    expect(clip.keys.some((k) => k.frame === rev && k.pose)).toBe(true);
+    const held = Array.from({ length: 8 }, (_, g) => samplePose(art, 'sideB', rev, 600 + g).symbols);
+    expect(new Set(held.map((s) => s.spiral)).size).toBe(4);
+    expect(new Set(held.map((s) => s.fx1)).size).toBe(3);
+    expect(samplePose(art, 'sideB', SPIN_ROLL[0], SPIN_ROLL[0]).symbols.spiral).toBe('spiral');
+    expect(samplePose(art, 'sideB', clip.length, clip.length).symbols.head).toBe('head');
+  });
+
+  it('presses the remote as the crate spawns, and shows the remote in no other clip', () => {
+    const clip = art.clips.neutralB!;
+    const spawn = moves.neutralB!.spawn![0]!.frame;
+    expect(clip.length).toBe(moves.neutralB!.faf - 1);
+    expect(clip.active).toEqual([[spawn, spawn]]);
+    const pressed = samplePose(art, 'neutralB', spawn, spawn).symbols;
+    expect([pressed.fx1, pressed.fx2]).toEqual(['remotePressed', expect.stringMatching(/^signal\d$/)]);
+    expect(samplePose(art, 'neutralB', clip.length, clip.length).symbols.fx1).toBeNull();
+    const remotes = new Set(['remote', 'remotePressed']);
+    for (const [name, c] of Object.entries(art.clips)) {
+      if (name === 'neutralB') continue;
+      for (let f = 0; f <= c.length; f++)
+        expect(remotes.has(samplePose(art, name, f, f).symbols.fx1 ?? ''), `${name}@${f}`).toBe(false);
+    }
+  });
+
+  it("draws the crate for both of Crate Drop's entities, filling the entity's body", () => {
+    const props = art.projectiles!;
+    expect(Object.keys(props).sort()).toEqual(['crate', 'crateFall']);
+    for (const name of Object.keys(props)) expect(entities[name], name).toBeDefined();
+    for (const prop of Object.values(props)) {
+      expect(prop.scale).toBe(1);
+      const [x0, y0, x1, y1] = shapesBounds(prop.symbols[prop.symbol] as PathShape[]);
+      for (const [edge, want] of [
+        [x0, -CRATE_RADIUS],
+        [y0, -CRATE_RADIUS],
+        [x1, CRATE_RADIUS],
+        [y1, CRATE_RADIUS],
+      ])
+        expect(edge).toBeCloseTo(want!, 2);
+    }
+    expect(props.crate!.preview!.neutralB!.y).toBe(CRATE_RADIUS);
   });
 
   it('stands 13 units tall and about 12 wide, feet on the ground', () => {

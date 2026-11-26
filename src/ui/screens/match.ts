@@ -190,9 +190,11 @@ export function matchScreen(flow: Flow, game: Game, seed = newSeed()): Screen {
       }
       const left = session.timeLeft(state);
       if (left !== null) {
+        // Write the text only when it changes: a write every frame (7:00.00 all through the countdown and the pause
+        // menu) forces a layout and a repaint each frame.
         const t = formatClock(left);
-        clockMain.textContent = t.main;
-        clockCs.textContent = t.hundredths;
+        if (clockMain.textContent !== t.main) clockMain.textContent = t.main;
+        if (clockCs.textContent !== t.hundredths) clockCs.textContent = t.hundredths;
         clock.classList.toggle('is-low', left <= 10 * 60);
       }
       if (session.phase === 'over' && finaleAt < 0) {

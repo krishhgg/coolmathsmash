@@ -25,9 +25,11 @@ const grabBox = (id: number, x: number, y: number, radius: number) =>
 
 /**
  * Fireboy's moves: Mario's kit in Ultimate (the roster's "Mario frame" list), with fire on his heavy hits and his
- * own damage from the roster sheet. Angle, BKB, KBG and frame data come from each move's Mario analogue (SmashWiki
- * hitbox tables, UFD); a weaker late or far hit keeps Mario's damage ratio to the main hit. Frame windows are
- * inclusive, faf is the first actionable frame. Move names double as animation clip names.
+ * own damage from the roster sheet, except where the roster damage kept a kill move more than 5 points off Mario's
+ * kill percent: the down smash's front hit and the back air take Mario's damage (fireboy.test.ts). Angle, BKB, KBG
+ * and frame data come from each move's Mario analogue (SmashWiki hitbox tables, UFD); a weaker late or far hit keeps
+ * Mario's damage ratio to the main hit. Frame windows are inclusive, faf is the first actionable frame. Move names
+ * double as animation clip names.
  */
 export const moves: Record<string, MoveDef> = {
   /**
@@ -121,7 +123,7 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Flames along the ground on both sides: front first, then back. Mario's down smash. */
+  /** Flames along the ground on both sides: front first, then back. Mario's down smash, with his 10% and 12%. */
   dsmash: {
     kind: 'smash',
     faf: 44,
@@ -129,7 +131,7 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [5, 6],
-        boxes: [box(0, 8, 2, 4.5, { damage: 11, angle: 32, kbg: 100, bkb: 30, effect: fire })],
+        boxes: [box(0, 8, 2, 4.5, { damage: 10, angle: 32, kbg: 100, bkb: 30, effect: fire })],
       },
       {
         frames: [14, 14],
@@ -213,7 +215,7 @@ export const moves: Record<string, MoveDef> = {
       },
     ],
   },
-  /** Back kick: Mario's back aerial; weaker late. */
+  /** Back kick: Mario's back aerial, with his 10.5% clean and 7% late hits. */
   bair: {
     kind: 'aerial',
     faf: 34,
@@ -225,11 +227,11 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [6, 7],
-        boxes: [box(0, -8, 7, 4.5, { damage: 11, angle: 361, kbg: 106, bkb: 12, direction: 'back' })],
+        boxes: [box(0, -8, 7, 4.5, { damage: 10.5, angle: 361, kbg: 106, bkb: 12, direction: 'back' })],
       },
       {
         frames: [8, 10],
-        boxes: [box(0, -8, 7, 4.5, { damage: 7.3, angle: 361, kbg: 90, bkb: 7, direction: 'back' })],
+        boxes: [box(0, -8, 7, 4.5, { damage: 7, angle: 361, kbg: 90, bkb: 7, direction: 'back' })],
       },
     ],
   },
@@ -317,12 +319,19 @@ export const moves: Record<string, MoveDef> = {
   },
   /**
    * Temple Mirror (side special): Mario's Cape in Ultimate. The mirror reflects projectiles on frames 9-20 with the
-   * Cape's multipliers (SmashWiki, Reflection: damage x1.5, speed x1, lifespan x0.75) and hits for 7% on 12-14.
+   * Cape's multipliers (SmashWiki, Reflection: damage x1.5, speed x1, lifespan x0.75) and hits for 7% on 12-14 with
+   * the Cape's hit (13.0.1 data from ultimate-hitboxes.com): 110 degrees, set knockback 80 (KBG 100, BKB 0) and 4
+   * extra shield damage, so it never KOs. The Cape also turns the opponent around, which the engine can't do yet.
    */
   sideB: {
     kind: 'other',
     faf: 36,
-    hits: [{ frames: [12, 14], boxes: [box(0, 7, 8, 6, { damage: 7, angle: 110, kbg: 100, bkb: 0 })] }],
+    hits: [
+      {
+        frames: [12, 14],
+        boxes: [box(0, 7, 8, 6, { damage: 7, angle: 110, kbg: 100, bkb: 0, wbkb: 80, shieldDamage: 4 })],
+      },
+    ],
     reflectors: [{ frames: [9, 20], x: 7, y: 8, radius: 7, damage: 1.5, speed: 1, lifetime: 0.75 }],
   },
   /**
