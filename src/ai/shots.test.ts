@@ -332,21 +332,25 @@ describe('CPU projectiles', () => {
     }
   });
 
-  it("count on their own shots already out: Raft Wars' held Aimed Shot connects with a standing Red Ball", () => {
+  it("count on their own shots already out: Raft Wars' Aimed Shots connect with a standing Red Ball", () => {
     // The setups from the captures: a Red Ball 80-120 units away, seeds 1 to 6. Before his look-ahead of the Red Ball
     // held his own entities, he fired 18 Aimed Shots held to 40 frames here and hit with one. At 90 units on seed 1
     // his grenade from frame 0 bursts on the Red Ball on frame 105 and launches it over the ball that came out on
     // frame 97. With his entities in it, he also sees a shot of his land inside his 8 frames of reaction time, and no
     // longer starts charging at a Red Ball it just knocked toward the ledge (80 units, seed 1: hit on frame 141,
     // charging from 145, the Red Ball off the stage when the ball comes out).
-    let fired = 0;
+    // A tapped one fired while the Red Ball still stands where it started has to reach it too. With his spacing error
+    // in the shot's flight, at 90 units on seed 1 one came out on frame 59 and the floor took it on frame 96, 0.04
+    // units short of the Red Ball on the frame before. Now he taps from 2 frames further in and it hits on frame 95.
+    const fired = { held: 0, tapped: 0 };
     const missed: string[] = [];
     for (const d of [80, 90, 100, 110, 120]) {
       for (let seed = 1; seed <= 6; seed++) {
         const m = facingOff('raftwars', -d / 2, d, seed);
         const cpu = createCpu({ port: 0, level: 9, seed });
-        const out = new Map<number, number>();
+        const out = new Map<number, string>();
         let charged = false;
+        let touched = false;
         for (let i = 0; i < 420; i++) {
           stepMatch(m, [cpu.input(m), neutralInput()]);
           for (const e of m.events) {
@@ -354,17 +358,22 @@ describe('CPU projectiles', () => {
             if (e.type === 'charge' && e.port === 0 && e.phase === 'fire' && e.move.startsWith('neutralB'))
               charged = true;
             if (e.type === 'entitySpawn' && e.owner === 0 && e.kind === 'raftwars/aimedShot') {
-              if (charged) out.set(e.id, i);
-              fired += charged ? 1 : 0;
+              const kind = charged ? 'held' : 'tapped';
+              if (charged || !touched) {
+                out.set(e.id, `${d}, seed ${seed}: ${kind}, out on frame ${i}`);
+                fired[kind]++;
+              }
               charged = false;
             }
             if (e.type === 'hit' && e.entity !== undefined) out.delete(e.entity);
+            if (e.type === 'hit' && e.victim === 1) touched = true;
           }
         }
-        for (const at of out.values()) missed.push(`${d}, seed ${seed}: out on frame ${at}`);
+        missed.push(...out.values());
       }
     }
-    expect(fired).toBeGreaterThan(0);
+    expect(fired.held).toBeGreaterThan(0);
+    expect(fired.tapped).toBeGreaterThan(0);
     expect(missed).toEqual([]);
   }, 60_000);
 
