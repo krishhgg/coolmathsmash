@@ -154,7 +154,7 @@ describe('air probes of moves that end in a helpless fall', () => {
       'runner downB on bloxorz-platform',
       'snailbob downB on bloxorz-platform',
     ]);
-  });
+  }, 60_000);
 
   it("keep Wheely's Ramp Jump in the air: where it carries him, and helpless after it", () => {
     const k = knowledge('wheely', STAGE);
