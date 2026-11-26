@@ -961,7 +961,8 @@ export const clips: Record<string, AnimClip> = {
           ant: [-20, -10],
         }),
       ),
-      // Rocks forward onto her feet, the near foot already back where the crouch plants it.
+      // Rocks forward onto her feet, the near foot already back where the crouch plants it and the far arm swung
+      // forward, high enough that the Pastafarian's cane stays out of the floor.
       key(
         11,
         P({
@@ -973,7 +974,7 @@ export const clips: Record<string, AnimClip> = {
             [-1.2, 0],
           ],
           arms: [
-            [3.1, -2.0],
+            [4.8, -3.4],
             [-4.6, -1.9],
           ],
           ant: [-10, -5],
