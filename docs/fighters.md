@@ -457,8 +457,15 @@ for the hold and run at full speed after it.
 
 A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned beams. Fireboy's Fire Blast
 (`src/fighters/fireboy/finalSmash.ts`) is the roster example: Mario Finale's frame data, damage and knockback on a
-`fireboy/blast` entity that crosses the stage and keeps burning after Fireboy can act, as Mario's fireballs do. The
-test fighter's is a plain hitbox:
+`fireboy/blast` entity that crosses the stage and keeps burning after Fireboy can act, as Mario's fireballs do. Red
+Ball's Ball Rain (`src/fighters/redball/finalSmash.ts`) covers the whole stage instead, on PK Starstorm: its script drops
+`redball/ball` entities with `spawnEntity` from the top of the stage's middle rather than from his feet, passing
+`final: true` and the move, and `final.range` tells CPUs how far ahead it reaches. Its balls draw behind the fighters
+(`PropArt.behind`), so whoever one falls on still shows. The Duck's Evolved Stomp (`src/fighters/duck/finalSmash.ts`) is
+Ganon, The Demon King: a paralysing burst, then a shockwave that runs along the floor and breaks up at its edge. Both
+are entities, as Ganon is an article, so the Duck never freezes in his own hits' hitlag and his frames stay Ganon's.
+They are one use of the move, so the shockwave hits at the multiplier the burst staled the move with (`moveStale`), not
+a second, staler one. The test fighter's is a plain hitbox:
 
 ```ts
 finalSmash: {
@@ -489,6 +496,11 @@ finalSmashCinematic: {
   throw: { frame: 100, hit: { damage: 16, angle: 45, kbg: 70, bkb: 90 } },
 },
 ```
+
+Johnny Upgrade's Max Upgrade (`src/fighters/johnny/finalSmash.ts`) is the roster's trap, on Cloud's Omnislash: a jet
+dash whose grab box catches the first opponent it reaches, then 18 hold hits (1, 3, fourteen of 2.2, 5 and 4%) and a 10%
+release, 53.8% in all, as SmashWiki lists them. SmashWiki and ultimateframedata.com have no timing or knockback for
+Omnislash, so its frames and the release's knockback are estimates, the release tuned to SmashWiki's 22% KO.
 
 - **Catching.** The trap catches like any command grab: the nearest grabbable fighter in front, through shields. Ultimate
   traps every fighter its hitbox touches; this one holds the first. Papa Louie's Conveyor Oven

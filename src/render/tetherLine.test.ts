@@ -141,3 +141,93 @@ describe('the tether line, drawn from game state', () => {
     expect(f.move).toBeNull();
   });
 });
+
+describe('the Quick Grapple line, drawn from game state', () => {
+  /** Quick Grapple's tether, read through the registry (importing fluffy/moves first would load Fluffy too early). */
+  const quick = () => getFighter('fluffy').moves!.upB!.tether!;
+  const length = ({ from, to }: { from: Vec; to: Vec }) => Math.hypot(to.x - from.x, to.y - from.y);
+
+  /**
+   * Quick Grapple from the air at (x, y), the stick held `stick` towards his facing after the press. Checks the drawn
+   * line against the tether on every frame until the move and its reel end, and returns what each frame drew.
+   */
+  function grapple(
+    x: number,
+    y: number,
+    facing: 1 | -1,
+    o: { stick?: number; skyAnchorsUsed?: number } = {},
+  ) {
+    const m = testMatch({ fighter: 'fluffy' });
+    const f = placeInAir(m, x, y, facing);
+    if (o.skyAnchorsUsed !== undefined) f.skyAnchorsUsed = o.skyAnchorsUsed;
+    const view = new TetherLineView();
+    run(m, 1, { y: 100, buttons: ['special'] });
+    expect(f.move).toBe('upB');
+    const seen: { at: { from: Vec; to: Vec } | null; kind: string | null }[] = [];
+    for (let i = 0; i < 90 && f.move === 'upB'; i++) {
+      run(m, 1, { x: (o.stick ?? 0) * facing });
+      seen.push({ at: expectLine(view, m, f), kind: f.tether?.kind ?? null });
+    }
+    expect(f.move).toBeNull();
+    expect(drawn(view, m)).toBeNull();
+    const lines = seen.flatMap((s) => (s.at ? [{ ...s.at, kind: s.kind! }] : []));
+    return { f, lines, kinds: [...new Set(lines.map((l) => l.kind))], frames: seen.length };
+  }
+
+  /** Longer each frame up to the longest, then shorter each frame after it: out, then reeled in. */
+  function expectOutThenIn(lengths: number[]) {
+    const peak = lengths.indexOf(Math.max(...lengths));
+    for (let i = 1; i <= peak; i++) expect(lengths[i]!).toBeGreaterThan(lengths[i - 1]!);
+    for (let i = peak + 1; i < lengths.length; i++) expect(lengths[i]!).toBeLessThanOrEqual(lengths[i - 1]!);
+  }
+
+  it('runs straight up 120 units to the sky anchor and shortens as Fluffy reels, facing either way', () => {
+    for (const facing of [1, -1] as const) {
+      const { f, lines, kinds } = grapple(-150 * facing, -20, facing);
+      expect(kinds).toEqual(['out', 'sky']);
+      for (const at of lines) if (length(at) >= 1) expect(elevation(at, facing)).toBeCloseTo(90, 6);
+      const lengths = lines.map(length);
+      expect(Math.max(...lengths)).toBeCloseTo(quick().range, 6);
+      expectOutThenIn(lengths);
+      expect(lengths.at(-1)!).toBeLessThan(1);
+      expect(f.action).toBe('helpless');
+    }
+  });
+
+  it('bends 30 degrees forward with the stick and keeps that angle through the reel, facing either way', () => {
+    for (const facing of [1, -1] as const) {
+      const { lines, kinds } = grapple(-150 * facing, -20, facing, { stick: 100 });
+      expect(kinds).toEqual(['out', 'sky']);
+      const steep = lines.filter((at) => length(at) >= 1);
+      expect(steep.length).toBeGreaterThan(30);
+      // He drifts forward a little after each frame's line step while it flies, so the line leans a touch past 60.
+      for (const at of steep)
+        expect(Math.abs(elevation(at, facing) - (90 - quick().stickAdjust!))).toBeLessThan(2);
+      expectOutThenIn(lines.map(length));
+    }
+  });
+
+  it('catches the ledge from below: up the shot, then onto the corner, and gone at the ledge grab', () => {
+    const { f, lines, kinds } = grapple(88, -40, -1);
+    expect(kinds).toEqual(['out', 'ledge']);
+    for (const at of lines.filter((l) => l.kind === 'out' && length(l) >= 1))
+      expect(elevation(at, -1)).toBeCloseTo(90, 6);
+    for (const at of lines.filter((l) => l.kind === 'ledge')) {
+      expect(at.to.x).toBeCloseTo(80, 6);
+      expect(at.to.y).toBeCloseTo(0, 6);
+    }
+    expectOutThenIn(lines.filter((l) => l.kind === 'ledge').map(length));
+    expect(f.action).toBe('ledgeCatch');
+  });
+
+  it('flies out and is gone after a miss, for the rest of the move', () => {
+    const { f, lines, kinds, frames } = grapple(150, -20, -1, { skyAnchorsUsed: quick().skyAnchors });
+    expect(kinds).toEqual(['out']);
+    // Out on the shot and 8 frames more: on its 10th travel frame it reaches full range, finds nothing and is let go.
+    expect(lines).toHaveLength(quick().travel - 1);
+    expect(frames - lines.length).toBeGreaterThan(20);
+    expect(f.action).toBe('helpless');
+    expectOutThenIn(lines.map(length));
+    for (const at of lines) if (length(at) >= 1) expect(elevation(at, -1)).toBeCloseTo(90, 6);
+  });
+});
