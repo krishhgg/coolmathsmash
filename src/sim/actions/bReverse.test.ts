@@ -54,6 +54,25 @@ registerFighter(
   }),
 );
 
+/**
+ * A neutral special whose script rewinds to frame 3 on frame 10, as Johnny's Laser Gun repeat does (laserRepeat), so
+ * the move's frames pass through the B-reverse window again long after the press.
+ */
+registerFighter(
+  defineFighter({
+    ...marioReference,
+    id: 'test-b-reverse-loop',
+    moves: {
+      neutralB: special({
+        drift: false,
+        script: ({ f }) => {
+          if (f.actionFrame === 10) f.actionFrame = 3;
+        },
+      }),
+    },
+  }),
+);
+
 /** Press Special with `stick` on frame 1 of the special. */
 const press = (m: MatchState, stick: Hold = {}) => run(m, 1, { ...stick, buttons: ['special'] });
 
@@ -346,6 +365,18 @@ describe('B-reverse and turnaround on charged specials', () => {
     expect(b.f.facing).toBe(-1);
     for (let i = 0; i < 10 && b.f.actionFrame <= 10; i++) run(b.m, 1);
     expect(b.f).toMatchObject({ move: 'downB', charge: 120, storedCharge: null, facing: -1 });
+  });
+
+  it('a script that rewinds the move into the window does not reopen it (Johnny repeating Laser Gun)', () => {
+    const m = testMatch({ fighter: 'test-b-reverse-loop' });
+    const f = placeInAir(m, 0, 150, 1);
+    press(m);
+    run(m, 10);
+    expect(f.move).toBe('neutralB');
+    expect(f.actionFrame).toBeGreaterThanOrEqual(SPECIAL_REVERSE.window[0]);
+    expect(f.actionFrame).toBeLessThanOrEqual(SPECIAL_REVERSE.window[1]);
+    run(m, 1, { x: -100 });
+    expect(f.facing).toBe(1);
   });
 
   it('the window counts frames since the press, not the move frame a charge holds still', () => {
