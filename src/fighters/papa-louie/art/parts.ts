@@ -509,6 +509,9 @@ export const pepperBomb = inked(
   ],
 );
 
+/** The top of the shaker's inked chrome cap, above its centre: where Parmesan Shaker's spray comes out. */
+export const SHAKER_TIP = 1.45;
+
 /** The Parmesan shaker: a taller glass of grated cheese with a green label and a chrome cap. */
 export const shaker = inked(
   [
@@ -683,3 +686,130 @@ export const pepperDust: PathShape[] = [
     0.05,
   ),
 ];
+
+/** A shred of grated Parmesan at (x, y): a short curled sliver turned `rot` radians, `s` units long. */
+function shred(x: number, y: number, s: number, rot: number): string {
+  const c = Math.cos(rot);
+  const k = Math.sin(rot);
+  const at = (u: number, v: number) => `${n(x + u * c - v * k)} ${n(y + u * k + v * c)}`;
+  const h = s / 2;
+  return `M${at(-h, 0)}C${at(-h * 0.4, -s * 0.32)} ${at(h * 0.4, -s * 0.3)} ${at(h, 0.02 * s)}C${at(h * 0.4, s * 0.16)} ${at(-h * 0.4, s * 0.2)} ${at(-h, 0)}Z`;
+}
+
+/** Shreds of cheese inked thinly, alternating the light and the shaded yellow. */
+const shreds = (at: number[][]): PathShape[] =>
+  inked(
+    at.map(
+      ([x, y, s, r], i) => [shred(x!, y!, s!, r!), i % 3 === 2 ? 'cheeseLo' : 'cheese'] as [string, Paint],
+    ),
+    [],
+    0.05,
+  );
+
+/**
+ * The burst of grated Parmesan that each shake throws out of the shaker's cap (Parmesan Shaker), at the origin and
+ * spreading down +y: a clump of cloud puffs with shreds flying off it, about 3.6 units across.
+ */
+export const parmesanPuff: PathShape[] = [
+  ...inked(
+    [
+      [ellipse(0, 1.0, 1.0, 0.95), 'cheese'],
+      [ellipse(-0.95, 1.85, 0.85, 0.8), 'cheese'],
+      [ellipse(0.95, 1.95, 0.9, 0.85), 'cheese'],
+      [ellipse(-0.1, 2.75, 1.05, 0.95), 'cheese'],
+    ],
+    [
+      {
+        d: 'M-1.7 2.1C-1.5 2.75 -0.95 3.55 -0.1 3.65C0.75 3.6 1.45 3.05 1.75 2.3C1.2 2.9 0.4 3.15 -0.25 3.1C-0.85 3.05 -1.35 2.7 -1.7 2.1Z',
+        fill: 'cheeseLo',
+      },
+      { d: ellipse(-0.3, 0.65, 0.35, 0.22), fill: 'glassHi' },
+    ],
+    0.16,
+  ),
+  ...shreds([
+    [-1.9, 3.4, 0.55, 0.7],
+    [1.95, 3.2, 0.5, -0.6],
+    [0.4, 4.3, 0.55, 0.2],
+    [-1.2, 4.0, 0.45, -0.3],
+    [2.2, 1.0, 0.45, 1.1],
+    [-2.1, 0.9, 0.4, -1.2],
+  ]),
+];
+
+/** The spray's length: from the cap past the late box, 19.6 units out (moves.ts SHAKER). */
+const SPRAY = 22.5;
+
+/** One drawing of the spray, its shreds `shift` units further out than the first drawing's. */
+function sprayDrawing(shift: number): PathShape[] {
+  const w = (y: number) =>
+    0.55 + 3.0 * Math.sin(Math.min(1, y / 13) * (Math.PI / 2)) - Math.max(0, y - 17) * 0.12;
+  const edge: string[] = [];
+  const steps = 9;
+  for (let i = 1; i <= steps; i++) {
+    const y0 = (SPRAY - 1.2) * ((i - 1) / steps);
+    const y1 = (SPRAY - 1.2) * (i / steps);
+    const bulge = 0.45 + (i % 2) * 0.25;
+    edge.push(
+      `C${n(w(y0) + bulge)} ${n(y0 + (y1 - y0) * 0.25)} ${n(w(y1) + bulge)} ${n(y0 + (y1 - y0) * 0.75)} ${n(w(y1))} ${n(y1)}`,
+    );
+  }
+  const tip = w(SPRAY - 1.2);
+  const right = `M${n(w(0))} 0${edge.join('')}`;
+  const end = `C${n(tip + 0.6)} ${n(SPRAY - 0.2)} ${n(0.8)} ${n(SPRAY + 0.3)} 0 ${n(SPRAY)}C${n(-0.9)} ${n(SPRAY + 0.35)} ${n(-tip - 0.5)} ${n(SPRAY - 0.1)} ${n(-tip)} ${n(SPRAY - 1.2)}`;
+  const left: string[] = [];
+  for (let i = steps; i >= 1; i--) {
+    const y1 = (SPRAY - 1.2) * (i / steps);
+    const y0 = (SPRAY - 1.2) * ((i - 1) / steps);
+    const bulge = 0.45 + ((i + 1) % 2) * 0.25;
+    left.push(
+      `C${n(-w(y1) - bulge)} ${n(y0 + (y1 - y0) * 0.75)} ${n(-w(y0) - bulge)} ${n(y0 + (y1 - y0) * 0.25)} ${n(-w(y0))} ${n(y0)}`,
+    );
+  }
+  const cloud = `${right}${end}${left.join('')}Z`;
+  const flecks: number[][] = [];
+  for (let i = 0; i < 26; i++) {
+    const y = (((i * 0.87 + shift) % 1) * 0.92 + 0.04) * SPRAY;
+    const side = ((i * 7) % 11) / 5 - 1;
+    flecks.push([side * w(y) * 0.8, y, 0.42 + (i % 4) * 0.07, i * 1.7 + shift * 3]);
+  }
+  return [
+    {
+      d: cloud,
+      fill: {
+        type: 'linear',
+        x0: 0,
+        y0: 0,
+        x1: 0,
+        y1: SPRAY,
+        stops: [
+          { offset: 0, color: 'cheese', alpha: 0.95 },
+          { offset: 0.45, color: 'cheeseLo', alpha: 0.7 },
+          { offset: 1, color: 'cheeseLo', alpha: 0.3 },
+        ],
+      },
+    },
+    {
+      d: ellipse(0, SPRAY * 0.3, 1.3, SPRAY * 0.26),
+      fill: {
+        type: 'linear',
+        x0: 0,
+        y0: 0,
+        x1: 0,
+        y1: SPRAY * 0.6,
+        stops: [
+          { offset: 0, color: 'swoosh', alpha: 0.6 },
+          { offset: 1, color: 'swoosh', alpha: 0 },
+        ],
+      },
+    },
+    ...shreds(flecks),
+  ];
+}
+
+/**
+ * Parmesan Shaker's spray: grated cheese streaming from the cap at the origin down +y in a widening cloud, out past
+ * the late box. Three drawings, each with the shreds a third of the spray further out (wrapping), played as a loop at
+ * 20 fps: about 2.3 units a frame, near the shots' 2.8.
+ */
+export const parmesanSpray = [0, 1 / 3, 2 / 3].map(sprayDrawing);
