@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { registerFighter } from '../../fighters/registry';
+import { defineFighter } from '../../fighters/types';
 import { TETHER } from '../constants';
 import type { SimEvent } from '../events';
 import type { FighterState } from '../fighter';
 import type { MatchState } from '../match';
 import { fighterGrapple, lineTether, pointGrapple, quickGrapple, tetherTester } from '../testing/tethers';
-import { attack, runPorts, testMatch, type Hold } from '../testing/sim';
+import { attack, placeInAir, run, runPorts, testMatch, type Hold } from '../testing/sim';
 import { tetherOrigin } from './tether';
 import { posedStage } from '../movingStage';
 
@@ -417,6 +418,51 @@ describe('tethers', () => {
     until(step, () => a.tether === null, [{ buttons: ['jump'] }], 10);
     expect(['hitstun', 'tumble']).toContain(a.action);
     expect(events.at(-1)).toEqual({ type: 'tetherRelease', port: 0 });
+  });
+});
+
+/** Point Grapple's line leaves on this frame; it waits on the one before while special is held. */
+const AIM = pointGrapple.tether!.frame;
+/** What a frame of Point Grapple's wait adds: forward speed from its script before AIM. */
+const PUSH = 0.05;
+/** Point Grapple with no drift, its script adding PUSH before AIM and a mote spawned on AIM. */
+const aimPusher = defineFighter({
+  ...tetherTester,
+  id: 'test-tether-push',
+  name: 'Test: aimed push',
+  entities: { ...tetherTester.entities, mote: { radius: 0.5, lifetime: 600, floor: 'pass', wall: 'pass' } },
+  moves: {
+    ...tetherTester.moves,
+    neutralB: {
+      ...pointGrapple,
+      drift: false,
+      spawn: [{ frame: AIM, entity: 'mote', x: 0, y: 5 }],
+      script: (x) => {
+        if (x.f.actionFrame < AIM) x.f.vel.x += PUSH;
+      },
+    },
+  },
+});
+registerFighter(aimPusher);
+
+describe('an aimed tether waiting for special to be released', () => {
+  it('runs its script once a frame on the frame before it fires, and plays the firing frame once', () => {
+    const m = testMatch({ fighter: aimPusher.id });
+    const f = placeInAir(m, 0, 120, 1);
+    const motes = () => m.entities.filter((e) => e.kind === `${aimPusher.id}/mote`).length;
+    run(m, 1, { buttons: ['special'] });
+    expect(f.move).toBe('neutralB');
+    const speeds = [f.vel.x];
+    for (let i = 0; i < 30; i++) {
+      run(m, 1, { buttons: ['special'] });
+      speeds.push(f.vel.x);
+    }
+    expect(f.actionFrame).toBe(AIM - 1);
+    for (let i = 1; i < speeds.length; i++) expect(speeds[i]! - speeds[i - 1]!).toBeCloseTo(PUSH, 12);
+    expect(motes()).toBe(0);
+    run(m, 1);
+    expect([f.actionFrame, f.vel.x]).toEqual([AIM, speeds.at(-1)]);
+    expect(motes()).toBe(1);
   });
 });
 
