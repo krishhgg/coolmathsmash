@@ -49,7 +49,13 @@ function drift(id: string): string[] {
   const art = fighterArt(def)!;
   return Object.entries(ACTIONS).flatMap(([action, want]) =>
     (BACK_ROLLS.includes(action) ? [1, -1] : [1]).flatMap((dir) => {
-      const f = { action, actionFrame: 0, facing: 1, dodgeDir: { x: dir, y: 0 } } as FighterState;
+      const f = {
+        action,
+        actionFrame: 0,
+        facing: 1,
+        dodgeDir: { x: dir, y: 0 },
+        statuses: [] as FighterState['statuses'],
+      } as FighterState;
       const [name] = clipFor(def, art, f);
       const clip = name === 'idle' ? undefined : art.clips[name];
       if (!clip) return [];
@@ -80,7 +86,13 @@ function directionalDrift(id: string): string[] {
   return DIRECTIONS.flatMap(([name, x, y], i) => {
     const last = AIR_DODGE_DIRECTIONAL.fafByAngle[i]! - 1;
     const at = (actionFrame: number) =>
-      clipFor(def, art, { action: 'airDodge', actionFrame, facing: 1, dodgeDir: { x, y } } as FighterState);
+      clipFor(def, art, {
+        action: 'airDodge',
+        actionFrame,
+        facing: 1,
+        dodgeDir: { x, y },
+        statuses: [] as FighterState['statuses'],
+      } as FighterState);
     const [clip, end] = at(last);
     const [, before] = at(last - 1);
     const length = art.clips[clip]?.length;

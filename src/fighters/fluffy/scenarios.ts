@@ -11,8 +11,9 @@ const faceOff = (fluffy = {}, fireboy = {}): GameScenario['patches'] => [
 
 /**
  * Fluffy's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus his Grabber Whip, Stick Tight, a Quick Grapple ledge recovery, a Point Grapple fly-in, Fluffy
- * himself launched at high percent, and four Fluffys in their costumes. References live in the Captain drive's refs/.
+ * Fireboy, plus his Grabber Whip, Stick Tight, a Quick Grapple ledge recovery, a Point Grapple fly-in, Fuzz Frenzy
+ * (his Final Smash) mid-barrage and at its launch, Fluffy himself launched at high percent, and four Fluffys in their
+ * costumes. References live in the Captain drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'fluffy',
@@ -155,6 +156,38 @@ export const scenarios: FighterScenarios = {
       motion: { before: 30, after: 30 },
       requires: ['move:neutralB', 'action:tetherPull'],
       refs: ['smash/attack-active-*', `${F}/ingame-grab-*`, `${F}/official-art-02-*`],
+    },
+    {
+      name: 'fluffy-fuzz-frenzy',
+      description:
+        "Fluffy holds the Final Smash charge and fires Fuzz Frenzy (neutral special) at Fireboy 20 units in front: the lash catches him and the grabber coils round him; capture a bump of the barrage landing, the cinematic's frame 42.",
+      page: { kind: 'game' },
+      match: VS_FIREBOY,
+      patches: faceOff({ pos: { x: -20, y: 0 }, finalReady: true }, { pos: { x: 0, y: 0 } }),
+      script: [{ port: 0, from: 10, to: 11, buttons: ['special'] }],
+      capture: {
+        label: "P1 move 'finalSmashCinematic', frame 42",
+        when: (s) => s.fighters[0]!.move === 'finalSmashCinematic' && s.fighters[0]!.actionFrame === 42,
+      },
+      motion: { before: 90, after: 40 },
+      requires: ['move:finalSmash', 'move:finalSmashCinematic'],
+      refs: [`${F}/official-art-02-*`, `${F}/ingame-grab-*`, `${F}/official-art-05-*`],
+    },
+    {
+      name: 'fluffy-fuzz-frenzy-launch',
+      description:
+        'Fuzz Frenzy on Fireboy at 50%: after the 31-hit barrage the grabber unwinds and swings the spiked ball up through him; capture the release.',
+      page: { kind: 'game' },
+      match: VS_FIREBOY,
+      patches: faceOff({ pos: { x: -20, y: 0 }, finalReady: true }, { pos: { x: 0, y: 0 }, damage: 50 }),
+      script: [{ port: 0, from: 10, to: 11, buttons: ['special'] }],
+      capture: {
+        label: "P1's Spiked Ball launches P2",
+        when: (s) => s.events.some((e) => e.type === 'hit' && e.move === 'finalSmashCinematic'),
+      },
+      motion: { before: 40, after: 50 },
+      requires: ['move:finalSmashCinematic', 'action:tumble'],
+      refs: ['smash/launch-high-percent-*', `${F}/official-art-02-*`, `${F}/ingame-grab-*`],
     },
     {
       name: 'fluffy-launched',

@@ -14,11 +14,12 @@ import { drawEntityBoxes, EntityView, layerFighters } from './entities';
 import { InputDisplay } from './debug/inputDisplay';
 import { drawMobility } from './debug/mobility';
 import { FighterView, fighterArt, pickCostumes } from './fighterView';
-import { MatchHud, OverheadTags } from './hud';
+import { MatchHud, OverheadTags, TAG_LIFT } from './hud';
 import { placeholderStage } from './placeholderStage';
 import { ReticleView } from './reticle';
 import { drawStagePieces } from './stagePieces';
 import { TetherLineView } from './tetherLine';
+import { flipScreenY, tagY, viewFlip } from './viewFlip';
 import { paint } from './vfx/paint';
 import { fighterFx, Vfx } from './vfx/system';
 import { VfxView } from './vfx/view';
@@ -50,6 +51,8 @@ export class Renderer {
   /** Screen-space stage backdrop, drawn into `backdrop` rather than straight to the screen. */
   readonly background = new Container();
   readonly world = new Container();
+  /** The backdrop and the world, mirrored top to bottom about the screen's middle by a move's view flip (viewFlip.ts). */
+  private readonly turned = new Container();
   readonly hud = new Container();
   readonly debug = new Container();
   readonly overlays: Overlays = { inputs: false, actions: false, hitboxes: false, events: false };
@@ -66,6 +69,8 @@ export class Renderer {
   /** The Special and Finish Zoom flash, in screen pixels behind the fighters (like the KO blast). */
   private readonly zoomFlash = new Graphics();
   private readonly fighterLayer = new Container({ sortableChildren: true });
+  /** Every fighter's `under` slots (FighterView.under), drawn under all the fighters. */
+  private readonly underLayer = new Container();
   /** Fighters standing in a raft, under its rim (EntityView.fronts); layerFighters moves them in and out. */
   private readonly boatLayer = new Container({ sortableChildren: true });
   private readonly foregroundLayer = new Container();
@@ -108,6 +113,7 @@ export class Renderer {
       this.glows,
       this.tetherLines.behind,
       this.entities.back,
+      this.underLayer,
       this.boatLayer,
       this.entities.fronts,
       this.fighterLayer,
@@ -120,7 +126,9 @@ export class Renderer {
     );
     const backdrop = new Sprite(this.backdrop);
     backdrop.visible = quality === 'full';
-    app.stage.addChild(backdrop, this.world, this.hud, this.debug);
+    this.turned.addChild(backdrop, this.world);
+    this.turned.pivot.y = this.turned.y = VIEW_HEIGHT / 2;
+    app.stage.addChild(this.turned, this.hud, this.debug);
     this.debug.addChild(this.inputDisplay.container, this.eventLog.container);
     this.hud.addChild(this.tags.container, this.matchHud.hud.container);
   }
@@ -158,6 +166,7 @@ export class Renderer {
       this.matchKey = state.config;
       this.fighterLayer.removeChildren();
       this.boatLayer.removeChildren();
+      this.underLayer.removeChildren();
       this.fighters = [];
       this.fighterIds = [];
       this.costumes = pickCostumes(state.config, (id) => fighterArt(getFighter(id)));
@@ -175,6 +184,8 @@ export class Renderer {
       const parent = old?.container.parent;
       if (old && parent) parent.replaceChild(old.container, view.container);
       else this.fighterLayer.addChild(view.container);
+      if (old?.under.parent) this.underLayer.replaceChild(old.under, view.under);
+      else this.underLayer.addChild(view.under);
       this.fighters[i] = view;
       this.fighterIds[i] = f.fighter;
     });
@@ -200,6 +211,8 @@ export class Renderer {
     const fx = this.vfx.at(state);
     const zoom = this.zoom.at(state);
     const view = this.camera.viewFor(state, this.stage!, zoom && zoomFocus(zoom, state.frame));
+    const flip = viewFlip(state, alpha);
+    this.turned.scale.y = flip;
     this.world.scale.set(view.zoom);
     this.world.position.set(VIEW_WIDTH / 2 - view.x * view.zoom, VIEW_HEIGHT / 2 + view.y * view.zoom);
     for (const screen of [this.vfxView.screen, this.zoomFlash]) {
@@ -241,7 +254,12 @@ export class Renderer {
           cpu: this.matchHud.cpus.has(f.port),
           visible: !!v?.container.visible,
           x: this.world.position.x + (at?.x ?? 0) * view.zoom,
-          y: this.world.position.y + ((at?.y ?? 0) - (v?.top ?? 0) - 1) * view.zoom,
+          y: tagY(
+            this.world.position.y + ((at?.y ?? 0) - (v?.top ?? 0) - TAG_LIFT) * view.zoom,
+            this.world.position.y + ((at?.y ?? 0) + TAG_LIFT) * view.zoom,
+            flip,
+            VIEW_HEIGHT,
+          ),
         };
       }),
     );
@@ -249,7 +267,11 @@ export class Renderer {
       state,
       state.fighters.map((f) => ({
         x: VIEW_WIDTH / 2 + (f.pos.x - view.x) * view.zoom,
-        y: VIEW_HEIGHT / 2 - (f.pos.y + getFighter(f.fighter).stats.height / 2 - view.y) * view.zoom,
+        y: flipScreenY(
+          VIEW_HEIGHT / 2 - (f.pos.y + getFighter(f.fighter).stats.height / 2 - view.y) * view.zoom,
+          flip,
+          VIEW_HEIGHT,
+        ),
       })),
     );
     this.inputDisplay.container.visible = this.overlays.inputs;

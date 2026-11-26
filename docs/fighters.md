@@ -178,7 +178,8 @@ fsmash: {
     (the Duck's Running Ram).
   - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
     `neutralB: { ..., air: 'neutralBAir' }`. The variant is its own move, so it has its own frame data and clip,
-    and the `move` event carries its name.
+    and the `move` event carries its name. The CPU's air probe of the input plays the variant too
+    (`MoveProbe.plays` in `src/ai/knowledge.ts`).
 - **Transform.** `transform: { frame, into }` turns the fighter into fighter `into` on that frame of the move
   (Zelda/Sheik style). FighterState carries over (%, stocks, position, momentum), and stats, moves and art switch;
   `into` needs a move of the same name, which plays the rest of the move. Fireboy and Watergirl's down special
@@ -457,8 +458,17 @@ for the hold and run at full speed after it.
 
 A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned beams. Fireboy's Fire Blast
 (`src/fighters/fireboy/finalSmash.ts`) is the roster example: Mario Finale's frame data, damage and knockback on a
-`fireboy/blast` entity that crosses the stage and keeps burning after Fireboy can act, as Mario's fireballs do. The
-test fighter's is a plain hitbox:
+`fireboy/blast` entity that crosses the stage and keeps burning after Fireboy can act, as Mario's fireballs do.
+Watergirl's Tidal Wave (`src/fighters/watergirl/finalSmash.ts`) builds a `watergirl/wave` entity from the same table
+(`MARIO_FINALE`, `marioFinaleHits`), so the twins share one copy of Mario Finale. Red Ball's Ball Rain
+(`src/fighters/redball/finalSmash.ts`) covers the whole stage instead, on PK Starstorm: its script drops `redball/ball`
+entities with `spawnEntity` from the top of the stage's middle rather than from his feet, passing `final: true` and the
+move, and `final.range` tells CPUs how far ahead it reaches. Its balls draw behind the fighters (`PropArt.behind`), so
+whoever one falls on still shows. The Duck's Evolved Stomp (`src/fighters/duck/finalSmash.ts`) is Ganon, The Demon King:
+a paralysing burst, then a shockwave that runs along the floor and breaks up at its edge. Both are entities, as Ganon is
+an article, so the Duck never freezes in his own hits' hitlag and his frames stay Ganon's. They are one use of the move,
+so the shockwave hits at the multiplier the burst staled the move with (`moveStale`), not a second, staler one. The test
+fighter's is a plain hitbox:
 
 ```ts
 finalSmash: {
@@ -492,6 +502,28 @@ finalSmashCinematic: {
 },
 ```
 
+Johnny Upgrade's Max Upgrade (`src/fighters/johnny/finalSmash.ts`) is the roster's trap, on Cloud's Omnislash: a jet
+dash whose grab box catches the first opponent it reaches, then 18 hold hits (1, 3, fourteen of 2.2, 5 and 4%) and a 10%
+release, 53.8% in all, as SmashWiki lists them. SmashWiki and ultimateframedata.com have no timing or knockback for
+Omnislash, so its frames and the release's knockback are estimates, the release tuned to SmashWiki's 22% KO.
+
+Bob the Robber's Lights Out (`src/fighters/bob-the-robber/finalSmash.ts`) is another, on
+Joker's All-Out Attack from its 13.0.1 game scripts and `param_final`: a 65-frame hold (`final.freeze`, the script's
+SLOW_OPPONENT), an 80-unit dash whose catch boxes are out from frame 67 to 77, and a 444-frame cinematic of nine
+`holdHits` (3%, seven of 3.8%, 7%) and a 13% `throw`. Its cinematic's art covers the stage and the other fighters
+with a dark sheet in a `decor` slot: a fighter playing a Final Smash draws over all the others, above any raft rim
+(`layerFighters` in `src/render/entities.ts`), and never shows the intangibility blink (`intangibleBlink` in
+`src/render/fighterView.ts`).
+
+Fluffy's Fuzz Frenzy (`src/fighters/fluffy/finalSmash.ts`) is another, on Donkey Kong's Jungle Rush: the
+detection box as grab circles on frames 29-34, the catch's 12% and the 31-hit barrage as hold hits, and the final hit
+as the throw on frame 139. Its box comes out before frame 42, so it sets `final.freeze` to 27, the longest hold that
+lets the box out on its own frame.
+
+Wheely's Full Throttle (`src/fighters/wheely/finalSmash.ts`) is another, on Captain Falcon's Blue Falcon: its
+boxes come out on frame 28, so it sets `final.freeze: 26` to free the others just before them, and its cinematic lands
+the Blue Falcon's hits as `holdHits` and its final launch as the `throw`.
+
 - **Catching.** The trap catches like any command grab: the nearest grabbable fighter in front, through shields. Ultimate
   traps every fighter its hitbox touches; this one holds the first. Papa Louie's Conveyor Oven
   (`src/fighters/papa-louie/finalSmash.ts`) is the roster example, on Steve's House of Boom, which traps only one too: its
@@ -504,12 +536,29 @@ finalSmashCinematic: {
   the air from the same frame. A `still` one stops where it left the floor (`stopInPlace`), as one started in the air
   does. A trap's cinematic never loses its floor, since the stage stands still while it holds the others.
 - **Projectiles.** An entity a `final` move puts out is marked at spawn (`EntityState.final`), so it stays unblockable
-  however long it lasts, after its owner acts again or turns into another fighter (Fireboy's Swap).
+  however long it lasts, after its owner acts again or turns into another fighter (the twins' Swap). The charge
+  carries through a Swap too, and neutral special spends it on whichever twin presses it.
+- **Holding a frame.** A Final Smash of no fixed length holds one frame from its script with `holdFrame`, as a charge
+  holds its charge frame, and its clip shows the frame before it meanwhile. The Raft Wars kids' Full Arsenal
+  (`src/fighters/raftwars/fullArsenal.ts`, Snake's Covering Fire) holds frame 43 while its crosshair, an entity steered
+  by the owner's stick (`EntityCtx.c`), hunts for up to 300 frames, then plays on and fires at the marks it left. Its
+  marks are entities that ride on their foe, drawn by rank with `PropArt.stack` and over the bursts with
+  `PropArt.above` (docs/art.md), so a foe with two shots coming shows two rings and two diamonds.
 - **CPUs.** A CPU holding the charge presses neutral special once an opponent is inside the Final Smash's reach in front
   (`finalReach`: its boxes, or `final.range` for one that spawns its blast), and otherwise leaves neutral special out of
   its attacks.
 - **Events.** Activation emits `finalSmash` after the `move` event, with the freeze length; a trap's catch is a
   `commandGrab` event (docs/sim-events.md).
+- **Stage-wide.** A Final Smash that reaches everyone near the user is a direct one with big boxes. Runner's Tunnel
+  Flip (`src/fighters/runner/finalSmash.ts`) is Peach Blossom: three rings of damage (30, 20 and 10% out to 25, 50 and
+  100 units, no knockback) on frames 40-61, then rings of 0% boxes with a freezing, mashable `endOnHit` status, one
+  status kind per stuck length since a box's status takes its length from the status. The status's `clip` draws the
+  stuck dazed in their `dizzy` clip (tumbling in the air). Its `final.freeze` is 38, so the hit lands on Peach
+  Blossom's own frame 40.
+- **View flips.** A Final Smash that turns the stage over does it in the renderer only: the art's `viewFlips` names
+  the move frames over which the backdrop and world mirror top to bottom and turn back (docs/art.md,
+  `src/render/viewFlip.ts`). Nobody's gravity or controls change, so the sim stays as it was. Runner's view turns over
+  on frames 40-61, stays upside down to 230 and is upright again on 247, the frame before she can act.
 - **Not built.** Ultimate's Final Smash Meter, the height boost after an aerial Final Smash, the solid-colour background
   for the whole move, and the close-up of the user's eyes.
 
@@ -752,6 +801,11 @@ dthrow: { ..., throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55
   in (armor took the hit) goes on when the freeze ends. It can still be hit by fighters, projectiles and stage hazards.
   On the frame a freeze goes on the fighter still acts, so it can be pushed and land hits then. The renderer shakes the
   fighter and flickers it in the status's `color`.
+- **Drawing.** `color` puts a badge beside the head. `clip` draws the fighter in another clip while the status is on,
+  in place of its action's, counted from the status's first frame: `{ ground, air }`, `air` defaulting to `ground`
+  (`statusClip` in `src/render/fighterView.ts`). Name a canonical clip every drawn fighter has (`dizzy`, `down`,
+  `tumble`); a fighter whose art lacks it keeps its own clip. Runner's Tunnel Flip leaves its victims in `dizzy` on the
+  ground and `tumble` in the air. It is presentation only: the sim never reads it.
 - **Ending early.** `clearStatus(m, fighter, kind)` takes one off. A KO clears every status. With `endOnHit`, a later
   hit that lands (not on a shield), a pummel or a throw's hold hit included, takes it off, reported as `statusEnd` with
   reason `hit`. That hit's hitlag and launch take over, and no hit landing on the same frame can put the same status

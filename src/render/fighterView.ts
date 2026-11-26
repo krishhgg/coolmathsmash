@@ -3,6 +3,7 @@ import { airDodgeFaf } from '../sim/actions/air';
 import { isIntangible } from '../sim/actions/registry';
 import { AIR_DODGE_DIRECTIONAL, AIR_DODGE_NEUTRAL, LEDGE_JUMP, SHIELD_MAX } from '../sim/constants';
 import type { FighterState } from '../sim/fighter';
+import { inFinalSmash } from '../sim/finalSmash';
 import type { MatchConfig } from '../sim/match';
 import { statusDef } from '../sim/statuses';
 import type { FighterDef } from '../fighters/types';
@@ -38,6 +39,11 @@ const REEL_ACTIONS = new Set(['tetherPull', 'tetherHang']);
 
 export function fighterArt(def: FighterDef): FighterArt | undefined {
   return def.art as FighterArt | undefined;
+}
+
+/** Height of `def`'s head above its feet, in world units (FighterView.top): the overhead tag points just above it. */
+export function headTop(def: FighterDef): number {
+  return fighterArt(def)?.height ?? def.stats.height;
 }
 
 /**
@@ -91,13 +97,29 @@ function airDodgeFrame(clip: AnimClip, f: FighterState): number {
 }
 
 /**
- * The clip and clip frame that show `f`; move clips are retimed onto the move's frame data. A tech or getup roll
+ * The clip a status on `f` draws it in (StatusDef.clip), newest status first, on the status's own frames: Runner's
+ * Tunnel Flip leaves its victims dazed in their `dizzy` clip. Undefined when no status names a clip the art has.
+ */
+export function statusClip(art: FighterArt, f: FighterState): [string, number] | undefined {
+  for (let i = f.statuses.length - 1; i >= 0; i--) {
+    const s = f.statuses[i]!;
+    const clip = statusDef(s.kind).clip;
+    const name = clip && (f.ground ? clip.ground : (clip.air ?? clip.ground));
+    if (name && art.clips[name]) return [name, s.age];
+  }
+  return undefined;
+}
+
+/**
+ * The clip and clip frame that show `f`; a status that names a clip shows it first (statusClip). move clips are retimed onto the move's frame data. A tech or getup roll
  * away from the facing draws a back roll (backRoll). A tether move's clip plays on through the reel, held on the
  * clip's `reel` frame (AnimClip.reel) until the fighter arrives, unless the art has its own clip for the reel
  * (REEL_ACTIONS). A move waiting on its charge frame plays the art's charge clip, if it has one, on the frames
  * charged so far.
  */
 export function clipFor(def: FighterDef, art: FighterArt, f: FighterState): [string, number] {
+  const held = statusClip(art, f);
+  if (held) return held;
   const hold = f.move ? def.moves?.[f.move]?.charge : undefined;
   const charging = hold !== undefined && f.charge > 0 && f.actionFrame === hold - 1;
   const charge = charging ? chargeClipName(art, f.move!) : undefined;
@@ -155,10 +177,23 @@ export function statusBadges(f: FighterState, frame: number): string[] {
 /** Frames the parry flash lasts (render only; Ultimate shows a bright flash on the parrying fighter). */
 export const PARRY_FLASH_FRAMES = 12;
 
+/**
+ * Whether `f`'s body is dimmed on `frame` by the intangibility blink: every few frames while intangible, except through
+ * a Final Smash, whose user is intangible on every frame and which Ultimate draws without flashing.
+ */
+export const intangibleBlink = (f: Readonly<FighterState>, frame: number): boolean =>
+  isIntangible(f) && !inFinalSmash(f) && frame % 8 < 4;
+
 /** One fighter: its rig posed from the action and frame, plus shield and debug label. World units, y down. */
 export class FighterView {
   readonly container = new Container();
   private readonly body = new Container();
+  /**
+   * The rig's `under` slots (Slot.under), placed, mirrored and blinked with the body: the renderer draws it in a layer
+   * under every fighter.
+   */
+  readonly under = new Container();
+  private readonly underBody = new Container();
   private readonly art: FighterArt | undefined;
   private readonly rig: RigView | null;
   private readonly shield = new Graphics();
@@ -201,10 +236,12 @@ export class FighterView {
     this.shieldColor = PORT_COLORS[port % PORT_COLORS.length]!;
     this.label.anchor.set(0.5, 1);
     this.label.scale.set(0.12);
-    this.top = this.art?.height ?? h;
+    this.top = headTop(def);
     this.label.position.set(0, -this.top - 5);
     this.label.visible = false;
     this.container.addChild(this.glow, this.body, this.shield, this.parryFlash, this.badges, this.label);
+    if (this.rig) this.underBody.addChild(this.rig.under);
+    this.under.addChild(this.underBody);
   }
 
   /** Start the parry flash; `frame` is the match frame after the parry. */
@@ -215,19 +252,21 @@ export class FighterView {
   /** `fx`: the jitter, flash and latest shield hit the effects put on this fighter (src/render/vfx). */
   update(f: FighterState, alpha: number, frame: number, debug: boolean, fx: FighterFx = {}): void {
     const out = f.action === 'ko' || f.action === 'out';
-    this.container.visible = !out;
+    this.container.visible = this.under.visible = !out;
     if (out) return;
     const x = f.prevPos.x + (f.pos.x - f.prevPos.x) * alpha;
     const y = f.prevPos.y + (f.pos.y - f.prevPos.y) * alpha;
     this.container.position.set(x, -y);
+    this.under.position.set(x, -y);
     const jx = fx.jitter?.x ?? 0;
     const jy = -(fx.jitter?.y ?? 0);
     this.body.position.set(jx, jy);
+    this.underBody.position.set(jx, jy);
     this.shield.position.set(jx, jy);
-    this.body.scale.x = f.facing;
+    this.body.scale.x = this.underBody.scale.x = f.facing;
     if (this.rig && this.art) this.rig.pose(...clipFor(this.def, this.art, f), frame);
     const flash = this.lite ? undefined : fx.flash;
-    this.body.alpha = !flash && isIntangible(f) && frame % 8 < 4 ? 0.55 : 1;
+    this.body.alpha = this.underBody.alpha = !flash && intangibleBlink(f, frame) ? 0.55 : 1;
     const k = flash?.amount ?? 0;
     if (flash && k > 0) {
       this.flash ??= new ColorMatrixFilter();

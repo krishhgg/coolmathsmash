@@ -19,6 +19,7 @@ import {
   torso,
   type Part,
 } from './parts';
+import { upgradeFxLoops, upgradeFxSymbols } from './upgradeFx';
 
 /** Outline slots for both segments of a limb, then their fills, so joints have no seam. */
 function limbSlots(upper: string, lower: string, upperSym: string, lowerSym: string): Slot[] {
@@ -45,7 +46,9 @@ const HEAD_SX = 0.88;
 /**
  * Johnny's skeleton (rest pose: standing, facing right), in the game's 3/4 view: the near arm and leg (`F`,
  * drawn in front, bright) hang from his right side at -x, the far ones (`B`, drawn behind, shaded) from +x.
- * `body` is his centre of mass, so rotating it turns the whole fighter; `fx1`-`fx3` are free effect bones.
+ * `body` is his centre of mass, so rotating it turns the whole fighter; `fx1`-`fx4` are free effect bones. Max
+ * Upgrade's aura (`fxAura`, on fx4) draws behind everything, and its boot jets (`jetB`, `jetF`) ride the boots, behind
+ * the legs.
  */
 export const rig: Rig = {
   bones: [
@@ -69,8 +72,12 @@ export const rig: Rig = {
     { name: 'fx1', parent: 'root', x: 0, y: 0 },
     { name: 'fx2', parent: 'root', x: 0, y: 0 },
     { name: 'fx3', parent: 'root', x: 0, y: 0 },
+    { name: 'fx4', parent: 'root', x: 0, y: 0 },
   ],
   slots: [
+    { name: 'fxAura', bone: 'fx4', symbol: null, decor: true },
+    { name: 'jetB', bone: 'footB', symbol: null },
+    { name: 'jetF', bone: 'footF', symbol: null },
     { name: 'fxBack', bone: 'fx3', symbol: null },
     ...limbSlots('armB', 'foreB', 'upperArmFar', 'fistFar'),
     ...limbSlots('thighB', 'shinB', 'thighFar', 'shinFar'),
@@ -101,6 +108,8 @@ export const rig: Rig = {
     ...burstSymbols,
     laserBurst: BURST_LOOP,
     ...coinSymbols,
+    ...upgradeFxSymbols,
+    ...upgradeFxLoops,
   },
 };
 

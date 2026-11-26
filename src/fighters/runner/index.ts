@@ -1,6 +1,7 @@
 import { defineFighter } from '../types';
 import { boxDropActions } from './box-drop';
 import { art } from './art';
+import { statuses } from './finalSmash';
 import { moves } from './moves';
 import { stats } from './stats';
 
@@ -11,5 +12,6 @@ export const fighter = defineFighter({
   stats,
   moves,
   actions: boxDropActions,
+  statuses,
   art,
 });

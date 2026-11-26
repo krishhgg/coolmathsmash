@@ -60,6 +60,12 @@ export interface StatusDef {
   damageTaken?: (status: StatusState) => number;
   /** Presentation only: the colour of its badge over the fighter's head. */
   color?: string;
+  /**
+   * Presentation only: the clip the renderer draws the fighter in while the status is on, in place of its action's,
+   * counted from the status's first frame: `ground` on the ground, `air` (default `ground`) in the air. Name a
+   * canonical clip every drawn fighter has, such as `dizzy`, `down` or `tumble`; a fighter without it keeps its own.
+   */
+  clip?: { ground: string; air?: string };
 }
 
 /** One status on a fighter (FighterState.statuses, oldest first). Plain data. */

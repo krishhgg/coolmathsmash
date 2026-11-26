@@ -113,6 +113,8 @@ const EMPTY = new GraphicsContext();
 export interface RigView {
   /** Rig space: origin at the feet, y down, facing right. The renderer positions, scales and mirrors it. */
   container: Container;
+  /** The `under` slots (Slot.under), in the same rig space: whoever draws the rig places this with `container`. */
+  under: Container;
   /** Shows `clip` at `frame` (frames since the action began) with flicker driven by `globalFrame`. */
   pose(clip: string, frame: number, globalFrame: number): void;
   /** Switches costume; unknown names fall back to `default`. */
@@ -121,11 +123,12 @@ export interface RigView {
 
 export function createRigView(art: FighterArt, palette = 'default'): RigView {
   const container = new Container({ sortableChildren: true });
-  const graphics = art.rig.slots.map((_, i) => {
+  const under = new Container({ sortableChildren: true });
+  const graphics = art.rig.slots.map((slot, i) => {
     const g = new Graphics(EMPTY);
     g.zIndex = i;
     g.visible = false;
-    return container.addChild(g);
+    return (slot.under ? under : container).addChild(g);
   });
   const matrix = new Matrix();
   let costume = art.palettes[palette] ? palette : 'default';
@@ -148,6 +151,7 @@ export function createRigView(art: FighterArt, palette = 'default'): RigView {
   pose('idle', 0, 0);
   return {
     container,
+    under,
     pose,
     setPalette(name) {
       costume = art.palettes[name] ? name : 'default';
