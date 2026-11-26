@@ -3,6 +3,7 @@ import { art } from './art';
 import { entities } from './entities';
 import { moves } from './moves';
 import { stats } from './stats';
+import { statuses } from './statuses';
 
 export const fighter = defineFighter({
   id: 'papa-louie',
@@ -11,5 +12,6 @@ export const fighter = defineFighter({
   stats,
   moves,
   entities,
+  statuses,
   art,
 });
