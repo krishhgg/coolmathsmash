@@ -178,7 +178,8 @@ fsmash: {
     (the Duck's Running Ram).
   - `air` names the move to play instead when the input comes in the air (Ultimate's SpecialN and SpecialAirN):
     `neutralB: { ..., air: 'neutralBAir' }`. The variant is its own move, so it has its own frame data and clip,
-    and the `move` event carries its name.
+    and the `move` event carries its name. The CPU's air probe of the input plays the variant too
+    (`MoveProbe.plays` in `src/ai/knowledge.ts`).
 - **Transform.** `transform: { frame, into }` turns the fighter into fighter `into` on that frame of the move
   (Zelda/Sheik style). FighterState carries over (%, stocks, position, momentum), and stats, moves and art switch;
   `into` needs a move of the same name, which plays the rest of the move. Fireboy and Watergirl's down special
@@ -509,6 +510,11 @@ SLOW_OPPONENT), an 80-unit dash whose catch boxes are out from frame 67 to 77, a
 with a dark sheet in a `decor` slot: a fighter playing a Final Smash draws over all the others, above any raft rim
 (`layerFighters` in `src/render/entities.ts`), and never shows the intangibility blink (`intangibleBlink` in
 `src/render/fighterView.ts`).
+
+Fluffy's Fuzz Frenzy (`src/fighters/fluffy/finalSmash.ts`) is another, on Donkey Kong's Jungle Rush: the
+detection box as grab circles on frames 29-34, the catch's 12% and the 31-hit barrage as hold hits, and the final hit
+as the throw on frame 139. Its box comes out before frame 42, so it sets `final.freeze` to 27, the longest hold that
+lets the box out on its own frame.
 
 - **Catching.** The trap catches like any command grab: the nearest grabbable fighter in front, through shields. Ultimate
   traps every fighter its hitbox touches; this one holds the first. Papa Louie's Conveyor Oven
