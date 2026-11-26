@@ -704,6 +704,16 @@ export const clips: Record<string, AnimClip> = {
   ...specials,
 };
 
+/** Tech and getup rolls away from the facing: the back roll with its frames moved onto each action's travel. */
+clips.techRollBack = retimeClip(clips.rollBack!, 40, [
+  [4, 4],
+  [20, 30],
+]);
+clips.getupRollBack = retimeClip(clips.rollBack!, 35, [
+  [4, 4],
+  [20, 28],
+]);
+
 /**
  * Dodges on the shared timings (src/sim/constants.ts): keys inside the intangible and travel windows stay put and
  * only the recovery after them stretches or shrinks. Spot dodge 25 frames, forward roll 29, back roll 34.
