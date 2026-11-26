@@ -242,11 +242,11 @@ export const scenarios: FighterScenarios = {
     {
       name: 'runner-final-smash',
       description:
-        'Runner holds the Final Smash charge and uses Tunnel Flip between two Fireboys: the tunnel grows around her and ' +
-        'the view turns upside down; the near Fireboy takes 30% and the far one 10%, and both are left stuck while ' +
-        'she hops about on what is now the ceiling.',
+        'Runner holds the Final Smash charge and uses Tunnel Flip between Red Ball and Bob the Robber: the tunnel grows ' +
+        'around her and the view turns upside down; Red Ball, near her, takes 30% and Bob, further out, 10%, and both ' +
+        'are left dazed in their dizzy clips while she hops about on what is now the ceiling.',
       page: { kind: 'game' },
-      match: { ports: [{ fighter: 'runner' }, { fighter: 'fireboy' }, { fighter: 'fireboy' }] },
+      match: { ports: [{ fighter: 'runner' }, { fighter: 'redball' }, { fighter: 'bob-the-robber' }] },
       patches: [
         { port: 0, state: { pos: { x: -30, y: 0 }, prevPos: { x: -30, y: 0 }, facing: 1, finalReady: true } },
         { port: 1, state: { pos: { x: -15, y: 0 }, prevPos: { x: -15, y: 0 }, facing: -1 } },
@@ -254,7 +254,7 @@ export const scenarios: FighterScenarios = {
       ],
       script: [{ port: 0, from: 10, buttons: ['special'] }],
       capture: {
-        label: "P1 move 'finalSmash', upside down with P2 stuck",
+        label: "P1 move 'finalSmash', upside down with P2 and P3 stuck",
         when: (s) =>
           s.fighters[0]!.move === 'finalSmash' && s.fighters[0]!.actionFrame === TUNNEL_FLIP.clean[0] + 14,
       },

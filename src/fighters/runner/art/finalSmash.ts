@@ -9,8 +9,8 @@ import { BODY_Y } from './rig';
  * Tunnel Flip, the Final Smash (src/fighters/runner/finalSmash.ts), on Peach Blossom's timeline. Through the
  * activation she winds up, springs into a backflip and lands slapping the floor with both hands, so the tiles either
  * side of her flip up on their edges, as Tile Flip's one does. On frame 40 the tunnel itself appears around her, seen
- * end on, and over the hit's frames it grows past the far ring and rolls a half turn while the renderer turns the
- * whole view upside down (`viewFlips`). While everyone near her is stuck she hops from foot to foot, untroubled, and
+ * end on, and over the hit's frames it grows to TUNNEL_SIZE and rolls a half turn while the renderer turns the whole
+ * view upside down (`viewFlips`). While everyone near her is stuck she hops from foot to foot, untroubled, and
  * over the last frames the tunnel shrinks back in, rolling the other half turn as the view turns upright, and she
  * settles into her stance on the frame before she can act.
  */
@@ -154,9 +154,14 @@ const TUNNEL = { ...SHOUT, fxBack: 'tunnel' };
 const TUNNEL_FADE = { ...HAPPY, fxBack: 'tunnelFaint' };
 const BACK_FADE = { ...SHOUT, fxBack: 'tunnelFaint' };
 
-/** How far the tunnel reaches: from just around her to past the far ring (100 units). */
-const NEAR = 8;
-const FAR = 108;
+/**
+ * How far the tunnel reaches from her middle: from just around her out to TUNNEL_SIZE. The camera always keeps 55
+ * units either side of a fighter, 25 below her feet and 50 above them (src/render/camera.ts), so a tunnel of 29.5
+ * (its edge 30.15 from her middle, 6.75 up) keeps all four walls on screen wherever it is drawn: it never shrinks to
+ * one wall standing through the stage. The boxes reach much further (100 units); the turning view shows that.
+ */
+const NEAR = 5;
+export const TUNNEL_SIZE = 29.5;
 
 /** The hop, a step every 10 frames from frame `from` to `to`, blinking now and then. */
 function hops(from: number, to: number): Key[] {
@@ -185,13 +190,13 @@ export const finalSmashClips: Record<string, AnimClip> = {
       key(36, mix(heave(0), tiles(70)), { ease: 'out' }),
       key(39, mix(heave(-2), tiles(90)), { ease: 'step' }),
       key(hit[0], mix(heave(-3), ring(NEAR, 0)), { ease: 'out', swaps: TUNNEL }),
-      key(50, mix(heave(-6), ring(72, 120)), { ease: 'out' }),
-      key(hit[1], mix(heave(-2), ring(FAR, 180)), { ease: 'linear' }),
-      key(clean[0], mix(heave(0), ring(FAR + 4, 184)), { ease: 'linear', swaps: TUNNEL_FADE }),
-      key(66, mix(hop(1), ring(FAR + 8, 186)), { ease: 'inOut', swaps: HAPPY }),
+      key(50, mix(heave(-6), ring(24, 120)), { ease: 'out' }),
+      key(hit[1], mix(heave(-2), ring(TUNNEL_SIZE, 180)), { ease: 'linear' }),
+      key(clean[0], mix(heave(0), ring(TUNNEL_SIZE, 182)), { ease: 'linear', swaps: TUNNEL_FADE }),
+      key(66, mix(hop(1), ring(TUNNEL_SIZE, 186)), { ease: 'inOut', swaps: HAPPY }),
       ...hops(76, late[1] - 4),
-      key(back[0], mix(heave(0), ring(FAR + 8, 180)), { ease: 'in', swaps: BACK_FADE }),
-      key(234, mix(heave(2), ring(FAR - 4, 196)), { ease: 'in', swaps: TUNNEL }),
+      key(back[0], mix(heave(0), ring(TUNNEL_SIZE, 180)), { ease: 'in', swaps: BACK_FADE }),
+      key(234, mix(heave(2), ring(TUNNEL_SIZE, 196)), { ease: 'in', swaps: TUNNEL }),
       key(back[1] - 1, mix(heave(0), ring(NEAR, 360)), { ease: 'linear' }),
       key(back[1], READY, { swaps: {} }),
     ],
