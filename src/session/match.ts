@@ -186,6 +186,9 @@ export class MatchSession {
         this.stats[e.attacker]!.damageDealt += e.damage;
         this.stats[e.victim]!.damageTaken += e.damage;
         if (e.type === 'hit') this.lastHitBy[e.victim] = e.attacker;
+      } else if (e.type === 'statusDamage') {
+        this.stats[e.port]!.damageTaken += e.damage;
+        if (e.source >= 0 && e.source !== e.port) this.stats[e.source]!.damageDealt += e.damage;
       } else if (e.type === 'land' || (e.type === 'action' && e.to === 'ledgeCatch')) {
         this.lastHitBy[e.port] = -1;
       } else if (e.type === 'ko') {

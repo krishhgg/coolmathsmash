@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   AIR_DODGE_NEUTRAL,
+  DASH_SPEED_KEEP_FRAMES,
   INFINITE_STOCKS,
-  LEDGE_INTANGIBILITY,
+  LEDGE_CATCH_FRAMES,
   LEDGE_MAX_GRABS,
   LEDGE_GETUP_INTANGIBILITY_SCALE,
   RESPAWN_INVINCIBILITY,
@@ -15,6 +16,7 @@ import {
   SPOT_DODGE,
 } from './constants';
 import { isIntangible } from './actions/registry';
+import { ledgeIntangibility } from './combat/formulas';
 import type { FighterState } from './fighter';
 import { marioReference as mario } from './testing/reference';
 import { placeInAir, run, testMatch, until, type Hold } from './testing/sim';
@@ -164,6 +166,50 @@ describe('ground movement (Mario reference: walk 1.155, initial dash 1.936, run 
     expect(f.action).toBe('run');
   });
 
+  /** Mario's speed on each of the first `frames` frames of a dash whose stick is held for `held` frames. */
+  function dashSpeeds(held: number, frames: number) {
+    const m = testMatch({ x: -60 });
+    const f = fighter(m);
+    const x0 = f.pos.x;
+    const speeds: number[] = [];
+    const actions: string[] = [];
+    for (let i = 0; i < frames; i++) {
+      run(m, 1, i < held ? { x: 100 } : {});
+      speeds.push(f.vel.x);
+      actions.push(f.action);
+    }
+    return { speeds, actions, distance: f.pos.x - x0 };
+  }
+
+  it('holds the initial dash speed for dash_speed_keep_frame (6) frames, then eases to run speed at traction', () => {
+    expect(DASH_SPEED_KEEP_FRAMES).toBe(6);
+    const { speeds, actions } = dashSpeeds(16, 16);
+    for (let i = 0; i < 6; i++) expect(speeds[i]).toBeCloseTo(S.dashInitialSpeed, 9);
+    // Ultimate brakes speed above run_speed_max by ground_brake: 1.936 - 0.102 = 1.834, then 1.76.
+    expect(speeds[6]).toBeCloseTo(S.dashInitialSpeed - S.groundFriction, 9);
+    expect(speeds[7]).toBeCloseTo(S.runSpeed, 9);
+    expect(actions[10]).toBe('dash');
+    expect(actions[11]).toBe('run');
+    for (const v of speeds.slice(7)) expect(v).toBeCloseTo(S.runSpeed, 9);
+    for (let i = 1; i < speeds.length; i++) {
+      expect(speeds[i - 1]! - speeds[i]!).toBeLessThanOrEqual(S.groundFriction + 1e-9);
+    }
+  });
+
+  it('a stick released during the initial dash keeps dash speed to frame 6, then slides out at traction', () => {
+    const { speeds, actions, distance } = dashSpeeds(1, 30);
+    for (let i = 0; i < 6; i++) expect(speeds[i]).toBeCloseTo(S.dashInitialSpeed, 9);
+    for (let i = 6; i < 24; i++) {
+      expect(speeds[i]).toBeCloseTo(S.dashInitialSpeed - S.groundFriction * (i - 5), 9);
+    }
+    expect(speeds[24]).toBe(0);
+    // The dash still plays out its dashFrames, braking, then the fighter stands and skids on.
+    expect(actions.slice(0, S.dashFrames).every((a) => a === 'dash')).toBe(true);
+    expect(actions[S.dashFrames]).toBe('idle');
+    // 6 x 1.936 held, then 1.834 + 1.732 + ... + 0.1 at 0.102 a frame.
+    expect(distance).toBeCloseTo(29.022, 3);
+  });
+
   it('dash dances when flicked back during the initial dash', () => {
     const m = testMatch();
     const f = fighter(m);
@@ -254,7 +300,7 @@ describe('ledges', () => {
     until(m, (g) => g.action === 'ledgeCatch');
     expect(f.ledge).toBe(0);
     expect(f.facing).toBe(1);
-    expect(f.intangible).toBeGreaterThan(LEDGE_INTANGIBILITY - 3);
+    expect(f.intangible).toBe(ledgeIntangibility(f.airFrames, f.damage));
     expect(f.pos.x).toBeLessThan(-80);
   });
 
@@ -271,7 +317,7 @@ describe('ledges', () => {
       if (f.action === 'ledgeCatch') {
         grabs++;
         expect(f.intangible).toBe(0);
-        run(m, 10);
+        run(m, LEDGE_CATCH_FRAMES);
       }
     }
     expect(grabs).toBe(LEDGE_MAX_GRABS);
@@ -309,7 +355,7 @@ describe('ledges', () => {
     expect(f.ledgeFresh).toBe(true);
     placeInAir(m, -85, 4, 1);
     until(m, (g) => g.action === 'ledgeCatch');
-    expect(f.intangible).toBeGreaterThan(LEDGE_INTANGIBILITY - 3);
+    expect(f.intangible).toBe(ledgeIntangibility(f.airFrames, f.damage));
   });
 
   /** Intangible frames of a getup started with `start`, from a hang reached after `grabs` grabs. */
@@ -326,10 +372,10 @@ describe('ledges', () => {
   };
 
   it.each([
-    ['climb', { x: 50 }, 30],
-    ['roll', { buttons: ['shield'] }, 34],
-    ['attack', { buttons: ['attack'] }, 22],
-    ['jump', { buttons: ['jump'] }, 13],
+    ['climb', { x: 50 }, 33],
+    ['roll', { buttons: ['shield'] }, 25],
+    ['attack', { buttons: ['attack'] }, 26],
+    ['jump', { buttons: ['jump'] }, 12],
   ] as [string, Hold, number][])(
     'ledge %s intangibility shrinks on regrabs: x1, x0.8, x0.5, then none',
     (_, start, full) => {
@@ -356,7 +402,7 @@ describe('ledges', () => {
       if (isIntangible(g)) frames++;
       return g.action === 'idle';
     });
-    expect(frames).toBe(Math.floor(30 * 0.8));
+    expect(frames).toBe(Math.floor(33 * 0.8));
   });
 });
 

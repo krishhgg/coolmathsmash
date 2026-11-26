@@ -10,8 +10,10 @@ import type { CastHit } from '../sim/cast';
 import type { Hurtbox } from '../sim/combat/hits';
 import type { AbsorberDef, EntityDef, ReflectorDef, SpawnDef } from '../sim/entities/types';
 import type { Ctx, FighterState } from '../sim/fighter';
+import type { MeterDef } from '../sim/meters';
 import type { FloatDef, GlideDef, HoverDef } from '../sim/mobility';
 import type { TerrainElement } from '../sim/stage';
+import type { StatusDef } from '../sim/statuses';
 import type { Vec } from '../sim/vec';
 
 export interface FighterStats {
@@ -97,6 +99,8 @@ export interface HitboxDef {
   /** Extra shield damage on top of the move's damage. */
   shieldDamage?: number;
   effect?: 'normal' | 'fire' | 'electric';
+  /** Windbox: apply knockback without damage, hitlag or hitstun. Shields ignore it. */
+  pushOnly?: boolean;
   /**
    * Which way the hit launches (Ultimate's LR check): along the attacker's facing (default), against it for hits
    * behind him, or away from his centre for hits that surround him.
@@ -112,10 +116,12 @@ export interface HitboxDef {
    * a grab; it ignores shields and is halved in radius against airborne fighters (Ultimate).
    */
   grab?: boolean;
+  /** A status the hit puts on its victim (not through a shield), by kind "<fighter id>/<name>" (FighterDef.statuses). */
+  status?: string;
 }
 
 /** A throw's release hit: a hitbox without a position, since it lands on the held fighter wherever they are. */
-export type ThrowHitDef = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius' | 'grab' | 'direction'> & {
+export type ThrowHitDef = Omit<HitboxDef, 'id' | 'x' | 'y' | 'radius' | 'grab' | 'direction' | 'pushOnly'> & {
   /** 'back' launches behind the thrower (back throws). */
   direction?: 'forward' | 'back';
 };
@@ -173,6 +179,24 @@ export type TetherFighterEvent =
 
 /** Where a tether line stopped: a cast hit, or empty air at full range. */
 export type TetherHit = CastHit | { kind: 'sky'; t: number; point: Vec };
+
+/**
+ * A counter (Marth's Counter, Lucario's Double Team): a hit that touches the fighter while `window` is open is
+ * blocked, and the fighter plays the counterattack `move`. See docs/fighters.md.
+ */
+export interface CounterDef {
+  /** Move frames (inclusive) on which a hit is caught. */
+  window: [number, number];
+  /** The counterattack played on a catch; its boxes deal at least their own damage (Marth's: 8%). */
+  move: string;
+  /** The counterattack deals the caught hit's damage times this (default 1.2), capped at `max` (default 50%). */
+  multiplier?: number;
+  max?: number;
+  /** Frames the counterer and the attacker freeze on the catch (default 21, Marth's). */
+  freeze?: number;
+  /** Reappear this many units behind the attacker, facing their back (Double Team). Omit to answer in place. */
+  behind?: number;
+}
 
 /** A window of frames (inclusive) during which a set of hitboxes is out. */
 export interface HitWindow {
@@ -265,6 +289,8 @@ export interface MoveDef {
   commandGrab?: string;
   /** Tethers: fire a line on `tether.frame` that anchors and reels the fighter in (see TetherDef). */
   tether?: TetherDef;
+  /** Counters: a hit caught inside the window is blocked and answered by a counterattack (see CounterDef). */
+  counter?: CounterDef;
   /**
    * The action that plays this move instead of 'attack' / 'aerial', for moves with their own physics:
    * 'hover' (fuel hover, FighterDef.hover).
@@ -317,6 +343,10 @@ export interface FighterDef {
   selectable?: boolean;
   /** Damaging terrain this fighter is unharmed by, e.g. Fireboy's ['lava'] (docs/stage-geometry.md). */
   immune?: TerrainElement[];
+  /** Timed statuses this fighter's hits and scripts inflict, by name (the kind is "<id>/<name>"; src/sim/statuses.ts). */
+  statuses?: Record<string, StatusDef>;
+  /** This fighter's meters by name: charge, ammo, coins, counts (src/sim/meters.ts). */
+  meters?: Record<string, MeterDef>;
 }
 
 export function defineFighter<T extends FighterDef>(def: T): T {

@@ -1,6 +1,7 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
 import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, Key } from '../../../render/rig/types';
+import { LEDGE_CATCH_FRAMES, LEDGE_ROLL } from '../../../sim/constants';
 import { FORE_ARM, UPPER_ARM } from './parts';
 import {
   ANGRY,
@@ -786,17 +787,20 @@ export const clips: Record<string, AnimClip> = {
       key(49, ants(AIR, 10, 8), { swaps: FACE }),
     ],
   },
-  ledgeCatch: {
-    length: 8,
-    swaps: ANGRY,
-    keys: [
-      key(0, hang(GX, GY, 1.2, { body: { rot: -6 }, thighF: { rot: -40 }, thighB: { rot: 30 } }), {
-        ease: 'outBack',
-        z: FAR_ARM_IN_FRONT,
-      }),
-      key(8, HANG),
-    ],
-  },
+  ledgeCatch: retimeClip(
+    {
+      length: 8,
+      swaps: ANGRY,
+      keys: [
+        key(0, hang(GX, GY, 1.2, { body: { rot: -6 }, thighF: { rot: -40 }, thighB: { rot: 30 } }), {
+          ease: 'outBack',
+          z: FAR_ARM_IN_FRONT,
+        }),
+        key(8, HANG),
+      ],
+    },
+    LEDGE_CATCH_FRAMES,
+  ),
   ledgeHang: {
     length: 60,
     loop: true,
@@ -817,19 +821,24 @@ export const clips: Record<string, AnimClip> = {
       key(34, STAND),
     ],
   },
-  ledgeRoll: {
-    length: 50,
-    swaps: ANGRY,
-    keys: [
-      key(0, HANG, { ease: 'linear', z: FAR_ARM_IN_FRONT }),
-      key(6, pull(6, 40, 0.6), { ease: 'linear' }),
-      ...roll(10, 34, 1, (f) => ({ body: { y: BALL_Y - belowFloor(f, 40) } })).map((k, i) =>
-        i === 0 ? { ...k, z: {} } : k,
-      ),
-      key(40, CROUCH, { swaps: FACE }),
-      key(50, STAND),
-    ],
-  },
+  /** The keys up to frame 40 follow the engine's path; only the stand-up after them fits the roll's last frames. */
+  ledgeRoll: retimeClip(
+    {
+      length: 50,
+      swaps: ANGRY,
+      keys: [
+        key(0, HANG, { ease: 'linear', z: FAR_ARM_IN_FRONT }),
+        key(6, pull(6, 40, 0.6), { ease: 'linear' }),
+        ...roll(10, 34, 1, (f) => ({ body: { y: BALL_Y - belowFloor(f, 40) } })).map((k, i) =>
+          i === 0 ? { ...k, z: {} } : k,
+        ),
+        key(40, CROUCH, { swaps: FACE }),
+        key(50, STAND),
+      ],
+    },
+    LEDGE_ROLL.faf - 1,
+    [[40, 40]],
+  ),
   ledgeJump: {
     length: 20,
     swaps: HAPPY,
@@ -1086,6 +1095,15 @@ export const clips: Record<string, AnimClip> = {
 clips.getupRoll = retimeClip(clips.techRoll!, 35, [
   [4, 4],
   [30, 28],
+]);
+/** Tech and getup rolls away from the facing: the back roll with its frames moved onto each action's travel. */
+clips.techRollBack = retimeClip(clips.rollBack!, 40, [
+  [4, 4],
+  [20, 30],
+]);
+clips.getupRollBack = retimeClip(clips.rollBack!, 35, [
+  [4, 4],
+  [20, 28],
 ]);
 
 export { BALL_Y, GX, GY, SHIELD, belowFloor, roll, runCycle, strideAt };
