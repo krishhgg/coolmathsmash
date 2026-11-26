@@ -24,7 +24,16 @@ export default defineConfig({
         viewport: { width: 1280, height: 720 },
         deviceScaleFactor: 1,
         launchOptions: {
-          args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
+          // WebGL and compositing go through SwiftShader. Page content is rasterized on the CPU: with
+          // `--ignore-gpu-blocklist` alone Chrome also rasterizes the menus through SwiftShader, headless Chrome queues
+          // that work faster than SwiftShader runs it, and the first WebGL draw of a match waits for the whole queue
+          // (10 to 50 s on a loaded 2-core machine). Browsers that fall back to SwiftShader never GPU-rasterize pages.
+          args: [
+            '--use-angle=swiftshader',
+            '--enable-unsafe-swiftshader',
+            '--ignore-gpu-blocklist',
+            '--disable-gpu-rasterization',
+          ],
         },
       },
     },
