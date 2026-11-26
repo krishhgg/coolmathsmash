@@ -461,7 +461,11 @@ A **direct** Final Smash is an ordinary move: hitboxes, rehit windows, spawned b
 Ball's Ball Rain (`src/fighters/redball/finalSmash.ts`) covers the whole stage instead, on PK Starstorm: its script drops
 `redball/ball` entities with `spawnEntity` from the top of the stage's middle rather than from his feet, passing
 `final: true` and the move, and `final.range` tells CPUs how far ahead it reaches. Its balls draw behind the fighters
-(`PropArt.behind`), so whoever one falls on still shows. The test fighter's is a plain hitbox:
+(`PropArt.behind`), so whoever one falls on still shows. The Duck's Evolved Stomp (`src/fighters/duck/finalSmash.ts`) is
+Ganon, The Demon King: a paralysing burst, then a shockwave that runs along the floor and breaks up at its edge. Both
+are entities, as Ganon is an article, so the Duck never freezes in his own hits' hitlag and his frames stay Ganon's.
+They are one use of the move, so the shockwave hits at the multiplier the burst staled the move with (`moveStale`), not
+a second, staler one. The test fighter's is a plain hitbox:
 
 ```ts
 finalSmash: {
@@ -493,7 +497,12 @@ finalSmashCinematic: {
 },
 ```
 
-Wheely's Full Throttle (`src/fighters/wheely/finalSmash.ts`) is the roster example, on Captain Falcon's Blue Falcon: its
+Johnny Upgrade's Max Upgrade (`src/fighters/johnny/finalSmash.ts`) is the roster's trap, on Cloud's Omnislash: a jet
+dash whose grab box catches the first opponent it reaches, then 18 hold hits (1, 3, fourteen of 2.2, 5 and 4%) and a 10%
+release, 53.8% in all, as SmashWiki lists them. SmashWiki and ultimateframedata.com have no timing or knockback for
+Omnislash, so its frames and the release's knockback are estimates, the release tuned to SmashWiki's 22% KO.
+
+Wheely's Full Throttle (`src/fighters/wheely/finalSmash.ts`) is another, on Captain Falcon's Blue Falcon: its
 boxes come out on frame 28, so it sets `final.freeze: 26` to free the others just before them, and its cinematic lands
 the Blue Falcon's hits as `holdHits` and its final launch as the `throw`.
 

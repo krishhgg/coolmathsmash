@@ -111,8 +111,25 @@ describe('fluffy art', () => {
     }
     expect(art.reticle?.symbol).toBe('reticle');
     expect(art.reticle?.preview?.neutralB).toMatchObject({ frame: 0, to: 23 });
-    expect(art.tetherLine).toMatchObject({ line: 'line', tip: 'tip', moves: ['neutralB'] });
+    expect(art.tetherLine).toMatchObject({ line: 'line', tip: 'tip', moves: ['neutralB', 'upB'] });
     expect(art.tetherLine?.preview?.neutralB).toMatchObject({ frame: 12, to: 40, travel: 12 });
+  });
+
+  it("leaves Quick Grapple's grabber to the renderer, and previews it on the move's own shot", () => {
+    const clip = art.clips.upB!;
+    for (let f = 0; f <= clip.length; f++) {
+      const { symbols } = samplePose(art, 'upB', f, f);
+      expect([symbols.grabLine ?? null, symbols.tip ?? null], `upB@${f}`).toEqual([null, null]);
+    }
+    const t = moves.upB!.tether!;
+    const preview = art.tetherLine!.preview!.upB!;
+    expect(art.tetherLine!.moves).toContain('upB');
+    expect([preview.frame, preview.travel]).toEqual([t.frame, t.travel]);
+    expect(preview.end[0] - preview.from[0]).toBe(0);
+    expect(preview.end[1] - preview.from[1]).toBe(t.range);
+    // The reel holds after the latest frame the line can anchor, while the lab still shows the line.
+    expect(clip.reel!).toBeGreaterThan(t.frame + t.travel - 1);
+    expect(preview.to).toBeGreaterThanOrEqual(clip.reel!);
   });
 
   it('never sinks into the floor while grounded', () => {

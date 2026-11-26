@@ -99,14 +99,14 @@ export function capsule(x0: number, y0: number, x1: number, y1: number, w: numbe
 }
 
 /** A polyline of ink, one capsule per segment so the joins stay round. */
-function strokes(points: P[], w: number, color = 'line'): PathShape[] {
+export function strokes(points: P[], w: number, color = 'line'): PathShape[] {
   return points
     .slice(1)
     .map((p, i) => ({ d: capsule(points[i]![0], points[i]![1], p[0], p[1], w), fill: color }));
 }
 
 /** Points along a cubic Bézier, so a curved stroke of ink can be built from capsules with round ends. */
-function bezier(p0: P, p1: P, p2: P, p3: P, steps = 8): P[] {
+export function bezier(p0: P, p1: P, p2: P, p3: P, steps = 8): P[] {
   return Array.from({ length: steps + 1 }, (_, i): P => {
     const t = i / steps;
     const u = 1 - t;
@@ -137,7 +137,7 @@ export function blob(points: P[], tension = 1): string {
 }
 
 /** Moves authored points: rotate by `deg` (clockwise), scale by `s`, then translate. */
-function place(points: P[], deg: number, tx: number, ty: number, s = 1): P[] {
+export function place(points: P[], deg: number, tx: number, ty: number, s = 1): P[] {
   const r = (deg * PI) / 180;
   return points.map(([x, y]) => [tx + s * (x * cos(r) - y * sin(r)), ty + s * (x * sin(r) + y * cos(r))]);
 }

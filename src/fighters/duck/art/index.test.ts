@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { poseBounds, slotsCovering } from '../../../render/rig/geometry';
+import { flattenPath, poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
+import type { PathShape, SymbolLoop } from '../../../render/rig/types';
 import {
   AIR_DODGE_NEUTRAL,
   GETUP_ROLL,
@@ -12,6 +13,7 @@ import {
   TECH_ROLL,
 } from '../../../sim/constants';
 import { placeInAir, run, testMatch, until } from '../../../sim/testing/sim';
+import { entities } from '../entities';
 import { moves } from '../moves';
 import { stats } from '../stats';
 import { art } from '.';
@@ -108,6 +110,54 @@ describe('duck art', () => {
             if (!slotsCovering(art, pose, x, -y).length) misses.push(`${name}@${f} (${x}, ${y})`);
         }
     expect(misses).toEqual([]);
+  });
+
+  it("draws Evolved Stomp's burst and shockwave inside their hitboxes, so nobody sees them reach before they hit", () => {
+    const misses: string[] = [];
+    for (const [entity, prop] of [
+      ['stomp', 'stomp'],
+      ['wave', 'wave'],
+      ['waveAir', 'waveAir'],
+    ] as const) {
+      const boxes = entities[entity]!.hits!.flatMap((w) => w.boxes);
+      const loop = art.rig.symbols[art.projectiles![prop]!.symbol] as SymbolLoop;
+      for (const name of new Set(loop.loop))
+        for (const shape of art.rig.symbols[name] as PathShape[]) {
+          // A prop is drawn around its entity's centre, y down; the boxes sit round the same centre, y up. A stroke
+          // reaches half its width past the path.
+          const ink = (shape.stroke?.width ?? 0) / 2;
+          for (const p of flattenPath(shape.d))
+            for (let i = 0; i < p.length; i += 2) {
+              const [x, y] = [p[i]!, p[i + 1]!];
+              const out = Math.min(...boxes.map((b) => Math.hypot(x - b.x, y + b.y) - b.radius)) + ink;
+              if (out > 1e-6) misses.push(`${name} (${x.toFixed(1)}, ${y.toFixed(1)}) by ${out.toFixed(2)}`);
+            }
+        }
+    }
+    expect(misses).toEqual([]);
+    const xs = (name: string, keep: (s: PathShape) => boolean) =>
+      (art.rig.symbols[name] as PathShape[])
+        .filter(keep)
+        .flatMap((s) => flattenPath(s.d).flatMap((p) => p.filter((_, i) => i % 2 === 0)));
+    // The shockwave's yellow front follows the 45% box's own edge: it reaches to within a unit of it, 12 above the
+    // floor.
+    const waveFront = Math.max(...entities.wave!.hits![0]!.boxes.map((b) => b.x + b.radius));
+    expect(waveFront - Math.max(...xs('fxWave0', (s) => s.fill === 'star'))).toBeLessThan(1);
+    // The burst's dome spans its circles: its rim reaches to within 2.5 units of their back and front edges on its
+    // first frames, and within a unit once it has spread.
+    const slam = entities.stomp!.hits![0]!.boxes;
+    const [back, front] = [
+      Math.min(...slam.map((b) => b.x - b.radius)),
+      Math.max(...slam.map((b) => b.x + b.radius)),
+    ];
+    for (const [name, near] of [
+      ['fxBurst0', 2.5],
+      ['fxBurst2', 1],
+    ] as const) {
+      const rim = xs(name, (s) => s.stroke !== undefined && s.fill === undefined);
+      expect(Math.min(...rim) - back, name).toBeLessThan(near);
+      expect(front - Math.max(...rim), name).toBeLessThan(near);
+    }
   });
 
   it("stands as tall and wide as the Duck's stats, feet on the ground", () => {

@@ -74,7 +74,8 @@ rig point `(6, -6)`.
   to the line's end (`FighterState.tether.anchor`), with `tip` at the end. The end is the tip while the line flies
   and the anchor once it holds, so the line reels in as the fighter closes and is gone after a whiff. Lines draw
   behind the fighters and tips over them. Leave the line out of those moves' clips. `preview` grows it from `from`
-  to `end` over `travel` frames in lab sheets (Fluffy's Point Grapple grabber on `neutralB`, frames 12-40).
+  to `end` over `travel` frames in lab sheets (Fluffy's grabber on Point Grapple's `neutralB`, frames 12-40, and on
+  Quick Grapple's `upB`, frames 8-28).
 
 Sampling is a pure function of `(clip, frame, globalFrame)`: no clocks and no randomness, so replays and the
 frame-capture harness always draw the same picture.
@@ -112,7 +113,7 @@ drawn part reaches into every hitbox's inner half on its active frames.
 
 A tether move keeps its clip through the reel. `tetherPull` plays the move's clip on from the frame the line
 anchored, and `tetherHang` holds the frame the reel arrived on. Set `AnimClip.reel` to the clip frame a long reel
-should hold on (Fluffy's `upB` holds on 24, while the line still reaches well up), after the latest frame
+should hold on (Fluffy's `upB` holds on 24, stretched along the line), after the latest frame
 the line can anchor. Without it the clip plays on to its end. A reel that needs its own drawing gets a clip
 named after the action instead: when the art has a `tetherPull` or `tetherHang` clip, the reel plays it from the
 reel's first frame (Red Ball's `tetherPull`, his tongue shortening towards the ledge).
