@@ -9,6 +9,7 @@ import { statusDef, statusLength } from '../sim/statuses';
 import type { FighterState } from '../sim/fighter';
 import { finalReach } from '../sim/finalSmash';
 import { stepMatch, type MatchState } from '../sim/match';
+import { groundSpan, surfaceY } from '../sim/movement';
 import { STICK, TURNING_MOVES, press } from './inputs';
 import { actionable, knowledge, type FighterKnowledge } from './knowledge';
 import { cpuLevel, type CpuLevel } from './levels';
@@ -39,6 +40,7 @@ import { chooseDI, planRecovery, recoveryDriver, targetLedge, type RecoveryPlan 
 import {
   clampToStage,
   floorBelow,
+  groundUnder,
   landingX,
   landsSafe,
   safeSpot,
@@ -67,6 +69,8 @@ const HORIZON = 45;
  */
 const SHOT_HORIZON = 110;
 const NEUTRAL = Object.freeze(neutralInput());
+/** Units inside the ends of its ground that a tech roll or getup roll the CPU picks must end. */
+const ROLL_ROOM = 4;
 
 type Situation = 'combo' | 'punish' | 'neutral';
 
@@ -400,16 +404,20 @@ export class Cpu {
   }
 
   /**
-   * A random roll direction (0 for in place) among the options that keeps a roll's length on the stage and, on a
-   * stage with hazards, ends somewhere the CPU can stand.
+   * A random roll direction (0 for in place) among the options whose roll ends ROLL_ROOM inside the ends of the ground
+   * the CPU lies on (or, still tumbling, the ground under it) and, on a stage with hazards, somewhere it can stand. The
+   * sim stops a roll at the end of that ground (groundSpan), so a longer roll would end short at the edge.
    */
   private getupDirection(state: Readonly<MatchState>, me: Readonly<FighterState>, options: number[]): number {
     const info = stageInfo(state);
     const reach = getFighter(me.fighter).stats.rollDistance;
+    const ground = me.ground ?? groundUnder(info, me.pos.x, me.pos.y);
+    const [lo, hi] = ground ? groundSpan(info.c, ground) : [info.left, info.right];
+    const y = ground ? surfaceY(info.c, ground, me.pos.x) : me.pos.y;
     const safe = options.filter((d) => {
       const x = me.pos.x + d * reach;
-      if (d !== 0 && clampToStage(info, x, 4) !== x) return false;
-      return info.calm || standSafe(info, me.fighter, x, me.pos.y);
+      if (d !== 0 && (x < lo + ROLL_ROOM || x > hi - ROLL_ROOM)) return false;
+      return info.calm || standSafe(info, me.fighter, x, y);
     });
     return safe.length ? safe[Math.floor(this.rand() * safe.length)]! : 0;
   }

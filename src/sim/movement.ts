@@ -79,6 +79,24 @@ function connectedFloor(stage: CompiledStage, g: GroundRef, x: number): GroundRe
 }
 
 /**
+ * The x range a fighter grounded on `g` can slide across before groundMove stops it at an end (or walks it off):
+ * `g`'s own range (surfaceRange), grown over the connected floors groundMove carries it onto (connectedFloor).
+ */
+export function groundSpan(stage: CompiledStage, g: GroundRef): [number, number] {
+  const span = surfaceRange(stage, g);
+  for (const side of [0, 1] as const) {
+    let at: GroundRef | null = g;
+    for (let n = 0; at && n < stage.edges.length; n++) {
+      at = connectedFloor(stage, at, span[side] + (side ? EPS : -EPS) / 2);
+      const end = at ? surfaceRange(stage, at)[side] : span[side];
+      if (side ? end <= span[1] : end >= span[0]) break;
+      span[side] = end;
+    }
+  }
+  return span;
+}
+
+/**
  * Speed of the conveyor belt a grounded fighter stands on: 0 off a belt, with hazards off, or while a Final Smash's
  * hold stops the stage (advanceStage).
  */
