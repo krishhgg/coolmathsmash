@@ -34,6 +34,7 @@ import {
 import { attacks, ledgeSweep } from './attacks';
 import { FORE_ARM, SHIN, THIGH, UPPER_ARM, shoe } from './parts';
 import { rig } from './rig';
+import { stunGunClips } from './stunGun';
 
 /**
  * Where the hands hold the ledge (rig space): the ledge's top corner while hanging. It matches the engine's hang
@@ -939,4 +940,5 @@ export const clips: Record<string, AnimClip> = {
     keys: [key(0, STAND), key(30, BREATHE), key(60, STAND)],
   },
   ...attacks,
+  ...stunGunClips,
 };

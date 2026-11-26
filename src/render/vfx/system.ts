@@ -1,5 +1,6 @@
 import { getFighter } from '../../fighters/registry';
 import type { FighterState } from '../../sim/fighter';
+import { statusDef } from '../../sim/statuses';
 import type { MatchState } from '../../sim/match';
 import { HALO_FADE_LIFE, type HaloFade } from './extras';
 import { freezesFrom, hitlagOffset, shieldFreezes, stageFreeze, type Freeze } from './hitlag';
@@ -176,13 +177,20 @@ export interface FighterFx {
 /** Smash charge: the fighter flashes pale gold, faster as the charge builds (every 8 frames, down to every 4). */
 const CHARGE_FLASH = 0xfff4b0;
 const CHARGE_JITTER = 0.15;
+/** A freezing status (Ultimate's paralysis): the fighter shakes sideways and flickers in the status's badge colour. */
+export const FREEZE_JITTER = 0.4;
 
 export function fighterFx(v: VfxState, f: FighterState, frame: number): FighterFx {
   const fx: FighterFx = {
     jitter: hitlagOffset(f, frame, freezeOf(v, f.port)),
     shieldHit: shieldPulse(v, f.port),
   };
-  if (charging(f)) {
+  const freeze = f.statuses.map((s) => statusDef(s.kind)).find((d) => d.freeze);
+  if (freeze) {
+    fx.jitter = { x: fx.jitter!.x + (frame % 2 ? -FREEZE_JITTER : FREEZE_JITTER), y: fx.jitter!.y };
+    if (freeze.color)
+      fx.flash = { color: parseInt(freeze.color.slice(1), 16), amount: frame % 4 < 2 ? 0.6 : 0.2 };
+  } else if (charging(f)) {
     const period = Math.round(8 - 4 * Math.min(1, f.charge / 60));
     fx.flash = { color: CHARGE_FLASH, amount: frame % period < (period >= 6 ? 2 : 1) ? 0.5 : 0 };
     fx.jitter = { x: fx.jitter!.x + (frame % 2 ? -CHARGE_JITTER : CHARGE_JITTER), y: fx.jitter!.y };

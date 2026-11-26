@@ -11,7 +11,8 @@ import { koPercent } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
 import { input, placeInAir, run, runPorts, testMatch, type Hold } from '../../sim/testing/sim';
 import { moves } from './moves';
-import { entities, MUZZLE, PARALYZED, SHOTS, STUN_GUN, statuses } from './stunGun';
+import { entities, MUZZLE, PARALYZED, SHOTS, STUN_GUN } from './entities';
+import { statuses } from './statuses';
 
 /**
  * Zero Suit Samus's Paralyzer in Ultimate, the move Stun Gun copies: SmashWiki's Zero Suit Samus (SSBU)/Neutral
