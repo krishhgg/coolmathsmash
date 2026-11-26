@@ -352,6 +352,10 @@ beastChew: {
   if the grabber is still airborne. In the air the stick drifts it, unless the throw move sets `drift: false`.
 - **`holdHits: [{ frame, damage, hitlag? }]`** land in order like pummels: damage and hitlag, no knockback. Their
   damage counts towards the release's knockback.
+- **`pull`** (units a frame) draws the victim to the grabber's hands from where it was caught, in a straight line and
+  off the ground until it arrives, instead of at once. A long-range catch needs it: Papa Louie's Final Smash catches up
+  to 60 units ahead and its belt carries the catch back at 2.5 a frame, as House of Boom pulls "the target to be
+  trapped ... to the front of the piston" (SmashWiki).
 - **Third parties.** Hits from others break the victim free after 10%, as in any grab.
 
 ### Counters
@@ -488,7 +492,10 @@ finalSmashCinematic: {
 ```
 
 - **Catching.** The trap catches like any command grab: the nearest grabbable fighter in front, through shields. Ultimate
-  traps every fighter its hitbox touches; this one holds the first.
+  traps every fighter its hitbox touches; this one holds the first. Papa Louie's Conveyor Oven
+  (`src/fighters/papa-louie/finalSmash.ts`) is the roster example, on Steve's House of Boom, which traps only one too: its
+  activation freeze is 23 frames so House of Boom's pushbox comes out on its frame 25, and its cinematic `pull`s the
+  catch along the belt (Command grabs, above).
 - **Landing.** A `final` move that lands carries on from the same frame, as with `continuesOnLanding`: the charge is
   already spent, so a fall, or a moving platform rising under a `still` user, can't cut it short.
 - **Losing the floor.** The same goes the other way (`finalSmashLeavesGround`): when a platform vanishes or moves out

@@ -367,11 +367,23 @@ function clank(m: MatchState, a: FighterState, v: FighterState): void {
   emit(m, { type: 'grabClank', ports: [a.port, v.port] });
 }
 
-/** Keep a held fighter just in front of its holder, facing him, on his ground. */
+/**
+ * Keep a held fighter just in front of its holder, facing him, on his ground. A throw with `pull` draws it there
+ * from where it was caught instead, `pull` units a frame in a straight line, off the ground until it arrives.
+ */
 function hold(a: FighterState, v: FighterState): void {
   const reach = (getFighter(a.fighter).stats.width + getFighter(v.fighter).stats.width) / 2 + GRAB.holdGap;
-  v.pos.x = a.pos.x + reach * a.facing;
-  v.pos.y = a.pos.y;
-  v.ground = a.ground;
+  const to = { x: a.pos.x + reach * a.facing, y: a.pos.y };
+  const pull = a.action === 'grabThrow' ? moveOf(a)?.pull : undefined;
+  const gap = Math.hypot(to.x - v.pos.x, to.y - v.pos.y);
   v.facing = -a.facing as 1 | -1;
+  if (pull !== undefined && gap > pull) {
+    v.pos.x += ((to.x - v.pos.x) * pull) / gap;
+    v.pos.y += ((to.y - v.pos.y) * pull) / gap;
+    v.ground = null;
+    return;
+  }
+  v.pos.x = to.x;
+  v.pos.y = to.y;
+  v.ground = a.ground;
 }
