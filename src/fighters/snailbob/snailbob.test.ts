@@ -10,7 +10,7 @@ import { marioReference } from '../../sim/testing/reference';
 import { attack, placeInAir, run, runPorts, testMatch, until, type Hold } from '../../sim/testing/sim';
 import { CRATE_FRAMES, CRATE_RADIUS, entities } from './entities';
 import { fighter } from '.';
-import { DAIR_PLUNGE_FROM, SPIN_ROLL, moves } from './moves';
+import { DAIR_PLUNGE_FROM, SPIN_REV_FRAME, SPIN_ROLL, moves } from './moves';
 import { stats } from './stats';
 
 const snail = () => testMatch({ fighter: 'snailbob' });
@@ -359,6 +359,26 @@ describe('Snail Bob: Shell Spin (side special)', () => {
   it('a full rev rolls farther than a tap', () => {
     expect(roll(70).distance).toBeGreaterThan(roll(0).distance * 1.5);
     expect(roll(0).distance).toBeGreaterThan(40);
+  });
+
+  it('revving in the air brakes once a frame: x0.85 forward, and x0.8 up or down to 0.4 a frame', () => {
+    const m = snail();
+    const f = placeInAir(m, 0, 100, 1);
+    run(m, 1, { x: 100, buttons: ['special'] });
+    expect(f.move).toBe('sideB');
+    run(m, SPIN_REV_FRAME - 2, { buttons: ['special'] });
+    expect(f.actionFrame).toBe(SPIN_REV_FRAME - 1);
+    f.vel = { x: 2, y: 1 };
+    // One run of the rev a frame, then the air physics with the stick neutral: air friction and gravity.
+    let { x: vx, y: vy } = f.vel;
+    for (let i = 0; i < 8; i++) {
+      run(m, 1, { buttons: ['special'] });
+      vx = Math.max(0, vx * 0.85 - stats.airFriction);
+      vy = Math.max(vy * 0.8, -0.4) - stats.gravity;
+    }
+    expect([f.actionFrame, f.charge]).toEqual([SPIN_REV_FRAME - 1, 8]);
+    expect(f.vel.x).toBeCloseTo(vx, 12);
+    expect(f.vel.y).toBeCloseTo(vy, 12);
   });
 
   it('deals 10% tapped and 14% fully revved, then bounces him back', () => {

@@ -21,6 +21,8 @@ const yellow: Palette = {
   swoosh: '#ffffff',
   star: '#fff36b',
   starCore: '#ffffff',
+  glow: '#ffc61a',
+  glowCore: '#fffbe0',
 };
 
 /**
