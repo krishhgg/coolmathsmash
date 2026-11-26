@@ -93,7 +93,7 @@ const BREATHE = stand(
 const LOOK = stand({ neck: { rot: -6 }, ...bro(-4, -10, -12, -4, -10) }, -10);
 
 /** Knees bent, head pulled down, the launcher held low and the brother ducking. */
-const CROUCH = stand(
+export const CROUCH = stand(
   { body: { y: 1.5, rot: 4 }, neck: { y: 0.3, rot: 6 }, ...BRO_DUCK },
   4,
   [1.6, 0],
@@ -106,7 +106,7 @@ const CLIMB = stand(
   [1.9, 0],
   [-0.6, 0],
 );
-const SQUAT = stand(
+export const SQUAT = stand(
   { body: { y: 2.0, rot: 6, sy: 0.96 }, neck: { y: 0.35, rot: 8 }, ...BRO_DUCK },
   8,
   [1.7, 0],
@@ -131,8 +131,8 @@ export function air(extra: Pose = {}, gun = -6, tuck = 0): Pose {
 }
 
 const RISE = air({ body: { sy: 1.04, sx: 0.97 }, neck: { rot: -6 }, ...bro(-8, -14, -120, -6, -40) }, -14);
-const APEX = air({ neck: { rot: 2 }, ...bro(2, -4, -60, 0, -20) }, -6, 0.3);
-const FALL = air({ body: { sy: 1.02 }, neck: { rot: 6 }, ...bro(-10, -10, -140, -12, -55) }, 4, 0.1);
+export const APEX = air({ neck: { rot: 2 }, ...bro(2, -4, -60, 0, -20) }, -6, 0.3);
+export const FALL = air({ body: { sy: 1.02 }, neck: { rot: 6 }, ...bro(-10, -10, -140, -12, -55) }, 4, 0.1);
 const FALL_2 = air({ body: { sy: 1.01 }, neck: { rot: 4 }, ...bro(-6, -6, -125, -8, -40) }, 2, 0.05);
 
 /** Balled up for rolls: knees to the chest, the launcher hugged in, the brother squashed against the back. */
@@ -325,7 +325,7 @@ const tumble = (deg: number): Pose =>
   );
 
 /** Lying on his back after a knockdown, the ring around his middle and the brother slumped on top of him. */
-const DOWN: Pose = (() => {
+export const DOWN: Pose = (() => {
   const pose: Pose = {
     body: { rot: -90, x: 1.6, y: 3.9 },
     neck: { rot: -8 },
@@ -453,7 +453,7 @@ function pull([cx, cy]: [number, number], lift: number, shift: number, knee: num
 // Grabs.
 
 /** Holding a grabbed fighter at arm's length, both fists out and the launcher hanging on its strap. */
-const HOLD: Pose = hands(
+export const HOLD: Pose = hands(
   feet(
     { body: { rot: 6, y: 0.4 }, neck: { rot: -4 }, gun: { rot: 60 }, ...bro(6, -6, -60, 0, 10) },
     [1.9, 0],
@@ -484,7 +484,7 @@ const HELD: Pose = aloft(
 // The taunt: the brother hoists the rocket overhead while the big kid pumps the launcher in the air.
 
 /** Turns the brother's arms to world angles (degrees; 180 points straight up). */
-function broArms(pose: Pose, far: number, near: number): Pose {
+export function broArms(pose: Pose, far: number, near: number): Pose {
   const turn = (bone: string, deg: number) => ({
     rot: round(deg - rotOf(pose, bone) + (pose[bone]?.rot ?? 0)),
   });
