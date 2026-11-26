@@ -129,6 +129,8 @@ export interface FighterState {
   statuses: StatusState[];
   /** Meter values by name (FighterDef.meters, src/sim/meters.ts). */
   meters: Record<string, number>;
+  /** Holds a Final Smash charge: broke the Coolmath Planet (src/sim/items/planet.ts) and has not lost it yet. */
+  finalReady: boolean;
 }
 
 export function createFighter(
@@ -192,6 +194,7 @@ export function createFighter(
     stageHitLock: 0,
     statuses: [],
     meters: createMeters(getFighter(fighterId)),
+    finalReady: false,
   };
 }
 

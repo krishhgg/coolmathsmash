@@ -203,6 +203,9 @@ function damageEntity(
   e.damage += damage;
   e.hp -= damage;
   emit(m, { type: 'entityHit', id: e.id, kind: e.kind, attacker, damage, hp: e.hp, x: hit.x, y: hit.y });
-  if (e.hp <= 0) destroyEntity(m, e, 'broken');
+  if (e.hp <= 0) {
+    destroyEntity(m, e, 'broken');
+    def.onBreak?.(m, e, attacker);
+  }
   return lag;
 }
