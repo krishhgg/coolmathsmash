@@ -4,7 +4,15 @@ import type { FighterState } from '../sim/fighter';
 import { AIR_INPUTS, DASH_INPUTS, GROUND_INPUTS, STICK, press } from './inputs';
 import { actionable } from './knowledge';
 import type { Attack } from './options';
-import { clampToStage, floorBelow, type StageInfo } from './stage';
+import {
+  clampToStage,
+  floorBelow,
+  landingX,
+  landsSafe,
+  standSafe,
+  walkTarget,
+  type StageInfo,
+} from './stage';
 
 /**
  * Programs: inputs that take more than one frame (a short-hop aerial, a shield held through an attack, a run that
@@ -18,7 +26,11 @@ export interface Program {
   offstage?: boolean;
   /** Keeps holding a button across programs (shield), so a press edge is not needed. */
   holds?: boolean;
-  step(t: number, f: Readonly<FighterState>): InputFrame | null;
+  /**
+   * `stage` is the stage on this frame (stageInfo); programs that read the stage fall back to the one they started
+   * with.
+   */
+  step(t: number, f: Readonly<FighterState>, stage?: StageInfo): InputFrame | null;
 }
 
 export function wait(frames: number): Program {
@@ -35,7 +47,8 @@ export function crouch(frames: number): Program {
 
 /**
  * Walk or run to x on the ground (kept on the stage), letting go in time for a run to brake; optionally turn to face
- * `face` on arrival.
+ * `face` on arrival. Every frame it stops short of where walking is unsafe on that frame's stage (walkTarget): a
+ * gap, an open or opening trapdoor, a damage zone.
  */
 export function goTo(x: number, runFar: boolean, frames: number, info: StageInfo, face?: number): Program {
   let lastX = 0;
@@ -43,9 +56,9 @@ export function goTo(x: number, runFar: boolean, frames: number, info: StageInfo
   return {
     name: 'goTo',
     interruptible: true,
-    step(t, f) {
+    step(t, f, stage = info) {
       if (t >= frames || f.ground === null) return null;
-      const d = target - f.pos.x;
+      const d = walkTarget(stage, f.fighter, f.pos.x, f.pos.y, target) - f.pos.x;
       const s = Math.sign(d);
       const ad = Math.abs(d);
       let sx = 0;
@@ -71,18 +84,21 @@ export function goTo(x: number, runFar: boolean, frames: number, info: StageInfo
   };
 }
 
-/** Drift toward x in the air, fast falling once if asked and it lands on solid ground. */
+/**
+ * Drift toward x in the air, fast falling once if asked and it lands on solid ground. On a stage with hazards it
+ * drifts toward the nearest safe landing to x on that frame's stage instead (landingX).
+ */
 export function drift(x: number, fastFall: boolean, frames: number, info: StageInfo): Program {
   let ff = false;
   return {
     name: 'drift',
     interruptible: true,
-    step(t, f) {
+    step(t, f, stage = info) {
       if (t >= frames || f.ground !== null) return null;
-      const d = x - f.pos.x;
+      const d = (stage.calm ? x : landingX(stage, f, x)) - f.pos.x;
       const sx = Math.abs(d) < 3 ? d * 20 : Math.sign(d) * 100;
       let y = 0;
-      if (fastFall && !ff && actionable(f) && canFastFall(f, info)) {
+      if (fastFall && !ff && actionable(f) && canFastFall(f, stage)) {
         ff = true;
         y = -100;
       }
@@ -207,13 +223,38 @@ export function groundMove(move: string, facing: 1 | -1): Program {
 }
 
 /**
- * Fast fall only when falling onto solid ground: over it now, and over it where the current drift would carry the
- * fall down to the stage's height, so a fast fall never takes the CPU past the ledge.
+ * Fast fall only when falling onto solid ground that stays: over it now, and over ground it can stand on where the
+ * current drift would carry the fall down to the stage's height, so a fast fall never takes the CPU past the ledge,
+ * into a gap or into a damage zone.
  */
 export function canFastFall(f: Readonly<FighterState>, info: StageInfo): boolean {
-  if (f.vel.y > 0 || f.fastFalling || floorBelow(info, f.pos.x, f.pos.y, false) === null) return false;
+  if (f.vel.y > 0 || f.fastFalling || floorBelow(info, f.pos.x, f.pos.y, false, true) === null) return false;
   const t = Math.max(0, f.pos.y - info.top) / getFighter(f.fighter).stats.fastFallSpeed;
-  return floorBelow(info, f.pos.x + f.vel.x * t, f.pos.y, false) !== null;
+  const x = f.pos.x + f.vel.x * t;
+  const fy = floorBelow(info, x, f.pos.y, false, true);
+  return fy !== null && standSafe(info, f.fighter, x, fy);
+}
+
+/** Frames until `f` falls to height `y` at its current vertical speed. */
+function fallFrames(f: Readonly<FighterState>, y: number): number {
+  const s = getFighter(f.fighter).stats;
+  let h = f.pos.y;
+  let vy = f.vel.y;
+  let t = 0;
+  for (; h > y && t < 600; t++) {
+    vy = Math.max(vy - s.gravity, -s.fallSpeed);
+    h += vy;
+  }
+  return t;
+}
+
+/** Stick x for an airborne drift: `x` when it comes down somewhere safe, else toward the nearest safe landing. */
+export function steer(f: Readonly<FighterState>, stage: StageInfo, x: number): number {
+  const fy = floorBelow(stage, f.pos.x, f.pos.y, true, true) ?? stage.top;
+  const lands = f.pos.x + f.vel.x * fallFrames(f, fy);
+  if (landsSafe(stage, f.fighter, lands, f.pos.y)) return x;
+  const d = landingX(stage, f, lands) - f.pos.x;
+  return Math.abs(d) < 3 ? Math.round(d * 20) : Math.sign(d) * 100;
 }
 
 function aerialInput(move: string, facing: 1 | -1, drift: number): InputFrame {
@@ -223,22 +264,24 @@ function aerialInput(move: string, facing: 1 | -1, drift: number): InputFrame {
   return i;
 }
 
-/** The rest of an aerial: hold the drift and fast fall once if asked; over when it lands or the move ends. */
+/**
+ * The rest of an aerial: hold the drift and fast fall once if asked; over when it lands or the move ends. On a stage
+ * with hazards, when the drift would come down somewhere unsafe, steer for the nearest safe landing instead.
+ */
 function afterAerial(
   a: Attack,
   fastFall: boolean,
-  info: StageInfo,
-): (f: Readonly<FighterState>) => InputFrame | null {
+): (f: Readonly<FighterState>, stage: StageInfo) => InputFrame | null {
   let ff = false;
   const x = Math.round(a.drift * 100);
-  return (f) => {
+  return (f, stage) => {
     if (f.ground !== null || f.action !== 'aerial') return null;
     let y = 0;
-    if (fastFall && !ff && canFastFall(f, info)) {
+    if (fastFall && !ff && canFastFall(f, stage)) {
       ff = true;
       y = -100;
     }
-    return press({ x, y });
+    return press({ x: stage.calm ? x : steer(f, stage, x), y });
   };
 }
 
@@ -250,11 +293,11 @@ export function jumpAerial(a: Attack, fastFall: boolean, info: StageInfo): Progr
   let phase: 'squat' | 'rise' | 'after' = 'squat';
   let airAt = -1;
   const x = Math.round(a.drift * 100);
-  const after = afterAerial(a, fastFall, info);
+  const after = afterAerial(a, fastFall);
   return {
     name: `jump:${a.move}`,
     interruptible: false,
-    step(t, f) {
+    step(t, f, stage = info) {
       if (t > 120) return null;
       if (phase === 'squat') {
         if (f.action === 'jump') {
@@ -276,7 +319,7 @@ export function jumpAerial(a: Attack, fastFall: boolean, info: StageInfo): Progr
         phase = 'after';
         return aerialInput(a.move, f.facing, a.drift);
       }
-      return after(f);
+      return after(f, stage);
     },
   };
 }
@@ -284,15 +327,15 @@ export function jumpAerial(a: Attack, fastFall: boolean, info: StageInfo): Progr
 /** An aerial from mid-air, after a double jump when the attack calls for one. */
 export function airAerial(a: Attack, fastFall: boolean, info: StageInfo): Program {
   const jumpFirst = a.kind === 'doubleJump' ? 1 : 0;
-  const after = afterAerial(a, fastFall, info);
+  const after = afterAerial(a, fastFall);
   return {
     name: `air:${a.move}`,
     interruptible: false,
-    step(t, f) {
+    step(t, f, stage = info) {
       if (t > 70 || (t > 0 && f.ground !== null)) return null;
       if (jumpFirst && t === 0) return press({ x: Math.round(a.drift * 100), buttons: Btn.Jump });
       if (t === jumpFirst) return aerialInput(a.move, f.facing, a.drift);
-      return after(f);
+      return after(f, stage);
     },
   };
 }
