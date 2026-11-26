@@ -1,7 +1,7 @@
-import { contactHit } from '../../sim/combat/hits';
-import { HELPLESS_LANDING_LAG } from '../../sim/constants';
+import { HELPLESS_LANDING_LAG, TETHER } from '../../sim/constants';
 import type { HitboxDef, MoveDef } from '../types';
 import { CANDY_SPEED } from './entities';
+import { stats } from './stats';
 
 /** Shorthand for a hitbox: id, x forward, y up, radius, then the hit's numbers. */
 const box = (
@@ -28,9 +28,11 @@ export const SKY_ANCHORS = 3;
  * Point Grapple's fly-in when the line reaches a fighter: the roster's 10%, with the knockback of Corrin's Dragon
  * Lunge kick (55 degrees, 98 growth, 70 base; SSBU-Calculator's hitbox data, the kick's first hit), where Corrin,
  * stuck to a foe or a wall by the spear, flies forward into a kick. It launches away from Fluffy, whichever way he
- * came in.
+ * came in. The box sits on his hand, where the line pulls him, 7 units round: the reel arrives with the hand within 5
+ * units (half his width) of the anchor on the target's body, so on a level approach it still reaches a target that
+ * steps up to 2 units away on the arrival frame.
  */
-export const GRAPPLE_KICK: HitboxDef = box(0, 0, 0, 0, {
+export const GRAPPLE_KICK: HitboxDef = box(0, 0, stats.height * TETHER.handHeight, 7, {
   damage: 10,
   angle: 55,
   kbg: 98,
@@ -497,10 +499,9 @@ export const moves: Record<string, MoveDef> = {
       pullSpeed: 4,
       hang: 'jump',
       targetsFighters: true,
-      onFighter({ m, f }, target, event) {
-        if (event.phase === 'hit') return 'pullSelf';
-        contactHit(m, f, target, GRAPPLE_KICK, event.point);
-      },
+      // Reel in to whoever the line stops at; the kick on arrival is arriveHit, landed in the frame's hit pass.
+      onFighter: (_x, _target, event) => (event.phase === 'hit' ? 'pullSelf' : undefined),
+      arriveHit: GRAPPLE_KICK,
     },
     // He turns to the side the reticle is on, so the drawn grabber points the way the line goes.
     script({ f }) {

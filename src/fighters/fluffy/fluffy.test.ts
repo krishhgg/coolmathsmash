@@ -726,15 +726,96 @@ describe('Fluffy: Point Grapple (neutral special)', () => {
     const shield = v.shieldHp;
     tap(100, 0);
     for (let i = 0; i < 60 && !events.some((e) => e.type === 'shieldHit'); i++) step(1);
+    expect(events.map((e) => e.type)).toEqual(['tetherFire', 'tetherFighterHit', 'shieldHit']);
+    expect(events[2]).toMatchObject({ attacker: 0, victim: 1, move: 'neutralB', damage: 10 * 1.05 });
+    expect([v.action, v.damage]).toEqual(['shieldStun', 0]);
+    expect(v.shieldHp).toBeLessThan(shield - 10);
+    // He holds where he arrived through the shared hitlag, the kick's box still out, then lets go into a fall.
+    expect([f.action, f.hitlag > 0]).toEqual(['tetherPull', true]);
+    expect(activeHitboxes(f).map((b) => b.box)).toEqual([GRAPPLE_KICK]);
+    for (let i = 0; i < 30 && f.action === 'tetherPull'; i++) step(1);
     expect(events.map((e) => e.type)).toEqual([
       'tetherFire',
       'tetherFighterHit',
       'shieldHit',
       'tetherRelease',
     ]);
-    expect(events[2]).toMatchObject({ attacker: 0, victim: 1, move: 'neutralB', damage: 10 * 1.05 });
-    expect([v.action, v.damage, f.action]).toEqual(['shieldStun', 0, 'fall']);
-    expect(v.shieldHp).toBeLessThan(shield - 10);
+    expect([f.action, activeHitboxes(f)]).toEqual(['fall', []]);
+  });
+
+  it('lands the fly-in in the hit pass: a shield pressed on the arrival frame blocks it, on either port', () => {
+    /**
+     * Fluffy on `port` grapples the Mario reference 60 units away on the other port, whose input on each match frame
+     * is `mario(frame)`. Returns the tether and hit events (hits as attacker>victim), the match frame the first hit
+     * or shield hit landed on, and both fighters' state once Fluffy has let go.
+     */
+    const flyIn = (port: 0 | 1, mario: (frame: number) => Hold = () => ({})) => {
+      const fighters = [{ fighter: 'fluffy' }, { fighter: 'reference-mario' }];
+      const m = createMatch({
+        seed: 1,
+        stage: 'battlefield',
+        stocks: 3,
+        ports: port === 0 ? fighters : fighters.reverse(),
+      });
+      runPorts(m, 10, [{}, {}]);
+      const f = m.fighters[port]!;
+      const v = m.fighters[1 - port]!;
+      place(f, -30, 0, 1, f.ground);
+      place(v, 30, 0, -1, f.ground);
+      const name = (p: number) => (p === port ? 'fluffy' : 'mario');
+      const events: string[] = [];
+      let hitFrame = -1;
+      const step = (fluffy: Hold) => {
+        const other = mario(m.frame);
+        runPorts(m, 1, port === 0 ? [fluffy, other] : [other, fluffy]);
+        const now: string[] = [];
+        for (const e of m.events) {
+          if (e.type === 'hit' || e.type === 'shieldHit') {
+            now.push(`${e.type} ${name(e.attacker)}>${name(e.victim)}`);
+            if (hitFrame < 0) hitFrame = m.frame - 1;
+          } else if (/^(tether|parry)/.test(e.type)) now.push(e.type);
+        }
+        // Hits on one frame land in port order, which is not what this compares.
+        events.push(...now.sort());
+      };
+      step({ buttons: ['special'] });
+      for (let i = 0; i < 2; i++) step({ x: 100, buttons: ['special'] });
+      step({ x: 100 });
+      for (let i = 0; i < 90 && (hitFrame < 0 || f.action === 'tetherPull'); i++) step({});
+      const state = (g: FighterState) => ({ action: g.action, damage: g.damage, shieldHp: g.shieldHp });
+      return { events, hitFrame, fluffy: state(f), mario: state(v) };
+    };
+    // Untouched, the kick lands on the same match frame on either port: the frame the reel arrives.
+    const open = flyIn(0);
+    expect(open.events).toEqual(['tetherFire', 'tetherFighterHit', 'hit fluffy>mario', 'tetherRelease']);
+    expect(flyIn(1)).toEqual(open);
+    const arrival = open.hitFrame;
+    // Shield pressed on that frame, and not a frame before: blocked on both ports, the same way.
+    const shield = (frame: number): Hold => (frame >= arrival ? { buttons: ['shield'] } : {});
+    const shielded = flyIn(0, shield);
+    expect(shielded.events).toEqual([
+      'tetherFire',
+      'tetherFighterHit',
+      'shieldHit fluffy>mario',
+      'tetherRelease',
+    ]);
+    expect(shielded.mario).toMatchObject({ action: 'shieldStun', damage: 0 });
+    expect(flyIn(1, shield)).toEqual(shielded);
+    // Mario's jab, out on its frames 2-3, pressed the frame before: it is out on the arrival frame, so the two trade.
+    const jab = (frame: number): Hold => (frame === arrival - 1 ? { buttons: ['attack'] } : {});
+    const traded = flyIn(0, jab);
+    expect(traded.events.slice(0, 4)).toEqual([
+      'tetherFire',
+      'tetherFighterHit',
+      'hit fluffy>mario',
+      'hit mario>fluffy',
+    ]);
+    expect([traded.hitFrame, traded.fluffy.damage > 0, traded.mario.damage]).toEqual([
+      arrival,
+      true,
+      open.mario.damage,
+    ]);
+    expect(flyIn(1, jab)).toEqual(traded);
   });
 
   it("the fly-in has Corrin's Dragon Lunge kick knockback (55 degrees, 98 growth, 70 base) at the roster's 10%", () => {

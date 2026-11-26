@@ -471,10 +471,11 @@ only. The line passes through fighters, so the hit and the ledge pull stay indep
 
 A tether ignores fighters unless it sets `targetsFighters: true`. If the line reaches a fighter before stage
 geometry, `onFighter(ctx, target, event)` can handle the contact in script or return `'pullSelf'` on
-`event.phase === 'hit'` to reel the user in. The same hook receives `'arrive'` on contact, where the move can
-apply its own hit. Land that hit with `contactHit(m, f, target, box, event.point)` (`src/sim/combat/hits.ts`) so a
-shield blocks it and a parry parries it, as Fluffy's Point Grapple does. `applyHit` ignores shields, as throws do.
-Grab and yank behavior is left to the move script.
+`event.phase === 'hit'` to reel the user in. The same hook receives `'arrive'` on contact. A hit on arrival goes
+in `arriveHit`, a hitbox placed from the fighter like a move's: the reel holds still on the arrival frame with it out,
+and `resolveHits` lands it after every fighter has stepped, so a shield pressed that frame blocks it on either port
+and parries, counters and trades work as for any hitbox (Fluffy's Point Grapple kick). The fighter lets go into a fall
+the next frame it steps. Grab and yank behavior is left to the move script.
 
 ### Kill percentages
 

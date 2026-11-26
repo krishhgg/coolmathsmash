@@ -185,6 +185,14 @@ export interface TetherDef {
    * once in contact. Return nothing to retract the line and handle responses such as a grab or yank in script.
    */
   onFighter?: (x: Ctx, target: FighterState, event: TetherFighterEvent) => 'pullSelf' | void;
+  /**
+   * The hit a `pullSelf` reel lands when it reaches its fighter (Fluffy's Point Grapple kick), placed from the
+   * fighter like a move's hitbox. It is out on the arrival frame only and lands in that frame's hit pass
+   * (resolveHits), after every fighter has stepped, so shields, parries, counters and trades treat it as any hitbox
+   * whatever the ports. The fighter lets go into a fall on the next frame it steps. Without it the reel lets go on
+   * arrival.
+   */
+  arriveHit?: HitboxDef;
 }
 
 export type TetherFighterEvent =

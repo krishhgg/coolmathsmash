@@ -107,6 +107,7 @@ describe.each(Object.values(allFighters()).map((f) => [f.id, f] as const))('figh
         if (t.aimed.quick) expect(t.aimed.quick.frames).toBeGreaterThanOrEqual(1);
       }
       if (t.targetsFighters) expect(t.onFighter, 'targetsFighters needs onFighter').toBeDefined();
+      if (t.arriveHit) expect(t.targetsFighters, 'arriveHit needs targetsFighters').toBe(true);
     }
     for (const s of move.spawn ?? []) {
       expect(s.frame).toBeGreaterThanOrEqual(1);
