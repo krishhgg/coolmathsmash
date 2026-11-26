@@ -4,8 +4,9 @@ const SB = 'characters/snail-bob';
 
 /**
  * Snail Bob's capture states for the hill-climb loop (docs/hill-climb.md): the standard per-fighter set against
- * Fireboy, plus the down air Shell Plunge's landing shockwave, a Rocket Hover recovery from below the ledge and the
- * down special Shell Pound's hop and drop. References live in the Captain drive's refs/.
+ * Fireboy, plus the down air Shell Plunge's landing shockwave, a Rocket Hover recovery from below the ledge, the
+ * down special Shell Pound's hop and drop and the Final Smash Shell Ship's laser. References live in the Captain
+ * drive's refs/.
  */
 export const scenarios: FighterScenarios = {
   fighter: 'snailbob',
@@ -110,6 +111,31 @@ export const scenarios: FighterScenarios = {
       motion: { before: 40, after: 70 },
       requires: ['move:downB'],
       refs: ['smash/attack-active-*', `${SB}/shell-01*`],
+    },
+    {
+      name: 'snailbob-final-smash',
+      description:
+        'Snail Bob holds the Final Smash charge and presses neutral special 40 units from Fireboy: he calls his ' +
+        'spaceship with the remote, it swoops through the stage on frames 28-30 and traps Fireboy, banks round, ' +
+        'lasers him on cinematic frame 52 and rams him away in a blast on 84 (Shell Ship, on the Blue Falcon). ' +
+        'Capture the first frame of the laser.',
+      page: { kind: 'game' },
+      match: { ports: [{ fighter: 'snailbob' }, { fighter: 'fireboy' }] },
+      patches: [
+        { port: 0, state: { pos: { x: -40, y: 0 }, vel: { x: 0, y: 0 }, facing: 1, finalReady: true } },
+        { port: 1, state: { pos: { x: 0, y: 0 }, damage: 30, facing: -1 } },
+      ],
+      script: [{ port: 0, from: 4, to: 5, buttons: ['special'] }],
+      capture: {
+        label: "P1 move 'finalSmashCinematic', the laser (frame 52)",
+        when: (s, prev) =>
+          s.fighters[0]!.move === 'finalSmashCinematic' &&
+          s.fighters[0]!.actionFrame === 52 &&
+          prev.fighters[0]!.actionFrame !== 52,
+      },
+      motion: { before: 110, after: 70 },
+      requires: ['move:finalSmash'],
+      refs: ['smash/attack-active-*', `${SB}/official-art-01*`],
     },
   ],
 };

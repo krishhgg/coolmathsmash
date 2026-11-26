@@ -122,6 +122,8 @@ interface Connection {
   attacker: number;
   /** Id of the entity whose hit this is. */
   entity?: number;
+  /** A Final Smash's hit: from a move marked `final`, or an entity one put out (EntityState.final). */
+  final: boolean;
   /** Where the hit came from (the attacker's or the entity's x), for shield pushback. */
   fromX: number;
   v: FighterState;
@@ -171,10 +173,12 @@ function connection(
 ): Connection {
   const move = a.move!;
   if (!box.pushOnly && a.moveStale === 0) a.moveStale = stale(a, move);
+  const final = moveOf(a)?.final !== undefined;
   return {
-    ...victim(v, frame, moveOf(a)?.final !== undefined),
+    ...victim(v, frame, final),
     a,
     attacker: a.port,
+    final,
     fromX: a.pos.x,
     box,
     kind: moveOf(a)?.kind ?? 'other',
@@ -232,6 +236,7 @@ function entityHits(m: MatchState, e: EntityState, hits: Connection[]): boolean 
       a: null,
       attacker: e.owner,
       entity: e.id,
+      final: e.final,
       fromX: e.pos.x,
       box: hit.box,
       kind: def.kind ?? 'projectile',
@@ -485,6 +490,7 @@ function hit(m: MatchState, h: Connection, again: boolean, batch: EndedOnHit): v
     type: 'hit',
     attacker: h.attacker,
     ...(h.entity !== undefined && { entity: h.entity }),
+    ...(h.final && { final: true as const }),
     victim: h.v.port,
     move: h.move,
     damage: added,
