@@ -7,7 +7,14 @@ import { palettes } from './palettes';
 import { rig } from './rig';
 
 /** Move clips under the names docs/art.md uses too. */
-const aliases = { jab1: attacks.jab, neutralSpecial: attacks.neutralB, upSpecial: attacks.upB };
+const aliases = {
+  jab1: attacks.jab,
+  neutralSpecial: attacks.neutralB,
+  upSpecial: attacks.upB,
+  sideSpecial: attacks.sideB,
+  /** Tongue Lash in the air has the same timing and tongue; only its knockback differs. */
+  sideBAir: attacks.sideB,
+};
 
 /**
  * Red Ball's art: a hand-drawn ball rig (no limbs: squash, stretch, roll and a tongue) with every canonical clip

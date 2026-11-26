@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import ref from '../sim/reference/physics-constants.json';
 import { entityDef } from '../sim/entities/entities';
-import { FIGHTERS } from './registry';
+import { allFighters } from './registry';
 import type { FighterStats } from './types';
 
 const range = ref.cast_ranges;
+
+const SPECIALS = ['neutralB', 'sideB', 'upB', 'downB'];
 
 /** Each stat checked against the span of Ultimate's 89-fighter cast (research: physics-constants.json cast_ranges). */
 const CAST: [keyof FighterStats, { min: number; max: number }][] = [
@@ -27,7 +29,7 @@ const CAST: [keyof FighterStats, { min: number; max: number }][] = [
   ['shieldSize', range.shield_size],
 ];
 
-describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %s', (_, def) => {
+describe.each(Object.values(allFighters()).map((f) => [f.id, f] as const))('fighter %s', (_, def) => {
   it.each(CAST)('%s is within the Ultimate cast range', (stat, { min, max }) => {
     expect(def.stats[stat]).toBeGreaterThanOrEqual(min);
     expect(def.stats[stat]).toBeLessThanOrEqual(max);
@@ -43,7 +45,7 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
     if (move.transform) {
       expect(move.transform.frame).toBeLessThan(move.faf);
       expect(
-        FIGHTERS[move.transform.into]?.moves?.[name],
+        allFighters()[move.transform.into]?.moves?.[name],
         `${move.transform.into} has ${name}`,
       ).toBeDefined();
     }
@@ -59,8 +61,17 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
       }
     }
     if (move.charge !== undefined) {
-      expect(move.kind).toBe('smash');
+      const special = SPECIALS.some((b) => b === name || def.moves?.[b]?.air === name);
+      expect(
+        move.kind === 'smash' || special,
+        `${name}: only smashes and specials (or their air variants) charge`,
+      ).toBe(true);
       expect(move.charge).toBeLessThan(Math.min(...move.hits.map((w) => w.frames[0])));
+    }
+    if (move.chargeFrames !== undefined || move.chargeDamage !== undefined || move.storeCharge) {
+      expect(move.charge, `${name} has a charge frame`).toBeDefined();
+      expect(move.chargeFrames ?? 1).toBeGreaterThan(0);
+      expect(move.chargeDamage ?? 1).toBeGreaterThanOrEqual(1);
     }
     if (move.kind === 'aerial') expect(move.landingLag).toBeGreaterThan(0);
     if (move.next) {
@@ -72,6 +83,11 @@ describe.each(Object.values(FIGHTERS).map((f) => [f.id, f] as const))('fighter %
       expect(move.armor.frames[0]).toBeGreaterThanOrEqual(1);
       expect(move.armor.frames[1]).toBeGreaterThanOrEqual(move.armor.frames[0]);
       expect(move.armor.frames[1]).toBeLessThan(move.faf);
+      if (move.armor.breakDamageMul !== undefined) {
+        expect(move.armor.threshold ?? move.armor.damageThreshold, `${name} armor breaks`).toBeDefined();
+        expect(move.armor.breakDamageMul).toBeGreaterThan(0);
+        expect(move.armor.breakDamageMul).toBeLessThanOrEqual(1);
+      }
     }
     for (const [a, b] of move.autoCancel ?? []) expect(b).toBeGreaterThanOrEqual(a);
     if (move.tether) {

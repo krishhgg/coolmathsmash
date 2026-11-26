@@ -6,7 +6,7 @@ import { hurtbox } from '../sim/combat/hits';
 import { knockback, shieldstunFrames } from '../sim/combat/formulas';
 import { GRAB, SHIELD_DROP_FRAMES } from '../sim/constants';
 import type { FighterState } from '../sim/fighter';
-import type { MatchState } from '../sim/match';
+import { stepMatch, type MatchState } from '../sim/match';
 import { STICK, TURNING_MOVES, press } from './inputs';
 import { actionable, knowledge, type FighterKnowledge } from './knowledge';
 import { cpuLevel, type CpuLevel } from './levels';
@@ -29,11 +29,21 @@ import {
   shield,
   shortHop,
   spotDodge,
+  steer,
   wait,
   type Program,
 } from './programs';
 import { chooseDI, planRecovery, recoveryDriver, targetLedge, type RecoveryPlan } from './recovery';
-import { clampToStage, floorBelow, stageInfo, type StageInfo } from './stage';
+import {
+  clampToStage,
+  floorBelow,
+  landingX,
+  landsSafe,
+  safeSpot,
+  stageInfo,
+  standSafe,
+  type StageInfo,
+} from './stage';
 
 /**
  * One CPU player. Every frame it reads the match (its own fighter as it is, opponents as they were `reaction`
@@ -156,11 +166,11 @@ export class Cpu {
       this.recovery = null;
       return this.onLedge(state, me);
     }
-    const info = stageInfo(state.config.stage);
+    const info = stageInfo(state);
     const offstage =
       me.ground === null && floorBelow(info, me.pos.x, me.pos.y) === null && !a.startsWith('ledge');
     if (this.prog && !this.prog.interruptible && (!offstage || this.prog.offstage)) {
-      const i = this.runProgram(me);
+      const i = this.runProgram(me, info);
       if (i) return i;
     }
     if (offstage) {
@@ -174,7 +184,7 @@ export class Cpu {
         this.nextThink = state.frame + this.lv.thinkEvery;
       }
     }
-    const i = this.runProgram(me);
+    const i = this.runProgram(me, info);
     if (i) return i;
     return me.ground === null ? this.airIdle(me, info) : NEUTRAL;
   }
@@ -184,10 +194,10 @@ export class Cpu {
     return actionable(me) || me.action === 'shield' || me.action === 'shieldStun';
   }
 
-  private runProgram(me: Readonly<FighterState>): InputFrame | null {
+  private runProgram(me: Readonly<FighterState>, info: StageInfo): InputFrame | null {
     const p = this.prog;
     if (!p) return null;
-    const i = p.step(p.t, me);
+    const i = p.step(p.t, me, info);
     if (!i) {
       this.prog = null;
       return null;
@@ -215,7 +225,7 @@ export class Cpu {
     const attacker = nearestOpponent(state, me);
     const r = this.rand();
     if (r < this.lv.di) {
-      this.diStick = chooseDI(state, me, control, stageInfo(state.config.stage), attacker && attacker.pos);
+      this.diStick = chooseDI(state, me, control, stageInfo(state), attacker && attacker.pos);
     } else if (r < this.lv.di + (1 - this.lv.di) * 0.5) {
       const a = this.rand() * Math.PI * 2;
       this.diStick = press({ x: Math.round(Math.cos(a) * 100), y: Math.round(Math.sin(a) * 100) });
@@ -255,6 +265,8 @@ export class Cpu {
         const r = this.rand();
         option = r < (near ? 0.2 : 0.5) ? 'stand' : r < (near ? 0.7 : 0.8) ? 'roll' : 'attack';
       }
+      const info = stageInfo(state);
+      if (!info.calm && !standSafe(info, me.fighter, me.pos.x, me.pos.y)) option = 'roll';
       const dir = option === 'roll' ? this.getupDirection(state, me, [1, -1]) : 0;
       this.getupPlan = { option: dir === 0 && option === 'roll' ? 'stand' : option, at, dir };
     }
@@ -328,7 +340,7 @@ export class Cpu {
     if (!options.length) return press({ x: 100 });
     if (this.rand() >= this.lv.precision) return options[Math.floor(this.rand() * options.length)]![1];
     const at = { x: held.pos.x, y: held.pos.y, grounded: true };
-    const info = stageInfo(state.config.stage);
+    const info = stageInfo(state);
     const outward = Math.sign(held.pos.x - info.centerX) || me.facing;
     let best = options[0]!;
     let bestScore = -Infinity;
@@ -342,13 +354,18 @@ export class Cpu {
     return best[1];
   }
 
-  /** A random roll direction (0 for in place) among the options that keeps a roll's length on the stage. */
+  /**
+   * A random roll direction (0 for in place) among the options that keeps a roll's length on the stage and, on a
+   * stage with hazards, ends somewhere the CPU can stand.
+   */
   private getupDirection(state: Readonly<MatchState>, me: Readonly<FighterState>, options: number[]): number {
-    const info = stageInfo(state.config.stage);
+    const info = stageInfo(state);
     const reach = getFighter(me.fighter).stats.rollDistance;
-    const safe = options.filter(
-      (d) => d === 0 || clampToStage(info, me.pos.x + d * reach, 4) === me.pos.x + d * reach,
-    );
+    const safe = options.filter((d) => {
+      const x = me.pos.x + d * reach;
+      if (d !== 0 && clampToStage(info, x, 4) !== x) return false;
+      return info.calm || standSafe(info, me.fighter, x, me.pos.y);
+    });
     return safe.length ? safe[Math.floor(this.rand() * safe.length)]! : 0;
   }
 
@@ -358,8 +375,9 @@ export class Cpu {
       this.respawnAt = lo + Math.floor(this.rand() * (hi - lo));
     }
     if (me.actionFrame < this.respawnAt) return NEUTRAL;
-    const info = stageInfo(state.config.stage);
-    return press({ x: Math.sign(info.centerX - me.pos.x) * 40 || 40 });
+    const info = stageInfo(state);
+    const x = landingX(info, me, info.centerX);
+    return press({ x: Math.sign(x - me.pos.x) * 40 || 40 });
   }
 
   private onLedge(state: Readonly<MatchState>, me: Readonly<FighterState>): InputFrame {
@@ -446,7 +464,7 @@ export class Cpu {
     const lag = Math.min(this.lv.reaction, this.history.length - 1);
     const snap = this.seen(opp.port, lag);
     const m = soloMatch(state, snap);
-    const info = stageInfo(state.config.stage);
+    const info = stageInfo(state);
     const samples = run(m, lag + HORIZON + 1, assumedInput(snap, info, state));
     const path = samples.slice(lag);
     while (path.length < HORIZON) path.push(path.at(-1) ?? samplesFallback(snap));
@@ -456,6 +474,7 @@ export class Cpu {
   private think(state: Readonly<MatchState>, me: Readonly<FighterState>, info: StageInfo): void {
     const opp = nearestOpponent(state, me, this.lv.reaction, (p, lag) => this.seen(p, lag));
     if (!opp) {
+      if (this.escape(me, info)) return;
       if (actionable(me) && me.ground) this.start(goTo(info.centerX, false, 30, info));
       return;
     }
@@ -473,7 +492,7 @@ export class Cpu {
     const threat = this.threat(me, path);
     if (threat) {
       const key = `threat:${opp.port}:${threat.move}:${state.frame + threat.t - threat.frame}`;
-      if (this.roll(key, this.lv.defense) && this.defend(me, k, info, target, threat, dir)) return;
+      if (this.roll(key, this.lv.defense) && this.defend(state, me, k, info, target, threat, dir)) return;
     }
 
     const situation = classify(path);
@@ -481,21 +500,22 @@ export class Cpu {
       this.shieldPunish(state, me, k, info, target, snap, situation);
       return;
     }
+    if (this.escape(me, info)) return;
 
     const self: Self = { f: me, k, info, groundDelay: me.ground ? 0 : Infinity, jumpDelay: 0 };
     const edgeguarding = this.isEdgeguarding(state, me, snap, info);
     const attacks = this.rank(state, findAttacks(self, target), target, snap, k, info, edgeguarding);
     const chance =
       situation === 'combo' ? this.lv.followUp : situation === 'punish' ? this.lv.punish : this.lv.aggression;
-    if (attacks.length && this.rand() < chance) {
-      this.startAttack(attacks, me, info);
-      return;
-    }
+    if (attacks.length && this.rand() < chance && this.startAttack(state, attacks, me, info)) return;
     if (Math.abs(now.x - me.pos.x) < 45 && this.rand() < this.lv.whiff * 0.3) {
-      const any = Object.keys(k.ground);
+      const facing = (move: string) => (TURNING_MOVES.has(move) ? dir : me.facing);
+      const any = Object.keys(k.ground).filter(
+        (move) => info.calm || this.groundMoveSafe(me, k, info, move, facing(move)),
+      );
       if (any.length && me.ground && actionable(me)) {
         const move = any[Math.floor(this.rand() * any.length)]!;
-        this.start(groundMove(move, TURNING_MOVES.has(move) ? dir : me.facing));
+        this.start(groundMove(move, facing(move)));
         return;
       }
     }
@@ -503,7 +523,7 @@ export class Cpu {
       this.start(this.aimless(me, info));
       return;
     }
-    this.move(me, info, path, snap, dir, situation, edgeguarding);
+    this.move(state, me, info, path, snap, dir, situation, edgeguarding);
   }
 
   /** The first frame an opponent's predicted hitbox would touch the CPU where it is. */
@@ -529,6 +549,7 @@ export class Cpu {
   }
 
   private defend(
+    state: Readonly<MatchState>,
     me: Readonly<FighterState>,
     k: FighterKnowledge,
     info: StageInfo,
@@ -555,7 +576,7 @@ export class Cpu {
     const counters = findAttacks(self, target).filter((a) => a.kind === 'ground' && a.tHit < threat.t - 1);
     if (counters.length && this.rand() < 0.35 * skill) {
       counters.sort((a, b) => a.tHit - b.tHit);
-      this.startAttack([counters[0]!], me, info);
+      this.startAttack(state, [counters[0]!], me, info);
       return true;
     }
     const r = this.rand();
@@ -569,7 +590,7 @@ export class Cpu {
       this.start(roll(-dir));
       return true;
     }
-    if (threat.t >= 4 && r < 0.48 * skill) {
+    if (threat.t >= 4 && r < 0.48 * skill && this.hopLands(state, me, -100 * dir, 6, (t) => t > 30)) {
       this.start(fullHop('jumpAway', -100 * dir, 6, 30));
       return true;
     }
@@ -601,7 +622,7 @@ export class Cpu {
       (a) => a.tHit < window,
     );
     if (attacks.length && situation !== 'neutral' && this.rand() < this.lv.punish) {
-      this.startAttack(attacks, me, info);
+      this.startAttack(state, attacks, me, info);
       return;
     }
     if (this.prog?.name === 'shield') return;
@@ -619,11 +640,15 @@ export class Cpu {
     edgeguarding: boolean,
   ): Attack[] {
     const opp = getFighter(snap.fighter).stats;
+    const me = state.fighters[this.port]!;
     const offstageOk = edgeguarding && this.lv.level >= 6;
     const out: Attack[] = [];
     for (const a of attacks) {
       const s = target.path[a.tHit]!;
-      const onStage = floorBelow(info, a.endX, a.endY + 1) !== null;
+      const onStage =
+        landsSafe(info, k.id, a.endX, a.endY + 1) &&
+        (info.calm || a.landX === undefined || landsSafe(info, k.id, a.landX, a.endY + 1)) &&
+        (info.calm || a.kind !== 'ground' || this.groundMoveSafe(me, k, info, a.move, a.facing));
       if (!onStage && !(offstageOk && this.safeOffstage(a, info, k))) continue;
       if (a.box.grab) {
         const grabbing = (throwDamage(k) + 4) * (k.hints.prefer?.[a.move] ?? 1);
@@ -677,26 +702,116 @@ export class Cpu {
     return launchKills(state, snap, s, a.box, dir as 1 | -1);
   }
 
-  private startAttack(ranked: Attack[], me: Readonly<FighterState>, info: StageInfo): void {
+  /**
+   * Start one of the ranked attacks. On a stage with hazards an aerial is first played out on a copy of the match
+   * (landsClear), and dropped when it comes down somewhere unsafe; returns whether an attack started.
+   */
+  private startAttack(
+    state: Readonly<MatchState>,
+    ranked: Attack[],
+    me: Readonly<FighterState>,
+    info: StageInfo,
+  ): boolean {
     const pick =
       this.rand() < this.lv.precision
         ? ranked[0]!
         : ranked[Math.floor(this.rand() * Math.min(ranked.length, 6))]!;
-    const ff = this.rand() < this.lv.fastFall && floorBelow(info, pick.endX, pick.endY + 1) !== null;
-    switch (pick.kind) {
-      case 'ground':
-        this.start(groundMove(pick.move, TURNING_MOVES.has(pick.move) ? pick.facing : me.facing));
-        return;
-      case 'jump':
-        this.start(jumpAerial(pick, ff, info));
-        return;
-      case 'air':
-        this.start(airAerial(pick, ff, info));
-        return;
-      case 'doubleJump':
-        this.start(airAerial(pick, ff, info));
-        return;
+    const ff =
+      this.rand() < this.lv.fastFall && floorBelow(info, pick.endX, pick.endY + 1, true, true) !== null;
+    if (pick.kind === 'ground') {
+      this.start(groundMove(pick.move, TURNING_MOVES.has(pick.move) ? pick.facing : me.facing));
+      return true;
     }
+    const make = () => (pick.kind === 'jump' ? jumpAerial(pick, ff, info) : airAerial(pick, ff, info));
+    if (!info.calm && !this.landsClear(state, me, make())) return false;
+    this.start(make());
+    return true;
+  }
+
+  /**
+   * Run `program` on a copy of the match, then let go until the CPU comes down: whether it lands somewhere it can
+   * stand without touching a damage zone on the way.
+   */
+  private landsClear(state: Readonly<MatchState>, me: Readonly<FighterState>, program: Program): boolean {
+    const m = soloMatch(state, me, state.players[this.port]!.control);
+    const g = m.fighters[0]!;
+    let running = true;
+    for (let t = 0; t < 180; t++) {
+      const i: InputFrame | null = running ? program.step(t, g, stageInfo(m)) : null;
+      running &&= i !== null;
+      stepMatch(m, [i ?? NEUTRAL]);
+      if (m.events.some((e) => e.type === 'stageHit' && e.source === 'zone')) return false;
+      if (g.action === 'ko' || g.action === 'out') return false;
+      if (t > 4 && g.ground !== null) return standSafe(stageInfo(m), g.fighter, g.pos.x, g.pos.y);
+    }
+    return false;
+  }
+
+  /**
+   * Whether a grounded move started here facing `facing` keeps the CPU somewhere safe, from its probe: every point it
+   * slides over and where it ends (a roll or charge special can carry the CPU into a gap or a damage zone). Moves
+   * that leave the ground only need a safe landing under where they end.
+   */
+  private groundMoveSafe(
+    me: Readonly<FighterState>,
+    k: FighterKnowledge,
+    info: StageInfo,
+    move: string,
+    facing: number,
+  ): boolean {
+    const p = k.ground[move];
+    if (!p) return true;
+    const end = me.pos.x + p.endDx * facing;
+    if (!p.endsGrounded || Math.abs(p.endDy) > 1) return landsSafe(info, k.id, end, me.pos.y + p.endDy + 1);
+    const step = Math.sign(end - me.pos.x);
+    for (let x = me.pos.x; step * (end - x) > 0; x += step) {
+      if (!standSafe(info, k.id, x, me.pos.y)) return false;
+    }
+    return standSafe(info, k.id, end, me.pos.y);
+  }
+
+  /**
+   * Standing somewhere unsafe (a damage zone that hurts, ground about to vanish, a belt carrying the CPU off into
+   * either): walk to the nearest safe ground, or hop toward a safe landing when none is in reach on foot.
+   */
+  private escape(me: Readonly<FighterState>, info: StageInfo): boolean {
+    if (me.ground === null || !actionable(me) || standSafe(info, me.fighter, me.pos.x, me.pos.y))
+      return false;
+    const spot = safeSpot(info, me.fighter, me.pos.x, me.pos.y);
+    if (spot !== null) {
+      this.start(goTo(spot, true, 40, info));
+      return true;
+    }
+    const land = landingX(info, me, me.pos.x);
+    if (land === me.pos.x) return false;
+    this.start(fullHop('escape', Math.sign(land - me.pos.x) * 100, 8, 40));
+    return true;
+  }
+
+  /**
+   * Whether a hop holding `stick` (and Jump for `hold` frames) comes down somewhere the CPU can stand, whether it
+   * keeps holding the stick to the ground or lets go when its program ends (`ends`), by running both on copies of
+   * the match. Always true on a calm stage, where the stage's ends are the only danger and the callers already keep
+   * hops over the stage.
+   */
+  private hopLands(
+    state: Readonly<MatchState>,
+    me: Readonly<FighterState>,
+    stick: number,
+    hold: number,
+    ends: (t: number, f: Readonly<FighterState>) => boolean,
+  ): boolean {
+    if (stageInfo(state).calm) return true;
+    return [true, false].every((keep) => {
+      const m = soloMatch(state, me, state.players[this.port]!.control);
+      let held = true;
+      const drive = (t: number, g: Readonly<FighterState>) => {
+        held &&= keep || !ends(t, g);
+        return press({ x: held ? stick : 0, buttons: t < hold ? Btn.Jump : 0 });
+      };
+      const end = run(m, 150, drive, (g, t) => t > 4 && g.ground !== null).at(-1);
+      return end !== undefined && end.grounded && standSafe(stageInfo(m), me.fighter, end.x, end.y);
+    });
   }
 
   private isEdgeguarding(
@@ -711,6 +826,7 @@ export class Cpu {
   }
 
   private move(
+    state: Readonly<MatchState>,
     me: Readonly<FighterState>,
     info: StageInfo,
     path: Sample[],
@@ -723,7 +839,8 @@ export class Cpu {
     const s = path[Math.min(path.length - 1, 8)]!;
     const margin = 6;
     if (me.ground === null) {
-      this.start(drift(clampToStage(info, s.x - dir * 10, margin), this.rand() < this.lv.fastFall, 12, info));
+      const x = landingX(info, me, clampToStage(info, s.x - dir * 10, margin));
+      this.start(drift(x, this.rand() < this.lv.fastFall, 12, info));
       return;
     }
     const oppOff = floorBelow(info, snap.pos.x, snap.pos.y) === null && !snap.action.startsWith('ledge');
@@ -744,8 +861,11 @@ export class Cpu {
     }
     const above = s.y - me.pos.y;
     if (above > 14 && Math.abs(s.x - me.pos.x) < 35 && this.rand() < 0.3 + 0.4 * this.lv.aggression) {
-      this.start(fullHop('jumpToward', Math.sign(s.x - me.pos.x) * 70, 8, 24));
-      return;
+      const stick = Math.sign(s.x - me.pos.x) * 70;
+      if (this.hopLands(state, me, stick, 8, (t) => t > 24)) {
+        this.start(fullHop('jumpToward', stick, 8, 24));
+        return;
+      }
     }
     if (above < -14 && me.ground?.kind === 'platform' && this.rand() < 0.6) {
       this.start(dropThrough());
@@ -757,7 +877,8 @@ export class Cpu {
       if (
         Math.abs(s.x - me.pos.x) < 40 &&
         Math.abs(s.x - me.pos.x) > 18 &&
-        this.rand() < 0.15 + 0.2 * this.lv.aggression
+        this.rand() < 0.15 + 0.2 * this.lv.aggression &&
+        this.hopLands(state, me, dir * 100, 1, (t, g) => t > 3 && g.vel.y <= 0)
       ) {
         this.start(shortHop(dir));
         return;
@@ -771,7 +892,7 @@ export class Cpu {
 
   private aimless(me: Readonly<FighterState>, info: StageInfo): Program {
     const r = this.rand();
-    if (me.ground === null) return drift(info.centerX, false, 10, info);
+    if (me.ground === null) return drift(landingX(info, me, info.centerX), false, 10, info);
     if (r < 0.4) return wait(20 + Math.floor(this.rand() * 40));
     if (r < 0.75) {
       const x = info.left + 15 + this.rand() * (info.right - info.left - 30);
@@ -787,8 +908,9 @@ export class Cpu {
       if (me.airFrames <= 1) this.wantFastFall = this.rand() < this.lv.fastFall * 0.5;
     }
     this.fastFallAir = me.airFrames;
-    const x =
+    const toward =
       me.pos.x < info.left + 10 || me.pos.x > info.right - 10 ? Math.sign(info.centerX - me.pos.x) * 100 : 0;
+    const x = info.calm ? toward : steer(me, info, toward);
     const ff = this.wantFastFall && actionable(me) && canFastFall(me, info) && this.last.y > -30;
     return press({ x, y: ff ? -100 : 0 });
   }
@@ -931,7 +1053,14 @@ function assumedInput(snap: FighterState, info: StageInfo, state: Readonly<Match
   if (snap.ground === null && floorBelow(info, snap.pos.x, snap.pos.y) === null) {
     const k = knowledge(snap.fighter, state.config.stage);
     const special = (k.hints.recovery ?? ['upB', 'sideB']).find((s) => k.air[s]) ?? null;
-    return recoveryDriver(info, k, { jumpAt: 1, special, specialAt: Infinity, below: 10, dodgeAt: Infinity });
+    return recoveryDriver(info, k, {
+      jumpAt: 1,
+      special,
+      specialAt: Infinity,
+      below: 10,
+      reach: Infinity,
+      dodgeAt: Infinity,
+    });
   }
   const vx = snap.vel.x;
   if (Math.abs(vx) < 0.4) return () => neutralInput();
