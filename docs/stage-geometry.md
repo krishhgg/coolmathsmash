@@ -161,7 +161,8 @@ a fighter's hit: Ultimate's knockback formula, hitlag, a launch with DI when hit
 and the 1v1 damage multiplier. There is no attacker, so there is no staleness or rage and only the victim
 freezes. A fighter takes at most one stage hit per frame (zones first, then stage hitboxes, lowest index first),
 and then `stageHitLock`, the hazard's `rehit`, keeps all stage hazards off them. Hazards skip intangible
-fighters and fighters already in hitlag, and go through shields but not armor (MoveDef.armor). Stage hits land before the frame's grabs are
+fighters and fighters already in hitlag (not a fighter paralyzed past its hitlag), and go through shields but not
+armor (MoveDef.armor). Stage hits land before the frame's grabs are
 resolved, so they count like any other hit on a grab: a held fighter armours through them until they add up
 to `GRAB.breakDamage` (a lava hit breaks free at once, goo takes a few), and a struck holder lets go.
 
