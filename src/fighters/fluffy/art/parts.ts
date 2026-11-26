@@ -545,3 +545,94 @@ export const dust: PathShape[] = [
   { d: ellipse(2.7, -0.7, 1.2, 0.85), fill: 'dust', stroke: { color: 'dustLine', width: 0.18 } },
   { d: ellipse(1.0, -0.95, 1.35, 1.05), fill: 'dust', stroke: { color: 'dustLine', width: 0.18 } },
 ];
+
+/** A star of `points` spikes about the origin: tips at `outer` (times 1 + jitter x `wobble`), valleys at `inner`. */
+function star(points: number, outer: number, inner: number, wobble: number, seed: number, turn = 0): Pt[] {
+  return Array.from({ length: points * 2 }, (_, i) => {
+    const a = turn + (i / (points * 2)) * TAU - Math.PI / 2;
+    const r = i % 2 ? inner * (1 + 0.08 * jit(seed + i)) : outer * (1 + wobble * jit(seed + i));
+    return [r * Math.cos(a), r * Math.sin(a)] as Pt;
+  });
+}
+
+/**
+ * Fuzz Frenzy's power-up: a halo of glowing fur spikes round the ball, about 8.5 units out, fading at the tips. Two
+ * drawings with the spikes shifted half a spike, so the loop flickers like the fur boil.
+ */
+export function aura(variant: number): PathShape[] {
+  const glow = (r: number) => ({
+    type: 'radial' as const,
+    cx: 0,
+    cy: 0,
+    r,
+    stops: [
+      { offset: 0, color: 'furGlow', alpha: 0.95 },
+      { offset: 0.66, color: 'furGlow', alpha: 0.8 },
+      { offset: 1, color: 'furHi', alpha: 0.1 },
+    ],
+  });
+  return [
+    { d: poly(star(18, 8.6, 6.2, 0.16, variant * 7, variant * 0.17)), fill: glow(9.4) },
+    { d: poly(star(13, 7.2, 5.6, 0.12, variant * 5 + 3, variant * 0.24 + 0.1)), fill: glow(7.6) },
+  ];
+}
+
+/** An impact flash, Flash style: a ragged white-hot star inside a pale one, inked, about 4 units across the tips. */
+export function burst(seed: number): PathShape[] {
+  return [
+    { d: poly(star(9, 4, 1.9, 0.22, seed, seed * 0.11)), fill: 'smear', stroke: ink(0.22) },
+    { d: poly(star(9, 2.3, 1.15, 0.2, seed + 9, seed * 0.11 + 0.2)), fill: 'eye' },
+  ];
+}
+
+/** Points round an ellipse turned by `rot` radians. */
+const tilted = (rx: number, ry: number, rot: number, k = 48): Pt[] =>
+  Array.from({ length: k }, (_, i) => {
+    const a = (i / k) * TAU;
+    const [x, y] = [rx * Math.cos(a), ry * Math.sin(a)];
+    return [x * Math.cos(rot) - y * Math.sin(rot), x * Math.sin(rot) + y * Math.cos(rot)] as Pt;
+  });
+
+/** A straight band `half` thick each side of the segment from `a` to `b`. */
+function band(a: Pt, b: Pt, half: number): string {
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const [nx, ny] = [((a[1] - b[1]) / len) * half, ((b[0] - a[0]) / len) * half];
+  return poly([
+    [a[0] + nx, a[1] + ny],
+    [b[0] + nx, b[1] + ny],
+    [b[0] - nx, b[1] - ny],
+    [a[0] - nx, a[1] - ny],
+  ]);
+}
+
+/**
+ * The grabber coiled twice round a caught foe (Fuzz Frenzy), centred on the foe's middle: two loops of the line,
+ * 5.2 units out to each side, the turn between them running down across the front, and the grabber's ball clamped
+ * on the lower loop.
+ */
+export const wrap: PathShape[] = (() => {
+  const loops: [number, number][] = [
+    [-2.6, -0.1],
+    [2.4, 0.08],
+  ];
+  const rings = (half: number) =>
+    loops
+      .map(([cy, rot]) => {
+        const shift = ([x, y]: Pt): Pt => [x, y + cy];
+        return `${poly(tilted(5.2 + half, 1.4 + half, rot).map(shift))}${poly(tilted(5.2 - half, 1.4 - half, rot).map(shift))}`;
+      })
+      .join('');
+  const turn = (half: number) => band([4.4, -2.0], [-4.3, 2.0], half);
+  return [
+    { d: rings(GRAB_HALF), fill: 'line' },
+    { d: turn(GRAB_HALF), fill: 'line' },
+    { d: rings(0.17), fill: 'grab' },
+    { d: turn(0.17), fill: 'grab' },
+    ...tip(0.3).map((s) => ({ ...s, d: transformD(s.d, 5.1, 2.7) })),
+  ];
+})();
+
+/** Moves a path made by `poly` or `ellipse` (absolute M/L/Z commands only) by (dx, dy). */
+function transformD(d: string, dx: number, dy: number): string {
+  return d.replace(/(-?[\d.]+) (-?[\d.]+)/g, (_, x: string, y: string) => pt(Number(x) + dx, Number(y) + dy));
+}

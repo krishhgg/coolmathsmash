@@ -7,6 +7,7 @@ import type { Attack } from './options';
 import {
   clampToStage,
   floorBelow,
+  inZone,
   landingX,
   landsSafe,
   standSafe,
@@ -226,17 +227,26 @@ export function groundMove(move: string, facing: 1 | -1, hold = 0): Program {
   };
 }
 
+/** Room a fast fall leaves beside a damage zone on the way down, as standSafe leaves around one to stand. */
+const FALL_PAD = 2;
+
 /**
  * Fast fall only when falling onto solid ground that stays: over it now, and over ground it can stand on where the
  * current drift would carry the fall down to the stage's height, so a fast fall never takes the CPU past the ledge,
- * into a gap or into a damage zone.
+ * into a gap or into a damage zone. The way down keeps FALL_PAD units from every damage zone too: a fall that lands
+ * clear of a zone can still clip its top corner, as a Red Ball fast falling past the hazard testbed's water did.
  */
 export function canFastFall(f: Readonly<FighterState>, info: StageInfo): boolean {
   if (f.vel.y > 0 || f.fastFalling || floorBelow(info, f.pos.x, f.pos.y, false, true) === null) return false;
-  const t = Math.max(0, f.pos.y - info.top) / getFighter(f.fighter).stats.fastFallSpeed;
+  const speed = getFighter(f.fighter).stats.fastFallSpeed;
+  const t = Math.max(0, f.pos.y - info.top) / speed;
   const x = f.pos.x + f.vel.x * t;
   const fy = floorBelow(info, x, f.pos.y, false, true);
-  return fy !== null && standSafe(info, f.fighter, x, fy);
+  if (fy === null || !standSafe(info, f.fighter, x, fy)) return false;
+  for (let i = 1; f.pos.y - speed * i > fy; i++) {
+    if (inZone(info, f.fighter, f.pos.x + f.vel.x * i, f.pos.y - speed * i, FALL_PAD)) return false;
+  }
+  return true;
 }
 
 /** Frames until `f` falls to height `y` at its current vertical speed. */
