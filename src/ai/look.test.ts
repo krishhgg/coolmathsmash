@@ -4,7 +4,7 @@ import { Btn, neutralInput } from '../input/types';
 import { hurtbox } from '../sim/combat/hits';
 import type { FighterState } from '../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
-import { input, testMatch } from '../sim/testing/sim';
+import { input, run as play, testMatch } from '../sim/testing/sim';
 import { STICK, press } from './inputs';
 import { run, runAmong, sample, setEntities, soloMatch, type OwnFrame } from './look';
 
@@ -146,5 +146,19 @@ describe('look-ahead', () => {
       expect(ahead, `${others + 2} players`).toEqual(played(m, 90));
       expect(solo.fighters[0]!.damage, `${others + 2} players`).toBe(m.fighters[1]!.damage);
     }
+  });
+
+  it("poses moving stage pieces on the match's own stage clock", () => {
+    // The testbed's elevator runs on a 420-frame cycle. 300 frames in, a look-ahead's next 30 frames of it are the
+    // match's next 30.
+    const m = testMatch({ fighter: 'redball', stage: 'testbed' });
+    play(m, 300);
+    const solo = soloMatch(m, m.fighters[0]!);
+    for (let i = 0; i < 30; i++) {
+      stepMatch(solo, [neutralInput()]);
+      stepMatch(m, [neutralInput()]);
+      expect(solo.stage, `frame ${i}`).toEqual(m.stage);
+    }
+    expect(solo.stageFrame).toBe(m.stageFrame);
   });
 });

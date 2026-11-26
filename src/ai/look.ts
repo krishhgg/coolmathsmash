@@ -42,8 +42,8 @@ const idle: Driver = () => neutralInput();
 
 /**
  * A one-fighter copy of the match holding a clone of `f` (and of its controller, when given), on the same frame of
- * the stage with the same hazards setting, so moving pieces, schedules and hazards play out as they will. It keeps
- * the match's 1v1 damage rule (MatchConfig.oneVOne), which counts players.
+ * the stage and of its clock with the same hazards setting, so moving pieces, schedules and hazards play out as they
+ * will. It keeps the match's 1v1 damage rule (MatchConfig.oneVOne), which counts players.
  */
 export function soloMatch(
   state: Readonly<MatchState>,
@@ -60,6 +60,7 @@ export function soloMatch(
   });
   m.frame = state.frame;
   m.stage = state.stage;
+  m.stageFrame = state.stageFrame;
   m.fighters[0] = { ...structuredClone(f as FighterState), port: 0 };
   if (control) m.players[0]!.control = structuredClone(control as ControlState);
   return m;
