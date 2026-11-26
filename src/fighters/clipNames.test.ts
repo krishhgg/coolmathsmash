@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fighterArt } from '../render/fighterView';
 import { ACTIONS } from '../sim/actions';
-import { FIGHTERS } from './registry';
+import { allFighters } from './registry';
 
 /**
  * Clips drawn for a name the engine can't play yet, by fighter (`*` for every fighter). There is no taunt action
@@ -13,7 +13,7 @@ const NOT_PLAYED_YET: Record<string, string[]> = {
   watergirl: ['neutralB'],
 };
 
-const drawn = Object.values(FIGHTERS).flatMap((def) => {
+const drawn = Object.values(allFighters()).flatMap((def) => {
   const art = fighterArt(def);
   return art ? [[def.id, def, art] as const] : [];
 });

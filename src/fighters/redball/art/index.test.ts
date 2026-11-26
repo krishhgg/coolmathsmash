@@ -20,9 +20,10 @@ import {
   SPOT_DODGE,
   TECH_IN_PLACE,
   TECH_ROLL,
+  TETHER,
 } from '../../../sim/constants';
 import { moves } from '../moves';
-import { REV_FROM, REV_MAX, ROLLS } from '../specials';
+import { REV_FROM, REV_MAX, ROLLS, TONGUE_LASH } from '../specials';
 import { stats } from '../stats';
 import { art } from '.';
 import type { MoveClip } from './attacks';
@@ -72,6 +73,7 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
   grabHold: 'loop',
   grabbed: 'loop',
   grabRelease: GRAB.releaseLag,
+  tetherPull: 'hold',
 };
 
 describe('red ball art', () => {
@@ -140,6 +142,22 @@ describe('red ball art', () => {
             if (!slotsCovering(art, pose, x, -y).length) misses.push(`${name}@${f} (${x}, ${y})`);
         }
     expect(misses).toEqual([]);
+  });
+
+  it('draws Tongue Lash’s tongue out to the tether’s full range while the line is out and through the hits', () => {
+    const tip = { x: TONGUE_LASH.range, y: -stats.height * TETHER.handHeight };
+    for (let f = TONGUE_LASH.out; f <= TONGUE_LASH.hit[1]; f++) {
+      const pose = samplePose(art, 'sideB', moveClipFrame(art.clips.sideB!, f, moves.sideB), f);
+      expect(slotsCovering(art, pose, tip.x, tip.y), `sideB@${f}`).toContain('tongueTip');
+    }
+  });
+
+  it('plays the reel with the tongue out, shortening towards the ledge', () => {
+    const tip = (f: number) => samplePose(art, 'tetherPull', f, f).world.tongueTip!.tx;
+    expect(samplePose(art, 'tetherPull', 0, 0).symbols.tongue).toBe('tongue');
+    expect(tip(0)).toBeGreaterThan(20);
+    expect(tip(6)).toBeLessThan(10);
+    expect(tip(3)).toBeLessThan(tip(0));
   });
 
   it('is a ball about 10.5 units across sitting on the origin, as tall as his stats', () => {

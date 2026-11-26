@@ -13,7 +13,8 @@ import { rig } from './rig';
 export const art: FighterArt = {
   height: 11,
   rig,
-  clips: { ...clips, ...attacks },
+  /** Tongue Lash in the air (sideBAir) has the ground one's timing and tongue; only its knockback differs. */
+  clips: { ...clips, ...attacks, sideBAir: attacks.sideB },
   palettes,
   /** The Evil Box wears the box body and its mottled shade, in any clip that does not swap the body itself. */
   costumeSwaps: {

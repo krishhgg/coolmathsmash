@@ -308,10 +308,7 @@ export const moves: Record<string, MoveDef> = {
     hits: [],
     throw: { frame: 18, hit: { damage: 5, angle: 68, kbg: 90, bkb: 40 } },
   },
-  /**
-   * Fireball (neutral special): a bouncing fireball like Mario's, out on frame 17 (roster sheet; Mario's FAF 50).
-   * Named in full so Watergirl, who borrows these moves for now, throws Fireboy's fireball.
-   */
+  /** Fireball (neutral special): a bouncing fireball like Mario's, out on frame 17 (roster sheet; Mario's FAF 50). */
   neutralB: {
     kind: 'other',
     faf: 50,
