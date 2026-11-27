@@ -990,8 +990,8 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   the opponent puts out since (a Fireball it started before the CPU could see it). A shot that would clank with one
   of them (`src/sim/entities/contacts.ts`) is no hit, and an opponent's shot that would hit the CPU is a threat it
   defends against as against an attack, so a CPU doesn't fire into a shot coming at it. Two CPUs that fire within
-  each other's reaction time still clank; after its shots clank twice within 2 s, a CPU holds them for 0.5 to 1.5 s,
-  so the next shot comes out first on one side.
+  each other's reaction time still clank; after one of its shots clanks, a CPU holds its shots for 0.5 to 1.5 s, so
+  the next one comes out first on one side.
 
 ## Art
 
