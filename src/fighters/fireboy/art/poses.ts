@@ -189,7 +189,15 @@ const EFFECTS = new Set(['aura', 'fxBack', 'fx1', 'fx2', 'fx3']);
  * out of the measure.
  */
 export function floorContact(clip: AnimClip): AnimClip {
-  const art: FighterArt = { rig, clips: { contact: clip }, palettes: { default: {} }, height: 0, icon: '' };
+  // Measured without the effects' swaps, so a clip that draws Watergirl's water in Fireboy's rig samples too.
+  const bare = (swaps?: Record<string, string | null>) =>
+    swaps && Object.fromEntries(Object.entries(swaps).filter(([slot]) => !EFFECTS.has(slot)));
+  const contact = {
+    ...clip,
+    swaps: bare(clip.swaps),
+    keys: clip.keys.map((k) => ({ ...k, swaps: bare(k.swaps) })),
+  };
+  const art: FighterArt = { rig, clips: { contact }, palettes: { default: {} }, height: 0, icon: '' };
   const body: FighterArt = { ...art, rig: { ...rig, slots: rig.slots.filter((s) => !EFFECTS.has(s.name)) } };
   return {
     ...clip,
