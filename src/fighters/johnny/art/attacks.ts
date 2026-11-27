@@ -21,6 +21,7 @@ import {
   mix,
   onFloor,
   shortTurns,
+  stanceWith,
   soles,
   tuck,
   type Pt,
@@ -205,7 +206,13 @@ const FSMASH = fist(fist(PUNCH_BASE, 'B', [12.0, -10.0], 1.4), 'F', [0.8, -8.8],
 const FSMASH_HIT = mix(FSMASH, { fx1: star([13, -10], 2.0), fx2: trail([4.6, -10.0], [12.4, -10.0], 1.8) });
 
 // --- Usmash: Double Uppercut, a rising near fist, then the far fist driven up overhead. ------------------
-const LOW_WIND = fist(fist(mix(CROUCH, { body: { rot: 6 } }), 'B', [3.0, -5.0]), 'F', [1.6, -4.8], 1, 1);
+const LOW_WIND = fist(
+  fist(stanceWith(CROUCH, { body: { rot: 6 } }), 'B', [3.0, -5.0]),
+  'F',
+  [1.6, -4.8],
+  1,
+  1,
+);
 const UP1 = fist(
   fist(feet({ body: { rot: -4, x: 0.6 }, hip: { y: 0.6 } }, [3.0, 0], [-2.0, 0]), 'F', [5.6, -10.4], 1.15, 1),
   'B',
@@ -228,7 +235,7 @@ const UP2_HIT = mix(UP2, { fx1: star([3, -18], 1.6), fx2: trail([3.6, -11.0], [3
 
 // --- Dsmash: Sweep Kicks, low in front, then low behind. --------------------------------------------------
 const SWEEP_BASE = fist(
-  fist(mix(CROUCH, { hip: { y: 2.2 }, body: { rot: 4 } }), 'B', [3.4, -6.0]),
+  fist(stanceWith(CROUCH, { hip: { y: 2.2 }, body: { rot: 4 } }), 'B', [3.4, -6.0]),
   'F',
   [-2.6, -6.2],
   1,
@@ -330,10 +337,11 @@ const STOMP = fist(
 const STOMP_HIT = mix(STOMP, { fx1: star([1, 0.4], 1.3), fx2: trail([1.0, -6.0], [1.0, 0.2], 1.6) });
 
 // --- Getup attack: flat on his back, he sits up kicking in front, then sweeps behind. ----------------------
+/** Hands flat on the floor beside him: the hand points sit a fist's half-width up. */
 const LIE = hands(
   tuck(tuck({ body: { rot: -90, y: 5.5 } }, 'B', [8.0, -0.6], 0), 'F', [7.4, -0.6], 0),
-  [1.4, -0.6],
-  [-1.6, -0.6],
+  [1.4, -1.6],
+  [-1.6, -1.6],
 );
 const SIT = hands(
   tuck(tuck({ body: { rot: -16, x: -1.0 }, hip: { y: 2.8 } }, 'B', [4.4, -0.55], 0), 'F', [2.6, -0.55], 0),
@@ -388,7 +396,7 @@ export const HOLD = fist(
   1,
   1,
 );
-const PUMMEL = tuck(mix(HOLD, { body: { rot: 10, x: 1.0 } }), 'B', [4.6, -3.0], 30, 1.3);
+const PUMMEL = tuck(stanceWith(HOLD, { body: { rot: 10, x: 1.0 } }), 'B', [4.6, -3.0], 30, 1.3);
 const PUMMEL_HIT = mix(PUMMEL, { fx1: star([5.4, -6], 1.2) });
 /** Fthrow: Punch Toss, lets go and punches him away with the far fist. */
 const FTHROW_WIND = fist(
@@ -424,7 +432,7 @@ const BTHROW = fist(
 const BTHROW_HIT = mix(BTHROW, { fx1: star([-8.4, -10.6], 1.8), fx3: swing([0.4, -10.6], 7, -165, true) });
 /** Uthrow: Palm Lift, a one-handed heave straight up. */
 const UTHROW_LOW = fist(
-  fist(mix(CROUCH, { body: { rot: 4 } }), 'B', [5.6, -6.4], 1.05),
+  fist(stanceWith(CROUCH, { body: { rot: 4 } }), 'B', [5.6, -6.4], 1.05),
   'F',
   [0.8, -6.8],
   1,
@@ -457,9 +465,9 @@ const DTHROW_UP = fist(
   1,
 );
 const DTHROW = fist(
-  fist(feet({ body: { rot: 30, x: 2.6 }, hip: { y: 2.0 } }, [5.4, 0], [-3.0, 0]), 'B', [7.4, -1.2], 1.25),
+  fist(feet({ body: { rot: 30, x: 2.6 }, hip: { y: 2.0 } }, [5.4, 0], [-3.0, 0]), 'B', [7.4, -1.6], 1.25),
   'F',
-  [5.4, -1.4],
+  [5.4, -1.8],
   1.15,
   1,
 );
@@ -496,7 +504,7 @@ const DASH_PUNCH_HIT = mix(DASH_PUNCH, {
 
 // --- Up special: Double-Jump Boots, a knee off the floor, then a rising uppercut on a jet from the boots. -
 const BOOT_SQUAT = fist(
-  fist(mix(CROUCH, { hip: { y: 2.0 }, body: { rot: 10 } }), 'B', [3.4, -4.6]),
+  fist(stanceWith(CROUCH, { hip: { y: 2.0 }, body: { rot: 10 } }), 'B', [3.4, -4.6]),
   'F',
   [0.6, -4.4],
   1,
@@ -639,10 +647,13 @@ const clips: Record<string, AnimClip> = {
     ],
     swaps: { ...SHOUT, ...FISTS },
     keys: [
-      key(0, mix(SHOULDER, { body: { rot: 10, x: 0.6 } }), { ease: 'in' }),
+      key(0, stanceWith(SHOULDER, { body: { rot: 10, x: 0.6 } }), { ease: 'in' }),
       ...strike(6, 16, DASH_HIT, { fx1: 'impact', fxBack: 'smear' }),
       done(17),
-      key(24, mix(SHOULDER, { body: { rot: 12, x: 1.4 } }), { ease: 'inOut', swaps: { ...GRIT, ...FISTS } }),
+      key(24, stanceWith(SHOULDER, { body: { rot: 12, x: 1.4 } }), {
+        ease: 'inOut',
+        swaps: { ...GRIT, ...FISTS },
+      }),
       key(34, READY),
     ],
   },
@@ -653,7 +664,7 @@ const clips: Record<string, AnimClip> = {
     keys: [
       key(0, READY, { ease: 'out' }),
       key(10, PUNCH_WIND, { ease: 'inOut' }),
-      key(15, mix(PUNCH_WIND, { body: { rot: -15, x: -1.0 } }), { ease: 'linear' }),
+      key(15, stanceWith(PUNCH_WIND, { body: { rot: -15, x: -1.0 } }), { ease: 'linear' }),
       ...strike(17, 21, FSMASH_HIT, { ...HIT, ...SHOUT }),
       done(22),
       key(30, FSMASH, { ease: 'inOut' }),
@@ -697,7 +708,7 @@ const clips: Record<string, AnimClip> = {
       done(27),
       key(34, DSMASH_2, { ease: 'inOut' }),
       key(40, pass(SWEEP_2, 'B', [0.6, -2.0]), { ease: 'inOut' }),
-      key(44, pass(mix(READY, { hip: { y: 1.0 } }), 'F', [0.2, -2.0]), { ease: 'linear' }),
+      key(44, pass(stanceWith(READY, { hip: { y: 1.0 } }), 'F', [0.2, -2.0]), { ease: 'linear' }),
       key(48, READY),
     ],
   },
@@ -824,10 +835,10 @@ const clips: Record<string, AnimClip> = {
     swaps: { ...GRIT, ...FISTS },
     keys: [
       key(0, READY, { ease: 'out' }),
-      key(4, mix(READY, { body: { rot: -6, x: -0.4 } }), { ease: 'in', swaps: OPEN }),
+      key(4, stanceWith(READY, { body: { rot: -6, x: -0.4 } }), { ease: 'in', swaps: OPEN }),
       ...strike(6, 8, GRAB, { ...OPEN, ...SHOUT }),
       done(9),
-      key(14, mix(GRAB, { body: { rot: 10, x: 1.2 } }), { ease: 'inOut' }),
+      key(14, stanceWith(GRAB, { body: { rot: 10, x: 1.2 } }), { ease: 'inOut' }),
       key(35, READY),
     ],
   },
@@ -847,10 +858,10 @@ const clips: Record<string, AnimClip> = {
         ),
         { ease: 'in' },
       ),
-      key(6, mix(DASH_GRAB, { body: { rot: 14, x: 1.6 } }), { ease: 'in', swaps: OPEN }),
+      key(6, stanceWith(DASH_GRAB, { body: { rot: 14, x: 1.6 } }), { ease: 'in', swaps: OPEN }),
       ...strike(9, 11, DASH_GRAB, { ...OPEN, ...SHOUT }),
       done(12),
-      key(20, mix(DASH_GRAB, { body: { rot: 28, x: 3.2 } }), { ease: 'inOut' }),
+      key(20, stanceWith(DASH_GRAB, { body: { rot: 28, x: 3.2 } }), { ease: 'inOut' }),
       key(43, READY),
     ],
   },
@@ -859,11 +870,11 @@ const clips: Record<string, AnimClip> = {
     active: [[11, 12]],
     swaps: { ...GRIT, ...FISTS },
     keys: [
-      key(0, mix(STANCE, { body: { rot: -14, x: -1.4 } }), { ease: 'out' }),
-      key(7, mix(PIVOT_GRAB, { body: { rot: 6, x: 0.6 } }), { ease: 'in', swaps: OPEN }),
+      key(0, stanceWith(STANCE, { body: { rot: -14, x: -1.4 } }), { ease: 'out' }),
+      key(7, stanceWith(PIVOT_GRAB, { body: { rot: 6, x: 0.6 } }), { ease: 'in', swaps: OPEN }),
       ...strike(10, 12, PIVOT_GRAB, { ...OPEN, ...SHOUT }),
       done(13),
-      key(22, mix(PIVOT_GRAB, { body: { rot: 26, x: 3.0 } }), { ease: 'inOut' }),
+      key(22, stanceWith(PIVOT_GRAB, { body: { rot: 26, x: 3.0 } }), { ease: 'inOut' }),
       key(38, READY),
     ],
   },
@@ -898,7 +909,7 @@ const clips: Record<string, AnimClip> = {
     keys: [
       key(0, HOLD, { ease: 'inOut' }),
       key(6, BTHROW_UP, { ease: 'inOut' }),
-      key(10, mix(BTHROW_UP, { body: { rot: -14 } }), { ease: 'in' }),
+      key(10, stanceWith(BTHROW_UP, { body: { rot: -14 } }), { ease: 'in' }),
       ...strike(12, 14, BTHROW_HIT, { fx1: 'impact', fxBack: 'swoosh', ...SHOUT }),
       done(15),
       key(24, BTHROW, { ease: 'inOut' }),
@@ -925,7 +936,7 @@ const clips: Record<string, AnimClip> = {
     keys: [
       key(0, HOLD, { ease: 'inOut' }),
       key(10, DTHROW_UP, { ease: 'inOut' }),
-      key(17, mix(DTHROW_UP, { body: { rot: -16 } }), { ease: 'in' }),
+      key(17, stanceWith(DTHROW_UP, { body: { rot: -16 } }), { ease: 'in' }),
       ...strike(20, 22, DTHROW_HIT, { ...HIT, ...SHOUT }),
       done(23),
       key(30, DTHROW, { ease: 'inOut' }),
@@ -940,7 +951,7 @@ const clips: Record<string, AnimClip> = {
       key(0, READY, { ease: 'out' }),
       key(4, DASH_WIND, { ease: 'linear' }),
       key(6, BURST_FX, { ease: 'linear', swaps: { fxBack: 'smear', ...SHOUT } }),
-      key(14, fist(mix(BURST_FX, { body: { rot: 32 } }), 'B', [5.0, -8.6]), { ease: 'in' }),
+      key(14, fist(stanceWith(BURST_FX, { body: { rot: 32 } }), 'B', [5.0, -8.6]), { ease: 'in' }),
       ...strike(15, 19, DASH_PUNCH_HIT, { ...HIT, fxBack: 'smear', ...SHOUT }),
       done(20),
       key(28, DASH_PUNCH, { ease: 'inOut' }),

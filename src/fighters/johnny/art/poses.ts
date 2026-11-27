@@ -112,6 +112,28 @@ export function feet(pose: Pose, back: Pt, front: Pt, bend: 1 | -1 = -1): Pose {
   return soles(reach(rig, p, 'thighF', 'shinF', FOOT, [front[0], front[1] - ANKLE], bend));
 }
 
+/**
+ * `extra` (a lean, a shift, a sink) mixed into a standing `base`, with each boot planted again where `base` had it:
+ * same ankle point, same angle to the floor, the knee on the side that turns the leg least. Mixing a lean in after
+ * the feet were placed tips one boot into the floor and lifts the other.
+ */
+export function stanceWith(base: Pose, extra: Pose): Pose {
+  let p = mix(base, extra);
+  for (const side of ['B', 'F'] as const) {
+    const [thigh, shin, foot] = [`thigh${side}`, `shin${side}`, `foot${side}`];
+    const ankle = pointOf(rig, base, foot);
+    const was = worldRot(base);
+    const [forward, back] = ([1, -1] as const).map((bend) =>
+      reach(rig, p, thigh, shin, FOOT, ankle, bend),
+    ) as [Pose, Pose];
+    const off = (q: Pose) => Math.abs(nearest(worldRot(q)[thigh]! - was[thigh]!, 0));
+    const legs = off(forward) <= off(back) ? forward : back;
+    const turned = worldRot(legs)[shin]! - was[shin]!;
+    p = mix(legs, { [foot]: { rot: (base[foot]?.rot ?? 0) - nearest(turned, 0) } });
+  }
+  return p;
+}
+
 /** Puts the hands (fist or palm centres) on rig points; null leaves an arm alone. */
 export function hands(
   pose: Pose,

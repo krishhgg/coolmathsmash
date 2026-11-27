@@ -18,6 +18,7 @@ import {
   mix,
   onFloor,
   shortTurns,
+  stanceWith,
   type Pt,
 } from './poses';
 import { HAND, rig } from './rig';
@@ -86,11 +87,14 @@ const AIM = aim(BASE, MUZZLE_TIP);
 /** A third of the way from his guard to the aim on the first frame: the gun comes up and levels out by frame 3. */
 const DRAW = between(STANCE, AIM, 0.35);
 const FIRE = mix(AIM, { fx1: flash(1.3) });
-const KICK = mix(aim(mix(BASE, { body: { rot: 1 } }), [MUZZLE_TIP[0] - 0.6, MUZZLE_TIP[1] - 0.7], -14), {
-  fx1: flash(1.6, [MUZZLE_TIP[0] - 0.4, MUZZLE_TIP[1] - 1.2]),
-});
-const RECOIL = aim(mix(BASE, { body: { rot: 2 } }), [MUZZLE_TIP[0] - 0.5, MUZZLE_TIP[1] - 0.5], -10);
-const LOWER = hold(mix(BASE, { body: { rot: 1 } }), [0.95, -5.4], 45);
+const KICK = mix(
+  aim(stanceWith(BASE, { body: { rot: 1 } }), [MUZZLE_TIP[0] - 0.6, MUZZLE_TIP[1] - 0.7], -14),
+  {
+    fx1: flash(1.6, [MUZZLE_TIP[0] - 0.4, MUZZLE_TIP[1] - 1.2]),
+  },
+);
+const RECOIL = aim(stanceWith(BASE, { body: { rot: 2 } }), [MUZZLE_TIP[0] - 0.5, MUZZLE_TIP[1] - 0.5], -10);
+const LOWER = hold(stanceWith(BASE, { body: { rot: 1 } }), [0.95, -5.4], 45);
 
 // --- In the air: legs loose and lifted clear of the floor he may land on, so the aim rides higher. -------------
 const AIR_READY = aloft(AIR_GUARD);

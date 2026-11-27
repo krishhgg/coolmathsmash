@@ -21,6 +21,7 @@ import {
   mix,
   onFloor,
   shortTurns,
+  stanceWith,
   type Pt,
 } from './poses';
 
@@ -280,10 +281,13 @@ const BLAST = mix(fist(aim(BRACE, [6.2, -9.6]), 'B', [2.8, -8.4]), {
   fx1: { x: 6.2, y: -9.6, sx: 3.0, sy: 2.6 },
   fx2: { x: VICTIM[0] + 1, y: VICTIM[1], sx: 0.62, sy: 0.62 },
 });
-const KICK = mix(fist(aim(mix(BRACE, { body: { rot: -4, x: -0.6 } }), [4.8, -11.2], -26), 'B', [2.2, -8.6]), {
-  fx2: { x: VICTIM[0] + 1.6, y: VICTIM[1], sx: 0.68, sy: 0.68 },
-});
-const LOWER = hold(mix(BRACE, { body: { rot: 1 } }), [1.0, -5.4], 45);
+const KICK = mix(
+  fist(aim(stanceWith(BRACE, { body: { rot: -4, x: -0.6 } }), [4.8, -11.2], -26), 'B', [2.2, -8.6]),
+  {
+    fx2: { x: VICTIM[0] + 1.6, y: VICTIM[1], sx: 0.68, sy: 0.68 },
+  },
+);
+const LOWER = hold(stanceWith(BRACE, { body: { rot: 1 } }), [1.0, -5.4], 45);
 /** Back on the floor after the axe kick, knees bent, the gun coming round. */
 const LANDED = fist(
   gunAt(feet({ body: { rot: 8, x: 0.6 }, hip: { y: 1.6 } }, [3.6, 0], [-2.4, 0]), [5.4, -8.4], 10),
