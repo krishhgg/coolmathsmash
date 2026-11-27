@@ -160,6 +160,11 @@ export interface FighterState {
   stageHitLock: number;
   /** Timed statuses on this fighter, oldest first (src/sim/statuses.ts). */
   statuses: StatusState[];
+  /**
+   * Kinds of status this fighter can't get again until it lands, grabs a ledge or can act (StatusDef.immuneUntilFree):
+   * the ones that went on since it was last free of a hit.
+   */
+  statusImmune: string[];
   /** Meter values by name (FighterDef.meters, src/sim/meters.ts). */
   meters: Record<string, number>;
   /** Holds a Final Smash charge: broke the Coolmath Planet (src/sim/items/planet.ts) and has not lost it yet. */
@@ -233,6 +238,7 @@ export function createFighter(
     skyAnchorsUsed: 0,
     stageHitLock: 0,
     statuses: [],
+    statusImmune: [],
     meters: createMeters(getFighter(fighterId)),
     finalReady: false,
   };

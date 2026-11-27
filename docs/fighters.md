@@ -816,13 +816,18 @@ dthrow: { ..., throw: { frame: 20, hit: { damage: 7, angle: 75, kbg: 45, bkb: 55
   hit that lands (not on a shield), a pummel or a throw's hold hit included, takes it off, reported as `statusEnd` with
   reason `hit`. That hit's hitlag and launch take over, and no hit landing on the same frame can put the same status
   back on. A status that went on this frame stays, so hits landing together give the same result in any port order.
+- **Immune until free.** With `immuneUntilFree`, a fighter that got the status can't get it again until it is free of
+  the hit: it lands, grabs a ledge or can act (no launch waiting and no hitstun left). A hit before then deals its
+  damage and knockback without the status. Hits landing on the frame it went on still take the longer length.
 
-Bob the Robber's paralysis (`src/fighters/bob-the-robber/statuses.ts`) uses all three. It is Ultimate's paralysis
+Bob the Robber's paralysis (`src/fighters/bob-the-robber/statuses.ts`) uses all four. It is Ultimate's paralysis
 (SmashWiki, "Paralyze"): floor(1 + knockback x hitlag multiplier x crouch) frames, at most 90, in place of the hit's
-hitlag:
+hitlag. A paralyzed fighter hit by a paralyzing attack again before it lands, grabs a ledge or can act "takes
+knockback alongside the damage, merely without being paralyzed" (SmashWiki, "Paralyze (effect)"), so back-to-back
+full-charge Stun Gun shots, each landing in the hitstun the last one left, can't hold a fighter for good:
 
 ```ts
-paralyzed: { frames: 1, perKnockback: 1, max: 90, freeze: true, endOnHit: true, color: '#f2c62a' },
+paralyzed: { frames: 1, perKnockback: 1, max: 90, freeze: true, endOnHit: true, immuneUntilFree: true, color: '#f2c62a' },
 ```
 
 Papa Louie's Cheesed (`src/fighters/papa-louie/statuses.ts`) is Inkling's ink (SmashWiki, "Ink (status)"), on two

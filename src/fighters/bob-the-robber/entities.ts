@@ -20,7 +20,9 @@ import type { EntityDef } from '../../sim/entities/types';
  *   these are estimates: 2.2 units a frame uncharged (about 51 units of travel) and 1.8 at full charge (about 85).
  * - Paralysis: the victim freezes for floor(knockback x hitlag multiplier x crouch) + 1 frames, at most 90
  *   (SmashWiki, "Paralyze"; the SSBU calculator's ParalysisTime), in place of the hit's hitlag, then takes the
- *   knockback. A later hit ends it, and a hit that ends it does not paralyze again. SmashWiki documents no mashing
+ *   knockback. A later hit ends it, and a hit that ends it does not paralyze again. Nor does any shot that lands
+ *   before the victim lands, grabs a ledge or can act: it deals its damage and knockback only (SmashWiki,
+ *   "Paralyze (effect)"), so back-to-back full charges can't hold a fighter for good. SmashWiki documents no mashing
  *   out of paralysis, so it has none. It does not go through a shield: a shielded shot only deals shieldstun.
  */
 export const STUN_GUN = { charge: 20, chargeFrames: 22, shot: 21, faf: 49 } as const;

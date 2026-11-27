@@ -171,6 +171,8 @@ export function land(x: Ctx, g: GroundRef): void {
   f.ground = g;
   f.pos.y = surfaceY(stage, g, f.pos.x);
   restoreAirOptions(f);
+  // Landing frees it of the hit: a status it was immune to can go on again (StatusDef.immuneUntilFree).
+  f.statusImmune = [];
   const action = actionDef(f);
   if (action.land) {
     action.land(x);
@@ -561,6 +563,8 @@ export function grabLedge(x: Ctx, i: number): void {
   const L = stage.geo.ledges[i]!;
   f.ledge = i;
   f.ledgeGrabs++;
+  // So does a ledge grab (StatusDef.immuneUntilFree).
+  f.statusImmune = [];
   f.facing = -L.side as 1 | -1;
   f.vel.x = f.vel.y = f.kb.x = f.kb.y = 0;
   f.fastFalling = false;

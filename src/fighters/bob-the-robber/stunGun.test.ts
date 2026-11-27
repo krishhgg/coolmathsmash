@@ -7,7 +7,7 @@ import { HITLAG, hitstunFrames, knockback, shieldstunFrames } from '../../sim/co
 import type { SimEvent } from '../../sim/events';
 import type { FighterState } from '../../sim/fighter';
 import { createMatch, stepMatch, type MatchState } from '../../sim/match';
-import { hasStatus, statusOf } from '../../sim/statuses';
+import { hasStatus, isFrozen, statusOf } from '../../sim/statuses';
 import { counterTesterMarth } from '../../sim/testing/counter';
 import { koPercent } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
@@ -329,6 +329,79 @@ describe("Bob the Robber: Stun Gun (Zero Suit Samus's Paralyzer)", () => {
     expect(v.hitlag).toBe((jab as { hitlag: number }).hitlag);
     runPorts(m, v.hitlag + 1, []);
     expect(v.launch).toBeNull();
+  });
+
+  /**
+   * Bob at x = 10 fires full charges back to back at the Mario reference standing at 74, near Battlefield's right edge,
+   * where the 315-degree slide stops, so the shots keep arriving about 72 frames apart: inside the 49 frames of
+   * paralysis and 26 of hitstun the one before left. Mario does nothing. Returns each hit on Mario, whether it
+   * paralyzed him and whether he could act at any point since the last paralysis went on, and how many frames he
+   * could act in after the first hit.
+   */
+  function barrage(frames: number) {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'bob-the-robber' }, { fighter: marioReference.id }],
+    });
+    const [a, v] = m.fighters as [FighterState, FighterState];
+    const place = (f: FighterState, x: number, facing: 1 | -1) =>
+      Object.assign(f, { pos: { x, y: 0 }, prevPos: { x, y: 0 }, facing });
+    place(a, 10, 1);
+    place(v, 74, -1);
+    runPorts(m, 20, []);
+    const hits: {
+      frame: number;
+      paralyzed: boolean;
+      freedSince: boolean;
+      damage: number;
+      launched: boolean;
+    }[] = [];
+    let held = 0;
+    let freedSince = true;
+    let free = 0;
+    for (let i = 0; i < frames; i++) {
+      let hold: Hold = {};
+      if (a.move === 'neutralB') hold = held++ < 45 ? SPECIAL : {};
+      else if (a.action === 'idle') [hold, held] = [i % 2 ? SPECIAL : {}, 0];
+      // His hitstun runs out on this frame's step, before the shot can land: he can act on it.
+      const actsNow = !isFrozen(m, v) && !v.launch && (v.action !== 'hitstun' || v.hitstun <= 1);
+      runPorts(m, 1, [hold, {}]);
+      const hit = m.events.find((e) => e.type === 'hit' && e.victim === 1);
+      if (hit && hits.length && actsNow) freedSince = true;
+      if (hit) {
+        const paralyzed = m.events.some((e) => e.type === 'statusStart' && e.status === PARALYZED);
+        const launched = v.launch !== null && v.launch.kb > 0;
+        hits.push({
+          frame: m.frame,
+          paralyzed,
+          freedSince,
+          damage: (hit as { damage: number }).damage,
+          launched,
+        });
+        if (paralyzed) freedSince = false;
+      } else if (hits.length && !isFrozen(m, v) && !v.launch && v.action !== 'hitstun') {
+        freedSince = true;
+        free++;
+      }
+    }
+    return { hits, free };
+  }
+
+  it("can't lock a fighter: a shot landing before the last one's victim can act deals damage and knockback, no paralysis", () => {
+    // Ultimate (SmashWiki, "Paralyze (effect)"): a paralyzed fighter hit by a paralyzing attack again before it lands,
+    // grabs a ledge or can act "takes knockback alongside the damage, merely without being paralyzed".
+    const { hits, free } = barrage(900);
+    expect(hits.length).toBeGreaterThanOrEqual(10);
+    for (const h of hits) {
+      expect(h.paralyzed, `the shot on frame ${h.frame}`).toBe(h.freedSince);
+      expect(h.damage, `the shot on frame ${h.frame}`).toBeGreaterThan(0);
+      expect(h.launched, `the shot on frame ${h.frame}`).toBe(true);
+    }
+    expect(hits.filter((h) => !h.paralyzed).length).toBeGreaterThanOrEqual(4);
+    // Every other shot only knocks him back, so he gets to act between them: shield, jump or get out of the way.
+    expect(free).toBeGreaterThan(150);
   });
 
   it("ends when a pummel lands on the paralyzed fighter Bob grabbed, as Ultimate's hits do", () => {
