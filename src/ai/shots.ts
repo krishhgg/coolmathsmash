@@ -202,8 +202,8 @@ function foe(state: Readonly<MatchState>, me: Readonly<FighterState>, port: numb
 
 /**
  * Add other fighters' shots to `m`, a soloMatch of `me`, alongside any already there, so the CPU's shots meet them as
- * they will in the match. One stand-in owns them all (setEntities), which changes nothing that decides a clank
- * (entityPower).
+ * they will in the match. Each other fighter's shots go under a stand-in port of its own (setEntities), the first
+ * other fighter by port on port 1, the next on port 2, so two opponents' shots still clank with each other.
  */
 function joinFoes(
   m: MatchState,
@@ -211,9 +211,11 @@ function joinFoes(
   me: Readonly<FighterState>,
   shots: readonly EntityState[],
 ): void {
-  const owner = state.fighters.find((f) => f.port === shots[0]?.owner);
-  if (!owner) return;
-  setEntities(m, owner, shots, me.port, true);
+  const others = state.fighters.filter((f) => f.port !== me.port);
+  others.forEach((owner, i) => {
+    const theirs = shots.filter((e) => e.owner === owner.port);
+    if (theirs.length) setEntities(m, owner, theirs, me.port, true, 1 + i);
+  });
 }
 
 /**

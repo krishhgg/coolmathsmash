@@ -119,6 +119,45 @@ describe("CPUs and their opponent's shots", () => {
     expect(threat!.until).toBeGreaterThan(threat!.t);
   });
 
+  it("see no threat in two opponents' shots that clank with each other first (three players)", () => {
+    // Port 0 at x -60; port 1's Fireball heads for it from x -15, close enough to hit it within the CPU's 36 frames of
+    // look-ahead, and port 2's comes the other way from x -45: the two meet at about x -30. In the CPU's copy each
+    // opponent's shots need an owner of their own, or they pass through each other there.
+    const m = createMatch({
+      seed: 1,
+      stage: STAGE,
+      stocks: 3,
+      ports: [{ fighter: 'fireboy' }, { fighter: 'fireboy' }, { fighter: 'fireboy' }],
+    });
+    const idle = () => m.fighters.map(() => neutralInput());
+    for (let i = 0; i < 30; i++) stepMatch(m, idle());
+    for (const [port, x, facing] of [
+      [0, -60, 1],
+      [1, 50, -1],
+      [2, 70, -1],
+    ] as const) {
+      Object.assign(m.fighters[port]!, { pos: { x, y: 0 }, prevPos: { x, y: 0 }, facing });
+    }
+    const s = knowledge('fireboy', STAGE).ground.neutralB!.spawns[0]!;
+    const fire = (owner: number, x: number, dir: 1 | -1) => {
+      const e = spawnEntity(m, { kind: s.kind, owner, pos: { x, y: s.oy } });
+      Object.assign(e, { age: 1, vel: { x: s.vx * dir, y: s.vy }, facing: dir, lifetime: s.lifetime });
+    };
+    const me = m.fighters[0]!;
+    fire(1, -15, -1);
+    expect(shotThreat(m, me, seenShots(m, me, 0), [], 36)).not.toBeNull();
+    fire(2, -45, 1);
+    expect(shotThreat(m, me, seenShots(m, me, 0), [], 36)).toBeNull();
+    let clanks = 0;
+    let struck = false;
+    for (let t = 0; t < 50; t++) {
+      stepMatch(m, idle());
+      clanks += m.events.filter((x) => x.type === 'entityDestroy' && x.reason === 'clank').length;
+      struck ||= m.events.some((x) => x.type === 'hit' && x.victim === 0);
+    }
+    expect([clanks, struck]).toEqual([2, false]);
+  });
+
   it('see no threat in a shot that its own shot already out meets and clanks first', () => {
     // Port 0 has just fired; port 1's Fireball is 36 units off and would hit port 0 on its own.
     const m = duel();
