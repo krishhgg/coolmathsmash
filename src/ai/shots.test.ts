@@ -340,6 +340,9 @@ describe('CPU projectiles', () => {
   });
 
   it('shoot an opponent recovering from beside the stage', () => {
+    // The Red Ball double jumps back toward the stage, scripted: a CPU there picks among the recoveries that work, and
+    // the ones where it lashes the ledge at once leave nothing to shoot.
+    const recovering = (i: number) => ({ ...neutralInput(), x: -100, buttons: i === 1 ? Btn.Jump : 0 });
     for (const id of ['raftwars', 'papa-louie']) {
       for (const seed of [1, 2]) {
         const m = facingOff(id, 60, 60, seed);
@@ -351,16 +354,10 @@ describe('CPU projectiles', () => {
           actionFrame: 1,
           jumpsUsed: 2,
         });
-        const cpus = [
-          createCpu({ port: 0, level: 9, seed }),
-          createCpu({ port: 1, level: 5, seed: seed + 9 }),
-        ];
+        const cpu = createCpu({ port: 0, level: 9, seed });
         let hit = -1;
         for (let i = 0; i < 60 && hit < 0; i++) {
-          stepMatch(
-            m,
-            cpus.map((c) => c.input(m)),
-          );
+          stepMatch(m, [cpu.input(m), recovering(i)]);
           if (m.events.some((e) => e.type === 'hit' && e.attacker === 0 && e.entity !== undefined)) hit = i;
         }
         expect(hit, `${id}, seed ${seed}`).toBeGreaterThanOrEqual(0);
