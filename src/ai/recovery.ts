@@ -48,6 +48,19 @@ export interface RecoveryParams {
    * which the planner's timings missed.
    */
   holdUp?: true;
+  /**
+   * Hold the stick back, away from the ledge, while the special plays, as holdUp does with it straight up. Bob the
+   * Robber's Grappling Hook reads the stick on its frame 14 and zips at 85 degrees held back, against 70 straight up
+   * and 55 leaning toward the ledge: from deep under Run Tunnel's outer floor only the steep zip reaches the ledge.
+   */
+  holdBack?: true;
+  /**
+   * Press the up special with the stick toward the stage, not toward the ledge, so the fighter faces the stage. One
+   * that rises past the ledge's corner from under the stage then catches it with the front of its reach: Fireboy's
+   * Flame Jump from 60 under Run Tunnel's outer floor, turned to face out, passes the corner where only a front grab
+   * reaches it.
+   */
+  faceStage?: true;
   /** Recover to this floor corner beside a gap (gapTarget) instead of the nearest ledge, landing on the floor. */
   gap?: Gap;
 }
@@ -141,6 +154,8 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
   let special = false;
   let dodged = false;
   let holding = false;
+  // Which way the fighter faced the ledge when it pressed the special (holdBack holds the stick the other way).
+  let pressDir: 1 | -1 = 1;
   return (t, f) => {
     const L = p.gap ?? targetLedge(info, f.pos.x);
     const out = p.special && !special && p.reach < 0 ? -p.reach : 0;
@@ -163,8 +178,14 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
       i.buttons = Btn.Jump;
       return i;
     }
-    if (p.holdUp && special && f.ground === null && !actionable(f) && f.action !== 'helpless') {
-      i.x = 0;
+    if (
+      (p.holdUp || p.holdBack) &&
+      special &&
+      f.ground === null &&
+      !actionable(f) &&
+      f.action !== 'helpless'
+    ) {
+      i.x = p.holdBack ? -pressDir * STICK.full : 0;
       i.y = STICK.special;
       return i;
     }
@@ -184,7 +205,9 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
     const jumpDone = p.specialFirst || jumped || p.jumpAt === Infinity || f.jumpsUsed >= k.stats.jumps;
     if (!special && p.special && due && near && jumpDone) {
       special = true;
-      if (p.special === 'upB') return press({ x: 40 * dir, y: STICK.special, buttons: Btn.Special });
+      pressDir = dir;
+      if (p.special === 'upB')
+        return press({ x: 40 * (p.faceStage && L ? -L.side : dir), y: STICK.special, buttons: Btn.Special });
       if (p.special === 'sideB') return press({ x: STICK.special * dir, buttons: Btn.Special });
       return press({ buttons: Btn.Special });
     }
@@ -228,8 +251,24 @@ function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterSta
         for (const reach of under ? [-8, 0, 12, 24, 36] : [-16, -8]) {
           out.push({ ...none, jumpAt, special, below: -24, reach });
           out.push({ ...none, jumpAt, special, below: -24, reach, holdUp: true });
+          out.push({ ...none, jumpAt, special, below: -24, reach, holdBack: true });
         }
       if (jumpAt === Infinity) for (const at of [1, 10]) out.push({ ...none, special, specialAt: at });
+      // Deep below the ledge, an up special can also go off at set frames, with the stick held back: from 32 beside
+      // Run Tunnel's ledge and 100 under it, Bob's hook zip gets him back fired 14 to 21 frames after the double jump,
+      // or 27 to 39, but not when the jump's rise ends. Early ones also try facing the stage (faceStage).
+      if (special === 'upB' && lowSide) {
+        for (const after of [14, 30])
+          out.push({
+            ...none,
+            jumpAt,
+            special,
+            specialAt: (jumpAt === Infinity ? 0 : jumpAt) + after,
+            holdBack: true,
+          });
+        if (jumpAt === Infinity)
+          for (const at of [1, 10]) out.push({ ...none, special, specialAt: at, faceStage: true });
+      }
     }
   }
   // In a gap in the ground (Run Tunnel's floor), the nearest ledge can be past the floor on either side, with the

@@ -394,3 +394,44 @@ describe("recovering out of a gap in Run Tunnel's floor", () => {
     60_000,
   );
 });
+
+describe("recovering from deep under Run Tunnel's outer floor", () => {
+  /** A level 9 CPU dropped at (x, y) under or beside Run Tunnel's right ledge (x 88), its double jump used or not. */
+  function fromDeep(fighter: string, x: number, y: number, jumpUsed: boolean, seed: number): string {
+    const m = drill('run-tunnel', x, y, fighter);
+    const f = m.fighters[0]!;
+    if (jumpUsed) f.jumpsUsed = 2;
+    const cpu = createCpu({ port: 0, level: 9, seed });
+    for (let i = 0; i < 600; i++) {
+      stepMatch(m, [cpu.input(m), neutralInput()]);
+      if (f.stocks < 3) return 'ko';
+      if (f.ground !== null || f.action === 'ledgeHang') return 'back';
+    }
+    return 'stuck';
+  }
+
+  // Bob's Grappling Hook reads the stick on its frame 14: held back, away from the ledge, it zips at 85 degrees,
+  // against 70 straight up and 55 leaning toward the ledge, and only the steep zip gets him back from 100 under. From
+  // 32 beside the ledge it also has to go off while his double jump still rises. Fireboy's Flame Jump from 60 under
+  // the floor, pressed facing out from the stage as the driver used to, passes the corner where only a front grab
+  // reaches it. On #346's head each of these runs is KO'd.
+  it.each([
+    ['bob-the-robber', 60, -100, false],
+    ['bob-the-robber', 75, -100, false],
+    ['bob-the-robber', 120, -100, false],
+    ['bob-the-robber', 75, -45, true],
+    ['bob-the-robber', 90, -60, true],
+    ['fireboy', 60, -60, true],
+  ] as const)(
+    'a level 9 %s gets back from (%d, %d), double jump used: %s, on every seed',
+    (fighter, x, y, jumpUsed) => {
+      expect([1, 2, 3, 4].map((seed) => fromDeep(fighter, x, y, jumpUsed, seed))).toEqual([
+        'back',
+        'back',
+        'back',
+        'back',
+      ]);
+    },
+    60_000,
+  );
+});
