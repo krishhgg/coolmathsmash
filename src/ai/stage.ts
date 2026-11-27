@@ -314,6 +314,31 @@ export function walkTarget(
   return dir > 0 ? Math.max(first, stop) : Math.min(first, stop);
 }
 
+/**
+ * Whether a walk from (x, y) toward `target` stops (walkTarget) at a gap: the floor ends with nothing under it, as at
+ * Run Tunnel's two gaps or an open trapdoor. A walk that stops at a damage zone, at ground about to vanish or above
+ * a drop onto either doesn't.
+ */
+export function walkStopsAtGap(
+  info: StageInfo,
+  fighter: string,
+  x: number,
+  y: number,
+  target: number,
+): boolean {
+  const stop = walkTarget(info, fighter, x, y, target);
+  const dir = Math.sign(target - stop);
+  if (stop === target || !dir) return false;
+  let h = y;
+  for (let sx = stop + dir; dir * (target - sx) >= 0; sx += dir) {
+    const fy = floorBelow(info, sx, h + SAME);
+    if (fy === null) return true;
+    if (fy < h - SAME || !standSafe(info, fighter, sx, fy)) return false;
+    h = fy;
+  }
+  return false;
+}
+
 /** How far the CPU looks along its ground for somewhere safe to stand. */
 const SAFE_SEARCH = 140;
 

@@ -31,6 +31,7 @@ import {
   dropJump,
   dropThrough,
   fullHop,
+  gapHop,
   goTo,
   groundMove,
   jumpAerial,
@@ -54,6 +55,8 @@ import {
   safeSpot,
   stageInfo,
   standSafe,
+  walkStopsAtGap,
+  walkTarget,
   type StageInfo,
 } from './stage';
 import * as SimMath from '../sim/math';
@@ -80,6 +83,8 @@ const SHOT_HORIZON = 110;
 const NEUTRAL = Object.freeze(neutralInput());
 /** Units inside the ends of its ground that a shield roll, tech roll or getup roll the CPU picks must end. */
 const ROLL_ROOM = 4;
+/** A CPU whose walk stops at a gap hops across from within this many units of where it stops. */
+const GAP_HOP_REACH = 3;
 
 type Situation = 'combo' | 'punish' | 'neutral';
 
@@ -892,9 +897,14 @@ export class Cpu {
 
   /**
    * Run `program` on a copy of the match, then let go until the CPU comes down: whether it lands somewhere it can
-   * stand without touching a damage zone on the way.
+   * stand without touching a damage zone on the way, and, given `at`, where `at` accepts.
    */
-  private landsClear(state: Readonly<MatchState>, me: Readonly<FighterState>, program: Program): boolean {
+  private landsClear(
+    state: Readonly<MatchState>,
+    me: Readonly<FighterState>,
+    program: Program,
+    at: (x: number) => boolean = () => true,
+  ): boolean {
     const m = soloMatch(state, me, state.players[this.port]!.control);
     const g = m.fighters[0]!;
     let running = true;
@@ -904,7 +914,8 @@ export class Cpu {
       stepMatch(m, [i ?? NEUTRAL]);
       if (m.events.some((e) => e.type === 'stageHit' && e.source === 'zone')) return false;
       if (g.action === 'ko' || g.action === 'out') return false;
-      if (t > 4 && g.ground !== null) return standSafe(stageInfo(m), g.fighter, g.pos.x, g.pos.y);
+      if (t > 4 && g.ground !== null)
+        return standSafe(stageInfo(m), g.fighter, g.pos.x, g.pos.y) && at(g.pos.x);
     }
     return false;
   }
@@ -1045,11 +1056,40 @@ export class Cpu {
         this.start(shortHop(dir));
         return;
       }
+      if (this.hopGap(state, me, info, tx)) return;
       this.start(goTo(tx, true, 24, info, dir));
       return;
     }
     const space = 28 + this.rand() * 26;
-    this.start(goTo(clampToStage(info, s.x - dir * space, margin), this.rand() < 0.4, 24, info, dir));
+    const tx = clampToStage(info, s.x - dir * space, margin);
+    if (this.hopGap(state, me, info, tx)) return;
+    this.start(goTo(tx, this.rand() < 0.4, 24, info, dir));
+  }
+
+  /**
+   * The walk to `tx` stops short of a gap in the floor (Run Tunnel's two) and the CPU is already there: full hop
+   * across when the hop, run on a copy of the match, comes down past the gap on ground the CPU can stand on
+   * (landsClear). Without this a CPU never crosses a gap and waits at its edge for the opponent to come over.
+   */
+  private hopGap(
+    state: Readonly<MatchState>,
+    me: Readonly<FighterState>,
+    info: StageInfo,
+    tx: number,
+  ): boolean {
+    if (me.ground === null || !actionable(me)) return false;
+    const stop = walkTarget(info, me.fighter, me.pos.x, me.pos.y, tx);
+    if (Math.abs(stop - me.pos.x) > GAP_HOP_REACH) return false;
+    if (!walkStopsAtGap(info, me.fighter, me.pos.x, me.pos.y, tx)) return false;
+    // Somewhere the CPU can't walk to from where it takes off: past the gap. `me` moves with the match, so its
+    // position is copied.
+    const { x, y } = me.pos;
+    const past = (px: number) => walkTarget(info, me.fighter, x, y, px) !== px;
+    const stick = Math.sign(tx - x) * 100;
+    const hop = () => gapHop(stick, (g) => past(g.pos.x) && landsSafe(info, me.fighter, g.pos.x, g.pos.y));
+    if (!this.landsClear(state, me, hop(), past)) return false;
+    this.start(hop());
+    return true;
   }
 
   private aimless(me: Readonly<FighterState>, info: StageInfo): Program {

@@ -169,6 +169,29 @@ export function fullHop(name: string, stick: number, hold: number, frames: numbe
   };
 }
 
+/**
+ * A full hop over a gap: Jump held through the squat, the stick toward `stick` until `over` says the fighter is over
+ * ground past it, then let go to land there. It keeps running over the gap, where the CPU is otherwise off stage and
+ * recovering.
+ */
+export function gapHop(stick: number, over: (f: Readonly<FighterState>) => boolean): Program {
+  let held = true;
+  return {
+    name: 'gapHop',
+    interruptible: false,
+    offstage: true,
+    step: (t, f) => {
+      if (t > GAP_HOP_LIMIT || (t > 4 && f.ground !== null)) return null;
+      held &&= !over(f);
+      return press({ x: held ? stick : 0, buttons: t < FULL_HOP_HOLD ? Btn.Jump : 0 });
+    },
+  };
+}
+
+/** Frames of Jump held for a full hop (through any fighter's jump squat), and the longest a gap hop runs. */
+const FULL_HOP_HOLD = 8;
+const GAP_HOP_LIMIT = 150;
+
 export function shortHop(dir: number): Program {
   return {
     name: 'shortHop',
