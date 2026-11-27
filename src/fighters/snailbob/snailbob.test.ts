@@ -213,6 +213,28 @@ describe('Snail Bob: Shell Plunge (dair)', () => {
     expect((y - a.pos.y) / 5).toBeGreaterThan(stats.fastFallSpeed);
   });
 
+  it('from a short hop he plunges straight down whatever the stick does', () => {
+    /** Short hop holding `hop`, Shell Plunge as he leaves the floor, then `after` held to the landing; his x moved. */
+    const drift = (hop: Hold, after: Hold) => {
+      const m = snail();
+      const f = m.fighters[0]!;
+      run(m, 1, { ...hop, buttons: ['jump'] });
+      until(m, (g) => g.ground === null, hop);
+      const x = f.pos.x;
+      run(m, 1, { y: -100, buttons: ['attack'] });
+      expect(f.move).toBe('dair');
+      until(m, (g) => g.ground !== null, after);
+      return f.pos.x - x;
+    };
+    // Toon Link's dair (SmashWiki, "Toon Link (SSBU)/Down aerial"): "The move resets Toon Link's horizontal
+    // momentum" and "Manual horizontal movement is also disabled during frames 1-70", which runs past its hitboxes.
+    expect(drift({}, { x: 100 })).toBe(0);
+    expect(drift({}, { x: -100 })).toBe(0);
+    expect(drift({ x: 100 }, {})).toBe(0);
+    expect(drift({ x: 100 }, { x: 100 })).toBe(0);
+    expect(drift({ x: -100 }, { x: 100 })).toBe(0);
+  });
+
   it('a down flick during the hang or the plunge does not change his path', () => {
     const path = (flick: boolean) => {
       const { m, a } = plunge(100);

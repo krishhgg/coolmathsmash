@@ -276,13 +276,18 @@ export const moves: Record<string, MoveDef> = {
    * The early drop meteors (frames 16-20), the rest of the drop hits normally, and landing always turns into the
    * shockwave and its lag (`dairLand`), so `landingLag` only mirrors that. The script owns the fall, so it marks
    * him fast-falling to keep a down flick from overriding it; if the move ends in the air he keeps falling fast.
-   * Damage and knockback are Toon Link's dair, another stall-then-fall plunge.
+   * Damage, knockback and movement are Toon Link's dair, another stall-then-fall plunge: it stops his air speed on
+   * its first frame and again as the plunge starts, and the stick can't drift him for the whole move (SmashWiki,
+   * "Toon Link (SSBU)/Down aerial": "The move resets Toon Link's horizontal momentum", "Manual horizontal movement
+   * is also disabled during frames 1-70", past its last hitbox on 64; its script's SET_SPEED_EX(0, 1.6) and
+   * suspend_energy(FIGHTER_KINETIC_ENERGY_ID_CONTROL) on frame 1 and SET_SPEED_EX(0, -3.8) on 17).
    */
   dair: {
     kind: 'aerial',
     faf: 50,
     landingLag: 29,
     continuesOnLanding: true,
+    drift: false,
     hits: [
       {
         frames: [16, 20],
@@ -300,10 +305,9 @@ export const moves: Record<string, MoveDef> = {
         return;
       }
       f.fastFalling = true;
-      if (f.actionFrame < DAIR_PLUNGE_FROM) {
-        f.vel.x *= 0.85;
-        f.vel.y = 0.5 - f.actionFrame * 0.05;
-      } else f.vel.y = -DAIR_PLUNGE_SPEED;
+      if (f.actionFrame <= 1 || f.actionFrame === DAIR_PLUNGE_FROM) f.vel.x = 0;
+      if (f.actionFrame < DAIR_PLUNGE_FROM) f.vel.y = 0.5 - f.actionFrame * 0.05;
+      else f.vel.y = -DAIR_PLUNGE_SPEED;
     },
   },
   /** Shell Plunge landing: the shockwave on both sides, then the shell's landing lag. */
