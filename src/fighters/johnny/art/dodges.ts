@@ -16,6 +16,7 @@ import {
   STANCE,
   TUCK,
   aloft,
+  autoPasses,
   between,
   elbows,
   feet,
@@ -166,38 +167,45 @@ const FALL_START = aloft(
 );
 
 export const dodges: Record<string, AnimClip> = {
-  spotDodge: onFloor({
-    length: SPOT_DODGE.faf - 1,
-    swaps: { ...GRIT, ...GUARD },
-    keys: shortTurns(
-      elbows([
-        key(0, STANCE, { ease: 'linear' }),
-        key(3, DUCK, { ease: 'inOut', swaps: { ...SMIRK, ...FISTS } }),
-        key(11, DUCK_SWAY, { ease: 'inOut' }),
-        key(17, DUCK, { ease: 'inOut' }),
-        key(21, DUCK_RISE, { ease: 'out', swaps: { ...GRIT, ...FISTS } }),
-        key(SPOT_DODGE.faf - 1, STANCE, { swaps: {} }),
-      ]),
-    ),
-  }),
+  spotDodge: onFloor(
+    autoPasses({
+      length: SPOT_DODGE.faf - 1,
+      swaps: { ...GRIT, ...GUARD },
+      keys: shortTurns(
+        elbows([
+          key(0, STANCE, { ease: 'linear' }),
+          key(3, DUCK, { ease: 'inOut', swaps: { ...SMIRK, ...FISTS } }),
+          key(11, DUCK_SWAY, { ease: 'inOut' }),
+          key(17, DUCK, { ease: 'inOut' }),
+          key(21, DUCK_RISE, { ease: 'out', swaps: { ...GRIT, ...FISTS } }),
+          key(SPOT_DODGE.faf - 1, STANCE, { swaps: {} }),
+        ]),
+      ),
+    }),
+  ),
 
-  rollForward: onFloor({
-    length: ROLL_FORWARD.faf - 1,
-    swaps: { ...GRIT, ...FISTS },
-    keys: shortTurns(
-      elbows([
-        // Diving into the tuck over three frames.
-        key(0, STANCE, { ease: 'linear' }),
-        key(3, grounded(between(DIVE, TUCK, 0.35)), { ease: 'linear' }),
-        key(4, grounded(between(DIVE, TUCK, 0.68)), { ease: 'linear' }),
-        ...somersault(5, 18, 0, 360),
-        key(21, mix(UNROLL, { body: { rot: 372 } }), { ease: 'linear' }),
-        key(23, mix(PIVOT, { body: { rot: 360, sx: 0.92 } }), { ease: 'step' }),
-        key(24, mix(PIVOT, { body: { rot: 360, sx: -0.92 } }), { ease: 'out', swaps: { ...GRIT, ...GUARD } }),
-        key(ROLL_FORWARD.faf - 1, mix(STANCE, { body: { rot: 360, sx: -1 } })),
-      ]),
-    ),
-  }),
+  rollForward: onFloor(
+    autoPasses({
+      length: ROLL_FORWARD.faf - 1,
+      swaps: { ...GRIT, ...FISTS },
+      keys: shortTurns(
+        elbows([
+          // Diving into the tuck over three frames.
+          key(0, STANCE, { ease: 'linear' }),
+          key(3, grounded(between(DIVE, TUCK, 0.35)), { ease: 'linear' }),
+          key(4, grounded(between(DIVE, TUCK, 0.68)), { ease: 'linear' }),
+          ...somersault(5, 18, 0, 360),
+          key(21, mix(UNROLL, { body: { rot: 372 } }), { ease: 'linear' }),
+          key(23, mix(PIVOT, { body: { rot: 360, sx: 0.92 } }), { ease: 'step' }),
+          key(24, mix(PIVOT, { body: { rot: 360, sx: -0.92 } }), {
+            ease: 'out',
+            swaps: { ...GRIT, ...GUARD },
+          }),
+          key(ROLL_FORWARD.faf - 1, mix(STANCE, { body: { rot: 360, sx: -1 } })),
+        ]),
+      ),
+    }),
+  ),
 
   airDodge: {
     length: 46,

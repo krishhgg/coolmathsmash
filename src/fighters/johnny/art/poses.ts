@@ -152,19 +152,152 @@ export function key(frame: number, pose?: Pose, extra: Omit<Key, 'frame' | 'pose
   return pose ? { frame, pose, ...extra } : { frame, ...extra };
 }
 
+/** Each leg's slots (outlines and fills of thigh, shin and boot). */
+const LEG_SLOTS = {
+  B: rig.slots.filter((s) => /^(thigh|shin|foot)B/.test(s.name)),
+  F: rig.slots.filter((s) => /^(thigh|shin|foot)F/.test(s.name)),
+};
+
+/**
+ * `clip` with a passing key (`clearLeg`) on the deepest frame of each run of frames where a tween sweeps a leg
+ * `depth` or more under the floor, on that leg, repeated until no run is left or `rounds` run out. Frames that
+ * already have a posed key are left alone.
+ */
+export function autoPasses(clip: AnimClip, depth = 0.45, rounds = 3): AnimClip {
+  let out = clip;
+  for (let round = 0; round < rounds; round++) {
+    const art: FighterArt = { rig, clips: { c: out }, palettes: { default: {} }, height: 0, icon: '' };
+    const keyed = new Set(out.keys.filter((k) => k.pose).map((k) => k.frame));
+    const dips = Array.from({ length: out.length + 1 }, (_, f) => {
+      const pose = samplePose(art, 'c', f, f);
+      const under = (side: 'B' | 'F') =>
+        poseBounds({ ...art, rig: { ...rig, slots: LEG_SLOTS[side] } }, pose)[3];
+      const [b, front] = [under('B'), under('F')];
+      const side: 'B' | 'F' = b >= front ? 'B' : 'F';
+      return { f, side, depth: Math.max(b, front) };
+    });
+    const at: [number, 'B' | 'F'][] = [];
+    for (let i = 0; i < dips.length;) {
+      if (dips[i]!.depth < depth) {
+        i++;
+        continue;
+      }
+      let j = i;
+      while (j + 1 < dips.length && dips[j + 1]!.depth >= depth) j++;
+      const run = dips.slice(i, j + 1).filter((d) => !keyed.has(d.f));
+      const deepest = run.reduce<(typeof run)[number] | undefined>(
+        (a, d) => (!a || d.depth > a.depth ? d : a),
+        undefined,
+      );
+      if (deepest) at.push([deepest.f, deepest.side]);
+      i = j + 1;
+    }
+    if (!at.length) break;
+    const passed = passes(out, at);
+    out = { ...passed, keys: shortTurns(passed.keys) };
+  }
+  return out;
+}
+
 /**
  * Effect slots, left out when a pose is measured against the floor: smears, stars, swooshes, the Max Upgrade aura
  * and the boot jets cross it freely.
  */
 const FX_SLOTS = new Set(['fxAura', 'jetB', 'jetF', 'fxBack', 'fx1', 'fx2']);
 
+/** `clip`'s drawing on `frame`, as a pose (offsets from the rig's rest). */
+function poseAt(clip: AnimClip, frame: number): Pose {
+  const art: FighterArt = { rig, clips: { clip }, palettes: { default: {} }, height: 0, icon: '' };
+  const sampled = samplePose(art, 'clip', frame, frame);
+  return Object.fromEntries(
+    rig.bones.map(({ name, x, y, rot = 0, sx = 1, sy = 1 }) => {
+      const p = sampled.local[name]!;
+      return [name, { x: p.x - x, y: p.y - y, rot: p.rot - rot, sx: p.sx / sx, sy: p.sy / sy }];
+    }),
+  );
+}
+
+/** How far one leg's drawings (thigh, shin, boot) reach under the floor in `pose`. */
+function legUnder(pose: Pose, side: 'B' | 'F'): number {
+  const art: FighterArt = {
+    rig: { ...rig, slots: LEG_SLOTS[side] },
+    clips: { c: { length: 0, keys: [key(0, pose)] } },
+    palettes: { default: {} },
+    height: 0,
+    icon: '',
+  };
+  return poseBounds(art, samplePose(art, 'c', 0, 0))[3];
+}
+
+/**
+ * `pose` with one leg lifted to clear the floor by `clear`: its ankle raised (only) as far as the leg's lowest point
+ * reaches under the floor, the knee on the side that turns the leg least, the boot at the angle it had.
+ */
+export function clearLeg(pose: Pose, side: 'B' | 'F', clear = 0.1): Pose {
+  const raise = legUnder(pose, side) + clear;
+  if (raise <= 0) return pose;
+  const [thigh, shin, foot] = [`thigh${side}`, `shin${side}`, `foot${side}`];
+  const [ax, ay] = pointOf(rig, pose, foot);
+  const was = worldRot(pose);
+  const [one, other] = ([1, -1] as const).map((bend) =>
+    reach(rig, pose, thigh, shin, FOOT, [ax, ay - raise], bend),
+  ) as [Pose, Pose];
+  const off = (q: Pose) => Math.abs(nearest(worldRot(q)[thigh]! - was[thigh]!, 0));
+  const legs = off(one) <= off(other) ? one : other;
+  return mix(legs, {
+    [foot]: { rot: (pose[foot]?.rot ?? 0) - nearest(worldRot(legs)[shin]! - was[shin]!, 0) },
+  });
+}
+
+/**
+ * A step `t` of the way from `a` to `b`: `between` them, with the stepping leg's ankle on the straight line between
+ * where the two put it, lifted to clear the floor by `clear`, so the boot travels over the floor and the shin swings
+ * evenly.
+ */
+export function stepping(a: Pose, b: Pose, t: number, side: 'B' | 'F', clear = 0.1): Pose {
+  const p = between(a, b, t);
+  const [thigh, shin, foot] = [`thigh${side}`, `shin${side}`, `foot${side}`];
+  const [[x0, y0], [x1, y1]] = [pointOf(rig, a, foot), pointOf(rig, b, foot)];
+  const ankle: Pt = [x0 + (x1 - x0) * t, Math.min(y0 + (y1 - y0) * t, -ANKLE - clear)];
+  const was = worldRot(p);
+  const [one, other] = ([1, -1] as const).map((bend) => reach(rig, p, thigh, shin, FOOT, ankle, bend)) as [
+    Pose,
+    Pose,
+  ];
+  const off = (q: Pose) => Math.abs(nearest(worldRot(q)[thigh]! - was[thigh]!, 0));
+  const legs = off(one) <= off(other) ? one : other;
+  return mix(legs, { [foot]: { rot: (p[foot]?.rot ?? 0) - nearest(worldRot(legs)[shin]! - was[shin]!, 0) } });
+}
+
+/**
+ * `clip` with an in-between key on each of `at`'s frames: the clip's own drawing there with that leg passing over
+ * the floor (`clearLeg`, clearing it by the entry's third number when given), for a tween that would sweep the boot
+ * through it.
+ */
+export function passes(clip: AnimClip, at: [number, 'B' | 'F', number?][]): AnimClip {
+  const frames = [...new Set(at.map(([frame]) => frame))];
+  const added = frames.map((frame) => {
+    const legs = at.filter(([f]) => f === frame);
+    return key(
+      frame,
+      legs.reduce((pose, [, side, clear]) => clearLeg(pose, side, clear), poseAt(clip, frame)),
+      { ease: 'linear' },
+    );
+  });
+  const keys = [...clip.keys, ...added].sort((a, b) => a.frame - b.frame);
+  return { ...clip, keys };
+}
+
 /**
  * `clip` keyed on every frame, each one moved up or down (through `body`) so its lowest drawn part (effects left
  * out) rests on the floor. A tween between two planted poses can bend a knee through the floor or lift the boots
  * off it; keying every frame on the floor stops that. With `settle` false a frame is only ever lifted, never
- * lowered, for clips that leave the floor on purpose. Swaps, draw orders and step keys stay on their frames.
+ * lowered, for clips that leave the floor on purpose, and a leg a tween sweeps through the floor first gets a
+ * passing key (`autoPasses`), so the lift that's left is small. Swaps, draw orders and step keys stay on their
+ * frames.
  */
 export function onFloor(clip: AnimClip, settle = true): AnimClip {
+  if (!settle && !clip.loop) clip = autoPasses(clip);
   const body = rig.slots.filter((s) => !FX_SLOTS.has(s.name));
   const art: FighterArt = { rig, clips: { clip }, palettes: { default: {} }, height: 0, icon: '' };
   const measure: FighterArt = { ...art, rig: { ...rig, slots: body } };

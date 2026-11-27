@@ -20,12 +20,15 @@ import {
   leg,
   mix,
   onFloor,
+  passes,
   shortTurns,
   stanceWith,
+  stepping,
   soles,
   tuck,
   type Pt,
 } from './poses';
+import { DOWN } from './tech';
 
 /**
  * Johnny's normals, keyed on his frame data (src/fighters/johnny/moves.ts): frames use Smash numbering (frame 1 is
@@ -243,6 +246,11 @@ const SWEEP_BASE = fist(
 );
 const DSMASH_1 = leg(SWEEP_BASE, 'F', [8.9, -1.6], 4, 1.6);
 const DSMASH_1_HIT = mix(DSMASH_1, { fx1: star([11, -3], 1.4), fx2: trail([4.0, -2.8], [10.7, -3.0], 1.4) });
+/**
+ * The near leg folded under him on its way back to the stance after the second sweep, the knee bowed out as in the
+ * stance it steps into.
+ */
+const DSMASH_PASS = leg(stanceWith(READY, { hip: { y: 1.0 } }), 'F', [0.2, -2.0], 20, 0.55, -1);
 /** The near boot planted in front again after the first sweep. */
 const SWEEP_2 = tuck(SWEEP_BASE, 'F', [3.2, -0.55], 0);
 const DSMASH_2 = mix(leg(SWEEP_2, 'B', [-8.9, -1.6], 184, 1.6, -1), { footB: { sy: -1 } });
@@ -337,21 +345,15 @@ const STOMP = fist(
 const STOMP_HIT = mix(STOMP, { fx1: star([1, 0.4], 1.3), fx2: trail([1.0, -6.0], [1.0, 0.2], 1.6) });
 
 // --- Getup attack: flat on his back, he sits up kicking in front, then sweeps behind. ----------------------
-/** Hands flat on the floor beside him: the hand points sit a fist's half-width up. */
-const LIE = hands(
-  tuck(tuck({ body: { rot: -90, y: 5.5 } }, 'B', [8.0, -0.6], 0), 'F', [7.4, -0.6], 0),
-  [1.4, -1.6],
-  [-1.6, -1.6],
-);
 const SIT = hands(
   tuck(tuck({ body: { rot: -16, x: -1.0 }, hip: { y: 2.8 } }, 'B', [4.4, -0.55], 0), 'F', [2.6, -0.55], 0),
-  [-0.8, -0.6],
-  [-4.2, -0.6],
+  [-0.8, -1.6],
+  [-4.2, -1.6],
 );
 const ROLL_UP = hands(
   tuck(tuck({ body: { rot: -55, y: 4.4 } }, 'B', [6.0, -0.55], 0), 'F', [5.2, -0.55], 0),
-  [-0.6, -0.6],
-  [-3.4, -0.6],
+  [-0.6, -1.6],
+  [-0.2, -4.4],
 );
 const GETUP_1 = leg(SIT, 'F', [8.6, -2.6], 0, 1.6);
 const GETUP_1_HIT = mix(GETUP_1, { fx1: star([9, -3], 1.4), fx2: trail([3.6, -2.8], [8.8, -3.0], 1.4) });
@@ -616,7 +618,7 @@ const clips: Record<string, AnimClip> = {
     active: [[14, 17]],
     swaps: { ...GRIT, ...FISTS },
     keys: [
-      key(0, READY, { ease: 'out' }),
+      key(0, READY, { ease: 'linear' }),
       key(6, leg(AXE_BASE, 'F', [1.8, -9.0], -40, 1.1), { ease: 'in', z: FRONT_LEG }),
       key(12, UTILT_UP, { ease: 'in' }),
       ...strike(13, 17, UTILT_HIT, { ...HIT, ...SHOUT }),
@@ -708,7 +710,10 @@ const clips: Record<string, AnimClip> = {
       done(27),
       key(34, DSMASH_2, { ease: 'inOut' }),
       key(40, pass(SWEEP_2, 'B', [0.6, -2.0]), { ease: 'inOut' }),
-      key(44, pass(stanceWith(READY, { hip: { y: 1.0 } }), 'F', [0.2, -2.0]), { ease: 'linear' }),
+      key(44, DSMASH_PASS, { ease: 'linear' }),
+      // The near boot comes down over the floor into the stance.
+      key(46, stepping(DSMASH_PASS, READY, 0.5, 'F'), { ease: 'linear' }),
+      key(47, stepping(DSMASH_PASS, READY, 0.75, 'F'), { ease: 'linear' }),
       key(48, READY),
     ],
   },
@@ -816,8 +821,9 @@ const clips: Record<string, AnimClip> = {
     ],
     swaps: { ...GRIT, ...FISTS },
     keys: [
-      key(0, LIE, { ease: 'inOut' }),
-      key(8, ROLL_UP, { ease: 'in' }),
+      // From his knocked-down pose (tech.ts), as the `down` clip draws him.
+      key(0, DOWN, { ease: 'inOut' }),
+      key(8, ROLL_UP, { ease: 'linear' }),
       key(13, SIT, { ease: 'in' }),
       ...strike(16, 18, GETUP_1_HIT, { ...HIT, ...SHOUT }, FRONT_LEG),
       done(19),
@@ -950,6 +956,8 @@ const clips: Record<string, AnimClip> = {
     keys: [
       key(0, READY, { ease: 'out' }),
       key(4, DASH_WIND, { ease: 'linear' }),
+      // The far boot steps forward over the floor into the burst.
+      key(5, stepping(DASH_WIND, BURST, 0.6, 'B'), { ease: 'linear' }),
       key(6, BURST_FX, { ease: 'linear', swaps: { fxBack: 'smear', ...SHOUT } }),
       key(14, fist(stanceWith(BURST_FX, { body: { rot: 32 } }), 'B', [5.0, -8.6]), { ease: 'in' }),
       ...strike(15, 19, DASH_PUNCH_HIT, { ...HIT, fxBack: 'smear', ...SHOUT }),
@@ -983,12 +991,41 @@ const clips: Record<string, AnimClip> = {
 const AIRBORNE = new Set(['nair', 'fair', 'bair', 'uair', 'dair', 'upB']);
 
 /**
- * Every clip's keys keep the elbows on their side and turn the short way. The grounded ones are keyed on every frame, lifted wherever a tween between
- * two planted poses would dip a boot into the floor.
+ * Frames where a tween between two planted poses sweeps a boot through the floor, and which leg: each gets an
+ * in-between key with that boot passing over it (poses.ts `passes`).
+ */
+const PASSES: Record<string, [number, 'B' | 'F', number?][]> = {
+  ftilt: [
+    [2, 'B'],
+    [22, 'B'],
+  ],
+  utilt: [
+    [2, 'B'],
+    [4, 'B'],
+    [25, 'B'],
+    [33, 'F'],
+  ],
+  dtilt: [[26, 'B']],
+  dashGrab: [[32, 'B']],
+  pivotGrab: [[30, 'B']],
+  dthrow: [
+    [18, 'B'],
+    [19, 'B'],
+    [19, 'F'],
+    [35, 'B'],
+  ],
+};
+
+/**
+ * Every clip's keys keep the elbows on their side and turn the short way. The grounded ones get their passing keys
+ * and are keyed on every frame, lifted wherever a tween between two planted poses would still dip a boot into the
+ * floor.
  */
 export const attacks: Record<string, AnimClip> = Object.fromEntries(
   Object.entries(clips).map(([name, clip]) => {
     const short = { ...clip, keys: shortTurns(elbows(clip.keys)) };
-    return [name, AIRBORNE.has(name) ? short : onFloor(short, false)];
+    if (AIRBORNE.has(name)) return [name, short];
+    const passed = passes(short, PASSES[name] ?? []);
+    return [name, onFloor({ ...passed, keys: shortTurns(passed.keys) }, false)];
   }),
 );

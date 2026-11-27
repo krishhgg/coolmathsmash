@@ -122,8 +122,9 @@ function stride(
   farSole: number,
   fistF: Pt,
   fistB: Pt,
+  nearKnee: 1 | -1 = 1,
 ): Pose {
-  const legs = feet(mix(STRIDE, body), far, near, 1);
+  const legs = feet(mix(STRIDE, body), far, near, nearKnee);
   return hands(soles(legs, farSole, nearSole), fistB, fistF, -1, 1);
 }
 
@@ -139,7 +140,7 @@ const RUN_LEG: [Pt, number, number][] = [
   [[-2.0, -2.4], 55, 1.05],
   [[-4.4, -2.7], 130, 1.15],
   [[-5.0, -2.3], 160, 1.15],
-  [[-1.8, -4.3], 115, 1.1],
+  [[-1.8, -4.3], 95, 1.1],
   [[2.0, -2.8], 20, 1.0],
   [[3.4, -1.1], -12, 1.05],
 ];
@@ -273,6 +274,7 @@ const BRAKE_SKID = stride(
   0,
   [-4.0, -8.8],
   [0.4, -10.6],
+  -1,
 );
 /** Stopped, the near boot still ahead. */
 const BRAKE_SET = stride(
@@ -283,10 +285,21 @@ const BRAKE_SET = stride(
   0,
   [-3.6, -8.0],
   [1.4, -9.2],
+  -1,
 );
-/** Stepping the near boot back under him into his stance, the knee lifting it clear of the floor. */
+/**
+ * Stepping the near boot back under him into his stance, the knee lifting it clear of the floor. Through the brake
+ * the near knee bows out, as in his stance, so it doesn't change sides while the leg is folded.
+ */
 const BRAKE_STEP = hands(
-  leg(feet(mix(STRIDE, { body: { rot: -3 }, hip: { y: 0.5 } }), [1.0, 0], [0.4, 0], 1), 'F', [0.2, -1.2], 10),
+  leg(
+    feet(mix(STRIDE, { body: { rot: -3 }, hip: { y: 0.5 } }), [1.0, 0], [0.4, 0], -1),
+    'F',
+    [0.2, -1.2],
+    10,
+    1,
+    -1,
+  ),
   [5.0, -8.8],
   [-3.6, -8.4],
   -1,

@@ -55,7 +55,7 @@ function lying(breath: number, loll: number): Pose {
   );
   return grounded(hands(legs, [-5.6, -1.0], [2.0, -4.4 - 0.3 * breath], 1, 1));
 }
-const DOWN = lying(0, 0);
+export const DOWN = lying(0, 0);
 
 /**
  * The superhero landing: down on the near knee, the far boot planted ahead, the near fist punched into the floor and

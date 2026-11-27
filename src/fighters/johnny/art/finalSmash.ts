@@ -13,6 +13,7 @@ import {
   SMIRK,
   STANCE,
   between,
+  clearLeg,
   elbows,
   feet,
   fist,
@@ -134,7 +135,7 @@ function dashClip(): AnimClip {
     // Lifting off as the boots light: already a third of the way into the flight.
     at(
       40,
-      mix(between(mix(LAUNCH, { body: { rot: 18, x: -0.8 } }), flight(0), 0.3), aura(0.25)),
+      mix(clearLeg(between(mix(LAUNCH, { body: { rot: 18, x: -0.8 } }), flight(0), 0.3), 'F'), aura(0.25)),
       { ...GRIT, ...FISTS, ...JETS },
       'in',
     ),
@@ -146,7 +147,12 @@ function dashClip(): AnimClip {
     key(dash.to, FLIGHT_FX(0), { ease: 'linear' }),
     key(dash.to + 1, undefined, { swaps: { ...SHOUT, ...FISTS, ...JETS } }),
     // Swinging his legs down under him over three frames to touch down.
-    at(dash.to + 2, between(flight(0), TOUCHDOWN, 0.7), { ...GRIT, ...FISTS, ...SMALL_JETS }, 'linear'),
+    at(
+      dash.to + 2,
+      clearLeg(between(flight(0), TOUCHDOWN, 2 / 3), 'B', -0.4),
+      { ...GRIT, ...FISTS, ...SMALL_JETS },
+      'linear',
+    ),
     key(dash.to + 3, TOUCHDOWN, { ease: 'out' }),
     key(dash.to + 5, BRAKE, { ease: 'out' }),
     at(dash.to + 9, BRAKE, { ...GRIT, ...FISTS }, 'inOut'),
