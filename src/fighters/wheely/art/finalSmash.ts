@@ -52,7 +52,10 @@ const RUN_UP = -10;
 const CONTACT: [number, number] = [10.4, -5.6];
 
 /** The turbo jet (fxBack) out of the pipe, `s` times its drawn length. */
-const jet = (pose: Pose, s: number) => fxOn(pose, 'fx4', EXHAUST, s);
+const jet = (pose: Pose, s: number, flat?: number) =>
+  flat === undefined
+    ? fxOn(pose, 'fx4', EXHAUST, s)
+    : fxOn(pose, 'fx4', EXHAUST, s, -(pose.body?.rot ?? 0), s * flat);
 /** The box out on move frame `frame` (THROTTLE_BOXES); before the window, the first one. */
 const boxOn = (frame: number) => THROTTLE_BOXES.find((b) => b.frame === frame) ?? THROTTLE_BOXES[0]!;
 
@@ -67,8 +70,14 @@ function wave(pose: Pose, frame: number): Pose {
 }
 /** Speed lines (fx3) streaming off the tail. */
 const lines = (pose: Pose, s: number) => fxOn(pose, 'fx3', [-8.9, 0], s);
-/** A backfire flame (`fx`, fxFlame) out of the pipe. */
-const backfire = (pose: Pose, s: number, fx = 'fx1') => fxOn(pose, fx, EXHAUST, s);
+/**
+ * A backfire flame (`fx`, fxFlame) out of the pipe. With `flat`, it blasts straight back along the floor at that
+ * share of its height, for a pipe brought down near the floor (as `jet` does for the turbo).
+ */
+const backfire = (pose: Pose, s: number, fx = 'fx1', flat?: number) =>
+  flat === undefined
+    ? fxOn(pose, fx, EXHAUST, s)
+    : fxOn(pose, fx, EXHAUST, s, -(pose.body?.rot ?? 0), s * flat);
 /** Horn waves (`fx`, fxHonk) opening forward from the horn. */
 const horn = (pose: Pose, s: number, fx = 'fx2') => fxOn(pose, fx, [HORN[0] + 0.5, HORN[1]], s);
 
@@ -164,10 +173,20 @@ function activation(air: boolean): AnimClip {
   const annoyed = (rot: number, s: number, hop: number) =>
     horn(mix(nose(rot, 0, -hop), squash(1 + hop * 0.04, 1 - hop * 0.03)), s, 'fx3');
   keys.push(
-    key(POP, backfire(jet(mix(nose(-7, -0.6), squash(0.94), air ? {} : bob(0.4), spin(200)), 0.9), 1.6), {
-      ease: 'linear',
-      swaps: { ...SHOUT, ...BLUR, fxBack: 'fxTurbo', fx1: 'fxFlame', fx2: null, fx3: null, prop: null },
-    }),
+    // Reared nose-up, the pipe is a unit off the floor: the jet and the flame flatten along it.
+    key(
+      POP,
+      backfire(
+        jet(mix(nose(-7, -0.6), squash(0.94), air ? {} : bob(0.4), spin(200)), 0.9, 0.7),
+        1.6,
+        'fx1',
+        0.65,
+      ),
+      {
+        ease: 'linear',
+        swaps: { ...SHOUT, ...BLUR, fxBack: 'fxTurbo', fx1: 'fxFlame', fx2: null, fx3: null, prop: null },
+      },
+    ),
     key(POP + 1, dash(POP + 1, 1.5, 1.2, 500, 1), { ease: 'linear', swaps: dashSwaps }),
     key(POP + 2, dash(POP + 2, 1, 1.6, 900, 1.1), { ease: 'linear' }),
     key(POP + 3, dash(POP + 3, 1.5, 1.8, 1300, 1.15), { ease: 'linear' }),
