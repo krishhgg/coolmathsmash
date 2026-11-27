@@ -658,8 +658,8 @@ describe('dodges', () => {
     const speeds = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((n) => r.step(n).x);
     const expected = speeds.map((_, i) => Math.max(slide.speed_fresh - i * slideBrake, slide.end_speed));
     expect(slideBrake).toBeCloseTo(0.39875, 10);
-    expect(speeds).toEqual(expected.map((v) => expect.closeTo(v, 6)));
-    expect(speeds.slice(-3)).toEqual([1.3, 1.3, 1.3].map((v) => expect.closeTo(v, 6)));
+    speeds.forEach((v, i) => expect(v, `frame ${i + 3}`).toBeCloseTo(expected[i]!, 6));
+    for (const v of speeds.slice(-3)) expect(v).toBeCloseTo(slide.end_speed, 6);
     // No gravity yet: it slides level.
     expect(r.path.slice(0, 14).map((p) => p.y)).toEqual(new Array(14).fill(0));
   });

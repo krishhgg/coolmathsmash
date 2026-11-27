@@ -52,7 +52,7 @@ Donkey Kong, Bowser, Fox, Jigglypuff) and adjust.
 | `ledgeJumpHeight`                                        | apex of a ledge jump                                                        | 36               | 38.165              |                  |
 | `softLandingLag`, `hardLandingLag`                       | landing lag after short / long airtime                                      | 1, 3             | 1, 3                |                  |
 | `shieldSize`                                             | shield bubble radius at full health                                         | 9                | 9.7                 | 8–18.5           |
-| `rollDistance`, `airDodgeSpeed`                          | roll distance, directional air dodge speed                                  | 28, 2.8          | 32.17, 2.8          | 26.5–39.7 (roll) |
+| `rollDistance`                                           | roll distance                                                               | 28               | 32.17               | 26.5–39.7 (roll) |
 | `backRollDistance` (optional)                            | back roll distance out of shield; defaults to `rollDistance`                | (default)        | 30.63               | 26.4–36.6        |
 
 Jump velocities are derived from the heights (`src/sim/physics.ts`), so you give heights, not speeds.
