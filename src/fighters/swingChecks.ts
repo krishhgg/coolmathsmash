@@ -6,6 +6,7 @@ import {
   type Finding,
   type SwingChecks,
 } from '../render/rig/swingChecks';
+import { LEDGE_ATTACK, LEDGE_CLIMB, LEDGE_ROLL } from '../sim/constants';
 import { swingChecks as bob } from './bob-the-robber/art/swings';
 import { swingChecks as fluffy } from './fluffy/art/swings';
 import { allFighters } from './registry';
@@ -44,6 +45,16 @@ const AIR = new Set([
   'shieldBreak',
 ]);
 
+/**
+ * The ledge getups stand on the stage from the frame the engine finishes moving them there (src/sim/actions/ledge.ts),
+ * so the floor check runs on them from that frame.
+ */
+const LEDGE_LANDS: Record<string, number> = {
+  ledgeClimb: LEDGE_CLIMB.moveEnd,
+  ledgeRoll: LEDGE_ROLL.moveEnd,
+  ledgeAttack: LEDGE_ATTACK.moveEnd,
+};
+
 const inAir = (def: FighterDef, clip: string) =>
   AIR.has(clip) || def.moves?.[clip]?.kind === 'aerial' || /Air/.test(clip);
 
@@ -56,10 +67,13 @@ export function swingChecksFor(id: string, def: FighterDef): SwingChecks {
   const own = OWN[id];
   const named = new Set([...(own?.ground ?? []), ...(own?.air ?? [])]);
   const rest = Object.keys(art?.clips ?? {}).filter((clip) => !named.has(clip));
+  const air = [...(own?.air ?? []), ...rest.filter((clip) => inAir(def, clip))];
+  const lands = Object.entries(LEDGE_LANDS).filter(([clip]) => air.includes(clip));
   return {
     ...own,
     ground: [...(own?.ground ?? []), ...rest.filter((clip) => !inAir(def, clip))],
-    air: [...(own?.air ?? []), ...rest.filter((clip) => inAir(def, clip))],
+    air,
+    groundFrom: { ...Object.fromEntries(lands), ...own?.groundFrom },
   };
 }
 
