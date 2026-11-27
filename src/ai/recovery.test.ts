@@ -299,3 +299,65 @@ describe('recoveries the planner missed, from spots the sim can get back from', 
     60_000,
   );
 });
+
+describe('recovering to a ledge an opponent holds', () => {
+  /**
+   * Fluffy falling at (x, y) beside Battlefield's left ledge with his double jump used, while Johnny hangs from that
+   * ledge: how a level 9 CPU's run ends.
+   */
+  function pastHolder(x: number, y: number, seed: number): string {
+    const m = createMatch({
+      seed: 1,
+      stage: 'battlefield',
+      stocks: 3,
+      ports: [{ fighter: 'fluffy' }, { fighter: 'johnny' }],
+    });
+    for (let i = 0; i < 10; i++) stepMatch(m, [neutralInput(), neutralInput()]);
+    const f = m.fighters[0]!;
+    const o = m.fighters[1]!;
+    Object.assign(o, {
+      pos: { x: -85, y: -12 },
+      prevPos: { x: -85, y: -11 },
+      vel: { x: 0, y: -1 },
+      ground: null,
+      action: 'fall',
+      actionFrame: 5,
+      facing: 1,
+      jumpsUsed: 2,
+    });
+    for (let i = 0; i < 20 && o.action !== 'ledgeHang'; i++) stepMatch(m, [neutralInput(), neutralInput()]);
+    expect(o.action).toBe('ledgeHang');
+    Object.assign(f, {
+      pos: { x, y },
+      prevPos: { x, y: y + 0.5 },
+      vel: { x: 0, y: -0.5 },
+      ground: null,
+      action: 'fall',
+      actionFrame: 5,
+      facing: 1,
+      jumpsUsed: 2,
+      airDodgeUsed: false,
+    });
+    const cpu = createCpu({ port: 0, level: 9, seed });
+    for (let i = 0; i < 400; i++) {
+      stepMatch(m, [cpu.input(m), neutralInput()]);
+      if (f.stocks < 3) return 'ko';
+      if (f.ground !== null || f.action === 'ledgeHang') return 'back';
+    }
+    return 'stuck';
+  }
+
+  // Quick Grapple's line doesn't latch onto a ledge someone holds (tether.ts). The planner tried its plans with only
+  // Fluffy in the copy of the match, so the held ledge looked free: he grappled, missed and fell. With Johnny in the
+  // copy, the grapple fails there too, and Fluffy air dodges onto the stage, or to the ledge and trumps Johnny.
+  it.each([
+    [-92, -10],
+    [-100, -20],
+  ])(
+    'a level 9 Fluffy with no jump left gets back from (%d, %d) on every seed while Johnny holds the ledge',
+    (x, y) => {
+      expect([1, 2, 3, 4].map((seed) => pastHolder(x, y, seed))).toEqual(['back', 'back', 'back', 'back']);
+    },
+    60_000,
+  );
+});
