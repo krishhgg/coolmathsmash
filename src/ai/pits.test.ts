@@ -19,10 +19,14 @@ describe('stages with a pit between their ends', () => {
   // Level 9 against level 9 on Bloxorz Platform (src/ai/bench.ts). Before, a CPU short hopped an aerial toward its
   // opponent across the hole: Red Ball's down air from x -27 dropped him through it on frame 382 and he was KO'd on
   // frame 565. Bloxorz's down air drifted over it until the CPU dropped the aerial to recover, which turned the drift
-  // around above the hole (KO'd on frame 2604 here before, and on frame 3166 with only the calm check).
+  // around above the hole (KO'd on frame 2604 here before, and on frame 3166 with only the calm check). In seed 4
+  // Fireboy, falling from the respawn platform, air dodges over the hole on frame 2790; the recovery planned during the
+  // dodge got nowhere, and he followed it under the left board and past the ledge (KO'd on frame 2975) instead of
+  // planning again once he could act, which reaches the ledge.
   it.each([
     [2, ['redball', 'runner'], 2372],
     [2, ['wheely', 'bloxorz'], 3166],
+    [4, ['fireboy', 'bloxorz'], 2975],
   ] as const)(
     'keep level 9 CPUs out of the hole in bench match seed %d, %j',
     (seed, fighters, last) => {
