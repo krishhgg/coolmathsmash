@@ -721,7 +721,10 @@ function clingRun(from: number, to: number): Key[] {
   return keys;
 }
 
-/** The ledge attack's sweep: low and long, the far foot skimming the floor in front of the ledge. */
+/**
+ * The ledge attack's sweep: low and long, the far foot skimming the floor in front of the ledge, the near leg
+ * stretched back along it.
+ */
 const LEDGE_SWEEP = hitting(
   P({
     x: 0.4,
@@ -729,7 +732,7 @@ const LEDGE_SWEEP = hitting(
     rot: -28,
     legs: [
       [7.4, -0.9],
-      [-1.0, 0],
+      [-2.6, -0.4],
     ],
     raw: { thighB: { sy: 1.2 }, shinB: { sy: 1.2 } },
     arms: [
@@ -738,8 +741,13 @@ const LEDGE_SWEEP = hitting(
     ],
     ant: [-22, -16],
   }),
-  ['shinB', [8.2, -1.2], 1.6],
+  ['shinB', [8.2, -1.5], 1.6],
 );
+/** Halfway up out of the sweep into the crouch, rising as the near leg comes in under her over the floor. */
+const SWEEP_UP = (() => {
+  const mid = between(LEDGE_SWEEP, CROUCH, 0.5);
+  return clearLeg(mix(mid, { body: { y: (mid.body?.y ?? 0) - 0.6 } }), 'F', 0.1);
+})();
 
 /** Grabs: both arms thrown forward. */
 const reach = (x: number): Pose =>
@@ -1735,6 +1743,7 @@ export const attacks: Record<string, AnimClip> = {
       ),
       ...strike(19, 23, LEDGE_SWEEP, { ...STREAK1, ...SHOUT }),
       done(30, LEDGE_SWEEP),
+      key(36, SWEEP_UP),
       key(42, CROUCH, { swaps: FACE }),
       key(LEDGE_ATTACK.faf - 1, STAND),
     ],
