@@ -337,19 +337,22 @@ function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
       if (crossing(prev.y - yPrev, f.pos.y - yNow)) return { kind: 'solid', index: stage.edges.indexOf(e) };
       continue;
     }
-    // The step ends past the floor's end: it still lands if its path went down through the floor on the way (a swept
-    // test). Without this, a fall past the top of a slope slipped under the corner where the slope meets the next
-    // floor: neither floor holds the step's end above and below it (Forest Temple's dip). The fighter lands where its
-    // path crossed. A fall past a ledge corner that stays outside the floor's ends crosses no floor, and goes on down.
-    // A step that starts on the floor and leaves past its end (running off the top of a slope onto the flatter floor
-    // beyond) doesn't pass through it: the path must start above the floor's line and cross it inside its ends.
+    // The step ends past the floor's end, over a floor that continues it (connectedFloor): it still lands if its path
+    // went down through this floor on the way (a swept test). Without this, a fall past the top of a slope slipped
+    // under the corner where the slope meets the next floor: neither floor holds the step's end above and below it
+    // (Forest Temple's dip). The fighter lands where its path crossed. Only where two floors meet: a floor that ends at
+    // a wall or a ledge is left to the walls and pushOffCorner as before. A step that starts on the floor and leaves
+    // past its end (running off the top of a slope onto the flatter floor beyond) doesn't pass through it: the path
+    // must start above the floor's line and cross it inside its ends.
+    const ref: GroundRef = { kind: 'solid', index: stage.edges.indexOf(e) };
+    if (!connectedFloor(stage, ref, f.pos.x)) continue;
     const dPrev = prev.y - floorY(e, prev.x);
     const dNow = f.pos.y - floorY(e, f.pos.x);
     if (dPrev <= EPS || dNow >= 0) continue;
     const xi = prev.x + (f.pos.x - prev.x) * (dPrev / (dPrev - dNow));
     if (xi <= edgeMinX(e) || xi >= edgeMaxX(e)) continue;
     f.pos.x = xi;
-    return { kind: 'solid', index: stage.edges.indexOf(e) };
+    return ref;
   }
   if (movingDown) {
     const passing = passesPlatforms(x);
