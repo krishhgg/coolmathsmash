@@ -106,7 +106,8 @@ function clip(base: (lean?: number, x?: number) => Pose, settle: Pose): AnimClip
     swaps: { ...ANGRY },
     keys: continuous(
       [
-        key(0, settle, { ease: 'out' }),
+        // Evenly into the draw: eased, the air version's arm would turn 74 degrees in the first frame.
+        key(0, settle, { ease: 'linear' }),
         key(4, draw, { ease: 'inOut', swaps: { ...ANGRY, ...TASER } }),
         key(10, raise, { ease: 'out', z: FRONT_ARM_OVER_HEAD }),
         key(14, atProngs(aimed, 0, 1.1), { ease: 'inOut', swaps: { ...ANGRY, ...TASER, fx1: 'zapCrackle' } }),

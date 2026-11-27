@@ -14,6 +14,7 @@ import {
   SHOUT,
   SIDE,
   WIDE,
+  between,
   continuous,
   feet,
   floor,
@@ -164,8 +165,10 @@ function lightsOut(air: boolean, length: number): AnimClip {
       z: {},
     }),
     key(52, mix(crouch(air, 0.2), pool(air, 1)), { ease: 'inOut' }),
-    key(60, mix(crouch(air, 0.1), pool(air, 1.05)), { ease: 'in' }),
-    key(from - 1, mix(crouch(air, 1), pool(air, 1.1)), { ease: 'linear' }),
+    key(60, mix(crouch(air, 1), pool(air, 1.05)), { ease: 'in' }),
+    // Springing out of the coil, halfway to the dash: from the full coil, the baton would turn 165 degrees and
+    // the arms and legs up to 139 in the one frame into it.
+    key(from - 1, mix(between(crouch(air, 1), dash(air), 0.5), pool(air, 1.1)), { ease: 'linear' }),
     // Out of the shadow it goes "poof" behind him as he goes.
     key(from, mix(dash(air), { fx4: fx(-3.4, 0.4, 0, 0.9) }), {
       ease: 'out',
@@ -176,7 +179,8 @@ function lightsOut(air: boolean, length: number): AnimClip {
       ease: 'inOut',
       swaps: { ...SHOUT, ...BATON },
     }),
-    key(to, dash(air, 0.6), { ease: 'out' }),
+    // Evenly into the skid: eased, the back forearm would turn 66 degrees in its first frame.
+    key(to, dash(air, 0.6), { ease: 'linear' }),
     key(to + 4, skid(air, 0), { ease: 'out', swaps: { ...WIDE, ...BATON } }),
     key(to + 12, skid(air, 3), { ease: 'inOut' }),
   ];
@@ -199,7 +203,7 @@ function lightsOut(air: boolean, length: number): AnimClip {
       key(length - 6, swing(READY, [2.6, -5.0], 40), { ease: 'inOut', swaps: SIDE }),
       key(length, settle),
     );
-  return { length, active: [[from, to]], swaps: SIDE, keys: continuous(keys) };
+  return { length, active: [[from, to]], swaps: SIDE, keys: continuous(keys, { onScreen: true }) };
 }
 
 // The cinematic --------------------------------------------------------------------------------------------------

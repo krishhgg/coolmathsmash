@@ -286,7 +286,11 @@ const UAIR_TOP = (deg: number) =>
 
 const DAIR_TUCK = mix(TUCK, { hip: { y: -1.0 }, thighF: { rot: -110 }, thighB: { rot: -85 } });
 const DAIR_UP = aim(hands(DAIR_TUCK, [-1.6, -9.6], [-0.6, -10.0]), 'sackH', 125);
-const DAIR_HIT = aim(hands(DAIR_TUCK, [0.9, -4.6], [1.6, -4.8], -1), 'sackH', 0);
+/**
+ * The sack slammed down under his feet at full stretch, clear of his body, so it can come in front of him for the
+ * hit without jumping across it. Held at his belly, it covered his body on both sides of the swap.
+ */
+const DAIR_HIT = aim(reachB(hands(DAIR_TUCK, [1.6, -0.9], [1.6, -4.8], -1), [1.6, -0.9]), 'sackH', 90);
 
 // Grabs and throws --------------------------------------------------------------------------------------------
 
@@ -657,42 +661,55 @@ export const attacks: Record<string, AnimClip> = {
     length: 35,
     active: [[7, 9]],
     swaps: { ...ANGRY, ...BATON },
-    keys: [
-      key(0, swing(AIR, [2.4, -6.4], -50), { ease: 'out', z: FRONT_ARM_OVER_HEAD }),
-      key(4, FAIR_UP, { ease: 'in' }),
-      strikeKey(7, trail(FAIR_HIT), { ...SHOUT, ...BATON, smear: 'smear90' }, { z: {} }),
-      key(9, trail(FAIR_HIT), { ease: 'out' }),
-      key(14, FAIR_FOLLOW, { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
-      key(35, mix(AIR, {}), { swaps: SIDE }),
-    ],
+    keys: continuous(
+      [
+        // Evenly into the wind-up: eased, the forearm would turn 62 degrees in the first frame.
+        key(0, swing(AIR, [2.4, -6.4], -50), { ease: 'linear', z: FRONT_ARM_OVER_HEAD }),
+        key(4, FAIR_UP, { ease: 'in' }),
+        strikeKey(7, trail(FAIR_HIT), { ...SHOUT, ...BATON, smear: 'smear90' }),
+        key(9, trail(FAIR_HIT), { ease: 'out' }),
+        // Back under his head once the baton is clear of his face: at the hit it still covers it.
+        key(14, FAIR_FOLLOW, { ease: 'inOut', swaps: { ...ANGRY, ...BATON }, z: {} }),
+        key(35, mix(AIR, {}), { swaps: SIDE }),
+      ],
+      { onScreen: true },
+    ),
   },
   bair: {
     length: 37,
     active: [[9, 11]],
     swaps: { ...ANGRY, ...BATON },
-    keys: [
-      key(0, swing(AIR, [2.4, -6.4], -50), { ease: 'out' }),
-      key(5, turned(BAIR_WIND), { ease: 'in' }),
-      strikeKey(9, turned(trail(BAIR_HIT)), { ...SHOUT, ...BATON, smear: 'smear90' }),
-      key(11, turned(trail(BAIR_HIT)), { ease: 'out' }),
-      key(17, turned(swing(AIR, [3.4, -6.4], 40)), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
-      key(26, mix(AIR, { body: { sx: -0.2 } }), { ease: 'out' }),
-      key(37, AIR, { swaps: SIDE }),
-    ],
+    keys: continuous(
+      [
+        // Evenly into the wind-up: eased, the forearm would turn 63 degrees in the first frame.
+        key(0, swing(AIR, [2.4, -6.4], -50), { ease: 'linear' }),
+        key(5, turned(BAIR_WIND), { ease: 'in' }),
+        strikeKey(9, turned(trail(BAIR_HIT)), { ...SHOUT, ...BATON, smear: 'smear90' }),
+        key(11, turned(trail(BAIR_HIT)), { ease: 'out' }),
+        key(17, turned(swing(AIR, [3.4, -6.4], 40)), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
+        key(26, mix(AIR, { body: { sx: -0.2 } }), { ease: 'out' }),
+        key(37, AIR, { swaps: SIDE }),
+      ],
+      { onScreen: true },
+    ),
   },
   uair: {
     length: 33,
     active: [[6, 9]],
     swaps: { ...ANGRY, ...BATON },
-    keys: [
-      key(0, swing(AIR, [2.4, -6.4], -40), { ease: 'out', z: FRONT_ARM_OVER_HEAD }),
-      key(3, UAIR_FRONT, { ease: 'in' }),
-      strikeKey(6, trail(UAIR_TOP(-82), true), { ...SHOUT, ...BATON, smear: 'smear90' }),
-      key(9, trail(UAIR_TOP(-102), true), { ease: 'out' }),
-      key(14, UAIR_TOP(-150), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
-      key(22, swing(AIR, [1.0, -8.0], -120), { ease: 'inOut', z: {} }),
-      key(33, AIR, { swaps: SIDE }),
-    ],
+    keys: continuous(
+      [
+        key(0, swing(AIR, [2.4, -6.4], -40), { ease: 'out', z: FRONT_ARM_OVER_HEAD }),
+        key(3, UAIR_FRONT, { ease: 'in' }),
+        strikeKey(6, trail(UAIR_TOP(-82), true), { ...SHOUT, ...BATON, smear: 'smear90' }),
+        key(9, trail(UAIR_TOP(-102), true), { ease: 'out' }),
+        key(14, UAIR_TOP(-150), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
+        key(22, swing(AIR, [1.0, -8.0], -120), { ease: 'inOut' }),
+        // Back under his head at the end: the baton covers it until frame 28.
+        key(33, AIR, { swaps: SIDE, z: {} }),
+      ],
+      { onScreen: true },
+    ),
   },
   dair: {
     length: 49,
@@ -701,21 +718,26 @@ export const attacks: Record<string, AnimClip> = {
       [17, 22],
     ],
     swaps: { ...ANGRY, ...SACK, handF: 'fist' },
-    keys: [
-      key(0, aim(hands(AIR, [1.0, -6.0], [2.0, -6.4]), 'sackH', 20), { ease: 'out' }),
-      key(8, DAIR_UP, { ease: 'inOut' }),
-      key(11, DAIR_UP, { ease: 'in' }),
-      strikeKey(
-        14,
-        DAIR_HIT,
-        { ...SHOUT, ...SACK, handF: 'fist' },
-        { z: { ...BACK_ARM_IN_FRONT, ...SACK_IN_FRONT } },
-      ),
-      key(16, DAIR_HIT, { ease: 'linear' }),
-      key(22, aim(DAIR_HIT, 'sackH', 8), { ease: 'inOut', swaps: { ...GRIN, ...SACK, handF: 'fist' } }),
-      key(34, aim(hands(AIR, [1.0, -6.0], [2.0, -6.4]), 'sackH', 30), { ease: 'inOut', z: {} }),
-      key(49, AIR, { swaps: SIDE }),
-    ],
+    keys: continuous(
+      [
+        key(0, aim(hands(AIR, [1.0, -6.0], [2.0, -6.4]), 'sackH', 20), { ease: 'out' }),
+        key(8, DAIR_UP, { ease: 'inOut' }),
+        key(11, DAIR_UP, { ease: 'in' }),
+        strikeKey(
+          14,
+          DAIR_HIT,
+          { ...SHOUT, ...SACK, handF: 'fist' },
+          { z: { ...BACK_ARM_IN_FRONT, ...SACK_IN_FRONT } },
+        ),
+        key(16, DAIR_HIT, { ease: 'linear' }),
+        key(22, aim(DAIR_HIT, 'sackH', 8), { ease: 'inOut', swaps: { ...GRIN, ...SACK, handF: 'fist' } }),
+        // Brought back up in front of him, hanging below his chin: at his chest, it covered his face.
+        key(34, aim(hands(AIR, [0.8, -4.6], [2.0, -6.4]), 'sackH', 70), { ease: 'inOut' }),
+        // Back behind him at the end, where the sack is clear of his body.
+        key(49, AIR, { swaps: SIDE, z: {} }),
+      ],
+      { onScreen: true },
+    ),
   },
   grab: floorContact(
     {
@@ -953,32 +975,35 @@ export const attacks: Record<string, AnimClip> = {
       [12, 13],
     ],
     swaps: { ...ANGRY, handF: 'fist', fx1: 'hook' },
-    keys: [
-      key(
-        0,
-        mix(hands(mix(AIR, { body: { rot: 6 } }), [-1.0, -6.0], [-0.6, -4.6], -1), {
-          fx1: fx(-0.4, -3.6, 120),
+    keys: continuous(
+      [
+        key(
+          0,
+          mix(hands(mix(AIR, { body: { rot: 6 } }), [-1.0, -6.0], [-0.6, -4.6], -1), {
+            fx1: fx(-0.4, -3.6, 120),
+          }),
+          { ease: 'in' },
+        ),
+        key(
+          6,
+          mix(hands(mix(AIR, { body: { rot: 8 } }), [-1.0, -6.0], [-1.6, -5.0], -1), {
+            fx1: fx(-1.8, -4.0, 150),
+          }),
+          { ease: 'in' },
+        ),
+        key(9, hookAt(HOOK_THROW, 1.2), {
+          ease: 'linear',
+          swaps: { ...SHOUT, handF: 'handOpen', fx1: 'hook', fx2: 'rope' },
+          z: FRONT_ARM_OVER_HEAD,
         }),
-        { ease: 'in' },
-      ),
-      key(
-        6,
-        mix(hands(mix(AIR, { body: { rot: 8 } }), [-1.0, -6.0], [-1.6, -5.0], -1), {
-          fx1: fx(-1.8, -4.0, 150),
-        }),
-        { ease: 'in' },
-      ),
-      key(9, hookAt(HOOK_THROW, 1.2), {
-        ease: 'linear',
-        swaps: { ...SHOUT, handF: 'handOpen', fx1: 'hook', fx2: 'rope' },
-        z: FRONT_ARM_OVER_HEAD,
-      }),
-      key(12, hookAt(HOOK_THROW, 14), { ease: 'linear' }),
-      key(14, hookAt(HOOK_THROW, 20), { ease: 'out' }),
-      key(16, hookAt(ZIP, 20), { ease: 'in', swaps: { ...GRIN, handF: 'fist', fx1: 'hook', fx2: 'rope' } }),
-      key(30, hookAt(ZIP, 2.5), { ease: 'out' }),
-      key(32, undefined, { swaps: { ...SIDE, fx1: null, fx2: null }, z: {} }),
-      key(45, mix(AIR, { body: { rot: 0 } })),
-    ],
+        key(12, hookAt(HOOK_THROW, 14), { ease: 'linear' }),
+        key(14, hookAt(HOOK_THROW, 20), { ease: 'out' }),
+        key(16, hookAt(ZIP, 20), { ease: 'in', swaps: { ...GRIN, handF: 'fist', fx1: 'hook', fx2: 'rope' } }),
+        key(30, hookAt(ZIP, 2.5), { ease: 'out' }),
+        key(32, undefined, { swaps: { ...SIDE, fx1: null, fx2: null }, z: {} }),
+        key(45, mix(AIR, { body: { rot: 0 } })),
+      ],
+      { onScreen: true },
+    ),
   },
 };
