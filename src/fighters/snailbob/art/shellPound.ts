@@ -100,8 +100,8 @@ const downB: AnimClip = {
     key(31, ball(357, 1, 1, 0.4), { ease: 'inOut' }),
     key(34, ball(352, 1.1, 0.9, 0.6), { ease: 'in' }),
     key(DROP - 1, ball(350, 1.16, 0.84, 0.8), { ease: 'in' }),
-    key(DROP, DROP_POSE, { ease: 'linear', swaps: DROPPING }),
-    key(LATE, DROP_POSE),
+    key(DROP, mix(DROP_POSE, { body: { rot: 360 } }), { ease: 'linear', swaps: DROPPING }),
+    key(LATE, mix(DROP_POSE, { body: { rot: 360 } })),
   ],
 };
 
@@ -188,11 +188,14 @@ const downBLand: AnimClip = {
     key(20, mix(ball(3), starsAt(0.3, -11.2, 3)), { ease: 'inOut' }),
     key(24, mix(ball(-3), starsAt(-0.3, -11.4, 4)), { ease: 'inOut' }),
     key(28, mix(ball(0, 1.06, 0.94), starsAt(0.1, -11.3, 5)), { ease: 'in' }),
-    key(30, mix(POP_OUT, starsAt(3.6, -13.6, 6)), { ease: 'out', swaps: { ...DAZED, fx1: 'stars' } }),
+    key(30, mix(POP_OUT, starsAt(3.6, -13.6, 5.5)), { ease: 'out', swaps: { ...DAZED, fx1: 'stars' } }),
     key(34, mix(WOOZY(1), starsAt(4.4, -14.6, 7)), { ease: 'inOut' }),
     key(38, mix(WOOZY(-1), starsAt(3.8, -14.8, 8)), { ease: 'inOut' }),
     key(42, mix(WOOZY(1), starsAt(4.4, -14.6, 9)), { ease: 'inOut' }),
-    key(44, mix(WOOZY(-1), { neck: { rot: 4 }, head: { rot: -16 } }), { ease: 'inOut', swaps: DETERMINED }),
+    key(44, mix(WOOZY(-1), { neck: { rot: 4 }, head: { rot: -16 } }, starsAt(4.0, -14.7, 9.5)), {
+      ease: 'inOut',
+      swaps: DETERMINED,
+    }),
     key(47, mix(CROUCH, stalks(-10, 10, -4, 12, 0.85)), { ease: 'inOut', swaps: HAPPY }),
     key(LAND_FAF - 1, STAND),
   ],
