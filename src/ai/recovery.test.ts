@@ -207,17 +207,18 @@ describe('recovery plans with a double jump and a special', () => {
   });
 
   // Before, a fighter that started this low used its special on the first frame, before the double jump: Ramp Jump and
-  // the block's up special rose into the stage's side, and the CPU was KO'd from all four on every seed.
+  // the block's up special rose into the stage's side, and the CPU was KO'd from all four on every seed. Wheely can
+  // also get back by drifting further out and Ramp Jumping without the double jump, and some seeds pick that.
   it.each([
-    ['wheely', 115, -50],
-    ['wheely', -115, -50],
-    ['bloxorz', 115, -50],
-    ['bloxorz', -140, -50],
+    ['wheely', 115, -50, ['back JU', 'back U']],
+    ['wheely', -115, -50, ['back JU', 'back U']],
+    ['bloxorz', 115, -50, ['back JU']],
+    ['bloxorz', -140, -50, ['back JU']],
   ] as const)(
-    'a level 9 %s double jumps, then up specials back from (%d, %d) on every seed',
-    (fighter, x, y) => {
+    'a level 9 %s gets back from (%d, %d) on every seed',
+    (fighter, x, y, ok) => {
       const ends = [1, 2, 3, 4, 5].map((seed) => recoveryOrder(fighter, x, y, seed));
-      expect(ends).toEqual(ends.map(() => 'back JU'));
+      expect(ends.filter((e) => !(ok as readonly string[]).includes(e))).toEqual([]);
     },
     60_000,
   );
