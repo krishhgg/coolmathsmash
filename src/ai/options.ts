@@ -2,6 +2,7 @@ import type { HitboxDef } from '../fighters/types';
 import { SHIELD_BREAK_HEIGHT } from '../sim/constants';
 import { derived, type FighterState } from '../sim/fighter';
 import type { EntityState } from '../sim/entities/types';
+import { groundSpan } from '../sim/movement';
 import type { MatchState } from '../sim/match';
 import type { FighterKnowledge, MoveProbe, ProbeFrame } from './knowledge';
 import { AERIALS, TURNING_MOVES } from './inputs';
@@ -132,6 +133,40 @@ function firstHit(
   return null;
 }
 
+/**
+ * How much further than its probe grounded move `p` ends when it starts with the fighter moving at `u` along its
+ * facing: MoveProbe.carried, between the sampled speeds in a straight line, and past the fastest along the last two.
+ * Slower than its own start (a dash move from a slowed dash) adds nothing; moving backward carries it as far the
+ * other way as the same speed forward.
+ */
+export function carriedDx(p: MoveProbe, u: number): number {
+  const s = p.carried;
+  if (s.length === 0) return 0;
+  const first = s[0]!;
+  if (u < first.v) return first.v === 0 && u < 0 ? -carriedDx(p, -u) : first.dx;
+  if (s.length === 1) return first.dx;
+  let i = 1;
+  while (i < s.length - 1 && u > s[i]!.v) i++;
+  const a = s[i - 1]!;
+  const b = s[i]!;
+  return a.dx + ((b.dx - a.dx) * (u - a.v)) / (b.v - a.v);
+}
+
+/**
+ * Where grounded move `p`, started now facing `facing`, leaves `f`: the probe's end, carried further by f's speed
+ * along the facing (carriedDx). A move that keeps the fighter on the ground (MoveProbe.grounded) stops at the end of
+ * the ground it stands on, as the sim stops it (groundSpan), unless the probe's own end is already past it. This is
+ * the end the CPU's safety checks read (Attack.endX, Cpu.groundMoveSafe).
+ */
+export function groundEndX(f: Readonly<FighterState>, info: StageInfo, p: MoveProbe, facing: number): number {
+  const still = f.pos.x + p.endDx * facing;
+  const end = still + carriedDx(p, (f.vel.x + f.kb.x) * facing) * facing;
+  if (!p.grounded || f.ground === null || f.ground.kind === 'entity') return end;
+  const [lo, hi] = groundSpan(info.c, f.ground);
+  if (still < lo || still > hi) return end;
+  return Math.min(hi, Math.max(lo, end));
+}
+
 /** Ground momentum carried into a move: traction slows it each frame. */
 function carry(v: number, friction: number, frames: number): number {
   let d = 0;
@@ -242,7 +277,7 @@ function groundAttacks(me: Self, target: Target, out: Attack[]): void {
         tHit: hit.t,
         box: hit.box,
         busy: delay + p.busy,
-        endX: f.pos.x + p.endDx * facing,
+        endX: groundEndX(f, me.info, p, facing),
         endY: f.pos.y + p.endDy,
         ...(hit.shot && {
           shot: shotOut(hit.shot),
