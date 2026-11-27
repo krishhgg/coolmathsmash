@@ -36,7 +36,7 @@ import {
   worldRot,
   type Pt,
 } from './poses';
-import { attacks, ledgeSweep } from './attacks';
+import { attacks, crouchWith, ledgeSweep } from './attacks';
 import { finalSmashClips } from './finalSmash';
 import { FORE_ARM, SHIN, THIGH, UPPER_ARM, shoe } from './parts';
 import { rig } from './rig';
@@ -298,11 +298,22 @@ const APEX = hands(
 
 /** Braced behind the bubble: crouched, head pulled in, fists up in front of his chest. */
 const SHIELD = hands(
-  feet({ hip: { y: 0.63 }, neck: { y: 0.45, rot: 6 }, body: { rot: 4 } }, floor(-1.6), floor(1.6), true),
+  feet({ hip: { y: 0.63 }, neck: { y: 0.45, rot: 6 }, body: { rot: 4 } }, floor(-1.6), floor(1.6)),
   [1.4, -4.55],
   [3.0, -4.82],
   -1,
 );
+
+/**
+ * Ducked under the spot dodge, facing the camera, hips at `hip`, squashed to `squash` and the hands over his head:
+ * upright, with the feet planted again under the squash.
+ */
+const DUCKED = (hip: number, squash: number, back: Pt, front: Pt): Pose =>
+  hands(
+    feet(mix(CROUCH, { hip: { y: hip }, body: { sy: squash, rot: 0 } }), floor(-1.5), floor(1.6), true),
+    back,
+    front,
+  );
 
 /** A tucked flip: hips up under the chin, knees forward and wrists wrapped around the shins. */
 const BALL = (() => {
@@ -326,6 +337,42 @@ const BALL = (() => {
 
 const flip = (rot: number, y = 0): Pose => mix(BALL, { body: { rot, y } });
 const roll = (rot: number): Pose => grounded(flip(rot));
+
+/**
+ * `a` moved `t` of the way to `b`. Each bone turns the short way round on screen (its own turn plus its parents'),
+ * as `continuous` with `onScreen` tweens it, so a limb whose parts each turn the short way can't swing round the
+ * long way as a whole.
+ */
+function between(a: Pose, b: Pose, t: number): Pose {
+  const out: Pose = {};
+  /** Each bone's angle on screen in `a`, in `b` (taken the short way from `a`) and blended. */
+  const screen: Record<string, [number, number, number]> = {};
+  const at = (u: number, v: number) => u + (v - u) * t;
+  for (const { name, parent } of rig.bones) {
+    const [p, q] = [a[name] ?? {}, b[name] ?? {}];
+    const [fromAbove, toAbove, nowAbove] = parent ? screen[parent]! : [0, 0, 0];
+    const from = fromAbove + (p.rot ?? 0);
+    let to = toAbove + (q.rot ?? 0);
+    to -= 360 * Math.round((to - from) / 360);
+    const now = at(from, to);
+    screen[name] = [from, to, now];
+    out[name] = {
+      x: at(p.x ?? 0, q.x ?? 0),
+      y: at(p.y ?? 0, q.y ?? 0),
+      rot: now - nowAbove,
+      sx: at(p.sx ?? 1, q.sx ?? 1),
+      sy: at(p.sy ?? 1, q.sy ?? 1),
+    };
+  }
+  return out;
+}
+
+/**
+ * Halfway from the crouch into the ball, on the floor: the knees come up and the hands go to the shins over the
+ * frames before the roll, not all in the frame or two after the crouch. The crouch bends both knees forward, as the
+ * ball does; CROUCH bows the back knee out, and tucking from it would swing that leg round through straight.
+ */
+const TUCKING = grounded(between(crouchWith({}), BALL, 0.5));
 
 /** Follow the silhouette's contact point all the way around, rather than rolling on the skeleton pivot. */
 function rollKeys(start: number, end: number, direction: 1 | -1): Key[] {
@@ -355,12 +402,16 @@ function floorRoll(length: number, turned: number, crouch: number): AnimClip {
   return floorContact({
     length,
     swaps: SIDE,
-    keys: continuous([
-      key(0, grounded(mix(CROUCH, { body: { rot: -20 } })), { ease: 'out' }),
-      ...rollKeys(4, turned, 1),
-      key(crouch, mix(grounded(CROUCH), { body: { rot: 360 } }), { ease: 'out' }),
-      key(length, mix(READY, { body: { rot: 360 } })),
-    ]),
+    keys: continuous(
+      [
+        // Evenly into the roll: eased, the back thigh would turn 61 degrees in the first frame.
+        key(0, grounded(mix(CROUCH, { body: { rot: -20 } })), { ease: 'linear' }),
+        ...rollKeys(4, turned, 1),
+        key(crouch, mix(grounded(CROUCH), { body: { rot: 360 } }), { ease: 'out' }),
+        key(length, mix(READY, { body: { rot: 360 } })),
+      ],
+      { onScreen: true },
+    ),
   });
 }
 
@@ -372,17 +423,25 @@ function floorBackRoll(length: number, start: number, end: number, crouch: numbe
   return floorContact({
     length,
     swaps: SIDE,
-    keys: continuous([
-      key(0, READY, { ease: 'out' }),
-      key(4, grounded(CROUCH), { ease: 'out' }),
-      ...rollKeys(start, end, -1),
-      key(crouch, grounded(mix(CROUCH, { body: { rot: -344 } })), { ease: 'out' }),
-      key(length, mix(READY, { body: { rot: -356 } })),
-    ]),
+    keys: continuous(
+      [
+        key(0, READY, { ease: 'out' }),
+        key(4, TUCKING, { ease: 'linear' }),
+        ...rollKeys(start, end, -1),
+        key(crouch, grounded(mix(CROUCH, { body: { rot: -344 } })), { ease: 'out' }),
+        key(length, mix(READY, { body: { rot: -356 } })),
+      ],
+      { onScreen: true },
+    ),
   });
 }
 
 const PIVOT = feet({ hip: { y: 0.34 }, neck: { y: 0.1 } }, floor(-1.05), floor(1.05), true);
+/**
+ * PIVOT with both knees bent forward, for coming up out of the forward roll: from the ball, the bowed back knee
+ * swings round through straight. Hardly bent, it looks the same.
+ */
+const ROLL_UP = feet({ hip: { y: 0.34 }, neck: { y: 0.1 } }, floor(-1.05), floor(1.05));
 
 const LEDGE_INWARD = 6.25;
 const KNEE_ON_TOP = {
@@ -569,12 +628,15 @@ export const clips: Record<string, AnimClip> = {
     {
       length: 8,
       swaps: SIDE,
-      keys: continuous([
-        key(0, READY, { ease: 'out' }),
-        key(3, shush(1.25), { ease: 'out', z: FRONT_ARM_OVER_HEAD }),
-        key(5, shush(1.88), { ease: 'out', swaps: { face: 'face3qShush', handF: 'point' } }),
-        key(8, shush(1.74)),
-      ]),
+      keys: continuous(
+        [
+          key(0, READY, { ease: 'linear' }),
+          key(3, shush(1.25), { ease: 'linear', z: FRONT_ARM_OVER_HEAD }),
+          key(5, shush(1.88), { ease: 'out', swaps: { face: 'face3qShush', handF: 'point' } }),
+          key(8, shush(1.74)),
+        ],
+        { onScreen: true },
+      ),
     },
     false,
   ),
@@ -631,50 +693,49 @@ export const clips: Record<string, AnimClip> = {
   shield: {
     length: 6,
     swaps: { ...ANGRY, handF: 'fist', handB: 'fist' },
-    keys: [key(0, READY, { ease: 'out' }), key(6, SHIELD)],
+    keys: continuous([key(0, READY, { ease: 'out' }), key(6, SHIELD)], { onScreen: true }),
   },
   shieldDrop: {
     length: 11,
     swaps: { ...SIDE, handF: 'fist', handB: 'fist' },
-    keys: [key(0, SHIELD, { ease: 'out' }), key(6, undefined, { z: {} }), key(11, READY)],
+    keys: continuous([key(0, SHIELD, { ease: 'out' }), key(6, undefined, { z: {} }), key(11, READY)], {
+      onScreen: true,
+    }),
   },
-  spotDodge: {
+  spotDodge: floorContact({
     length: 25,
     swaps: SIDE,
-    keys: [
-      key(0, READY, { ease: 'out' }),
-      key(
-        3,
-        hands(mix(CROUCH, { hip: { y: 1.26 }, body: { sy: 0.86, rot: 0 } }), [-0.6, -10.41], [1.4, -10.81]),
-        {
+    keys: continuous(
+      [
+        // Evenly down: eased, his forearms would turn 83 degrees in the first frame.
+        key(0, READY, { ease: 'linear' }),
+        key(3, DUCKED(1.26, 0.86, [-0.6, -10.41], [1.4, -10.81]), {
           ease: 'out',
           swaps: { ...FRONT_WIDE, handB: 'handOpen' },
           z: ARMS_OVER_HEAD,
-        },
-      ),
-      key(
-        18,
-        hands(mix(CROUCH, { hip: { y: 1.12 }, body: { sy: 0.88, rot: 0 } }), [-0.6, -10.21], [1.4, -10.61]),
-        {
-          ease: 'inOut',
-        },
-      ),
-      key(21, undefined, { swaps: {}, z: {} }),
-      key(25, READY),
-    ],
-  },
+        }),
+        key(18, DUCKED(1.12, 0.88, [-0.6, -10.21], [1.4, -10.61]), { ease: 'inOut' }),
+        key(21, undefined, { swaps: {}, z: {} }),
+        key(25, READY),
+      ],
+      { onScreen: true },
+    ),
+  }),
   rollForward: floorContact({
     length: 29,
     swaps: SIDE,
-    keys: continuous([
-      key(0, READY, { ease: 'out' }),
-      key(4, grounded(CROUCH), { ease: 'out' }),
-      ...rollKeys(6, 22, 1),
-      key(24, mix(PIVOT, { body: { rot: 360 } }), { ease: 'step', swaps: FRONT }),
-      key(25, mix(PIVOT, { body: { rot: 360, sx: -1 } }), { ease: 'out' }),
-      key(27, undefined, { swaps: {} }),
-      key(29, mix(READY, { body: { rot: 360, sx: -1 } })),
-    ]),
+    keys: continuous(
+      [
+        key(0, READY, { ease: 'out' }),
+        key(4, TUCKING, { ease: 'linear' }),
+        ...rollKeys(6, 22, 1),
+        key(24, mix(ROLL_UP, { body: { rot: 360 } }), { ease: 'step', swaps: FRONT }),
+        key(25, mix(ROLL_UP, { body: { rot: 360, sx: -1 } }), { ease: 'out' }),
+        key(27, undefined, { swaps: {} }),
+        key(29, mix(READY, { body: { rot: 360, sx: -1 } })),
+      ],
+      { onScreen: true },
+    ),
   }),
   rollBack: floorBackRoll(34, 6, 22, 27),
   airDodge: {
