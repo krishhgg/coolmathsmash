@@ -103,13 +103,16 @@ describe('CPUs and air variants', () => {
   });
 
   it('play their air side specials in a level 9 match, Red Ball against Runner', () => {
+    // Seed 2 of src/ai/bench.ts. Since recovery plans double jump before their special (src/ai/recovery.ts), Red Ball
+    // uses no special at all in seed 1's match. In seeds 2 to 6 he uses his air side special 1 or 2 times a match, and
+    // Runner 3 to 9 times.
     const m = createMatch({
-      seed: 1,
+      seed: 2,
       stage: STAGE,
       stocks: 3,
       ports: [{ fighter: 'redball' }, { fighter: 'runner' }],
     });
-    const cpus = [0, 1].map((port) => createCpu({ port, level: 9, seed: 7919 + port }));
+    const cpus = [0, 1].map((port) => createCpu({ port, level: 9, seed: 2 * 7919 + port }));
     const uses = [0, 0];
     while (m.frame < 8 * 60 * 60 && m.fighters.every((f) => f.stocks > 0)) {
       stepMatch(
