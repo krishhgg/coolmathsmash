@@ -1,6 +1,7 @@
 import type { Pose } from '../../../render/rig/author';
 import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip } from '../../../render/rig/types';
+import { LEDGE_ATTACK, LEDGE_CLIMB } from '../../../sim/constants';
 import { attacks } from './attacks';
 import { finalSmashAirClip, finalSmashClip } from './finalSmash';
 import {
@@ -756,3 +757,9 @@ for (const name of [
   'finalSmash',
 ])
   clips[name] = onFloor(clips[name]!, { feet: true });
+/**
+ * The ledge climb and ledge attack stand on the stage from the frame the engine finishes moving him there
+ * (`moveEnd`): from then on a foot that would dip is raised onto the floor. Before it he is still at the ledge.
+ */
+clips.ledgeClimb = onFloor(clips.ledgeClimb!, { feet: true, from: LEDGE_CLIMB.moveEnd });
+clips.ledgeAttack = onFloor(clips.ledgeAttack!, { feet: true, from: LEDGE_ATTACK.moveEnd });

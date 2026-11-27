@@ -173,12 +173,14 @@ export function plantFeet(pose: Pose, symbols: Record<string, string | null>): P
 /**
  * `clip` baked on whole frames with the whole duck lifted on any frame where something would dip below the floor;
  * with `feet`, a foot that dips is first raised onto the floor (`plantFeet`) instead. `settle` also lowers frames
- * where he floats.
+ * where he floats. `from` leaves the frames before it as they are, for a ledge getup that only stands on the stage
+ * once the engine has moved it there.
  */
-export const onFloor = (clip: AnimClip, { feet = false, settle = false } = {}): AnimClip =>
+export const onFloor = (clip: AnimClip, { feet = false, settle = false, from = 0 } = {}): AnimClip =>
   floorContact(rig, clip, {
     bone: 'base',
     settle,
+    from,
     skip: (slot) => FX_SLOTS.has(slot),
     ...(feet && { adjust: plantFeet }),
   });
