@@ -1,17 +1,22 @@
+import { getFighter } from '../fighters/registry';
 import type { HitboxDef } from '../fighters/types';
 import { neutralInput } from '../input/types';
-import { entityHitboxes, spawnEntity } from '../sim/entities/entities';
+import { hurtbox } from '../sim/combat/hits';
+import { entityDef, entityHitboxes, spawnEntity } from '../sim/entities/entities';
+import type { EntityState } from '../sim/entities/types';
 import type { FighterState } from '../sim/fighter';
 import { stepMatch, type MatchState } from '../sim/match';
 import type { MoveProbe, ProbeSpawn } from './knowledge';
-import { overlaps, soloMatch, type Sample } from './look';
+import { overlaps, setEntities, soloMatch, type Sample } from './look';
 
 /**
  * Projectiles. A move's probe says what it spawns: each entity's kind, frame, offset, velocity and hitbox. To see
  * whether a shot meets the target, the CPU puts those entities out where they would appear on a copy of the match
  * (the stage as it stands on this frame, the CPU's own fighter as their owner), each as it was at the end of its
  * first frame in the probe, and plays their flight frame by frame against the target's predicted path. Bounces,
- * bursts, falls past the ledge and moving platforms come out as the simulation has them.
+ * bursts, falls past the ledge and moving platforms come out as the simulation has them. So do the shots the other
+ * fighters already have out: one that meets the CPU's shot clanks with it there as it will in the match (Ultimate's 9%
+ * rule, src/sim/entities/contacts.ts), and a shot that only clanks is no hit.
  */
 
 /** Hitbox-to-hurtbox margin, as for the fighter's own hitboxes (options.ts). */
@@ -28,6 +33,17 @@ export interface ShotTarget {
   /** Predicted target, t = 0 being the frame about to be simulated. */
   path: Sample[];
   errX: number;
+  /** Shots the target is about to put out, as the CPU's prediction of it has them, in the order they appear. */
+  shots?: readonly ForeseenShot[];
+}
+
+/**
+ * A shot an opponent is about to put out, from the CPU's prediction of it (cpu.ts, foresee): the frame from now, counted
+ * as in ShotTarget.path, on which it appears, and the entity as it is then, owned by the opponent's port.
+ */
+export interface ForeseenShot {
+  t: number;
+  e: EntityState;
 }
 
 /**
@@ -66,7 +82,14 @@ export function shotHit(
   for (const e of state.entities)
     if (e.owner === me.port && !e.dead) out.set(e.kind, (out.get(e.kind) ?? 0) + 1);
   const m = soloMatch(state, me);
-  // Entities from here on are the move's (and what they spawn); those before are the platforms soloMatch copied.
+  const foes = state.entities.filter(
+    (e) => foe(state, me, e.owner) && !e.dead && !entityDef(e.kind).platform,
+  );
+  joinFoes(m, state, me, foes);
+  const coming = target.shots ?? [];
+  let nextFoe = 0;
+  // The CPU's entities from here on are the move's (and what they spawn); those before are the platforms soloMatch
+  // copied.
   const from = m.nextEntityId;
   const end = target.path.length;
   const struck = new Set<number>();
@@ -74,6 +97,12 @@ export function shotHit(
   let next = 0;
   for (let t = 0; t < end; t++) {
     stepMatch(m, NEUTRAL);
+    const appear: EntityState[] = [];
+    for (; nextFoe < coming.length && coming[nextFoe]!.t <= t; nextFoe++) {
+      if (coming[nextFoe]!.t === t)
+        appear.push({ ...coming[nextFoe]!.e, id: m.nextEntityId++, hitVictims: [] });
+    }
+    joinFoes(m, state, me, appear);
     for (; next < p.spawns.length && offset + p.spawns[next]!.t === t; next++) {
       const s = p.spawns[next]!;
       const pos = place(s, t);
@@ -90,7 +119,7 @@ export function shotHit(
         data: { ...s.data },
       });
     }
-    const live = m.entities.filter((e) => e.id >= from && !struck.has(e.id));
+    const live = m.entities.filter((e) => e.owner === 0 && e.id >= from && !struck.has(e.id));
     if (!live.length) {
       if (next >= p.spawns.length) break;
       continue;
@@ -112,6 +141,73 @@ export function shotHit(
     if (hit && p.spawns.length === 1) break;
   }
   return hit;
+}
+
+/**
+ * The first frame from now that another fighter's shot, out now or foreseen (`coming`), would touch `me` if it did
+ * nothing, and the last frame of that touch; null when none does within `frames`. The CPU defends against it as
+ * against an attack (cpu.ts, defend), rather than answering it with a shot of its own that clanks.
+ */
+export function shotThreat(
+  state: Readonly<MatchState>,
+  me: Readonly<FighterState>,
+  coming: readonly ForeseenShot[],
+  frames: number,
+): { t: number; until: number } | null {
+  const foes = state.entities.filter(
+    (e) => foe(state, me, e.owner) && !e.dead && !entityDef(e.kind).platform,
+  );
+  if (!foes.length && !coming.length) return null;
+  const m = soloMatch(state, me);
+  joinFoes(m, state, me, foes);
+  const stats = getFighter(me.fighter).stats;
+  let next = 0;
+  let hit: { t: number; until: number } | null = null;
+  for (let t = 0; t < frames; t++) {
+    stepMatch(m, NEUTRAL);
+    const appear: EntityState[] = [];
+    for (; next < coming.length && coming[next]!.t <= t; next++) {
+      if (coming[next]!.t === t) appear.push({ ...coming[next]!.e, id: m.nextEntityId++, hitVictims: [] });
+    }
+    joinFoes(m, state, me, appear);
+    const h = hurtbox(m.fighters[0]!, stats);
+    const touches = m.entities.some(
+      (e) =>
+        e.owner !== 0 &&
+        !e.dead &&
+        entityHitboxes(m, e).some(
+          (b) => !b.box.pushOnly && overlaps(b.x, b.y, b.box.radius, h, THREAT_MARGIN),
+        ),
+    );
+    if (touches) hit = hit ? { t: hit.t, until: t } : { t, until: t };
+    else if (hit) break;
+  }
+  return hit;
+}
+
+/** Hitbox-to-hurtbox margin for a shot coming at the CPU, as cpu.ts's threat() allows an attack. */
+const THREAT_MARGIN = 1.5;
+
+/** Whether `port` is another fighter's (an item the stage put out has no fighter's port). */
+function foe(state: Readonly<MatchState>, me: Readonly<FighterState>, port: number): boolean {
+  return port !== me.port && state.fighters.some((f) => f.port === port);
+}
+
+/**
+ * Add other fighters' shots to `m`, a soloMatch of `me`, alongside any already there, so the CPU's shot meets them as
+ * it will in the match. They pass through the CPU's own fighter in the copy: they only have to meet its shot. One
+ * stand-in owns them all (setEntities), which changes nothing that decides a clank (entityPower).
+ */
+function joinFoes(
+  m: MatchState,
+  state: Readonly<MatchState>,
+  me: Readonly<FighterState>,
+  shots: readonly EntityState[],
+): void {
+  const owner = state.fighters.find((f) => f.port === shots[0]?.owner);
+  if (!owner) return;
+  setEntities(m, owner, shots, me.port, true);
+  for (const e of m.entities) if (e.owner !== 0 && !e.hitVictims.includes(0)) e.hitVictims.push(0);
 }
 
 /** Whether `box` can hit the target where it is predicted to be: on the ground, or airborne (HitboxDef.targets). */

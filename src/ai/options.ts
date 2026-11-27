@@ -5,7 +5,7 @@ import type { MatchState } from '../sim/match';
 import type { FighterKnowledge, MoveProbe, ProbeFrame } from './knowledge';
 import { AERIALS, TURNING_MOVES } from './inputs';
 import { arc, overlaps, type Arc, type Sample } from './look';
-import { shotHit, type Place, type ShotHit } from './shots';
+import { shotHit, type ForeseenShot, type Place, type ShotHit } from './shots';
 import { floorBelow, type StageInfo } from './stage';
 
 /**
@@ -73,6 +73,8 @@ export interface Target {
    * (`strikes`). A shot that meets the runner before `strikes` stops the approach.
    */
   rush?: { path: Sample[]; arrive: number; strikes: number };
+  /** Shots the prediction has the target putting out from now on (ShotTarget.shots), which the CPU's shots meet. */
+  shots?: readonly ForeseenShot[];
 }
 
 export interface Self {
@@ -166,7 +168,11 @@ function shotOf(
   // it within reach, and the shot comes out and falls short: a level 9 Raft Wars' tapped Aimed Shot at a Red Ball
   // standing 90 units away (src/ai/shots.test.ts).
   const { rush } = target;
-  const hit = shotHit(me.state, me.f, p, offset, facing, place, { path: target.far ?? target.path, errX: 0 });
+  const hit = shotHit(me.state, me.f, p, offset, facing, place, {
+    path: target.far ?? target.path,
+    errX: 0,
+    ...(target.shots && { shots: target.shots }),
+  });
   if (!hit || !rush || hit.t <= rush.arrive) return hit;
   const met = shotHit(me.state, me.f, p, offset, facing, place, { path: rush.path, errX: 0 });
   return met && met.t < rush.strikes ? { ...hit, stops: true } : hit;

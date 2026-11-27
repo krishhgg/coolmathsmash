@@ -22,6 +22,7 @@ import { actionable, knowledge, type FighterKnowledge } from './knowledge';
 import { cpuLevel, type CpuLevel } from './levels';
 import { overlaps, run, runAmong, soloMatch, type Driver, type OwnFrame, type Sample } from './look';
 import { findAttacks, type Attack, type Self, type Target } from './options';
+import { shotThreat, type ForeseenShot } from './shots';
 import {
   airAerial,
   airDodge,
@@ -72,6 +73,8 @@ const HISTORY = 64;
 /** An opponent this far behind the CPU's feet still overlaps its body, so a Final Smash in front can reach it. */
 const FINAL_BEHIND = 4;
 const HORIZON = 45;
+/** Frames ahead the CPU looks for an attack or a shot that would hit it where it is. */
+const THREAT_HORIZON = 36;
 /**
  * How far ahead a CPU whose fighter shoots reads the opponent: long enough for a Fireball to cross most of
  * Battlefield (17 frames of startup and 70 of flight) or a Grenade's fuse to run out.
@@ -570,7 +573,7 @@ export class Cpu {
     state: Readonly<MatchState>,
     opp: Readonly<FighterState>,
     horizon = HORIZON,
-  ): { path: Sample[]; far?: Sample[]; snap: FighterState } {
+  ): { path: Sample[]; far?: Sample[]; snap: FighterState; shots: ForeseenShot[] } {
     const lag = Math.min(this.lv.reaction, this.history.length - 1);
     const snap = this.seen(opp.port, lag);
     const m = soloMatch(state, snap);
@@ -578,11 +581,23 @@ export class Cpu {
     m.nextEntityId = state.nextEntityId;
     const info = stageInfo(state);
     const drive = assumedInput(snap, info, state);
-    const samples = runAmong(m, lag + Math.max(horizon, HORIZON) + 1, drive, lag, this.ownHistory, opp.port);
+    // The shots the opponent puts out from now on (a Fireball it started before the CPU could see it), each as it
+    // appears. Ones from before now are in the match already.
+    const shots: ForeseenShot[] = [];
+    const seen = new Set<number>();
+    const look = (t: number) => {
+      for (const e of m.entities) {
+        if (e.owner !== 0 || e.dead || e.id < state.nextEntityId || seen.has(e.id)) continue;
+        seen.add(e.id);
+        if (t >= lag) shots.push({ t: t - lag, e: { ...structuredClone(e), owner: opp.port } });
+      }
+    };
+    const n = lag + Math.max(horizon, HORIZON) + 1;
+    const samples = runAmong(m, n, drive, lag, this.ownHistory, opp.port, look);
     const far = samples.slice(lag);
     while (far.length < Math.max(horizon, HORIZON)) far.push(far.at(-1) ?? samplesFallback(snap));
-    if (horizon <= HORIZON) return { path: far, snap };
-    return { path: far.slice(0, HORIZON), far, snap };
+    if (horizon <= HORIZON) return { path: far, snap, shots };
+    return { path: far.slice(0, HORIZON), far, snap, shots };
   }
 
   private think(state: Readonly<MatchState>, me: Readonly<FighterState>, info: StageInfo): void {
@@ -593,19 +608,24 @@ export class Cpu {
       return;
     }
     const k = this.knowledge(state, me);
-    const { path, far, snap } = this.foresee(state, opp, k.shoots ? SHOT_HORIZON : HORIZON);
+    const { path, far, snap, shots } = this.foresee(state, opp, k.shoots ? SHOT_HORIZON : HORIZON);
     const target: Target = {
       path,
       errX: (this.rand() * 2 - 1) * this.lv.spacingError,
       grabbableIn: snap.grabbableFrom - state.frame,
       ...(far && { far }),
       ...(k.shoots && { rush: rush(far ?? path, me.pos.x, knowledge(snap.fighter, state.config.stage)) }),
+      ...(shots.length && { shots }),
     };
     const now = path[0]!;
     const dir = (Math.sign(now.x - me.pos.x) || me.facing) as 1 | -1;
     const shielding = me.action === 'shield' || me.action === 'shieldStun';
 
-    const threat = this.threat(me, path);
+    // An opponent's shot that will hit the CPU is a threat like an attack (keyed by the frame it lands), so the CPU
+    // shields, dodges or jumps it instead of firing back a shot that only clanks with it.
+    const struck = this.threat(me, path);
+    const shot = shotThreat(state, me, shots, THREAT_HORIZON);
+    const threat = shot && (!struck || shot.t < struck.t) ? { ...shot, move: 'shot', frame: -1 } : struck;
     if (threat) {
       const key = `threat:${opp.port}:${threat.move}:${state.frame + threat.t - threat.frame}`;
       if (this.roll(key, this.lv.defense) && this.defend(state, me, k, info, target, threat, dir)) return;
@@ -651,7 +671,7 @@ export class Cpu {
     const h0 = hurtbox(me, getFighter(me.fighter).stats);
     const vx = me.ground ? 0 : me.vel.x + me.kb.x;
     const vy = me.ground ? 0 : me.vel.y + me.kb.y;
-    for (let t = 0; t < Math.min(path.length, 36); t++) {
+    for (let t = 0; t < Math.min(path.length, THREAT_HORIZON); t++) {
       const s = path[t]!;
       if (!s.boxes.length) continue;
       const k = Math.min(t, 6);

@@ -102,15 +102,16 @@ export function soloMatch(
  * of play (as with no stocks left), so nothing hits, grabs or pushes it; each call sets it to `owner` as given. It
  * gives the entities what they read from their owner: its rage, its stale queue, and where it is for one that flies
  * home. The copies keep their ids and their hits so far, those on other fighters under ports the look-ahead doesn't
- * hold (ABSENT).
+ * hold (ABSENT). With `keep`, the owner's entities already in `m` stay and these join them.
  */
 export function setEntities(
   m: MatchState,
   owner: Readonly<FighterState>,
   entities: readonly Readonly<EntityState>[],
   victim: number,
+  keep = false,
 ): void {
-  m.entities = m.entities.filter((e) => e.owner !== OWNER && e.owner !== ABSENT + owner.port);
+  if (!keep) m.entities = m.entities.filter((e) => e.owner !== OWNER && e.owner !== ABSENT + owner.port);
   if (m.fighters.length <= OWNER) {
     if (!entities.length) return;
     m.config.ports.push({ fighter: owner.fighter });
@@ -142,7 +143,7 @@ export interface OwnFrame {
  * fighter's entities playing out too, so their hits move it. `mine` holds that fighter's last frames, the latest
  * last. Its entities start as they were `lag` frames ago, with the fighter as it was then standing in as their owner,
  * so one that has hit since still hits, staled and raged as it was. When the run reaches the latest frame, the
- * entities out then replace them and the stand-in takes the fighter as it is.
+ * entities out then replace them and the stand-in takes the fighter as it is. `each` sees `m` after every frame.
  */
 export function runAmong(
   m: MatchState,
@@ -151,12 +152,22 @@ export function runAmong(
   lag: number,
   mine: readonly OwnFrame[],
   victim: number,
+  each?: (t: number) => void,
 ): Sample[] {
   const at = (back: number) => mine[mine.length - 1 - back]!;
-  return run(m, frames, (t, f) => {
-    if (t === 0 || t === lag) setEntities(m, at(lag - t).f, at(lag - t).entities, victim);
-    return drive(t, f);
-  });
+  return run(
+    m,
+    frames,
+    (t, f) => {
+      if (t === 0 || t === lag) setEntities(m, at(lag - t).f, at(lag - t).entities, victim);
+      return drive(t, f);
+    },
+    each &&
+      ((_, t) => {
+        each(t);
+        return false;
+      }),
+  );
 }
 
 export function sample(f: Readonly<FighterState>, stats: FighterStats): Sample {
