@@ -44,5 +44,6 @@ for (const name of [
   'bthrow',
   'uthrow',
   'dthrow',
+  'finalSmash',
 ])
   clips[name] = onFloor(clips[name]!);

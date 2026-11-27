@@ -9,6 +9,7 @@ import {
   arms,
   both,
   grip,
+  lerpPose,
   plant,
   propAt,
   smear,
@@ -32,8 +33,8 @@ import { STAND, key, mix, type Pose, type Pt } from './poses';
 
 type Swaps = Record<string, string | null>;
 
-/** The peel's blade resting on the belt's near end, where he works it like a lever. */
-const LEVER_TIP: Pt = [10.2, -1.2];
+/** Where the peel points as he works it like a lever: its blade then rests on the floor at the belt's near end. */
+const LEVER_TIP: Pt = [10.2, -2.0];
 /** The peel from the wrist at `wrist` towards `tip`, the back hand on the handle at `back`. */
 const lever = (pose: Pose, wrist: Pt, back: Pt): Pose => grip(pose, wrist, toward(wrist, LEVER_TIP), back);
 
@@ -43,7 +44,10 @@ const RAISE = both(
   [0.2, -10.7],
   172,
 );
-const SLAM = grip(stance(1.4, 1.5, 30, -1.4, 2.2, { head: { rot: 8 } }), [4.6, -4.2], -66, [3.2, -4.9]);
+/** The peel slammed down, its blade on the floor at the belt's near end. */
+const SLAM = grip(stance(1.4, 1.5, 30, -1.4, 2.2, { head: { rot: 8 } }), [4.6, -5.3], -66, [3.2, -5.9]);
+/** Two thirds of the way down from RAISE to SLAM, so the slam lands on 14 in three even frames. */
+const SLAMMING = grip(stance(0.7, 1.0, 16, -1.3, 1.8, { head: { rot: 2 } }), [3.2, -7.4], -107, [2.0, -8.0]);
 const PUSH = lever(stance(1.0, 0.8, 18, -1.3, 1.9), [4.4, -6.2], [3.0, -6.9]);
 const PUSH2 = lever(stance(1.2, 0.9, 22, -1.3, 2.0), [4.9, -5.8], [3.5, -6.5]);
 const PULL = lever(stance(-0.9, 0.9, -16, -1.7, 1.1, { head: { rot: -6 } }), [1.4, -6.2], [0.1, -6.6]);
@@ -124,8 +128,10 @@ function lob(toss: number, lands: number, symbol: string, scale: number, base: S
   const keys: Key[] = [];
   for (let f = toss; f < lands; f += 2) {
     const t = (f - toss) / (lands - toss);
+    // The arm follows through for two frames, then comes down to his side while the topping flies.
+    const down = Math.max(0, Math.min(1, (f - toss - 2) / (lands - toss - 4)));
     keys.push(
-      key(f, mix(LOB, { fx2: arc(from, t, scale) }), {
+      key(f, mix(lerpPose(LOB, BY_OVEN, down), { fx2: arc(from, t, scale) }), {
         ease: 'linear',
         ...(f === toss && { swaps: { ...base, fx2: symbol }, z: BACK_ARM_FRONT }),
       }),
@@ -146,8 +152,8 @@ function activation(): AnimClip {
     keys: [
       key(0, STAND, { ease: 'out' }),
       key(5, RAISE_LOW, { ease: 'out', swaps: GRIT }),
-      key(11, RAISE, { ease: 'in' }),
-      key(13, mix(SLAM, { fx1: smear([4.6, -4.2], -66, true, 1.1) }), {
+      key(11, RAISE, { ease: 'linear' }),
+      key(13, mix(SLAMMING, { fx1: smear([3.2, -7.4], -107, true, 1.1) }), {
         ease: 'linear',
         swaps: { ...SHOUT, fx1: 'swoosh' },
       }),
@@ -237,7 +243,7 @@ function cinematic(): AnimClip {
       key(blast - 3, mix(GATHER, b, { body: { y: 0.3 } }), { ease: 'in' }),
       key(blast, mix(TADA, b), { ease: 'out', swaps: { ...SHOUT, ...ACTIVE_BELT } }),
       key(blast + 6, mix(RECOIL, b), { ease: 'inOut', swaps: { ...OUCH, ...ACTIVE_BELT } }),
-      key(118, mix(RECOIL, b), { ease: 'inOut' }),
+      key(118, mix(RECOIL, b), { ease: 'linear' }),
       key(122, mix(PROUD, { fx3: belt(0.7) }), { ease: 'in', swaps: { ...GRIN, ...ACTIVE_BELT } }),
       key(128, mix(PROUD, { fx3: belt(0.03) }), { ease: 'inOut' }),
       key(129, undefined, { swaps: GRIN }),
