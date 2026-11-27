@@ -242,7 +242,8 @@ const DTILT = hitting(
       [-0.6, 0],
     ],
     raw: { thighB: { sy: 1.2 }, shinB: { sy: 1.2 } },
-    knees: [1, 1],
+    // The near knee folds up behind her as she slides, instead of forward through the floor.
+    knees: [1, -1],
     arms: [
       [3.6, -1.0],
       [-5.8, -2.2],
@@ -297,6 +298,33 @@ const DROPKICK = hitting(
   ['shinF', [12.4, -4.25], 1.25],
 );
 const DROPKICK_LATE = hitting(mix(DROPKICK, { body: { x: 2.1, rot: -70, y: 0 } }), ['shinB', [10, -5], 1.5]);
+/** Down on the floor after the dropkick. */
+const DROPKICK_DOWN = mix(DROPKICK_LATE, { body: { y: 1.6, rot: -60 } });
+/** Back up in a squat. */
+const DROPKICK_SQUAT = P({
+  y: 1.9,
+  rot: -10,
+  sy: 0.88,
+  sx: 1.1,
+  legs: [
+    [2.4, 0],
+    [-2.2, 0],
+  ],
+  arms: [
+    [3.2, -4.0],
+    [-5.4, -4.2],
+  ],
+  ant: [-30, -24],
+});
+/** The tuck's legs, knees to her chest. */
+const TUCKED_LEGS: Pose = {
+  thighB: TUCK.thighB!,
+  shinB: TUCK.shinB!,
+  thighF: TUCK.thighF!,
+  shinF: TUCK.shinF!,
+  footB: {},
+  footF: {},
+};
 
 /**
  * Handstand Flip: upside down on her hands, kicking both feet straight up. Her antennae splay out flat to either
@@ -899,26 +927,11 @@ export const attacks: Record<string, AnimClip> = {
       ),
       ...strike(12, 14, DROPKICK, { ...STREAK2, ...SHOUT, fxBack: 'contact' }),
       ...strike(15, 18, DROPKICK_LATE, { ...STREAK1, fx2: null }),
-      { ...done(20, mix(DROPKICK_LATE, { body: { y: 1.6, rot: -60 } })), ease: 'linear' },
-      key(
-        24,
-        P({
-          y: 2.4,
-          rot: -10,
-          sy: 0.88,
-          sx: 1.1,
-          legs: [
-            [2.4, 0],
-            [-2.2, 0],
-          ],
-          arms: [
-            [3.2, -4.0],
-            [-5.4, -4.2],
-          ],
-          ant: [-30, -24],
-        }),
-      ),
-      key(36, mix(CROUCH, { body: { y: 1.98, rot: -10 } }), { swaps: FACE }),
+      { ...done(20, DROPKICK_DOWN), ease: 'linear' },
+      // Knees pulled in to her chest on the way up from the floor, so her legs don't sweep through it.
+      key(22, mix(between(DROPKICK_DOWN, DROPKICK_SQUAT, 0.5), TUCKED_LEGS), { ease: 'linear' }),
+      key(24, DROPKICK_SQUAT),
+      key(36, mix(CROUCH, { body: { rot: -10 } }), { swaps: FACE }),
       key(42, CROUCH),
       key(45, READY),
     ],
@@ -1352,7 +1365,11 @@ export const attacks: Record<string, AnimClip> = {
     37,
     [[10, 11]],
     [
-      key(0, mix(runPose(0), { body: { sx: -1 } }), { ease: 'out', swaps: AWAY }),
+      // Her run pose mirrored about the vertical, its lean turned the other way with it.
+      key(0, mix(runPose(0), { body: { sx: -1, rot: -(runPose(0).body?.rot ?? 0) } }), {
+        ease: 'linear',
+        swaps: AWAY,
+      }),
       key(
         5,
         P({
@@ -1653,7 +1670,7 @@ export const attacks: Record<string, AnimClip> = {
 function DOWN_FRONT(): Pose {
   return P({
     x: -1.4,
-    y: 1.8,
+    y: 1.3,
     rot: -40,
     legs: [
       [1.6, 0],

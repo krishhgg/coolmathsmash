@@ -817,8 +817,9 @@ export const clips: Record<string, AnimClip> = {
     swaps: BLINK,
     keys: [
       key(0, READY, { ease: 'linear' }),
-      key(3, mix(TUCK, { body: { y: BALL_Y + 0.3, sy: 0.86, sx: 1.08 } })),
-      key(20, mix(TUCK, { body: { y: BALL_Y + 0.3, sy: 0.86, sx: 1.08 } })),
+      // The rolls' ball, hips pulled up into the body, so her feet don't stick out under it.
+      key(3, mix(ROLL_BALL, { body: { y: BALL_Y + 0.3, sy: 0.86, sx: 1.08 } })),
+      key(20, mix(ROLL_BALL, { body: { y: BALL_Y + 0.3, sy: 0.86, sx: 1.08 } })),
       key(25, READY, { swaps: FACE }),
     ],
   },
