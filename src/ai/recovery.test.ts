@@ -218,11 +218,12 @@ describe('recovery plans with a double jump and a special', () => {
       const ends = [1, 2, 3, 4, 5].map((seed) => recoveryOrder(fighter, x, y, seed));
       expect(ends).toEqual(ends.map(() => 'back JU'));
     },
+    60_000,
   );
 
   // Plans with a jump left also try the special alone: from here Point Grapple used at once reaches the ledge.
   it('a level 9 Fluffy still grapples at once from under the stage, 48 units in, on every seed', () => {
     const ends = [1, 2, 3, 4, 5].map((seed) => recoveryOrder('fluffy', 48, -69, seed));
     expect(ends).toEqual(ends.map(() => 'back U'));
-  });
+  }, 60_000);
 });

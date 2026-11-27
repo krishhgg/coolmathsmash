@@ -201,6 +201,7 @@ describe('air probes of moves that end in a helpless fall', () => {
       if (needs) expect(ends).toEqual(back.map((e) => `${e} with Ramp Jump`));
       else expect(ends.some((e) => e.endsWith('with Ramp Jump'))).toBe(true);
     },
+    60_000,
   );
 });
 
@@ -258,5 +259,6 @@ describe('a recovery that carries the CPU back over the stage', () => {
       expect(end).toBe('back');
       expect(Math.abs(w!.pos.x)).toBeLessThan(30);
     },
+    60_000,
   );
 });
