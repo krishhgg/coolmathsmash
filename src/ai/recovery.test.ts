@@ -5,6 +5,7 @@ import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { compiledStage } from '../sim/step';
 import { Cpu } from './cpu';
 import { createCpu } from './index';
+import { STICK } from './inputs';
 import { knowledge } from './knowledge';
 import { recoveryDriver, type RecoveryParams } from './recovery';
 import { stageInfo } from './stage';
@@ -207,19 +208,20 @@ describe('recovery plans with a double jump and a special', () => {
   });
 
   // Before, a fighter that started this low used its special on the first frame, before the double jump: Ramp Jump and
-  // the block's up special rose into the stage's side, and the CPU was KO'd from all four on every seed.
-  // From (-140, -50) Bloxorz now gets back with a double jump and an air dodge, since a directional air dodge slides as
-  // far as Ultimate's; what matters is that nothing comes before the double jump.
+  // the block's up special rose into the stage's side, and the CPU was KO'd from all four on every seed. Wheely can
+  // also get back by drifting further out and Ramp Jumping without the double jump, and some seeds pick that. From
+  // (-140, -50) Bloxorz can get back with a double jump and an air dodge, since a directional air dodge slides as far as
+  // Ultimate's.
   it.each([
-    ['wheely', 115, -50, 'back JU'],
-    ['wheely', -115, -50, 'back JU'],
-    ['bloxorz', 115, -50, 'back JU'],
-    ['bloxorz', -140, -50, 'back JD'],
+    ['wheely', 115, -50, ['back JU', 'back U']],
+    ['wheely', -115, -50, ['back JU', 'back U']],
+    ['bloxorz', 115, -50, ['back JU']],
+    ['bloxorz', -140, -50, ['back JU', 'back JD']],
   ] as const)(
-    'a level 9 %s double jumps first and gets back from (%d, %d) on every seed',
-    (fighter, x, y, end) => {
+    'a level 9 %s gets back from (%d, %d) on every seed',
+    (fighter, x, y, ok) => {
       const ends = [1, 2, 3, 4, 5].map((seed) => recoveryOrder(fighter, x, y, seed));
-      expect(ends).toEqual(ends.map(() => end));
+      expect(ends.filter((e) => !(ok as readonly string[]).includes(e))).toEqual([]);
     },
     60_000,
   );
@@ -229,4 +231,74 @@ describe('recovery plans with a double jump and a special', () => {
     const ends = [1, 2, 3, 4, 5].map((seed) => recoveryOrder('fluffy', 48, -69, seed));
     expect(ends).toEqual(ends.map(() => 'back U'));
   }, 60_000);
+});
+
+describe('recoveries the planner missed, from spots the sim can get back from', () => {
+  /** How a level 9 CPU's drill runs from a spot on Battlefield end, on seeds 1 to 4. */
+  const ends = (fighter: string, spot: Spot) =>
+    [1, 2, 3, 4].map((seed) => cpuRecovers('battlefield', spot, 9, seed, fighter));
+
+  it('hold the stick straight up while the special plays in a plan that says so, and steer again once helpless', () => {
+    const m = drill('battlefield', 140, -20, 'wheely');
+    const f = m.fighters[0]!;
+    const plan: RecoveryParams = {
+      jumpAt: Infinity,
+      special: 'upB',
+      specialAt: 1,
+      below: 0,
+      reach: Infinity,
+      dodgeAt: Infinity,
+      holdUp: true,
+    };
+    const drive = recoveryDriver(stageInfo(m), knowledge('wheely', 'battlefield'), plan);
+    const during: [number, number][] = [];
+    const helpless: number[] = [];
+    for (let t = 0; t < 80 && f.ground === null && f.action !== 'ledgeCatch'; t++) {
+      const inMove = f.move === 'upB';
+      const i = drive(t, f);
+      if (inMove && f.action !== 'helpless') during.push([i.x, i.y]);
+      if (f.action === 'helpless') helpless.push(i.x);
+      stepMatch(m, [i, neutralInput()]);
+    }
+    expect(during.length).toBeGreaterThanOrEqual(10);
+    expect(new Set(during.map(([x, y]) => `${x},${y}`))).toEqual(new Set([`0,${STICK.special}`]));
+    expect(helpless.length).toBeGreaterThan(0);
+    expect(helpless.every((x) => x !== 0)).toBe(true);
+  });
+
+  // Quick Grapple fires up from under the stage and reels Fluffy to the ledge if the line passes it. Steering toward
+  // the ledge bends it up to 30 degrees, and it passed the ledge only in windows of about 3 frames that the planner's
+  // timings missed; held straight up, two to five times as many timings get him back. From 90 under the middle he also
+  // falls to 9 units above the bottom blast line before the line pulls him up, and the planner stopped simulating 10
+  // above it. On #333's head a level 9 Fluffy was KO'd from all eight on every seed.
+  it.each([
+    [0, -53],
+    [0, -90],
+    [-24, -53],
+    [24, -53],
+    [-24, -70],
+    [24, -70],
+    [-48, -89],
+    [48, -89],
+  ])(
+    'a level 9 Fluffy grapples back from under the stage at (%d, %d) on every seed',
+    (x, y) => {
+      expect(ends('fluffy', { x, y, where: 'under' })).toEqual(['safe', 'safe', 'safe', 'safe']);
+    },
+    60_000,
+  );
+
+  // 12 units beside the ledge and 50 under it, Ramp Jump used there rises into the stage's side. After drifting 8 or more
+  // units further out it comes back up over the ledge. On #333's head a level 9 Wheely double jumped, air dodged and
+  // was KO'd from both on every seed.
+  it.each([
+    [92, -50],
+    [-92, -50],
+  ])(
+    'a level 9 Wheely drifts out, then Ramp Jumps back from (%d, %d) on every seed',
+    (x, y) => {
+      expect(ends('wheely', { x, y, where: 'beside' })).toEqual(['safe', 'safe', 'safe', 'safe']);
+    },
+    60_000,
+  );
 });
