@@ -429,6 +429,7 @@ const KNOWN: Record<string, string[]> = {
     'dsmash',
     'dthrow',
     'dtilt',
+    'finalSmashCinematic',
     'fsmash',
     'fthrow',
     'ftilt',

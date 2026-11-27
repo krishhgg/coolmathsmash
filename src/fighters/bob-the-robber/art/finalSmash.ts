@@ -280,7 +280,7 @@ const BLOWS: { wind: Pose; hit: Pose; at: Pt; back: boolean; squash?: number }[]
     hit: swing(creep(1.8, -0.6, 26), [4.6, -3.4], -4, -1),
     at: [8.6, -4.6],
     back: true,
-    squash: 0.4,
+    squash: 0.25,
   },
   {
     wind: swing(creep(-0.4, 1.4, -6), [-1.2, -7.2], -175),
@@ -298,14 +298,14 @@ const BLOWS: { wind: Pose; hit: Pose; at: Pt; back: boolean; squash?: number }[]
 
 /**
  * One baton flash out of the cloud on `frame`: wind up 4 frames before in the dark, then the baton and its smear
- * show over the cloud with a spark on the foe, shrinking for two frames, gone by frame + 5. Spark scale `s`. On
- * the way out the baton keeps its angle and the spark shrinks on where it struck, while his arm drops back under
- * the cloud.
+ * show over the cloud with a spark on the foe, shrinking for two frames. On frame + 3 the baton goes back under
+ * the cloud with his arm, so it never points down out of the cloud into the floor, and the spark shrinks on where
+ * it struck until it is gone on frame + 5. Spark scale `s`.
  */
 function flash(frame: number, i: number, s: number): Key[] {
   const b = BLOWS[i % BLOWS.length]!;
   const lit = { ...CLOUD, ...BATON, smear: 'smear150', fx3: 'spark' };
-  const back = batonAsIn(b.hit, creep(1.0 + (i % 3) - 1, (i % 2) * 1.2));
+  const back = creep(1.0 + (i % 3) - 1, (i % 2) * 1.2);
   return [
     key(frame - 4, mix(b.wind, cloud(i)), { ease: 'in', swaps: CLOUD, z: EYES_UP }),
     key(frame, mix(trail(b.hit, b.back, 0.3, b.squash), cloud(i + 1), spark(b.at, s, i * 25)), {
@@ -317,6 +317,7 @@ function flash(frame: number, i: number, s: number): Key[] {
       ease: 'out',
       swaps: { ...lit, smear: null },
     }),
+    key(frame + 3, undefined, { swaps: { ...CLOUD, fx3: 'spark' } }),
     key(frame + 5, mix(back, cloud(i), spark(b.at, s * 0.2, i * 25 + 30)), {
       ease: 'inOut',
       swaps: CLOUD,
@@ -392,6 +393,12 @@ const FOLLOW = swing(
   -95,
 );
 const BATON_READY = swing(STANCE, [2.6, -5.8], -60);
+
+/** How far round the launch's smear trails: short of the floor behind his front foot. */
+const LAUNCH_SWEEP = 0.8;
+
+/** Symbols drawn on the cut scene's free effect bones (fx1-fx4, fxS, fxDark), by name prefix. */
+const SCENE_EFFECTS = ['dark', 'spotBeam', 'fightCloud', 'shadowBurst', 'stars', 'spark', 'smear'];
 
 /** Scene 2's flurry carries on with blows that only show, between scene 1's last hit and the cloud bursting. */
 const SHOW_ONLY = [232, 246, 258, 270, 282];
@@ -478,7 +485,8 @@ function cinematic(): AnimClip {
     }),
     key(
       finish + 6,
-      mix(batonAsIn(UPPERCUT_DOWN, creep(0.6, 0.2, 10)), stars(6), spark([8.8, -12.6], 0.4, 40)),
+      // He raises the baton as he lowers out of the bonk, before the dark hides it, so it points up, not into the floor.
+      mix(swing(creep(0.6, 0.2, 10), [2.4, -10.0], -80), stars(6), spark([8.8, -12.6], 0.4, 40)),
       {
         ease: 'inOut',
         swaps: DIZZY,
@@ -497,19 +505,29 @@ function cinematic(): AnimClip {
     key(410, mix(RAISE, stars(11)), { ease: 'inOut' }),
     key(launch - 4, mix(BACKSWING, stars(12)), { ease: 'in', z: {} }),
     // Lights on: the launch.
-    key(launch, mix(trail(UPPERCUT, true, 0.4), spark([9.0, -10.4], 2.2, -30)), {
+    key(launch, mix(trail(UPPERCUT, true, 0.4, LAUNCH_SWEEP), spark([9.0, -10.4], 2.2, -30)), {
       ease: 'out',
       swaps: FINISH,
     }),
-    key(launch + 3, mix(UPPERCUT, spark([9.2, -11.4], 1.0)), {
-      ease: 'out',
-      swaps: { ...FINISH, smear: null },
-    }),
+    // The smear stays where the swing drew it until it goes, instead of sliding down into the floor.
+    key(
+      launch + 3,
+      mix(UPPERCUT, { fxS: trail(UPPERCUT, true, 0.4, LAUNCH_SWEEP).fxS! }, spark([9.2, -11.4], 1.0)),
+      {
+        ease: 'out',
+        swaps: { ...FINISH, smear: null },
+      },
+    ),
     key(launch + 6, FOLLOW, { ease: 'inOut', swaps: { ...GRIN, ...BATON } }),
     key(launch + 14, BATON_READY, { ease: 'inOut' }),
     key(length, BATON_READY),
   ];
-  return { length, active: [[launch, launch]], swaps: SIDE, keys: continuous(keys) };
+  // The scene plays over the stage: where a pose would put a shoe, a hand or his body through the floor, he is lifted
+  // onto it. The effects on the free effect bones don't move with him, so the lift leaves them out of its measure.
+  return floorContact({ length, active: [[launch, launch]], swaps: SIDE, keys: continuous(keys) }, false, [
+    ...FLOOR_DECALS,
+    ...SCENE_EFFECTS,
+  ]);
 }
 
 export const finalSmashClips: Record<string, AnimClip> = {
