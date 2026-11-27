@@ -221,7 +221,10 @@ export const clips: Record<string, AnimClip> = {
     keys: [
       key(0, mix(ground(1.12, 0.9), look(-2.5, 0, 0.45), roll(-28), fx('fx1', -5.0, -0.3, 0.5))),
       key(4, mix(ground(1.06, 0.95), look(-0.9, 0, 0.8), roll(-18), fx('fx1', -6.6, -0.7, 0.9))),
-      key(8, mix(ground(1.03, 0.97), roll(-6)), { swaps: { ...DETERMINED, fx1: null } }),
+      // The dust settles where it is (a bone a key leaves out would slide back under him).
+      key(8, mix(ground(1.03, 0.97), roll(-6), fx('fx1', -7.2, -0.8, 1)), {
+        swaps: { ...DETERMINED, fx1: null },
+      }),
       key(12, ground()),
     ],
   },
