@@ -46,6 +46,35 @@ const SWINGS = [
 ];
 
 /**
+ * Clips in the air: checked frame by frame like the grounded ones, with no floor under them. The aerials, the air
+ * special, the Stun Gun and Final Smash in the air, the air dodge, jumps, falls, tumbling and hitstun.
+ */
+const AIR = [
+  'nair',
+  'fair',
+  'bair',
+  'uair',
+  'dair',
+  'upB',
+  'neutralBAir',
+  'finalSmashAir',
+  'airDodge',
+  'jump',
+  'doubleJump',
+  'ledgeJump',
+  'fall',
+  'helpless',
+  'tumble',
+  'hitstun',
+];
+
+/** Clips whose parts' turns and draw order are checked: the grounded ones and the ones in the air. */
+const CHECKED = [...SWINGS, ...AIR];
+
+/** Clips with the loot sack in his hand. */
+const SACKS = ['dashAttack', 'dair'];
+
+/**
  * The frame each swing's checks start from. The ledge attack opens with the ledge climb, drawn frame by frame and
  * shared with ledgeClimb and ledgeRoll, so its checks start on frame 12, where the climb leaves him standing.
  */
@@ -192,14 +221,16 @@ describe("bob's baton swings", () => {
 
   it(`turns no drawn part more than ${TURN} degrees between frames, or ${STRIKE} as it strikes`, () => {
     const spun: string[] = [];
-    for (const name of SWINGS) {
+    for (const name of CHECKED) {
       let prev = samplePose(art, name, from(name), from(name));
       for (let f = from(name) + 1; f <= art.clips[name]!.length; f++) {
         const pose = samplePose(art, name, f, f);
         const before = drawn(prev);
         const limit = striking(name, f) ? STRIKE : TURN;
         for (const bone of drawn(pose)) {
-          const deg = turn(pose, bone) - turn(prev, bone);
+          let deg = turn(pose, bone) - turn(prev, bone);
+          // A loop's last frame draws its first again, a whole number of turns round from where it started.
+          if (art.clips[name]!.loop && f === art.clips[name]!.length) deg -= 360 * Math.round(deg / 360);
           if (before.has(bone) && Math.abs(deg) > limit) spun.push(`${name}@${f} ${bone} ${deg.toFixed(0)}`);
         }
         prev = pose;
@@ -210,7 +241,7 @@ describe("bob's baton swings", () => {
 
   it('never moves a held prop in front of or behind a part it covers from one frame to the next', () => {
     const popped: string[] = [];
-    for (const name of SWINGS) {
+    for (const name of CHECKED) {
       let prev = samplePose(art, name, from(name), from(name));
       for (let f = from(name) + 1; f <= art.clips[name]!.length; f++) {
         const pose = samplePose(art, name, f, f);
@@ -229,18 +260,19 @@ describe("bob's baton swings", () => {
     expect(popped).toEqual([]);
   });
 
-  it("keeps the dash attack's sack off his face", () => {
+  it('keeps the sack off his face', () => {
     const covered: string[] = [];
-    for (let f = 0; f <= art.clips.dashAttack!.length; f++) {
-      const pose = samplePose(art, 'dashAttack', f, f);
-      const order = layers(pose);
-      if (!drawing(pose, 'sack') || order.sack! < order.head!) continue;
-      // His face: his head as drawn, below the bottom of his hat.
-      const [x0, , x1, y1] = bounds(pose, 'head');
-      const face = (x: number, y: number) => covers(pose, 'head', x, y) || covers(pose, 'face', x, y);
-      if (overlapsRegion(pose, 'sack', [x0, bounds(pose, 'hat')[3], x1, y1], face))
-        covered.push(`dashAttack@${f}`);
-    }
+    for (const name of SACKS)
+      for (let f = 0; f <= art.clips[name]!.length; f++) {
+        const pose = samplePose(art, name, f, f);
+        const order = layers(pose);
+        if (!drawing(pose, 'sack') || order.sack! < order.head!) continue;
+        // His face: his head as drawn, below the bottom of his hat.
+        const [x0, , x1, y1] = bounds(pose, 'head');
+        const face = (x: number, y: number) => covers(pose, 'head', x, y) || covers(pose, 'face', x, y);
+        if (overlapsRegion(pose, 'sack', [x0, bounds(pose, 'hat')[3], x1, y1], face))
+          covered.push(`${name}@${f}`);
+      }
     expect(covered).toEqual([]);
   });
 });
