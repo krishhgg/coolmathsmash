@@ -120,7 +120,8 @@ function tidalWave(air: boolean, length: number): AnimClip {
     key(40, call(1.2, 1.1), { ease: 'linear', swaps: { ...CALL, face: 'faceFrontShout' } }),
     key(44, lift(1.2, 0.6, 1.2, -4), { ease: 'out', swaps: lifted(air), z: BEHIND }),
     key(52, lift(1.15, 1.3, 2.2, -10), { ease: 'inOut' }),
-    key(RELEASE - 4, lift(1.05, 1.6, 2.8, -14), { ease: 'in' }),
+    // The sweep from the lift into the push takes three even frames (the arms turn about 50 degrees in each).
+    key(RELEASE - 6, lift(1.05, 1.6, 2.8, -14), { ease: 'linear' }),
     key(RELEASE - 3, mix(push(6, 0.2), forming(4.2, 0.3)), {
       ease: 'linear',
       swaps: FORMING,

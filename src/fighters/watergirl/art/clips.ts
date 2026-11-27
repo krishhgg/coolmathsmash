@@ -199,9 +199,12 @@ const own: Record<string, AnimClip> = {
   upB,
   neutralB: waterStream(STREAM.light),
   neutralBHeavy: waterStream(STREAM.heavy),
-  finalSmash: floorContact(finalSmashClip),
+  finalSmash: finalSmashClip,
   finalSmashAir: finalSmashAirClip,
 };
+
+/** Turned the short way first, then baked onto the floor: baking keys every frame, so it must see the short turns. */
+const turned = (clip: AnimClip): AnimClip => ({ ...clip, keys: continuous(clip.keys) });
 
 /**
  * Watergirl's clips: Fireboy's, with the water thrown further where her hitboxes reach further (jabs, ftilt,
@@ -209,7 +212,6 @@ const own: Record<string, AnimClip> = {
  */
 export const clips: Record<string, AnimClip> = {
   ...base,
-  ...Object.fromEntries(
-    Object.entries(own).map(([name, clip]) => [name, { ...clip, keys: continuous(clip.keys) }]),
-  ),
+  ...Object.fromEntries(Object.entries(own).map(([name, clip]) => [name, turned(clip)])),
+  finalSmash: floorContact(turned(finalSmashClip)),
 };
