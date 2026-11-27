@@ -1422,7 +1422,9 @@ const clips: Record<string, AnimClip> = {
       }),
       key(18, mix(BT_TURNED, { fx3: oven(1) }), { ease: 'inOut' }),
       key(24, mix(BT_WIND, { fx3: oven(1) }), { ease: 'in' }),
-      key(29, mix(BT_SHOVE, { fx3: oven(1) }), { ease: 'linear', swaps: SHOUT }),
+      // Most of the shove into the press lands on the throw's frame (30): measured on screen, the back forearm turned
+      // 65 degrees on the frame after it.
+      key(29, mix(BT_SHOVE, { fx3: oven(1) }), { ease: 'out', swaps: SHOUT }),
       key(31, mix(BT_PRESS, { fx3: oven(1, 1.12, 0.9) }), { ease: 'out' }),
       key(34, mix(BT_PRESS, { fx3: oven(1, 0.95, 1.1) }), { ease: 'linear' }),
       key(37, mix(BT_REC, { fx3: oven(1) }), { ease: 'inOut', swaps: GRIT }),
