@@ -40,9 +40,9 @@ export const entities: Record<string, EntityDef> = {
   /** Straight Shot (forward tilt): 6%, about 100 units. Duck Hunt's unangled forward tilt. */
   shot: straight(31, hit(6, 361, 100, 35)),
   /** Air Shot (forward air): 6%, about 75 units. Villager's late forward slingshot. */
-  airShot: straight(25, hit(6, 361, 100, 10)),
+  airShot: { ...straight(25, hit(6, 361, 100, 10)), absorbable: false },
   /** Recoil Blast (back air): 7%, about 75 units behind them. Villager's late backward slingshot. */
-  recoilShot: straight(25, hit(7, 361, 100, 10)),
+  recoilShot: { ...straight(25, hit(7, 361, 100, 10)), absorbable: false },
   /** Up Shot (up air): 6%, about 75 units straight up. Duck Hunt's up-air finisher. */
   upShot: straight(25, hit(6, 91, 120, 50)),
   /** Down Shot (down air): 6%, about 60 units straight down. Duck Hunt's non-spike down-air finisher. */

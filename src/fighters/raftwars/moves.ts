@@ -232,10 +232,22 @@ export const moves: Record<string, MoveDef> = {
     faf: 46,
     intangible: [1, 26],
     hits: [
-      { frames: [17, 18], boxes: [box(0, 8, 3, 5, { damage: 7, angle: 361, kbg: 48, bkb: 80 })] },
+      {
+        frames: [17, 18],
+        boxes: [box(0, 8, 3, 5, { damage: 7, angle: 361, kbg: 48, bkb: 80, transcendent: true })],
+      },
       {
         frames: [25, 26],
-        boxes: [box(0, -8, 3, 5, { damage: 7, angle: 361, kbg: 48, bkb: 80, direction: 'back' })],
+        boxes: [
+          box(0, -8, 3, 5, {
+            damage: 7,
+            angle: 361,
+            kbg: 48,
+            bkb: 80,
+            direction: 'back',
+            transcendent: true,
+          }),
+        ],
       },
     ],
   },
@@ -347,12 +359,30 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [12, 48],
-        boxes: [box(0, 0, 7, 5.5, { damage: 4, angle: 80, kbg: 60, bkb: 45, direction: 'away' })],
+        boxes: [
+          box(0, 0, 7, 5.5, {
+            damage: 4,
+            angle: 80,
+            kbg: 60,
+            bkb: 45,
+            direction: 'away',
+            transcendent: true,
+          }),
+        ],
       },
       {
         frames: [49, 52],
         rehit: true,
-        boxes: [box(0, 0, 8, 10, { damage: 14, angle: 50, kbg: 70, bkb: 75, direction: 'away' })],
+        boxes: [
+          box(0, 0, 8, 10, {
+            damage: 14,
+            angle: 50,
+            kbg: 70,
+            bkb: 75,
+            direction: 'away',
+            transcendent: true,
+          }),
+        ],
       },
     ],
     script: rocketRide,

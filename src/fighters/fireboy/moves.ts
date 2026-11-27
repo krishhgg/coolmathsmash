@@ -104,7 +104,14 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [15, 17],
         boxes: [
-          box(0, 12, 8.5, 5.5, { damage: 18, angle: 361, kbg: 99, bkb: 25, effect: fire }),
+          box(0, 12, 8.5, 5.5, {
+            damage: 18,
+            angle: 361,
+            kbg: 99,
+            bkb: 25,
+            effect: fire,
+            transcendent: true,
+          }),
           box(1, 6, 8.5, 3.5, { damage: 14.9, angle: 361, kbg: 105, bkb: 25, effect: fire }),
         ],
       },
@@ -153,12 +160,22 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [16, 17],
-        boxes: [box(0, 8, 3, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80, effect: fire })],
+        boxes: [
+          box(0, 8, 3, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80, effect: fire, transcendent: true }),
+        ],
       },
       {
         frames: [21, 22],
         boxes: [
-          box(0, -8, 3, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80, effect: fire, direction: 'back' }),
+          box(0, -8, 3, 5, {
+            damage: 7,
+            angle: 48,
+            kbg: 48,
+            bkb: 80,
+            effect: fire,
+            direction: 'back',
+            transcendent: true,
+          }),
         ],
       },
     ],
@@ -330,7 +347,17 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [12, 14],
-        boxes: [box(0, 7, 8, 6, { damage: 7, angle: 110, kbg: 100, bkb: 0, wbkb: 80, shieldDamage: 4 })],
+        boxes: [
+          box(0, 7, 8, 6, {
+            damage: 7,
+            angle: 110,
+            kbg: 100,
+            bkb: 0,
+            wbkb: 80,
+            shieldDamage: 4,
+            transcendent: true,
+          }),
+        ],
       },
     ],
     reflectors: [{ frames: [9, 20], x: 7, y: 8, radius: 7, damage: 1.5, speed: 1, lifetime: 0.75 }],

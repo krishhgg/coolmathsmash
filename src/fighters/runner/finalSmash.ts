@@ -82,6 +82,7 @@ const damageBoxes: HitboxDef[] = RINGS.map((ring, i) => ({
   kbg: 0,
   bkb: 0,
   hitlag: 0,
+  transcendent: true,
 }));
 
 const sleepBoxes = (targets: HitboxDef['targets'][], status: string[]): HitboxDef[] =>
@@ -94,6 +95,7 @@ const sleepBoxes = (targets: HitboxDef['targets'][], status: string[]): HitboxDe
     kbg: 0,
     bkb: 0,
     hitlag: 0,
+    transcendent: true,
     status: status[i]!,
     ...(targets[i] !== 'both' && { targets: targets[i] }),
   }));
