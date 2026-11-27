@@ -42,6 +42,18 @@ export interface FaceCheck {
   hat: string;
 }
 
+/**
+ * A bone meant to spin (a wheel, a shell, a rolling block, a spin effect), which the turn check leaves out. The
+ * other checks still apply to it.
+ */
+export interface Spin {
+  bone: string;
+  /** Why it spins, in a line. */
+  why: string;
+  /** The clips it spins in; every clip when not given. */
+  clips?: string[];
+}
+
 /** Which of a fighter's clips the checks run on, and its allowances. */
 export interface SwingChecks {
   /** Clips on the ground: every check. */
@@ -56,6 +68,8 @@ export interface SwingChecks {
   tips?: Record<string, number>;
   /** Symbol name prefixes of drawings that lie on the floor in perspective, left out of the floor check. */
   decals?: string[];
+  /** Bones meant to spin, left out of the turn check. */
+  spins?: Spin[];
   face?: FaceCheck;
 }
 
@@ -205,15 +219,26 @@ export function floorFindings(art: FighterArt, checks: SwingChecks): Finding[] {
   return out;
 }
 
+/** The bones `spins` lets turn freely in `clip`. Throws on a bone or clip the art doesn't have. */
+function spinning(art: FighterArt, spins: Spin[], clip: string): Set<string> {
+  for (const spin of spins) {
+    if (!art.rig.bones.some((b) => b.name === spin.bone)) throw new Error(`spin: no bone ${spin.bone}`);
+    for (const name of spin.clips ?? [])
+      if (!art.clips[name]) throw new Error(`spin: ${spin.bone} lists a clip the art doesn't have, ${name}`);
+  }
+  return new Set(spins.filter((s) => !s.clips || s.clips.includes(clip)).map((s) => s.bone));
+}
+
 /**
  * Frames where a drawn part turns more than TURN degrees from the frame before, or STRIKE from two frames before a
  * hit window opens until it closes. A loop's last frame draws its first again, a whole number of turns round from
- * where it started, so that frame's turn is taken the short way.
+ * where it started, so that frame's turn is taken the short way. Bones in `spins` are left out in their clips.
  */
 export function turnFindings(art: FighterArt, checks: SwingChecks): Finding[] {
   const { turn, drawn } = context(art);
   const out: Finding[] = [];
   for (const [clip, start, length] of frames(art, [...checks.ground, ...checks.air], checks.from)) {
+    const free = spinning(art, checks.spins ?? [], clip);
     const { active = [], loop } = art.clips[clip]!;
     const striking = (f: number) => active.some(([a, b]) => f >= a - 2 && f <= b);
     let prev = sample(art, clip, start);
@@ -222,6 +247,7 @@ export function turnFindings(art: FighterArt, checks: SwingChecks): Finding[] {
       const before = drawn(prev);
       const limit = striking(f) ? STRIKE : TURN;
       for (const bone of drawn(pose)) {
+        if (free.has(bone)) continue;
         let deg = turn(pose, bone) - turn(prev, bone);
         if (loop && f === length) deg -= 360 * Math.round(deg / 360);
         if (before.has(bone) && Math.abs(deg) > limit)

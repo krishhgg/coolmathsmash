@@ -186,10 +186,19 @@ with the same checks as its nearest shared action.
 - A held prop doesn't change draw order against a part it covers on both frames.
 - With a face check set, a prop drawn over the head stays off the face.
 
-`src/fighters/swingChecks.ts` sorts each fighter's clips into ground and air and holds each fighter's allowances, such
-as Bob's shadow pool, which lies across the floor line on purpose. `src/fighters/swingChecks.test.ts` lists the clips
-that fail today, per fighter, and the list must be exact: fix a clip and take it out. `node scripts/swing-survey.ts`
-prints each failing clip's worst frames. Bob's own `art/swings.test.ts` runs the same checks on his clips.
+`src/fighters/swingChecks.ts` sorts each fighter's clips into ground and air and holds each fighter's allowances.
+There are two kinds:
+
+- `decals` names drawings that lie on the floor in perspective, across the floor line, and leaves them out of the
+  floor check. Bob's shadow pool is one.
+- `spins` names bones meant to spin, such as a wheel, a shell, a rolling block or a spin effect, and leaves them out of
+  the turn check. The floor, draw-order and face checks still apply to them. Each entry is one bone with a line on
+  why it spins, and `clips` limits it to the clips it spins in. A bone or clip that doesn't exist is an error.
+
+Allow a part only when it is meant to look that way, and fix the art otherwise. `src/fighters/swingChecks.test.ts`
+lists the clips that fail today, per fighter, and the list must be exact: fix a clip and take it out.
+`node scripts/swing-survey.ts` prints each failing clip's worst frames. Bob's own `art/swings.test.ts` runs the same
+checks on his clips.
 
 ## Rendering
 
