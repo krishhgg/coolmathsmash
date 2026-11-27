@@ -148,8 +148,8 @@ const hangStep = (bone: string) => {
 const CLIMB_BEATS = [
   [0, -4.51, 6.88, -3, ...hangStep('footB'), ...hangStep('footF')],
   [3, -3.1, 5.6, 5, -4.2, -6.9, 26, -2.95, -5.7, 32],
-  [6, -1.95, 2.75, 15, -3.1, -4.3, 27, -2.3, -2.45, -18],
-  [8, -1.25, 0.4, 18, -2.85, -2.5, 31, -1.73, 0.12, -16],
+  [6, -1.95, 2.3, 15, -3.1, -4.3, 27, -2.3, -2.45, -18],
+  [8, -1.25, 0.6, 18, -2.85, -2.5, 31, -1.73, 0.12, -16],
   [9, 0.25, 0.25, 18, -1.75, -1.8, 28, 2.5, 0, 2],
   [11, 1.35, -1.32, 18, -1.65, 0.27, -13, 2.75, 0, 0],
   [12, 2.15, -1.82, 17, 0.5, 0, 22, 3.25, 0, 0],
@@ -158,15 +158,57 @@ const CLIMB_BEATS = [
   [26, 6.15, -2.65, 4, 4.65, 0, 0, 7.65, 0, 0],
 ] as const;
 
-/** Climb drawing before and after the feet are on top. Grip targets follow the engine's moving corner. */
-function climb(frame: number, moveEnd: number, inward: number, phase = frame): Pose {
-  const [cx, cy] = corner(frame, moveEnd, inward);
+/** The phase from which both feet are on top and the legs are fitted to their steps. */
+const ON_TOP = 12;
+/** Phases the back hand takes to reach up to the corner from the hang, and so when it grips. */
+const REACH = 6;
+/** Phases the hands take to let go of the corner and come down to his sides once he is on top. */
+const LET_GO = 6;
+
+const LEGS = ['thighB', 'shinB', 'footB', 'thighF', 'shinF', 'footF'] as const;
+const ARMS = ['armB', 'foreB', 'handB', 'armF', 'foreF', 'handF'] as const;
+
+/**
+ * Leg turns while he pulls himself up, before both feet are on top (thigh, shin and foot, back then front), by
+ * phase: from the hang, the knees come up against the wall and the front one up to the top, then ease into the
+ * crouch on top. Fitted to the beats' foot targets instead, the legs folded up in two or three frames and a knee
+ * flipped round as its foot passed the hip, turning a leg up to 156 degrees a frame.
+ */
+const CLIMB_LEGS: [number, number[]][] = [
+  [0, LEGS.map((bone) => HANG[bone]?.rot ?? 0)],
+  [4, [-15, 75, -40, -60, 95, -20]],
+  [8, [-30, 110, -70, -90, 125, -45]],
+];
+
+/** The legs at `phase` before he is on top, easing from CLIMB_LEGS into `onTop`, the legs fitted on top. */
+function climbLegs(phase: number, onTop: Pose): Pose {
+  const table: [number, number[]][] = [...CLIMB_LEGS, [ON_TOP, LEGS.map((bone) => onTop[bone]?.rot ?? 0)]];
+  const i = table.findIndex(([p]) => p > phase);
+  const [[p0, a], [p1, b]] = [table[i - 1]!, table[i]!];
+  const t = (phase - p0) / (p1 - p0);
+  const stretch = (bone: string) =>
+    1 + ((onTop[bone]?.sy ?? 1) - 1) * Math.max(0, (phase - 8) / (ON_TOP - 8));
+  return Object.fromEntries(
+    LEGS.map((bone, j) => {
+      const d = b[j]! - a[j]!;
+      return [bone, { rot: a[j]! + (d - 360 * Math.round(d / 360)) * t, sy: stretch(bone) }];
+    }),
+  );
+}
+
+/** The beats at `phase`, between the two around it. */
+function beatAt(phase: number): (typeof CLIMB_BEATS)[number] {
   const i = CLIMB_BEATS.findIndex(([f]) => f > phase);
   const a = CLIMB_BEATS[i - 1] ?? CLIMB_BEATS.at(-1)!;
   const b = CLIMB_BEATS[i] ?? a;
   const t = a === b ? 0 : (phase - a[0]) / (b[0] - a[0]);
-  const [, dx, dy, rot, bx, by, bt, x, y, tilt] = a.map((v, j) => v + (b[j]! - v) * t) as unknown as typeof a;
-  const base = stance(
+  return a.map((v, j) => v + (b[j]! - v) * t) as unknown as typeof a;
+}
+
+/** The body and legs at `phase` from the beats, the feet fitted to their steps, beside the corner at (cx, cy). */
+function climbStance(phase: number, cx: number, cy: number): Pose {
+  const [, dx, dy, rot, bx, by, bt, x, y, tilt] = beatAt(phase);
+  return stance(
     {
       body: { x: cx + dx + 2.65 * Math.sin(rad(rot)), y: cy + dy + 5.5 - 2.65 * Math.cos(rad(rot)), rot },
       neck: {
@@ -180,15 +222,28 @@ function climb(frame: number, moveEnd: number, inward: number, phase = frame): P
     { x: cx + bx, up: by - cy, tilt: bt },
     { x: cx + x, up: y - cy, tilt },
   );
-  if (phase <= 12) {
-    const push = Math.max(0, (phase - 9) / 3);
+}
+
+/** Climb drawing before and after the feet are on top. Grip targets follow the engine's moving corner. */
+function climb(frame: number, moveEnd: number, inward: number, phase = frame): Pose {
+  const [cx, cy] = corner(frame, moveEnd, inward);
+  const fitted = climbStance(phase, cx, cy);
+  const base = phase < ON_TOP ? mix(fitted, climbLegs(phase, climbStance(ON_TOP, cx, cy))) : fitted;
+  const grip = (at: number) => {
+    const push = Math.max(0, (Math.min(at, ON_TOP) - 9) / 3);
     const front: Pt = [cx - 0.35 + 2 * push, cy - 0.84];
     const [wx, wy] = pointOf(rig, base, 'handB');
-    const approach = smooth(Math.min(1, phase / 3));
+    const approach = smooth(Math.min(1, at / REACH));
     const back: Pt = [wx + (cx + 0.66 - 0.3 * push - wx) * approach, wy + (cy - 0.75 - wy) * approach];
     return gripHands(base, front, back, -30 + 20 * push);
-  }
-  return hands(base, [cx + dx - 1.7, cy + dy - 0.95], [cx + dx + 2.5, cy + dy - 2.4], -1);
+  };
+  if (phase <= ON_TOP) return grip(phase);
+  const [, dx, dy] = beatAt(phase);
+  const stood = hands(base, [cx + dx - 1.7, cy + dy - 0.95], [cx + dx + 2.5, cy + dy - 2.4], -1);
+  if (phase >= ON_TOP + LET_GO) return stood;
+  // Letting go of the corner evenly over a few phases: at once, the forearms turned up to 107 degrees in a frame.
+  const blend = between(grip(phase), stood, (phase - ON_TOP) / LET_GO);
+  return mix(stood, Object.fromEntries(ARMS.map((bone) => [bone, blend[bone] ?? {}])));
 }
 
 /**
@@ -339,6 +394,17 @@ const BALL = (() => {
 const flip = (rot: number, y = 0): Pose => mix(BALL, { body: { rot, y } });
 const roll = (rot: number): Pose => grounded(flip(rot));
 
+/** The legs of `pose` moved `t` of the way to the ball's, each turn the short way round. */
+function tucked(pose: Pose, t: number): Pose {
+  return Object.fromEntries(
+    LEGS.map((bone) => {
+      const [a, b] = [pose[bone]?.rot ?? 0, BALL[bone]?.rot ?? 0];
+      const d = b - a;
+      return [bone, { ...pose[bone], rot: a + (d - 360 * Math.round(d / 360)) * t }];
+    }),
+  );
+}
+
 /**
  * Halfway from the crouch into the ball, on the floor: the knees come up and the hands go to the shins over the
  * frames before the roll, not all in the frame or two after the crouch. The crouch bends both knees forward, as the
@@ -434,7 +500,7 @@ function climbKeys(moveEnd: number, inward: number, lastFrame: number, phaseScal
       const phase = frame * phaseScale;
       const prevPhase = (frame - 1) * phaseScale;
       const release = prevPhase <= 12 && phase > 12;
-      const swaps = prevPhase < 3 && phase >= 3 ? TWO_GRIPS : release ? RELEASE : undefined;
+      const swaps = prevPhase < REACH && phase >= REACH ? TWO_GRIPS : release ? RELEASE : undefined;
       const z = prevPhase < 8 && phase >= 8 ? KNEE_ON_TOP : release ? {} : undefined;
       return key(frame, climb(frame, moveEnd, inward, phase), { ease: 'linear', swaps, z });
     }),
@@ -777,7 +843,11 @@ export const clips: Record<string, AnimClip> = {
     length: 45,
     swaps: GRIP,
     keys: continuous([
-      ...climbKeys(40, 25, 9, 12 / 9),
+      // Tucking towards the ball on the climb's last two frames: from the crouch on top, the legs folded into it
+      // in one frame.
+      ...climbKeys(40, 25, 9, 12 / 9).map((k) =>
+        k.frame < 8 ? k : { ...k, pose: mix(k.pose!, tucked(k.pose!, (k.frame - 7) / 3)) },
+      ),
       ...rollKeys(10, 34, 1).map((k) => {
         const [cx, cy] = corner(k.frame, 40, 25);
         return {
