@@ -379,12 +379,17 @@ function cinematicClip(): AnimClip {
     key(length - 4, LOWER, { ease: 'inOut', swaps: { ...SMIRK, ...FISTS } }),
     key(length, STANCE, { swaps: {} }),
   );
-  return {
-    length,
-    active: [[release, release]],
-    swaps: { ...GRIT, ...FISTS },
-    keys: shortTurns(elbows(keys, ['B'])),
-  };
+  // The scene plays over the stage, so it is baked onto the floor like his grounded clips: lifted where a tween
+  // dips a boot into it, measured on his body only (the effects sit on their own bones).
+  return onFloor(
+    {
+      length,
+      active: [[release, release]],
+      swaps: { ...GRIT, ...FISTS },
+      keys: shortTurns(elbows(keys, ['B'])),
+    },
+    false,
+  );
 }
 
 export const finalSmashClips: Record<string, AnimClip> = {
