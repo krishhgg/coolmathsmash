@@ -329,10 +329,25 @@ function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
   const movingDown = f.vel.y + f.kb.y <= 0;
   for (const e of stage.edges) {
     if (e.kind !== 'floor' || !movingDown || !stage.present.solids[e.solid]) continue;
-    if (f.pos.x < edgeMinX(e) - EPS || f.pos.x > edgeMaxX(e) + EPS) continue;
-    const yNow = floorY(e, f.pos.x);
-    const yPrev = floorY(e, Math.min(Math.max(prev.x, edgeMinX(e)), edgeMaxX(e)));
-    if (crossing(prev.y - yPrev, f.pos.y - yNow)) return { kind: 'solid', index: stage.edges.indexOf(e) };
+    const lo = edgeMinX(e) - EPS;
+    const hi = edgeMaxX(e) + EPS;
+    if (f.pos.x >= lo && f.pos.x <= hi) {
+      const yNow = floorY(e, f.pos.x);
+      const yPrev = floorY(e, Math.min(Math.max(prev.x, edgeMinX(e)), edgeMaxX(e)));
+      if (crossing(prev.y - yPrev, f.pos.y - yNow)) return { kind: 'solid', index: stage.edges.indexOf(e) };
+      continue;
+    }
+    // The step ends past the floor's end: it still lands if its path went down through the floor on the way (a swept
+    // test). Without this, a fall past the top of a slope slipped under the corner where the slope meets the next
+    // floor: neither floor holds the step's end above and below it (Forest Temple's dip). The fighter lands where its
+    // path crossed. A fall past a ledge corner that stays outside the floor's ends crosses no floor, and goes on down.
+    const dPrev = prev.y - floorY(e, prev.x);
+    const dNow = f.pos.y - floorY(e, f.pos.x);
+    if (!crossing(dPrev, dNow)) continue;
+    const xi = prev.x + (f.pos.x - prev.x) * (Math.max(dPrev, 0) / (Math.max(dPrev, 0) - dNow));
+    if (xi < lo || xi > hi) continue;
+    f.pos.x = Math.min(Math.max(xi, edgeMinX(e)), edgeMaxX(e));
+    return { kind: 'solid', index: stage.edges.indexOf(e) };
   }
   if (movingDown) {
     const passing = passesPlatforms(x);
