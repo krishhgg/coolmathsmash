@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { neutralInput, type InputFrame } from '../input/types';
 import { createMatch, stepMatch } from '../sim/match';
 import { createCpu } from './index';
+import { groundUnder, stageInfo } from './stage';
 
 /**
  * Falls nothing else steers. With no program running and no recovery plan, the CPU's air input comes from airIdle in
@@ -61,9 +62,13 @@ function play(s: Fall, side: 1 | -1, seed: number): Outcome {
     facing: side,
     airFrames: 40,
   });
+  // Port 1 stands 60 units out on the other side, on the floor there. It has to take that floor as its ground too: on
+  // Run Tunnel it spawns on the right floor (48 to 88), and kept as its ground that would snap it to x 48 from -60.
   const o = m.fighters[1]!;
   const away = { x: -side * 60, y: 0 };
-  Object.assign(o, { pos: away, prevPos: { ...away } });
+  const ground = groundUnder(stageInfo(m), away.x, away.y);
+  expect(ground).not.toBeNull();
+  Object.assign(o, { pos: away, prevPos: { ...away }, ground });
   if (s.alone) Object.assign(o, { action: 'ko', respawnTimer: 60, stocks: 2 });
   const cpu = createCpu({ port: 0, level: 9, seed });
   const frames: Outcome['frames'] = [];
