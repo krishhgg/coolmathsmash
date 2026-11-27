@@ -804,12 +804,14 @@ export const attacks: Record<string, AnimClip> = {
         }),
         { swaps: { fx1: 'fxBall' }, z: { fx1: 0.5 } },
       ),
+      // The wind-up holds the fireball up behind his shoulder, so the throw sweeps his arm 112 degrees over two
+      // even frames (56 a frame): the move has no hitbox of its own, so a match counts no strike frames here.
       key(
         10,
-        mix(hands(stance(-14, 0.5, -1.1, 0.9), [0.9, -3.3], [-1.6, -4.7]), {
-          fx1: ball(-1.7, -5.1, 1.5, -90),
+        mix(hands(stance(-14, 0.5, -1.1, 0.9), [0.9, -3.3], [-1.3, -5.4]), {
+          fx1: ball(-1.4, -5.8, 1.5, -90),
         }),
-        { ease: 'in' },
+        { ease: 'linear' },
       ),
       key(
         12,
