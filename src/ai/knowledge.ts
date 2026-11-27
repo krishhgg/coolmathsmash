@@ -6,7 +6,7 @@ import { activeHitboxes } from '../sim/combat/hits';
 import { entityHitboxes } from '../sim/entities/entities';
 import type { EntityState } from '../sim/entities/types';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
-import { edgeMaxX, edgeMinX } from '../sim/stage';
+import { edgeMaxX, edgeMinX, floorY, type Edge } from '../sim/stage';
 import type { Vec } from '../sim/vec';
 import { hintsFor, type CpuHints } from './hints';
 import {
@@ -280,16 +280,8 @@ function chargeHold(move: MoveDef): number {
  * that carries the fighter out from all of them is dropped.
  */
 export function airStarts(info: StageInfo): Vec[] {
-  const floors = info.c.edges.filter((e) => e.kind === 'floor' && info.steady.solids[e.solid]);
-  const gap = (e: (typeof floors)[number]) =>
-    Math.max(edgeMinX(e) - info.centerX, info.centerX - edgeMaxX(e), 0);
-  // The nearest floor; between two as near, the one ahead (the probe faces right).
-  const floor = floors.reduce<(typeof floors)[number] | undefined>(
-    (best, e) =>
-      !best || gap(e) < gap(best) || (gap(e) === gap(best) && edgeMinX(e) > edgeMinX(best)) ? e : best,
-    undefined,
-  );
-  const x = !floor || gap(floor) === 0 ? info.centerX : (edgeMinX(floor) + edgeMaxX(floor)) / 2;
+  const floor = probeFloor(info);
+  const x = !floor || floor.under ? info.centerX : (edgeMinX(floor.edge) + edgeMaxX(floor.edge)) / 2;
   const starts = [{ x: info.centerX, y: info.top + AIR_START_HIGH }];
   if (x !== info.centerX) starts.push({ x, y: info.top + AIR_START_HIGH });
   starts.push({ x, y: info.top + AIR_START_LOW });
@@ -298,6 +290,43 @@ export function airStarts(info: StageInfo): Vec[] {
 
 const AIR_START_HIGH = 100;
 const AIR_START_LOW = 50;
+
+/**
+ * The solid floor the probes start on or over: the one under the stage's middle (`under`), else the nearest to it;
+ * between two as near, the one ahead (the probe faces right). Undefined on a stage with no solid floor.
+ */
+function probeFloor(info: StageInfo): { edge: Edge; under: boolean } | undefined {
+  const floors = info.c.edges.filter((e) => e.kind === 'floor' && info.steady.solids[e.solid]);
+  const gap = (e: Edge) => Math.max(edgeMinX(e) - info.centerX, info.centerX - edgeMaxX(e), 0);
+  const edge = floors.reduce<Edge | undefined>(
+    (best, e) =>
+      !best || gap(e) < gap(best) || (gap(e) === gap(best) && edgeMinX(e) > edgeMinX(best)) ? e : best,
+    undefined,
+  );
+  return edge && { edge, under: gap(edge) === 0 };
+}
+
+/**
+ * Where ground probes stand: on the floor under the stage's middle, at the middle; else on the nearest floor,
+ * GROUND_START_INSET in from its end nearest the middle. Every ground move carries the fighter forward or not at all
+ * (up to 80 units, Runner's Strafe Dash on Battlefield), so that end leaves it the most floor ahead: Bloxorz
+ * Platform's right board, 8 to 88, gives as much as Battlefield's middle does. `edge` is the floor's edge index.
+ */
+export function groundStart(info: StageInfo): { x: number; edge: number } | undefined {
+  const floor = probeFloor(info);
+  if (!floor) return undefined;
+  const { edge } = floor;
+  const x = floor.under
+    ? info.centerX
+    : Math.min(
+        Math.max(info.centerX, edgeMinX(edge) + GROUND_START_INSET),
+        edgeMaxX(edge) - GROUND_START_INSET,
+      );
+  return { x, edge: info.c.edges.indexOf(edge) };
+}
+
+/** Every ground move goes forward or nowhere, so 1 unit keeps the fighter on the floor's end and no more. */
+const GROUND_START_INSET = 1;
 
 /** Probe an air move from the first of airStarts it isn't carried out of the blast zone from; null if none. */
 function probeAir(def: FighterDef, stageId: string, move: string): MoveProbe | null {
@@ -344,7 +373,15 @@ function probe(
       fastFalling: false,
     });
   } else {
-    Object.assign(f, { pos: { x: info.centerX, y: f.pos.y }, prevPos: { x: info.centerX, y: f.pos.y } });
+    // Stand on the start's floor. The fighter settled where it spawned, which can be another floor (Bloxorz
+    // Platform's left board), so its footing moves there too.
+    const at = groundStart(info);
+    const e = at && info.c.edges[at.edge]!;
+    const x = at?.x ?? info.centerX;
+    const y = e ? floorY(e, x) : f.pos.y;
+    Object.assign(f, { pos: { x, y }, prevPos: { x, y } });
+    if (at && !(f.ground?.kind === 'solid' && f.ground.index === at.edge))
+      f.ground = { kind: 'solid', index: at.edge };
   }
   const step = (i: InputFrame) => stepMatch(m, [i]);
   if (start === 'dash') {

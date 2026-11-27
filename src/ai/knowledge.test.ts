@@ -9,8 +9,8 @@ import { STAGES } from '../stages/registry';
 import { runCpuMatch } from './bench';
 import { hintsFor } from './hints';
 import { createCpu } from './index';
-import { AERIALS, SPECIALS } from './inputs';
-import { airStarts, knowledge, type MoveProbe } from './knowledge';
+import { AERIALS, DASH_INPUTS, GROUND_MOVES, SPECIALS } from './inputs';
+import { airStarts, groundStart, knowledge, type MoveProbe } from './knowledge';
 import { drill } from './testing/recovery';
 import { staticStage } from './stage';
 import { marioReference } from '../sim/testing/reference';
@@ -125,6 +125,60 @@ describe('CPUs and air variants', () => {
     expect(uses[0]).toBeGreaterThan(0);
     expect(uses[1]).toBeGreaterThan(0);
   }, 60_000);
+});
+
+describe('ground probes', () => {
+  // The ground probe stood the fighter at the stage's middle, keeping its footing from where it spawned. Bloxorz
+  // Platform's middle is a 16-wide hole and its spawn is on the left board, so every probe there ended 8 left, at the
+  // hole's edge, and dash moves fell in. Run Tunnel's spawn is on its left block, so probes there snapped 48 left.
+  it('stand on the floor under the middle, or 1 in from the near end of the nearest floor ahead', () => {
+    const at = (stage: string) => {
+      const info = staticStage(stage);
+      const g = groundStart(info)!;
+      const e = info.c.edges[g.edge]!;
+      return { x: g.x, floor: [e.a.x, e.b.x].sort((a, b) => a - b) };
+    };
+    expect(at('battlefield')).toEqual({ x: 0, floor: [-80, 80] });
+    // Bloxorz Platform's right board runs from 8 to 88: 79 units ahead, Battlefield's middle has 80.
+    expect(at('bloxorz-platform')).toEqual({ x: 9, floor: [8, 88] });
+    // Run Tunnel's middle block, -32 to 32; Forest Temple's dip, 10 wide and 6 down.
+    expect(at('run-tunnel')).toEqual({ x: 0, floor: [-32, 32] });
+    expect(at('forest-temple')).toEqual({ x: 0, floor: [-5, 5] });
+  });
+
+  it('know every ground move a fighter has, on every stage, unless it carries the fighter out', () => {
+    const missing: string[] = [];
+    for (const [id, def] of Object.entries(allFighters())) {
+      const avoid = new Set(hintsFor(id).avoid ?? []);
+      for (const stage of Object.keys(STAGES)) {
+        const k = knowledge(id, stage);
+        for (const name of [...GROUND_MOVES, ...Object.keys(DASH_INPUTS)])
+          if (def.moves?.[name] && !avoid.has(name) && !k.ground[name])
+            missing.push(`${id} ${name} on ${stage}`);
+      }
+    }
+    // Wheely's Ramp Jump drifts out of the blast zone in its helpless fall from any stage's middle, which drops a ground
+    // move (#326). Bob the Robber's up special carries him 34 units ahead, off Run Tunnel's 64-wide middle block. Duck's
+    // side special on Forest Temple was dropped before the ground start moved too.
+    expect(missing.sort()).toEqual([
+      'bob-the-robber upB on run-tunnel',
+      'duck sideB on forest-temple',
+      ...Object.keys(STAGES)
+        .map((stage) => `wheely upB on ${stage}`)
+        .sort(),
+    ]);
+  }, 60_000);
+
+  it("end where Battlefield's do on Bloxorz Platform's board: a jab in place, a dash attack 18 ahead", () => {
+    const blox = knowledge('fireboy', 'bloxorz-platform').ground;
+    const bf = knowledge('fireboy', 'battlefield').ground;
+    const end = (p: MoveProbe | undefined) =>
+      p && [p.busy, p.endDx, p.endDy, p.endsGrounded, p.first, p.last];
+    expect(end(blox.jab)).toEqual(end(bf.jab));
+    expect(end(blox.dashAttack)).toEqual(end(bf.dashAttack));
+    expect(end(blox.dashGrab)).toEqual(end(bf.dashGrab));
+    expect(blox.dashAttack!.endDx).toBeCloseTo(18.05, 2);
+  });
 });
 
 describe('air probes of moves that end in a helpless fall', () => {
