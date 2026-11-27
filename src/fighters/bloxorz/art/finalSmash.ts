@@ -18,7 +18,7 @@ import {
 } from './bake';
 import { turnIn } from './clips';
 import { LEVEL_TILES } from './rig';
-import { HALF_W } from './symbols';
+import { BURST, HALF_W } from './symbols';
 
 /**
  * Split Switch, the Final Smash (src/fighters/bloxorz/finalSmash.ts), on Jungle Rush's frames, each clip lasting its
@@ -55,6 +55,8 @@ export const CUBES_FROM = 3;
 /** Where the cubes stand through the barrage: either side of a catch held 11 units in front. */
 const CUBE_A = -1;
 const CUBE_B = 23;
+/** The near cube turns a quarter lap back as it hops off in the split, and stays turned until the block re-forms. */
+const HOP_A = -90;
 
 /** Every barrage hit's frame, in order: even ones are the near cube's (A), odd ones the far cube's (B). */
 const HITS = [...BARRAGE.fast, ...BARRAGE.late];
@@ -63,18 +65,25 @@ const HITS = [...BARRAGE.fast, ...BARRAGE.late];
 const TILE_X = LEVEL_TILES.map((_, i) => 12 * (i - 5));
 const BRIDGE = 6;
 
-/** A cube standing on the floor at `x`, rocked `deg` about its bottom corner on the side it rocks to (y down). */
-function rockedCube(x: number, deg: number, v = 1): Cube {
+/**
+ * A cube standing on the floor at `x`, rocked `deg` about its bottom corner on the side it rocks to (y down), and
+ * squashed to `v` of its height. `turned` is how far it has turned over on its own before (a whole number of quarter
+ * laps), which leaves its outline the same.
+ */
+function rockedCube(x: number, deg: number, v = 1, turned = 0): Cube {
   const side = deg >= 0 ? 1 : -1;
   const px = x + side * HALF_W;
   const r = (deg * Math.PI) / 180;
   const [ox, oy] = [-side * HALF_W, -HALF_W * v];
+  // The squash across and up the screen; a cube turned a quarter lap has its own axes the other way round.
+  const [wide, tall] = [1 + (1 - v) * 0.5, v];
+  const quarter = turned % 180 !== 0;
   return {
     x: px + ox * Math.cos(r) - oy * Math.sin(r),
     y: ox * Math.sin(r) + oy * Math.cos(r),
-    rot: deg,
-    sx: 1 + (1 - v) * 0.5,
-    sy: v,
+    rot: turned + deg,
+    sx: quarter ? tall : wide,
+    sy: quarter ? wide : tall,
   };
 }
 
@@ -209,6 +218,8 @@ function activation(f: number): Frame {
   const glyph = f >= 3 && f <= 24;
   const pulse = (at: number) => (f >= at && f < at + 7 ? (f - at) / 7 : -1);
   const ring = [4, 11, 18].map(pulse).find((u) => u >= 0);
+  /** The punch's flash, 7 above the floor: once it would reach the floor it only grows wider. */
+  const burst = 0.5 + (f - 28) * 0.18;
   const block = rock(F, deg, { sx, sy, x: shudder });
   return {
     block,
@@ -227,7 +238,7 @@ function activation(f: number): Frame {
         ring !== undefined
           ? { sym: 'ring', x: 0, y: 1, sx: 0.7 + ring * 0.9, sy: (0.7 + ring * 0.9) * 0.3 }
           : f >= 28 && f <= 33
-            ? { sym: 'burst', x: 27, y: -7, sx: 0.5 + (f - 28) * 0.18, sy: 0.5 + (f - 28) * 0.18 }
+            ? { sym: 'burst', x: 27, y: -7, sx: burst, sy: Math.min(burst, 7 / BURST) }
             : undefined,
       dustA: puff(31, 0, f - 28, 1, 1.3, 14),
       dustB: puff(7, 0, f - 28, -1, 0.9, 12),
@@ -259,7 +270,7 @@ function cinematic(f: number): Frame {
       [2, 0, 'out'],
       [5, 1],
     ]);
-    const a = flying(12 + (CUBE_A - 12) * u, -6 - 10 * Math.sin(Math.PI * u), -90 * u);
+    const a = flying(12 + (CUBE_A - 12) * u, -6 - 10 * Math.sin(Math.PI * u), HOP_A * u);
     const b = flying(24 + (CUBE_B - 24) * u, -6 - 3 * Math.sin(Math.PI * u), 0);
     return {
       block: rest(F),
@@ -285,7 +296,7 @@ function cinematic(f: number): Frame {
         ]);
     return {
       block: rest(F),
-      cubes: [rockedCube(CUBE_A, a.deg, bounce(a.since)), rockedCube(CUBE_B, -b.deg, bounce(b.since))],
+      cubes: [rockedCube(CUBE_A, a.deg, bounce(a.since), HOP_A), rockedCube(CUBE_B, -b.deg, bounce(b.since))],
       fx: {
         starA: spark(7.5, -10, a.since, late),
         starB: spark(14.5, -10, b.since, late),
@@ -304,7 +315,7 @@ function cinematic(f: number): Frame {
     return {
       block: rest(F),
       cubes: [
-        flying(CUBE_A + (0 - CUBE_A) * u, -6, 0),
+        flying(CUBE_A + (0 - CUBE_A) * u, -6, HOP_A),
         flying(CUBE_B * (1 - u), -6 - 12 * u - 16 * Math.sin(Math.PI * u), -180 * u),
       ],
       fx: {},

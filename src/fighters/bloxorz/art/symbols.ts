@@ -316,6 +316,9 @@ function bevels(prefix: string, hw: number, hh: number): Record<string, PathShap
   );
 }
 
+/** The radius of an impact burst's points at full size. */
+export const BURST = 6.5;
+
 /** Dust puff: three round lobes. */
 const puff = (lobes: [number, number, number][]): PathShape[] =>
   lobes.map(([x, y, r]) => ({
@@ -560,7 +563,7 @@ export const symbols: Record<string, ArtSymbol> = {
     ...rubble(-x, 7, 4.2 + ((i + 1) % 2), i + 7),
   ]),
   burst: [
-    { d: poly(star(8, 6.5, 2.6)), fill: 'spark', stroke: { color: 'line', width: 0.3 } },
+    { d: poly(star(8, BURST, 2.6)), fill: 'spark', stroke: { color: 'line', width: 0.3 } },
     { d: poly(star(8, 3.2, 1.3, -67.5)), fill: 'star' },
   ],
   arcs: arcs(14.5),
