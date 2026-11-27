@@ -429,7 +429,7 @@ export const attacks: Record<string, AnimClip> = {
       ...strike(
         14,
         17,
-        mix(FSMASH, { fx1: FSMASH_FX, fx2: FSMASH_FX2 }),
+        mix(FSMASH, { fx1: FSMASH_FX, fx2: FSMASH_FX2, fx3: flame(-2.9, -3.6, 0.2) }),
         { face: 'faceFrontShout', fx1: 'fxJet', fx2: 'fxJet', fx3: null },
         ARMS_IN_FRONT,
       ),
@@ -474,7 +474,11 @@ export const attacks: Record<string, AnimClip> = {
         9,
         14,
         hands(
-          stance(0, 0, -0.7, 0.7, { body: { sx: 0.94, sy: 1.1 }, fx1: flame(0, -15, 4.6, -90, 1.5) }),
+          stance(0, 0, -0.7, 0.7, {
+            body: { sx: 0.94, sy: 1.1 },
+            fx1: flame(0, -15, 4.6, -90, 1.5),
+            fx4: flame(0, -7, 0.2),
+          }),
           [-2.3, -5.6],
           [2.3, -5.6],
           -1,
@@ -843,7 +847,7 @@ export const attacks: Record<string, AnimClip> = {
       ...strike(
         9,
         24,
-        mix(DASH_BALL, { fx1: ball(5.4, -5, 4.2, 0) }),
+        mix(DASH_BALL, { fx1: ball(5.4, -5, 4.2, 0), fx4: ball(-0.5, -6, 0.3, 0) }),
         { ...NO_BODY, ...SIDE_SHOUT, fx1: 'fxBall' },
         { fx1: 18.9 },
       ),
@@ -884,13 +888,15 @@ export const attacks: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, READY, { ease: 'out' }),
+      // A flame flickers up from his middle and grows into the pillar. A ball here grew to the pillar's size
+      // between frames 7 and 8, still drawn as a ball, and sank up to 1.47 under the floor on the frames between.
       key(
         7,
         mix(hands(CROUCH, [-1.3, -2.6], [1.3, -2.6], -1), {
           head: { sx: 1.1, sy: 0.88 },
-          fx4: ball(0, -4.5, 1.6, -90),
+          fx4: flame(0, -4.5, 1.6, -90),
         }),
-        { ease: 'in', swaps: { ...BLINK, fxBack: 'fxBall' } },
+        { ease: 'in', swaps: { ...BLINK, fxBack: 'fxJet' } },
       ),
       ...strike(
         8,

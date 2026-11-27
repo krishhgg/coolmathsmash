@@ -183,12 +183,14 @@ export function continuous(keys: Key[]): Key[] {
 const EFFECTS = new Set(['aura', 'fxBack', 'fx1', 'fx2', 'fx3']);
 
 /**
- * Bakes a grounded clip into one key a frame, each lifted so no part of his body dips under the floor between the
- * keys that plant his feet (IK keys tween joint angles, so a planted foot sinks while the knee swings). Swaps, draw
- * order and the tween's timing are kept; a frame already on or above the floor stays where it is. Effects are left
- * out of the measure.
+ * Bakes a grounded clip into one key every quarter frame, each lifted so no part of his body dips under the floor
+ * between the keys that plant his feet (IK keys tween joint angles, so a planted foot sinks while the knee swings).
+ * A match plays clips at fractional frames when it stretches them onto a move's timing, so whole frames aren't
+ * enough. Swaps, draw order and the tween's timing are kept; a pose already on or above the floor stays where it is.
+ * Effects are left out of the measure.
  */
 export function floorContact(clip: AnimClip): AnimClip {
+  const STEP = 0.25;
   // Measured without the effects' swaps, so a clip that draws Watergirl's water in Fireboy's rig samples too.
   const bare = (swaps?: Record<string, string | null>) =>
     swaps && Object.fromEntries(Object.entries(swaps).filter(([slot]) => !EFFECTS.has(slot)));
@@ -201,8 +203,9 @@ export function floorContact(clip: AnimClip): AnimClip {
   const body: FighterArt = { ...art, rig: { ...rig, slots: rig.slots.filter((s) => !EFFECTS.has(s.name)) } };
   return {
     ...clip,
-    keys: Array.from({ length: clip.length + 1 }, (_, frame) => {
-      const sampled = samplePose(art, 'contact', frame, frame);
+    keys: Array.from({ length: Math.round(clip.length / STEP) + 1 }, (_, i) => {
+      const frame = i * STEP;
+      const sampled = samplePose(art, 'contact', frame, Math.floor(frame));
       const dip = Math.max(0, poseBounds(body, sampled)[3]);
       const pose: Pose = Object.fromEntries(
         rig.bones.map(({ name, x, y, rot = 0, sx = 1, sy = 1 }) => {
@@ -210,8 +213,10 @@ export function floorContact(clip: AnimClip): AnimClip {
           return [name, { x: p.x - x, y: p.y - y, rot: p.rot - rot, sx: p.sx / sx, sy: p.sy / sy }];
         }),
       );
-      const here = clip.keys.filter((k) => k.frame === frame);
-      const step = here.some((k) => k.pose && k.ease === 'step');
+      const here = clip.keys.filter((k) => k.frame > frame - STEP && k.frame <= frame);
+      // A step key holds its pose to the next posed key, so every sample it holds keeps the step.
+      const from = [...clip.keys].reverse().find((k) => k.pose && k.frame <= frame);
+      const step = from?.ease === 'step';
       const swaps = [...here].reverse().find((k) => k.swaps)?.swaps;
       const z = [...here].reverse().find((k) => k.z)?.z;
       return key(frame, mix(pose, { body: { y: pose.body!.y! - dip } }), {

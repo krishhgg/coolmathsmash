@@ -911,7 +911,7 @@ for (const [name, clip] of Object.entries(clips)) clips[name] = { ...clip, keys:
 
 /**
  * Grounded clips whose tweens between planted keys dip a shin or a fist under the floor (by up to 0.7 in the dash
- * attack's take-off): `floorContact` lifts those frames back onto it.
+ * attack's take-off), on whole frames or between them: `floorContact` lifts those poses back onto it.
  */
 const PLANTED = [
   'runBrake',
@@ -919,6 +919,7 @@ const PLANTED = [
   'land',
   'getupStand',
   'getupAttack',
+  'utilt',
   'dtilt',
   'dashAttack',
   'fsmash',
