@@ -10,6 +10,8 @@ export const FLOOR_FX: Record<string, string> = {
   skid: 'Sparks struck where the block grinds along the floor, centred on the contact line.',
   spark: "Sparks where the block's corner scrapes the floor, centred on the contact.",
   ring: 'A shock ring lying flat on the floor in perspective, like a shadow.',
+  levelTile:
+    "The Final Smash cut scene's level: its tiles flip up out of the stage on their hinges and fall away into it.",
 };
 
 /**

@@ -72,11 +72,12 @@ const BRIDGE = 6;
  */
 function rockedCube(x: number, deg: number, v = 1, turned = 0): Cube {
   const side = deg >= 0 ? 1 : -1;
-  const px = x + side * HALF_W;
-  const r = (deg * Math.PI) / 180;
-  const [ox, oy] = [-side * HALF_W, -HALF_W * v];
   // The squash across and up the screen; a cube turned a quarter lap has its own axes the other way round.
   const [wide, tall] = [1 + (1 - v) * 0.5, v];
+  // It rocks on its bottom corner, the squashed width out from its middle.
+  const px = x + side * HALF_W * wide;
+  const r = (deg * Math.PI) / 180;
+  const [ox, oy] = [-side * HALF_W * wide, -HALF_W * v];
   const quarter = turned % 180 !== 0;
   return {
     x: px + ox * Math.cos(r) - oy * Math.sin(r),
@@ -276,7 +277,14 @@ function cinematic(f: number): Frame {
       block: rest(F),
       cubes: [a, b],
       fx: {
-        starB: { sym: 'burst', x: 18, y: -7, sx: 0.5 + (f - 2) * 0.25, sy: 0.5 + (f - 2) * 0.25 },
+        // The split's flash, 7 above the floor: once it would reach the floor it only grows wider.
+        starB: {
+          sym: 'burst',
+          x: 18,
+          y: -7,
+          sx: 0.5 + (f - 2) * 0.25,
+          sy: Math.min(0.5 + (f - 2) * 0.25, 7 / BURST),
+        },
         ...landing(CUBE_A, HALF_W, f - 5, 0.7),
       },
       extra,
