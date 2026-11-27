@@ -28,8 +28,16 @@ export interface StageInfo {
   zones: { x1: number; x2: number; y1: number; y2: number; element: TerrainElement }[];
   /** Conveyor speed of each solid and platform; all 0 with hazards off. */
   belts: { solids: number[]; platforms: number[] };
-  /** No damage zones, no belts and every piece steady: nowhere on the ground is unsafe but the edges. */
+  /**
+   * No damage zones, no belts, every piece steady and no pit between the stage's ends (`pits`): nowhere on the ground
+   * is unsafe but the edges.
+   */
   calm: boolean;
+  /**
+   * The solid floor has a gap between the stage's ends that a fighter can fall through: Bloxorz Platform's 16-wide
+   * hole in its middle, the two between Run Tunnel's blocks. As authored, whether or not the pieces are there now.
+   */
+  pits: boolean;
   /** Outer x of the stage's ground (the ledges, or the outermost floor ends), as authored. */
   left: number;
   right: number;
@@ -42,9 +50,11 @@ export interface StageInfo {
 /** Frames ahead the CPU reads schedules: ground that vanishes sooner is not somewhere to stand or land. */
 export const STEADY_FRAMES = 45;
 
-type Extent = Pick<StageInfo, 'left' | 'right' | 'top' | 'centerX' | 'blast'>;
+type Extent = Pick<StageInfo, 'left' | 'right' | 'top' | 'centerX' | 'blast' | 'pits'>;
 
 const extents = new Map<string, Extent>();
+/** Floors that meet within this much of each other leave no pit. */
+const PIT_EPS = 1e-6;
 const statics = new Map<string, StageInfo>();
 const live = new WeakMap<object, StageInfo>();
 
@@ -61,7 +71,14 @@ function extent(id: string): Extent {
     ? Math.max(...ledges.map((l) => l.x))
     : Math.max(...floors.map((x) => edgeMaxX(x)));
   const top = ledges.length ? Math.max(...ledges.map((l) => l.y)) : Math.max(...floors.map((x) => x.a.y));
-  e = { left, right, top, centerX: (left + right) / 2, blast: c.geo.blastZones };
+  // Walk the floors left to right: a stretch that none of them covers is a pit.
+  let reach = left;
+  for (const f of [...floors].sort((a, b) => edgeMinX(a) - edgeMinX(b))) {
+    if (edgeMinX(f) > reach + PIT_EPS) break;
+    reach = Math.max(reach, edgeMaxX(f));
+  }
+  const pits = reach < right - PIT_EPS;
+  e = { left, right, top, centerX: (left + right) / 2, blast: c.geo.blastZones, pits };
   extents.set(id, e);
   return e;
 }
@@ -76,7 +93,7 @@ export function staticStage(id: string): StageInfo {
     steady: c.present,
     zones: [],
     belts: { solids: c.geo.solids.map(() => 0), platforms: c.geo.platforms.map(() => 0) },
-    calm: true,
+    calm: !extent(c.geo.id).pits,
     ...extent(c.geo.id),
   };
   statics.set(id, info);
@@ -115,6 +132,7 @@ export function stageInfo(state: Readonly<MatchState>): StageInfo {
   };
   const belts = { solids: geo.solids.map(belt), platforms: geo.platforms.map(belt) };
   const calm =
+    !extent(state.config.stage).pits &&
     zones.length === 0 &&
     [...belts.solids, ...belts.platforms].every((b) => b === 0) &&
     [...steady.solids, ...steady.platforms].every(Boolean);
