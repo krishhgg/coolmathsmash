@@ -122,20 +122,22 @@ export function clipFor(def: FighterDef, art: FighterArt, f: FighterState): [str
   const held = statusClip(art, f);
   if (held) return held;
   const hold = f.move ? def.moves?.[f.move]?.charge : undefined;
+  // The move whose clips are drawn: an air move that carries on after landing may draw a ground move's (art.landed).
+  const move = f.move && f.ground !== null ? (art.landed?.[f.move] ?? f.move) : f.move;
   const charging = hold !== undefined && f.charge > 0 && f.actionFrame === hold - 1;
-  const charge = charging ? chargeClipName(art, f.move!) : undefined;
+  const charge = charging ? chargeClipName(art, move!) : undefined;
   if (charge) return [charge, f.charge];
   // After the rise over the corner a ledge jump is a jump the sim holds without air options until its FAF: draw
   // the jump clip from the frame the jump began, and the jump action carries on from there.
   if (f.action === 'ledgeJump' && f.actionFrame > LEDGE_JUMP.rise && art.clips.jump)
     return ['jump', f.actionFrame - LEDGE_JUMP.rise];
   const reeling = REEL_ACTIONS.has(f.action);
-  const own = f.move && !(reeling && art.clips[f.action]) ? f.move : (backRoll(art, f) ?? f.action);
+  const own = move && !(reeling && art.clips[f.action]) ? move : (backRoll(art, f) ?? f.action);
   const name = art.clips[own] ? own : (STAND_INS[own] ?? 'idle');
   const clip = art.clips[name];
   if (clip && f.action === 'airDodge' && name === 'airDodge') return [name, airDodgeFrame(clip, f)];
-  if (!clip || !f.move || name !== f.move) return [name, f.actionFrame];
-  const frame = moveClipFrame(clip, moveFrame(f), def.moves?.[f.move]);
+  if (!clip || !move || name !== move) return [name, f.actionFrame];
+  const frame = moveClipFrame(clip, moveFrame(f), def.moves?.[f.move!]);
   return [name, reeling && clip.reel !== undefined ? Math.min(frame, clip.reel) : frame];
 }
 
