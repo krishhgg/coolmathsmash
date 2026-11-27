@@ -361,3 +361,36 @@ describe('recovering to a ledge an opponent holds', () => {
     60_000,
   );
 });
+
+describe("recovering out of a gap in Run Tunnel's floor", () => {
+  /** A level 9 CPU dropped into the gap between Run Tunnel's middle and right floors with its double jump used. */
+  function outOfGap(fighter: string, x: number, y: number, seed: number): string {
+    const m = drill('run-tunnel', x, y, fighter);
+    const f = m.fighters[0]!;
+    f.jumpsUsed = 2;
+    const cpu = createCpu({ port: 0, level: 9, seed });
+    for (let i = 0; i < 600; i++) {
+      stepMatch(m, [cpu.input(m), neutralInput()]);
+      if (f.stocks < 3) return 'ko';
+      if (f.ground !== null || f.action === 'ledgeHang')
+        return f.ground ? `lands at x ${Math.round(f.pos.x)}` : 'ledge';
+    }
+    return 'stuck';
+  }
+
+  // The floor is three pieces with 16 unit gaps between them and ledges only at its outer ends (x 88). The planner
+  // aimed for the nearest ledge, so from deep in a gap it steered out under the right floor toward x 88 and was KO'd.
+  // It now also aims for the floor beside the gap: it rises in the gap with its up special and lands on a floor.
+  it.each([
+    ['fireboy', 40, -40],
+    ['bob-the-robber', 40, -40],
+    ['bloxorz', 44, -30],
+  ] as const)(
+    'a level 9 %s with no double jump rises out of the gap from (%d, %d) and lands on every seed',
+    (fighter, x, y) => {
+      const ends = [1, 2, 3, 4].map((seed) => outOfGap(fighter, x, y, seed));
+      expect(ends.filter((e) => !e.startsWith('lands'))).toEqual([]);
+    },
+    60_000,
+  );
+});
