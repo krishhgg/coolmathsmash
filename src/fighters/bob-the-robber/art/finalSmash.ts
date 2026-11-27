@@ -14,15 +14,19 @@ import {
   SHOUT,
   SIDE,
   WIDE,
+  aim,
   between,
+  FLOOR_DECALS,
   continuous,
   feet,
+  floorContact,
   floor,
   fx,
   hands,
   key,
   mix,
   type Pt,
+  worldRot,
 } from './poses';
 import { rig } from './rig';
 
@@ -89,15 +93,17 @@ function crouch(air: boolean, coil: number): Pose {
         thighB: { rot: -55 },
         shinB: { rot: 100 },
       })
-    : feet(
+    : // Both knees forward and the tiptoe back ankle lifted, so the toe rests on the floor; shallow enough, the back
+      // foot far enough back, that his belly and back knee stay off it when he coils.
+      feet(
         {
           body: { rot: 14 - coil * 18, x: -0.2 - coil * 0.8 },
-          hip: { y: 1.8 + coil * 0.4 },
+          hip: { y: 1.3 + coil * 0.4 },
           neck: { rot: -12 + coil * 6 },
         },
-        floor(-2.3 - coil * 0.4),
+        floor(-3.0 - coil * 0.4, -0.63),
         floor(2.1),
-        true,
+        false,
         [25, 0],
       );
   return hands(swing(body, [-0.4 - coil * 0.6, -7.0 + coil * 0.4], -150 - coil * 15), [1.6, -4.4], null);
@@ -170,12 +176,12 @@ function lightsOut(air: boolean, length: number): AnimClip {
     // the arms and legs up to 139 in the one frame into it.
     key(from - 1, mix(between(crouch(air, 1), dash(air), 0.5), pool(air, 1.1)), { ease: 'linear' }),
     // Out of the shadow it goes "poof" behind him as he goes.
-    key(from, mix(dash(air), { fx4: fx(-3.4, 0.4, 0, 0.9) }), {
+    key(from, mix(dash(air), { fx4: fx(-3.4, -0.2, 0, 0.9) }), {
       ease: 'out',
       swaps: { ...SHOUT, ...BATON, fxBack: 'shadowBurst' },
     }),
-    key(from + 3, mix(dash(air, 1), { fx4: fx(-5.6, 0.6, 0, 1.25) }), { ease: 'linear' }),
-    key(from + 5, mix(dash(air, 1), { fx4: fx(-6.4, 0.6, 0, 0.3) }), {
+    key(from + 3, mix(dash(air, 1), { fx4: fx(-5.6, -0.2, 0, 1.25) }), { ease: 'linear' }),
+    key(from + 5, mix(dash(air, 1), { fx4: fx(-6.4, -0.2, 0, 0.3) }), {
       ease: 'inOut',
       swaps: { ...SHOUT, ...BATON },
     }),
@@ -200,10 +206,19 @@ function lightsOut(air: boolean, length: number): AnimClip {
         swaps: { ...SIDE, ...BATON, face: 'face3qBlink' },
       }),
       key(to + 33, undefined, { swaps: { ...SIDE, ...BATON } }),
-      key(length - 6, swing(READY, [2.6, -5.0], 40), { ease: 'inOut', swaps: SIDE }),
+      // The baton held down at his side, its tip clear of the floor.
+      key(length - 6, swing(READY, [2.6, -5.0], 30), { ease: 'inOut', swaps: SIDE }),
       key(length, settle),
     );
-  return { length, active: [[from, to]], swaps: SIDE, keys: continuous(keys, { onScreen: true }) };
+  const clip: AnimClip = {
+    length,
+    active: [[from, to]],
+    swaps: SIDE,
+    keys: continuous(keys, { onScreen: true }),
+  };
+  // On the ground, tweens between planted poses can still dip a toe: lift him where they do. The pool lies across
+  // the floor line and stays where it is.
+  return air ? clip : floorContact(clip, false, FLOOR_DECALS);
 }
 
 // The cinematic --------------------------------------------------------------------------------------------------
@@ -214,6 +229,9 @@ const spark = (at: Pt, s: number, rot = 0): Pose => ({ fx3: fx(at[0], at[1], rot
 const cloud = (k: number, s = 1): Pose => ({
   fx2: fx(4.8, -7.6 + (k % 2 ? 0.25 : -0.15), 0, s * (k % 2 ? 1.04 : 0.98), s * (k % 2 ? 0.96 : 1.03)),
 });
+
+/** `pose` with the baton turned to point as it does in `from`, so it doesn't swing on its way out of sight. */
+const batonAsIn = (from: Pose, pose: Pose): Pose => aim(pose, 'baton', worldRot(from, 'baton'));
 
 /** Bonking the foe on the catch: lunging, the baton angled down onto its middle. */
 const CATCH_HIT = reachF(swing(mix(LUNGE, { body: { rot: 12, x: 1.2 } }), [5.0, -7.6], 12), [5.0, -7.6]);
@@ -274,11 +292,14 @@ const BLOWS: { wind: Pose; hit: Pose; at: Pt; back: boolean; squash?: number }[]
 
 /**
  * One baton flash out of the cloud on `frame`: wind up 4 frames before in the dark, then the baton and its smear
- * show over the cloud with a spark on the foe, shrinking for two frames, gone by frame + 5. Spark scale `s`.
+ * show over the cloud with a spark on the foe, shrinking for two frames, gone by frame + 5. Spark scale `s`. On
+ * the way out the baton keeps its angle and the spark shrinks on where it struck, while his arm drops back under
+ * the cloud.
  */
 function flash(frame: number, i: number, s: number): Key[] {
   const b = BLOWS[i % BLOWS.length]!;
   const lit = { ...CLOUD, ...BATON, smear: 'smear150', fx3: 'spark' };
+  const back = batonAsIn(b.hit, creep(1.0 + (i % 3) - 1, (i % 2) * 1.2));
   return [
     key(frame - 4, mix(b.wind, cloud(i)), { ease: 'in', swaps: CLOUD, z: EYES_UP }),
     key(frame, mix(trail(b.hit, b.back, 0.3, b.squash), cloud(i + 1), spark(b.at, s, i * 25)), {
@@ -290,7 +311,7 @@ function flash(frame: number, i: number, s: number): Key[] {
       ease: 'out',
       swaps: { ...lit, smear: null },
     }),
-    key(frame + 5, mix(creep(1.0 + (i % 3) - 1, (i % 2) * 1.2), cloud(i)), {
+    key(frame + 5, mix(back, cloud(i), spark(b.at, s * 0.2, i * 25 + 30)), {
       ease: 'inOut',
       swaps: CLOUD,
       z: EYES_UP,
@@ -379,7 +400,7 @@ function cinematic(): AnimClip {
     key(1, mix(trail(CATCH_HIT, false, 0.3), spark(FOE, 1.6)), { ease: 'out', swaps: CATCH }),
     key(3, mix(CATCH_HIT, spark(FOE, 0.8, 20)), { ease: 'inOut', swaps: { ...CATCH, smear: null } }),
     // "Shh": the lights go out in an iris closing on his face.
-    key(SCENE.dark - 1, SHUSH, { ease: 'out', swaps: HUSH, z: FRONT_ARM_OVER_HEAD }),
+    key(SCENE.dark - 1, between(CATCH_HIT, SHUSH, 0.5), { ease: 'out', swaps: HUSH, z: FRONT_ARM_OVER_HEAD }),
     // The hole's radius shrinks by about the same factor each key, so the close reads at an even pace.
     ...IRIS_STEPS.map((s, i) =>
       key(SCENE.dark + 2 * i, mix(SHUSH, iris(s)), { ease: 'linear', swaps: IRIS }),
@@ -402,8 +423,15 @@ function cinematic(): AnimClip {
       ease: 'out',
       swaps: { ...EYES, ...BATON, fx3: 'spark' },
     }),
-    key(82, mix(swing(creep(1.4, 1.4, 0), [1.0, -11.6], -100), spark([1.4, -18.6], 0.2, 40)), { ease: 'in' }),
-    key(86, creep(2.2, 0.4, 16), { ease: 'in', swaps: EYES, z: EYES_UP }),
+    // Lowered evenly, the baton kept upright until he puts it away.
+    key(82, mix(swing(creep(1.4, 1.4, 0), [1.0, -11.6], -100), spark([1.4, -18.6], 0.2, 40)), {
+      ease: 'linear',
+    }),
+    key(86, batonAsIn(swing(creep(1.4, 1.4, 0), [1.0, -11.6], -100), creep(2.2, 0.4, 16)), {
+      ease: 'in',
+      swaps: EYES,
+      z: EYES_UP,
+    }),
     // The fight cloud boils up over the two of them.
     key(90, mix(creep(2.4, 0.4, 16), cloud(0, 0.15)), { ease: 'outBack', swaps: CLOUD }),
     key(one + 80, mix(creep(1.0, 0.8), cloud(1)), { ease: 'inOut' }),
@@ -427,10 +455,18 @@ function cinematic(): AnimClip {
       swaps: { ...LIT_BATON, smear: 'smear150', fx3: 'spark' },
     }),
     key(finish + 3, mix(UPPERCUT_DOWN, stars(5), spark([8.8, -12.6], 1.2, 30)), {
-      ease: 'out',
+      ease: 'linear',
       swaps: { ...LIT_BATON, fx3: 'spark' },
     }),
-    key(finish + 6, mix(creep(0.6, 0.2, 10), stars(6)), { ease: 'inOut', swaps: DIZZY, z: EYES_UP }),
+    key(
+      finish + 6,
+      mix(batonAsIn(UPPERCUT_DOWN, creep(0.6, 0.2, 10)), stars(6), spark([8.8, -12.6], 0.4, 40)),
+      {
+        ease: 'inOut',
+        swaps: DIZZY,
+        z: EYES_UP,
+      },
+    ),
     // The spotlight finds him, loot sack on his back, as scene 2 cuts to its splash.
     key(two + 100, mix(BOW(), stars(0)), { ease: 'inOut', swaps: SPOT, z: FRONT_ARM_OVER_HEAD }),
     key(336, mix(BOW(), stars(2)), { ease: 'step', swaps: { ...SPOT, face: 'face3qBlink' } }),
