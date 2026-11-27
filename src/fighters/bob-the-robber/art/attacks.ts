@@ -100,7 +100,7 @@ export const BATON_READY = swing(STANCE, [2.6, -5.8], -60);
  * STANCE turned or shifted by `lean`, with the feet planted again. Mixing a body turn into a stance after its feet
  * were solved swings the legs with the body and sinks a shoe into the floor.
  */
-const stanceWith = (lean: Pose) => feet(mix(STANCE, lean), floor(-1.8), floor(1.8));
+export const stanceWith = (lean: Pose) => feet(mix(STANCE, lean), floor(-1.8), floor(1.8));
 
 /** How far to lift the ankle of a shoe pitched 30 degrees onto tiptoe so its toe rests on the floor. */
 const TIPTOE = 0.75;
@@ -109,7 +109,7 @@ const TIPTOE = 0.75;
  * LUNGE turned or shifted by `lean`, front foot planted again and the back foot on tiptoe at `back`, where the
  * stretched back leg still reaches.
  */
-const lungeWith = (lean: Pose, back: number) =>
+export const lungeWith = (lean: Pose, back: number) =>
   feet(mix(LUNGE, lean), floor(back, -TIPTOE), floor(2.6), false, [30, 0]);
 
 /** LOW turned or shifted by `lean`, with the feet planted again. */
@@ -122,7 +122,7 @@ const readyWith = (lean: Pose) => feet(mix(READY, lean), floor(-1.6), floor(1.5)
  * CROUCH turned or shifted by `lean`, with the feet planted again and both knees bent forward as in his stances.
  * CROUCH bows the back knee out, so a tween from a stance flips that leg through straight and sinks the shoe.
  */
-const crouchWith = (lean: Pose) => feet(mix(CROUCH, lean), floor(-1.5), floor(1.6));
+export const crouchWith = (lean: Pose) => feet(mix(CROUCH, lean), floor(-1.5), floor(1.6));
 
 /**
  * Adds a spin to keys made with the baton held still: `spin` gives the degrees it adds on each of its keys, and
@@ -326,18 +326,31 @@ const ZIP = reachF(
   [2.6, -11.4],
 );
 
+/** Baton Twirl Rush: the fist out in front of his chest, high enough that the spinning baton clears the floor. */
+const RUSH_HAND: Pt = [4.6, -7.7];
 const TWIRL_POSE = (deg: number) =>
   swing(
     feet(
       { body: { rot: 8, x: 1.0 }, hip: { y: 0.6 }, neck: { rot: -6 } },
-      floor(-2.6),
+      floor(-2.6, -0.86),
       floor(2.4),
       false,
       [35, 0],
     ),
-    [4.6, -6.2],
+    RUSH_HAND,
     deg,
   );
+/** The twirl's blur over the fist. */
+const RUSH_BLUR = { fx4: fx(RUSH_HAND[0] + 0.8, RUSH_HAND[1] - 1.6, 0, 4.6) };
+/**
+ * Degrees the twirl adds to the baton on its keys: clockwise, 80 a frame while it hits, slowing to 50 a frame
+ * after its last hit (21-22).
+ */
+const RUSH_SPIN: Record<number, number> = { 8: 240, 11: 480, 14: 720, 17: 960, 20: 1200, 22: 1300 };
+/** Whole turns the baton keeps after the twirl, so it carries on round into the bonk instead of unwinding. */
+const RUSH_WOUND = 1440;
+/** Up behind his head for the bonk, 118 degrees short of it: the bonk lands on the next frame. */
+const RUSH_UP = swing(stanceWith({ body: { rot: -6 } }), [1.2, -9.8], -100);
 
 /**
  * The ledge attack's low baton sweep once Bob is up on the stage, from frame `from` (`clips.ts` draws the climb
@@ -892,38 +905,47 @@ export const attacks: Record<string, AnimClip> = {
     },
     false,
   ),
-  sideB: {
-    length: 49,
-    active: [
-      [8, 9],
-      [11, 12],
-      [14, 15],
-      [17, 18],
-      [20, 21],
-      [25, 27],
-    ],
-    swaps: { ...ANGRY, ...BATON },
-    keys: [
-      key(0, BATON_READY, { ease: 'out' }),
-      key(5, TWIRL_POSE(-90), { ease: 'linear', swaps: { ...SHOUT, ...BATON, fxBack: 'twirl' } }),
-      ...[8, 11, 14, 17, 20].map((f, i) =>
-        key(f, mix(TWIRL_POSE(-90 + 240 * (i + 1)), { fx4: fx(5.4, -7.8, 0, 4.6) }), { ease: 'linear' }),
+  sideB: floorContact(
+    {
+      length: 49,
+      active: [
+        [8, 9],
+        [11, 12],
+        [14, 15],
+        [17, 18],
+        [20, 21],
+        [25, 27],
+      ],
+      swaps: { ...ANGRY, ...BATON },
+      keys: spun(
+        continuous(
+          [
+            // The twirl is in his near hand, in front of him, so the baton is over his head from the start.
+            key(0, BATON_READY, { ease: 'out', z: FRONT_ARM_OVER_HEAD }),
+            key(5, mix(TWIRL_POSE(-90), RUSH_BLUR), {
+              ease: 'linear',
+              swaps: { ...SHOUT, ...BATON, fxBack: 'twirl' },
+            }),
+            ...[8, 11, 14, 17, 20].map((f) => key(f, mix(TWIRL_POSE(-90), RUSH_BLUR), { ease: 'linear' })),
+            key(22, mix(TWIRL_POSE(-90), RUSH_BLUR), { ease: 'out', swaps: { ...SHOUT, ...BATON } }),
+            key(24, RUSH_UP, { ease: 'in' }),
+            strikeKey(25, trail(JAB3_BONK), { ...SHOUT, ...BATON, smear: 'smear90' }),
+            key(27, trail(JAB3_BONK), { ease: 'out' }),
+            key(34, swing(lungeWith({ body: { rot: 20, x: 0.9 } }, -2.6), [3.6, -7.0], 45), {
+              ease: 'inOut',
+              swaps: { ...GRIN, ...BATON },
+            }),
+            // Back under his head at the end, where the baton is clear of it.
+            key(49, BATON_READY, { z: {} }),
+          ],
+          { onScreen: true },
+        ),
+        RUSH_SPIN,
+        RUSH_WOUND,
       ),
-      key(22, mix(TWIRL_POSE(1350), { fx4: fx(5.4, -7.8, 0, 4.6) }), {
-        ease: 'out',
-        swaps: { ...SHOUT, ...BATON },
-      }),
-      key(24, JAB3_UP, { ease: 'in', z: FRONT_ARM_OVER_HEAD }),
-      strikeKey(25, trail(JAB3_BONK), { ...SHOUT, ...BATON, smear: 'smear90' }),
-      key(27, trail(JAB3_BONK), { ease: 'out' }),
-      key(34, swing(mix(LUNGE, { body: { rot: 20, x: 0.9 } }), [3.6, -7.0], 45), {
-        ease: 'inOut',
-        swaps: { ...GRIN, ...BATON },
-        z: {},
-      }),
-      key(49, BATON_READY),
-    ],
-  },
+    },
+    false,
+  ),
   upB: {
     length: 45,
     active: [
