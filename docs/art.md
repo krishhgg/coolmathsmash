@@ -189,8 +189,10 @@ with the same checks as its nearest shared action.
 `src/fighters/swingChecks.ts` sorts each fighter's clips into ground and air and holds each fighter's allowances.
 There are two kinds:
 
-- `decals` names drawings that lie on the floor in perspective, across the floor line, and leaves them out of the
-  floor check. Bob's shadow pool is one.
+- `decals` names effect drawings meant to sit at or through the floor line and leaves them out of the floor check:
+  ones lying on the floor in perspective, such as Bob's shadow pool or a bounce's shockwave ring, and ones whose
+  base or lower edge crosses it by design, such as dust puffs or a burst of rays round a fighter standing on the
+  floor. Name each drawing with a line on why it crosses; never a body part.
 - `spins` names bones meant to spin, such as a wheel, a shell, a rolling block or a spin effect, and leaves them out of
   the turn check. The floor, draw-order and face checks still apply to them. Each entry is one bone with a line on
   why it spins, and `clips` limits it to the clips it spins in. A bone or clip that doesn't exist is an error.
