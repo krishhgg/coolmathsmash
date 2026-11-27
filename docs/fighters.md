@@ -986,10 +986,12 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   its 112 frames). The flight copy keeps a charged entity's damage multiplier. A shot is worth less the longer it leaves the CPU busy after
   the opponent could run in, unless it lands first or would meet the runner before the runner's quickest hit; then
   it holds the opponent up for its hitstun plus any freezing status (paralysis). The opponent's shots fly in that copy
-  too: the ones it has out, and the ones its predicted path puts out from now on (a Fireball it started before the
-  CPU could see it). A shot that would clank with one of them (`src/sim/entities/contacts.ts`) is no hit, and an
-  opponent's shot that would hit the CPU is a threat it defends against as against an attack, so two CPUs don't
-  trade shots that cancel in the middle.
+  too, as the CPU sees them through its reaction time: the ones that were out then, and the ones its prediction of
+  the opponent puts out since (a Fireball it started before the CPU could see it). A shot that would clank with one
+  of them (`src/sim/entities/contacts.ts`) is no hit, and an opponent's shot that would hit the CPU is a threat it
+  defends against as against an attack, so a CPU doesn't fire into a shot coming at it. Two CPUs that fire within
+  each other's reaction time still clank; after its shots clank twice within 2 s, a CPU holds them for 0.5 to 1.5 s,
+  so the next shot comes out first on one side.
 
 ## Art
 
