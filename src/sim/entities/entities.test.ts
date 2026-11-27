@@ -336,6 +336,50 @@ describe('clanks (9% rule)', () => {
     expect(crate.hp).toBeCloseTo(26, 6);
   });
 
+  /**
+   * Watergirl's pumps are F.L.U.D.D.'s water: a 0% windbox (`pushOnly`) that Ultimate flags as unable to clang
+   * (SmashWiki, Mario (SSBU)/Down special, hitbox table: clang=f, rebound=f).
+   */
+  it("a windbox projectile never clanks: it doesn't cancel a projectile of 9% or less, and nothing cancels it", () => {
+    const { m } = duel('test-gadgets', 'test-gadgets', -60, 60);
+    const pump = spawnEntity(m, {
+      kind: 'watergirl/pump8',
+      owner: 0,
+      pos: { x: -6, y: 20 },
+      vel: { x: 1, y: 0 },
+    });
+    const bolt = spawnEntity(m, {
+      kind: 'test-gadgets/bolt',
+      owner: 1,
+      pos: { x: 6, y: 20 },
+      vel: { x: -1, y: 0 },
+    });
+    let met = false;
+    const clanks: unknown[] = [];
+    for (let i = 0; i < 10; i++) {
+      step(m, 1);
+      met ||= Math.hypot(pump.pos.x - bolt.pos.x, pump.pos.y - bolt.pos.y) < 4.8 + 1.5;
+      clanks.push(...m.events.filter((e) => e.type === 'entityDestroy' && e.reason === 'clank'));
+    }
+    expect(met).toBe(true);
+    expect(clanks).toEqual([]);
+    expect(bolt.dead).toBe(false);
+  });
+
+  it("an attack doesn't cancel a windbox projectile either", () => {
+    const { m, v } = duel('test-gadgets', 'test-gadgets', -40, 0);
+    const pump = spawnEntity(m, {
+      kind: 'watergirl/pump8',
+      owner: 0,
+      pos: { x: -14, y: 6 },
+      vel: { x: 1, y: 0 },
+    });
+    attack(m, 1, 'strike');
+    step(m, 1);
+    expect(v.move).toBe('strike');
+    expect(pump.dead).toBe(false);
+  });
+
   it('projectiles of the same owner pass through each other', () => {
     const { m } = duel('test-gadgets', 'test-gadgets', -60, 60);
     const l = spawnEntity(m, {

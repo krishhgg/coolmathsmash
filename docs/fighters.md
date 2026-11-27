@@ -123,7 +123,7 @@ fsmash: {
     as `367`.
 - **Windboxes.** `pushOnly: true` applies knockback without damage, hitlag, hitstun or interruption. It pushes
   grounded targets horizontally without lifting them, and shields ignore it. Use `damage: 0`; windbox
-  projectiles can be reflected or absorbed as usual, but heal nothing on absorption. Watergirl's Water Stream
+  projectiles can be reflected or absorbed as usual, but heal nothing on absorption, and never clank (see Clanks). Watergirl's Water Stream
   (`src/fighters/watergirl/waterStream.ts`) is the example: F.L.U.D.D.'s windbox pumps, stronger with charge.
 - **Direction.** A hit launches along the attacker's facing unless its box sets `direction`: `'back'` for boxes
   behind him (back aerials, the rear hit of a down smash) and `'away'` for boxes around his body (spins, up
@@ -968,7 +968,9 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   the projectile deals more than 9% more, in which case it passes through the attack (and usually hits). The
   attacker is never interrupted (there is no rebound yet). Two projectiles of different owners clank and each is
   destroyed unless it deals more than 9% more than the other. `transcendent` projectiles never clank, and grab boxes
-  never hit or clank with entities.
+  never hit or clank with entities. Windboxes (`pushOnly`) never clank: a windbox projectile neither cancels nor is
+  cancelled by an attack or another projectile, as F.L.U.D.D.'s water can't clang in Ultimate (SmashWiki, Mario
+  (SSBU)/Down special, hitbox table: clang=f).
 - **Order of a frame.** Fighters act (spawning), the stage moves, entities move, then reflectors, absorbers and clanks, then every hit
   from fighters and entities lands at once, then grabs (an attack or projectile beats a grab on the same frame).
 - **Items.** Items are entities registered as `item/<name>`. `onBreak(m, e, by)` runs when a hittable entity breaks,
