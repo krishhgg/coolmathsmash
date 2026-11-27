@@ -1,5 +1,7 @@
 import { reach, type Pose } from '../../../render/rig/author';
-import type { BonePose, Key } from '../../../render/rig/types';
+import { poseBounds } from '../../../render/rig/geometry';
+import { samplePose } from '../../../render/rig/sample';
+import type { AnimClip, BonePose, FighterArt, Key } from '../../../render/rig/types';
 import { FOOT, HAND, rig } from './rig';
 
 /**
@@ -136,4 +138,79 @@ export function mix(...poses: Pose[]): Pose {
   const out: Pose = {};
   for (const p of poses) for (const [bone, bp] of Object.entries(p)) out[bone] = { ...out[bone], ...bp };
   return out;
+}
+
+/**
+ * Keeps every limb and effect turning the short way round between keys. The IK helpers return angles wrapped to
+ * half a turn either way, so a limb passing straight up or down would otherwise tween the long way round.
+ *
+ * Bob's `continuous` takes the short way at each joint, or with `onScreen` the short way on screen. For Fireboy
+ * neither is right everywhere. Short at each joint, an upper arm and forearm can each turn 150 degrees the same
+ * way and swing the hand 300 degrees round. Short on screen, a forearm can turn back through its elbow while the
+ * arm swings, or a limb can turn against the body in a flip. So each bone takes the whole turns that keep twice
+ * its turn at the joint plus its turn against the body (its own turn plus its parents' below the body) smallest:
+ * short at the joint unless that swings the limb much further round. The body is never wrapped, so a flip still
+ * spins and carries the rest with it.
+ */
+export function continuous(keys: Key[]): Key[] {
+  /** Each bone's turn at its joint, and against the body, at the last posed key. */
+  const own: Record<string, number> = {};
+  const held: Record<string, number> = {};
+  return keys.map((k) => {
+    if (!k.pose) return k;
+    const pose = { ...k.pose };
+    const now: Record<string, number> = {};
+    for (const { name, parent } of rig.bones) {
+      let r = pose[name]?.rot ?? 0;
+      if (name !== 'body') {
+        const above = parent && parent !== 'body' ? now[parent]! : 0;
+        if (own[name] !== undefined) {
+          const short = r + 360 * Math.round((own[name] - r) / 360);
+          const cost = (t: number) => 2 * Math.abs(t - own[name]!) + Math.abs(above + t - held[name]!);
+          r = [short - 360, short + 360].reduce((best, t) => (cost(t) < cost(best) ? t : best), short);
+        }
+        if (r !== 0 || pose[name]?.rot !== undefined) pose[name] = { ...pose[name], rot: r };
+        now[name] = above + r;
+      }
+      own[name] = r;
+    }
+    Object.assign(held, now);
+    return { ...k, pose };
+  });
+}
+
+/** Slots that draw effects rather than Fireboy himself: `floorContact` leaves them out. */
+const EFFECTS = new Set(['aura', 'fxBack', 'fx1', 'fx2', 'fx3']);
+
+/**
+ * Bakes a grounded clip into one key a frame, each lifted so no part of his body dips under the floor between the
+ * keys that plant his feet (IK keys tween joint angles, so a planted foot sinks while the knee swings). Swaps, draw
+ * order and the tween's timing are kept; a frame already on or above the floor stays where it is. Effects are left
+ * out of the measure.
+ */
+export function floorContact(clip: AnimClip): AnimClip {
+  const art: FighterArt = { rig, clips: { contact: clip }, palettes: { default: {} }, height: 0, icon: '' };
+  const body: FighterArt = { ...art, rig: { ...rig, slots: rig.slots.filter((s) => !EFFECTS.has(s.name)) } };
+  return {
+    ...clip,
+    keys: Array.from({ length: clip.length + 1 }, (_, frame) => {
+      const sampled = samplePose(art, 'contact', frame, frame);
+      const dip = Math.max(0, poseBounds(body, sampled)[3]);
+      const pose: Pose = Object.fromEntries(
+        rig.bones.map(({ name, x, y, rot = 0, sx = 1, sy = 1 }) => {
+          const p = sampled.local[name]!;
+          return [name, { x: p.x - x, y: p.y - y, rot: p.rot - rot, sx: p.sx / sx, sy: p.sy / sy }];
+        }),
+      );
+      const here = clip.keys.filter((k) => k.frame === frame);
+      const step = here.some((k) => k.pose && k.ease === 'step');
+      const swaps = [...here].reverse().find((k) => k.swaps)?.swaps;
+      const z = [...here].reverse().find((k) => k.z)?.z;
+      return key(frame, mix(pose, { body: { y: pose.body!.y! - dip } }), {
+        ease: step ? 'step' : 'linear',
+        ...(swaps ? { swaps } : {}),
+        ...(z ? { z } : {}),
+      });
+    }),
+  };
 }

@@ -21,7 +21,9 @@ import {
   STAND,
   TUCK,
   UP,
+  continuous,
   feet,
+  floorContact,
   flame,
   hands,
   key,
@@ -267,7 +269,7 @@ const HANG_FACE = { head: 'headFront', face: 'faceFrontStrain', ...MITTENS };
 /** Lying on his back, head on the floor behind him, legs drawn up. */
 const DOWN = feet(
   {
-    body: { rot: -90, y: 2.35, x: 0.6 },
+    body: { rot: -90, y: 1.0, x: 0.6 },
     neck: { rot: -10 },
     armF: { rot: -40 },
     foreF: { rot: -20 },
@@ -360,7 +362,7 @@ export const clips: Record<string, AnimClip> = {
           armF: { rot: 45 },
           armB: { rot: -45 },
         }),
-        { ease: 'out' },
+        { ease: 'linear' },
       ),
       key(3, mix(runPose(0.55, 24), { head: { sx: 0.95, sy: 1.07 } }), { ease: 'linear' }),
       key(10, runPose(0)),
@@ -429,7 +431,11 @@ export const clips: Record<string, AnimClip> = {
         swaps: { fxBack: 'fxFlame' },
       }),
       key(4, mix(TUCK, { body: { rot: 60 }, fx4: flame(0, 2.6, 0.5, 90, 1.3) }), { ease: 'linear' }),
-      key(8, mix(TUCK, { body: { rot: 180 } }), { ease: 'linear', swaps: {} }),
+      // The jump's flame burns out under him.
+      key(8, mix(TUCK, { body: { rot: 180 }, fx4: flame(0, 2.8, 0.1, 90, 1.3) }), {
+        ease: 'linear',
+        swaps: {},
+      }),
       key(14, mix(TUCK, { body: { rot: 300 } }), { ease: 'out' }),
       key(20, mix(AIR, { body: { rot: 360 } })),
       key(30, mix(APEX, { body: { rot: 360 } })),
@@ -606,7 +612,7 @@ export const clips: Record<string, AnimClip> = {
     keys: [
       key(0, HANG, { ease: 'linear', z: ARMS_IN_FRONT }),
       key(5, pull(5, 20, 0.6), { ease: 'linear' }),
-      key(10, mix(CROUCH, { body: { rot: 6 } }), { ease: 'out', swaps: FRONT, z: {} }),
+      key(10, mix(CROUCH, { body: { rot: 6 } }), { ease: 'linear', swaps: FRONT, z: {} }),
       key(
         16,
         hands(
@@ -615,7 +621,7 @@ export const clips: Record<string, AnimClip> = {
           [-0.9, -5.0],
         ),
         {
-          ease: 'in',
+          ease: 'linear',
           swaps: ANGRY,
         },
       ),
@@ -719,8 +725,8 @@ export const clips: Record<string, AnimClip> = {
     swaps: FRONT,
     keys: [
       key(0, mix(CROUCH, { body: { rot: -20 } }), { ease: 'out', swaps: BLINK }),
-      key(5, ROLL_BALL, { ease: 'linear', swaps: { ...NO_BODY, ...SIDE_ANGRY } }),
-      key(28, ROLL_BALL, { ease: 'out', swaps: {} }),
+      key(5, ROLL_TUCK, { ease: 'linear', swaps: { ...NO_BODY, ...SIDE_ANGRY } }),
+      key(28, ROLL_TUCK, { ease: 'out', swaps: {} }),
       key(32, CROUCH, { ease: 'out' }),
       key(40, STAND),
     ],
@@ -899,3 +905,30 @@ clips.getupRollBack = retimeClip(clips.rollBack!, 35, [
  * stay put and only the recovery after it stretches. A directional dodge plays the same clip over its own length.
  */
 clips.airDodge = retimeClip(clips.airDodge!, 52, [[29, 29]]);
+
+/** Every clip's limbs and effects turn the short way round between keys (`continuous`). */
+for (const [name, clip] of Object.entries(clips)) clips[name] = { ...clip, keys: continuous(clip.keys) };
+
+/**
+ * Grounded clips whose tweens between planted keys dip a shin or a fist under the floor (by up to 0.7 in the dash
+ * attack's take-off): `floorContact` lifts those frames back onto it.
+ */
+const PLANTED = [
+  'runBrake',
+  'turn',
+  'land',
+  'getupStand',
+  'getupAttack',
+  'dtilt',
+  'dashAttack',
+  'fsmash',
+  'dsmash',
+  'dashGrab',
+  'pivotGrab',
+  'fthrow',
+  'bthrow',
+  'dthrow',
+  'neutralB',
+  'finalSmash',
+];
+for (const name of PLANTED) clips[name] = floorContact(clips[name]!);
