@@ -19,6 +19,12 @@ const SWINGS = [
   'dashGrab',
   'dthrow',
   'ledgeAttack',
+  'usmash',
+  'grab',
+  'pivotGrab',
+  'fthrow',
+  'bthrow',
+  'uthrow',
 ];
 
 /**
