@@ -50,7 +50,8 @@ export const SWINGS = [
 
 /**
  * Clips in the air: checked frame by frame like the grounded ones, with no floor under them. The aerials, the air
- * special, the Stun Gun and Final Smash in the air, the air dodge, jumps, falls, tumbling and hitstun.
+ * special, the Stun Gun and Final Smash in the air, the air dodge, jumps, falls, tumbling and hitstun, and the
+ * Final Smash cut scene, which plays on its own backdrop.
  */
 export const AIR = [
   'nair',
@@ -69,6 +70,7 @@ export const AIR = [
   'helpless',
   'tumble',
   'hitstun',
+  'finalSmashCinematic',
 ];
 
 /** Clips with the loot sack in his hand. */
@@ -82,5 +84,22 @@ export const swingChecks: SwingChecks = {
   /** The baton's tip, as `tipOf` in poses.ts. */
   tips: { baton: 7.5 },
   decals: FLOOR_DECALS,
+  cuts: [
+    {
+      clip: 'finalSmashCinematic',
+      frame: 23,
+      why: 'the iris shuts and the scene cuts to the dark, where only his eyes show',
+    },
+    { clip: 'finalSmashCinematic', frame: 320, why: 'the spotlight comes on, on his bow' },
+  ],
+  covered: [
+    {
+      clip: 'finalSmashCinematic',
+      slot: 'fx2',
+      from: 90,
+      to: 292,
+      why: 'the fight cloud the flurry happens in, with his arm swinging under it',
+    },
+  ],
   face: { prop: 'sack', clips: SACKS, head: 'head', features: 'face', hat: 'hat' },
 };
