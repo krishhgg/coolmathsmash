@@ -2,7 +2,7 @@ import type { Pose } from '../../../render/rig/author';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import { FAF, STOMP, WAVE } from '../finalSmashData';
 import { strike, wings } from './attacks';
-import { ANGRY, SHOUT, STAND, WEB, air, fx, key, leg, mix } from './poses';
+import { ANGRY, SHOUT, STAND, WEB, WEB_F, air, at, fx, key, leg, mix } from './poses';
 
 /**
  * Evolved Stomp, the Final Smash (src/fighters/duck/finalSmash.ts), on Ganon's timeline. Through the activation
@@ -51,6 +51,8 @@ function poses(inAir: boolean) {
     [-148, 1.85],
     [-122, 1.85],
   );
+  /** The end of the roar, the front foot already coming up for the first stamp. */
+  const roarLifting = inAir ? roar : leg(roar, 'F', [1.0, -1.1], 35);
   /** Winding up a stamp: leaning back, the front webbed foot raised high, wings up behind him for balance. */
   const lift = (high: number): Pose => {
     const base = strike({ lean: -12, shift: -0.3, head: [0.0, -8.4], aim: -14, feet: planted(-1.0, 0.2) });
@@ -67,7 +69,8 @@ function poses(inAir: boolean) {
       aim: 16,
       feet: planted(-1.1, 2.4),
     });
-    const down = inAir ? leg(base, 'F', [1.9, 0.7], 10) : base;
+    // On the floor the webbed foot lands with its toes spread up off it and the lowest one flat along it.
+    const down = inAir ? leg(base, 'F', [1.9, 0.7], 10) : leg(base, 'F', at(base, 'footF'), -22);
     return wings(down, [-166, 1.6], [-128, 1.55]);
   };
   /** Leaning after the shockwave, beak open, wings swept back. */
@@ -77,13 +80,16 @@ function poses(inAir: boolean) {
     [-176, 1.55],
   );
   const still = inAir ? air() : STAND;
-  return { stance, roar, lift, stamp, follow, still };
+  return { stance, roar, roarLifting, lift, stamp, follow, still };
 }
 
-/** Dust kicked up round the stamping foot (fx1, fx2), at full size. */
+/**
+ * Dust kicked up round the stamping foot (fx1, fx2), at full size, resting on the floor: the star on fx1 reaches its
+ * size below its centre and a puff 0.92 of it.
+ */
 const stampDust = (k: number): Pose => ({
-  fx1: fx(7.5 + k * 2, -1.6 - k, 3.2 + k * 1.2),
-  fx2: fx(-3 - k * 2, -1.2 - k * 0.6, 2.4 + k),
+  fx1: fx(7.5 + k * 2, -(3.2 + k * 1.2), 3.2 + k * 1.2),
+  fx2: fx(-3 - k * 2, -0.95 * (2.4 + k), 2.4 + k),
 });
 
 /** Swap sets: what shows from each key on (a key's swaps replace the last key's). */
@@ -93,11 +99,13 @@ const ROAR = { ...EVOLVED, ...SHOUT };
 const S = 3;
 
 function evolvedStomp(inAir: boolean): AnimClip {
-  const { stance, roar, lift, stamp, follow, still } = poses(inAir);
-  // The stamp's star, and dust where there is a floor to kick it up from.
+  const { stance, roar, roarLifting, lift, stamp, follow, still } = poses(inAir);
+  // The stamp's star, and dust where there is a floor to kick it up from. On the floor only the stamping foot is
+  // webbed: the back one stays planted under him.
   const puff = inAir ? null : 'fxPuff';
-  const IMPACT = { ...EVOLVED, ...SHOUT, ...WEB, fx1: 'fxStar', fx2: puff };
-  const DUSTY = { ...EVOLVED, ...WEB, fx1: puff, fx2: puff };
+  const web = inAir ? WEB : WEB_F;
+  const IMPACT = { ...EVOLVED, ...SHOUT, ...web, fx1: 'fxStar', fx2: puff };
+  const DUSTY = { ...EVOLVED, ...web, fx1: puff, fx2: puff };
   const growth: [number, number][] = [
     [10, 1.55],
     [14, 1.4],
@@ -125,7 +133,7 @@ function evolvedStomp(inAir: boolean): AnimClip {
       }),
     ),
     key(40, grown(roar, S), { ease: 'out', swaps: ROAR, z: WINGS_BEHIND_Z }),
-    key(46, grown(roar, S), { ease: 'inOut' }),
+    key(46, grown(roarLifting, S), { ease: 'inOut' }),
     // The first stamp: the slam on frame 54.
     key(STOMP.frame - 6, grown(lift(1), S), { ease: 'in', swaps: EVOLVED, z: PARTS_Z }),
     key(STOMP.frame, mix(grown(stamp(1), S), stampDust(0)), { ease: 'out', swaps: IMPACT }),
