@@ -6,6 +6,8 @@ import { activeHitboxes } from '../sim/combat/hits';
 import { entityHitboxes } from '../sim/entities/entities';
 import type { EntityState } from '../sim/entities/types';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
+import { edgeMaxX, edgeMinX } from '../sim/stage';
+import type { Vec } from '../sim/vec';
 import { hintsFor, type CpuHints } from './hints';
 import {
   AERIALS,
@@ -17,7 +19,7 @@ import {
   STICK,
   press,
 } from './inputs';
-import { staticStage } from './stage';
+import { staticStage, type StageInfo } from './stage';
 
 /**
  * What a CPU knows about a fighter, learned by trying every move once in a private copy of the simulation: when
@@ -226,19 +228,19 @@ export function knowledge(fighterId: string, stageId: string): FighterKnowledge 
   for (const name of GROUND_MOVES) {
     if (!moves[name] || avoid.has(name)) continue;
     const p = probe(def, stageId, name, 'ground');
-    if (!p) continue;
+    if (!p || p === 'out') continue;
     const hold = chargeHold(moves[name]);
     const charged = hold > 0 ? probe(def, stageId, name, 'ground', hold) : null;
-    ground[name] = withCarry(def, p, charged ? withCarry(def, charged) : undefined);
+    ground[name] = withCarry(def, p, charged && charged !== 'out' ? withCarry(def, charged) : undefined);
   }
   for (const name of Object.keys(DASH_INPUTS)) {
     if (!moves[name] || avoid.has(name)) continue;
     const p = probe(def, stageId, name, 'dash');
-    if (p) ground[name] = withCarry(def, p);
+    if (p && p !== 'out') ground[name] = withCarry(def, p);
   }
   for (const name of [...AERIALS, ...SPECIALS]) {
     if (!moves[name] || avoid.has(name)) continue;
-    const p = probe(def, stageId, name, 'air');
+    const p = probeAir(def, stageId, name);
     if (p) air[name] = p;
   }
   const shoots = [...Object.values(ground), ...Object.values(air)].some((p) => p.shot !== null);
@@ -281,27 +283,69 @@ function chargeHold(move: MoveDef): number {
   return Math.min(move.chargeFrames ?? SMASH_CHARGE_FRAMES, CHARGE_HOLD);
 }
 
+/**
+ * Where the air probe starts a move, in order: 100 above the stage's middle; at that height over the solid floor
+ * nearest the middle, when the middle has none under it (Bloxorz Platform's 16-wide hole); then 50 above that floor.
+ * A move the first start carries out of the blast zone is probed from the next (probeAir), so a down special that
+ * plunges through a hole, or an up special that rises past a low top blast zone, is probed where it can play out. One
+ * that carries the fighter out from all of them is dropped.
+ */
+export function airStarts(info: StageInfo): Vec[] {
+  const floors = info.c.edges.filter((e) => e.kind === 'floor' && info.steady.solids[e.solid]);
+  const gap = (e: (typeof floors)[number]) =>
+    Math.max(edgeMinX(e) - info.centerX, info.centerX - edgeMaxX(e), 0);
+  // The nearest floor; between two as near, the one ahead (the probe faces right).
+  const floor = floors.reduce<(typeof floors)[number] | undefined>(
+    (best, e) =>
+      !best || gap(e) < gap(best) || (gap(e) === gap(best) && edgeMinX(e) > edgeMinX(best)) ? e : best,
+    undefined,
+  );
+  const x = !floor || gap(floor) === 0 ? info.centerX : (edgeMinX(floor) + edgeMaxX(floor)) / 2;
+  const starts = [{ x: info.centerX, y: info.top + AIR_START_HIGH }];
+  if (x !== info.centerX) starts.push({ x, y: info.top + AIR_START_HIGH });
+  starts.push({ x, y: info.top + AIR_START_LOW });
+  return starts;
+}
+
+const AIR_START_HIGH = 100;
+const AIR_START_LOW = 50;
+
+/** Probe an air move from the first of airStarts it isn't carried out of the blast zone from; null if none. */
+function probeAir(def: FighterDef, stageId: string, move: string): MoveProbe | null {
+  for (const at of airStarts(staticStage(stageId))) {
+    const p = probe(def, stageId, move, 'air', 0, at);
+    if (p !== 'out') return p;
+  }
+  return null;
+}
+
 /** KO'd: out of the blast zone. */
 function out(f: { action: string }): boolean {
   return f.action === 'ko' || f.action === 'out';
 }
 
-/** Probe `move` from `start`; with `hold`, it fires with that much charge (chargeInput). */
+/**
+ * Probe `move` from `start` (an air start at `at`, by default 100 above the stage's middle); with `hold`, it fires with
+ * that much charge (chargeInput). 'out' when the move carries the fighter out of the blast zone, null when the input
+ * doesn't play it.
+ */
 function probe(
   def: FighterDef,
   stageId: string,
   move: string,
   start: MoveProbe['start'],
   hold = 0,
-): MoveProbe | null {
+  at?: Vec,
+): MoveProbe | 'out' | null {
   const m = settle(def, stageId);
   const f = m.fighters[0]!;
   const info = staticStage(stageId);
   f.facing = 1;
   if (start === 'air') {
+    const { x, y } = at ?? { x: info.centerX, y: info.top + AIR_START_HIGH };
     Object.assign(f, {
-      pos: { x: info.centerX, y: info.top + 100 },
-      prevPos: { x: info.centerX, y: info.top + 100 },
+      pos: { x, y },
+      prevPos: { x, y },
       vel: { x: 0, y: 0 },
       ground: null,
       action: 'fall',
@@ -364,7 +408,7 @@ function probe(
   // it stays: air specials are for recovering, and the recovery planner plays one out on the real stage before it
   // uses it. On the ground the probe is what the CPU's attacks trust to land it safely, so a fall out still drops it.
   const fellOut = start === 'air' && out(f) && helpless && left !== null;
-  if (out(f) && !fellOut) return null;
+  if (out(f) && !fellOut) return 'out';
   const end = fellOut
     ? { x: left!.x - x0, y: left!.y - y0, grounded: false }
     : { x: f.pos.x - x0, y: f.pos.y - y0, grounded: f.ground !== null };
