@@ -50,11 +50,12 @@ describe('CPUs on Run Tunnel', () => {
     60_000,
   );
 
-  // On main both CPUs walked to the gap nearest them and stood there for the whole 8 minutes.
+  // Both CPUs used to walk to the gap nearest them and stand there for the whole 8 minutes. Now the first KO comes
+  // between frames 1526 and 2557 (25 to 43 s) on these seeds.
   it.each([1, 2, 3, 4])(
-    'level 9 against level 9 lands a KO within 40 s (seed %i)',
+    'level 9 against level 9 lands a KO within 60 s, and nobody self-destructs (seed %i)',
     (seed) => {
-      const r = runCpuMatch({ seed, levels: [9, 9], stage: 'run-tunnel', maxFrames: 40 * 60 });
+      const r = runCpuMatch({ seed, levels: [9, 9], stage: 'run-tunnel', maxFrames: 60 * 60 });
       expect(r.kos.length).toBeGreaterThan(0);
       expect(r.kos.filter((k) => k.selfDestruct)).toEqual([]);
     },

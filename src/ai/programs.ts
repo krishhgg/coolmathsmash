@@ -188,8 +188,9 @@ export function gapHop(stick: number, over: (f: Readonly<FighterState>) => boole
   };
 }
 
-/** Frames of Jump held for a full hop (through any fighter's jump squat), and the longest a gap hop runs. */
+/** Frames of Jump held for a full hop, through any fighter's jump squat. */
 const FULL_HOP_HOLD = 8;
+/** The longest a gap hop runs, in frames. */
 const GAP_HOP_LIMIT = 150;
 
 export function shortHop(dir: number): Program {

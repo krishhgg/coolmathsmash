@@ -239,6 +239,11 @@ to vanish, or a belt that would carry it into either within 45 frames. Look-ahea
 (`soloMatch` in `src/ai/look.ts`) keep the stage's frame and the hazards setting, so predictions see the same
 trapdoors and belts.
 
+A gap in the floor between the stage's ends, such as Run Tunnel's two or Bloxorz Platform's hole, gets the same care
+with hazards on or off: `StageInfo.calm` is false on such a stage, so the CPU checks that its aerials, ground moves,
+rolls and hops come down on ground. When the CPU's walk toward its opponent stops at a gap's edge, it full hops across
+(`hopGap` in `src/ai/cpu.ts`) if the hop, played on a copy of the match, lands on ground past the gap.
+
 ## The testbed
 
 `src/stages/testbed.ts` is not a real stage: it shows each stage system on a Battlefield-sized slab for
