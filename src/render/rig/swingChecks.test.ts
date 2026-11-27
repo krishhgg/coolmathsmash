@@ -173,6 +173,15 @@ describe('the swing checks', () => {
   });
 });
 
+describe('a clip in the air that lands', () => {
+  it('gets the floor check from the frame it is listed as standing on the floor', () => {
+    const sunk = (checks: Partial<SwingChecks>) =>
+      floorFindings(art, { ground: [], air: ['sink'], ...checks }).map((f) => f.frame);
+    expect(sunk({})).toEqual([]);
+    expect(sunk({ groundFrom: { sink: 3 } })).toEqual([3, 4]);
+  });
+});
+
 describe('the turn check under a mirrored parent', () => {
   it('passes a part that keeps its angle on screen as its parent flips to face the other way', () => {
     expect(failing('whirl')).toEqual({});

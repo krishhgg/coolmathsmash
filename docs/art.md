@@ -180,7 +180,9 @@ with the same checks as its nearest shared action.
 
 `src/render/rig/swingChecks.ts` checks every frame of a clip:
 
-- On the ground, nothing drawn reaches more than 0.2 under the floor.
+- On the ground, nothing drawn reaches more than 0.2 under the floor. The ledge getups (`ledgeClimb`, `ledgeRoll`,
+  `ledgeAttack`) count as in the air until the engine has them standing on the stage, on their `moveEnd` frame, and
+  are checked against the floor from there (`groundFrom`).
 - No drawn part turns more than 60 degrees from one frame to the next, or 120 from two frames before a hit window
   until it closes. A part's turn is measured on screen: under a mirrored parent, such as a body flipped with sx -1,
   its own rotation counts the other way round. On a frame where its parent flips to face the other way, a part may
