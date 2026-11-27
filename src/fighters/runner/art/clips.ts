@@ -1,4 +1,4 @@
-import { pointOf, type Pose } from '../../../render/rig/author';
+import { pointOf, reach, type Pose } from '../../../render/rig/author';
 import { poseBounds } from '../../../render/rig/geometry';
 import { samplePose } from '../../../render/rig/sample';
 import { retimeClip } from '../../../render/rig/timing';
@@ -8,6 +8,7 @@ import { FORE_ARM, UPPER_ARM } from './parts';
 import {
   ANGRY,
   AWAY,
+  aimArm,
   BLINK,
   CROUCH,
   DIZZY,
@@ -25,10 +26,11 @@ import {
   key,
   mix,
   passing,
+  soles,
   turn,
   type Pt,
 } from './poses';
-import { rig } from './rig';
+import { ANKLE, FOOT, rig } from './rig';
 
 /**
  * Movement, defence, ledge, hurt and grab clips. Run 3's Runner is all bounce: a round body that squashes into
@@ -90,42 +92,78 @@ function gait(length: number, poses: [Pose, Pose, Pose, Pose]): AnimClip {
   return { length, loop: true, keys: poses.map((p, i) => key(i * q, p)) };
 }
 
-/** One leg's path through a run stride (sole positions), as fractions of the cycle. */
+/** A planted run foot's path from contact to toe-off (sole positions, x from that leg's own hip), as cycle fractions. */
 const STRIDE: [number, Pt][] = [
-  [0, [4.65, 0]],
-  [0.12, [3.25, 0]],
-  [0.29, [-1.0, 0]],
-  [0.42, [-4.7, -0.65]],
-  [0.58, [-4.8, -1.9]],
-  [0.72, [0.9, -3.55]],
-  [0.86, [4.75, -2.1]],
+  [0, [3.0, 0]],
+  [0.12, [2.0, 0]],
+  [0.29, [-1.3, 0]],
+  [0.42, [-2.9, -0.9]],
+];
+const TOE_OFF = 0.42;
+
+/**
+ * A swinging run leg between toe-off and the next contact, at seven even steps: how far the thigh has come forward
+ * (past 1 lifts the knee) and how much further than a straight blend the knee folds, so the heel kicks up behind
+ * and the knee leads through under the hip instead of the foot.
+ */
+const SWING: [number, number][] = [
+  [0, 0],
+  [0.1, 46],
+  [0.28, 80],
+  [0.5, 74],
+  [0.75, 68],
+  [0.98, 61],
+  [1.08, 39],
+  [1, 0],
 ];
 
 function strideAt(t: number): Pt {
   const u = ((t % 1) + 1) % 1;
-  for (let i = 0; i < STRIDE.length; i++) {
-    const [t0, p0] = STRIDE[i]!;
-    const [t1, p1] = STRIDE[(i + 1) % STRIDE.length]!;
-    const end = i + 1 < STRIDE.length ? t1 : 1;
-    if (u >= t0 && u <= end) {
-      const k = (u - t0) / (end - t0);
+  for (let i = 1; i < STRIDE.length; i++) {
+    const [t0, p0] = STRIDE[i - 1]!;
+    const [t1, p1] = STRIDE[i]!;
+    if (u <= t1) {
+      const k = (u - t0) / (t1 - t0);
       return [p0[0] + (p1[0] - p0[0]) * k, p0[1] + (p1[1] - p0[1]) * k];
     }
   }
-  return STRIDE[0]![1];
+  return STRIDE[STRIDE.length - 1]![1];
+}
+
+/** One run leg `u` of the way through its stride: planted along STRIDE, then swung through SWING. */
+function runLeg(torso: Pose, pose: Pose, side: 'B' | 'F', u: number): Pose {
+  const [thigh, shin] = [`thigh${side}`, `shin${side}`];
+  const plant = (at: number, on: Pose) => {
+    const [x, y] = strideAt(at);
+    return reach(rig, on, thigh, shin, FOOT, [pointOf(rig, torso, thigh)[0] + x, y - ANKLE]);
+  };
+  const w = ((u % 1) + 1) % 1;
+  if (w <= TOE_OFF) return plant(w, pose);
+  const [off, on] = [plant(TOE_OFF, torso), plant(0, torso)];
+  const s = ((w - TOE_OFF) / (1 - TOE_OFF)) * (SWING.length - 1);
+  const i = Math.min(Math.floor(s), SWING.length - 2);
+  const [[t0, f0], [t1, f1]] = [SWING[i]!, SWING[i + 1]!];
+  const [forward, fold] = [t0 + (t1 - t0) * (s - i), f0 + (f1 - f0) * (s - i)];
+  const rot = (bone: string, by: number) =>
+    (off[bone]?.rot ?? 0) + ((on[bone]?.rot ?? 0) - (off[bone]?.rot ?? 0)) * by;
+  return mix(pose, {
+    [thigh]: { rot: rot(thigh, forward) },
+    [shin]: { rot: rot(shin, s / (SWING.length - 1)) + fold },
+  });
 }
 
 /** A run pose `t` of the way through the cycle: leaning in hard, arms pumping, antennae streaming back. */
 export function runPose(t: number, lean = 31): Pose {
   const bob = Math.cos(t * Math.PI * 4);
   const swing = Math.sin(t * Math.PI * 2);
-  return P({
+  const torso = P({
     x: 0.7,
-    y: 0.64 + 0.46 * bob,
+    y: 0.04 + 0.46 * bob,
     rot: lean + 6 * bob,
     sy: 0.94 - 0.044 * bob,
     sx: 1.04 + 0.031 * bob,
     raw: {
+      hip: { rot: -(lean + 6 * bob) },
       thighB: { sy: 1.5 },
       shinB: { sy: 1.29 },
       thighF: { sy: 1.5 },
@@ -133,13 +171,12 @@ export function runPose(t: number, lean = 31): Pose {
       armB: { sy: 1.22 },
       armF: { sy: 1.22 },
     },
-    legs: [strideAt(t), strideAt(t + 0.5)],
-    arms: [
-      [5.0 + 1.8 * swing, -5.55 - 3.15 * swing],
-      [-3.85 + 2.0 * swing, -5.45 + 3.25 * swing],
-    ],
-    ant: [42 + 10 * bob, 38 + 9 * bob],
   });
+  const legs = soles(runLeg(torso, runLeg(torso, torso, 'B', t), 'F', t + 0.5));
+  const far = -67.5 - 67.5 * swing;
+  const near = 49 - 58 * swing;
+  const arms = aimArm(aimArm(legs, 'B', far, far - 35 + 15 * swing), 'F', near, near - 15);
+  return ants(arms, 42 + 10 * bob, 38 + 9 * bob);
 }
 
 const RUN_LEN = 12;

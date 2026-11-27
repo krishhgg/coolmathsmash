@@ -59,6 +59,19 @@ export function hands(
   return p;
 }
 
+/** Points a limb's two parts (`upper` and the `lower` hanging from it) at `a` and `b` degrees in the rig (0: hanging, negative: forward). */
+export function aim(pose: Pose, upper: string, lower: string, a: number, b: number): Pose {
+  const w = worldRot(pose);
+  return mix(pose, {
+    [upper]: { rot: (pose[upper]?.rot ?? 0) + a - w[upper]! },
+    [lower]: { rot: (pose[lower]?.rot ?? 0) + b - a - (w[lower]! - w[upper]!) },
+  });
+}
+
+/** Points one arm's upper part and forearm at `upper` and `lower` degrees in the rig. */
+export const aimArm = (pose: Pose, side: 'B' | 'F', upper: number, lower: number): Pose =>
+  aim(pose, `arm${side}`, `fore${side}`, upper, lower);
+
 export function key(frame: number, pose?: Pose, extra: Omit<Key, 'frame' | 'pose'> = {}): Key {
   return pose ? { frame, pose, ...extra } : { frame, ...extra };
 }

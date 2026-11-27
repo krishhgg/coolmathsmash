@@ -15,11 +15,14 @@ import {
   P,
   SHOUT,
   STAND,
+  aim,
   ants,
+  aimArm,
   between,
   clearLeg,
   hands,
   passing,
+  soles,
   key,
   mix,
   type Pt,
@@ -163,6 +166,32 @@ const KICK_F = hitting(
   }),
   ['shinF', [8.1, -3.75], 1.28],
 );
+const UNSTRETCHED: Pose = { thighB: { sy: 1 }, shinB: { sy: 1 }, thighF: { sy: 1 }, shinF: { sy: 1 } };
+/** Halfway from one rapid kick to the other: her legs scissoring past each other, knees bent to keep off the floor. */
+const SCISSOR = soles(
+  aim(
+    aim(mix(between(KICK_F, KICK_B, 0.5), UNSTRETCHED), 'thighB', 'shinB', -90, 10),
+    'thighF',
+    'shinF',
+    -50,
+    2,
+  ),
+);
+/** Feet down after the rapid kicks, before the shove. */
+const KICKED_OUT = P({
+  x: 0.2,
+  y: 0.8,
+  rot: 0,
+  legs: [
+    [2.0, 0],
+    [-1.8, 0],
+  ],
+  arms: [
+    [3.4, -5.2],
+    [-5.0, -5.4],
+  ],
+  ant: [2, 2],
+});
 const SHOVE = hitting(
   P({
     x: 1.3,
@@ -666,8 +695,10 @@ const TILE_BRACE = P({
 
 /** Gravity Switch: upside down; `pose` is drawn as if standing and then flipped about her middle. */
 const flipped = (pose: Pose): Pose => mix(pose, FLIP);
+/** Gravity Switch upside down: the same picture as `flipped`, drawn as a half turn of the root and a mirror across. */
+const overhead = (pose: Pose): Pose => mix(pose, { root: { rot: 180, sx: -1, y: -13 } });
 const RISE = (wave: number): Pose =>
-  flipped(
+  overhead(
     P({
       raw: { thighB: { rot: -15 }, shinB: { rot: 20 }, thighF: { rot: 10 }, shinF: { rot: 15 } },
       arms: [
@@ -683,7 +714,7 @@ function clingRun(from: number, to: number): Key[] {
   const keys: Key[] = [];
   for (let f = from; f <= to; f += 2)
     keys.push(
-      key(f, mix(flipped(runPose(((f - from) % RUN_LEN) / RUN_LEN, 12)), { root: { y: -12.25 } }), {
+      key(f, mix(overhead(runPose(((f - from) % RUN_LEN) / RUN_LEN, 12)), { root: { y: -12.25 } }), {
         ease: 'linear',
       }),
     );
@@ -805,29 +836,15 @@ export const attacks: Record<string, AnimClip> = {
     RAPID_JAB.faf,
     [...RAPID_JAB.kicks.map((f): [number, number] => [f, f]), RAPID_JAB.shove],
     [
+      // Each kick swaps legs through a scissor halfway between the two, and the last comes back to it by the loop.
       ...RAPID_JAB.kicks.flatMap((f, i) => [
-        key(f - 1, runPose(i / 4, 12), { ease: 'out', swaps: NO_FX }),
+        key(f - 1, SCISSOR, { ease: 'linear', swaps: NO_FX }),
         key(f, i % 2 ? KICK_F : KICK_B, { ease: 'linear', swaps: STREAK1 }),
       ]),
-      key(RAPID_JAB.loop - 1, runPose(0, 12), { swaps: NO_FX }),
-      key(
-        RAPID_JAB.loop + 2,
-        P({
-          x: 0.2,
-          y: 0.8,
-          rot: 0,
-          legs: [
-            [2.0, 0],
-            [-1.8, 0],
-          ],
-          arms: [
-            [3.4, -5.2],
-            [-5.0, -5.4],
-          ],
-          ant: [2, 2],
-        }),
-        { ease: 'out' },
-      ),
+      key(RAPID_JAB.loop - 1, between(KICK_F, SCISSOR, 0.5), { ease: 'linear', swaps: NO_FX }),
+      key(RAPID_JAB.loop, SCISSOR, { ease: 'linear' }),
+      key(RAPID_JAB.loop + 1, passing(SCISSOR, KICKED_OUT, 0.5, 'F', 0.1), { ease: 'linear' }),
+      key(RAPID_JAB.loop + 2, KICKED_OUT, { ease: 'out' }),
       ...strike(RAPID_JAB.shove[0], RAPID_JAB.shove[1], SHOVE, { ...STREAK1, ...SHOUT }),
       done(RAPID_JAB.shove[1] + 6, SHOVE),
       key(RAPID_JAB.faf - 1, READY),
@@ -900,7 +917,7 @@ export const attacks: Record<string, AnimClip> = {
       [13, 20],
     ],
     [
-      key(0, runPose(0), { ease: 'out' }),
+      key(0, runPose(0), { ease: 'linear' }),
       key(4, DIVE_STEP),
       // Her far foot pushes off and comes up over the floor into the dive.
       key(5, passing(DIVE_STEP, DIVE, 1 / 3, 'B'), { ease: 'linear' }),
@@ -1321,34 +1338,47 @@ export const attacks: Record<string, AnimClip> = {
     [[4, 6]],
     [
       key(0, READY, { ease: 'out', swaps: SHOUT }),
+      // Squatting with her arms swung out level, on their way up round her knees.
       key(
         3,
-        P({
-          y: 1.5,
-          sy: 0.85,
-          sx: 1.1,
-          legs: [
-            [2.0, 0],
-            [-1.8, 0],
-          ],
-          arms: [
-            [4.8, -2.8],
-            [-4.6, -2.8],
-          ],
-          ant: [-12, 12],
-        }),
+        aimArm(
+          aimArm(
+            P({
+              y: 1.5,
+              sy: 0.85,
+              sx: 1.1,
+              legs: [
+                [2.0, 0],
+                [-1.8, 0],
+              ],
+              ant: [-12, 12],
+            }),
+            'B',
+            -85,
+            -115,
+          ),
+          'F',
+          85,
+          115,
+        ),
         { ease: 'in' },
       ),
       key(4, mix(TUCK, { body: { rot: 0 } }), { ease: 'linear' }),
       key(5, mix(TUCK, { body: { rot: 60 }, root: { y: -7.5 } }), { ease: 'linear' }),
       key(6, mix(TUCK, { body: { rot: 150 }, root: { y: -6.9 } }), { ease: 'linear' }),
-      key(7, RISE(0), { swaps: ANGRY }),
+      // Gravity switches: still tucked, she turns over the rest of the way upside down (mirrored), then unfolds.
+      key(7, overhead(mix(TUCK, { body: { rot: 15 } })), { ease: 'linear', swaps: ANGRY }),
+      key(9, RISE(0)),
       ...[15, 25, 35, 45].map((f, i) => key(f, RISE(i % 2 ? -1 : 1))),
       key(53, RISE(0)),
       ...clingRun(60, 118),
-      key(120, flipped(mix(TUCK, { body: { rot: 0 } })), { ease: 'linear', swaps: HAPPY }),
-      key(123, flipped(mix(TUCK, { body: { rot: -85 } })), { ease: 'step' }),
-      key(124, mix(TUCK, { body: { rot: 85 } }), { ease: 'out' }),
+      // Curling up off the ceiling: most of the way into the tuck by the pop, the rest as she turns.
+      key(120, overhead(mix(between(runPose(10 / 12, 12), TUCK, 0.7), { body: { rot: 0 } })), {
+        ease: 'linear',
+        swaps: HAPPY,
+      }),
+      key(123, overhead(mix(TUCK, { body: { rot: -85 } })), { ease: 'step' }),
+      key(124, mix(TUCK, { body: { rot: 85 } }), { ease: 'linear' }),
       key(127, AIR, { swaps: HURT }),
     ],
     { ...ANGRY },

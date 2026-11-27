@@ -380,7 +380,6 @@ const KNOWN: Record<string, string[]> = {
     'usmash',
     'uthrow',
   ],
-  runner: ['dthrow', 'jabRapid', 'run', 'upB'],
   snailbob: [
     'bthrow',
     'dairLand',
