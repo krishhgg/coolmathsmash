@@ -158,6 +158,9 @@ fsmash: {
   - `leavesGround` makes a grounded start take off.
   - `helpless` ends the move in helpless fall.
   - `ledgeFrom` lets the move grab a ledge from that frame.
+  - `ledgeBehind` lets it catch a ledge behind the fighter at full reach, as one in front; otherwise a ledge behind
+    is caught only within 0.6 of the reach. Snail Bob's Shell Pound has it, as Bowser Bomb snaps to the ledge
+    whichever way Bowser faces.
   - Fireboy's `upB` uses all three.
   - `continuesOnLanding` lets an airborne special carry on from the same frame when it lands, instead of
     ending in landing lag.
