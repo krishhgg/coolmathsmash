@@ -8,6 +8,7 @@ import {
 } from '../render/rig/swingChecks';
 import { swingChecks as bob } from './bob-the-robber/art/swings';
 import { allFighters } from './registry';
+import { swingChecks as watergirl } from './watergirl/art/swings';
 import type { FighterDef } from './types';
 
 /**
@@ -48,7 +49,7 @@ const inAir = (def: FighterDef, clip: string) =>
   AIR.has(clip) || def.moves?.[clip]?.kind === 'aerial' || /Air/.test(clip);
 
 /** Fighters' own lists and allowances, which win over the defaults above for the clips they name. */
-const OWN: Record<string, SwingChecks> = { 'bob-the-robber': bob };
+const OWN: Record<string, SwingChecks> = { 'bob-the-robber': bob, watergirl };
 
 /** The swing checks for one fighter: every clip it has, on the ground or in the air. */
 export function swingChecksFor(id: string, def: FighterDef): SwingChecks {

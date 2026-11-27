@@ -51,7 +51,7 @@ const swell = (w: number, h: number): Pose => ({ fx4: { x: 0, y: 0, sx: w, sy: w
 function lifting(r: number, stretch: number): Pose {
   const column = (x: number, k: number, tilt: number) => {
     const sy = ((r * k) / BALL) * stretch;
-    return flame(x, -3 * sy + 0.3, r * k, -90 + tilt, stretch);
+    return flame(x, -3 * sy + 0.15, r * k, -90 + tilt, stretch);
   };
   return { fx2: column(-4.7, 1, -6), fx3: column(4.9, 0.9, 6) };
 }
@@ -117,7 +117,7 @@ function tidalWave(air: boolean, length: number): AnimClip {
   for (let f = 11, i = 0; f <= 35; f += 6, i++)
     keys.push(key(f, call(0.55 + i * 0.12, 0.9 + (i % 2) * 0.25), { ease: 'inOut' }));
   keys.push(
-    key(40, call(1.2, 1.1), { ease: 'in', swaps: { ...CALL, face: 'faceFrontShout' } }),
+    key(40, call(1.2, 1.1), { ease: 'linear', swaps: { ...CALL, face: 'faceFrontShout' } }),
     key(44, lift(1.2, 0.6, 1.2, -4), { ease: 'out', swaps: lifted(air), z: BEHIND }),
     key(52, lift(1.15, 1.3, 2.2, -10), { ease: 'inOut' }),
     key(RELEASE - 4, lift(1.05, 1.6, 2.8, -14), { ease: 'in' }),

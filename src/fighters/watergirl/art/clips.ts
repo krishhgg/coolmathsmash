@@ -10,7 +10,9 @@ import {
   STAND,
   UP,
   ball,
+  continuous,
   feet,
+  floorContact,
   flame,
   hands,
   key,
@@ -89,7 +91,8 @@ const upB: AnimClip = {
     key(16, mix(RIDE, { fx4: flame(0, -1.6, 2.4, 90, 1.6) }), { ease: 'out' }),
     key(17, mix(RIDE, { head: { sx: 0.88, sy: 1.14 }, fx4: flame(0, -1.6, 3, 90, 1.7) }), { ease: 'out' }),
     key(24, mix(RIDE, { fx4: flame(0, -1.2, 0.8, 90) }), { ease: 'inOut' }),
-    key(28, mix(AIR, { armF: { rot: -70 }, armB: { rot: 70 } }), {
+    // The column runs dry where it is as she opens out.
+    key(28, mix(AIR, { armF: { rot: -70 }, armB: { rot: 70 }, fx4: flame(0, -1.2, 0.2, 90) }), {
       swaps: { head: 'headFront', face: 'faceFrontBlink' },
     }),
     key(37, AIR),
@@ -111,7 +114,7 @@ const brace = (rot: number, drop: number, front: Pt): Pose =>
   );
 
 const PUMP_UP = brace(-6, 0.45, [1.4, -3.3]);
-const CHARGED = brace(-10, 0.6, [1.0, -3.1]);
+const CHARGED = brace(-10, 0.6, [1.5, -3.2]);
 const SPRAY = brace(-8, 0.5, [3.0, -3.7]);
 
 /** Her front hand while she sprays, where the stream leaves her. */
@@ -186,12 +189,8 @@ const base: Record<string, AnimClip> = Object.fromEntries(
   Object.entries(fireboy.clips).filter(([name]) => name !== 'finalSmash' && name !== 'finalSmashAir'),
 );
 
-/**
- * Watergirl's clips: Fireboy's, with the water thrown further where her hitboxes reach further (jabs, ftilt,
- * fair), and her own Geyser, Water Stream and Tidal Wave.
- */
-export const clips: Record<string, AnimClip> = {
-  ...base,
+/** Her own clips and the ones she re-aims, turning the short way round between keys as Fireboy's do. */
+const own: Record<string, AnimClip> = {
   jab: reaim(base.jab!, 'fx1', [10, -8.5]),
   jab2: reaim(base.jab2!, 'fx1', [10.5, -8]),
   jab3: reaim(base.jab3!, 'fx1', [10, -6.5]),
@@ -200,6 +199,17 @@ export const clips: Record<string, AnimClip> = {
   upB,
   neutralB: waterStream(STREAM.light),
   neutralBHeavy: waterStream(STREAM.heavy),
-  finalSmash: finalSmashClip,
+  finalSmash: floorContact(finalSmashClip),
   finalSmashAir: finalSmashAirClip,
+};
+
+/**
+ * Watergirl's clips: Fireboy's, with the water thrown further where her hitboxes reach further (jabs, ftilt,
+ * fair), and her own Geyser, Water Stream and Tidal Wave.
+ */
+export const clips: Record<string, AnimClip> = {
+  ...base,
+  ...Object.fromEntries(
+    Object.entries(own).map(([name, clip]) => [name, { ...clip, keys: continuous(clip.keys) }]),
+  ),
 };
