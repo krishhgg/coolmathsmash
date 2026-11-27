@@ -57,7 +57,9 @@ const touching = <T extends ReflectorDef | AbsorberDef>(
  *
  * Clanks follow Ultimate's 9% rule (SmashWiki, Priority), simplified: a projectile is destroyed by an attack or a
  * projectile unless it deals more than 9% more than it; a projectile that outclasses an attack passes through it.
- * The attacker never rebounds (the engine has no rebound yet) and transcendent projectiles never clank.
+ * The attacker never rebounds (the engine has no rebound yet) and transcendent projectiles never clank. Windboxes
+ * (`pushOnly`) never clank either, on an attack or a projectile: F.L.U.D.D.'s water, the one Ultimate windbox
+ * projectile here, is flagged unable to clang (SmashWiki, Mario (SSBU)/Down special: clang=f).
  *
  * Returns the hitlag each fighter (by index) owes for hitting hittable entities. It is shared only after resolveHits,
  * so a fighter whose attack hits an entity and a fighter on the same frame still lands both.
@@ -135,10 +137,13 @@ function attackEntity(m: MatchState, f: FighterState, e: EntityState): number {
   const def = entityDef(e.kind);
   if (isHittable(def))
     return damageEntity(m, e, hit, damage, Math.sign(e.pos.x - f.pos.x) || f.facing, f.port);
-  if (!def.transcendent && entityHitboxes(m, e).length > 0 && entityPower(m, e) <= damage + PRIORITY_RANGE)
+  if (!def.transcendent && clanking(m, e).length > 0 && entityPower(m, e) <= damage + PRIORITY_RANGE)
     destroyEntity(m, e, 'clank');
   return 0;
 }
+
+/** The entity's hitboxes out this frame that can clank: all but its windboxes. */
+const clanking = (m: MatchState, e: EntityState) => entityHitboxes(m, e).filter((h) => !h.box.pushOnly);
 
 /** Two entities: one hitting a hittable other, or two projectiles clanking. Same-owner entities ignore each other. */
 function entitiesMeet(m: MatchState, a: EntityState, b: EntityState): void {
@@ -148,8 +153,8 @@ function entitiesMeet(m: MatchState, a: EntityState, b: EntityState): void {
   if (isHittable(hitB) && entityHits(m, a, b)) return;
   if (isHittable(hitA) && entityHits(m, b, a)) return;
   if (isHittable(hitA) || isHittable(hitB) || hitA.transcendent || hitB.transcendent) return;
-  const boxesA = entityHitboxes(m, a);
-  const boxesB = entityHitboxes(m, b);
+  const boxesA = clanking(m, a);
+  const boxesB = clanking(m, b);
   if (!boxesA.some((p) => boxesB.some((q) => circlesTouch(p.x, p.y, p.box.radius, q.x, q.y, q.box.radius))))
     return;
   const pa = entityPower(m, a);
