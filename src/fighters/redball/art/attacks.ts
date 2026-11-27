@@ -130,7 +130,18 @@ function chargeRoll(
         },
       ),
       key(frames + 1, undefined, { swaps: {} }),
-      key(frames + 8, mix(ground(1.06, 0.95, 0.4), roll(end))),
+      // The effects, hidden from frames + 1, stay where they were drawn rather than easing back to the origin.
+      key(
+        frames + 8,
+        mix(
+          ground(1.06, 0.95, 0.4),
+          roll(end),
+          speed(-3.5),
+          swirl(0.8),
+          fx('fx1', -6.5, -0.7, 1),
+          fx('fx2', 0, -R, 1),
+        ),
+      ),
       key(length, mix(ground(), roll(end)), { swaps: DETERMINED }),
     ],
   };
@@ -617,7 +628,10 @@ export const attacks = {
         swaps: { ...LICK_AIM, fxBack: 'speed' },
       }),
       key(14, mix(lickAt(LASH_LEAN, LASH_TIP), lashLines(25, 1.1))),
-      key(15, lickAt(mix(body(1.14, 0.9, 1.6), roll(1)), LASH_TIP), { swaps: LICK_AIM }),
+      // The speed lines, hidden from 15, stay where they were drawn rather than easing back to the origin.
+      key(15, mix(lickAt(mix(body(1.14, 0.9, 1.6), roll(1)), LASH_TIP), lashLines(25, 1.1)), {
+        swaps: LICK_AIM,
+      }),
       key(17, lickAt(LASH_LEAN, LASH_TIP)),
       key(21, lash(1.0, [15.5, -5.2])),
       key(25, lash(0.7, [7.5, -4.6], 1.02, 0.98)),
