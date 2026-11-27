@@ -36,7 +36,7 @@ import {
   worldRot,
   type Pt,
 } from './poses';
-import { attacks, ledgeSweep } from './attacks';
+import { attacks, crouchWith, ledgeSweep } from './attacks';
 import { finalSmashClips } from './finalSmash';
 import { FORE_ARM, SHIN, THIGH, UPPER_ARM, shoe } from './parts';
 import { rig } from './rig';
@@ -367,14 +367,12 @@ function between(a: Pose, b: Pose, t: number): Pose {
   return out;
 }
 
-/** CROUCH with both knees bent forward, as in the ball: CROUCH bows the back knee out. */
-const KNEES_FORWARD = feet(CROUCH, floor(-1.5), floor(1.6));
-
 /**
  * Halfway from the crouch into the ball, on the floor: the knees come up and the hands go to the shins over the
- * frames before the roll, not all in the frame or two after the crouch.
+ * frames before the roll, not all in the frame or two after the crouch. The crouch bends both knees forward, as the
+ * ball does; CROUCH bows the back knee out, and tucking from it would swing that leg round through straight.
  */
-const TUCKING = grounded(between(KNEES_FORWARD, BALL, 0.5));
+const TUCKING = grounded(between(crouchWith({}), BALL, 0.5));
 
 /** Follow the silhouette's contact point all the way around, rather than rolling on the skeleton pivot. */
 function rollKeys(start: number, end: number, direction: 1 | -1): Key[] {

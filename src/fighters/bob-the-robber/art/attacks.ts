@@ -100,7 +100,7 @@ export const BATON_READY = swing(STANCE, [2.6, -5.8], -60);
  * STANCE turned or shifted by `lean`, with the feet planted again. Mixing a body turn into a stance after its feet
  * were solved swings the legs with the body and sinks a shoe into the floor.
  */
-const stanceWith = (lean: Pose) => feet(mix(STANCE, lean), floor(-1.8), floor(1.8));
+export const stanceWith = (lean: Pose) => feet(mix(STANCE, lean), floor(-1.8), floor(1.8));
 
 /** How far to lift the ankle of a shoe pitched 30 degrees onto tiptoe so its toe rests on the floor. */
 const TIPTOE = 0.75;
@@ -109,7 +109,7 @@ const TIPTOE = 0.75;
  * LUNGE turned or shifted by `lean`, front foot planted again and the back foot on tiptoe at `back`, where the
  * stretched back leg still reaches.
  */
-const lungeWith = (lean: Pose, back: number) =>
+export const lungeWith = (lean: Pose, back: number) =>
   feet(mix(LUNGE, lean), floor(back, -TIPTOE), floor(2.6), false, [30, 0]);
 
 /** LOW turned or shifted by `lean`, with the feet planted again. */
@@ -122,7 +122,7 @@ const readyWith = (lean: Pose) => feet(mix(READY, lean), floor(-1.6), floor(1.5)
  * CROUCH turned or shifted by `lean`, with the feet planted again and both knees bent forward as in his stances.
  * CROUCH bows the back knee out, so a tween from a stance flips that leg through straight and sinks the shoe.
  */
-const crouchWith = (lean: Pose) => feet(mix(CROUCH, lean), floor(-1.5), floor(1.6));
+export const crouchWith = (lean: Pose) => feet(mix(CROUCH, lean), floor(-1.5), floor(1.6));
 
 /**
  * Adds a spin to keys made with the baton held still: `spin` gives the degrees it adds on each of its keys, and

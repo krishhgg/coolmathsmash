@@ -3,8 +3,12 @@ import { flattenPath, poseBounds, shapesContain } from '../../../render/rig/geom
 import { samplePose, toLocal, type RigPose } from '../../../render/rig/sample';
 import type { PathShape } from '../../../render/rig/types';
 import { art } from '.';
+import { FLOOR_DECALS } from './poses';
 
-/** Swings checked frame by frame. Bob's other grounded clips still dip into the floor, so they join once fixed. */
+/**
+ * Grounded clips checked frame by frame: his attacks, grabs and throws, specials, dodges, shield and crouch. The
+ * ledge climb and the clips in the air are not checked.
+ */
 const SWINGS = [
   'jab',
   'jab2',
@@ -25,6 +29,20 @@ const SWINGS = [
   'fthrow',
   'bthrow',
   'uthrow',
+  'sideB',
+  'neutralB',
+  'downB',
+  'downBHit',
+  'spotDodge',
+  'rollForward',
+  'rollBack',
+  'techRoll',
+  'getupRoll',
+  'techRollBack',
+  'getupRollBack',
+  'shield',
+  'shieldDrop',
+  'crouch',
 ];
 
 /**
@@ -36,6 +54,19 @@ const from = (name: string) => FROM[name] ?? 0;
 
 /** How far a drawn part may reach below the floor (rig y 0), as in Fireboy's rolls and Runner's getup attack. */
 const SINK = 0.2;
+
+/** The lowest point of `pose`, leaving out the shadow drawn lying on the floor across the floor line. */
+const bottomOf = (pose: RigPose) =>
+  poseBounds(
+    {
+      ...art,
+      rig: {
+        ...art.rig,
+        slots: art.rig.slots.filter((s) => !FLOOR_DECALS.some((d) => pose.symbols[s.name]?.startsWith(d))),
+      },
+    },
+    pose,
+  )[3];
 
 /**
  * The most a drawn part may turn from one frame to the next, in degrees. The forward smash's fastest real frame
@@ -150,7 +181,7 @@ describe("bob's baton swings", () => {
     for (const name of SWINGS)
       for (let f = from(name); f <= art.clips[name]!.length; f++) {
         const pose = samplePose(art, name, f, f);
-        const bottom = poseBounds(art, pose)[3];
+        const bottom = bottomOf(pose);
         const m = pose.world.baton!;
         const tip = pose.symbols.baton ? m.b * TIP + m.ty : -Infinity;
         if (bottom > SINK || tip > SINK)
