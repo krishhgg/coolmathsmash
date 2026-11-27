@@ -3,7 +3,22 @@ import type { AnimClip, Key } from '../../../render/rig/types';
 import { COIN_DRAWINGS } from './coins';
 import { hold } from './laser';
 import { MAGNET_POLES } from './parts';
-import { FIST_B, GRIT, GUARD, SMIRK, STANCE, feet, fist, key, mix, shortTurns, type Pt } from './poses';
+import {
+  FIST_B,
+  GRIT,
+  GUARD,
+  SMIRK,
+  STANCE,
+  between,
+  elbows,
+  feet,
+  fist,
+  key,
+  mix,
+  onFloor,
+  shortTurns,
+  type Pt,
+} from './poses';
 
 /**
  * Coin Magnet's clip, keyed frame for frame on the move (src/fighters/johnny/upgrade.ts, MAGNET): the magnet comes
@@ -61,26 +76,35 @@ const loopKeys: Key[] = Array.from({ length: CYCLE }, (_, i) => {
   return key(frame, cycle(i / CYCLE, i % 2 === 0 ? 1 : -1), { ease: 'linear', ...coins });
 });
 
-const RAISE = hold(mix(brace(0), { body: { rot: 1 } }), [1.6, -6.9], 42);
 const READY = magnetAt(brace(-0.5), [HAND[0] + 0.1, HAND[1] + 0.3], TILT + 4);
+/** Halfway from his guard to the magnet held out. */
+const RAISE = between(STANCE, READY, 0.5);
 const PULL = magnetAt(brace(0.6), [HAND[0] - 0.9, HAND[1] + 0.2], TILT - 4);
 const LOWER = hold(mix(brace(0), { body: { rot: 0 } }), [1.0, -5.6], 48);
+/** The magnet put away, his open hand on its way back up into his guard. */
+const STOW = between(LOWER, STANCE, 0.35);
 
 export const magnet: Record<string, AnimClip> = {
   downB: {
     length: 22,
     active: [],
     swaps: { ...SMIRK, ...MAGNET, ...FIST_B },
-    keys: shortTurns([
-      key(0, STANCE, { ease: 'out', swaps: { ...GRIT, ...GUARD } }),
-      key(2, RAISE, { ease: 'out', swaps: { ...GRIT } }),
-      key(4, READY, { ease: 'linear', swaps: { fx1: 'coinField' } }),
-      ...loopKeys,
-      key(17, PULL, { ease: 'out', swaps: { fx1: 'coinSparkle' } }),
-      key(18, undefined, { swaps: {} }),
-      key(19, LOWER, { ease: 'inOut' }),
-      key(20, LOWER, { ease: 'inOut', swaps: { ...GRIT, ...GUARD } }),
-      key(22, STANCE),
-    ]),
+    keys: shortTurns(
+      elbows(
+        [
+          key(0, STANCE, { ease: 'out', swaps: { ...GRIT, ...GUARD } }),
+          key(2, RAISE, { ease: 'out', swaps: { ...GRIT } }),
+          key(4, READY, { ease: 'linear', swaps: { fx1: 'coinField' } }),
+          ...loopKeys,
+          key(17, PULL, { ease: 'out', swaps: { fx1: 'coinSparkle' } }),
+          key(18, undefined, { swaps: {} }),
+          key(19, LOWER, { ease: 'inOut' }),
+          key(20, STOW, { ease: 'linear', swaps: { ...GRIT, ...GUARD } }),
+          key(22, STANCE),
+        ],
+        ['B'],
+      ),
+    ),
   },
 };
+magnet.downB = onFloor(magnet.downB!, false);

@@ -21,12 +21,15 @@ import {
   SMIRK,
   STANCE,
   aloft,
+  between,
+  elbows,
   feet,
   fist,
   hands,
   key,
   leg,
   mix,
+  onFloor,
   shortTurns,
   soles,
   type Pt,
@@ -260,6 +263,38 @@ const DASH_DRIVE = fist(
   1.1,
   1,
 );
+
+/** Run brake: skidding on the near heel, leaning back, fists still up from the sprint. */
+const BRAKE_SKID = stride(
+  { body: { rot: -14, y: 0.6 } },
+  [3.4, 0],
+  -16,
+  [-1.0, 0],
+  0,
+  [-4.0, -8.8],
+  [0.4, -10.6],
+);
+/** Stopped, the near boot still ahead. */
+const BRAKE_SET = stride(
+  { body: { rot: -6, y: 0.4 } },
+  [2.6, 0],
+  -8,
+  [-0.6, 0],
+  0,
+  [-3.6, -8.0],
+  [1.4, -9.2],
+);
+/** Stepping the near boot back under him into his stance, the knee lifting it clear of the floor. */
+const BRAKE_STEP = hands(
+  leg(feet(mix(STRIDE, { body: { rot: -3 }, hip: { y: 0.5 } }), [1.0, 0], [0.4, 0], 1), 'F', [0.2, -1.2], 10),
+  [5.0, -8.8],
+  [-3.6, -8.4],
+  -1,
+  1,
+);
+
+/** The turnaround's pivot with his guard kept up: squared up to the camera, fists in front of his chest. */
+const TURN_PIVOT = hands(PIVOT, [4.6, -8.6], [-3.4, -8.4], -1, 1);
 
 /** The skid out of the turn: weight back on the heels, guard coming up. */
 const TURN_SKID = hands(
@@ -541,50 +576,62 @@ export const clips: Record<string, AnimClip> = {
     swaps: { ...GRIT, ...FISTS },
     keys: shortTurns(WALK.map((pose, i) => key(i * 5, pose, { ease: 'linear' }))),
   },
-  dash: {
-    length: 10,
-    swaps: { ...GRIT, ...FISTS },
-    keys: [
-      key(0, DASH_LOAD, { ease: 'in' }),
-      key(2, DASH_DRIVE, { ease: 'out' }),
-      key(4, PUSH_OFF, { ease: 'inOut' }),
-      key(10, RUN[0]),
-    ],
-  },
-  run: {
-    length: 24,
-    loop: true,
-    swaps: { ...GRIT, ...FISTS },
-    keys: shortTurns(RUN.map((pose, i) => key(i * 3, pose, { ease: 'linear' }))),
-  },
-  runBrake: {
-    length: 14,
-    swaps: { ...SHOUT, ...FISTS },
-    keys: [
-      key(
-        0,
-        stride({ body: { rot: -14, y: 0.6 } }, [3.4, 0], -16, [-1.0, 0], 0, [-4.0, -8.8], [0.4, -10.6]),
-        {
-          ease: 'out',
-        },
+  dash: onFloor(
+    {
+      length: 10,
+      swaps: { ...GRIT, ...FISTS },
+      keys: shortTurns(
+        elbows([
+          key(0, DASH_LOAD, { ease: 'linear' }),
+          key(2, DASH_DRIVE, { ease: 'linear' }),
+          key(4, PUSH_OFF, { ease: 'inOut' }),
+          key(10, RUN[0]),
+        ]),
       ),
-      key(8, stride({ body: { rot: -6, y: 0.4 } }, [2.6, 0], -8, [-0.6, 0], 0, [-3.6, -8.0], [1.4, -9.2]), {
-        swaps: { ...GRIT, ...FISTS },
-      }),
-      key(14, STANCE, { swaps: { ...GRIT, ...GUARD } }),
-    ],
-  },
-  turn: {
-    length: 8,
-    swaps: { ...GRIT, ...GUARD },
-    keys: [
-      key(0, mix(STANCE, { body: { sx: -1 } }), { ease: 'inOut' }),
-      key(2, mix(PIVOT, { body: { sx: -0.92 } }), { ease: 'step', swaps: { ...GRIT, ...FISTS } }),
-      key(3, mix(PIVOT, { body: { sx: 0.92 } }), { ease: 'out' }),
-      key(5, TURN_SKID, { ease: 'inOut', swaps: { ...GRIT, ...GUARD } }),
-      key(8, STANCE),
-    ],
-  },
+    },
+    false,
+  ),
+  /** Keyed through to its last frame, the first drawing again, so the tween back into it turns the short way too. */
+  run: onFloor(
+    {
+      length: 24,
+      loop: true,
+      swaps: { ...GRIT, ...FISTS },
+      keys: shortTurns([...RUN, RUN[0]!].map((pose, i) => key(i * 3, pose, { ease: 'linear' }))),
+    },
+    false,
+  ),
+  runBrake: onFloor(
+    {
+      length: 14,
+      swaps: { ...SHOUT, ...FISTS },
+      keys: shortTurns(
+        elbows([
+          key(0, BRAKE_SKID, { ease: 'linear' }),
+          key(8, BRAKE_SET, { ease: 'linear', swaps: { ...GRIT, ...FISTS } }),
+          key(11, BRAKE_STEP, { ease: 'linear' }),
+          key(14, STANCE, { swaps: { ...GRIT, ...GUARD } }),
+        ]),
+      ),
+    },
+    false,
+  ),
+  turn: onFloor(
+    {
+      length: 8,
+      swaps: { ...GRIT, ...GUARD },
+      keys: shortTurns(
+        elbows([
+          key(0, mix(STANCE, { body: { sx: -1 } }), { ease: 'inOut' }),
+          key(2, mix(TURN_PIVOT, { body: { sx: -0.92 } }), { ease: 'step', swaps: { ...GRIT, ...FISTS } }),
+          key(3, mix(TURN_PIVOT, { body: { sx: 0.92 } }), { ease: 'out' }),
+          key(5, TURN_SKID, { ease: 'inOut', swaps: { ...GRIT, ...GUARD } }),
+          key(8, STANCE),
+        ]),
+      ),
+    },
+    false,
+  ),
   crouch: {
     length: 6,
     swaps: { ...GRIT, ...FISTS },
@@ -593,10 +640,12 @@ export const clips: Record<string, AnimClip> = {
   jumpSquat: {
     length: 3,
     swaps: { ...GRIT, ...FISTS },
-    keys: [
-      key(0, STANCE, { ease: 'out' }),
-      key(3, mix(CROUCH, { hip: { y: 2.0 }, body: { sx: 1.05, sy: 0.94 } })),
-    ],
+    keys: shortTurns(
+      elbows([
+        key(0, STANCE, { ease: 'linear' }),
+        key(3, mix(CROUCH, { hip: { y: 2.0 }, body: { sx: 1.05, sy: 0.94 } })),
+      ]),
+    ),
   },
   jump: {
     length: 40,
@@ -615,10 +664,13 @@ export const clips: Record<string, AnimClip> = {
     swaps: { ...SHOUT, ...FISTS },
     keys: shortTurns([
       key(0, DJ_OPEN, { ease: 'out' }),
-      key(4, aloft(mix(DJ_OPEN, { neck: { rot: -4 }, body: { rot: 8 } })), { ease: 'in' }),
-      key(5, undefined, { swaps: { ...GRIT, ...FISTS } }),
+      // Two drawings into the ball, the fists coming down from the V to his shins as the knees come up.
+      key(4, aloft(mix(between(DJ_OPEN, BALL, 0.45), { neck: { rot: -4 }, body: { rot: 8 } })), {
+        ease: 'linear',
+      }),
+      key(5, spun(between(DJ_OPEN, BALL, 0.72), 19), { ease: 'linear', swaps: { ...GRIT, ...FISTS } }),
       ...spin(() => BALL, 30, 330, 6, 14, 1),
-      key(15, spun(BALL, 345), { ease: 'out' }),
+      key(15, spun(BALL, 345), { ease: 'linear' }),
       key(17, spun(blend(BALL, SPREAD, 0.55), 360), { ease: 'linear' }),
       key(18, spun(blend(BALL, SPREAD, 0.8), 360), { ease: 'out' }),
       key(20, spun(SPREAD, 360), { ease: 'inOut' }),
@@ -639,7 +691,9 @@ export const clips: Record<string, AnimClip> = {
   shield: {
     length: 6,
     swaps: { ...GRIT, ...FISTS },
-    keys: [key(0, STANCE, { ease: 'out' }), key(3, undefined, { z: BACK_ARM_OVER_HEAD }), key(6, SHIELD)],
+    keys: shortTurns(
+      elbows([key(0, STANCE, { ease: 'out' }), key(3, undefined, { z: BACK_ARM_OVER_HEAD }), key(6, SHIELD)]),
+    ),
   },
   shieldDrop: {
     length: 11,

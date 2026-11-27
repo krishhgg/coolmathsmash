@@ -2,7 +2,7 @@ import { pointOf, reach, type Pose } from '../../../render/rig/author';
 import { flattenPath, poseBounds } from '../../../render/rig/geometry';
 import { samplePose, worldTransforms, type Affine, type BoneTransform } from '../../../render/rig/sample';
 import type { AnimClip, FighterArt, Key } from '../../../render/rig/types';
-import { ANKLE } from './parts';
+import { ANKLE, UPPER_ARM } from './parts';
 import { FOOT, HAND, rig } from './rig';
 
 /**
@@ -131,15 +131,25 @@ export function key(frame: number, pose?: Pose, extra: Omit<Key, 'frame' | 'pose
 }
 
 /**
- * `clip` keyed on every frame, each one moved up or down (through `body`) so its lowest point rests on the floor.
- * A tween between two planted poses can bend a knee through the floor or lift the boots off it; keying every frame
- * on the floor stops that. Swaps, draw orders and step keys stay on their frames.
+ * Effect slots, left out when a pose is measured against the floor: smears, stars, swooshes, the Max Upgrade aura
+ * and the boot jets cross it freely.
  */
-export function onFloor(clip: AnimClip): AnimClip {
+const FX_SLOTS = new Set(['fxAura', 'jetB', 'jetF', 'fxBack', 'fx1', 'fx2']);
+
+/**
+ * `clip` keyed on every frame, each one moved up or down (through `body`) so its lowest drawn part (effects left
+ * out) rests on the floor. A tween between two planted poses can bend a knee through the floor or lift the boots
+ * off it; keying every frame on the floor stops that. With `settle` false a frame is only ever lifted, never
+ * lowered, for clips that leave the floor on purpose. Swaps, draw orders and step keys stay on their frames.
+ */
+export function onFloor(clip: AnimClip, settle = true): AnimClip {
+  const body = rig.slots.filter((s) => !FX_SLOTS.has(s.name));
   const art: FighterArt = { rig, clips: { clip }, palettes: { default: {} }, height: 0, icon: '' };
+  const measure: FighterArt = { ...art, rig: { ...rig, slots: body } };
   const keys = Array.from({ length: clip.length + 1 }, (_, frame) => {
     const sampled = samplePose(art, 'clip', frame, frame);
-    const bottom = poseBounds(art, sampled)[3];
+    const low = poseBounds(measure, sampled)[3];
+    const bottom = settle ? low : Math.max(0, low);
     const pose: Pose = Object.fromEntries(
       rig.bones.map(({ name, x, y, rot = 0, sx = 1, sy = 1 }) => {
         const p = sampled.local[name]!;
@@ -160,26 +170,122 @@ export function onFloor(clip: AnimClip): AnimClip {
   return { ...clip, keys };
 }
 
-const LIMBS = ['armB', 'foreB', 'armF', 'foreF', 'thighB', 'shinB', 'footB', 'thighF', 'shinF', 'footF'];
+const PARENT = Object.fromEntries(rig.bones.map((b) => [b.name, b.parent]));
+const REST = Object.fromEntries(rig.bones.map((b) => [b.name, b.rot ?? 0]));
+
+/** `deg` taken by whole turns to the nearest of `near`. */
+const nearest = (deg: number, near: number) => deg - 360 * Math.round((deg - near) / 360);
 
 /**
- * Turns every limb the short way from one posed key to the next (a bone a key leaves out tweens from rest), so a
- * leg swung across the body goes over the top instead of sweeping through the floor. `body` keeps its authored
- * angles, so whole-body spins still turn as far as they are keyed.
+ * Turns every part the short way from one posed key to the next (a bone a key leaves out tweens from rest), so a
+ * leg swung across the body goes over the top instead of sweeping through the floor. Each part is measured with
+ * the parts it hangs from (its own turn plus its parents'), so a forearm and upper arm that each turn the short way
+ * can't add up to the long way round. A lean of the body counts; a turn of the body past 90 degrees (a flip)
+ * carries the limbs round with it, and `body` keeps its authored angles, so spins still turn as far as they are
+ * keyed.
  */
 export function shortTurns(keys: Key[]): Key[] {
   const last: Record<string, number> = {};
+  let body: number | undefined;
   return keys.map((k) => {
     if (!k.pose) return k;
     const pose = { ...k.pose };
-    for (const bone of LIMBS) {
-      const rot = pose[bone]?.rot ?? 0;
-      const turned = rot - 360 * Math.round((rot - (last[bone] ?? rot)) / 360);
-      if (pose[bone]) pose[bone] = { ...pose[bone], rot: turned };
-      last[bone] = pose[bone] ? turned : 0;
+    const now: Record<string, number> = {};
+    const turned = pose.body?.rot ?? 0;
+    const lean = body === undefined ? 0 : nearest(turned - body, 0);
+    now.body = (last.body ?? 0) + (Math.abs(lean) > 90 ? 0 : lean);
+    body = turned;
+    for (const { name } of rig.bones) {
+      if (name === 'root' || name === 'body') continue;
+      const parent = PARENT[name];
+      const above = parent && parent !== 'root' ? now[parent]! : 0;
+      let rot = pose[name]?.rot ?? 0;
+      const was = last[name];
+      if (was !== undefined) rot = nearest(above + rot, was) - above;
+      if (rot !== 0 || pose[name]?.rot !== undefined) pose[name] = { ...pose[name], rot };
+      now[name] = above + rot;
     }
+    Object.assign(last, now);
     return { ...k, pose };
   });
+}
+
+/** An arm's upper and lower turns (rest included, in the torso's frame) and its two segments' lengths. */
+function armOf(pose: Pose, side: 'B' | 'F') {
+  const [arm, fore] = [`arm${side}`, `fore${side}`];
+  const a = REST[arm]! + (pose[arm]?.rot ?? 0);
+  return {
+    a,
+    b: a + (pose[fore]?.rot ?? 0),
+    l1: UPPER_ARM * (pose[arm]?.sy ?? 1),
+    l2: HAND * (pose[fore]?.sy ?? 1),
+  };
+}
+
+/**
+ * The same arm with its elbow on the other side of the line from shoulder to hand: the hand stays put and the
+ * elbow swings to its mirror image, as `reach` with the other `bend` would put it.
+ */
+function mirrorArm(pose: Pose, side: 'B' | 'F'): Pose {
+  const { a, b, l1, l2 } = armOf(pose, side);
+  const r = Math.PI / 180;
+  const [wx, wy] = [
+    -l1 * Math.sin(a * r) - l2 * Math.sin(b * r),
+    l1 * Math.cos(a * r) + l2 * Math.cos(b * r),
+  ];
+  const line = Math.atan2(-wx, wy) / r;
+  const [a2, b2] = [2 * line - a, 2 * line - b];
+  return mix(pose, {
+    [`arm${side}`]: { rot: a2 - REST[`arm${side}`]! },
+    [`fore${side}`]: { rot: b2 - a2 },
+  });
+}
+
+/** The most either part of an arm turns from `from` to `to`, each the short way. */
+function armTurn(from: Pose, to: Pose, side: 'B' | 'F'): number {
+  const [p, q] = [armOf(from, side), armOf(to, side)];
+  return Math.max(Math.abs(nearest(q.a - p.a, 0)), Math.abs(nearest(q.b - p.b, 0)));
+}
+
+/**
+ * Keeps each elbow on the side it was on: at every posed key, an arm whose elbow flipped across the line from
+ * shoulder to hand since the key before (an IK target that crossed the shoulder) takes its mirror image instead,
+ * with the hand in the same place, when that turns the arm less. Use it on a clip's keys before `shortTurns`.
+ * `sides` names the arms to keep (an arm holding a gun lined up with its forearm is left alone).
+ */
+export function elbows(keys: Key[], sides: ('B' | 'F')[] = ['B', 'F']): Key[] {
+  let prev: Pose | undefined;
+  return keys.map((k) => {
+    if (!k.pose) return k;
+    let pose = k.pose;
+    for (const side of sides) {
+      const flipped = mirrorArm(pose, side);
+      if (prev && armTurn(prev, flipped, side) + 20 < armTurn(prev, pose, side)) pose = flipped;
+    }
+    prev = pose;
+    return pose === k.pose ? k : { ...k, pose };
+  });
+}
+
+/**
+ * `a` moved `t` of the way to `b`, bone by bone, each part turning the short way on screen as `shortTurns` tweens
+ * it: an in-between drawing for a key that turns too far in one go.
+ */
+export function between(a: Pose, b: Pose, t: number): Pose {
+  const [ka, kb] = shortTurns([key(0, a), key(1, b)]).map((k) => k.pose!);
+  const out: Pose = {};
+  const at = (u: number, v: number) => u + (v - u) * t;
+  for (const bone of new Set([...Object.keys(ka!), ...Object.keys(kb!)])) {
+    const [p, q] = [ka![bone] ?? {}, kb![bone] ?? {}];
+    out[bone] = {
+      x: at(p.x ?? 0, q.x ?? 0),
+      y: at(p.y ?? 0, q.y ?? 0),
+      rot: at(p.rot ?? 0, q.rot ?? 0),
+      sx: at(p.sx ?? 1, q.sx ?? 1),
+      sy: at(p.sy ?? 1, q.sy ?? 1),
+    };
+  }
+  return out;
 }
 
 /** Merges poses bone by bone (later wins per field). */

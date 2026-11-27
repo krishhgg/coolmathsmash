@@ -10,10 +10,13 @@ import {
   SMIRK,
   STANCE,
   aloft,
+  between,
+  elbows,
   feet,
   fist,
   key,
   mix,
+  onFloor,
   shortTurns,
   type Pt,
 } from './poses';
@@ -79,8 +82,9 @@ const BASE = fist(
   'B',
   [3.6, -6.6],
 );
-const DRAW = hold(mix(BASE, { body: { rot: 1 } }), [2.2, -6.2], 35);
 const AIM = aim(BASE, MUZZLE_TIP);
+/** A third of the way from his guard to the aim on the first frame: the gun comes up and levels out by frame 3. */
+const DRAW = between(STANCE, AIM, 0.35);
 const FIRE = mix(AIM, { fx1: flash(1.3) });
 const KICK = mix(aim(mix(BASE, { body: { rot: 1 } }), [MUZZLE_TIP[0] - 0.6, MUZZLE_TIP[1] - 0.7], -14), {
   fx1: flash(1.6, [MUZZLE_TIP[0] - 0.4, MUZZLE_TIP[1] - 1.2]),
@@ -91,8 +95,8 @@ const LOWER = hold(mix(BASE, { body: { rot: 1 } }), [0.95, -5.4], 45);
 // --- In the air: legs loose and lifted clear of the floor he may land on, so the aim rides higher. -------------
 const AIR_READY = aloft(AIR_GUARD);
 const AIR_BASE = aloft(fist(mix(AIR_GUARD, { body: { rot: 4 }, armF: { x: 1.3 } }), 'B', [3.6, -7.4]));
-const AIR_DRAW = hold(AIR_BASE, [2.4, -8.0], 35);
 const AIR_AIM = aim(AIR_BASE, AIR_MUZZLE_TIP);
+const AIR_DRAW = between(AIR_READY, AIR_AIM, 0.35);
 const AIR_FIRE = mix(AIR_AIM, { fx1: flash(1.3, AIR_MUZZLE_TIP) });
 const AIR_KICK = mix(
   aim(
@@ -142,11 +146,11 @@ const clips: Record<string, AnimClip> = {
     swaps: SWAPS,
     keys: [
       key(0, AIR_READY, { ease: 'out' }),
-      key(1, AIR_DRAW, { ease: 'out' }),
+      key(1, AIR_DRAW, { ease: 'linear' }),
       ...shotKeys(7, 26, { aim: AIR_AIM, fire: AIR_FIRE, kick: AIR_KICK, recoil: AIR_RECOIL }),
       key(31, AIR_LOWER, { ease: 'in' }),
       key(34, AIR_LOWER, {
-        ease: 'inOut',
+        ease: 'linear',
         swaps: { ...GRIT, ...FIST_B, foreF: 'fist', foreFLine: 'fistLine' },
       }),
       key(38, AIR_READY),
@@ -205,17 +209,24 @@ clips.neutralBUpgradedAir = {
   swaps: SWAPS,
   keys: [
     key(0, AIR_READY, { ease: 'out' }),
-    key(1, AIR_DRAW, { ease: 'out' }),
+    key(1, AIR_DRAW, { ease: 'linear' }),
     ...bigShotKeys(5, 17, 30, AIR_BASE, AIR_MUZZLE_TIP, AIR_AIM),
     key(38, AIR_LOWER, { ease: 'in' }),
     key(41, AIR_LOWER, {
-      ease: 'inOut',
+      ease: 'linear',
       swaps: { ...GRIT, ...FIST_B, foreF: 'fist', foreFLine: 'fistLine' },
     }),
     key(45, AIR_READY),
   ],
 };
 
+/**
+ * The far arm keeps its elbow on its side and every part turns the short way; the grounded shots are keyed on every
+ * frame, lifted where the kick would dip a boot into the floor.
+ */
 export const laser: Record<string, AnimClip> = Object.fromEntries(
-  Object.entries(clips).map(([name, clip]) => [name, { ...clip, keys: shortTurns(clip.keys) }]),
+  Object.entries(clips).map(([name, clip]) => {
+    const short = { ...clip, keys: shortTurns(elbows(clip.keys, ['B'])) };
+    return [name, /Air$/.test(name) ? short : onFloor(short, false)];
+  }),
 );

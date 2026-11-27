@@ -14,9 +14,13 @@ import {
   SHOUT,
   SMIRK,
   STANCE,
+  TUCK,
   aloft,
+  between,
+  elbows,
   feet,
   fist,
+  grounded,
   hands,
   key,
   mix,
@@ -165,41 +169,49 @@ export const dodges: Record<string, AnimClip> = {
   spotDodge: onFloor({
     length: SPOT_DODGE.faf - 1,
     swaps: { ...GRIT, ...GUARD },
-    keys: [
-      key(0, STANCE, { ease: 'out' }),
-      key(3, DUCK, { ease: 'inOut', swaps: { ...SMIRK, ...FISTS } }),
-      key(11, DUCK_SWAY, { ease: 'inOut' }),
-      key(17, DUCK, { ease: 'inOut' }),
-      key(21, DUCK_RISE, { ease: 'out', swaps: { ...GRIT, ...FISTS } }),
-      key(SPOT_DODGE.faf - 1, STANCE, { swaps: {} }),
-    ],
+    keys: shortTurns(
+      elbows([
+        key(0, STANCE, { ease: 'linear' }),
+        key(3, DUCK, { ease: 'inOut', swaps: { ...SMIRK, ...FISTS } }),
+        key(11, DUCK_SWAY, { ease: 'inOut' }),
+        key(17, DUCK, { ease: 'inOut' }),
+        key(21, DUCK_RISE, { ease: 'out', swaps: { ...GRIT, ...FISTS } }),
+        key(SPOT_DODGE.faf - 1, STANCE, { swaps: {} }),
+      ]),
+    ),
   }),
 
   rollForward: onFloor({
     length: ROLL_FORWARD.faf - 1,
     swaps: { ...GRIT, ...FISTS },
-    keys: shortTurns([
-      key(0, STANCE, { ease: 'in' }),
-      key(3, DIVE, { ease: 'in' }),
-      ...somersault(5, 18, 0, 360),
-      key(21, mix(UNROLL, { body: { rot: 372 } }), { ease: 'out' }),
-      key(23, mix(PIVOT, { body: { rot: 360, sx: 0.92 } }), { ease: 'step' }),
-      key(24, mix(PIVOT, { body: { rot: 360, sx: -0.92 } }), { ease: 'out', swaps: { ...GRIT, ...GUARD } }),
-      key(ROLL_FORWARD.faf - 1, mix(STANCE, { body: { rot: 360, sx: -1 } })),
-    ]),
+    keys: shortTurns(
+      elbows([
+        // Diving into the tuck over three frames.
+        key(0, STANCE, { ease: 'linear' }),
+        key(3, grounded(between(DIVE, TUCK, 0.35)), { ease: 'linear' }),
+        key(4, grounded(between(DIVE, TUCK, 0.68)), { ease: 'linear' }),
+        ...somersault(5, 18, 0, 360),
+        key(21, mix(UNROLL, { body: { rot: 372 } }), { ease: 'linear' }),
+        key(23, mix(PIVOT, { body: { rot: 360, sx: 0.92 } }), { ease: 'step' }),
+        key(24, mix(PIVOT, { body: { rot: 360, sx: -0.92 } }), { ease: 'out', swaps: { ...GRIT, ...GUARD } }),
+        key(ROLL_FORWARD.faf - 1, mix(STANCE, { body: { rot: 360, sx: -1 } })),
+      ]),
+    ),
   }),
 
   airDodge: {
     length: 46,
     swaps: { ...GRIT, ...FISTS },
-    keys: [
-      key(0, OPEN, { ease: 'out' }),
-      key(3, aloft(PENCIL), { ease: 'linear', z: BACK_ARM_OVER_HEAD }),
-      ...corkscrew(4, 24),
-      key(29, aloft(mix(PENCIL, { body: { rot: -4 } })), { ease: 'out' }),
-      key(34, OPEN, { ease: 'inOut', swaps: { ...SHOUT, ...PALM_F, ...PALM_B }, z: {} }),
-      key(46, FALL_START, { swaps: { ...GRIT, ...PALM_F, ...PALM_B } }),
-    ],
+    keys: shortTurns(
+      elbows([
+        key(0, OPEN, { ease: 'linear' }),
+        key(3, aloft(PENCIL), { ease: 'linear', z: BACK_ARM_OVER_HEAD }),
+        ...corkscrew(4, 24),
+        key(29, aloft(mix(PENCIL, { body: { rot: -4 } })), { ease: 'out' }),
+        key(34, OPEN, { ease: 'inOut', swaps: { ...SHOUT, ...PALM_F, ...PALM_B }, z: {} }),
+        key(46, FALL_START, { swaps: { ...GRIT, ...PALM_F, ...PALM_B } }),
+      ]),
+    ),
   },
 };
 
