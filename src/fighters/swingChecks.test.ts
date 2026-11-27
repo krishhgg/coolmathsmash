@@ -417,7 +417,6 @@ const KNOWN: Record<string, string[]> = {
     'usmash',
     'utilt',
   ],
-  snailbob: ['fthrow', 'pivotGrab'],
   watergirl: [
     'bair',
     'bthrow',
