@@ -383,7 +383,7 @@ describe("recovering out of a gap in Run Tunnel's floor", () => {
   // It now also aims for the floor beside the gap: it rises in the gap with its up special and lands on a floor.
   it.each([
     ['fireboy', 40, -40],
-    ['bob-the-robber', 40, -40],
+    ['wheely', 40, -5],
     ['bloxorz', 44, -30],
   ] as const)(
     'a level 9 %s with no double jump rises out of the gap from (%d, %d) and lands on every seed',
