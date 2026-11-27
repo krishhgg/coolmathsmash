@@ -470,7 +470,8 @@ const SPIN_RING: Pose = {
   fx1: flatSmear([0.3, -6.2], 5.2, 0.35),
   fx2: flatSmear([0.3, -6.2], 5.2, 0.35, true),
 };
-const SPIN_TUCK = grip(mix(AIR, { body: { rot: 6 } }), [1.8, -6.8], -150, [-0.6, -6.0]);
+/** The peel pulled in before the spin, the back hand still out where it was, so it swings out to the spin. */
+const SPIN_TUCK = grip(mix(AIR, { body: { rot: 6 } }), [1.8, -6.8], -150, [-2.6, -5.6]);
 
 const FAIR_WIND = grip(mix(AIR, { body: { rot: -14 } }), [-1.9, -8.3], 125, [-3.2, -6.0]);
 const FAIR_OVER = grip(mix(AIR, { body: { rot: 0 } }), [3.4, -9.6], 210, [-2.8, -6.4]);
@@ -506,9 +507,10 @@ const BAIR_HIT = flip(
     [-2.4, -5.8],
   ),
 );
-const BAIR_FOLLOW = flip(grip(mix(AIR, { body: { x: 0.2, rot: 20 } }), [4.0, -6.2], -55, [-2.2, -6.4]));
+const BAIR_FOLLOW_FACING = grip(mix(AIR, { body: { x: 0.2, rot: 20 } }), [4.0, -6.2], -55, [-2.2, -6.4]);
+const BAIR_FOLLOW = flip(BAIR_FOLLOW_FACING);
 
-const UAIR_COCK = grip(mix(AIR, { body: { rot: 12 } }), [2.9, -5.6], -60, [-2.4, -5.0]);
+const UAIR_COCK = grip(mix(AIR, { body: { rot: 12 } }), [2.9, -5.6], -100, [-2.4, -5.0]);
 const UAIR_LEAN = mix(AIR, { body: { rot: -20 }, neck: { rot: -8 } });
 const uairArc = (wrist: Pt): Pose => grip(UAIR_LEAN, wrist, toward(wrist, box('uair')), [-2.8, -6.2]);
 const UAIR_A = uairArc([2.0, -10.6]);
@@ -612,6 +614,10 @@ const pizzaBox = (s: number, squash = 1): BonePose => ({
   sy: 1.2 * s * squash,
 });
 
+/**
+ * Frame `frame` of Peel Propeller: the peel spinning overhead as a rotor while he pedals, coils (24 to 27; the back
+ * hand stays out behind him, so the forearm doesn't flip) and springs up on the last hit.
+ */
 function propeller(frame: number): Key {
   const phase = frame % 4;
   const side = phase < 2 ? 1 : -1;
@@ -636,7 +642,7 @@ function propeller(frame: number): Key {
       thighF: { rot: coil ? -69 : finish ? -27 : -30 - pedal * 29 },
       shinF: { rot: coil ? 81 : finish ? 1 : 42 - pedal * 18 },
     }),
-    finish ? [-3.92, -9.32] : coil ? [-0.9, -4.8] : [-2.45 + pedal * 0.8, -7.1 + pedal],
+    finish ? [-3.92, -9.32] : coil ? [-3.2, -5.0] : [-2.45 + pedal * 0.8, -7.1 + pedal],
     [side * 2.2, -16.2 - rise],
   );
   return key(
@@ -1254,9 +1260,10 @@ const clips: Record<string, AnimClip> = {
     active: [[7, 9]],
     swaps: ANGRY,
     keys: [
-      key(0, AIR, { ease: 'out' }),
+      key(0, AIR, { ease: 'linear' }),
       key(4, BAIR_WIND, { ease: 'in', swaps: { ...GRIT, face: 'faceBack' } }),
-      key(5, turning(BAIR_HIT, 0.6), { ease: 'linear', swaps: GRIT }),
+      // Most of the way into the strike as he turns, so the arm doesn't swing round in the frame he faces back.
+      key(5, turning(between(BAIR_WIND, BAIR_HIT, 0.85), 0.6), { ease: 'linear', swaps: GRIT }),
       ...strike(6, 9, mix(BAIR_HIT, { fx1: smear(at(BAIR_HIT, 'handF'), 90, true) }), {
         ...SHOUT,
         fx1: 'swoosh',
@@ -1264,7 +1271,7 @@ const clips: Record<string, AnimClip> = {
       key(7, undefined, { swaps: SHOUT }),
       key(15, BAIR_FOLLOW, { ease: 'inOut', swaps: GRIT }),
       key(18, turning(BAIR_FOLLOW, -0.6), { ease: 'step', swaps: {} }),
-      key(19, turning(AIR, 0.6), { ease: 'out' }),
+      key(19, turning(between(BAIR_FOLLOW_FACING, AIR, 0.4), 0.6), { ease: 'out' }),
       key(22, AIR, { ease: 'inOut' }),
       key(33, AIR),
     ],
@@ -1274,7 +1281,7 @@ const clips: Record<string, AnimClip> = {
     active: [[5, 8]],
     swaps: ANGRY,
     keys: [
-      key(0, AIR, { ease: 'out' }),
+      key(0, AIR, { ease: 'linear' }),
       key(2, UAIR_COCK, { ease: 'in', swaps: GRIT }),
       key(
         4,

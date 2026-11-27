@@ -261,17 +261,6 @@ const KNOWN: Record<string, string[]> = {
     'uthrow',
     'utilt',
   ],
-  'papa-louie': [
-    'bair',
-    'doubleJump',
-    'ledgeAttack',
-    'ledgeClimb',
-    'ledgeJump',
-    'ledgeRoll',
-    'nair',
-    'uair',
-    'upB',
-  ],
   raftwars: [
     'bair',
     'bthrow',

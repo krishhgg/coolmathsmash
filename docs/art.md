@@ -213,6 +213,11 @@ the iris shuts on frame 23 and one where the spotlight comes on at 320, and the 
 covering his arm while it swings in the flurry. The baton and the sparks show over the cloud, so they are still
 checked.
 
+`src/render/rig/keys.ts` has helpers for fixing a clip on any rig. `continuous(rig, keys, { onScreen: true })`
+takes each part the short way round on screen between keys. `between(rig, a, b, t)` blends two poses on screen,
+for an in-between key that spreads a big turn over more frames. `floorContact(rig, clip, ...)` bakes a clip so
+nothing it draws dips below the floor.
+
 Allow a part only when it is meant to look that way, and fix the art otherwise. `src/fighters/swingChecks.test.ts`
 lists the clips that fail today, per fighter, and the list must be exact: fix a clip and take it out.
 `node scripts/swing-survey.ts` prints each failing clip's worst frames. Bob's own `art/swings.test.ts` runs the same

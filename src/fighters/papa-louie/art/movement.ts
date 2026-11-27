@@ -1,5 +1,6 @@
 import { poseBounds } from '../../../render/rig/geometry';
 import { ease, samplePose } from '../../../render/rig/sample';
+import { continuous } from '../../../render/rig/keys';
 import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip, BonePose, Ease, FighterArt, Key } from '../../../render/rig/types';
 import {
@@ -588,8 +589,8 @@ const tuck = (paddle = 148): Pose =>
   });
 const TUCK = tuck();
 
-/** The tuck rotated by rot with the paddle pointing along deg in rig space (to steer it round his head). */
-const spun = (rot: number, deg: number): Pose => mix(tuck(deg - rot), { body: { rot } });
+/** The tuck turned deg degrees, in the air (the double jump's flip). */
+const flipped = (deg: number): Pose => mix(TUCK, { body: { rot: deg } });
 
 /** The ball rolled deg degrees and set on a floor at height y (rolls and tech rolls). */
 const rolled = (deg: number, y = 0): Pose => rest(mix(TUCK, { body: { rot: deg } }), y);
@@ -705,6 +706,14 @@ function corner(frame: number, moveEnd: number, distance: number): Pt {
   return [GX - (GX + distance) * s, GY * (1 - Math.min(1, 1.6 * s))];
 }
 
+/** Springing up off the lip (ledge jump), knees drawn up. */
+const LEDGE_SPRING_LEGS: Pose = {
+  thighF: { rot: -55 },
+  shinF: { rot: 90 },
+  thighB: { rot: -25 },
+  shinB: { rot: 70 },
+};
+
 /** The corner relative to the origin during a ledge jump: a 6-frame smoothstep to 1 above the floor. */
 function ledgeRise(frame: number): Pt {
   const t = Math.min(1, frame / 6);
@@ -745,6 +754,16 @@ function hang(c: Pt, lift = 0, extra: Pose = {}): Pose {
 }
 
 const HANG = hang([GX, GY]);
+const LEDGE_SPRING = hang(ledgeRise(2), 2.6, LEDGE_SPRING_LEGS);
+/** Tucked over the lip as he jumps from it, the peel raised ahead. */
+const LEDGE_TUCK = build({
+  body: mix(TUCK, { body: { rot: -8 }, torso: { rot: 10 } }),
+  hands: [
+    [-2.4, -8.6],
+    [4.2, -7.5],
+  ],
+  paddle: -138,
+});
 
 /** Pressing up over the lip at c: hands flat on the floor, chest over the edge, legs dangling below it. */
 function press(c: Pt): Pose {
@@ -1182,13 +1201,16 @@ const raw: Record<string, AnimClip> = {
     length: 30,
     swaps: UP,
     keys: [
-      key(0, LAUNCH, { ease: 'out' }),
-      key(2, spun(10, -70), { ease: 'linear', swaps: SQUINT, z: PADDLE_BEHIND }),
-      key(4, spun(60, 40), { ease: 'linear' }),
-      key(7, mix(TUCK, { body: { rot: 150 } }), { ease: 'linear' }),
-      key(10, mix(TUCK, { body: { rot: 250 } }), { ease: 'linear' }),
-      key(13, spun(330, 40), { ease: 'linear', z: {} }),
-      key(14, spun(345, -50), { ease: 'out', swaps: {} }),
+      // He folds into the ball over four frames and opens out over four, the peel held over his back the whole
+      // flip, so it turns with him instead of swinging round on its own.
+      key(0, LAUNCH, { ease: 'linear' }),
+      key(2, between(LAUNCH, flipped(10), 0.6), { ease: 'linear', swaps: SQUINT, z: PADDLE_BEHIND }),
+      key(4, flipped(60), { ease: 'linear' }),
+      key(7, flipped(150), { ease: 'linear' }),
+      key(10, flipped(250), { ease: 'linear' }),
+      key(13, flipped(330), { ease: 'linear' }),
+      key(14, undefined, { swaps: {} }),
+      key(15, between(flipped(350), mix(RISE, { body: { rot: 360 } }), 0.5), { ease: 'linear', z: {} }),
       key(17, mix(RISE, { body: { rot: 360 } }), { ease: 'inOut' }),
       key(30, mix(APEX, { body: { rot: 360 } })),
     ],
@@ -1397,7 +1419,7 @@ const raw: Record<string, AnimClip> = {
           ease: 'linear',
         },
       ),
-      key(9, press(corner(9, 30, 6.5)), { ease: 'inOut', swaps: SHOUT, z: {} }),
+      key(9, press(corner(9, 30, 6.5)), { ease: 'linear', swaps: SHOUT, z: {} }),
       key(13, kneel(2.4, corner(13, 30, 6.5)[1]), { ease: 'inOut', swaps: ANGRY }),
       key(18, shift(CROUCH, 1.0, 0), { ease: 'inOut', swaps: DETERMINED }),
       key(26, shift(BREATHE, 0.3, 0), { ease: 'inOut', swaps: {} }),
@@ -1431,6 +1453,7 @@ const raw: Record<string, AnimClip> = {
         { swaps: SQUINT, z: PADDLE_BEHIND },
         (f) => corner(f, 40, 25)[1],
         (f) => Math.max(0, 3 - (f - 12) * 0.2),
+        { out: CROUCH },
       ),
       key(30, mix(CROUCH, { body: { rot: 360 } }), { ease: 'inOut', swaps: DETERMINED, z: {} }),
       key(LEDGE_ROLL.faf - 1, mix(STAND, { body: { rot: 360 } }), { swaps: {} }),
@@ -1441,32 +1464,12 @@ const raw: Record<string, AnimClip> = {
     length: 20,
     swaps: ANGRY,
     keys: [
-      key(0, HANG, { ease: 'in', z: PADDLE_BEHIND }),
-      key(
-        2,
-        hang(ledgeRise(2), 2.6, {
-          thighF: { rot: -55 },
-          shinF: { rot: 90 },
-          thighB: { rot: -25 },
-          shinB: { rot: 70 },
-        }),
-        {
-          ease: 'linear',
-        },
-      ),
-      key(
-        4,
-        build({
-          body: mix(TUCK, { body: { rot: -8 }, torso: { rot: 10 } }),
-          hands: [
-            [-2.4, -8.6],
-            [4.2, -7.5],
-          ],
-          paddle: -138,
-        }),
-        { ease: 'out', swaps: SHOUT, z: {} },
-      ),
-      key(6, LAUNCH, { ease: 'out', swaps: UP }),
+      // Halfway into the tuck as he springs off the lip and most of the way out of it two frames later, so his arms
+      // and the peel fold over four frames and his legs kick out over two.
+      key(0, HANG, { ease: 'linear', z: PADDLE_BEHIND }),
+      key(2, between(LEDGE_SPRING, LEDGE_TUCK, 0.5), { ease: 'linear' }),
+      key(4, LEDGE_TUCK, { ease: 'linear', swaps: SHOUT, z: {} }),
+      key(6, between(LEDGE_TUCK, LAUNCH, 0.7), { ease: 'out', swaps: UP }),
       key(20, RISE, { swaps: {} }),
     ],
   },
@@ -1488,8 +1491,8 @@ const raw: Record<string, AnimClip> = {
           ease: 'linear',
         },
       ),
-      key(7, press(corner(7, 20, 6.5)), { ease: 'inOut', swaps: SHOUT, z: {} }),
-      key(10, kneel(2.4, corner(10, 20, 6.5)[1]), { ease: 'out', swaps: ANGRY }),
+      key(7, press(corner(7, 20, 6.5)), { ease: 'linear', swaps: SHOUT, z: {} }),
+      key(10, kneel(2.4, corner(10, 20, 6.5)[1]), { ease: 'linear', swaps: ANGRY }),
       key(
         13,
         shift(
@@ -1513,7 +1516,7 @@ const raw: Record<string, AnimClip> = {
           0.8,
           0,
         ),
-        { ease: 'in', z: PADDLE_BEHIND },
+        { ease: 'linear', z: PADDLE_BEHIND },
       ),
       key(
         16,
@@ -1558,6 +1561,8 @@ const raw: Record<string, AnimClip> = {
           ],
           paddle: -58,
           planted: 0,
+          // The swoosh holds where it was struck until it's gone, instead of turning back on screen.
+          then: { fx1: smear(2.4, -5.0, 8.6, -62, true) },
         }),
         { ease: 'inOut', swaps: ANGRY },
       ),
@@ -1809,7 +1814,19 @@ function shortWay(clip: AnimClip): AnimClip {
   return { ...clip, keys };
 }
 
+/**
+ * Clips whose limbs fold and unfold over a ledge: each part turns the short way round on screen (its own turn plus
+ * its parents'), since short turns in each joint can add up to a foot going all the way round. The body keeps its
+ * own whole turns, so the ledge roll still rolls.
+ */
+const ON_SCREEN = new Set(['ledgeClimb', 'ledgeRoll', 'ledgeJump', 'ledgeAttack']);
+
 /** Papa Louie's action clips by canonical name, plus glide. */
 export const movement: Record<string, AnimClip> = Object.fromEntries(
-  Object.entries(raw).map(([name, clip]) => [name, shortWay(clip)]),
+  Object.entries(raw).map(([name, clip]) => [
+    name,
+    ON_SCREEN.has(name)
+      ? { ...clip, keys: continuous(rig, clip.keys, { onScreen: true, keep: ['root', 'body'] }) }
+      : shortWay(clip),
+  ]),
 );
