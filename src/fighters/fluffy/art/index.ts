@@ -47,6 +47,9 @@ for (const name of [
 ])
   clips[name] = onFloor(clips[name]!);
 clips.finalSmash = onFloor(clips.finalSmash!, 'root');
+// The cut scene plays over the stage: the ball is lifted onto the floor where its fur would dip through it. Only the
+// ball moves; the grabber, the coil and the flashes stay where they are drawn.
+clips.finalSmashCinematic = onFloor(clips.finalSmashCinematic!);
 
 /** Fluffy (IQ Ball, Coolmath 2011; Catch the Candy, FedoIT 2011), drawn by hand in their style. Plain data. */
 export const art: FighterArt = {

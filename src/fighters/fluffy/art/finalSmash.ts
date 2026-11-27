@@ -36,6 +36,8 @@ const LASH_Y = -10;
 const FRONT: Pt = [10, -7];
 /** Where the line meets the coil: its near loop's edge. */
 const COIL_NEAR: Pt = [FRONT[0] - 5.1, FRONT[1] - 2.5];
+/** How high the spiked ball hooks under the foe before the release: low, its spikes clear of the floor. */
+const HOOK_Y = -1.9;
 
 /** The grabber from the front of the ball `b` to `to`. */
 const lineFrom = (b: Ball, to: Pt, near = 0, lift = 0.6): Aim => {
@@ -173,15 +175,17 @@ function frenzy(): AnimClip {
   const holding = (b: Ball, coilAt = wrapAt(), flash?: BonePose) =>
     pose(b, { grab: lineFrom(b, COIL_NEAR), coil: coilAt, flash });
 
-  // The catch: yanked in on the line, the coil snaps tight round the foe, and the catch's hit flashes on it.
+  // The catch: yanked in on the line, the coil snaps tight round the foe, and the catch's hit flashes on it. The
+  // flash holds still until it goes on 3, instead of sliding down to its bone's rest at his feet.
   const yank: Ball = { x: -1.2, sx: 0.86, sy: 1.14, tilt: -16, puff: 1.1, look: [0.5, -0.05] };
+  const caught = at(FRONT[0], FRONT[1], 1.35, 12);
   keys.push(
     key(0, holding({ ...yank, x: -0.6 }, wrapAt(1.3)), { ease: 'out', swaps: { ...HOLD, ...SHOCK } }),
-    key(1, holding(yank, wrapAt(1.06), at(FRONT[0], FRONT[1], 1.35, 12)), {
+    key(1, holding(yank, wrapAt(1.06), caught), {
       ease: 'out',
       swaps: { ...HOLD, ...flashOn(0) },
     }),
-    key(3, holding({ x: -0.3, sx: 1.04, sy: 0.97 }), { ease: 'inOut', swaps: HOLD }),
+    key(3, holding({ x: -0.3, sx: 1.04, sy: 0.97 }, wrapAt(), caught), { ease: 'inOut', swaps: HOLD }),
     key(bumps.from - 1, holding({ x: -0.8, sx: 0.93, sy: 1.07, tilt: -6 }), { ease: 'in' }),
   );
 
@@ -263,15 +267,21 @@ function frenzy(): AnimClip {
     look: [0.4, -0.6],
   };
   const over: Ball = { x: 0.4, y: -2.4, sx: 0.86, sy: 1.16, tilt: 4, spin: last, look: [0.2, -0.6] };
+  const struck = at(10.5, -9, 1.5, 8);
   keys.push(
-    key(132, pose(squat, { grab: lineFrom(squat, [7.5, -1.2], 0, -1.5) }), { ease: 'inOut', swaps: HOOK }),
-    key(136, pose(deep, { grab: lineFrom(deep, [10, -0.9], 0, -1.5) }), { ease: 'in' }),
+    // The coil stays round the foe until it goes on 132, and the release's flash stays where it struck until it goes
+    // on 141: each would otherwise slide down to its bone's rest at his feet, through the floor.
+    key(132, pose(squat, { grab: lineFrom(squat, [7.5, HOOK_Y], 0, -1.5), coil: wrapAt() }), {
+      ease: 'inOut',
+      swaps: HOOK,
+    }),
+    key(136, pose(deep, { grab: lineFrom(deep, [10, HOOK_Y + 0.3], 0, -1.5) }), { ease: 'in' }),
     key(release - 1, pose(rise, { grab: lineFrom(rise, [13, -3.5], -10) }), { ease: 'linear' }),
-    key(release, pose(swing, { grab: lineFrom(swing, [12, -16], -60), flash: at(10.5, -9, 1.5, 8) }), {
+    key(release, pose(swing, { grab: lineFrom(swing, [12, -16], -60), flash: struck }), {
       ease: 'out',
       swaps: SWING,
     }),
-    key(release + 2, pose(over, { grab: lineFrom(over, [7, -23], -80) }), {
+    key(release + 2, pose(over, { grab: lineFrom(over, [7, -23], -80), flash: struck }), {
       ease: 'inOut',
       swaps: { ...SWING, burst: null },
     }),
