@@ -189,6 +189,8 @@ with the same checks as its nearest shared action.
 - With a face check set, a prop drawn over the head stays off the face.
 
 `src/fighters/swingChecks.ts` sorts each fighter's clips into ground and air and holds each fighter's allowances.
+A Final Smash cut scene counts as ground: it plays over the stage with the floor drawn, so the floor check applies.
+Effects that cover the screen or sit across the floor line on purpose go in its `decals`.
 There are four kinds:
 
 - `decals` names drawings that lie on the floor in perspective, across the floor line, and leaves them out of the
