@@ -264,6 +264,12 @@ export interface FighterArt {
   ledgeGrip?: [number, number];
   /** Moves that turn the whole view upside down while they play, by move name (ViewFlip). Render only. */
   viewFlips?: Record<string, ViewFlip>;
+  /**
+   * Air moves that carry on after landing (MoveDef.continuesOnLanding), drawn with a ground move's clips once the
+   * fighter stands on the floor: air move name -> ground move name, which shares its frame data. Render only: the
+   * sim keeps the air move. Wheely's air Rev Up revs on as the grounded one once he lands.
+   */
+  landed?: Record<string, string>;
 }
 
 /**
