@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { STUN_GUN } from '../fighters/bob-the-robber/entities';
-import { allFighters, getFighter } from '../fighters/registry';
+import { allFighters, getFighter, registerFighter } from '../fighters/registry';
+import { defineFighter } from '../fighters/types';
 import type { HitboxDef, MoveDef } from '../fighters/types';
 import { neutralInput } from '../input/types';
 import { createMatch, stepMatch } from '../sim/match';
@@ -8,8 +9,10 @@ import { STAGES } from '../stages/registry';
 import { hintsFor } from './hints';
 import { createCpu } from './index';
 import { AERIALS, SPECIALS } from './inputs';
-import { knowledge, type MoveProbe } from './knowledge';
+import { airStarts, knowledge, type MoveProbe } from './knowledge';
 import { drill } from './testing/recovery';
+import { staticStage } from './stage';
+import { marioReference } from '../sim/testing/reference';
 
 const STAGE = 'battlefield';
 
@@ -147,19 +150,66 @@ describe('air probes of moves that end in a helpless fall', () => {
         }
       }
     }
-    // What is still dropped is carried out of the blast zone by the move itself, from where the probe starts it,
-    // 100 above the stage's middle: down specials plunge through the gap in Bloxorz Platform's middle to the bottom,
-    // and Fluffy's up special rises through the top on the three stages whose top blast zone is 180.
-    expect(missing.sort()).toEqual([
-      'bloxorz downB on bloxorz-platform',
-      'bloxorz-lying downB on bloxorz-platform',
-      'fluffy upB on coolmath-planet',
-      'fluffy upB on run-tunnel',
-      'fluffy upB on worlds-hardest-game',
-      'runner downB on bloxorz-platform',
-      'snailbob downB on bloxorz-platform',
-    ]);
+    // Down specials that plunge through the hole in Bloxorz Platform's middle, and Fluffy's up special, which rises past
+    // the top on the three stages whose top blast zone is 180, are probed from the next start (airStarts).
+    expect(missing).toEqual([]);
   }, 60_000);
+
+  it('start air probes 100 above the middle, then over the nearest solid floor, then 50 above it', () => {
+    expect(airStarts(staticStage('battlefield'))).toEqual([
+      { x: 0, y: 100 },
+      { x: 0, y: 50 },
+    ]);
+    expect(airStarts(staticStage('coolmath-planet'))).toEqual([
+      { x: 0, y: 100 },
+      { x: 0, y: 50 },
+    ]);
+    // Bloxorz Platform's middle is a 16-wide hole between two 80-wide boards: the right one, ahead of the probe, at 48.
+    expect(airStarts(staticStage('bloxorz-platform'))).toEqual([
+      { x: 0, y: 100 },
+      { x: 48, y: 100 },
+      { x: 48, y: 50 },
+    ]);
+  });
+
+  it.each([
+    ['bloxorz', 'downB', 'bloxorz-platform'],
+    ['bloxorz-lying', 'downB', 'bloxorz-platform'],
+    ['runner', 'downB', 'bloxorz-platform'],
+    ['snailbob', 'downB', 'bloxorz-platform'],
+    ['fluffy', 'upB', 'coolmath-planet'],
+    ['fluffy', 'upB', 'run-tunnel'],
+    ['fluffy', 'upB', 'worlds-hardest-game'],
+  ] as const)("keep %s's air %s on %s, probed where the move plays out and lands", (id, move, stage) => {
+    const p = knowledge(id, stage).air[move];
+    expect(p).toBeDefined();
+    expect(p!.endsGrounded).toBe(true);
+    // Each lands from a later start: on the right board's bridge tile (y 26) from 100 up, or on the floor from 50 up.
+    expect(p!.endDy).toBe(move === 'downB' ? -74 : -50);
+  });
+
+  it('still drop an air move that carries its user out of the blast zone from every start', () => {
+    // A test fighter whose up special rises 8 units a frame for 60 frames: out of the top from any of the starts.
+    const rocket = defineFighter({
+      ...marioReference,
+      id: 'test-probe-rocket',
+      selectable: false,
+      moves: {
+        ...marioReference.moves,
+        upB: {
+          kind: 'other',
+          faf: 61,
+          hits: [],
+          script({ f }) {
+            f.vel.y = 8;
+          },
+        },
+      },
+    });
+    registerFighter(rocket);
+    for (const stage of ['battlefield', 'bloxorz-platform', 'coolmath-planet'])
+      expect(knowledge(rocket.id, stage).air.upB, stage).toBeUndefined();
+  });
 
   it("keep Wheely's Ramp Jump in the air: where it carries him, and helpless after it", () => {
     const k = knowledge('wheely', STAGE);
