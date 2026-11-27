@@ -2,7 +2,7 @@ import { pointOf, reach, type Pose } from '../../../render/rig/author';
 import { flattenPath, poseBounds } from '../../../render/rig/geometry';
 import { samplePose, worldTransforms, type Affine, type BoneTransform } from '../../../render/rig/sample';
 import type { AnimClip, BonePose, FighterArt, Key } from '../../../render/rig/types';
-import { GRIP_FRONT, GRIP_REAR, MUZZLE, UPPER_ARM, shoes } from './parts';
+import { GRIP_FRONT, GRIP_REAR, MUZZLE, shoes } from './parts';
 import { FOOT, HAND, rig } from './rig';
 
 /**
@@ -161,7 +161,6 @@ export function muzzle(pose: Pose): [number, number] {
 }
 
 const PARENT = Object.fromEntries(rig.bones.map((b) => [b.name, b.parent]));
-const REST = Object.fromEntries(rig.bones.map((b) => [b.name, b.rot ?? 0]));
 
 /** `deg` taken by whole turns to the nearest of `near`. */
 const nearest = (deg: number, near: number) => deg - 360 * Math.round((deg - near) / 360);
@@ -196,59 +195,6 @@ export function shortTurns(keys: Key[]): Key[] {
     }
     Object.assign(last, now);
     return { ...k, pose };
-  });
-}
-
-/** An arm's upper and lower turns (rest included, in the torso's frame) and its two segments' lengths. */
-function armOf(pose: Pose, side: 'B' | 'F') {
-  const [arm, fore] = [`arm${side}`, `fore${side}`];
-  const a = REST[arm]! + (pose[arm]?.rot ?? 0);
-  return {
-    a,
-    b: a + REST[fore]! + (pose[fore]?.rot ?? 0),
-    l1: UPPER_ARM * (pose[arm]?.sy ?? 1),
-    l2: HAND * (pose[fore]?.sy ?? 1),
-  };
-}
-
-/** The same arm with its elbow on the other side of the line from shoulder to hand, the hand where it was. */
-function mirrorArm(pose: Pose, side: 'B' | 'F'): Pose {
-  const { a, b, l1, l2 } = armOf(pose, side);
-  const r = 1 / DEG;
-  const [wx, wy] = [
-    -l1 * Math.sin(a * r) - l2 * Math.sin(b * r),
-    l1 * Math.cos(a * r) + l2 * Math.cos(b * r),
-  ];
-  const line = Math.atan2(-wx, wy) * DEG;
-  const [a2, b2] = [2 * line - a, 2 * line - b];
-  return mix(pose, {
-    [`arm${side}`]: { rot: round(a2 - REST[`arm${side}`]!) },
-    [`fore${side}`]: { rot: round(b2 - a2 - REST[`fore${side}`]!) },
-  });
-}
-
-/** The most either part of an arm turns from `from` to `to`, each the short way. */
-function armTurn(from: Pose, to: Pose, side: 'B' | 'F'): number {
-  const [p, q] = [armOf(from, side), armOf(to, side)];
-  return Math.max(Math.abs(nearest(q.a - p.a, 0)), Math.abs(nearest(q.b - p.b, 0)));
-}
-
-/**
- * Keeps each elbow on the side it was on: at every posed key, an arm whose elbow flipped across the line from
- * shoulder to hand since the key before takes its mirror image instead, with the hand in the same place, when that
- * turns the arm less. `sides` names the arms to keep. Use it on a clip's keys before `shortTurns`.
- */
-export function elbows(keys: Key[], sides: ('B' | 'F')[] = ['B', 'F']): Key[] {
-  let prev: Pose | undefined;
-  return keys.map((k) => {
-    if (!k.pose) return k;
-    let pose = k.pose;
-    for (const side of sides) {
-      const flipped = mirrorArm(pose, side);
-      if (prev && armTurn(prev, flipped, side) + 20 < armTurn(prev, pose, side)) pose = flipped;
-    }
-    prev = pose;
-    return pose === k.pose ? k : { ...k, pose };
   });
 }
 
