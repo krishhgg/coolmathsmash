@@ -27,6 +27,7 @@ import {
   feet,
   floor,
   floorContact,
+  between,
   fx,
   grounded,
   hands,
@@ -339,35 +340,6 @@ const flip = (rot: number, y = 0): Pose => mix(BALL, { body: { rot, y } });
 const roll = (rot: number): Pose => grounded(flip(rot));
 
 /**
- * `a` moved `t` of the way to `b`. Each bone turns the short way round on screen (its own turn plus its parents'),
- * as `continuous` with `onScreen` tweens it, so a limb whose parts each turn the short way can't swing round the
- * long way as a whole.
- */
-function between(a: Pose, b: Pose, t: number): Pose {
-  const out: Pose = {};
-  /** Each bone's angle on screen in `a`, in `b` (taken the short way from `a`) and blended. */
-  const screen: Record<string, [number, number, number]> = {};
-  const at = (u: number, v: number) => u + (v - u) * t;
-  for (const { name, parent } of rig.bones) {
-    const [p, q] = [a[name] ?? {}, b[name] ?? {}];
-    const [fromAbove, toAbove, nowAbove] = parent ? screen[parent]! : [0, 0, 0];
-    const from = fromAbove + (p.rot ?? 0);
-    let to = toAbove + (q.rot ?? 0);
-    to -= 360 * Math.round((to - from) / 360);
-    const now = at(from, to);
-    screen[name] = [from, to, now];
-    out[name] = {
-      x: at(p.x ?? 0, q.x ?? 0),
-      y: at(p.y ?? 0, q.y ?? 0),
-      rot: now - nowAbove,
-      sx: at(p.sx ?? 1, q.sx ?? 1),
-      sy: at(p.sy ?? 1, q.sy ?? 1),
-    };
-  }
-  return out;
-}
-
-/**
  * Halfway from the crouch into the ball, on the floor: the knees come up and the hands go to the shins over the
  * frames before the roll, not all in the frame or two after the crouch. The crouch bends both knees forward, as the
  * ball does; CROUCH bows the back knee out, and tucking from it would swing that leg round through straight.
@@ -659,14 +631,18 @@ export const clips: Record<string, AnimClip> = {
     {
       length: 30,
       swaps: SIDE,
-      keys: [
-        key(0, mix(RISE, { body: { sy: 1.05 } }), { ease: 'out' }),
-        key(4, flip(70, -1.1), { ease: 'linear', swaps: BLINK }),
-        key(9, flip(190, -1.4), { ease: 'linear' }),
-        key(15, flip(310, -0.8), { ease: 'out' }),
-        key(21, mix(AIR, { body: { rot: 360 } }), { swaps: {} }),
-        key(30, mix(APEX, { body: { rot: 360 } })),
-      ],
+      keys: continuous(
+        [
+          // Evenly into the flip: eased, the forearm would turn 77 degrees in the first frame.
+          key(0, mix(RISE, { body: { sy: 1.05 } }), { ease: 'linear' }),
+          key(4, flip(70, -1.1), { ease: 'linear', swaps: BLINK }),
+          key(9, flip(190, -1.4), { ease: 'linear' }),
+          key(15, flip(310, -0.8), { ease: 'out' }),
+          key(21, mix(AIR, { body: { rot: 360 } }), { swaps: {} }),
+          key(30, mix(APEX, { body: { rot: 360 } })),
+        ],
+        { onScreen: true },
+      ),
     },
     false,
   ),
@@ -741,13 +717,17 @@ export const clips: Record<string, AnimClip> = {
   airDodge: {
     length: 49,
     swaps: BLINK,
-    keys: [
-      key(0, AIR, { ease: 'out' }),
-      key(4, mix(TUCK, { body: { rot: -20, sx: 0.92, sy: 1.06 } })),
-      key(30, mix(TUCK, { body: { rot: -30 } }), { ease: 'inOut' }),
-      key(34, undefined, { swaps: SIDE }),
-      key(49, AIR),
-    ],
+    keys: continuous(
+      [
+        // Evenly into the tuck: eased, the back forearm would turn 70 degrees in the first frame.
+        key(0, AIR, { ease: 'linear' }),
+        key(4, mix(TUCK, { body: { rot: -20, sx: 0.92, sy: 1.06 } })),
+        key(30, mix(TUCK, { body: { rot: -30 } }), { ease: 'inOut' }),
+        key(34, undefined, { swaps: SIDE }),
+        key(49, AIR),
+      ],
+      { onScreen: true },
+    ),
   },
   ledgeCatch: {
     length: 19,
@@ -817,29 +797,45 @@ export const clips: Record<string, AnimClip> = {
   ledgeJump: {
     length: 20,
     swaps: GRIP,
-    keys: continuous([
-      key(0, HANG, { ease: 'linear', z: GRIP_ORDER }),
-      ...[1, 2].map((frame) => {
-        const t = smooth(frame / 6);
-        const cx = GX - (GX + 4.25) * t;
-        const cy = GY + (1 - GY) * t;
-        const pop = mix(HANG, {
-          body: { x: 0.1 + cx - GX + 4.7 * t, y: -2.6 + cy - GY - 8.8 * t, rot: 8 },
-          thighF: { rot: -75 },
-          shinF: { rot: 95 },
-          thighB: { rot: -36 },
-          shinB: { rot: 65 },
-        });
-        return key(frame, gripHands(pop, [cx - 0.35, cy - 0.84], null), { ease: 'linear' });
-      }),
-      key(3, mix(AIR, { body: { y: -2.5, rot: 8 }, thighF: { rot: -67 }, shinF: { rot: 89 } }), {
-        swaps: RELEASE,
-        z: {},
-        ease: 'out',
-      }),
-      key(6, RISE, { ease: 'out' }),
-      key(20, mix(AIR, { body: { sy: 1.02 } })),
-    ]),
+    keys: continuous(
+      [
+        key(0, HANG, { ease: 'linear', z: GRIP_ORDER }),
+        ...[1, 2].map((frame) => {
+          const t = smooth(frame / 6);
+          const cx = GX - (GX + 4.25) * t;
+          const cy = GY + (1 - GY) * t;
+          const pop = mix(HANG, {
+            body: { x: 0.1 + cx - GX + 4.7 * t, y: -2.6 + cy - GY - 8.8 * t, rot: 8 },
+            thighF: { rot: -75 },
+            shinF: { rot: 95 },
+            thighB: { rot: -36 },
+            shinB: { rot: 65 },
+          });
+          return key(frame, gripHands(pop, [cx - 0.35, cy - 0.84], null), { ease: 'linear' });
+        }),
+        // Letting go with the gripping arm still up, as it is for the rise, and the open hand still turned up from
+        // the grip: dropped here, the arm would swing down 100 degrees in a frame and come back up by 6. The back
+        // arm still hangs, and both come up evenly to the rise.
+        key(
+          3,
+          aim(
+            mix(RISE, {
+              body: { y: -2.5, rot: 8, sx: 1, sy: 1 },
+              thighF: { rot: -67 },
+              shinF: { rot: 89 },
+              armB: HANG.armB!,
+              foreB: HANG.foreB!,
+            }),
+            'handF',
+            -60,
+          ),
+          { swaps: RELEASE, z: {}, ease: 'linear' },
+        ),
+        key(6, RISE, { ease: 'out' }),
+        key(20, mix(AIR, { body: { sy: 1.02 } })),
+      ],
+      { onScreen: true },
+    ),
   },
   ledgeAttack: floorContact(
     {
