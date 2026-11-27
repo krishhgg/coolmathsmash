@@ -92,16 +92,6 @@ const KNOWN: Record<string, string[]> = {
     'uthrow',
     'walk',
   ],
-  'bob-the-robber': [
-    'finalSmash',
-    'finalSmashCinematic',
-    'grabRelease',
-    'ledgeClimb',
-    'ledgeRoll',
-    'run',
-    'runBrake',
-    'walk',
-  ],
   duck: [
     'airDodge',
     'bair',
