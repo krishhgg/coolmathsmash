@@ -24,6 +24,7 @@ import {
   hands,
   key,
   mix,
+  passing,
   turn,
   type Pt,
 } from './poses';
@@ -142,6 +143,22 @@ export function runPose(t: number, lean = 31): Pose {
 }
 
 const RUN_LEN = 12;
+
+/** The run brake's skid: leaning back, the near foot planted ahead. */
+const BRAKE_SKID = P({
+  x: -0.6,
+  y: 1.1,
+  rot: -16,
+  legs: [
+    [4.4, 0],
+    [1.1, 0],
+  ],
+  arms: [
+    [6.2, -7.8],
+    [-2.4, -8.4],
+  ],
+  ant: [-32, -26],
+});
 const runningArms = { armFLine: 19.1, foreFLine: 19.2 };
 function runCycle(length: number): Key[] {
   return Array.from({ length }, (_, i) =>
@@ -475,23 +492,10 @@ export const clips: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, runPose(0), { ease: 'linear' }),
-      key(
-        3,
-        P({
-          x: -0.6,
-          y: 1.1,
-          rot: -16,
-          legs: [
-            [4.4, 0],
-            [1.1, 0],
-          ],
-          arms: [
-            [6.2, -7.8],
-            [-2.4, -8.4],
-          ],
-          ant: [-32, -26],
-        }),
-      ),
+      // The near foot comes through over the floor to plant ahead for the skid.
+      key(1, passing(runPose(0), BRAKE_SKID, 0.33, 'F', 0.1), { ease: 'linear' }),
+      key(2, passing(runPose(0), BRAKE_SKID, 0.67, 'F', 0.1), { ease: 'linear' }),
+      key(3, BRAKE_SKID),
       key(
         9,
         P({

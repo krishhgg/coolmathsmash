@@ -84,7 +84,7 @@ const flip = (rot: number, lift: number): Pose => mix(TUCK, { body: { rot }, roo
 
 /** Landed in a squat, both hands slapping the floor out to her sides. */
 const SLAP = P({
-  y: 2.4,
+  y: 2.0,
   sx: 1.1,
   sy: 0.86,
   legs: [

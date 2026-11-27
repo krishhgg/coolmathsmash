@@ -15,4 +15,20 @@ export const swingChecks: SwingChecks = {
     // Tunnel Flip's tunnel, drawn under the stage on purpose (the `fxUnder` slot draws under every fighter).
     'tunnel',
   ],
+  // Strafe Dash goes from pose to pose on step keys, Fox Illusion style: the afterimage trail draws the motion
+  // between, so each step reads as a cut.
+  cuts: [
+    {
+      clip: 'sideB',
+      frame: 24,
+      why: 'Strafe Dash bursts out of the coil, the afterimages trailing back to it',
+    },
+    { clip: 'sideB', frame: 29, why: 'Strafe Dash stops dead into the brake at the end of its trail' },
+    {
+      clip: 'sideBAir',
+      frame: 24,
+      why: 'Strafe Dash bursts out of the tuck in the air, the afterimages trailing back',
+    },
+    { clip: 'sideBAir', frame: 29, why: 'Strafe Dash pulls up at the end of its trail in the air' },
+  ],
 };

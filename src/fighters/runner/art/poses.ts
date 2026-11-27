@@ -1,4 +1,4 @@
-import { reach, type Pose } from '../../../render/rig/author';
+import { pointOf, reach, type Pose } from '../../../render/rig/author';
 import { poseBounds } from '../../../render/rig/geometry';
 import { samplePose, worldTransforms, type BoneTransform } from '../../../render/rig/sample';
 import type { AnimClip, FighterArt, Key } from '../../../render/rig/types';
@@ -168,6 +168,28 @@ export function between(a: Pose, b: Pose, t: number): Pose {
   }
   return out;
 }
+
+/**
+ * `pose` with one leg lifted to clear the floor by `clear`: its ankle raised (only) as far as that takes, the knee on
+ * the side that turns the leg least, the foot at the angle it had.
+ */
+export function clearLeg(pose: Pose, side: 'B' | 'F', clear = 0.4): Pose {
+  const [thigh, shin, foot] = [`thigh${side}`, `shin${side}`, `foot${side}`];
+  const [ax, ay] = pointOf(rig, pose, foot);
+  const was = worldRot(pose);
+  const [one, other] = ([1, -1] as const).map((bend) =>
+    reach(rig, pose, thigh, shin, FOOT, [ax, Math.min(ay, -ANKLE - clear)], bend),
+  ) as [Pose, Pose];
+  const off = (q: Pose) => Math.abs(nearest(worldRot(q)[thigh]! - was[thigh]!, 0));
+  const legs = off(one) <= off(other) ? one : other;
+  return mix(legs, {
+    [foot]: { rot: (pose[foot]?.rot ?? 0) - nearest(worldRot(legs)[shin]! - was[shin]!, 0) },
+  });
+}
+
+/** An in-between drawing `t` of the way from `a` to `b` with one leg passing over the floor instead of through it. */
+export const passing = (a: Pose, b: Pose, t: number, side: 'B' | 'F', clear = 0.4): Pose =>
+  clearLeg(between(a, b, t), side, clear);
 
 /** Slots left out when a frame is measured against the floor: the effects, which cross it freely. */
 const EFFECTS = new Set(['fxBack', 'fx1', 'fx2', 'fxUnder', 'cane']);

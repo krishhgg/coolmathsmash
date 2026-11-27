@@ -17,12 +17,15 @@ import {
   STAND,
   ants,
   between,
+  clearLeg,
   hands,
+  passing,
   key,
   mix,
   type Pt,
 } from './poses';
-import { FOOT, HAND, rig } from './rig';
+import { THIGH } from './parts';
+import { ANKLE, FOOT, HAND, rig } from './rig';
 
 /**
  * The Runner's moves, on her frame data: each clip is FAF - 1 frames long and its `active` windows are the move's
@@ -237,13 +240,13 @@ const DTILT = hitting(
     x: 0.6,
     y: 2.0,
     rot: -24,
+    // The near foot planted well back, so its knee clears the floor bent forward.
     legs: [
       [7.8, -1.1],
-      [-0.6, 0],
+      [-2.9, 0],
     ],
     raw: { thighB: { sy: 1.2 }, shinB: { sy: 1.2 } },
-    // The near knee folds up behind her as she slides, instead of forward through the floor.
-    knees: [1, -1],
+    knees: [1, 1],
     arms: [
       [3.6, -1.0],
       [-5.8, -2.2],
@@ -252,6 +255,22 @@ const DTILT = hitting(
   }),
   ['shinB', [8.5, -1.5], 1.5],
 );
+
+/** The last step into Tile Tumble's dive. */
+const DIVE_STEP = P({
+  x: 1.0,
+  y: 0.8,
+  rot: 30,
+  legs: [
+    [2.6, 0],
+    [-3.0, -0.6],
+  ],
+  arms: [
+    [3.0, -3.0],
+    [-5.0, -4.0],
+  ],
+  ant: [40, 34],
+});
 
 /** Tile Tumble: a dive (body flat, arms first), then a roll out along the floor. */
 const DIVE = hitting(
@@ -299,10 +318,10 @@ const DROPKICK = hitting(
 );
 const DROPKICK_LATE = hitting(mix(DROPKICK, { body: { x: 2.1, rot: -70, y: 0 } }), ['shinB', [10, -5], 1.5]);
 /** Down on the floor after the dropkick. */
-const DROPKICK_DOWN = mix(DROPKICK_LATE, { body: { y: 1.6, rot: -60 } });
+const DROPKICK_DOWN = mix(DROPKICK_LATE, { body: { y: 1.2, rot: -60 } });
 /** Back up in a squat. */
 const DROPKICK_SQUAT = P({
-  y: 1.9,
+  y: 1.5,
   rot: -10,
   sy: 0.88,
   sx: 1.1,
@@ -325,6 +344,8 @@ const TUCKED_LEGS: Pose = {
   footB: {},
   footF: {},
 };
+/** A quarter of the way up from the floor after the dropkick, knees pulled in. */
+const DROPKICK_TUCK = mix(between(DROPKICK_DOWN, DROPKICK_SQUAT, 0.25), TUCKED_LEGS);
 
 /**
  * Handstand Flip: upside down on her hands, kicking both feet straight up. Her antennae splay out flat to either
@@ -345,6 +366,38 @@ const HANDSTAND = (spread: number): Pose =>
   });
 const USMASH1 = hitting(HANDSTAND(6), ['shinB', [0, -14], 2.8], ['foreB', [5, -6], 1.4]);
 const USMASH2 = hitting(HANDSTAND(28), ['shinF', [0, -14], 2.6]);
+
+/** The hop into the Split Kick, feet tucked under her. */
+const SPLIT_HOP = P({
+  y: -0.8,
+  sy: 1.08,
+  legs: [
+    [0.8, -0.8],
+    [-0.6, -0.6],
+  ],
+  arms: [
+    [4.4, -9.0],
+    [-4.2, -9.2],
+  ],
+  ant: [-20, -20],
+});
+
+/** Out of the splits: her feet drawn halfway in along the floor, knees up. */
+const SPLITS_IN = P({
+  y: 2.4,
+  sy: 0.94,
+  sx: 1.04,
+  legs: [
+    [3.8, 0],
+    [-3.8, 0],
+  ],
+  knees: [-1, 1],
+  arms: [
+    [4.6, -8.0],
+    [-4.4, -8.2],
+  ],
+  ant: [-10, 10],
+});
 
 /** Split Kick: drops into the splits, a foot shooting out along the floor to each side. */
 const SPLITS = hitting(
@@ -370,37 +423,44 @@ const SPLITS = hitting(
 
 /**
  * Getup attack: sitting back on the floor on one hand, spinning on her seat in the splits with the front foot kicked
- * high. `side` 1 has the far leg in front; -1 is half a turn later, the near leg in front and her back to the camera.
+ * high. `turn` 1 has the far leg in front; -1 is half a turn later, the near leg in front and her back to the camera.
+ * In between, the legs are seen three-quarters on as they swing round: foreshortened to reach `turn` as far, and
+ * drawn straight, so neither knee has a side to flip to. The first streak always runs to the front box.
  */
-function floorSpin(side: 1 | -1): Pose {
-  return hitting(
-    P({
-      x: -0.3,
-      y: 2.6,
-      sy: 0.9,
-      sx: 1.06,
-      rot: -18,
-      raw: { thighB: { sy: 1.85 }, shinB: { sy: 1.5 }, thighF: { sy: 1.85 }, shinF: { sy: 1.5 } },
-      legs:
-        side === 1
-          ? [
-              [7.6, -3.8],
-              [-7.6, -1.4],
-            ]
-          : [
-              [-7.6, -1.4],
-              [7.6, -3.8],
-            ],
-      knees: side === 1 ? [-1, 1] : [1, -1],
-      arms: [
-        [3.6 * side, -10.2],
-        [-6.4, -0.4],
-      ],
-      ant: [-22, 10],
-    }),
-    ['shinB', [8 * side, -3], 2.2],
-    ['shinF', [-8 * side, -3], 2.2],
-  );
+function floorSpin(turn: number): Pose {
+  const side = turn > 0 ? 1 : -1;
+  const u = (turn + 1) / 2;
+  const feet: [Pt, Pt] = [
+    [7.6 * turn, -1.4 - 2.4 * u],
+    [-7.6 * turn, -3.8 + 2.4 * u],
+  ];
+  const body = P({ x: -0.3, y: 2.6, sy: 0.9, sx: 1.06, rot: -18 });
+  /** Thigh and shin stretched to reach `foot` just short of straight, on the three-quarter frames. */
+  const reachTo = (thigh: string, foot: Pt, stretch: [number, number]) => {
+    if (Math.abs(turn) === 1)
+      return { [thigh]: { sy: stretch[0] }, [`shin${thigh.slice(-1)}`]: { sy: stretch[1] } };
+    const [hx, hy] = pointOf(rig, body, thigh);
+    const k = (0.97 * Math.hypot(foot[0] - hx, foot[1] - (hy - ANKLE))) / (THIGH + FOOT);
+    return { [thigh]: { sy: k }, [`shin${thigh.slice(-1)}`]: { sy: k } };
+  };
+  const pose = P({
+    x: -0.3,
+    y: 2.6,
+    sy: 0.9,
+    sx: 1.06,
+    rot: -18,
+    raw: { ...reachTo('thighB', feet[0], [1.85, 1.5]), ...reachTo('thighF', feet[1], [1.85, 1.5]) },
+    legs: feet,
+    knees: side === 1 ? [-1, 1] : [1, -1],
+    arms: [
+      [3.6 * turn, -10.2],
+      [-6.4, -0.4],
+    ],
+    ant: [-22, 10],
+  });
+  const front: [Limb, Pt, number] = [side === 1 ? 'shinB' : 'shinF', [8, -3], 2.2];
+  const back: [Limb, Pt, number] = [side === 1 ? 'shinF' : 'shinB', [-8, -3], 2.2];
+  return hitting(pose, front, back);
 }
 /** Her near leg drawn over her body, as it swings round in front of her seat. */
 const NEAR_LEG_IN_FRONT = {
@@ -824,9 +884,12 @@ export const attacks: Record<string, AnimClip> = {
     [[5, 7]],
     [
       key(0, READY, { ease: 'out' }),
-      key(3, CROUCH),
+      key(3, CROUCH, { ease: 'linear' }),
+      // The near foot steps back over the floor into the slide, and forward again out of it.
+      key(4, passing(CROUCH, DTILT, 0.5, 'F'), { ease: 'linear' }),
       ...strike(5, 7, DTILT, STREAK1),
       done(12, DTILT),
+      key(16, passing(DTILT, CROUCH, 0.45, 'F'), { ease: 'linear' }),
       key(21, CROUCH),
     ],
   ),
@@ -838,23 +901,9 @@ export const attacks: Record<string, AnimClip> = {
     ],
     [
       key(0, runPose(0), { ease: 'out' }),
-      key(
-        4,
-        P({
-          x: 1.0,
-          y: 0.8,
-          rot: 30,
-          legs: [
-            [2.6, 0],
-            [-3.0, -0.6],
-          ],
-          arms: [
-            [3.0, -3.0],
-            [-5.0, -4.0],
-          ],
-          ant: [40, 34],
-        }),
-      ),
+      key(4, DIVE_STEP),
+      // Her far foot pushes off and comes up over the floor into the dive.
+      key(5, passing(DIVE_STEP, DIVE, 1 / 3, 'B'), { ease: 'linear' }),
       ...strike(7, 12, DIVE, { ...STREAK1, ...SHOUT }),
       // Rolling on the floor ball, antennae trailing, and up again a whole turn on, so she doesn't spin back.
       key(13, mix(ballAt(110), { body: { x: 2.4 } }), { ease: 'linear', swaps: NO_FX }),
@@ -929,8 +978,10 @@ export const attacks: Record<string, AnimClip> = {
       ...strike(15, 18, DROPKICK_LATE, { ...STREAK1, fx2: null }),
       { ...done(20, DROPKICK_DOWN), ease: 'linear' },
       // Knees pulled in to her chest on the way up from the floor, so her legs don't sweep through it.
-      key(22, mix(between(DROPKICK_DOWN, DROPKICK_SQUAT, 0.5), TUCKED_LEGS), { ease: 'linear' }),
-      key(24, DROPKICK_SQUAT),
+      // Up off the floor: knees in on 22, feet coming down over the floor on 24, squatting on 26.
+      key(22, DROPKICK_TUCK, { ease: 'linear' }),
+      key(24, passing(DROPKICK_TUCK, DROPKICK_SQUAT, 0.5, 'F', 0.05), { ease: 'linear' }),
+      key(26, DROPKICK_SQUAT),
       key(36, mix(CROUCH, { body: { rot: -10 } }), { swaps: FACE }),
       key(42, CROUCH),
       key(45, READY),
@@ -980,26 +1031,15 @@ export const attacks: Record<string, AnimClip> = {
     ],
     [
       key(0, READY, { ease: 'linear' }),
-      key(
-        3,
-        P({
-          y: -0.8,
-          sy: 1.08,
-          legs: [
-            [0.8, -0.8],
-            [-0.6, -0.6],
-          ],
-          arms: [
-            [4.4, -9.0],
-            [-4.2, -9.2],
-          ],
-          ant: [-20, -20],
-        }),
-        { ease: 'in' },
-      ),
+      key(3, SPLIT_HOP, { ease: 'linear' }),
+      // Both feet shoot out over the floor, not through it.
+      key(4, clearLeg(passing(SPLIT_HOP, SPLITS, 1 / 3, 'F'), 'B'), { ease: 'linear' }),
+      key(5, clearLeg(passing(SPLIT_HOP, SPLITS, 2 / 3, 'F', 0.1), 'B', 0.1), { ease: 'linear' }),
       ...strike(6, 8, SPLITS, { ...STREAK2, ...SHOUT }),
       ...strike(9, 12, SPLITS, STREAK2),
       done(18, SPLITS),
+      // Drawing her feet in from the splits, knees up, before she rises into the crouch.
+      key(24, SPLITS_IN, { ease: 'linear' }),
       key(30, CROUCH, { swaps: FACE }),
       key(43, READY),
     ],
@@ -1036,8 +1076,13 @@ export const attacks: Record<string, AnimClip> = {
         ),
         { ease: 'in' },
       ),
-      ...strike(16, 18, SPIN_FRONT, { ...STREAK2, ...SHOUT }),
-      ...strike(19, 21, SPIN_BACK, { ...STREAK2, ...AWAY }, NEAR_LEG_IN_FRONT),
+      // The seat spin: front on 16-17, three-quarters on 18 and 19 as the legs swing round, back on 20-21.
+      key(16, SPIN_FRONT, { ease: 'linear', swaps: { ...STREAK2, ...SHOUT } }),
+      key(17, SPIN_FRONT, { ease: 'linear' }),
+      key(18, floorSpin(1 / 3), { ease: 'linear' }),
+      key(19, floorSpin(-1 / 3), { ease: 'linear', swaps: { ...STREAK2, ...AWAY }, z: NEAR_LEG_IN_FRONT }),
+      key(20, SPIN_BACK, { ease: 'linear' }),
+      key(21, SPIN_BACK, { ease: 'out' }),
       key(22, SPIN_BACK, { swaps: { ...NO_FX, ...AWAY } }),
       key(
         24,
