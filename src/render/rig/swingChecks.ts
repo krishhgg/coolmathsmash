@@ -54,6 +54,34 @@ export interface Spin {
   clips?: string[];
 }
 
+/**
+ * A frame on which a clip cuts to a new shot, such as the lights going out or a spotlight coming on. The turn and
+ * draw-order checks skip the step into that frame and check every other step as usual.
+ */
+export interface Cut {
+  clip: string;
+  frame: number;
+  /** What the new shot is, in a line. */
+  why: string;
+}
+
+/**
+ * A part drawn over the fighter on some of a clip's frames, such as a fight cloud. On those frames the turn check
+ * leaves out a part the cover hides. To be hidden, the part lies inside the cover's drawn bounds, the cover's
+ * opaque fills cover every point of its bounds, and the cover is drawn over it. A part the cover doesn't hide on
+ * the frame is still checked, so a part coming out from under the cover at a new angle fails.
+ */
+export interface Cover {
+  clip: string;
+  /** The covering slot. */
+  slot: string;
+  /** The first and last frames on which it may hide a part. */
+  from: number;
+  to: number;
+  /** What covers the fighter, in a line. */
+  why: string;
+}
+
 /** Which of a fighter's clips the checks run on, and its allowances. */
 export interface SwingChecks {
   /** Clips on the ground: every check. */
@@ -62,6 +90,11 @@ export interface SwingChecks {
   air: string[];
   /** The frame a clip's checks start from (0 when not listed). */
   from?: Record<string, number>;
+  /**
+   * Clips in the air that end standing on the floor, with the frame the floor check runs on them from: a ledge getup
+   * once the engine has it on the stage.
+   */
+  groundFrom?: Record<string, number>;
   /** Held props, whose draw order against the parts they cover is checked. Found from the rig when not given. */
   props?: string[];
   /** Points along a prop's bone (distance from its origin) that must stay above the floor while it is drawn. */
@@ -70,6 +103,10 @@ export interface SwingChecks {
   decals?: string[];
   /** Bones meant to spin, left out of the turn check. */
   spins?: Spin[];
+  /** Frames where a clip cuts to a new shot, whose step in the turn and draw-order checks skip. */
+  cuts?: Cut[];
+  /** Parts drawn over the fighter, which leave the parts they hide out of the turn check. */
+  covered?: Cover[];
   face?: FaceCheck;
 }
 
@@ -104,11 +141,46 @@ function context(art: FighterArt) {
   const parents = Object.fromEntries(art.rig.bones.map((b) => [b.name, b.parent]));
   const slots = Object.fromEntries(art.rig.slots.map((s) => [s.name, s]));
 
-  /** A bone's rotation in rig space, unwrapped (its own turn plus its parents'), so a full spin counts 360. */
+  /**
+   * Whether `bone`'s parent is drawn mirrored in `pose` (flipped, such as a body with sx -1): an odd number of its
+   * ancestors, the parent included, have a negative sx * sy. A scale passing through 0 counts as unmirrored for
+   * every part under it alike.
+   */
+  const mirrored = (pose: RigPose, bone: string): boolean => {
+    let odd = false;
+    for (let b = parents[bone]; b; b = parents[b]) if (pose.local[b]!.sx * pose.local[b]!.sy < 0) odd = !odd;
+    return odd;
+  };
+
+  /**
+   * A bone's turn on screen, unwrapped so a full spin counts 360: its parent's, plus its own rotation, which turns
+   * the other way on screen under a mirrored parent.
+   */
   const turn = (pose: RigPose, bone: string): number => {
+    const parent = parents[bone];
+    const own = pose.local[bone]!.rot;
+    return parent ? turn(pose, parent) + (mirrored(pose, bone) ? -own : own) : own;
+  };
+
+  /** A bone's turn in its own rig, mirror or not: its own rotation plus its parents'. */
+  const facingTurn = (pose: RigPose, bone: string): number => {
     let deg = 0;
     for (let b: string | undefined = bone; b; b = parents[b]) deg += pose.local[b]!.rot;
     return deg;
+  };
+
+  /**
+   * How far `bone` turns from `prev` to `pose`. Across a frame where its parent flips to face the other way, the part
+   * reads right either keeping its angle on screen (Snail Bob's stalks as he whirls round) or flipping with its
+   * parent (a roll's legs as the body turns round through a squash), so it counts the smaller of the two, each the
+   * short way round.
+   */
+  const turned = (prev: RigPose, pose: RigPose, bone: string): number => {
+    const deg = turn(pose, bone) - turn(prev, bone);
+    if (mirrored(pose, bone) === mirrored(prev, bone)) return deg;
+    const short = (d: number) => d - 360 * Math.round(d / 360);
+    const [kept, flipped] = [short(deg), short(facingTurn(pose, bone) - facingTurn(prev, bone))];
+    return Math.abs(kept) <= Math.abs(flipped) ? kept : flipped;
   };
 
   /** The drawing in `slot` in `pose`, if it has one. */
@@ -173,7 +245,74 @@ function context(art: FighterArt) {
   const drawn = (pose: RigPose) =>
     new Set(art.rig.slots.filter((s) => pose.symbols[s.name] !== null).map((s) => s.bone));
 
-  return { slots, turn, drawing, bounds, covers, overlapsRegion, overlaps, layers, drawn };
+  const flat = new Map<string, number[][]>();
+  /** Whether rig point (x, y) lies in one of `shapes`, drawn on a bone at `m` (even-odd, like shapesContain). */
+  const within = (shapes: PathShape[], m: RigPose['world'][string], x: number, y: number) => {
+    const [lx, ly] = toLocal(m, x, y);
+    return shapes.some(({ d }) => {
+      if (!flat.has(d)) flat.set(d, flattenPath(d));
+      let inside = false;
+      for (const p of flat.get(d)!)
+        for (let i = 0, j = p.length - 2; i < p.length; j = i, i += 2)
+          if (
+            p[i + 1]! > ly !== p[j + 1]! > ly &&
+            lx < ((p[j]! - p[i]!) * (ly - p[i + 1]!)) / (p[j + 1]! - p[i + 1]!) + p[i]!
+          )
+            inside = !inside;
+      return inside;
+    });
+  };
+
+  /** The art with each loop drawing nothing, so a pose sampled from it names the loop a slot is keyed to. */
+  const unlooped: FighterArt = {
+    ...art,
+    rig: {
+      ...art.rig,
+      symbols: Object.fromEntries(
+        Object.entries(art.rig.symbols).map(([name, sym]) => [name, Array.isArray(sym) ? sym : []]),
+      ),
+    },
+  };
+
+  /** Each drawing symbol `name` can show: itself, or every frame of its loop (and of loops inside that). */
+  const drawings = (name: string | null | undefined, depth = 0): PathShape[][] => {
+    const sym = name ? art.rig.symbols[name] : undefined;
+    if (Array.isArray(sym)) return [sym];
+    return sym && depth < 8 ? sym.loop.flatMap((n) => drawings(n, depth + 1)) : [];
+  };
+
+  /**
+   * Whether `cover` hides every drawing on `bone` on frame `f` of `clip`, posed as `pose`. Each one lies inside the
+   * cover's bounds, is drawn under it, and has every point of its bounds, on a CELL grid, under the cover's opaque
+   * fills (flat colours, or gradients whose stops are all opaque). A cover keyed to a loop runs on the match clock,
+   * so any frame of the loop can be up: it must hide the part in each of them.
+   */
+  const hides = (clip: string, f: number, pose: RigPose, cover: string, bone: string): boolean => {
+    const keyed = samplePose(unlooped, clip, f, f).symbols[cover];
+    const solid = drawings(keyed).map((shapes) =>
+      shapes.filter(
+        ({ fill }) =>
+          fill !== undefined && (typeof fill === 'string' || fill.stops.every((s) => (s.alpha ?? 1) >= 1)),
+      ),
+    );
+    if (!solid.length || solid.some((shapes) => !shapes.length)) return false;
+    const order = layers(pose);
+    const [c0, c1, c2, c3] = bounds(pose, cover);
+    const m = pose.world[slots[cover]!.bone]!;
+    return art.rig.slots
+      .filter((s) => s.bone === bone && drawing(pose, s.name))
+      .every(({ name }) => {
+        if (order[name]! >= order[cover]!) return false;
+        const [x0, y0, x1, y1] = bounds(pose, name);
+        if (x0 < c0 || y0 < c1 || x1 > c2 || y1 > c3) return false;
+        for (let x = x0; x < x1 + CELL; x += CELL)
+          for (let y = y0; y < y1 + CELL; y += CELL)
+            if (!solid.every((shapes) => within(shapes, m, Math.min(x, x1), Math.min(y, y1)))) return false;
+        return true;
+      });
+  };
+
+  return { slots, turned, drawing, bounds, covers, overlapsRegion, overlaps, layers, drawn, hides };
 }
 
 const sample = (art: FighterArt, clip: string, f: number) => samplePose(art, clip, f, f);
@@ -191,7 +330,9 @@ export function floorFindings(art: FighterArt, checks: SwingChecks): Finding[] {
   const decal = (name: string | null | undefined) =>
     !!name && (checks.decals ?? []).some((d) => name.startsWith(d));
   const out: Finding[] = [];
-  for (const [clip, start, length] of frames(art, checks.ground, checks.from))
+  const landing = Object.keys(checks.groundFrom ?? {}).filter((clip) => checks.air.includes(clip));
+  const from = { ...checks.from, ...checks.groundFrom };
+  for (const [clip, start, length] of frames(art, [...checks.ground, ...landing], from))
     for (let f = start; f <= length; f++) {
       const pose = sample(art, clip, f);
       const shown = art.rig.slots.filter((s) => !decal(pose.symbols[s.name]));
@@ -229,16 +370,42 @@ function spinning(art: FighterArt, spins: Spin[], clip: string): Set<string> {
   return new Set(spins.filter((s) => !s.clips || s.clips.includes(clip)).map((s) => s.bone));
 }
 
+/** The frames `cuts` cuts to in `clip`. Throws on a clip the art doesn't have or a frame outside its clip. */
+function cutTo(art: FighterArt, cuts: Cut[], clip: string): Set<number> {
+  for (const cut of cuts) {
+    const { length } = art.clips[cut.clip] ?? {};
+    if (length === undefined) throw new Error(`cut: no clip ${cut.clip}`);
+    if (!Number.isInteger(cut.frame) || cut.frame < 1 || cut.frame > length)
+      throw new Error(`cut: ${cut.clip} has no frame ${cut.frame} to cut to`);
+  }
+  return new Set(cuts.filter((c) => c.clip === clip).map((c) => c.frame));
+}
+
+/** The covers in `clip`. Throws on a clip or slot the art doesn't have, or frames outside the clip. */
+function coversIn(art: FighterArt, covered: Cover[], clip: string): Cover[] {
+  for (const cover of covered) {
+    const { length } = art.clips[cover.clip] ?? {};
+    if (length === undefined) throw new Error(`cover: no clip ${cover.clip}`);
+    if (!art.rig.slots.some((s) => s.name === cover.slot)) throw new Error(`cover: no slot ${cover.slot}`);
+    if (!(cover.from >= 1 && cover.from <= cover.to && cover.to <= length))
+      throw new Error(`cover: ${cover.clip} has no frames ${cover.from} to ${cover.to}`);
+  }
+  return covered.filter((c) => c.clip === clip);
+}
+
 /**
  * Frames where a drawn part turns more than TURN degrees from the frame before, or STRIKE from two frames before a
  * hit window opens until it closes. A loop's last frame draws its first again, a whole number of turns round from
- * where it started, so that frame's turn is taken the short way. Bones in `spins` are left out in their clips.
+ * where it started, so that frame's turn is taken the short way. Bones in `spins` are left out in their clips, the
+ * step into a frame in `cuts` is skipped, and a part a cover in `covered` hides on the frame is left out.
  */
 export function turnFindings(art: FighterArt, checks: SwingChecks): Finding[] {
-  const { turn, drawn } = context(art);
+  const { turned, drawn, hides } = context(art);
   const out: Finding[] = [];
   for (const [clip, start, length] of frames(art, [...checks.ground, ...checks.air], checks.from)) {
     const free = spinning(art, checks.spins ?? [], clip);
+    const cuts = cutTo(art, checks.cuts ?? [], clip);
+    const covers = coversIn(art, checks.covered ?? [], clip);
     const { active = [], loop } = art.clips[clip]!;
     const striking = (f: number) => active.some(([a, b]) => f >= a - 2 && f <= b);
     let prev = sample(art, clip, start);
@@ -246,11 +413,13 @@ export function turnFindings(art: FighterArt, checks: SwingChecks): Finding[] {
       const pose = sample(art, clip, f);
       const before = drawn(prev);
       const limit = striking(f) ? STRIKE : TURN;
-      for (const bone of drawn(pose)) {
+      const hidden = (bone: string) =>
+        covers.some((c) => f >= c.from && f <= c.to && hides(clip, f, pose, c.slot, bone));
+      for (const bone of cuts.has(f) ? [] : drawn(pose)) {
         if (free.has(bone)) continue;
-        let deg = turn(pose, bone) - turn(prev, bone);
+        let deg = turned(prev, pose, bone);
         if (loop && f === length) deg -= 360 * Math.round(deg / 360);
-        if (before.has(bone) && Math.abs(deg) > limit)
+        if (before.has(bone) && Math.abs(deg) > limit && !hidden(bone))
           out.push({
             clip,
             frame: f,
@@ -266,17 +435,22 @@ export function turnFindings(art: FighterArt, checks: SwingChecks): Finding[] {
   return out;
 }
 
-/** Frames where a held prop moves in front of or behind a part it covers by more than OVERLAP on both frames. */
+/**
+ * Frames where a held prop moves in front of or behind a part it covers by more than OVERLAP on both frames. The
+ * step into a frame in `cuts` is skipped.
+ */
 export function orderFindings(art: FighterArt, checks: SwingChecks): Finding[] {
   const { drawing, layers, overlaps } = context(art);
   const props = checks.props ?? heldProps(art);
   const out: Finding[] = [];
   for (const [clip, start, length] of frames(art, [...checks.ground, ...checks.air], checks.from)) {
+    const cuts = cutTo(art, checks.cuts ?? [], clip);
     let prev = sample(art, clip, start);
     for (let f = start + 1; f <= length; f++) {
       const pose = sample(art, clip, f);
       const [was, now] = [layers(prev), layers(pose)];
-      for (const prop of props.filter((p) => drawing(prev, p) && drawing(pose, p)))
+      const shown = cuts.has(f) ? [] : props;
+      for (const prop of shown.filter((p) => drawing(prev, p) && drawing(pose, p)))
         for (const { name: part, decor } of art.rig.slots) {
           if (part === prop || decor || !drawing(prev, part) || !drawing(pose, part)) continue;
           const over = now[prop]! > now[part]!;
