@@ -31,6 +31,7 @@ export const clips: Record<string, AnimClip> = {
  * (`onFloor`), and the back rolls, where his toque or a shoe would dip below it as he rolls.
  */
 for (const name of [
+  'turn',
   'spotDodge',
   'dtilt',
   'dashAttack',

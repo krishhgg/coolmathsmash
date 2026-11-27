@@ -17,7 +17,20 @@ import {
 } from '../../../sim/constants';
 import { stats } from '../stats';
 import { FORE_ARM, SHIN, THIGH, UPPER_ARM } from './parts';
-import { STAND, aim, feet, hands, key, mix, pointOf, swing, twoHanded, type Pose, type Pt } from './poses';
+import {
+  STAND,
+  aim,
+  between,
+  feet,
+  hands,
+  key,
+  mix,
+  pointOf,
+  swing,
+  twoHanded,
+  type Pose,
+  type Pt,
+} from './poses';
 import { rig } from './rig';
 
 /**
@@ -148,8 +161,9 @@ function rest(pose: Pose, y = 0, paddle = true): Pose {
 }
 
 /**
- * Frame-by-frame keys between two poses over [from, to), each tweened like the sampler would and then set on the
- * floor, so a figure changing shape (sitting up, rolling over) never sinks into it or floats above it.
+ * Frame-by-frame keys between two poses over [from, to), each part turning the short way round on screen, and
+ * each set on the floor, so a figure changing shape (sitting up, rolling over) never sinks into it or floats above
+ * it.
  */
 function settle(
   a: Pose,
@@ -162,17 +176,7 @@ function settle(
   const keys: Key[] = [];
   for (let f = from; f < to; f++) {
     const k = ease(kind, (f - from) / (to - from));
-    const p: Pose = {};
-    for (const bone of new Set([...Object.keys(a), ...Object.keys(b)])) {
-      const [u, v] = [a[bone] ?? {}, b[bone] ?? {}];
-      p[bone] = {
-        x: (u.x ?? 0) + ((v.x ?? 0) - (u.x ?? 0)) * k,
-        y: (u.y ?? 0) + ((v.y ?? 0) - (u.y ?? 0)) * k,
-        rot: (u.rot ?? 0) + ((v.rot ?? 0) - (u.rot ?? 0)) * k,
-        sx: (u.sx ?? 1) + ((v.sx ?? 1) - (u.sx ?? 1)) * k,
-        sy: (u.sy ?? 1) + ((v.sy ?? 1) - (u.sy ?? 1)) * k,
-      };
-    }
+    const p = between(a, b, k);
     keys.push(key(f, rest(p), { ease: 'linear', ...(f === from ? first : {}) }));
   }
   return keys;
@@ -317,9 +321,9 @@ const RUN = gait(
   {
     length: 18,
     stance: RUN_STANCE,
-    stride: [3.9, -4.1],
-    lift: 3,
-    kick: 0.68,
+    stride: [3.7, -3.9],
+    lift: 3.3,
+    kick: 0.8,
     heel: -24,
     toe: 48,
     upper: (p) => {
@@ -328,7 +332,7 @@ const RUN = gait(
       const pump = Math.cos(TAU * (p - 0.08));
       return {
         body: {
-          body: { y: -0.35 + 0.55 * bob, x: 0.55, rot: 12 },
+          body: { y: -0.35 + 0.45 * bob, x: 0.55, rot: 12 },
           torso: { rot: 20 + 3 * bob, sy: 0.98 - 0.065 * bob, sx: 1 + 0.05 * bob },
           neck: { rot: -24 - 4 * lag },
           hat: { rot: 2 + 10 * lag, x: -0.15 + 0.2 * lag },
@@ -590,9 +594,16 @@ const spun = (rot: number, deg: number): Pose => mix(tuck(deg - rot), { body: { 
 /** The ball rolled deg degrees and set on a floor at height y (rolls and tech rolls). */
 const rolled = (deg: number, y = 0): Pose => rest(mix(TUCK, { body: { rot: deg } }), y);
 
+/** The poses a roll curls up from and opens out into, so the limbs fold over three frames instead of one. */
+interface Ends {
+  into?: Pose;
+  out?: Pose;
+}
+
 /**
  * A roll keyed every frame over [from, to): the ball turning from a to b degrees, resting on a floor at
- * floor(f) (a ledge roll's floor still rises) and led lead(f) ahead of the origin.
+ * floor(f) (a ledge roll's floor still rises) and led lead(f) ahead of the origin. With `ends`, the limbs curl in
+ * from `into` over the first two frames and open out towards `out` over the last two, while the body keeps turning.
  */
 function roll(
   from: number,
@@ -602,13 +613,16 @@ function roll(
   first: Omit<Key, 'frame' | 'pose'> = {},
   floor: (f: number) => number = () => 0,
   lead: (f: number) => number = () => 0,
+  { into, out }: Ends = {},
 ): Key[] {
   const keys: Key[] = [];
   for (let f = from; f < to; f++) {
     const deg = a + ((b - a) * (f - from)) / (to - from);
-    keys.push(
-      key(f, shift(rolled(deg, floor(f)), lead(f), 0), { ease: 'linear', ...(f === from ? first : {}) }),
-    );
+    const [curl, open] = [Math.min(1, (f - from + 1) / 3), Math.min(1, (to - f) / 3)];
+    const ball =
+      into && curl < 1 ? between(into, TUCK, curl) : out && open < 1 ? between(out, TUCK, open) : TUCK;
+    const pose = rest(mix(ball, { body: { ...ball.body, rot: deg } }), floor(f));
+    keys.push(key(f, shift(pose, lead(f), 0), { ease: 'linear', ...(f === from ? first : {}) }));
   }
   return keys;
 }
@@ -1096,7 +1110,8 @@ const raw: Record<string, AnimClip> = {
     swaps: STRAIN,
     keys: [
       key(0, skid(0), { ease: 'out' }),
-      key(6, skid(1), { ease: 'linear' }),
+      // The back arm already swinging down behind him as he digs in, so it drops into the crouch without a snap.
+      key(6, aim(aim(skid(1), 'armB', 160), 'foreB', 50), { ease: 'linear' }),
       key(
         8,
         build({
@@ -1129,7 +1144,8 @@ const raw: Record<string, AnimClip> = {
     swaps: STRAIN,
     keys: [
       key(0, mix(skid(0), { body: { sx: -1 } }), { ease: 'out' }),
-      key(3, mix(skid(1), { body: { sx: -1 } }), { ease: 'inOut' }),
+      // The back arm swings back and down from over his head as he digs in, so it reaches the crouch without a snap.
+      key(3, mix(aim(aim(skid(1), 'armB', 114), 'foreB', 70), { body: { sx: -1 } }), { ease: 'inOut' }),
       key(5, mix(CROUCH, { body: { sx: -1 } }), { ease: 'step', swaps: BLINK }),
       key(6, mix(SQUASH, { fx1: smear(0, -5.5, 8.5, -150) }), {
         ease: 'out',
@@ -1287,9 +1303,10 @@ const raw: Record<string, AnimClip> = {
   spotDodge: {
     length: SPOT_DODGE.faf - 1,
     keys: [
-      key(0, STAND, { ease: 'out' }),
+      // The back hand goes up to the toque and back down at an even pace, so it doesn't whip round in one frame.
+      key(0, STAND, { ease: 'linear' }),
       key(3, duck(0), { ease: 'linear', swaps: SQUINT, z: HAND_ON_HAT }),
-      key(17, duck(-0.15), { ease: 'inOut' }),
+      key(17, duck(-0.15), { ease: 'linear' }),
       key(20, CROUCH, { ease: 'out', swaps: WORRIED, z: {} }),
       key(SPOT_DODGE.faf - 1, STAND, { swaps: {} }),
     ],
@@ -1301,7 +1318,10 @@ const raw: Record<string, AnimClip> = {
     keys: [
       key(0, STAND, { ease: 'out' }),
       key(3, mix(CROUCH, { torso: { rot: 26 } }), { ease: 'in' }),
-      ...roll(4, 17, 20, 360, { swaps: SQUINT, z: PADDLE_BEHIND }),
+      ...roll(4, 17, 20, 360, { swaps: SQUINT, z: PADDLE_BEHIND }, undefined, undefined, {
+        into: mix(CROUCH, { torso: { rot: 26 } }),
+        out: CROUCH,
+      }),
       key(17, mix(CROUCH, { body: { rot: 360 } }), { ease: 'out', swaps: DETERMINED, z: {} }),
       key(21, mix(CROUCH, { body: { sx: 1, rot: 360 } }), { ease: 'inOut' }),
       key(24, mix(CROUCH, { body: { sx: -1, rot: 360 } }), { ease: 'out' }),
@@ -1315,7 +1335,10 @@ const raw: Record<string, AnimClip> = {
     keys: [
       key(0, STAND, { ease: 'out' }),
       key(3, mix(CROUCH, { torso: { rot: -6 } }), { ease: 'in' }),
-      ...roll(4, 17, -20, -360, { swaps: SQUINT, z: PADDLE_BEHIND }),
+      ...roll(4, 17, -20, -360, { swaps: SQUINT, z: PADDLE_BEHIND }, undefined, undefined, {
+        into: mix(CROUCH, { torso: { rot: -6 } }),
+        out: CROUCH,
+      }),
       key(17, mix(CROUCH, { body: { rot: -360 } }), { ease: 'out', swaps: DETERMINED, z: {} }),
       key(ROLL_BACK.faf - 1, mix(STAND, { body: { rot: -360 } }), { swaps: {} }),
     ],
@@ -1665,8 +1688,9 @@ const raw: Record<string, AnimClip> = {
     length: TECH_ROLL.faf - 1,
     swaps: SHOUT,
     keys: [
-      ...settle(slap(true), rolled(10), 0, 3, 'in'),
-      ...roll(3, 24, 10, 360, { swaps: SQUINT, z: PADDLE_BEHIND }),
+      // Both hands are behind his back as he slaps the floor, so the paddle draws behind him from the start.
+      ...settle(slap(true), rolled(10), 0, 3, 'in', { z: PADDLE_BEHIND }),
+      ...roll(3, 24, 10, 360, { swaps: SQUINT, z: PADDLE_BEHIND }, undefined, undefined, { out: CROUCH }),
       key(24, mix(CROUCH, { body: { rot: 360 } }), { ease: 'out', swaps: DETERMINED, z: {} }),
       key(TECH_ROLL.faf - 1, mix(STAND, { body: { rot: 360 } }), { swaps: {} }),
     ],
