@@ -118,6 +118,7 @@ const KNOWN: Record<string, string[]> = {
     'jab2',
     'jab3',
     'ledgeAttack',
+    'ledgeClimb',
     'ledgeJump',
     'ledgeRoll',
     'nair',

@@ -90,6 +90,11 @@ export interface SwingChecks {
   air: string[];
   /** The frame a clip's checks start from (0 when not listed). */
   from?: Record<string, number>;
+  /**
+   * Clips in the air that end standing on the floor, with the frame the floor check runs on them from: a ledge getup
+   * once the engine has it on the stage.
+   */
+  groundFrom?: Record<string, number>;
   /** Held props, whose draw order against the parts they cover is checked. Found from the rig when not given. */
   props?: string[];
   /** Points along a prop's bone (distance from its origin) that must stay above the floor while it is drawn. */
@@ -325,7 +330,9 @@ export function floorFindings(art: FighterArt, checks: SwingChecks): Finding[] {
   const decal = (name: string | null | undefined) =>
     !!name && (checks.decals ?? []).some((d) => name.startsWith(d));
   const out: Finding[] = [];
-  for (const [clip, start, length] of frames(art, checks.ground, checks.from))
+  const landing = Object.keys(checks.groundFrom ?? {}).filter((clip) => checks.air.includes(clip));
+  const from = { ...checks.from, ...checks.groundFrom };
+  for (const [clip, start, length] of frames(art, [...checks.ground, ...landing], from))
     for (let f = start; f <= length; f++) {
       const pose = sample(art, clip, f);
       const shown = art.rig.slots.filter((s) => !decal(pose.symbols[s.name]));
