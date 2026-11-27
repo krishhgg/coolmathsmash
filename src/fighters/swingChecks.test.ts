@@ -10,16 +10,6 @@ import { drawnFighters, swingChecksFor } from './swingChecks';
  * taking it out of here, and a listed clip that passes fails this test until it is taken out.
  */
 const KNOWN: Record<string, string[]> = {
-  'bob-the-robber': [
-    'finalSmash',
-    'finalSmashCinematic',
-    'grabRelease',
-    'ledgeClimb',
-    'ledgeRoll',
-    'run',
-    'runBrake',
-    'walk',
-  ],
   duck: [
     'airDodge',
     'bair',
@@ -357,6 +347,7 @@ const KNOWN: Record<string, string[]> = {
     'dsmash',
     'dthrow',
     'dtilt',
+    'finalSmashCinematic',
     'fsmash',
     'fthrow',
     'ftilt',
