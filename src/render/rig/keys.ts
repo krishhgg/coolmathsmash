@@ -101,7 +101,17 @@ export function floorContact(
   { bone, settle = false, skip, adjust }: Contact,
 ): AnimClip {
   const art: FighterArt = { rig, clips: { contact: clip }, palettes: { default: {} }, height: 0, icon: '' };
-  const keys = new Map(clip.keys.map((k) => [k.frame, k]));
+  // Each frame's ease, swaps and draw order, as the sampler reads them when several keys share a frame: the ease of
+  // its last posed key, and the last swaps and draw order set on it.
+  const keys = new Map<number, Pick<Key, 'ease' | 'swaps' | 'z'>>();
+  for (const k of clip.keys) {
+    const at = keys.get(k.frame) ?? {};
+    keys.set(k.frame, {
+      ease: k.pose ? k.ease : at.ease,
+      swaps: k.swaps ?? at.swaps,
+      z: k.z ?? at.z,
+    });
+  }
   return {
     ...clip,
     keys: Array.from({ length: clip.length + 1 }, (_, frame) => {
