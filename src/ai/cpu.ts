@@ -73,8 +73,12 @@ const HISTORY = 64;
 /** An opponent this far behind the CPU's feet still overlaps its body, so a Final Smash in front can reach it. */
 const FINAL_BEHIND = 4;
 const HORIZON = 45;
-/** Two of the CPU's shots clanking this many frames apart or less make a run it breaks off (Cpu.noteClanks). */
-const CLANK_RUN = 120;
+/**
+ * Frames before a shot would hit the CPU that it starts to defend against it. A shot is seen coming from much further
+ * out than an attack, and a spot dodge or roll started that early is over before it arrives (a Stun Gun shot 16
+ * frames off hit Fireboy on the frame his spot dodge ended).
+ */
+const SHOT_LEAD = 12;
 /** Frames ahead the CPU looks for an attack or a shot that would hit it where it is. */
 const THREAT_HORIZON = 36;
 /**
@@ -120,9 +124,7 @@ export class Cpu {
   private rolls = new Map<string, boolean>();
   private fastFallAir = -1;
   private wantFastFall = false;
-  /** Frames on which one of the CPU's own shots clanked, the latest last (only the last two matter). */
-  private clanked: number[] = [];
-  /** The CPU holds its shots until this frame, after they clanked twice in a row (CLANK_RUN). */
+  /** The CPU holds its shots until this frame, after one of them clanked (noteClanks). */
   private holdShotsUntil = -1;
 
   constructor(
@@ -175,8 +177,8 @@ export class Cpu {
   /**
    * Two CPUs that fire at each other within each other's reaction time can't see the other's shot coming, and when
    * both shots clank they are free again together and fire again: Raft Wars' forward tilts, 3 frames apart, clanked
-   * every 30 frames. After its shots clank twice within CLANK_RUN frames, the CPU holds them for 30 to 90 frames,
-   * drawn at random, so one fires first and the other sees that shot out and defends instead of meeting it.
+   * every 30 frames. After one of its shots clanks, the CPU holds its shots for 30 to 90 frames, drawn at random, so
+   * one fires first and the other sees that shot out and defends instead of meeting it.
    */
   private noteClanks(state: Readonly<MatchState>): void {
     const mine = this.ownHistory.at(-1)?.entities;
@@ -185,11 +187,7 @@ export class Cpu {
       (e) => e.type === 'entityDestroy' && e.reason === 'clank' && mine.some((x) => x.id === e.id),
     );
     if (!clank) return;
-    const last = this.clanked.at(-1);
-    this.clanked = [state.frame];
-    if (last !== undefined && state.frame - last <= CLANK_RUN) {
-      this.holdShotsUntil = state.frame + 30 + Math.floor(this.rand() * 60);
-    }
+    this.holdShotsUntil = state.frame + 30 + Math.floor(this.rand() * 60);
   }
 
   /** An opponent as the CPU perceives it: `lag` frames old. */
@@ -655,7 +653,10 @@ export class Cpu {
     // shields, dodges or jumps it instead of firing back a shot that only clanks with it.
     const struck = this.threat(me, path);
     const shot = shotThreat(state, me, seen, shots, THREAT_HORIZON);
-    const threat = shot && (!struck || shot.t < struck.t) ? { ...shot, move: 'shot', frame: -1 } : struck;
+    const threat =
+      shot && shot.t <= SHOT_LEAD && (!struck || shot.t < struck.t)
+        ? { ...shot, move: 'shot', frame: -1 }
+        : struck;
     if (threat) {
       const key = `threat:${opp.port}:${threat.move}:${state.frame + threat.t - threat.frame}`;
       if (this.roll(key, this.lv.defense) && this.defend(state, me, k, info, target, threat, dir)) return;
