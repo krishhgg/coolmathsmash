@@ -91,6 +91,10 @@ export function floorContact(clip: AnimClip, settle = true): AnimClip {
   };
 }
 
+/** `pose` moved up or down so its lowest drawn part rests on the floor. */
+export const grounded = (pose: Pose): Pose =>
+  floorContact({ length: 0, keys: [key(0, pose)] }).keys[0]!.pose!;
+
 /** World rotation of a bone in `pose` (degrees; 0 = its rest axes line up with the rig's). */
 export function worldRot(pose: Pose, bone: string): number {
   const [x0, y0] = pointOf(rig, pose, bone, 0, 0);
@@ -248,3 +252,18 @@ export const TUCK: Pose = {
   foreB: { rot: -60 },
   neck: { y: 0.45 },
 };
+
+/** Flat on his back, head behind him, beanie askew, knees up. */
+export const DOWN: Pose = grounded({
+  body: { rot: -90, x: 0.9 },
+  neck: { rot: 4 },
+  hat: { rot: 16, x: -0.2 },
+  armF: { rot: 20 },
+  foreF: { rot: 20 },
+  armB: { rot: -10 },
+  foreB: { rot: 10 },
+  thighF: { rot: -5 },
+  shinF: { rot: 45 },
+  thighB: { rot: 10 },
+  shinB: { rot: 35 },
+});
