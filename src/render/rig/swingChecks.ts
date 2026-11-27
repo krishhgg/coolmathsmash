@@ -105,7 +105,7 @@ export function heldProps(art: FighterArt): string[] {
  * result is the same.
  */
 const flattened = new Map<string, number[][]>();
-function flat(d: string, steps = 8): number[][] {
+function polygons(d: string, steps = 8): number[][] {
   const key = `${steps} ${d}`;
   let polys = flattened.get(key);
   if (!polys) flattened.set(key, (polys = flattenPath(d, steps)));
@@ -117,7 +117,7 @@ function contains(shapes: PathShape[], x: number, y: number): boolean {
   return shapes.some((shape) => {
     if (shape.fill === undefined) return false;
     let inside = false;
-    for (const p of flat(shape.d)) {
+    for (const p of polygons(shape.d)) {
       for (let i = 0, j = p.length - 2; i < p.length; j = i, i += 2) {
         const xi = p[i]!;
         const yi = p[i + 1]!;
@@ -139,7 +139,7 @@ function lowest(art: FighterArt, pose: RigPose, slots: FighterArt['rig']['slots'
     if (!Array.isArray(sym)) continue;
     const m = pose.world[slot.bone]!;
     for (const shape of sym)
-      for (const p of flat(shape.d, 4))
+      for (const p of polygons(shape.d, 4))
         for (let i = 0; i < p.length; i += 2) bottom = Math.max(bottom, m.b * p[i]! + m.d * p[i + 1]! + m.ty);
   }
   return bottom;
@@ -169,7 +169,7 @@ function context(art: FighterArt) {
     const m = pose.world[slots[slot]!.bone]!;
     const b: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity];
     for (const shape of drawing(pose, slot) ?? [])
-      for (const p of flat(shape.d))
+      for (const p of polygons(shape.d))
         for (let i = 0; i < p.length; i += 2) {
           const x = m.a * p[i]! + m.c * p[i + 1]! + m.tx;
           const y = m.b * p[i]! + m.d * p[i + 1]! + m.ty;
