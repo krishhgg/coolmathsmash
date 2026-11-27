@@ -43,8 +43,10 @@ A fighter's collision box (a diamond from the feet to three quarters of its heig
 enters a solid, as in Ultimate. Floors catch the feet (a landing). Walls and ceilings push back any point of the
 box that crosses them, and a convex corner with a wall or ceiling on one side (a ledge corner, the corner where a
 side wall meets the underside) pushes back the side of the box it runs into. A fighter rising into the underside
-stops against it or slides along it, and one rising past a corner slides off it. Soft platforms only catch the
-feet from above, so fighters pass up through them.
+stops against it or slides along it, and one rising past a corner slides off it. A corner's push takes away speed
+into it but never adds speed along either axis, so a fighter falling straight down past a ledge corner is moved out
+from the wall and keeps falling straight. Soft platforms only catch the feet from above, so fighters pass up through
+them.
 
 An entity can carry a soft platform too (`EntityDef.platform`, docs/fighters.md), such as the Raft Wars kids' Duck
 Raft. Fighters land on it, drop through it and walk off it as on a stage platform, but it is not part of the stage: it
