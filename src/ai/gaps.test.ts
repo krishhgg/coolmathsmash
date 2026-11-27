@@ -32,7 +32,8 @@ describe('CPUs on Run Tunnel', () => {
   });
 
   // The CPU stands at the left gap's edge, where its walk stops, with the opponent standing still on the middle floor.
-  it.each(['fireboy', 'runner', 'redball', 'wheely', 'bob-the-robber', 'johnny'])(
+  // Bob the Robber shoots his Stun Gun across instead, which a standing opponent can't avoid.
+  it.each(['fireboy', 'runner', 'redball', 'wheely', 'johnny'])(
     '%s hops the gap to reach an opponent across it and lands on the far side',
     (fighter) => {
       const m = tunnel([fighter, 'fireboy'], [-53, 10]);

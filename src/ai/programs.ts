@@ -171,15 +171,13 @@ export function fullHop(name: string, stick: number, hold: number, frames: numbe
 
 /**
  * A full hop over a gap: Jump held through the squat, the stick toward `stick` until `over` says the fighter is over
- * ground past it, then let go to land there. It keeps running over the gap, where the CPU is otherwise off stage and
- * recovering.
+ * ground past it, then let go to land there.
  */
 export function gapHop(stick: number, over: (f: Readonly<FighterState>) => boolean): Program {
   let held = true;
   return {
     name: 'gapHop',
     interruptible: false,
-    offstage: true,
     step: (t, f) => {
       if (t > GAP_HOP_LIMIT || (t > 4 && f.ground !== null)) return null;
       held &&= !over(f);

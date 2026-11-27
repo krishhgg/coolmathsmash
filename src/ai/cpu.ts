@@ -1067,9 +1067,10 @@ export class Cpu {
   }
 
   /**
-   * The walk to `tx` stops short of a gap in the floor (Run Tunnel's two) and the CPU is already there: full hop
-   * across when the hop, run on a copy of the match, comes down past the gap on ground the CPU can stand on
-   * (landsClear). Without this a CPU never crosses a gap and waits at its edge for the opponent to come over.
+   * On a stage with pits between its ends (StageInfo.pits), the walk to `tx` stops short of one (Run Tunnel's two
+   * gaps) and the CPU is already there: full hop across when the hop, run on a copy of the match, comes down past the
+   * gap on ground the CPU can stand on (landsClear). Without this a CPU never crosses a gap and waits at its edge for
+   * the opponent to come over. An open trapdoor shuts again, so the CPU waits for it instead.
    */
   private hopGap(
     state: Readonly<MatchState>,
@@ -1077,7 +1078,7 @@ export class Cpu {
     info: StageInfo,
     tx: number,
   ): boolean {
-    if (me.ground === null || !actionable(me)) return false;
+    if (!info.pits || me.ground === null || !actionable(me)) return false;
     const stop = walkTarget(info, me.fighter, me.pos.x, me.pos.y, tx);
     if (Math.abs(stop - me.pos.x) > GAP_HOP_REACH) return false;
     if (!walkStopsAtGap(info, me.fighter, me.pos.x, me.pos.y, tx)) return false;
