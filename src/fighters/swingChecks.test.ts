@@ -92,16 +92,7 @@ const KNOWN: Record<string, string[]> = {
     'uthrow',
     'walk',
   ],
-  'bob-the-robber': [
-    'finalSmash',
-    'finalSmashCinematic',
-    'grabRelease',
-    'ledgeClimb',
-    'ledgeRoll',
-    'run',
-    'runBrake',
-    'walk',
-  ],
+  'bob-the-robber': ['dsmash', 'getupAttack', 'turn'],
   fireboy: [
     'bair',
     'bthrow',
@@ -273,7 +264,6 @@ const KNOWN: Record<string, string[]> = {
     'utilt',
   ],
   raftwars: [
-    'bair',
     'bthrow',
     'dashAttack',
     'dizzy',
@@ -392,6 +382,7 @@ const KNOWN: Record<string, string[]> = {
     'dsmash',
     'dthrow',
     'dtilt',
+    'finalSmashCinematic',
     'fsmash',
     'fthrow',
     'ftilt',
