@@ -6,10 +6,11 @@ import { createCpu } from './index';
 /**
  * Falls nothing else steers. With no program running and no recovery plan, the CPU's air input comes from airIdle in
  * cpu.ts: a helpless fall after an up special used as an attack, or a free fall while the opponent it would think
- * about is KO'd and waiting to respawn. Air friction takes off only 0.0075 to 0.015 units a frame, so with the stick
- * centred such a fall keeps most of its speed. On main airIdle pushes back only within 10 units of the stage's outer
- * ends, which is too late for Wheely's Ramp Jump, and never over a gap inside the stage. It now works out where the
- * fall comes down and steers it back onto the stage when it wouldn't (driftBack in stage.ts).
+ * about is KO'd and waiting to respawn. Air friction takes only 0.0075 (Fluffy) to 0.01 (Wheely, Red Ball) units a
+ * frame off their speed, so with the stick centred such a fall keeps most of it. On main airIdle pushes back only
+ * within 10 units of the stage's outer ends, which is too late for Wheely's Ramp Jump, and never over a gap inside the
+ * stage. It now works out where the fall comes down and steers it back onto the stage when it wouldn't (driftBack in
+ * stage.ts).
  */
 
 interface Fall {
@@ -98,7 +99,7 @@ function misses(s: Fall): string[] {
 describe('CPU falls with nothing steering them', () => {
   // Ramp Jump used as an attack from 30 units left of the middle, stick centred: Wheely is helpless from frame 40 at
   // (32.4, 68.7) moving 1.69 units a frame. His air friction is 0.01, so with no input he drifts past the right ledge
-  // and is KO'd on frame 123. Holding the stick back the whole way he lands about 7 units inside it.
+  // and is KO'd 120 frames later. Steered back, he lands at x 72.7 on frame 47.
   it('a helpless Wheely after Ramp Jump steers back onto Battlefield instead of drifting past either ledge', () => {
     const s: Fall = {
       stage: 'battlefield',
