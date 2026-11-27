@@ -9,12 +9,14 @@ import {
   LEDGE_JUMP,
   LEDGE_REGRAB_LOCK,
   LEDGE_ROLL,
+  LEDGE_TRUMP,
 } from '../constants';
 import { buffered, consume, stickX, stickY } from '../control';
 import type { Ctx, FighterState } from '../fighter';
 import { floorAt, hangAt, hangPos, restoreAirOptions } from '../movement';
 import { startMove } from './attack';
 import { consumeJump, wantsJump } from './common';
+import { approach } from '../vec';
 import { inWindow, setAction, type ActionDef } from './registry';
 
 export function dropLedge(x: Ctx): void {
@@ -106,6 +108,21 @@ export const LEDGE: Record<string, ActionDef> = {
       const up = stickY(c);
       if (toward >= DIRECTION_THRESHOLD || up >= DIRECTION_THRESHOLD) return setAction(x, 'ledgeClimb');
       if (toward <= -DIRECTION_THRESHOLD || up <= -DIRECTION_THRESHOLD) dropLedge(x);
+    },
+  },
+
+  /**
+   * Pushed off the ledge by another fighter's catch (movement.ts trump): no control for LEDGE_TRUMP.noControl
+   * frames, the stick at rest so air friction slows the push, and no ledge grabs. Then a fall that acts at once.
+   */
+  trumped: {
+    physics: 'air',
+    drift: false,
+    ledge: false,
+    update(x) {
+      const { f, s } = x;
+      if (f.actionFrame > LEDGE_TRUMP.noControl) return setAction(x, 'fall');
+      f.vel.x = approach(f.vel.x, 0, s.airFriction);
     },
   },
 
