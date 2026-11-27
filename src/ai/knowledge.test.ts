@@ -5,7 +5,6 @@ import type { HitboxDef, MoveDef } from '../fighters/types';
 import { neutralInput } from '../input/types';
 import { createMatch, stepMatch } from '../sim/match';
 import { STAGES } from '../stages/registry';
-import { runCpuMatch } from './bench';
 import { hintsFor } from './hints';
 import { createCpu } from './index';
 import { AERIALS, SPECIALS } from './inputs';
@@ -103,11 +102,13 @@ describe('CPUs and air variants', () => {
     expect(path).toEqual(['aerial:sideBAir', 'tetherPull:sideBAir', 'ledgeCatch', 'ledgeHang']);
   });
 
-  // Whether one match calls for it depends on how that match plays: in seed 1 Red Ball wins without it since directional
-  // air dodges slide as far as Ultimate's, so a second seed plays if a fighter hasn't used it yet.
+  // Whether one match calls for it depends on how that match plays. Since recovery plans double jump before their
+  // special (src/ai/recovery.ts), Red Ball uses no special at all in seed 1's match, and since directional air dodges
+  // slide as far as Ultimate's, he can win a match without it. So the seeds of src/ai/bench.ts play from seed 2 until
+  // both fighters have used it.
   it('play their air side specials in level 9 matches, Red Ball against Runner', () => {
     const uses = [0, 0];
-    for (let seed = 1; seed <= 2 && uses.includes(0); seed++) {
+    for (let seed = 2; seed <= 4 && uses.includes(0); seed++) {
       const m = createMatch({
         seed,
         stage: STAGE,
@@ -174,40 +175,96 @@ describe('air probes of moves that end in a helpless fall', () => {
   });
 
   // 60 units beside either ledge, 20 and 50 under it, with the double jump left (src/ai/testing/recovery.ts). Before,
-  // a level 9 Wheely was KO'd from all four on every seed.
+  // a level 9 Wheely was KO'd from all four on every seed. From 50 under he needs Ramp Jump; from 20 under, now that
+  // recovery plans double jump before their special (src/ai/recovery.ts), a double jump alone gets him back on some
+  // seeds.
   it.each([
-    [-140, -20],
-    [-140, -50],
-    [140, -20],
-    [140, -50],
-  ])('a level 9 Wheely Ramp Jumps back to the stage from (%d, %d) on every seed', (x, y) => {
-    const ends: string[] = [];
-    for (let seed = 1; seed <= 5; seed++) {
-      const m = drill(STAGE, x, y, 'wheely');
-      const f = m.fighters[0]!;
-      const cpu = createCpu({ port: 0, level: 9, seed });
-      let ramp = false;
-      let end = 'stuck';
-      for (let i = 0; i < 600; i++) {
-        stepMatch(m, [cpu.input(m), neutralInput()]);
-        if (f.move === 'upB') ramp = true;
-        if (f.stocks < 3) end = 'ko';
-        else if (f.ground !== null || f.action === 'ledgeHang') end = 'back';
-        if (end !== 'stuck') break;
+    [-140, -20, false],
+    [-140, -50, true],
+    [140, -20, false],
+    [140, -50, true],
+  ])(
+    'a level 9 Wheely gets back to the stage from (%d, %d) on every seed, with Ramp Jump: %s',
+    (x, y, needs) => {
+      const ends: string[] = [];
+      for (let seed = 1; seed <= 5; seed++) {
+        const m = drill(STAGE, x, y, 'wheely');
+        const f = m.fighters[0]!;
+        const cpu = createCpu({ port: 0, level: 9, seed });
+        let ramp = false;
+        let end = 'stuck';
+        for (let i = 0; i < 600; i++) {
+          stepMatch(m, [cpu.input(m), neutralInput()]);
+          if (f.move === 'upB') ramp = true;
+          if (f.stocks < 3) end = 'ko';
+          else if (f.ground !== null || f.action === 'ledgeHang') end = 'back';
+          if (end !== 'stuck') break;
+        }
+        ends.push(`seed ${seed}: ${end}${ramp ? ' with Ramp Jump' : ''}`);
       }
-      ends.push(`seed ${seed}: ${end}${ramp ? ' with Ramp Jump' : ''}`);
-    }
-    expect(ends).toEqual([1, 2, 3, 4, 5].map((seed) => `seed ${seed}: back with Ramp Jump`));
-  });
+      const back = ends.map((e) => e.replace(' with Ramp Jump', ''));
+      expect(back).toEqual([1, 2, 3, 4, 5].map((seed) => `seed ${seed}: back`));
+      if (needs) expect(ends).toEqual(back.map((e) => `${e} with Ramp Jump`));
+      else expect(ends.some((e) => e.endsWith('with Ramp Jump'))).toBe(true);
+    },
+    60_000,
+  );
 });
 
 describe('a recovery that carries the CPU back over the stage', () => {
-  // Level 9 against level 9 on Battlefield (src/ai/bench.ts). Wheely drifts past the right edge and Ramp Jumps, which
-  // carries him back over the stage at 2.2 units a frame. The CPU used to drop its recovery plan once there was stage
-  // under him and give no input in the helpless fall over the stage's middle, so he drifted off the left side and
-  // self-destructed on frame 5156. The plan steers through that fall, as the planner checked it.
-  it('keeps steering its helpless fall, so a level 9 Wheely does not self-destruct in seed 1 against Johnny', () => {
-    const r = runCpuMatch({ seed: 1, levels: [9, 9], fighters: ['wheely', 'johnny'], maxFrames: 5156 + 60 });
-    expect(r.kos.filter((k) => k.selfDestruct)).toEqual([]);
-  }, 60_000);
+  // Wheely and Johnny as they were on frame 4983 of the seed 1 level 9 match in src/ai/bench.ts before #326, patched
+  // into a new match: Wheely 0.6 units past Battlefield's right edge, falling with his double jump left, and Johnny in
+  // his double jump above the stage. There Wheely Ramp Jumped on the next frame and self-destructed on frame 5156. On
+  // these CPU seeds he Ramp Jumps too, which carries him back over the stage at 2 units a frame and leaves him
+  // helpless. The CPU used to drop its recovery plan once there was stage under him and give no input over the middle,
+  // so he drifted off the left side; the plan steers that fall, as the planner checked it.
+  it.each([11, 24, 31, 76])(
+    'keeps steering the helpless fall after Ramp Jump onto the stage (CPU seed %d)',
+    (seed) => {
+      const m = createMatch({
+        seed: 1,
+        stage: STAGE,
+        stocks: 3,
+        ports: [{ fighter: 'wheely' }, { fighter: 'johnny' }],
+      });
+      for (let i = 0; i < 30; i++) stepMatch(m, [neutralInput(), neutralInput()]);
+      const [w, j] = m.fighters;
+      Object.assign(w!, {
+        pos: { x: 80.64, y: 23.71 },
+        prevPos: { x: 80.26, y: 24.39 },
+        vel: { x: 0.381, y: -0.802 },
+        ground: null,
+        action: 'fall',
+        actionFrame: 6,
+        facing: 1,
+        jumpsUsed: 1,
+        airFrames: 27,
+        damage: 48.7,
+      });
+      Object.assign(j!, {
+        pos: { x: 62.59, y: 64.38 },
+        prevPos: { x: 62.84, y: 64.45 },
+        vel: { x: -0.252, y: -0.068 },
+        ground: null,
+        action: 'doubleJump',
+        actionFrame: 25,
+        facing: -1,
+        jumpsUsed: 2,
+        damage: 62.8,
+      });
+      const cpu = createCpu({ port: 0, level: 9, seed });
+      let ramp = false;
+      let end = 'stuck';
+      for (let i = 0; i < 400 && end === 'stuck'; i++) {
+        stepMatch(m, [cpu.input(m), neutralInput()]);
+        if (w!.move === 'upB') ramp = true;
+        if (w!.stocks < 3) end = 'ko';
+        else if (w!.ground !== null || w!.action === 'ledgeHang') end = 'back';
+      }
+      expect(ramp).toBe(true);
+      expect(end).toBe('back');
+      expect(Math.abs(w!.pos.x)).toBeLessThan(30);
+    },
+    60_000,
+  );
 });
