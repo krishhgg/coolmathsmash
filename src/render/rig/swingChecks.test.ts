@@ -21,6 +21,33 @@ const brawl = (cloud: string, z = 10): AnimClip => ({
   keys: [clip().keys[0]!, { frame: 2, swaps: { cloud }, z: { cloud: z } }, clip().keys[1]!],
 });
 
+/**
+ * The stick going from over the body to under it on frame 1, with `mitt` drawn on the arm over both (at `z`, over
+ * everything by default).
+ */
+const swap = (mitt: string | null = null, z = 10): AnimClip => ({
+  length: 2,
+  keys: [
+    { frame: 0, pose: {}, swaps: { mitt }, z: { mitt: z } },
+    { frame: 1, z: { stick: -1, mitt: z } },
+  ],
+});
+
+/** A see-through square like `box(half)`. */
+const thin = (half: number): PathShape[] => [
+  {
+    d: square(half),
+    fill: {
+      type: 'linear',
+      x0: 0,
+      y0: 0,
+      x1: 1,
+      y1: 0,
+      stops: [{ offset: 0, color: '#000000', alpha: 0.88 }],
+    },
+  },
+];
+
 /** A cloud that covers the fighter like `box(3)`, with `hole` cut out of it. */
 const holed = (hole: string): PathShape[] => [{ d: `${square(3)} ${hole}`, fill: '#000000' }];
 
@@ -43,6 +70,7 @@ const art: FighterArt = {
       { name: 'stick', bone: 'arm', symbol: 'stick' },
       { name: 'wheel', bone: 'wheel', symbol: 'wheel' },
       { name: 'cloud', bone: 'fx', symbol: null },
+      { name: 'mitt', bone: 'arm', symbol: null },
     ],
     symbols: {
       body: box(1),
@@ -55,33 +83,24 @@ const art: FighterArt = {
       holedCloud: holed(square(0.35, 0.5)),
       // A cloud that boils between a whole drawing and one with the hole.
       boilingCloud: { loop: ['cloud', 'holedCloud'], fps: 10 },
-      thinCloud: [
-        {
-          d: square(3),
-          fill: {
-            type: 'linear',
-            x0: 0,
-            y0: 0,
-            x1: 1,
-            y1: 0,
-            stops: [{ offset: 0, color: '#000000', alpha: 0.88 }],
-          },
-        },
-      ],
+      thinCloud: thin(3),
+      // Over the stick, a square of half 0.5 on the arm: the whole of it, or its middle.
+      mitt: box(0.55),
+      smallMitt: box(0.3),
+      thinMitt: thin(0.55),
+      boilingMitt: { loop: ['mitt', 'smallMitt'], fps: 10 },
     },
   },
   clips: {
     roll: clip(),
     sink: clip(2),
     idle: { length: 0, keys: [{ frame: 0 }] },
-    // The stick goes from over the body to under it on frame 1.
-    swap: {
-      length: 2,
-      keys: [
-        { frame: 0, pose: {} },
-        { frame: 1, z: { stick: -1 } },
-      ],
-    },
+    swap: swap(),
+    mitted: swap('mitt'),
+    smallMitted: swap('smallMitt'),
+    thinMitted: swap('thinMitt'),
+    lowMitted: swap('mitt', -2),
+    boilingMitted: swap('boilingMitt'),
     brawl: brawl('cloud'),
     smallBrawl: brawl('smallCloud'),
     holedBrawl: brawl('holedCloud'),
@@ -137,6 +156,35 @@ describe('the swing checks', () => {
         spins: [{ bone: 'wheel', why: 'typo', clips: ['rol'] }],
       }),
     ).toThrow('rol');
+  });
+});
+
+describe('the draw-order check', () => {
+  const order = (clip: string) =>
+    orderFindings(art, { ground: [], air: [clip], props: ['stick'] }).map((f) => f.text);
+
+  it('reports a prop moving behind a part it overlaps', () => {
+    expect(order('swap')).toEqual(['swap@1 stick under body']);
+  });
+
+  it('leaves out overlap that a part drawn over both hides', () => {
+    expect(order('mitted')).toEqual([]);
+  });
+
+  it('still counts overlap the part over them leaves showing', () => {
+    expect(order('smallMitted')).toEqual(['smallMitted@1 stick under body']);
+  });
+
+  it('still counts overlap under a see-through part', () => {
+    expect(order('thinMitted')).toEqual(['thinMitted@1 stick under body']);
+  });
+
+  it('still counts overlap under a part drawn under them', () => {
+    expect(order('lowMitted')).toEqual(['lowMitted@1 stick under body']);
+  });
+
+  it("still counts overlap that a frame of the covering part's loop leaves showing", () => {
+    expect(order('boilingMitted')).toEqual(['boilingMitted@1 stick under body']);
   });
 });
 

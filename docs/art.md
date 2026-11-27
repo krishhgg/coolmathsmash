@@ -183,7 +183,9 @@ with the same checks as its nearest shared action.
 - On the ground, nothing drawn reaches more than 0.2 under the floor.
 - No drawn part turns more than 60 degrees from one frame to the next, or 120 from two frames before a hit window
   until it closes.
-- A held prop doesn't change draw order against a part it covers on both frames.
+- A held prop doesn't change draw order against a part it covers on both frames. Only overlap in sight counts: a
+  spot that a slot drawn over both hides under its opaque fills, such as the grip of a paddle and the end of the
+  forearm under the fist holding it, doesn't.
 - With a face check set, a prop drawn over the head stays off the face.
 
 `src/fighters/swingChecks.ts` sorts each fighter's clips into ground and air and holds each fighter's allowances.
