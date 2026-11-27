@@ -176,6 +176,21 @@ with the same checks as its nearest shared action.
 | `neutralB`, `sideB`, `upB`, `downB` moves             | Give each special a distinct windup and release. Check that props and effects start where the fighter sends them, and transformations read before the swap.                                                 |
 | `taunt`, `respawn`, `ko`, `out`                       | Taunt holds a character-specific gesture; respawn reads before the drop. The renderer hides the fighter during `ko` and `out`; no body pose is needed.                                                      |
 
+### Swing checks
+
+`src/render/rig/swingChecks.ts` checks every frame of a clip:
+
+- On the ground, nothing drawn reaches more than 0.2 under the floor.
+- No drawn part turns more than 60 degrees from one frame to the next, or 120 from two frames before a hit window
+  until it closes.
+- A held prop doesn't change draw order against a part it covers on both frames.
+- With a face check set, a prop drawn over the head stays off the face.
+
+`src/fighters/swingChecks.ts` sorts each fighter's clips into ground and air and holds each fighter's allowances, such
+as Bob's shadow pool, which lies across the floor line on purpose. `src/fighters/swingChecks.test.ts` lists the clips
+that fail today, per fighter, and the list must be exact: fix a clip and take it out. `node scripts/swing-survey.ts`
+prints each failing clip's worst frames. Bob's own `art/swings.test.ts` runs the same checks on his clips.
+
 ## Rendering
 
 ```ts
