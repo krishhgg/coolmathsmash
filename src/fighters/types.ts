@@ -275,6 +275,12 @@ export interface MoveDef {
   helpless?: boolean;
   /** Airborne moves that may grab a ledge from this frame. */
   ledgeFrom?: number;
+  /**
+   * The move catches a ledge behind the fighter at its full reach, as one in front. Without it a ledge behind is
+   * caught only within 0.6 of the reach. Bowser Bomb "can be used to snap to ledge, regardless if Bowser is facing the
+   * ledge" (SmashWiki, "Bowser (SSBU)/Down special").
+   */
+  ledgeBehind?: boolean;
   /** Landing doesn't end the move: it carries on from the same frame on the ground, with no landing lag. */
   continuesOnLanding?: boolean;
   /** Airborne moves: false turns off the stick's air drift (and air friction) while the move plays, for scripted paths. */
