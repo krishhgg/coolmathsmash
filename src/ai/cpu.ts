@@ -21,7 +21,7 @@ import { STICK, TURNING_MOVES, press } from './inputs';
 import { actionable, knowledge, type FighterKnowledge } from './knowledge';
 import { cpuLevel, type CpuLevel } from './levels';
 import { overlaps, run, runAmong, soloMatch, type Driver, type OwnFrame, type Sample } from './look';
-import { findAttacks, type Attack, type Self, type Target } from './options';
+import { findAttacks, groundEndX, type Attack, type Self, type Target } from './options';
 import {
   airAerial,
   airDodge,
@@ -46,6 +46,7 @@ import {
 import { chooseDI, planRecovery, recoveryDriver, targetLedge, type RecoveryPlan } from './recovery';
 import {
   clampToStage,
+  driftBack,
   floorBelow,
   groundUnder,
   landingX,
@@ -93,6 +94,8 @@ export class Cpu {
   private nextThink = 0;
   private recovery: RecoveryPlan | null = null;
   private recoveryDrive: Driver | null = null;
+  /** The recovery plan was made while the fighter couldn't act (in an air dodge, say). */
+  private recoveryBusy = false;
   private ledgePlan: { option: LedgeOption; at: number } | null = null;
   private techPlan: { tech: boolean; dir: number | null; pressed: boolean } | null = null;
   private getupPlan: { option: GetupOption; at: number; dir: number } | null = null;
@@ -535,9 +538,15 @@ export class Cpu {
     const t = plan ? state.frame - plan.start : 0;
     const expected = plan?.path[t - 1];
     const drifted = expected !== undefined && SimMath.hypot(expected.x - me.pos.x, expected.y - me.pos.y) > 2;
-    if (!plan || !this.recoveryDrive || drifted || t >= plan.path.length) {
+    const free = actionable(me) && me.action !== 'helpless';
+    // A plan made while the fighter couldn't act that found no way back is made again once it can. Wheely's neutral air
+    // dodge past the ledge (airDodge.test.ts) planned early in the dodge, found nothing and kept that plan to a KO;
+    // planned again when the dodge ends, he double jumps and Ramp Jumps to the ledge.
+    const retry = plan?.outcome === 'fail' && this.recoveryBusy && free;
+    if (!plan || !this.recoveryDrive || drifted || retry || t >= plan.path.length) {
       if (me.action !== 'helpless' && !actionable(me) && plan) return this.recoveryDrive!(t, me);
       const control = state.players[this.port]!.control;
+      this.recoveryBusy = !free;
       this.recovery = planRecovery(state, me, control, info, k, this.lv, this.rng);
       this.recoveryDrive = recoveryDriver(info, k, this.recovery.params);
       return this.recoveryDrive(0, me);
@@ -905,9 +914,10 @@ export class Cpu {
   }
 
   /**
-   * Whether a grounded move started here facing `facing` keeps the CPU somewhere safe, from its probe: every point it
-   * slides over and where it ends (a roll or charge special can carry the CPU into a gap or a damage zone). Moves
-   * that leave the ground only need a safe landing under where they end.
+   * Whether a grounded move started here facing `facing` keeps the CPU somewhere safe, from its probe and the speed
+   * the CPU carries into it (groundEndX): every point it slides over and where it ends (a roll or charge special can
+   * carry the CPU into a gap or a damage zone). Moves that leave the ground only need a safe landing under where
+   * they end.
    */
   private groundMoveSafe(
     me: Readonly<FighterState>,
@@ -918,7 +928,7 @@ export class Cpu {
   ): boolean {
     const p = k.ground[move];
     if (!p) return true;
-    const end = me.pos.x + p.endDx * facing;
+    const end = groundEndX(me, info, p, facing);
     if (!p.endsGrounded || Math.abs(p.endDy) > 1) return landsSafe(info, k.id, end, me.pos.y + p.endDy + 1);
     const step = Math.sign(end - me.pos.x);
     for (let x = me.pos.x; step * (end - x) > 0; x += step) {
@@ -1059,7 +1069,11 @@ export class Cpu {
     return crouch(20 + Math.floor(this.rand() * 30));
   }
 
-  /** Airborne and nothing to do: drift back over the stage and maybe fast fall. */
+  /**
+   * Airborne and nothing to do: drift back over the stage and maybe fast fall. A helpless or free fall that would come
+   * down past an edge with no input steers back onto the stage (driftBack): a helpless fall after an up special used
+   * as an attack, or a fall with no opponent to think about, can carry the CPU over the stage and off the far side.
+   */
   private airIdle(me: Readonly<FighterState>, info: StageInfo): InputFrame {
     if (this.fastFallAir !== me.airFrames || me.airFrames <= 1) {
       if (me.airFrames <= 1) this.wantFastFall = this.rand() < this.lv.fastFall * 0.5;
@@ -1067,7 +1081,8 @@ export class Cpu {
     this.fastFallAir = me.airFrames;
     const toward =
       me.pos.x < info.left + 10 || me.pos.x > info.right - 10 ? Math.sign(info.centerX - me.pos.x) * 100 : 0;
-    const x = info.calm ? toward : steer(me, info, toward);
+    const back = me.action === 'helpless' || actionable(me) ? driftBack(info, me) : null;
+    const x = back ?? (info.calm ? toward : steer(me, info, toward));
     const ff = this.wantFastFall && actionable(me) && canFastFall(me, info) && this.last.y > -30;
     return press({ x, y: ff ? -100 : 0 });
   }
@@ -1439,6 +1454,7 @@ function assumedInput(snap: FighterState, info: StageInfo, state: Readonly<Match
       below: 10,
       reach: Infinity,
       dodgeAt: Infinity,
+      specialFirst: true,
     });
   }
   const vx = snap.vel.x;
