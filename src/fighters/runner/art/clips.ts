@@ -236,6 +236,9 @@ function onFloor(pose: Pose): Pose {
  */
 const ROLL_BALL = mix(TUCK, { hip: { y: -2 }, armB: { rot: -115 }, armF: { rot: 115 } });
 
+/** The rolling ball turned `rot` degrees and resting on the floor, its antennae trailing instead of turning with it. */
+export const ballAt = (rot: number): Pose => onFloor(turn(ROLL_BALL, { body: rot, antB: -rot, antF: -rot }));
+
 /**
  * Keys for the ball rolling along the floor from `from` to `to`, turning `turns` times (negative rolls
  * backwards). Her body is wider than it is tall, so each key sets the ball's height for its turn to keep the
@@ -255,7 +258,7 @@ function floorRoll(from: number, to: number, turns: number): Key[] {
 }
 
 /** `pose` a whole `turns` further round, antennae included, to follow a floor roll without turning back. */
-function spun(pose: Pose, turns: number): Pose {
+export function spun(pose: Pose, turns: number): Pose {
   return turn(pose, { body: 360 * turns, antB: -360 * turns, antF: -360 * turns });
 }
 
@@ -460,7 +463,7 @@ export const clips: Record<string, AnimClip> = {
           }),
           { fx3: { x: -4.7, y: -0.15, sx: 1.8, sy: 1.16 } },
         ),
-        { swaps: { fxBack: 'dust' } },
+        { ease: 'linear', swaps: { fxBack: 'dust' } },
       ),
       key(8, mix(runPose(0), { fx3: { x: -7.1, y: -0.15, sx: 2.7, sy: 0.32 } })),
       key(10, runPose(0)),
@@ -471,7 +474,7 @@ export const clips: Record<string, AnimClip> = {
     length: 14,
     swaps: ANGRY,
     keys: [
-      key(0, runPose(0), { ease: 'out' }),
+      key(0, runPose(0), { ease: 'linear' }),
       key(
         3,
         P({
@@ -754,7 +757,7 @@ export const clips: Record<string, AnimClip> = {
   shield: {
     length: 10,
     swaps: ANGRY,
-    keys: [key(0, READY, { ease: 'out' }), key(4, SHIELD), key(10, SHIELD)],
+    keys: [key(0, READY, { ease: 'linear' }), key(4, SHIELD), key(10, SHIELD)],
   },
   shieldDrop: {
     length: 11,
@@ -813,7 +816,7 @@ export const clips: Record<string, AnimClip> = {
     length: 25,
     swaps: BLINK,
     keys: [
-      key(0, READY, { ease: 'out' }),
+      key(0, READY, { ease: 'linear' }),
       key(3, mix(TUCK, { body: { y: BALL_Y + 0.3, sy: 0.86, sx: 1.08 } })),
       key(20, mix(TUCK, { body: { y: BALL_Y + 0.3, sy: 0.86, sx: 1.08 } })),
       key(25, READY, { swaps: FACE }),
@@ -882,8 +885,9 @@ export const clips: Record<string, AnimClip> = {
         ...roll(10, 34, 1, (f) => ({ body: { y: BALL_Y - belowFloor(f, 40) } })).map((k, i) =>
           i === 0 ? { ...k, z: {} } : k,
         ),
-        key(40, CROUCH, { swaps: FACE }),
-        key(50, STAND),
+        // A whole turn on from where the roll started, so she doesn't spin back round to stand up.
+        key(40, spun(CROUCH, 1), { swaps: FACE }),
+        key(50, spun(STAND, 1)),
       ],
     },
     LEDGE_ROLL.faf - 1,
@@ -1096,7 +1100,8 @@ export const clips: Record<string, AnimClip> = {
           MAP_UP,
         ),
       ),
-      key(52, STAND, { swaps: { fx1: null, ...FRONT_HAPPY }, z: {} }),
+      // The map comes down with her hands and goes away on 52, instead of sliding on into the floor.
+      key(52, mix(STAND, { fx1: { x: 0.2, y: -4.3 } }), { swaps: { fx1: null, ...FRONT_HAPPY }, z: {} }),
       key(60, STAND, { swaps: FACE }),
     ],
   },

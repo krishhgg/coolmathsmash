@@ -3,7 +3,7 @@ import { toLocal } from '../../../render/rig/sample';
 import type { AnimClip, BonePose, Key } from '../../../render/rig/types';
 import { LEDGE_ATTACK } from '../../../sim/constants';
 import { RAPID_JAB } from '../timing';
-import { AIR, BALL_Y, DOWN, HANG, READY, TUCK, pull, runPose } from './clips';
+import { AIR, BALL_Y, DOWN, HANG, READY, TUCK, ballAt, pull, runPose, spun } from './clips';
 import {
   ANGRY,
   AWAY,
@@ -16,6 +16,7 @@ import {
   SHOUT,
   STAND,
   ants,
+  between,
   hands,
   key,
   mix,
@@ -77,6 +78,9 @@ const LONG_B: Pose = { armB: { sy: 1.6 }, foreB: { sy: 1.15 } };
 const LONG_F: Pose = { armF: { sy: 1.6 }, foreF: { sy: 1.15 } };
 const LONG_LEG_B: Pose = { thighB: { sy: 1.15 }, shinB: { sy: 1.15 } };
 const LONG_LEG_F: Pose = { thighF: { sy: 1.15 }, shinF: { sy: 1.15 } };
+
+/** Antennae swung out level to either side of her head (from their rest at -38 and 33 degrees). */
+const ANTENNAE_FLAT: Pose = { antB: { rot: -52 }, antF: { rot: 57 } };
 
 /** Vertical flip about her middle: upside down but still facing the same way (Gravity Switch, handstands). */
 const FLIP: Pose = { root: { sy: -1, y: -13 } };
@@ -211,6 +215,20 @@ const flip = (rot: number, lift: number): Pose =>
     ant: [0, 0],
   });
 const UTILT1 = hitting(flip(-125, 1.6), ['shinB', [3.5, -10], 2.0]);
+/** Crouched to spring into the Wall Flip. */
+const UTILT_CROUCH = P({
+  y: 1.3,
+  sy: 0.9,
+  legs: [
+    [2.0, 0],
+    [-1.8, 0],
+  ],
+  arms: [
+    [4.0, -3.4],
+    [-4.6, -3.4],
+  ],
+  ant: [-10, 10],
+});
 const UTILT2 = hitting(flip(-205, 2.2), ['shinB', [-2, -13.5], 2.0]);
 
 /** Gap Trip: a low slide with the far foot along the floor. */
@@ -280,9 +298,12 @@ const DROPKICK = hitting(
 );
 const DROPKICK_LATE = hitting(mix(DROPKICK, { body: { x: 2.1, rot: -70, y: 0 } }), ['shinB', [10, -5], 1.5]);
 
-/** Handstand Flip: upside down on her hands, kicking both feet straight up. */
+/**
+ * Handstand Flip: upside down on her hands, kicking both feet straight up. Her antennae splay out flat to either
+ * side, since her head is nearly on the floor.
+ */
 const HANDSTAND = (spread: number): Pose =>
-  mix(FLIP, {
+  mix(FLIP, ANTENNAE_FLAT, {
     root: { sy: -1, y: -13.3 },
     body: { y: -1.6 },
     thighB: { rot: -spread },
@@ -530,6 +551,9 @@ const SLAP = P({
   ],
   ant: [34, 28],
 });
+/** The streak up from the tile as it flips. */
+const TILE_STREAK: Pose = { fx2: { x: 9.4, y: -9.4, rot: -90, sx: 3.3, sy: 1.6 } };
+
 function tileAt(rot: number): Pose {
   const angle = (rot * Math.PI) / 180;
   return { fx1: { x: 8.1 + 3.2 * Math.cos(angle), y: -0.74 + 3.2 * Math.sin(angle), rot } };
@@ -649,7 +673,7 @@ export const attacks: Record<string, AnimClip> = {
             [-1.7, 0],
           ],
           arms: [
-            [3.6, -5.0],
+            [4.6, -5.8],
             [-4.8, -5.0],
           ],
           ant: [0, 0],
@@ -678,7 +702,7 @@ export const attacks: Record<string, AnimClip> = {
           ],
           arms: [
             [4.4, -5.4],
-            [-5.4, -6.0],
+            [-4.0, -7.2],
           ],
           ant: [6, 4],
         }),
@@ -725,7 +749,7 @@ export const attacks: Record<string, AnimClip> = {
     24,
     [[5, 8]],
     [
-      key(0, READY, { ease: 'out' }),
+      key(0, READY, { ease: 'linear' }),
       key(
         3,
         P({
@@ -757,26 +781,13 @@ export const attacks: Record<string, AnimClip> = {
       [6, 10],
     ],
     [
-      key(0, READY, { ease: 'out' }),
-      key(
-        3,
-        P({
-          y: 1.3,
-          sy: 0.9,
-          legs: [
-            [2.0, 0],
-            [-1.8, 0],
-          ],
-          arms: [
-            [4.0, -3.4],
-            [-4.6, -3.4],
-          ],
-          ant: [-10, 10],
-        }),
-      ),
+      key(0, READY, { ease: 'linear' }),
+      // Already springing on frame 3, so the flip into the first hit turns at most 120 degrees in a frame.
+      key(3, between(UTILT_CROUCH, UTILT1, 0.4)),
       ...strike(4, 5, UTILT1, { ...STREAK1, ...SHOUT }),
       ...strike(6, 10, UTILT2, STREAK1),
-      done(14, flip(-300, 1.6)),
+      // The streaks stay where the second hit left them until they go out on 14.
+      done(14, mix(flip(-300, 1.6), { fx1: UTILT2.fx1!, fx2: UTILT2.fx2 ?? {} })),
       key(20, mix(READY, { body: { rot: -360 } })),
     ],
   ),
@@ -817,11 +828,12 @@ export const attacks: Record<string, AnimClip> = {
         }),
       ),
       ...strike(7, 12, DIVE, { ...STREAK1, ...SHOUT }),
-      key(13, mix(TUCK, { body: { x: 2.4, y: BALL_Y, rot: 110 } }), { ease: 'linear', swaps: NO_FX }),
-      key(17, mix(TUCK, { body: { x: 2.4, y: BALL_Y, rot: 250 } }), { ease: 'linear' }),
-      key(20, mix(TUCK, { body: { x: 2.4, y: BALL_Y, rot: 360 } }), { ease: 'out' }),
-      key(28, mix(CROUCH, { body: { x: 1.2 } }), { swaps: FACE }),
-      key(37, READY),
+      // Rolling on the floor ball, antennae trailing, and up again a whole turn on, so she doesn't spin back.
+      key(13, mix(ballAt(110), { body: { x: 2.4 } }), { ease: 'linear', swaps: NO_FX }),
+      key(17, mix(ballAt(250), { body: { x: 2.4 } }), { ease: 'linear' }),
+      key(20, mix(ballAt(360), { body: { x: 2.4 } }), { ease: 'out' }),
+      key(28, spun(mix(CROUCH, { body: { x: 1.2 } }), 1), { swaps: FACE }),
+      key(37, spun(READY, 1)),
     ],
   ),
   fsmash: move(
@@ -831,7 +843,7 @@ export const attacks: Record<string, AnimClip> = {
       [15, 18],
     ],
     [
-      key(0, READY, { ease: 'out' }),
+      key(0, READY, { ease: 'linear' }),
       key(
         4,
         P({
@@ -868,7 +880,7 @@ export const attacks: Record<string, AnimClip> = {
           ],
           ant: [-24, -18],
         }),
-        { ease: 'out' },
+        { ease: 'in' },
       ),
       key(
         10,
@@ -887,7 +899,7 @@ export const attacks: Record<string, AnimClip> = {
       ),
       ...strike(12, 14, DROPKICK, { ...STREAK2, ...SHOUT, fxBack: 'contact' }),
       ...strike(15, 18, DROPKICK_LATE, { ...STREAK1, fx2: null }),
-      done(20, mix(DROPKICK_LATE, { body: { y: 1.6, rot: -60 } })),
+      { ...done(20, mix(DROPKICK_LATE, { body: { y: 1.6, rot: -60 } })), ease: 'linear' },
       key(
         24,
         P({
@@ -935,8 +947,11 @@ export const attacks: Record<string, AnimClip> = {
           ],
           ant: [-14, 14],
         }),
+        { ease: 'linear' },
       ),
-      key(8, mix(HANDSTAND(40), { body: { rot: 30 } }), { ease: 'out' }),
+      key(8, mix(HANDSTAND(40), { body: { rot: 30 }, antB: { rot: -82 }, antF: { rot: 27 } }), {
+        ease: 'out',
+      }),
       ...strike(10, 12, USMASH1, { ...STREAK2, ...SHOUT }),
       ...strike(13, 15, USMASH2, { ...STREAK1, fx2: null }),
       done(22, HANDSTAND(45)),
@@ -951,7 +966,7 @@ export const attacks: Record<string, AnimClip> = {
       [9, 12],
     ],
     [
-      key(0, READY, { ease: 'out' }),
+      key(0, READY, { ease: 'linear' }),
       key(
         3,
         P({
@@ -994,7 +1009,7 @@ export const attacks: Record<string, AnimClip> = {
           ],
           -22,
         ),
-        { ease: 'out' },
+        { ease: 'linear' },
       ),
       key(
         15,
@@ -1024,6 +1039,7 @@ export const attacks: Record<string, AnimClip> = {
           ),
           { body: { y: 1.7 } },
         ),
+        { ease: 'linear' },
       ),
       key(27, mix(TUCK, { body: { y: BALL_Y - 2.3, rot: 20 } }), { ease: 'in', swaps: FACE, z: {} }),
       key(33, CROUCH),
@@ -1106,7 +1122,7 @@ export const attacks: Record<string, AnimClip> = {
     34,
     [[7, 11]],
     [
-      key(0, AIR, { ease: 'out' }),
+      key(0, AIR, { ease: 'linear' }),
       key(4, pedal(0)),
       key(7, UAIR1, { ease: 'linear', swaps: { ...STREAK1, ...SHOUT } }),
       key(9, UAIR2, { ease: 'linear' }),
@@ -1188,12 +1204,13 @@ export const attacks: Record<string, AnimClip> = {
           swaps: { ...SHOUT, fx1: 'tile', fx2: 'streak', fxBack: 'contact' },
         },
       ),
-      key(17, mix(SLAP, tileAt(-88), { fx2: { x: 9.4, y: -9.4, rot: -90, sx: 3.3, sy: 1.6 } }), {
+      key(17, mix(SLAP, tileAt(-88), TILE_STREAK), {
         swaps: { ...SHOUT, fx1: 'tile', fx2: 'streak' },
       }),
-      key(22, mix(TILE_BRACE, tileAt(-168)), { ease: 'in', swaps: { fx1: 'tile' } }),
+      // The streak and the flipped tile hold where they are until they go out, on 22 and 28.
+      key(22, mix(TILE_BRACE, tileAt(-168), TILE_STREAK), { ease: 'in', swaps: { fx1: 'tile' } }),
       key(25, mix(TILE_BRACE, tileAt(-180))),
-      key(28, TILE_BRACE, { swaps: FACE }),
+      key(28, mix(TILE_BRACE, tileAt(-180)), { swaps: FACE }),
       key(39, READY, { swaps: FACE }),
     ],
   ),
@@ -1464,9 +1481,10 @@ export const attacks: Record<string, AnimClip> = {
             [-8.0, -1.6],
             [-8.4, -0.8],
           ],
-          ant: [-30, -30],
+          // Head down at the floor: the antennae lie flat along it, behind her.
+          ant: [-98, -27],
         }),
-        { ease: 'out' },
+        { ease: 'linear' },
       ),
       key(36, mix(DOWN_FRONT(), {}), { swaps: ANGRY, z: {} }),
       key(43, READY),
@@ -1621,7 +1639,7 @@ export const attacks: Record<string, AnimClip> = {
           ],
           ant: [-10, -6],
         }),
-        { ease: 'in' },
+        { ease: 'linear' },
       ),
       ...strike(19, 23, LEDGE_SWEEP, { ...STREAK1, ...SHOUT }),
       done(30, LEDGE_SWEEP),

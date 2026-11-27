@@ -2,7 +2,7 @@ import type { Pose } from '../../../render/rig/author';
 import type { AnimClip, BonePose, Key, ViewFlip } from '../../../render/rig/types';
 import { TUNNEL_FLIP } from '../timing';
 import { READY, TUCK } from './clips';
-import { ANGRY, BLINK, HAPPY, P, SHOUT, key, mix } from './poses';
+import { ANGRY, BLINK, HAPPY, P, SHOUT, between, key, mix } from './poses';
 import { BODY_Y } from './rig';
 
 /**
@@ -166,11 +166,17 @@ const BACK_FADE = { ...SHOUT, fxUnder: 'tunnelFaint' };
 const NEAR = 5;
 export const TUNNEL_SIZE = 29.5;
 
+/**
+ * `pose` a whole backflip round: everything after the flip is drawn a turn on from where it started, so she lands
+ * out of it instead of spinning back round.
+ */
+const flipped = (pose: Pose): Pose => mix(pose, { body: { rot: (pose.body?.rot ?? 0) - 360 } });
+
 /** The hop, a step every 10 frames from frame `from` to `to`, blinking now and then. */
 function hops(from: number, to: number): Key[] {
   const out: Key[] = [];
   for (let f = from, i = 0; f <= to; f += 10, i++)
-    out.push(key(f, hop(i % 2 ? -1 : 1), { ease: 'inOut', swaps: i % 7 === 3 ? BLINK : HAPPY }));
+    out.push(key(f, flipped(hop(i % 2 ? -1 : 1)), { ease: 'inOut', swaps: i % 7 === 3 ? BLINK : HAPPY }));
   return out;
 }
 
@@ -182,26 +188,29 @@ export const finalSmashClips: Record<string, AnimClip> = {
     keys: [
       key(0, READY, { ease: 'out' }),
       key(6, WIND, { ease: 'in' }),
-      key(10, WIND, { ease: 'out' }),
+      // A quarter of the way to the spring by frame 10, so the arms swing up over four frames.
+      key(10, between(WIND, SPRING, 0.25), { ease: 'linear' }),
       key(12, SPRING, { ease: 'linear', swaps: SHOUT }),
       key(14, flip(-20, 6.5), { ease: 'linear' }),
       key(18, flip(-110, 9.2), { ease: 'linear' }),
       key(22, flip(-200, 9.6), { ease: 'linear' }),
       key(26, flip(-290, 7.4), { ease: 'linear' }),
-      key(30, flip(-355, 2.8), { ease: 'in' }),
-      key(32, mix(SLAP, tiles(0)), { ease: 'out', swaps: TILES }),
-      key(36, mix(heave(0), tiles(70)), { ease: 'out' }),
-      key(39, mix(heave(-2), tiles(90)), { ease: 'step' }),
-      key(hit[0], mix(heave(-3), ring(NEAR, 0)), { ease: 'out', swaps: TUNNEL }),
-      key(50, mix(heave(-6), ring(24, 120)), { ease: 'out' }),
-      key(hit[1], mix(heave(-2), ring(TUNNEL_SIZE, 180)), { ease: 'linear' }),
-      key(clean[0], mix(heave(0), ring(TUNNEL_SIZE, 182)), { ease: 'linear', swaps: TUNNEL_FADE }),
-      key(66, mix(hop(1), ring(TUNNEL_SIZE, 186)), { ease: 'inOut', swaps: HAPPY }),
+      // Coming down with her hands already on their way to the floor for the slap.
+      key(30, between(flip(-355, 2.8), flipped(SLAP), 0.25), { ease: 'linear' }),
+      key(32, flipped(mix(SLAP, tiles(0))), { ease: 'out', swaps: TILES }),
+      key(36, flipped(mix(heave(0), tiles(70))), { ease: 'out' }),
+      key(39, flipped(mix(heave(-2), tiles(90))), { ease: 'step' }),
+      key(hit[0], flipped(mix(heave(-3), ring(NEAR, 0))), { ease: 'out', swaps: TUNNEL }),
+      key(50, flipped(mix(heave(-6), ring(24, 120))), { ease: 'out' }),
+      key(hit[1], flipped(mix(heave(-2), ring(TUNNEL_SIZE, 180))), { ease: 'linear' }),
+      key(clean[0], flipped(mix(heave(0), ring(TUNNEL_SIZE, 182))), { ease: 'linear', swaps: TUNNEL_FADE }),
+      key(66, flipped(mix(hop(1), ring(TUNNEL_SIZE, 186))), { ease: 'inOut', swaps: HAPPY }),
       ...hops(76, late[1] - 4),
-      key(back[0], mix(heave(0), ring(TUNNEL_SIZE, 180)), { ease: 'in', swaps: BACK_FADE }),
-      key(234, mix(heave(2), ring(TUNNEL_SIZE, 196)), { ease: 'in', swaps: TUNNEL }),
-      key(back[1] - 1, mix(heave(0), ring(NEAR, 360)), { ease: 'linear' }),
-      key(back[1], READY, { swaps: {} }),
+      key(back[0], flipped(mix(heave(0), ring(TUNNEL_SIZE, 180))), { ease: 'in', swaps: BACK_FADE }),
+      key(234, flipped(mix(heave(2), ring(TUNNEL_SIZE, 196))), { ease: 'in', swaps: TUNNEL }),
+      // Halfway into her stance as the tunnel closes, so she settles over the last two frames.
+      key(back[1] - 1, flipped(mix(between(heave(0), READY, 0.5), ring(NEAR, 360))), { ease: 'linear' }),
+      key(back[1], flipped(READY), { swaps: {} }),
     ],
   },
 };
