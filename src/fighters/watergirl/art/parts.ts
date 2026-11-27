@@ -1,6 +1,6 @@
 import { ellipse } from '../../fireboy/art/parts';
 import type { PathShape } from '../../../render/rig/types';
-import { WAVE_BOXES } from '../finalSmashData';
+import { WAVE, WAVE_BOXES } from '../finalSmashData';
 
 /**
  * Water effects for Watergirl's placeholder mannequin, drawn by hand in the same frames as Fireboy's fire so
@@ -88,8 +88,14 @@ const CREST = { x: WAVE_BOXES[0]!.x, y: -WAVE_BOXES[0]!.y, r: WAVE_BOXES[0]!.rad
 const FOAM_OUT = 0.5;
 const FOAM_LINE = 0.3;
 
-/** Where the wave sits on the floor in its drawing (y down from its centre): its back foot and its base line. */
-export const WAVE_FOOT = { back: 11.4, base: 13.6 };
+/**
+ * Where the wave meets the floor in its drawing (y down from its centre): its back foot, and the floor line, as far
+ * below its centre as the entity rides over the floor (WAVE.y), so it stands on the floor in a match.
+ */
+export const WAVE_FOOT = { back: 11.4, base: WAVE.y };
+/** The body's outline, and its base line, half an outline above the floor so the ink rests on it. */
+const BODY_LINE = 0.7;
+const SOLE = WAVE_FOOT.base - BODY_LINE / 2;
 
 /**
  * Tidal Wave's wave (src/fighters/watergirl/finalSmash.ts), at world scale round the entity's centre, which rides 13
@@ -101,25 +107,25 @@ export const WAVE_FOOT = { back: 11.4, base: 13.6 };
 function waveDrawing(t: number): PathShape[] {
   const lip = 0.3 * Math.sin((t * 2 * Math.PI) / 3);
   const body = [
-    `M${n(-WAVE_FOOT.back)} ${WAVE_FOOT.base}`,
+    `M${n(-WAVE_FOOT.back)} ${n(SOLE)}`,
     `C-13.8 9.4 -15.6 2.4 -14.9 -4.4`,
     `C-14 -11.4 -8.4 -17.6 -0.8 -18.2`,
     `C6.4 -18.6 12.4 -14.8 14.6 -9.4`,
     `C${n(15.6 + lip)} -5.4 ${n(14.6 + lip)} -1.6 ${n(12 + lip)} -1.4`,
     `C12.8 -4 11.4 -6.6 8.6 -6.8`,
     `C5 -7 3.2 -3.4 4 1`,
-    `C4.8 5.6 8.4 9.8 12.2 12.6`,
-    `C13 13.2 12.8 ${WAVE_FOOT.base} 11.8 ${WAVE_FOOT.base}Z`,
+    `C4.8 5.6 8.4 9.8 12.2 ${n(SOLE - 1)}`,
+    `C13 ${n(SOLE - 0.4)} 12.8 ${n(SOLE)} 11.8 ${n(SOLE)}Z`,
   ].join('');
   /** The lit back of the wave, light coming through the water under the crest. */
   const band = [
-    `M-10.4 12.8`,
+    `M-10.4 ${n(SOLE - 0.8)}`,
     `C-12.6 8.4 -13.8 1.8 -13.1 -4.6`,
     `C-12.1 -10.4 -7.2 -15.8 -0.8 -16.4`,
     `C4.8 -16.8 9.6 -14.4 12 -10.6`,
     `C9 -12.8 5 -13.2 1.4 -11.6`,
     `C-3.4 -9.4 -6.2 -2 -7.2 4.6`,
-    `C-7.8 8.6 -8.8 11.8 -10.4 12.8Z`,
+    `C-7.8 8.6 -8.8 ${n(SOLE - 1.8)} -10.4 ${n(SOLE - 0.8)}Z`,
   ].join('');
   /** The barrel's dark back wall under the lip. */
   const tube = `M8.6 -6.8C5 -7 3.2 -3.4 4 1C4.4 3.8 6 6.4 8.4 8.4C6.6 5.2 6.2 1.4 7 -1.6C7.6 -4 9 -5.2 11.2 -4.8C10.6 -6.2 9.8 -6.8 8.6 -6.8Z`;
@@ -141,12 +147,14 @@ function waveDrawing(t: number): PathShape[] {
     capped(-14, 1.6 + k(1)),
     [12.2 + lip, -1.9, 1.1 + k(2) * 0.5],
   ];
+  /** A foam blob `r` round at `x`, resting on the floor line. */
+  const resting = (x: number, r: number): [number, number, number] => [x, WAVE_FOOT.base - r - FOAM_LINE, r];
   const base: [number, number, number][] = [
-    [7.2, 11.4, 1.2 + k(1)],
-    [9.6, 12.4, 1.3 + k(2)],
-    [11.6, 12.6, 1 + k(0) * 0.5],
-    [-7.6, 13.1, 0.9 + k(2)],
-    [-10, 12.8, 1 + k(0)],
+    resting(7.2, 1.2 + k(1)),
+    resting(9.6, 1.3 + k(2)),
+    resting(11.6, 1 + k(0) * 0.5),
+    resting(-7.6, 0.9 + k(2)),
+    resting(-10, 1 + k(0)),
   ];
   const drop = (x: number, y: number, r: number): PathShape => ({
     d: ellipse(x, y, r * 0.8, r),
@@ -158,7 +166,7 @@ function waveDrawing(t: number): PathShape[] {
     stroke: { color: 'fxLine', width: w },
   });
   return [
-    { d: body, fill: 'fx', stroke: { color: 'fxLine', width: 0.7 } },
+    { d: body, fill: 'fx', stroke: { color: 'fxLine', width: BODY_LINE } },
     { d: band, fill: 'fxHot' },
     { d: tube, fill: 'fxLine' },
     flow(9.5, 150, 215, 0.45),

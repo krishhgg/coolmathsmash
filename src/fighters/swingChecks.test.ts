@@ -424,7 +424,6 @@ const KNOWN: Record<string, string[]> = {
     'techRollBack',
     'tumble',
   ],
-  watergirl: ['finalSmash', 'finalSmashAir'],
   wheely: [
     'bthrow',
     'dash',
