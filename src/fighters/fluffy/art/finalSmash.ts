@@ -132,7 +132,8 @@ function lash(): AnimClip {
     );
   keys.push(
     key(24, pose(wind, { halo: 0.75, grab: coil(wind, -160, 5) }), { ease: 'inOut', swaps: COILED }),
-    key(from - 2, pose(back, { halo: 0.35, grab: coil(back, -172, 6.5) }), { ease: 'in' }),
+    // Raised over his head before the lash, so it cracks forward over the top inside a frame's turn.
+    key(from - 2, pose(back, { halo: 0.35, grab: coil(back, -110, 6.5) }), { ease: 'in' }),
     key(from - 1, pose({ ...strike, x: 1 }, { grab: out({ ...strike, x: 1 }, 20) }), {
       ease: 'linear',
       swaps: LASH,
@@ -188,6 +189,8 @@ function frenzy(): AnimClip {
   for (let i = 0; i < bumps.count; i++) {
     const f = bumps.from + every * i;
     const high = (i % 3) - 1;
+    // The flash holds still while it shows; it only turns between hits.
+    const flash = at(7.3, -6.5 + high * 1.6, 0.55 + 0.1 * (i % 2), i * 23);
     const hit: Ball = {
       x: 2.5,
       y: high === 1 ? -0.9 : 0,
@@ -198,11 +201,14 @@ function frenzy(): AnimClip {
       look: [0.55, -0.1],
     };
     keys.push(
-      key(f, holding(hit, wrapAt(1.03), at(7.3, -6.5 + high * 1.6, 0.55 + 0.1 * (i % 2), i * 23)), {
+      key(f, holding(hit, wrapAt(1.03), flash), {
         ease: 'out',
         swaps: { ...HOLD, ...flashOn(i) },
       }),
-      key(f + 2, holding({ x: -0.7, sx: 1.08, sy: 0.94, tilt: -6, puff: 1.04 }), { ease: 'in', swaps: HOLD }),
+      key(f + 2, holding({ x: -0.7, sx: 1.08, sy: 0.94, tilt: -6, puff: 1.04 }, wrapAt(), flash), {
+        ease: 'in',
+        swaps: HOLD,
+      }),
     );
   }
 
@@ -217,13 +223,14 @@ function frenzy(): AnimClip {
   for (let i = 0; i < rolls.count; i++) {
     const f = rolls.from + every * i;
     const grind: Ball = { x: 2 + (i % 2) * 0.3, sx: 1.05, sy: 0.96, tilt: 4, spin: spin(i), look: [0.5, 0] };
+    const flash = at(7, -3.5 - (i % 3) * 1.6, 0.45 + 0.1 * (i % 2), i * 41);
     keys.push(
       key(
         f,
         pose(grind, {
           grab: lineFrom(grind, COIL_NEAR),
           coil: wrapAt(),
-          flash: at(7, -3.5 - (i % 3) * 1.6, 0.45 + 0.1 * (i % 2), i * 41),
+          flash,
           fx: at(-4.5, 0, 0.7 + 0.15 * (i % 2)),
         }),
         { ease: 'linear', swaps: { ...ROLL, ...flashOn(i + 1) } },
@@ -232,7 +239,7 @@ function frenzy(): AnimClip {
         f + 2,
         pose(
           { ...grind, x: 1.8, spin: spin(i) + 75 },
-          { grab: lineFrom(grind, COIL_NEAR), coil: wrapAt(), fx: at(-4.2, 0, 0.6) },
+          { grab: lineFrom(grind, COIL_NEAR), coil: wrapAt(), flash, fx: at(-4.2, 0, 0.6) },
         ),
         { ease: 'linear', swaps: ROLL },
       ),

@@ -169,13 +169,16 @@ export const SPECIALS: Record<string, AnimClip> = {
       key(40, ball({ float: true, spin: 360 })),
     ],
   },
-  /** Stick Tight: plants the grabber in the ground on 4 and braces, armoured, until 60; then lets go. */
+  /**
+   * Stick Tight: sticks the grabber's ball to the floor in front of him on 4 and braces, armoured, until 60; then lets
+   * go.
+   */
   downB: {
     length: 100,
     swaps: { ...FIERCE, ...GRAB, ...PUFF },
     keys: [
       key(0, ball({ look: [0.2, 0.3] }), { ease: 'out', swaps: FOCUS }),
-      key(3, ball({ sx: 1.08, sy: 0.92, look: [0.1, 0.5], grab: { from: [0.5, -4], to: [1, 0.5] } }), {
+      key(3, ball({ sx: 1.08, sy: 0.92, look: [0.1, 0.5], grab: { from: [0.5, -4], to: [7, -1.6] } }), {
         ease: 'linear',
         swaps: { ...FIERCE, ...GRAB, ...PUFF },
       }),
@@ -188,7 +191,7 @@ export const SPECIALS: Record<string, AnimClip> = {
             puff: i % 2 ? 1.06 : 1.08,
             face: { y: 0.4 },
             look: [0.45, 0.1],
-            grab: { from: [0.5, -3], to: [1.5, 1.2] },
+            grab: { from: [0.5, -3], to: [7, -1.6] },
           }),
           {
             ease: 'inOut',
@@ -197,7 +200,7 @@ export const SPECIALS: Record<string, AnimClip> = {
       ),
       key(
         66,
-        ball({ y: -0.6, sx: 0.94, sy: 1.08, look: [0.3, -0.1], grab: { from: [0.5, -3], to: [1, -1] } }),
+        ball({ y: -0.6, sx: 0.94, sy: 1.08, look: [0.3, -0.1], grab: { from: [0.5, -3], to: [2, -3] } }),
         {
           ease: 'inOut',
           swaps: { ...HALF, ...WHIP },
