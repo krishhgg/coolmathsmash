@@ -208,7 +208,11 @@ export class Cpu {
       (me.ground === null || me.ground.kind === 'entity') &&
       floorBelow(info, me.pos.x, me.pos.y) === null &&
       !a.startsWith('ledge');
-    if (this.prog && !this.prog.interruptible && (!offstage || this.prog.offstage)) {
+    // Over a pit between the stage's ends and still above its floor (Bloxorz Platform's hole), a program plays on: on
+    // a stage with pits an aerial or hop was played out on a copy of the match before it started (landsClear,
+    // hopLands), drifting across the pit to the far side, and recovering there instead undoes that drift.
+    const overPit = info.pits && me.pos.x > info.left && me.pos.x < info.right && me.pos.y > info.top;
+    if (this.prog && !this.prog.interruptible && (!offstage || this.prog.offstage || overPit)) {
       const i = this.runProgram(me, info);
       if (i) return i;
     }
