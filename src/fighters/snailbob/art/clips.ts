@@ -764,6 +764,7 @@ for (const name of [
   'dairLand',
   'fthrow',
   'downB',
+  'finalSmashCinematic',
 ])
   clips[name] = offFloor(clips[name]!);
 clips.ledgeAttack = offFloor(clips.ledgeAttack!, LEDGE_ATTACK.moveEnd);

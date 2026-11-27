@@ -10,8 +10,12 @@ const SPINS = ['sideB', 'ledgeAttack'];
 export const swingChecks: SwingChecks = {
   ground: [],
   air: [],
-  /** The Shell Plunge's and Shell Pound's shockwave: a flat ring lying on the floor in perspective. */
-  decals: ['shockwave'],
+  decals: [
+    // The Shell Plunge's and Shell Pound's shockwave: a flat ring lying on the floor in perspective.
+    'shockwave',
+    // The Final Smash cut scene's blast bursting round the foe, its lower puffs across the floor line.
+    'shipBlast',
+  ],
   spins: [
     {
       bone: 'shell',
