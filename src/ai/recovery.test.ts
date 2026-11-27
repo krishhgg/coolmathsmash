@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import { neutralInput, type InputFrame } from '../input/types';
+import { Btn, neutralInput, type InputFrame } from '../input/types';
 import { entityPlatform, spawnEntity } from '../sim/entities/entities';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { compiledStage } from '../sim/step';
 import { Cpu } from './cpu';
 import { createCpu } from './index';
+import { knowledge } from './knowledge';
+import { recoveryDriver, type RecoveryParams } from './recovery';
+import { stageInfo } from './stage';
 import {
   canRecover,
   cpuRecovers,
@@ -151,5 +154,76 @@ describe('CPU on a Duck Raft off the stage', () => {
     createCpu({ port: 0, level: 9, seed: 1 }).input(m);
     expect(recover).toHaveBeenCalledOnce();
     recover.mockRestore();
+  }, 60_000);
+});
+
+/** A level 9 CPU from drill spot (x, y) on Battlefield with its double jump left: how it ended, and in what order it
+ * double jumped (J) and used its up special (U). */
+function recoveryOrder(fighter: string, x: number, y: number, seed: number): string {
+  const m = drill('battlefield', x, y, fighter);
+  const f = m.fighters[0]!;
+  const cpu = createCpu({ port: 0, level: 9, seed });
+  let order = '';
+  for (let i = 0; i < 600; i++) {
+    stepMatch(m, [cpu.input(m), neutralInput()]);
+    if (f.action === 'doubleJump' && !order.includes('J')) order += 'J';
+    if (f.move === 'upB' && !order.includes('U')) order += 'U';
+    if (f.stocks < 3) return `ko ${order}`;
+    if (f.ground !== null || f.action === 'ledgeHang') return `back ${order}`;
+  }
+  return `stuck ${order}`;
+}
+
+describe('recovery plans with a double jump and a special', () => {
+  const none: RecoveryParams = {
+    jumpAt: Infinity,
+    special: null,
+    specialAt: Infinity,
+    below: 0,
+    reach: Infinity,
+    dodgeAt: Infinity,
+  };
+
+  /** The driver's first `n` inputs for Wheely falling 35 units beside Battlefield's right ledge and 50 under it. */
+  const inputs = (p: RecoveryParams, n: number) => {
+    const m = drill('battlefield', 115, -50, 'wheely');
+    const drive = recoveryDriver(stageInfo(m), knowledge('wheely', 'battlefield'), p);
+    return Array.from({ length: n }, (_, t) => {
+      const i = drive(t, m.fighters[0]!);
+      stepMatch(m, [i, neutralInput()]);
+      return i.buttons;
+    });
+  };
+
+  it('use the special on the frame it is due when the plan has no double jump', () => {
+    expect(inputs({ ...none, special: 'upB', below: -24 }, 1)).toEqual([Btn.Special]);
+  });
+
+  it('double jump first when the plan has one, and use the special after it', () => {
+    const buttons = inputs({ ...none, jumpAt: 1, special: 'upB', below: -24 }, 40);
+    expect(buttons.slice(0, 2)).toEqual([0, Btn.Jump]);
+    expect(buttons.indexOf(Btn.Special)).toBeGreaterThan(1);
+  });
+
+  // Before, a fighter that started this low used its special on the first frame, before the double jump: Ramp Jump and
+  // the block's up special rose into the stage's side, and the CPU was KO'd from all four on every seed.
+  it.each([
+    ['wheely', 115, -50],
+    ['wheely', -115, -50],
+    ['bloxorz', 115, -50],
+    ['bloxorz', -140, -50],
+  ] as const)(
+    'a level 9 %s double jumps, then up specials back from (%d, %d) on every seed',
+    (fighter, x, y) => {
+      const ends = [1, 2, 3, 4, 5].map((seed) => recoveryOrder(fighter, x, y, seed));
+      expect(ends).toEqual(ends.map(() => 'back JU'));
+    },
+    60_000,
+  );
+
+  // Plans with a jump left also try the special alone: from here Point Grapple used at once reaches the ledge.
+  it('a level 9 Fluffy still grapples at once from under the stage, 48 units in, on every seed', () => {
+    const ends = [1, 2, 3, 4, 5].map((seed) => recoveryOrder('fluffy', 48, -69, seed));
+    expect(ends).toEqual(ends.map(() => 'back U'));
   }, 60_000);
 });
