@@ -246,8 +246,12 @@ const SHUSH = hands(
 const FACE: Pt = [0.7, -9.6];
 /** The iris over the dark: `s` scales the hole's radius of 10 (0.32 leaves a pinhole of 3.2 on his face). */
 const IRIS_STEPS = [26, 10, 4, 1.7, 0.75, 0.32];
+/** How far from the bonk to the shush he is on frame 4 and on each iris key from 5 on: upright by 9. */
+const SHUSHING = [0.15, 0.35, 0.7];
 const iris = (s: number): Pose => ({ fxDark: fx(FACE[0], FACE[1], 0, s) });
 
+/** Where his fist holds the baton up for the glint: in front of his face, so the baton stays off his eyes. */
+const GLINT_X = 5.8;
 /** Creeping in a low crouch, shifted `x` and lifted `y`, so his glowing eyes move round in the dark. */
 const creep = (x: number, y = 0, lean = 14): Pose =>
   feet(
@@ -257,6 +261,8 @@ const creep = (x: number, y = 0, lean = 14): Pose =>
     true,
     [20, 0],
   );
+/** Crouched with the baton raised in front of his face for the glint. */
+const GLINT = swing(creep(1.4, 1.4, 0), [GLINT_X, -11.6], -100);
 
 /**
  * The flurry's blows, each a wind-up and a strike that reaches the foe from somewhere else round it, with where on
@@ -399,12 +405,23 @@ function cinematic(): AnimClip {
     key(0, dash(false, 0.6), { ease: 'out', swaps: { ...SHOUT, ...BATON } }),
     key(1, mix(trail(CATCH_HIT, false, 0.3), spark(FOE, 1.6)), { ease: 'out', swaps: CATCH }),
     key(3, mix(CATCH_HIT, spark(FOE, 0.8, 20)), { ease: 'inOut', swaps: { ...CATCH, smear: null } }),
-    // "Shh": the lights go out in an iris closing on his face.
-    key(SCENE.dark - 1, between(CATCH_HIT, SHUSH, 0.5), { ease: 'out', swaps: HUSH, z: FRONT_ARM_OVER_HEAD }),
+    // "Shh": the lights go out in an iris closing on his face. He straightens up out of the bonk over five frames
+    // (SHUSHING), the baton in his fist until the finger comes up to his lips on 7.
+    key(SCENE.dark - 1, between(CATCH_HIT, SHUSH, SHUSHING[0]!), {
+      ease: 'linear',
+      swaps: { ...SHOUT, ...BATON },
+    }),
     // The hole's radius shrinks by about the same factor each key, so the close reads at an even pace.
-    ...IRIS_STEPS.map((s, i) =>
-      key(SCENE.dark + 2 * i, mix(SHUSH, iris(s)), { ease: 'linear', swaps: IRIS }),
-    ),
+    ...IRIS_STEPS.map((s, i) => {
+      const rise = SHUSHING[i + 1] ?? 1;
+      const pose = rise < 1 ? between(CATCH_HIT, SHUSH, rise) : SHUSH;
+      const swaps = i === 0 ? { ...SHOUT, ...BATON, dark: IRIS.dark } : IRIS;
+      return key(SCENE.dark + 2 * i, mix(pose, iris(s)), {
+        ease: 'linear',
+        swaps,
+        ...(i === 1 ? { z: FRONT_ARM_OVER_HEAD } : {}),
+      });
+    }),
     key(22, mix(SHUSH, { neck: { rot: 6 } }, iris(0.3)), { ease: 'step' }),
     // In the dark: only his eyes, blinking, then creeping round the foe.
     key(23, creep(0), { ease: 'inOut', swaps: EYES, z: EYES_UP }),
@@ -414,20 +431,21 @@ function cinematic(): AnimClip {
     key(56, creep(-1.6, 0.4, 8), { ease: 'inOut' }),
     key(68, creep(2.6, 0.6, 18), { ease: 'in' }),
     // Scene 1's cut-in: the baton raised, a glint running up it.
-    key(74, swing(creep(1.4, 1.2, 0), [1.0, -11.4], -100), {
+    key(74, swing(creep(1.4, 1.2, 0), [GLINT_X, -11.4], -100), {
       ease: 'out',
       swaps: { ...EYES, ...BATON },
       z: FLASH_UP,
     }),
-    key(76, mix(swing(creep(1.4, 1.4, 0), [1.0, -11.6], -100), spark([1.5, -18.2], 1.4)), {
+    key(76, mix(GLINT, spark([GLINT_X + 0.5, -18.2], 1.4)), {
       ease: 'out',
       swaps: { ...EYES, ...BATON, fx3: 'spark' },
     }),
     // Lowered evenly, the baton kept upright until he puts it away.
-    key(82, mix(swing(creep(1.4, 1.4, 0), [1.0, -11.6], -100), spark([1.4, -18.6], 0.2, 40)), {
+    key(82, mix(GLINT, spark([GLINT_X + 0.4, -18.6], 0.2, 40)), {
       ease: 'linear',
     }),
-    key(86, batonAsIn(swing(creep(1.4, 1.4, 0), [1.0, -11.6], -100), creep(2.2, 0.4, 16)), {
+    // The glint fades out where it last shone instead of drifting back across his eyes.
+    key(86, mix(batonAsIn(GLINT, creep(2.2, 0.4, 16)), spark([GLINT_X + 0.4, -18.6], 0.05, 40)), {
       ease: 'in',
       swaps: EYES,
       z: EYES_UP,
