@@ -93,8 +93,6 @@ export class Cpu {
   private nextThink = 0;
   private recovery: RecoveryPlan | null = null;
   private recoveryDrive: Driver | null = null;
-  /** Whether the fighter could act when `recovery` was planned. */
-  private recoveryActionable = true;
   private ledgePlan: { option: LedgeOption; at: number } | null = null;
   private techPlan: { tech: boolean; dir: number | null; pressed: boolean } | null = null;
   private getupPlan: { option: GetupOption; at: number; dir: number } | null = null;
@@ -541,13 +539,9 @@ export class Cpu {
     const t = plan ? state.frame - plan.start : 0;
     const expected = plan?.path[t - 1];
     const drifted = expected !== undefined && SimMath.hypot(expected.x - me.pos.x, expected.y - me.pos.y) > 2;
-    // A plan made while the fighter couldn't act (in an air dodge) that gets nowhere is planned again once it can: it
-    // has its jump and specials then, and airReturns judged the dodge by a recovery from there.
-    const unstuck = plan?.outcome === 'fail' && !this.recoveryActionable && actionable(me);
-    if (!plan || !this.recoveryDrive || drifted || unstuck || t >= plan.path.length) {
+    if (!plan || !this.recoveryDrive || drifted || t >= plan.path.length) {
       if (me.action !== 'helpless' && !actionable(me) && plan) return this.recoveryDrive!(t, me);
       const control = state.players[this.port]!.control;
-      this.recoveryActionable = actionable(me);
       this.recovery = planRecovery(state, me, control, info, k, this.lv, this.rng);
       this.recoveryDrive = recoveryDriver(info, k, this.recovery.params);
       return this.recoveryDrive(0, me);

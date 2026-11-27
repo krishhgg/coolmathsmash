@@ -22,7 +22,7 @@ describe('stages with a pit between their ends', () => {
   // around above the hole (KO'd on frame 2604 here before, and on frame 3166 with only the calm check). In seed 4
   // Fireboy, falling from the respawn platform, air dodges over the hole on frame 2790; the recovery planned during the
   // dodge got nowhere, and he followed it under the left board and past the ledge (KO'd on frame 2975) instead of
-  // planning again once he could act, which reaches the ledge.
+  // planning again once he could act, which reaches the ledge (#341 plans again).
   it.each([
     [2, ['redball', 'runner'], 2372],
     [2, ['wheely', 'bloxorz'], 3166],
