@@ -66,15 +66,25 @@ export function mix(...poses: Pose[]): Pose {
 /** Moves a standing pose up by `dy` (feet included), for poses the engine has not finished lifting. */
 export const lift = (pose: Pose, dy: number): Pose => mix(pose, { body: { y: (pose.body?.y ?? 0) - dy } });
 
-/** Bake contact poses on whole frames so joint tweens can't put a shoe, sleeve or beanie below the floor. */
-export function floorContact(clip: AnimClip, settle = true): AnimClip {
+/**
+ * Effects drawn lying on the floor in perspective, across the floor line: Shadow Step's pool of shadow and the base
+ * of the column that rises from it. They reach below the floor by design.
+ */
+export const FLOOR_DECALS = ['shadowPool', 'shadowVeil'];
+
+/**
+ * Bake contact poses on whole frames so joint tweens can't put a shoe, sleeve or beanie below the floor. Drawings
+ * whose symbol starts with one of `decals` are left out of the measure.
+ */
+export function floorContact(clip: AnimClip, settle = true, decals: string[] = []): AnimClip {
   const art: FighterArt = { rig, clips: { contact: clip }, palettes: { default: {} }, height: 0, icon: '' };
   const keys = new Map(clip.keys.map((k) => [k.frame, k]));
   return {
     ...clip,
     keys: Array.from({ length: clip.length + 1 }, (_, frame) => {
       const sampled = samplePose(art, 'contact', frame, frame);
-      const bottom = poseBounds(art, sampled)[3];
+      const drawn = rig.slots.filter((s) => !decals.some((d) => sampled.symbols[s.name]?.startsWith(d)));
+      const bottom = poseBounds({ ...art, rig: { ...rig, slots: drawn } }, sampled)[3];
       const pose: Pose = Object.fromEntries(
         rig.bones.map(({ name, x, y, rot = 0, sx = 1, sy = 1 }) => {
           const p = sampled.local[name]!;
