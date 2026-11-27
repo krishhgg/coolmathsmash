@@ -116,13 +116,19 @@ const brace = (rot: number, drop: number, front: Pt): Pose =>
 const PUMP_UP = brace(-6, 0.45, [1.4, -3.3]);
 const CHARGED = brace(-10, 0.6, [1.5, -3.2]);
 const SPRAY = brace(-8, 0.5, [3.0, -3.7]);
+/**
+ * Half way from the charge to the spray, on the frame the stream bursts out (release + 1), so her front forearm
+ * opens over two frames: in one it turned 97 degrees on a frame before the first pump hits.
+ */
+const BURST = brace(-9, 0.55, [2.25, -3.45]);
 
 /** Her front hand while she sprays, where the stream leaves her. */
 const NOZZLE = pointOf(rig, SPRAY, 'foreF', 0, HAND);
+const BURST_NOZZLE = pointOf(rig, BURST, 'foreF', 0, HAND);
 
-/** The water's tail sits on her front hand and its round head at `head`, `r` wide: the stream she sprays. */
-function spray(head: Pt, r: number): BonePose {
-  const [x, y] = NOZZLE;
+/** The water's tail sits on her front hand (`from`) and its round head at `head`, `r` wide: the stream she sprays. */
+function spray(head: Pt, r: number, from: Pt = NOZZLE): BonePose {
+  const [x, y] = from;
   const rot = (Math.atan2(y - head[1], x - head[0]) * 180) / Math.PI + 90;
   return { x: head[0], y: head[1], rot, sx: r / BALL, sy: Math.hypot(x - head[0], y - head[1]) / JET_TIP };
 }
@@ -167,7 +173,10 @@ function waterStream(recovery: number): AnimClip {
       key(release, mix(CHARGED, { fx2: ball(2.0, -3.4, 1.6) }), { ease: 'in' }),
       key(
         release + 1,
-        mix(SPRAY, { fx1: spray(aimed(1), 1.2), fx2: ball(NOZZLE[0] + 0.6, NOZZLE[1], 1.2) }),
+        mix(BURST, {
+          fx1: spray(aimed(1), 1.2, BURST_NOZZLE),
+          fx2: ball(BURST_NOZZLE[0] + 0.6, BURST_NOZZLE[1], 1.2),
+        }),
         {
           ease: 'out',
           swaps: { fx1: 'fxJet', fx2: 'fxBall', face: 'faceFrontShout' },
@@ -178,7 +187,10 @@ function waterStream(recovery: number): AnimClip {
       key(last + 4, mix(SPRAY, { fx1: spray(aimed(1), 0.5), fx2: ball(NOZZLE[0] + 0.6, NOZZLE[1], 0.4) }), {
         ease: 'inOut',
       }),
-      key(last + 5, mix(SPRAY), { swaps: { fx1: null, fx2: null }, z: {} }),
+      key(last + 5, mix(SPRAY, { fx1: spray(aimed(1), 0.1), fx2: ball(NOZZLE[0] + 0.6, NOZZLE[1], 0.1) }), {
+        swaps: { fx1: null, fx2: null },
+        z: {},
+      }),
       key(release + recovery - 1, STAND),
     ],
   };

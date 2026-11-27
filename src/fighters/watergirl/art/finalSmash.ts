@@ -128,7 +128,8 @@ function tidalWave(air: boolean, length: number): AnimClip {
       z: { ...ARMS_IN_FRONT, fx1: 0.5 },
     }),
     key(RELEASE - 1, mix(push(12, 0.4), forming(5.2, 0.62)), { ease: 'linear' }),
-    key(RELEASE, push(16, 1.3), { ease: 'out', swaps: PUSH, z: ARMS_IN_FRONT }),
+    // The forming wave grows on where it is into the frame the rolling wave takes over (it isn't drawn from here).
+    key(RELEASE, mix(push(16, 1.3), forming(5.7, 0.8)), { ease: 'out', swaps: PUSH, z: ARMS_IN_FRONT }),
     key(RELEASE + 6, push(9, 1.6), { ease: 'inOut' }),
   );
   // Holding the push while the wave rolls away: a slow rock, the water running off her palms.
