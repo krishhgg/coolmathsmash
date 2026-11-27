@@ -91,15 +91,15 @@ function crouch(air: boolean, coil: number): Pose {
         thighB: { rot: -55 },
         shinB: { rot: 100 },
       })
-    : // Both knees forward and the tiptoe back ankle lifted, so the toe rests on the floor; shallow enough that his
-      // belly stays off it when he coils.
+    : // Both knees forward and the tiptoe back ankle lifted, so the toe rests on the floor; shallow enough, the back
+      // foot far enough back, that his belly and back knee stay off it when he coils.
       feet(
         {
           body: { rot: 14 - coil * 18, x: -0.2 - coil * 0.8 },
-          hip: { y: 1.4 + coil * 0.4 },
+          hip: { y: 1.3 + coil * 0.4 },
           neck: { rot: -12 + coil * 6 },
         },
-        floor(-2.3 - coil * 0.4, -0.63),
+        floor(-3.0 - coil * 0.4, -0.63),
         floor(2.1),
         false,
         [25, 0],
