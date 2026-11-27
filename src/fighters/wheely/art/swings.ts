@@ -4,8 +4,12 @@ import type { SwingChecks } from '../../../render/rig/swingChecks';
 export const swingChecks: SwingChecks = {
   ground: [],
   air: [],
-  /** Smoke from the pipe 2 above the floor and dust thrown up at the tyres: puffs that cross the floor line. */
-  decals: ['fxPuff'],
+  decals: [
+    // Smoke from the pipe 2 above the floor and dust thrown up at the tyres: puffs that cross the floor line.
+    'fxPuff',
+    // The Final Smash cut scene's last honk: sound waves bursting round the foe as they blow them away.
+    'fxHonk',
+  ],
   spins: [
     {
       bone: 'spinB',

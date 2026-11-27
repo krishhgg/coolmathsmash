@@ -266,10 +266,20 @@ function cinematic(): AnimClip {
     lines(jet(mix(at0(rot, dx), squash(0.96, 1.08), spin(deg)), 1.4 * s), s);
   const flooring = { ...SHOUT, ...BLUR, fxBack: 'fxTurbo', fx1: null, fx2: null, fx3: 'fxSpeed', prop: null };
   keys.push(
-    key(58, backfire(jet(mix(at0(-7, RUN_UP - 0.4), squash(0.94), bob(0.4), spin(2600)), 0.9), 1.7), {
-      ease: 'linear',
-      swaps: { ...SHOUT, ...BLUR, fxBack: 'fxTurbo', fx1: 'fxFlame', fx2: null, fx3: null, prop: null },
-    }),
+    // Reared nose-up as at the pop, the pipe near the floor: the jet and the flame flatten along it.
+    key(
+      58,
+      backfire(
+        jet(mix(at0(-7, RUN_UP - 0.4), squash(0.94), bob(0.4), spin(2600)), 0.9, 0.7),
+        1.7,
+        'fx1',
+        0.65,
+      ),
+      {
+        ease: 'linear',
+        swaps: { ...SHOUT, ...BLUR, fxBack: 'fxTurbo', fx1: 'fxFlame', fx2: null, fx3: null, prop: null },
+      },
+    ),
     key(60, floor(-1, RUN_UP + 0.6, 2800, 0.8), { ease: 'in', swaps: flooring }),
     key(RAM - 1, floor(1.5, 0.4, 3400, 1.2), { ease: 'linear' }),
     // The ram: crumpled against them, a crash star on the bumper.
