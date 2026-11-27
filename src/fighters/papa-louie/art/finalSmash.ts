@@ -248,7 +248,7 @@ function cinematic(): AnimClip {
 
 export const finalSmashClips: Record<string, AnimClip> = {
   /** Conveyor Oven's activation: FAF 120, House of Boom's 119 frames. */
-  finalSmash: plant(unwrap(activation())),
+  finalSmash: unwrap(plant(unwrap(activation()))),
   /** Conveyor Oven's cinematic, keyed on the blast. */
-  finalSmashCinematic: plant(unwrap(cinematic())),
+  finalSmashCinematic: unwrap(plant(unwrap(cinematic()))),
 };

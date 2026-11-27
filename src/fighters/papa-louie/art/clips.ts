@@ -4,6 +4,7 @@ import { GETUP_ROLL, TECH_ROLL } from '../../../sim/constants';
 import { attacks } from './attacks';
 import { finalSmashClips } from './finalSmash';
 import { movement } from './movement';
+import { onFloor } from './poses';
 
 export const clips: Record<string, AnimClip> = {
   ...movement,
@@ -24,3 +25,24 @@ export const clips: Record<string, AnimClip> = {
     [20, 28],
   ]),
 };
+
+/**
+ * Clips whose crouches would sink the apron's hem below the floor, baked with it tucked up against the floor
+ * (`onFloor`).
+ */
+for (const name of [
+  'spotDodge',
+  'dtilt',
+  'dashAttack',
+  'fsmash',
+  'usmash',
+  'dsmash',
+  'getupAttack',
+  'grab',
+  'dashGrab',
+  'pivotGrab',
+  'bthrow',
+  'uthrow',
+  'dthrow',
+])
+  clips[name] = onFloor(clips[name]!);

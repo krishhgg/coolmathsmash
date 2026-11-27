@@ -1459,5 +1459,5 @@ const clips: Record<string, AnimClip> = {
 };
 
 export const attacks: Record<string, AnimClip> = Object.fromEntries(
-  Object.entries(clips).map(([name, clip]) => [name, plant(unwrap(clip))]),
+  Object.entries(clips).map(([name, clip]) => [name, unwrap(plant(unwrap(clip)))]),
 );
