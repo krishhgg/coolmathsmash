@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Btn, neutralInput } from '../input/types';
 import { spawnEntity } from '../sim/entities/entities';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
+import { LASER } from '../fighters/johnny/entities';
 import { registerStage } from '../stages/registry';
 import { stage as runTunnel } from '../stages/run-tunnel/geometry';
 import { createCpu } from './index';
@@ -83,15 +84,69 @@ describe("CPUs and their opponent's shots", () => {
     expect(m.entities.filter((e) => e.owner === 1)).toHaveLength(1);
     const threat = shotThreat(m, m.fighters[0]!, seenShots(m, m.fighters[0]!, 0), [], 36);
     expect(threat).not.toBeNull();
-    // Played out in the match with port 0 standing still, the Fireball hits it on that frame or, from the margin the
-    // CPU allows an attack too (1.5 units), the next.
+    // Played out in the match with port 0 standing still, the Fireball hits it on that frame.
     let hitAt = -1;
     for (let t = 0; t < 36 && hitAt < 0; t++) {
       stepMatch(m, [neutralInput(), neutralInput()]);
       if (m.events.some((e) => e.type === 'hit' && e.victim === 0)) hitAt = t;
     }
-    expect(hitAt - threat!.t).toBeGreaterThanOrEqual(0);
-    expect(hitAt - threat!.t).toBeLessThanOrEqual(1);
+    expect(hitAt).toBe(threat!.t);
+  });
+
+  it("see Johnny's upgraded laser as a threat until it reaches the CPU, and its burst after", () => {
+    // The bolt bursts on the first fighter it hits (src/fighters/johnny/upgrade.ts), so it must fly on in the CPU's
+    // copy of the match as it does in the match.
+    const m = createMatch({
+      seed: 1,
+      stage: STAGE,
+      stocks: 3,
+      ports: [{ fighter: 'fireboy' }, { fighter: 'johnny' }],
+    });
+    for (let i = 0; i < 30; i++) stepMatch(m, [neutralInput(), neutralInput()]);
+    Object.assign(m.fighters[0]!, { pos: { x: -40, y: 0 }, prevPos: { x: -40, y: 0 }, facing: 1 });
+    Object.assign(m.fighters[1]!, { pos: { x: 40, y: 0 }, prevPos: { x: 40, y: 0 }, facing: -1 });
+    const e = spawnEntity(m, { kind: 'johnny/megaLaser', owner: 1, pos: { x: 30.6, y: 9.6 } });
+    Object.assign(e, { age: 1, vel: { x: -LASER.speed, y: 0 }, facing: -1 });
+    const me = m.fighters[0]!;
+    const threat = shotThreat(m, me, seenShots(m, me, 0), [], 36);
+    expect(threat).not.toBeNull();
+    let hitAt = -1;
+    for (let t = 0; t < 36 && hitAt < 0; t++) {
+      stepMatch(m, [neutralInput(), neutralInput()]);
+      if (m.events.some((x) => x.type === 'hit' && x.victim === 0)) hitAt = t;
+    }
+    expect(hitAt).toBe(threat!.t);
+    expect(threat!.until).toBeGreaterThan(threat!.t);
+  });
+
+  it('see no threat in a shot that its own shot already out meets and clanks first', () => {
+    // Port 0 has just fired; port 1's Fireball is 36 units off and would hit port 0 on its own.
+    const m = duel();
+    const s = knowledge('fireboy', STAGE).ground.neutralB!.spawns[0]!;
+    for (const [owner, x, dir] of [
+      [0, -34, 1],
+      [1, -4, -1],
+    ] as const) {
+      const e = spawnEntity(m, { kind: s.kind, owner, pos: { x, y: s.oy } });
+      Object.assign(e, { age: 1, vel: { x: s.vx * dir, y: s.vy }, facing: dir, lifetime: s.lifetime });
+    }
+    const me = m.fighters[0]!;
+    expect(shotThreat(m, me, seenShots(m, me, 0), [], 36)).toBeNull();
+    const alone = duel();
+    const lone = spawnEntity(alone, { kind: s.kind, owner: 1, pos: { x: -4, y: s.oy } });
+    Object.assign(lone, { age: 1, vel: { x: -s.vx, y: s.vy }, facing: -1, lifetime: s.lifetime });
+    expect(
+      shotThreat(alone, alone.fighters[0]!, seenShots(alone, alone.fighters[0]!, 0), [], 36),
+    ).not.toBeNull();
+    // In the match the two clank and port 0 is never hit.
+    let clanks = 0;
+    let struck = false;
+    for (let t = 0; t < 40; t++) {
+      stepMatch(m, [neutralInput(), neutralInput()]);
+      clanks += m.events.filter((x) => x.type === 'entityDestroy' && x.reason === 'clank').length;
+      struck ||= m.events.some((x) => x.type === 'hit' && x.victim === 0);
+    }
+    expect([clanks, struck]).toEqual([2, false]);
   });
 });
 
