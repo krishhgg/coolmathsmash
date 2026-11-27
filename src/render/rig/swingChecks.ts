@@ -91,6 +91,11 @@ export interface SwingChecks {
   air: string[];
   /** The frame a clip's checks start from (0 when not listed). */
   from?: Record<string, number>;
+  /**
+   * Clips in the air that end standing on the floor, with the frame the floor check runs on them from: a ledge getup
+   * once the engine has it on the stage.
+   */
+  groundFrom?: Record<string, number>;
   /** Held props, whose draw order against the parts they cover is checked. Found from the rig when not given. */
   props?: string[];
   /** Points along a prop's bone (distance from its origin) that must stay above the floor while it is drawn. */
@@ -137,11 +142,46 @@ function context(art: FighterArt) {
   const parents = Object.fromEntries(art.rig.bones.map((b) => [b.name, b.parent]));
   const slots = Object.fromEntries(art.rig.slots.map((s) => [s.name, s]));
 
-  /** A bone's rotation in rig space, unwrapped (its own turn plus its parents'), so a full spin counts 360. */
+  /**
+   * Whether `bone`'s parent is drawn mirrored in `pose` (flipped, such as a body with sx -1): an odd number of its
+   * ancestors, the parent included, have a negative sx * sy. A scale passing through 0 counts as unmirrored for
+   * every part under it alike.
+   */
+  const mirrored = (pose: RigPose, bone: string): boolean => {
+    let odd = false;
+    for (let b = parents[bone]; b; b = parents[b]) if (pose.local[b]!.sx * pose.local[b]!.sy < 0) odd = !odd;
+    return odd;
+  };
+
+  /**
+   * A bone's turn on screen, unwrapped so a full spin counts 360: its parent's, plus its own rotation, which turns
+   * the other way on screen under a mirrored parent.
+   */
   const turn = (pose: RigPose, bone: string): number => {
+    const parent = parents[bone];
+    const own = pose.local[bone]!.rot;
+    return parent ? turn(pose, parent) + (mirrored(pose, bone) ? -own : own) : own;
+  };
+
+  /** A bone's turn in its own rig, mirror or not: its own rotation plus its parents'. */
+  const facingTurn = (pose: RigPose, bone: string): number => {
     let deg = 0;
     for (let b: string | undefined = bone; b; b = parents[b]) deg += pose.local[b]!.rot;
     return deg;
+  };
+
+  /**
+   * How far `bone` turns from `prev` to `pose`. Across a frame where its parent flips to face the other way, the part
+   * reads right either keeping its angle on screen (Snail Bob's stalks as he whirls round) or flipping with its
+   * parent (a roll's legs as the body turns round through a squash), so it counts the smaller of the two, each the
+   * short way round.
+   */
+  const turned = (prev: RigPose, pose: RigPose, bone: string): number => {
+    const deg = turn(pose, bone) - turn(prev, bone);
+    if (mirrored(pose, bone) === mirrored(prev, bone)) return deg;
+    const short = (d: number) => d - 360 * Math.round(d / 360);
+    const [kept, flipped] = [short(deg), short(facingTurn(pose, bone) - facingTurn(prev, bone))];
+    return Math.abs(kept) <= Math.abs(flipped) ? kept : flipped;
   };
 
   /** The drawing in `slot` in `pose`, if it has one. */
@@ -301,7 +341,7 @@ function context(art: FighterArt) {
       });
   };
 
-  return { slots, turn, drawing, bounds, covers, overlapsRegion, overlapsInSight, layers, drawn, hides };
+  return { slots, turned, drawing, bounds, covers, overlapsRegion, overlapsInSight, layers, drawn, hides };
 }
 
 const sample = (art: FighterArt, clip: string, f: number) => samplePose(art, clip, f, f);
@@ -319,7 +359,9 @@ export function floorFindings(art: FighterArt, checks: SwingChecks): Finding[] {
   const decal = (name: string | null | undefined) =>
     !!name && (checks.decals ?? []).some((d) => name.startsWith(d));
   const out: Finding[] = [];
-  for (const [clip, start, length] of frames(art, checks.ground, checks.from))
+  const landing = Object.keys(checks.groundFrom ?? {}).filter((clip) => checks.air.includes(clip));
+  const from = { ...checks.from, ...checks.groundFrom };
+  for (const [clip, start, length] of frames(art, [...checks.ground, ...landing], from))
     for (let f = start; f <= length; f++) {
       const pose = sample(art, clip, f);
       const shown = art.rig.slots.filter((s) => !decal(pose.symbols[s.name]));
@@ -387,7 +429,7 @@ function coversIn(art: FighterArt, covered: Cover[], clip: string): Cover[] {
  * step into a frame in `cuts` is skipped, and a part a cover in `covered` hides on the frame is left out.
  */
 export function turnFindings(art: FighterArt, checks: SwingChecks): Finding[] {
-  const { turn, drawn, hides } = context(art);
+  const { turned, drawn, hides } = context(art);
   const out: Finding[] = [];
   for (const [clip, start, length] of frames(art, [...checks.ground, ...checks.air], checks.from)) {
     const free = spinning(art, checks.spins ?? [], clip);
@@ -404,7 +446,7 @@ export function turnFindings(art: FighterArt, checks: SwingChecks): Finding[] {
         covers.some((c) => f >= c.from && f <= c.to && hides(clip, f, pose, c.slot, bone));
       for (const bone of cuts.has(f) ? [] : drawn(pose)) {
         if (free.has(bone)) continue;
-        let deg = turn(pose, bone) - turn(prev, bone);
+        let deg = turned(prev, pose, bone);
         if (loop && f === length) deg -= 360 * Math.round(deg / 360);
         if (before.has(bone) && Math.abs(deg) > limit && !hidden(bone))
           out.push({
