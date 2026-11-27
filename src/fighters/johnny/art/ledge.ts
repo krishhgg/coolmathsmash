@@ -1,4 +1,4 @@
-import type { Pose } from '../../../render/rig/author';
+import { pointOf, type Pose } from '../../../render/rig/author';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import { LEDGE_ATTACK, LEDGE_CLIMB, LEDGE_ROLL } from '../../../sim/constants';
 import { stats } from '../stats';
@@ -17,6 +17,8 @@ import {
   SMIRK,
   STANCE,
   TUCK,
+  between,
+  elbows,
   feet,
   fist,
   grounded,
@@ -30,6 +32,7 @@ import {
   tuck,
   type Pt,
 } from './poses';
+import { HAND, rig } from './rig';
 
 /**
  * Where the hands hold the ledge (rig space): the ledge's top corner while hanging. It matches the engine's hang
@@ -121,18 +124,18 @@ const atFloor = (pose: Pose, y: number): Pose => mix(pose, { body: { y: (pose.bo
 
 /**
  * Pulling himself up the wall with both fists on corner `c`: `lift` 0 is the hang, 1 has his chest up at the lip
- * and the near knee drawn up under him. The far shoulder tucks in off the wall as he rises.
+ * and the far knee drawn up under him against the wall, ready to step up onto the ledge; the near leg hangs. The far * shoulder tucks in off the wall as he rises. `bothKnees` draws the near knee up too, to tuck for the ledge roll.
  */
-function pullUp([cx, cy]: Pt, lift: number): Pose {
+function pullUp([cx, cy]: Pt, lift: number, bothKnees = false): Pose {
   const base = mix({
     body: { x: -0.5 + cx - GX - 0.6 * lift, y: -0.2 + cy - GY - 7.5 * lift },
     neck: { rot: 5 - 12 * lift },
     armF: { x: 6.4 * (1 - 0.6 * lift), y: -1.0, sy: 1.05 },
     armB: { x: 1.8 * (1 - lift), y: 0.6, sy: 1.2 - 0.2 * lift },
-    thighF: { rot: -12 - 70 * lift },
-    shinF: { rot: 24 + 76 * lift },
-    thighB: { rot: 14 - 30 * lift },
-    shinB: { rot: 18 + 30 * lift },
+    thighF: { rot: bothKnees ? -12 - 70 * lift : -12 + 6 * lift },
+    shinF: { rot: bothKnees ? 24 + 76 * lift : 24 + 10 * lift },
+    thighB: { rot: 14 - 100 * lift },
+    shinB: { rot: 18 + 100 * lift },
   });
   return sole(
     sole(hands(base, [cx, cy], [cx - 0.3, cy - 0.1], 1, 1), 'B', 42 - 20 * lift),
@@ -176,7 +179,59 @@ function each(
   );
 }
 
-const smooth = (t: number) => t * t * (3 - 2 * t);
+/**
+ * How far up the attack's five-frame pull-up is on each frame: slower through the first half, where the far forearm
+ * turns fastest as his shoulder rises past his fist.
+ */
+const PULL = [0, 0.17, 0.35, 0.53, 0.73, 1];
+
+/** The point `t` of the way along the path through `points`, each stretch taking its share by length. */
+function along(points: Pt[], t: number): Pt {
+  const lengths = points.slice(1).map((p, i) => Math.hypot(p[0] - points[i]![0], p[1] - points[i]![1]));
+  let d = t * lengths.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < lengths.length; i++) {
+    if (d <= lengths[i]! || i === lengths.length - 1) {
+      const u = lengths[i]! ? Math.min(1, d / lengths[i]!) : 1;
+      const [a, b] = [points[i]!, points[i + 1]!];
+      return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+    }
+    d -= lengths[i]!;
+  }
+  return points[points.length - 1]!;
+}
+
+/**
+ * A frame `t` of the way from climb drawing `a` to `b`, drawn so nothing goes through the ledge: the body blended,
+ * the stepping leg's ankle carried up the wall face and over the lip by way of `lip` (`knee` 0 tucks the knee up, * 1 or -1 bends it that way; the boot turning from `soles[0]` to `soles[1]` degrees), and the hands slid from where
+ * `a` has them to where `b` does by way of `reach`, above the lip, so the elbows stay out of the wall.
+ */
+function climbStep(
+  a: Pose,
+  b: Pose,
+  t: number,
+  side: 'B' | 'F',
+  lip: Pt,
+  soles: [number, number],
+  knee: 0 | 1 | -1 = 0,
+  reach?: Pt,
+): Pose {
+  const foot = `foot${side}`;
+  const ankle = along([pointOf(rig, a, foot), lip, pointOf(rig, b, foot)], t);
+  const deg = soles[0] + (soles[1] - soles[0]) * t;
+  const blend = between(a, b, t);
+  const stepped = knee === 0 ? tuck(blend, side, ankle, deg) : leg(blend, side, ankle, deg, 1, knee);
+  const hand = (pose: Pose, arm: 'B' | 'F') => pointOf(rig, pose, `fore${arm}`, 0, HAND);
+  const slide = (arm: 'B' | 'F'): Pt =>
+    along(reach ? [hand(a, arm), reach, hand(b, arm)] : [hand(a, arm), hand(b, arm)], t);
+  return hands(stepped, slide('B'), slide('F'), 1, 1);
+}
+
+/** Pulled up at corner `c` to the mantle, `t` of the way: the far boot steps up the wall and onto the top. */
+const toMantle = (c: Pt, t: number) =>
+  climbStep(pullUp(c, 1), mantle(c), t, 'B', [c[0] + 0.6, c[1] - 0.85], [22, 0], 0, [c[0] + 0.8, c[1] - 2.2]);
+/** From the mantle at corner `c` to crouched on top, `t` of the way: the near boot comes up the wall face. */
+const toCrouch = (c: Pt, t: number) =>
+  climbStep(mantle(c), atFloor(CROUCHED, c[1]), t, 'F', [c[0] - 0.4, c[1] - 1.0], [70, 0], -1);
 
 /** Tucked on the ledge top at corner `c`'s height, turned `rot` degrees, lifted `hop` units off it and `back` units behind. */
 const tuckAt = (c: Pt, rot: number, hop = 0, back = 0): Pose =>
@@ -198,7 +253,7 @@ const PUNCH_WIND = fist(
       footF: { sx: -1 },
     }),
     'B',
-    [0.6, -12.6],
+    [1.8, -11.4],
     1,
     1,
   ),
@@ -258,16 +313,22 @@ export const ledge: Record<string, AnimClip> = {
     keys: shortTurns([
       key(0, HANG, { ease: 'linear', z: HEAD_IN_FRONT }),
       ...each(1, 10, (f) => pullUp(corner(CLIMB, f), 1 - (1 - f / 10) ** 2)),
+      // The far boot steps up onto the ledge over frames 11-13, the near one comes up after it over 16-18.
       ...each(
         11,
         16,
-        (f) => mantle(corner(CLIMB, f)),
+        (f) =>
+          f <= 13
+            ? toMantle(corner(CLIMB, f), (f - 10) / 4)
+            : f >= 16
+              ? toCrouch(corner(CLIMB, f), [0.3, 0.6, 0.85][f - 16]!)
+              : mantle(corner(CLIMB, f)),
         (f) => (f === 11 ? { swaps: { ...GRIT, ...PALM_F, ...PALM_B }, z: BACK_LEG_IN_FRONT } : {}),
       ),
       ...each(
         17,
         18,
-        (f) => atFloor(CROUCHED, corner(CLIMB, f)[1]),
+        (f) => toCrouch(corner(CLIMB, f), [0.3, 0.6, 0.85][f - 16]!),
         (f) => (f === 17 ? { swaps: { ...GRIT, ...FISTS }, z: {} } : {}),
       ),
       ...onFloorFrom(19, LEDGE_CLIMB.faf - 1, [
@@ -283,12 +344,16 @@ export const ledge: Record<string, AnimClip> = {
     swaps: { ...GRIT, ...FISTS },
     keys: shortTurns([
       key(0, HANG, { ease: 'linear', z: HEAD_IN_FRONT }),
-      ...each(1, 6, (f) => pullUp(corner(ROLL, f), smooth(f / 6))),
+      ...each(1, 5, (f) => pullUp(corner(ROLL, f), PULL[f]!, true)),
+      // Curling up to roll over the lip.
+      key(6, between(pullUp(corner(ROLL, 6), 1, true), tuckAt(corner(ROLL, 6), -60, -1.4, 3.4), 0.4), {
+        ease: 'linear',
+      }),
       key(7, tuckAt(corner(ROLL, 7), -60, -1.4, 3.4), { ease: 'linear', z: {} }),
       key(8, tuckAt(corner(ROLL, 8), -20, 0.8, 1.2), { ease: 'linear' }),
       ...each(9, 33, (f) => tuckAt(corner(ROLL, f), (360 * (f - 9)) / 25)),
       ...onFloorFrom(34, LEDGE_ROLL.faf - 1, [
-        key(34, tuckAt([0, 0], 360), { ease: 'out' }),
+        key(34, tuckAt([0, 0], 360), { ease: 'linear' }),
         key(38, mix(CROUCHED, { body: { rot: 368 } }), { ease: 'inOut' }),
         key(LEDGE_ROLL.faf - 1, mix(STANCE, { body: { rot: 360 } }), { swaps: { ...GRIT, ...GUARD } }),
       ]),
@@ -298,30 +363,37 @@ export const ledge: Record<string, AnimClip> = {
   ledgeAttack: {
     length: LEDGE_ATTACK.faf - 1,
     swaps: { ...GRIT, ...FISTS },
-    keys: shortTurns([
-      key(0, HANG, { ease: 'linear', z: HEAD_IN_FRONT }),
-      ...each(1, 5, (f) => pullUp(corner(ATTACK, f), smooth(f / 5))),
-      ...each(
-        6,
-        10,
-        (f) => mantle(corner(ATTACK, f)),
-        (f) => (f === 6 ? { swaps: { ...SHOUT, ...PALM_F, ...PALM_B }, z: BACK_LEG_IN_FRONT } : {}),
-      ),
-      key(11, atFloor(CROUCHED, corner(ATTACK, 11)[1]), {
-        ease: 'linear',
-        swaps: { ...GRIT, ...FISTS },
-        z: {},
-      }),
-      ...onFloorFrom(12, LEDGE_ATTACK.faf - 1, [
-        key(12, CROUCHED, { ease: 'inOut' }),
-        key(16, PUNCH_WIND, { ease: 'in' }),
-        key(18, PUNCH_HIT, { ease: 'linear', swaps: { ...HIT, ...SHOUT, ...FISTS } }),
-        key(21, PUNCH_HIT, { ease: 'out' }),
-        key(22, undefined, { swaps: { ...SMIRK, ...FISTS } }),
-        key(32, mix(PUNCH, { body: { rot: 6, x: 1.0 } }), { ease: 'inOut' }),
-        key(LEDGE_ATTACK.faf - 1, STANCE, { swaps: { ...GRIT, ...GUARD } }),
+    keys: shortTurns(
+      elbows([
+        key(0, HANG, { ease: 'linear', z: HEAD_IN_FRONT }),
+        ...each(1, 5, (f) => pullUp(corner(ATTACK, f), PULL[f]!)),
+        // The far boot steps up over frames 6-8, the near one comes up after it over 9-11.
+        ...each(
+          6,
+          10,
+          (f) =>
+            f <= 8
+              ? toMantle(corner(ATTACK, f), [0.27, 0.54, 0.8][f - 6]!)
+              : toCrouch(corner(ATTACK, f), [0.17, 0.48][f - 9]!),
+          (f) => (f === 6 ? { swaps: { ...SHOUT, ...PALM_F, ...PALM_B }, z: BACK_LEG_IN_FRONT } : {}),
+        ),
+        key(11, toCrouch(corner(ATTACK, 11), 0.8), {
+          ease: 'linear',
+          swaps: { ...GRIT, ...FISTS },
+          z: {},
+        }),
+        ...onFloorFrom(12, LEDGE_ATTACK.faf - 1, [
+          key(12, CROUCHED, { ease: 'linear' }),
+          // Wound up a frame sooner, so the punch comes round over three frames.
+          key(15, PUNCH_WIND, { ease: 'linear' }),
+          key(18, PUNCH_HIT, { ease: 'linear', swaps: { ...HIT, ...SHOUT, ...FISTS } }),
+          key(21, PUNCH_HIT, { ease: 'out' }),
+          key(22, undefined, { swaps: { ...SMIRK, ...FISTS } }),
+          key(32, mix(PUNCH, { body: { rot: 6, x: 1.0 } }), { ease: 'inOut' }),
+          key(LEDGE_ATTACK.faf - 1, STANCE, { swaps: { ...GRIT, ...GUARD } }),
+        ]),
       ]),
-    ]),
+    ),
   },
 
   ledgeJump: {

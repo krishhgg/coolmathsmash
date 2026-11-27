@@ -220,7 +220,6 @@ const KNOWN: Record<string, string[]> = {
     'techRoll',
     'techRollBack',
   ],
-  johnny: ['ledgeAttack', 'ledgeClimb', 'ledgeRoll'],
   'papa-louie': [
     'airDodge',
     'bair',
