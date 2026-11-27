@@ -11,6 +11,7 @@ import {
   SHOUT,
   SIDE,
   aim,
+  continuous,
   feet,
   floor,
   fx,
@@ -103,28 +104,33 @@ function clip(base: (lean?: number, x?: number) => Pose, settle: Pose): AnimClip
     length: STUN_GUN.faf - 1,
     active: [[STUN_GUN.shot, STUN_GUN.shot]],
     swaps: { ...ANGRY },
-    keys: [
-      key(0, settle, { ease: 'out' }),
-      key(4, draw, { ease: 'inOut', swaps: { ...ANGRY, ...TASER } }),
-      key(10, raise, { ease: 'out', z: FRONT_ARM_OVER_HEAD }),
-      key(14, atProngs(aimed, 0, 1.1), { ease: 'inOut', swaps: { ...ANGRY, ...TASER, fx1: 'zapCrackle' } }),
-      key(STUN_GUN.charge, atProngs(aimed, 0, 1.4), { ease: 'linear' }),
-      key(STUN_GUN.shot, atProngs(recoil, -16, 1.1), {
-        ease: 'out',
-        swaps: { ...SHOUT, ...TASER, fx1: 'zapFlash' },
-      }),
-      key(23, atProngs(recoil, -16, 0.7), { ease: 'inOut', swaps: { ...SHOUT, ...TASER, fx1: null } }),
-      key(30, holdTaser(base(2), [PRONGS[0] - 0.3, PRONGS[1]], -2), {
-        ease: 'inOut',
-        swaps: { ...GRIN, ...TASER },
-      }),
-      key(38, lower, { ease: 'in', z: {} }),
-      key(43, holdTaser(base(), [3.0, -2.7], 80), {
-        ease: 'out',
-        swaps: { ...GRIN, gun: null, handF: 'fist' },
-      }),
-      key(STUN_GUN.faf - 1, settle, { swaps: SIDE }),
-    ],
+    keys: continuous(
+      [
+        key(0, settle, { ease: 'out' }),
+        key(4, draw, { ease: 'inOut', swaps: { ...ANGRY, ...TASER } }),
+        key(10, raise, { ease: 'out', z: FRONT_ARM_OVER_HEAD }),
+        key(14, atProngs(aimed, 0, 1.1), { ease: 'inOut', swaps: { ...ANGRY, ...TASER, fx1: 'zapCrackle' } }),
+        key(STUN_GUN.charge, atProngs(aimed, 0, 1.4), { ease: 'linear' }),
+        key(STUN_GUN.shot, atProngs(recoil, -16, 1.1), {
+          ease: 'out',
+          swaps: { ...SHOUT, ...TASER, fx1: 'zapFlash' },
+        }),
+        key(23, atProngs(recoil, -16, 0.7), { ease: 'inOut', swaps: { ...SHOUT, ...TASER, fx1: null } }),
+        key(30, holdTaser(base(2), [PRONGS[0] - 0.3, PRONGS[1]], -2), {
+          ease: 'inOut',
+          swaps: { ...GRIN, ...TASER },
+        }),
+        key(38, lower, { ease: 'in' }),
+        // Back under his head as the taser goes away: moved while it is drawn, it would jump behind his head.
+        key(43, holdTaser(base(), [3.0, -2.7], 80), {
+          ease: 'out',
+          swaps: { ...GRIN, gun: null, handF: 'fist' },
+          z: {},
+        }),
+        key(STUN_GUN.faf - 1, settle, { swaps: SIDE }),
+      ],
+      { onScreen: true },
+    ),
   };
 }
 
