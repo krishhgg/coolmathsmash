@@ -33,6 +33,8 @@ export interface ShotTarget {
   /** Predicted target, t = 0 being the frame about to be simulated. */
   path: Sample[];
   errX: number;
+  /** Other fighters' shots out in the match that the CPU has seen (seenShots). */
+  seen?: readonly EntityState[];
   /** Shots the target is about to put out, as the CPU's prediction of it has them, in the order they appear. */
   shots?: readonly ForeseenShot[];
 }
@@ -82,10 +84,7 @@ export function shotHit(
   for (const e of state.entities)
     if (e.owner === me.port && !e.dead) out.set(e.kind, (out.get(e.kind) ?? 0) + 1);
   const m = soloMatch(state, me);
-  const foes = state.entities.filter(
-    (e) => foe(state, me, e.owner) && !e.dead && !entityDef(e.kind).platform,
-  );
-  joinFoes(m, state, me, foes);
+  joinFoes(m, state, me, target.seen ?? []);
   const coming = target.shots ?? [];
   let nextFoe = 0;
   // The CPU's entities from here on are the move's (and what they spawn); those before are the platforms soloMatch
@@ -144,22 +143,20 @@ export function shotHit(
 }
 
 /**
- * The first frame from now that another fighter's shot, out now or foreseen (`coming`), would touch `me` if it did
- * nothing, and the last frame of that touch; null when none does within `frames`. The CPU defends against it as
- * against an attack (cpu.ts, defend), rather than answering it with a shot of its own that clanks.
+ * The first frame from now that another fighter's shot, seen out (`seen`) or foreseen (`coming`), would touch `me`
+ * if it did nothing, and the last frame of that touch; null when none does within `frames`. The CPU defends against it
+ * as against an attack (cpu.ts, defend), rather than answering it with a shot of its own that clanks.
  */
 export function shotThreat(
   state: Readonly<MatchState>,
   me: Readonly<FighterState>,
+  seen: readonly EntityState[],
   coming: readonly ForeseenShot[],
   frames: number,
 ): { t: number; until: number } | null {
-  const foes = state.entities.filter(
-    (e) => foe(state, me, e.owner) && !e.dead && !entityDef(e.kind).platform,
-  );
-  if (!foes.length && !coming.length) return null;
+  if (!seen.length && !coming.length) return null;
   const m = soloMatch(state, me);
-  joinFoes(m, state, me, foes);
+  joinFoes(m, state, me, seen);
   const stats = getFighter(me.fighter).stats;
   let next = 0;
   let hit: { t: number; until: number } | null = null;
@@ -187,6 +184,21 @@ export function shotThreat(
 
 /** Hitbox-to-hurtbox margin for a shot coming at the CPU, as cpu.ts's threat() allows an attack. */
 const THREAT_MARGIN = 1.5;
+
+/**
+ * The shots other fighters have out (not the platforms soloMatch copies, nor the stage's items) that the CPU has seen:
+ * those out `lag` frames ago, its reaction time, as it sees the fighters. One put out since then it knows only as its
+ * prediction of the opponent has it (ShotTarget.shots).
+ */
+export function seenShots(
+  state: Readonly<MatchState>,
+  me: Readonly<FighterState>,
+  lag: number,
+): EntityState[] {
+  return state.entities.filter(
+    (e) => foe(state, me, e.owner) && !e.dead && e.age > lag && !entityDef(e.kind).platform,
+  );
+}
 
 /** Whether `port` is another fighter's (an item the stage put out has no fighter's port). */
 function foe(state: Readonly<MatchState>, me: Readonly<FighterState>, port: number): boolean {

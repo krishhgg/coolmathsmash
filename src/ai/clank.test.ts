@@ -8,7 +8,7 @@ import { createCpu } from './index';
 import { press } from './inputs';
 import { knowledge } from './knowledge';
 import { run, soloMatch } from './look';
-import { shotHit, shotThreat } from './shots';
+import { seenShots, shotHit, shotThreat } from './shots';
 
 const STAGE = 'battlefield';
 
@@ -48,7 +48,11 @@ function fireball(m: MatchState) {
   const [me, opp] = m.fighters;
   const p = knowledge('fireboy', STAGE).ground.neutralB!;
   const path = run(soloMatch(m, opp!), 110);
-  return shotHit(m, me!, p, 0, 1, (s) => ({ x: me!.pos.x + s.dx, y: me!.pos.y + s.dy }), { path, errX: 0 });
+  return shotHit(m, me!, p, 0, 1, (s) => ({ x: me!.pos.x + s.dx, y: me!.pos.y + s.dy }), {
+    path,
+    errX: 0,
+    seen: seenShots(m, me!, 0),
+  });
 }
 
 describe("CPUs and their opponent's shots", () => {
@@ -71,13 +75,13 @@ describe("CPUs and their opponent's shots", () => {
   });
 
   it("see the opponent's Fireball coming as a threat, on the frame it would hit", () => {
-    expect(shotThreat(duel(), duel().fighters[0]!, [], 36)).toBeNull();
+    expect(shotThreat(duel(), duel().fighters[0]!, [], [], 36)).toBeNull();
     // Port 1 fires; 40 frames later its Fireball is about 40 units from port 0.
     const m = duel();
     for (let i = 0; i < 40; i++)
       stepMatch(m, [neutralInput(), i === 0 ? press({ buttons: Btn.Special }) : neutralInput()]);
     expect(m.entities.filter((e) => e.owner === 1)).toHaveLength(1);
-    const threat = shotThreat(m, m.fighters[0]!, [], 36);
+    const threat = shotThreat(m, m.fighters[0]!, seenShots(m, m.fighters[0]!, 0), [], 36);
     expect(threat).not.toBeNull();
     // Played out in the match with port 0 standing still, the Fireball hits it on that frame or, from the margin the
     // CPU allows an attack too (1.5 units), the next.
@@ -137,5 +141,11 @@ describe('level 9 CPUs with shots either side of a gap', () => {
   // from frame 103 to frame 1104: a 1000-frame run of clanks.
   it("don't trade Fireballs that clank in the middle (Fireboy mirror, seed 1)", () => {
     expect(longestClankRun(['fireboy', 'fireboy'], 1, 60 * 60)).toBeLessThan(180);
+  }, 60_000);
+
+  // Before, Fireboy's Fireball (5.5%) and Bob the Robber's Stun Gun (4%), within 9% of each other, clanked 16 times
+  // from frame 1238 to frame 2037.
+  it("don't trade Fireballs and Stun Gun shots that clank (Fireboy against Bob the Robber, seed 1)", () => {
+    expect(longestClankRun(['fireboy', 'bob-the-robber'], 1, 60 * 60)).toBeLessThan(180);
   }, 60_000);
 });
