@@ -2,7 +2,7 @@ import { ease } from '../../../render/rig/sample';
 import type { AnimClip, BonePose, Key } from '../../../render/rig/types';
 import { SHAKER, moves } from '../moves';
 import { FORE_ARM, SHAKER_TIP, UPPER_ARM } from './parts';
-import { AIR, STAND, aim, feet, hands, key, mix, pointOf, swing, type Pose, type Pt } from './poses';
+import { AIR, STAND, aim, between, feet, hands, key, mix, pointOf, swing, type Pose, type Pt } from './poses';
 import { rig } from './rig';
 
 /**
@@ -298,7 +298,7 @@ const JAB3_FOLLOW = grip(stance(0.9, 0.7, 22, -0.9, 1.6), [4.0, -6.6], -64, [-2.
 // --- Tilts ------------------------------------------------------------------------------------------------
 
 const FT_WIND = grip(stance(-0.5, 0.5, -12, -1.3, 1.0), [-1.9, -7.2], 96, [-2.7, -5.8]);
-const FT_MID = mix(grip(stance(0.3, 0.6, 6, -1.1, 1.5), [2.4, -7.2], -90, [-2.4, -5.2]), {
+const FT_MID = mix(grip(stance(0.3, 0.6, 6, -1.1, 1.5), [0.8, -9.0], 0, [-2.4, -5.2]), {
   paddle: { sy: 0.4 },
 });
 const FT_HIT = peel(stance(1.0, 0.85, 18, -0.9, 1.9), -90, box('ftilt', 0, 0), 8.0, [-2.8, -5.4]);
@@ -383,13 +383,13 @@ const FS_RECOIL = grip(stance(0.3, 0.56, 9, -1.05, 1.75), [3.9, -6.2], -116, [-1
 
 const US_LOW = grip(stance(0.1, 0.9, 10, -1.3, 1.3, SLANT), [2.4, -3.6], -86, [-1.6, -3.4]);
 const US_CHARGE = grip(stance(0, 1.3, 16, -1.4, 1.3, SLANT), [2.2, -3.0], -84, [-1.8, -3.2]);
-const US_FLIP = grip(stance(0.2, 0.4, 2, -1.1, 1.2), [3.6, -8.6], -125, [1.2, -7.0]);
+const US_FLIP = grip(stance(0.2, 0.4, 2, -1.1, 1.2), [3.6, -8.6], -125, [-0.4, -5.2]);
 const US_TOSS = peel(
   stance(0, 0.05, -12, -0.9, 1.1, { body: { sy: 1.03, sx: 0.98 } }),
   172,
   box('usmash', 0, 0),
   7.0,
-  [-2.6, -8.6],
+  [-1.6, -6.0],
 );
 const US_FOLLOW = grip(stance(0, 0.2, -8, -1.0, 1.2), [3.4, -10.2], 182, [-2.4, -7.4]);
 
@@ -402,16 +402,19 @@ const DS_FRONT = lay(
   [-1.4, -5.6],
 );
 /** Mid-sweep: the peel swinging round past his belly, end on to us. */
-const DS_MID = mix(grip(stance(0.4, 1.3, 14, -1.3, 1.5), [2.2, -5.4], -70, [-2.2, -4.8]), {
+const DS_MID = mix(grip(stance(0.4, 1.3, 14, -1.3, 1.5), [2.8, -3.8], -70, [-2.2, -4.8]), {
   paddle: { sy: 0.4, sx: 0.8 },
 });
 /** The peel swinging flat round behind him, pointing at us (so it is drawn short). */
-const DS_SWEEP = mix(grip(stance(0.1, 1.15, 4, -1.4, 1.3), [0.2, -5.0], 5, [-2.2, -5.0]), {
+const DS_SWEEP = mix(grip(stance(0.1, 1.15, 4, -1.4, 1.3), [0.2, -5.0], 20, [-2.2, -5.0]), {
   paddle: { sy: 0.25, sx: 0.9 },
 });
 const DS_FRONT_END = grip(stance(1.0, 1.3, 26, -1.0, 1.8, SLANT), [4.6, -2.8], -84, [-1.6, -5.4]);
 
 // --- Getup attack -----------------------------------------------------------------------------------------
+
+/** Mid-swing up off the floor: the down smash's sweep with the peel not yet as far round, coming from behind him. */
+const GU_MID = swing(DS_MID, -40);
 
 /** The back hand laid flat on the floor, fingers forward. */
 const palmDown = (pose: Pose): Pose => aim(pose, 'handB', -90);
@@ -566,7 +569,8 @@ const BT_LIFT = both(
   -117,
 );
 const BT_SETTLE = grip(stance(-0.8, 0.22, -19, -1.62, 1.05), [1.8, -8.6], -144, [-2.5, -7.5]);
-const BT_TURNED = flip(both(stance(0.42, 1.12, 17, -1.62, 2.02), [3.4, -6.2], -101));
+const BT_TURNED_FACING = both(stance(0.42, 1.12, 17, -1.62, 2.02), [3.4, -6.2], -101);
+const BT_TURNED = flip(BT_TURNED_FACING);
 const BT_WIND = flip(
   both(stance(-0.75, 1.4, -19, -1.55, 1.84, { torso: { sy: 0.92 }, hat: { rot: -12 } }), [0.5, -7.45], -148),
 );
@@ -576,7 +580,8 @@ const BT_SHOVE = flip(
 const BT_PRESS = flip(
   peel(stance(1.55, 1.42, 36, -1.65, 2.32, { head: { rot: -13 }, hat: { rot: 18 } }), -71, [12.2, -4], 7),
 );
-const BT_REC = flip(grip(stance(0.6, 0.6, 8, -1.0, 1.6), [3.6, -5.6], -100, [-2.0, -4.6]));
+const BT_REC_FACING = grip(stance(0.6, 0.6, 8, -1.0, 1.6), [3.6, -5.6], -100, [-2.0, -4.6]);
+const BT_REC = flip(BT_REC_FACING);
 /** The brick oven behind him (fx3, behind his body), popped in at scale `s`. */
 const OVEN_X = -12.5;
 const oven = (s: number, sx = s, sy = s): BonePose => ({ x: OVEN_X, y: 0, sx: sx * 1.8, sy: sy * 1.8 });
@@ -666,10 +671,13 @@ const PB_WIND = (() => {
   const p = grip(stance(-0.7, 0.75, -14, -1.6, 1.2, { head: { rot: -6 } }), [3.9, -7.0], -118, [-4.5, -10.2]);
   return bomb(p, [-5.4, -10.9]);
 })();
-/** The arm whipping over his head, the body coming forward and the peel swinging back over his shoulder. */
+/**
+ * The arm whipping over his head, the body coming forward and the peel swinging back over his shoulder. The bomb is
+ * already past the front of his toque when it starts drawing over him, so it doesn't jump across the toque.
+ */
 const PB_WHIP = (() => {
-  const p = grip(stance(0.3, 0.55, 6, -1.3, 1.5), [-0.9, -5.8], 120, [0.6, -12.6]);
-  return bomb(p, [1.4, -13.6]);
+  const p = grip(stance(0.3, 0.55, 6, -1.3, 1.5), [-0.9, -5.8], 120, [2.6, -12.0]);
+  return bomb(p, [3.6, -12.8]);
 })();
 /** The release: the arm out long ahead of him, the bomb on the spawn point, the peel trailing back for balance. */
 const PB_RELEASE = (() => {
@@ -792,6 +800,8 @@ const puffAt = (phase: number): BonePose => {
 };
 
 const SH_Z = { ...BACK_ARM_FRONT, ...PADDLE_BEHIND };
+/** The shaker under the fingers of the back hand, as BACK_ARM_FRONT draws it, before the arm comes in front. */
+const SHAKER_IN_FIST = { prop: 4.9 };
 
 /** Frame `f` of the shaking, from the first cocked frame to the last shot's late hit. */
 function shakeKey(f: number): Key {
@@ -851,15 +861,19 @@ const clips: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, STAND, { ease: 'out' }),
-      key(4, SH_REACH, { ease: 'inOut', swaps: { ...ANGRY, prop: 'shaker' } }),
+      // The shaker sits in his fist from the moment he takes it, and the peel goes behind him as it comes upright
+      // at his side, so neither jumps across his coat as he winds up.
+      key(4, SH_REACH, { ease: 'inOut', swaps: { ...ANGRY, prop: 'shaker' }, z: SHAKER_IN_FIST }),
+      key(6, undefined, { z: { ...SHAKER_IN_FIST, ...PADDLE_BEHIND } }),
       key(9, SH_WIND, { ease: 'in', swaps: { ...GRIT, prop: 'shaker', handB: 'fist' }, z: SH_Z }),
       key(13, SH_AIM, { ease: 'out', swaps: { ...GRIT, prop: 'shaker', handB: 'fist' } }),
       ...Array.from({ length: 64 - 14 + 1 }, (_, i) => shakeKey(14 + i)),
       ...[66, 68, 70].map((f) => sprayOff(f, lerpPose(SH_HOLD, SH_PULL, (f - 64) / 8))),
       key(71, undefined, { swaps: { ...GRIT, prop: 'shaker', handB: 'fist', fx2: null } }),
       key(72, SH_PULL, { ease: 'inOut' }),
-      key(77, SH_REACH, { ease: 'inOut', swaps: { ...ANGRY, prop: 'shaker' }, z: {} }),
-      key(79, undefined, { swaps: {} }),
+      // The back arm and the shaker stay in front until he puts the shaker away.
+      key(77, SH_REACH, { ease: 'inOut', swaps: { ...ANGRY, prop: 'shaker' }, z: BACK_ARM_FRONT }),
+      key(79, undefined, { swaps: {}, z: {} }),
       key(84, STAND),
     ],
   },
@@ -977,7 +991,7 @@ const clips: Record<string, AnimClip> = {
     active: [[7, 9]],
     swaps: ANGRY,
     keys: [
-      key(0, STAND, { ease: 'out' }),
+      key(0, STAND, { ease: 'linear' }),
       key(1, undefined, { z: PADDLE_BEHIND }),
       key(4, FT_WIND, { ease: 'in', swaps: GRIT }),
       key(5, mix(FT_MID, { fx1: flatSmear(shoulderF(FT_MID), 6) }), {
@@ -1003,7 +1017,8 @@ const clips: Record<string, AnimClip> = {
     swaps: { ...ANGRY, prop: 'dough' },
     keys: [
       key(0, STAND, { ease: 'out', swaps: { prop: null } }),
-      key(3, UT_DIP, { ease: 'in', swaps: { ...GRIT, prop: 'dough' } }),
+      // The dough goes up overhead, and later comes down, at an even pace: half a turn of the arm in two frames.
+      key(3, UT_DIP, { ease: 'linear', swaps: { ...GRIT, prop: 'dough' } }),
       key(5, dough(UT_UP, box('utilt', 0, 0), -10, 1, 0), {
         ease: 'linear',
         swaps: { ...GRIT, face: 'faceUp', fx2: 'swoosh' },
@@ -1019,9 +1034,10 @@ const clips: Record<string, AnimClip> = {
         fx2: 'swoosh',
       }),
       key(18, undefined, { swaps: { face: 'faceUp' } }),
-      key(23, dough(UT_UP, [0.6, -12.6], 8, 1.3, 0), { ease: 'in' }),
-      key(27, UT_DIP, { ease: 'inOut', swaps: {}, z: {} }),
-      key(30, undefined, { swaps: { prop: null } }),
+      key(23, dough(UT_UP, [0.6, -12.6], 8, 1.3, 0), { ease: 'linear' }),
+      // The dough stays drawn over him until it's put away, so it doesn't jump behind his coat.
+      key(27, UT_DIP, { ease: 'inOut', swaps: {} }),
+      key(30, undefined, { swaps: { prop: null }, z: {} }),
       key(33, STAND),
     ],
   },
@@ -1047,12 +1063,13 @@ const clips: Record<string, AnimClip> = {
     ],
     swaps: ANGRY,
     keys: [
-      key(0, STAND, { ease: 'out' }),
+      key(0, STAND, { ease: 'linear' }),
       key(4, DA_CROUCH, { ease: 'in', swaps: GRIT }),
-      key(6, DA_LAUNCH, { ease: 'linear', swaps: SHOUT }),
+      // Already on the way into the dive as he springs, so his legs kick up behind over two frames, not one.
+      key(6, between(DA_LAUNCH, DA_DIVE, 0.4), { ease: 'linear', swaps: SHOUT }),
       ...strike(7, 11, DA_DIVE, SHOUT),
       key(12, DA_SLIDE, { ease: 'linear', swaps: GRIT }),
-      key(20, DA_SLIDE_END, { ease: 'inOut' }),
+      key(20, DA_SLIDE_END, { ease: 'linear' }),
       key(24, DA_PUSH, { ease: 'inOut', swaps: {} }),
       key(29, DA_RISE, { ease: 'inOut' }),
       key(39, STAND),
@@ -1132,7 +1149,8 @@ const clips: Record<string, AnimClip> = {
       key(8, undefined, { swaps: SHOUT }),
       key(10, DS_FRONT_END, { ease: 'in', swaps: GRIT }),
       key(11, turning(DS_MID, 0.6), { ease: 'step' }),
-      key(12, turning(DS_MID, -0.6), { ease: 'linear' }),
+      // A third of the way into the lunge as he comes round, so his legs don't spread in one frame.
+      key(12, between(turning(DS_MID, -0.6), flip(DS_FRONT), 0.35), { ease: 'linear' }),
       ...strike(13, 15, mix(flip(DS_FRONT), { fx1: flatSmear(shoulderF(flip(DS_FRONT)), 12, 0.25, true) }), {
         ...SHOUT,
         fx1: 'swoosh',
@@ -1156,7 +1174,7 @@ const clips: Record<string, AnimClip> = {
       key(0, PRONE, { ease: 'inOut', swaps: { face: 'faceWorried' } }),
       key(7, GU_PUSH, { ease: 'inOut', swaps: GRIT }),
       key(13, GU_CROUCH, { ease: 'in', z: PADDLE_BEHIND }),
-      key(15, mix(DS_MID, { fx1: flatSmear(shoulderF(DS_MID), 7, 0.3) }), {
+      key(15, mix(GU_MID, { fx1: flatSmear(shoulderF(GU_MID), 7, 0.3) }), {
         ease: 'linear',
         swaps: { ...SHOUT, fx1: 'swoosh' },
         z: {},
@@ -1167,13 +1185,13 @@ const clips: Record<string, AnimClip> = {
       }),
       key(17, undefined, { swaps: SHOUT }),
       key(20, turning(DS_MID, 0.6), { ease: 'step', swaps: GRIT }),
-      key(21, turning(DS_MID, -0.6), { ease: 'out' }),
+      key(21, turning(DS_MID, -0.6), { ease: 'linear' }),
       ...strike(24, 26, mix(flip(GU_FRONT), { fx1: flatSmear(shoulderF(flip(GU_FRONT)), 10, 0.25, true) }), {
         ...SHOUT,
         fx1: 'swoosh',
       }),
       key(25, undefined, { swaps: SHOUT }),
-      key(32, flip(GU_CROUCH), { ease: 'inOut', swaps: GRIT }),
+      key(32, flip(GU_CROUCH), { ease: 'linear', swaps: GRIT }),
       key(35, turning(flip(STAND), -0.6), { ease: 'step', swaps: {} }),
       key(36, turning(STAND, 0.6), { ease: 'out' }),
       key(39, STAND, { ease: 'inOut' }),
@@ -1342,7 +1360,8 @@ const clips: Record<string, AnimClip> = {
     keys: [
       key(0, flip(STAND), { ease: 'step' }),
       key(2, turning(flip(STAND), -0.6), { ease: 'step', swaps: GRIT }),
-      key(3, turning(GRAB_DIP, 0.6), { ease: 'out' }),
+      // Halfway down into the dip as he comes round, so the arms and the paddle don't jump on the turn.
+      key(3, turning(between(STAND, GRAB_DIP, 0.5), 0.6), { ease: 'out' }),
       key(8, GRAB_DIP, { ease: 'in' }),
       ...strike(10, 12, PGRAB_SCOOP, SHOUT),
       key(20, PGRAB_SCOOP, { ease: 'inOut', swaps: { face: 'faceWorried' } }),
@@ -1387,18 +1406,21 @@ const clips: Record<string, AnimClip> = {
     keys: [
       key(0, mix(HOLD, { fx3: oven(0) }), { ease: 'inOut', swaps: { fxBack: null } }),
       key(4, mix(BT_SCOOP, { fx3: oven(0) }), { ease: 'in', swaps: GRIT }),
-      key(9, mix(BT_LIFT, { fx3: oven(0.25) }), { ease: 'outBack' }),
+      key(9, mix(BT_LIFT, { fx3: oven(0.25) }), { ease: 'inOut' }),
       key(13, mix(BT_SETTLE, { fx3: oven(1) }), { ease: 'in', swaps: {} }),
       key(15, mix(turning(BT_SETTLE, 0.6), { fx3: oven(1) }), { ease: 'step', swaps: GRIT }),
-      key(16, mix(turning(BT_TURNED, -0.6), { fx3: oven(1) }), { ease: 'out' }),
+      // Each turnaround lands partway between the poses either side of it, so no limb jumps on the turn.
+      key(16, mix(turning(flip(between(BT_SETTLE, BT_TURNED_FACING, 0.33)), -0.6), { fx3: oven(1) }), {
+        ease: 'linear',
+      }),
       key(18, mix(BT_TURNED, { fx3: oven(1) }), { ease: 'inOut' }),
       key(24, mix(BT_WIND, { fx3: oven(1) }), { ease: 'in' }),
       key(29, mix(BT_SHOVE, { fx3: oven(1) }), { ease: 'linear', swaps: SHOUT }),
       key(31, mix(BT_PRESS, { fx3: oven(1, 1.12, 0.9) }), { ease: 'out' }),
-      key(34, mix(BT_PRESS, { fx3: oven(1, 0.95, 1.1) }), { ease: 'inOut' }),
+      key(34, mix(BT_PRESS, { fx3: oven(1, 0.95, 1.1) }), { ease: 'linear' }),
       key(37, mix(BT_REC, { fx3: oven(1) }), { ease: 'inOut', swaps: GRIT }),
       key(41, mix(turning(BT_REC, -0.6), { fx3: oven(1) }), { ease: 'step', swaps: {} }),
-      key(42, mix(turning(STAND, 0.6), { fx3: oven(1.05) }), { ease: 'out' }),
+      key(42, mix(turning(between(BT_REC_FACING, STAND, 0.5), 0.6), { fx3: oven(1.05) }), { ease: 'out' }),
       key(44, mix(STAND, { fx3: oven(1.1) }), { ease: 'in' }),
       key(47, mix(STAND, { fx3: oven(0) }), { ease: 'inOut' }),
       key(48, undefined, { swaps: { fxBack: null } }),
