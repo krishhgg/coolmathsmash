@@ -1,5 +1,6 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
 import { retimeClip } from '../../../render/rig/timing';
+import { LEDGE_ATTACK } from '../../../sim/constants';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import {
   AIR,
@@ -481,7 +482,11 @@ function climb(
 const ledgeClimb: AnimClip = {
   length: 33,
   swaps: HAPPY,
-  keys: armsShortWay([...climb(30, 8, [...upTo(12), 18, 24], { ...DETERMINED, ...HANDS }), key(33, STAND)]),
+  // A key on 30, where the engine sets him on the stage, so the climb's offsets reach 0 as his feet do.
+  keys: armsShortWay([
+    ...climb(30, 8, [...upTo(12), 18, 24, 30], { ...DETERMINED, ...HANDS }),
+    key(33, STAND),
+  ]),
 };
 
 /**
@@ -543,10 +548,17 @@ const ledgeAttack: AnimClip = {
     ...climb(20, 8, upTo(10), { ...DETERMINED, ...HANDS }),
     key(11, undefined, { swaps: DETERMINED }),
     key(12, mix(BALL, { body: { rot: 0 } }), { ease: 'in', swaps: SPINNING }),
-    key(16, mix(BALL, { body: { rot: 180 } }), { ease: 'linear', swaps: { ...SPINNING, fx1: 'sideSmear' } }),
-    key(24, mix(BALL, { body: { rot: 720 }, fx1: at(2, -4.5, 0, 1.1) }), { ease: 'out' }),
+    // The smear sits on the ball from the frame it shows until it goes, not tweened up from his feet or back to them.
+    key(16, mix(BALL, { body: { rot: 180 }, fx1: at(2, -5.2, 0, 1.0) }), {
+      ease: 'linear',
+      swaps: { ...SPINNING, fx1: 'sideSmear' },
+    }),
+    key(24, mix(BALL, { body: { rot: 720 }, fx1: at(2, -5.2, 0, 1.0) }), { ease: 'out' }),
     key(28, undefined, { swaps: SPINNING }),
-    key(30, mix(SHRINK, { body: { rot: 720 } }), { ease: 'out', swaps: DETERMINED }),
+    key(30, mix(SHRINK, { body: { rot: 720 }, fx1: at(2, -5.2, 0, 1.0) }), {
+      ease: 'out',
+      swaps: DETERMINED,
+    }),
     key(55, mix(STAND, { body: { rot: 720 } })),
   ]),
 };
@@ -754,3 +766,4 @@ for (const name of [
   'downB',
 ])
   clips[name] = offFloor(clips[name]!);
+clips.ledgeAttack = offFloor(clips.ledgeAttack!, LEDGE_ATTACK.moveEnd);

@@ -208,11 +208,12 @@ const CARRIED = new Set(
 );
 
 /**
- * Bakes a key on every frame and lifts the snail (his `body`) on any frame where something he carries reaches below
- * the floor: a shell turning on its rim, a stretched foot, a tween through a low pose. Effects on the free bones stay
- * where they are, and frames already clear of the floor are unchanged.
+ * Bakes a key on every frame and lifts the snail (his `body`) on any frame from `from` where something he carries
+ * reaches below the floor: a shell turning on its rim, a stretched foot, a tween through a low pose. Effects on the
+ * free bones stay where they are, and frames already clear of the floor are unchanged. A ledge getup passes the frame
+ * the engine sets him on the stage, as before it the floor is the ledge's, not his.
  */
-export function offFloor(clip: AnimClip): AnimClip {
+export function offFloor(clip: AnimClip, from = 0): AnimClip {
   const art = { rig, clips: { c: clip }, palettes: { default: {} }, height: 0, icon: '' } as FighterArt;
   const slots = rig.slots.filter((s) => CARRIED.has(s.bone));
   const keys: Key[] = [];
@@ -225,7 +226,7 @@ export function offFloor(clip: AnimClip): AnimClip {
         return [name, { x: b.x - x, y: b.y - y, rot: b.rot - rot, sx: b.sx / sx, sy: b.sy / sy }];
       }),
     );
-    if (low > 0) pose.body = { ...pose.body, y: pose.body!.y! - low };
+    if (low > 0 && f >= from) pose.body = { ...pose.body, y: pose.body!.y! - low };
     let swaps: Key['swaps'];
     let z: Key['z'];
     for (const k of clip.keys) {
