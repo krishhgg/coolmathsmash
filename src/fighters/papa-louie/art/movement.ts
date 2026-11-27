@@ -1081,7 +1081,7 @@ const raw: Record<string, AnimClip> = {
     length: stats.dashFrames,
     swaps: DETERMINED,
     keys: [
-      ...settle(DASH[0], DASH[1], 0, 2, 'out', { swaps: ANGRY }),
+      ...settle(DASH[0], DASH[1], 0, 2, 'linear', { swaps: ANGRY }),
       ...settle(DASH[1], DASH[2], 2, 5, 'linear', { swaps: DETERMINED }),
       key(5, DASH[2], { ease: 'in' }),
       key(8, DASH[3], { ease: 'out' }),

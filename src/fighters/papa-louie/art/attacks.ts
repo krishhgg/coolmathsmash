@@ -1066,7 +1066,7 @@ const clips: Record<string, AnimClip> = {
       key(0, STAND, { ease: 'inOut' }),
       key(1, undefined, { z: PADDLE_BEHIND }),
       key(5, FS_WIND, { ease: 'out', swaps: { ...GRIT, handB: 'fist' } }),
-      key(10, FS_COIL, { ease: 'in' }),
+      key(10, FS_COIL, { ease: 'linear' }),
       key(12, mix(FS_SWING, { fx1: smear(wristF(FS_SWING), -150, true) }), {
         ease: 'linear',
         swaps: { ...SHOUT, fx1: 'swoosh' },
