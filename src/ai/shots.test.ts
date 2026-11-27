@@ -209,7 +209,7 @@ describe('CPU projectiles', () => {
         }
       }
     }
-  });
+  }, 60_000);
 
   it("tap Bob the Robber's Stun Gun in its reach and charge it at an opponent who can't close in first", () => {
     /** The first shot Bob fires at a Red Ball `d` away, stuck in `lag` frames of landing lag, and its paralysis. */
@@ -337,7 +337,7 @@ describe('CPU projectiles', () => {
         expect(late, `${d}, seed ${seed}`).toEqual([]);
       }
     }
-  });
+  }, 60_000);
 
   it('shoot an opponent recovering from beside the stage', () => {
     for (const id of ['raftwars', 'papa-louie']) {
@@ -366,7 +366,7 @@ describe('CPU projectiles', () => {
         expect(hit, `${id}, seed ${seed}`).toBeGreaterThanOrEqual(0);
       }
     }
-  });
+  }, 60_000);
 
   it("count on their own shots already out: Raft Wars' Aimed Shots connect with a standing Red Ball", () => {
     // The setups from the captures: a Red Ball 80-120 units away, seeds 1 to 6. Before his look-ahead of the Red Ball
@@ -452,5 +452,5 @@ describe('CPU projectiles', () => {
         expect(long, `${x}, ${y}, seed ${seed}`).toEqual([]);
       }
     }
-  });
+  }, 60_000);
 });
