@@ -1,7 +1,7 @@
 import { pointOf, reach, type Pose } from '../../../render/rig/author';
-import { flattenPath } from '../../../render/rig/geometry';
-import { worldTransforms, type Affine, type BoneTransform } from '../../../render/rig/sample';
-import type { BonePose, Key } from '../../../render/rig/types';
+import { flattenPath, poseBounds } from '../../../render/rig/geometry';
+import { samplePose, worldTransforms, type Affine, type BoneTransform } from '../../../render/rig/sample';
+import type { AnimClip, BonePose, FighterArt, Key } from '../../../render/rig/types';
 import { GRIP_FRONT, GRIP_REAR, MUZZLE, shoes } from './parts';
 import { FOOT, HAND, rig } from './rig';
 
@@ -160,33 +160,93 @@ export function muzzle(pose: Pose): [number, number] {
   return at(pose, 'gun', ...MUZZLE);
 }
 
-/** Merges limb rotations so every keyed limb turns the short way from the previous posed key. */
-const LIMBS = [
-  'armB',
-  'foreB',
-  'armF',
-  'foreF',
-  'thighB',
-  'shinB',
-  'footB',
-  'thighF',
-  'shinF',
-  'footF',
-  'gun',
-];
+const PARENT = Object.fromEntries(rig.bones.map((b) => [b.name, b.parent]));
+
+/** `deg` taken by whole turns to the nearest of `near`. */
+const nearest = (deg: number, near: number) => deg - 360 * Math.round((deg - near) / 360);
+
+/**
+ * Turns every part the short way from one posed key to the next (a bone a key leaves out tweens from rest). Each
+ * part is measured with the parts it hangs from (its own turn plus its parents'), so a forearm and upper arm that
+ * each turn the short way can't add up to the long way round, and the launcher can't swing the long way round
+ * when the body's angle wraps. A lean of the body counts; a turn of the body past 90 degrees (a roll) carries the
+ * rest round with it, and `body` keeps its authored angles, so spins still turn as far as they are keyed.
+ */
 export function shortTurns(keys: Key[]): Key[] {
   const last: Record<string, number> = {};
+  let body: number | undefined;
   return keys.map((k) => {
     if (!k.pose) return k;
     const pose = { ...k.pose };
-    for (const bone of LIMBS) {
-      const rot = pose[bone]?.rot ?? 0;
-      const turned = rot - 360 * Math.round((rot - (last[bone] ?? rot)) / 360);
-      if (pose[bone]) pose[bone] = { ...pose[bone], rot: turned };
-      last[bone] = pose[bone] ? turned : 0;
+    const now: Record<string, number> = {};
+    const turned = pose.body?.rot ?? 0;
+    const lean = body === undefined ? 0 : nearest(turned - body, 0);
+    now.body = (last.body ?? 0) + (Math.abs(lean) > 90 ? 0 : lean);
+    body = turned;
+    for (const { name } of rig.bones) {
+      if (name === 'root' || name === 'body') continue;
+      const parent = PARENT[name];
+      const above = parent && parent !== 'root' ? now[parent]! : 0;
+      let rot = pose[name]?.rot ?? 0;
+      const was = last[name];
+      if (was !== undefined) rot = nearest(above + rot, was) - above;
+      if (rot !== 0 || pose[name]?.rot !== undefined) pose[name] = { ...pose[name], rot: round(rot) };
+      now[name] = above + rot;
     }
+    Object.assign(last, now);
     return { ...k, pose };
   });
+}
+
+/** `a` moved `t` of the way to `b`, bone by bone, each part turning the short way as `shortTurns` tweens it. */
+export function between(a: Pose, b: Pose, t: number): Pose {
+  const [ka, kb] = shortTurns([key(0, a), key(1, b)]).map((k) => k.pose!);
+  const out: Pose = {};
+  const lerp = (u: number, v: number) => round(u + (v - u) * t);
+  for (const bone of new Set([...Object.keys(ka!), ...Object.keys(kb!)])) {
+    const [p, q] = [ka![bone] ?? {}, kb![bone] ?? {}];
+    out[bone] = {
+      x: lerp(p.x ?? 0, q.x ?? 0),
+      y: lerp(p.y ?? 0, q.y ?? 0),
+      rot: lerp(p.rot ?? 0, q.rot ?? 0),
+      sx: lerp(p.sx ?? 1, q.sx ?? 1),
+      sy: lerp(p.sy ?? 1, q.sy ?? 1),
+    };
+  }
+  return out;
+}
+
+/** Slots left out when a frame is measured against the floor: the effects, which cross it freely. */
+const EFFECTS = new Set(rig.slots.filter((s) => s.decor || /^(hit|rocket)/.test(s.name)).map((s) => s.name));
+
+/**
+ * `clip` keyed on every frame, each one lifted (through `body`) wherever its lowest drawn part (effects left out)
+ * would sit under the floor, so a tween between two planted poses can't dip a sneaker or a knee into it. Swaps,
+ * draw orders and step keys stay on their frames.
+ */
+export function onFloor(clip: AnimClip): AnimClip {
+  const art: FighterArt = { rig, clips: { clip }, palettes: { default: {} }, height: 0, icon: '' };
+  const measure: FighterArt = {
+    ...art,
+    rig: { ...rig, slots: rig.slots.filter((s) => !EFFECTS.has(s.name)) },
+  };
+  const keys = Array.from({ length: clip.length + 1 }, (_, frame) => {
+    const sampled = samplePose(art, 'clip', frame, frame);
+    const lift = Math.max(0, poseBounds(measure, sampled)[3]);
+    const pose: Pose = Object.fromEntries(
+      rig.bones.map(({ name, x, y, rot = 0, sx = 1, sy = 1 }) => {
+        const p = sampled.local[name]!;
+        const dy = name === 'body' ? lift : 0;
+        return [name, { x: p.x - x, y: p.y - y - dy, rot: p.rot - rot, sx: p.sx / sx, sy: p.sy / sy }];
+      }),
+    );
+    const authored = clip.keys.filter((k) => k.frame === frame).reverse();
+    const swaps = authored.find((k) => k.swaps)?.swaps;
+    const z = authored.find((k) => k.z)?.z;
+    const step = authored.find((k) => k.pose)?.ease === 'step';
+    return key(frame, pose, { ease: step ? 'step' : 'linear', ...(swaps && { swaps }), ...(z && { z }) });
+  });
+  return { ...clip, keys };
 }
 
 /** Draw orders that move `slots` (in order) just above slot `over`; slot i draws at z = i. */

@@ -327,8 +327,11 @@ export function passesPlatforms(x: Ctx): boolean {
 function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
   const { f, stage } = x;
   const movingDown = f.vel.y + f.kb.y <= 0;
+  // A solid floor catches a fighter that crosses it from above whichever way it moves: one rising more slowly than a
+  // slope ahead rises still goes from above the slope to below it, into the ground (Duck's Running Ram, nearly level,
+  // into the side of Forest Temple's dip). Soft platforms catch only a falling fighter, so jumps pass up through them.
   for (const e of stage.edges) {
-    if (e.kind !== 'floor' || !movingDown || !stage.present.solids[e.solid]) continue;
+    if (e.kind !== 'floor' || !stage.present.solids[e.solid]) continue;
     if (f.pos.x < edgeMinX(e) - EPS || f.pos.x > edgeMaxX(e) + EPS) continue;
     const yNow = floorY(e, f.pos.x);
     const yPrev = floorY(e, Math.min(Math.max(prev.x, edgeMinX(e)), edgeMaxX(e)));

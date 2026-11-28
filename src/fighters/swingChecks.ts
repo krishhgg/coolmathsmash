@@ -6,7 +6,7 @@ import {
   type Finding,
   type SwingChecks,
 } from '../render/rig/swingChecks';
-import { swingChecks as bob } from './bob-the-robber/art/swings';
+import { LEDGE_ATTACK, LEDGE_CLIMB, LEDGE_ROLL } from '../sim/constants';
 import { allFighters } from './registry';
 import type { FighterDef } from './types';
 
@@ -17,9 +17,9 @@ import type { FighterDef } from './types';
 
 /**
  * Clips with no floor under them: jumps, falls and tumbling, the air dodge, the up special (a recovery), hanging
- * from a ledge and the climb, roll and attack that start from the hang, the respawn platform, being held, the
- * shield-break launch and Final Smash cut scenes. Aerials (move kind `aerial`) and clips with "Air" in their name
- * are in the air too.
+ * from a ledge and the climb, roll and attack that start from the hang, the respawn platform, being held and the
+ * shield-break launch. Aerials (move kind `aerial`) and clips with "Air" in their name are in the air too. A Final
+ * Smash cut scene plays over the stage with its floor drawn, so it is on the ground.
  */
 const AIR = new Set([
   'jump',
@@ -41,14 +41,31 @@ const AIR = new Set([
   'respawn',
   'grabbed',
   'shieldBreak',
-  'finalSmashCinematic',
 ]);
+
+/**
+ * The ledge getups stand on the stage from the frame the engine finishes moving them there (src/sim/actions/ledge.ts),
+ * so the floor check runs on them from that frame.
+ */
+const LEDGE_LANDS: Record<string, number> = {
+  ledgeClimb: LEDGE_CLIMB.moveEnd,
+  ledgeRoll: LEDGE_ROLL.moveEnd,
+  ledgeAttack: LEDGE_ATTACK.moveEnd,
+};
 
 const inAir = (def: FighterDef, clip: string) =>
   AIR.has(clip) || def.moves?.[clip]?.kind === 'aerial' || /Air/.test(clip);
 
-/** Fighters' own lists and allowances, which win over the defaults above for the clips they name. */
-const OWN: Record<string, SwingChecks> = { 'bob-the-robber': bob };
+/**
+ * Fighters' own lists and allowances, which win over the defaults above for the clips they name. Each fighter keeps
+ * them in its own `src/fighters/<id>/art/swings.ts`, exporting `swingChecks`, so adding one touches no shared line.
+ * A fighter that shares another's art re-exports that fighter's checks from its own folder.
+ */
+const OWN: Record<string, SwingChecks> = Object.fromEntries(
+  Object.entries(import.meta.glob<{ swingChecks: SwingChecks }>('./*/art/swings.ts', { eager: true })).map(
+    ([path, module]) => [path.split('/')[1]!, module.swingChecks],
+  ),
+);
 
 /** The swing checks for one fighter: every clip it has, on the ground or in the air. */
 export function swingChecksFor(id: string, def: FighterDef): SwingChecks {
@@ -56,10 +73,13 @@ export function swingChecksFor(id: string, def: FighterDef): SwingChecks {
   const own = OWN[id];
   const named = new Set([...(own?.ground ?? []), ...(own?.air ?? [])]);
   const rest = Object.keys(art?.clips ?? {}).filter((clip) => !named.has(clip));
+  const air = [...(own?.air ?? []), ...rest.filter((clip) => inAir(def, clip))];
+  const lands = Object.entries(LEDGE_LANDS).filter(([clip]) => air.includes(clip));
   return {
     ...own,
     ground: [...(own?.ground ?? []), ...rest.filter((clip) => !inAir(def, clip))],
-    air: [...(own?.air ?? []), ...rest.filter((clip) => inAir(def, clip))],
+    air,
+    groundFrom: { ...Object.fromEntries(lands), ...own?.groundFrom },
   };
 }
 
