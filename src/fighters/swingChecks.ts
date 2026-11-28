@@ -19,9 +19,9 @@ import type { FighterDef } from './types';
 
 /**
  * Clips with no floor under them: jumps, falls and tumbling, the air dodge, the up special (a recovery), hanging
- * from a ledge and the climb, roll and attack that start from the hang, the respawn platform, being held, the
- * shield-break launch and Final Smash cut scenes. Aerials (move kind `aerial`) and clips with "Air" in their name
- * are in the air too.
+ * from a ledge and the climb, roll and attack that start from the hang, the respawn platform, being held and the
+ * shield-break launch. Aerials (move kind `aerial`) and clips with "Air" in their name are in the air too. A Final
+ * Smash cut scene plays over the stage with its floor drawn, so it is on the ground.
  */
 const AIR = new Set([
   'jump',
@@ -43,7 +43,6 @@ const AIR = new Set([
   'respawn',
   'grabbed',
   'shieldBreak',
-  'finalSmashCinematic',
 ]);
 
 const inAir = (def: FighterDef, clip: string) =>
