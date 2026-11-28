@@ -225,47 +225,103 @@ export interface Branch {
  * it would have alone.
  */
 export function runBranches(m: MatchState, frames: number, branches: readonly Branch[]): Sample[][] {
+  const r = branchRun(m, frames, branches);
+  r.advance(Infinity);
+  return r.paths;
+}
+
+/** runBranches played a few frames at a time: `advance` until it says it is done, then read `paths`. */
+export interface BranchRun {
+  /**
+   * Play whole frames of every driver still going until `budget` simulated frames are spent or every driver has
+   * stopped. A frame is never split, so it can go over by one frame's worth. True once every driver has stopped.
+   */
+  advance(budget: number): boolean;
+  /** Every driver's samples: complete once `advance` has returned true. */
+  readonly paths: Sample[][];
+}
+
+export function branchRun(m: MatchState, frames: number, branches: readonly Branch[]): BranchRun {
   const out: Sample[][] = branches.map(() => []);
   let live: { m: MatchState; members: number[]; path: Sample[] }[] = [
     { m, members: branches.map((_, i) => i), path: [] },
   ];
   const inputs = [neutralInput()];
-  for (let t = 0; t < frames && live.length; t++) {
-    const next: typeof live = [];
-    for (const b of live) {
-      const f = b.m.fighters[0]!;
-      const parts: { input: InputFrame; members: number[] }[] = [];
-      for (const i of b.members) {
-        const input = branches[i]!.drive(t, f);
-        const same = parts.find((p) => sameInput(p.input, input));
-        if (same) same.members.push(i);
-        else parts.push({ input, members: [i] });
+  let t = 0;
+  const done = () => {
+    if (t < frames && live.length) return false;
+    // Drivers still going when the frames run out.
+    for (const b of live) for (const i of b.members) out[i] = b.path;
+    live = [];
+    return true;
+  };
+  return {
+    paths: out,
+    advance(budget) {
+      let spent = 0;
+      while (!done() && spent < budget) {
+        const next: typeof live = [];
+        for (const b of live) {
+          const f = b.m.fighters[0]!;
+          const parts: { input: InputFrame; members: number[] }[] = [];
+          for (const i of b.members) {
+            const input = branches[i]!.drive(t, f);
+            const same = parts.find((p) => sameInput(p.input, input));
+            if (same) same.members.push(i);
+            else parts.push({ input, members: [i] });
+          }
+          // Copy the match and the path so far for each new input, before the first copy steps on.
+          const copies = parts.map((_, k) => (k === 0 ? b.m : structuredClone(b.m)));
+          const paths = parts.map((_, k) => (k === 0 ? b.path : b.path.slice()));
+          parts.forEach((p, k) => {
+            const pm = copies[k]!;
+            const path = paths[k]!;
+            inputs[0] = p.input;
+            stepMatch(pm, inputs);
+            spent++;
+            const g = pm.fighters[0]!;
+            path.push(sample(g, getFighter(g.fighter).stats));
+            const over = g.action === 'ko' || g.action === 'out';
+            const going: number[] = [];
+            const stopped: number[] = [];
+            for (const i of p.members) (over || branches[i]!.until?.(g, t) ? stopped : going).push(i);
+            // Drivers that stop here keep the path as it is now; the rest go on adding to it.
+            const kept = going.length ? path.slice() : path;
+            for (const i of stopped) out[i] = kept;
+            if (going.length) next.push({ m: pm, members: going, path });
+          });
+        }
+        live = next;
+        t++;
       }
-      // Copy the match and the path so far for each new input, before the first copy steps on.
-      const copies = parts.map((_, k) => (k === 0 ? b.m : structuredClone(b.m)));
-      const paths = parts.map((_, k) => (k === 0 ? b.path : b.path.slice()));
-      parts.forEach((p, k) => {
-        const pm = copies[k]!;
-        const path = paths[k]!;
-        inputs[0] = p.input;
-        stepMatch(pm, inputs);
-        const g = pm.fighters[0]!;
-        path.push(sample(g, getFighter(g.fighter).stats));
-        const over = g.action === 'ko' || g.action === 'out';
-        const going: number[] = [];
-        const stopped: number[] = [];
-        for (const i of p.members) (over || branches[i]!.until?.(g, t) ? stopped : going).push(i);
-        // Drivers that stop here keep the path as it is now; the rest go on adding to it.
-        const kept = going.length ? path.slice() : path;
-        for (const i of stopped) out[i] = kept;
-        if (going.length) next.push({ m: pm, members: going, path });
-      });
-    }
-    live = next;
+      return done();
+    },
+  };
+}
+
+/**
+ * Whether two values of plain match data (a MatchState and everything in it) are the same all the way down: the same
+ * keys, numbers equal bit for bit (0 and -0 differ, NaN equals NaN), arrays, Maps and Sets the same throughout.
+ */
+export function sameState(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (a instanceof Map || b instanceof Map) {
+    if (!(a instanceof Map && b instanceof Map) || a.size !== b.size) return false;
+    for (const [k, v] of a) if (!b.has(k) || !sameState(v, b.get(k))) return false;
+    return true;
   }
-  // Drivers still going when the frames run out.
-  for (const b of live) for (const i of b.members) out[i] = b.path;
-  return out;
+  if (a instanceof Set || b instanceof Set) {
+    if (!(a instanceof Set && b instanceof Set) || a.size !== b.size) return false;
+    for (const v of a) if (!b.has(v)) return false;
+    return true;
+  }
+  const ka = Object.keys(a);
+  if (ka.length !== Object.keys(b).length) return false;
+  const ra = a as Record<string, unknown>;
+  const rb = b as Record<string, unknown>;
+  return ka.every((k) => Object.prototype.hasOwnProperty.call(rb, k) && sameState(ra[k], rb[k]));
 }
 
 function sameInput(a: InputFrame, b: InputFrame): boolean {

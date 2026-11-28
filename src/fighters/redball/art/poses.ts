@@ -1,6 +1,6 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
 import type { Key } from '../../../render/rig/types';
-import { TONGUE } from './parts';
+import { R, TONGUE } from './parts';
 import { rig } from './rig';
 
 /**
@@ -27,6 +27,12 @@ export const ground = (sx = 1, sy = 1, x = 0, lift = 0): Pose => ({ base: { sx, 
 
 /** Squash or stretch about his centre, for the air; `x` and `y` move the ball off the base. */
 export const body = (sx = 1, sy = 1, x = 0, y = 0): Pose => ({ core: { sx, sy, x, y } });
+
+/**
+ * `body` on the floor: a stretch about his centre would push his bottom through the floor, so a stretched ball
+ * (sy > 1) is lifted by as much and stays standing on it. A squash still lifts his bottom off the floor, as `body`.
+ */
+export const stood = (sx = 1, sy = 1, x = 0): Pose => body(sx, sy, x, -Math.max(0, sy - 1) * R);
 
 /** Turns the face: rolling, spinning and leaning (degrees, > 0 rolls forwards). */
 export const roll = (deg: number): Pose => ({ spin: { rot: deg } });

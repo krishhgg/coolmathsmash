@@ -20,7 +20,16 @@ import { groundSpan, surfaceY } from '../sim/movement';
 import { STICK, TURNING_MOVES, press } from './inputs';
 import { actionable, knowledge, type FighterKnowledge } from './knowledge';
 import { cpuLevel, type CpuLevel } from './levels';
-import { overlaps, run, runAmong, soloMatch, type Driver, type OwnFrame, type Sample } from './look';
+import {
+  overlaps,
+  run,
+  runAmong,
+  sameState,
+  soloMatch,
+  type Driver,
+  type OwnFrame,
+  type Sample,
+} from './look';
 import { findAttacks, groundEndX, type Attack, type Self, type Target } from './options';
 import {
   airAerial,
@@ -43,7 +52,18 @@ import {
   wait,
   type Program,
 } from './programs';
-import { chooseDI, planRecovery, recoveryDriver, targetLedge, type RecoveryPlan } from './recovery';
+import {
+  chooseDI,
+  choosePlan,
+  planAims,
+  planRecovery,
+  planStart,
+  planWork,
+  recoveryDriver,
+  targetLedge,
+  type PlanWork,
+  type RecoveryPlan,
+} from './recovery';
 import {
   clampToStage,
   driftBack,
@@ -115,6 +135,14 @@ export class Cpu {
   private rolls = new Map<string, boolean>();
   private fastFallAir = -1;
   private wantFastFall = false;
+  /**
+   * A recovery plan worked out ahead, during hitstun (planAhead): the frame it is for, the match it starts from then
+   * as predicted (planStart), the plans played so far, and the fighter as predicted on each frame until then.
+   */
+  private ahead: { frame: number; start: MatchState; work: PlanWork; path: Map<number, string> } | null =
+    null;
+  /** The frame planAhead last predicted on. */
+  private aheadAt = -Infinity;
 
   constructor(
     readonly port: number,
@@ -129,9 +157,60 @@ export class Cpu {
     this.remember(state);
     const me = state.fighters[this.port];
     const out = me ? this.act(state, me) : neutralInput();
-    const q = (v: number) => Math.max(-100, Math.min(100, Math.round(v))) || 0;
-    this.last = { x: q(out.x), y: q(out.y), cx: q(out.cx), cy: q(out.cy), buttons: out.buttons };
+    this.last = quantize(out);
+    if (me) this.planAhead(state, me);
     return { ...this.last };
+  }
+
+  /**
+   * In hitstun off the stage, the CPU's inputs until it can act are known: its DI while the launch lasts, then nothing.
+   * So the match on the frame hitstun ends, when the CPU plans its recovery (recover), can be predicted, and the plans
+   * played out from it on the frames before, PLAN_AHEAD_FRAMES of simulation a frame. On that frame recover() uses
+   * them only if the match is exactly as predicted, and plans from scratch otherwise, so the plan is the same either
+   * way. The prediction is dropped as soon as the fighter strays from it (hit again, say), and made again.
+   */
+  private planAhead(state: Readonly<MatchState>, me: Readonly<FighterState>): void {
+    const a = this.ahead;
+    if (a && (state.frame >= a.frame || a.path.get(state.frame) !== motion(me))) this.ahead = null;
+    if (this.ahead) {
+      this.ahead.work.run.advance(PLAN_AHEAD_FRAMES);
+      return;
+    }
+    if (me.ground !== null || !(me.launch || me.hitstun > 0)) return;
+    if (state.frame - this.aheadAt < PREDICT_EVERY) return;
+    this.aheadAt = state.frame;
+    this.ahead = this.predictPlan(state, me);
+  }
+
+  /** planAhead's prediction: step a copy with this frame's input, then the DI while launched and nothing after. */
+  private predictPlan(state: Readonly<MatchState>, me: Readonly<FighterState>): typeof this.ahead {
+    // Whoever holds a ledge comes too, with no input, as the planner has them (planStart).
+    const m = planStart(state, me, state.players[this.port]!.control);
+    const di = this.diStick ? quantize(this.diStick) : NEUTRAL;
+    const path = new Map<number, string>();
+    let input: InputFrame = this.last;
+    for (let n = 0; n < PREDICT_FRAMES; n++) {
+      stepMatch(m, [input]);
+      const g = m.fighters[0]!;
+      if (g.ground !== null || g.action === 'ko' || g.action === 'out') return null;
+      path.set(m.frame, motion(g));
+      if (
+        g.launch ||
+        g.action === 'hitstun' ||
+        (g.action === 'tumble' && g.hitstun > 0) ||
+        BUSY.has(g.action)
+      ) {
+        input = g.launch ? di : NEUTRAL;
+        continue;
+      }
+      // The first frame the CPU acts for itself again: act() plans a recovery then if the fighter is off the stage.
+      const info = stageInfo(m);
+      if (g.action.startsWith('ledge') || floorBelow(info, g.pos.x, g.pos.y) !== null) return null;
+      const start = planStart(m, g, m.players[0]!.control);
+      const k = knowledge(g.fighter, m.config.stage);
+      return { frame: m.frame, start: structuredClone(start), work: planWork(start, g, info, k), path };
+    }
+    return null;
   }
 
   private rand(): number {
@@ -547,7 +626,19 @@ export class Cpu {
       if (me.action !== 'helpless' && !actionable(me) && plan) return this.recoveryDrive!(t, me);
       const control = state.players[this.port]!.control;
       this.recoveryBusy = !free;
-      this.recovery = planRecovery(state, me, control, info, k, this.lv, this.rng);
+      // Plans worked out ahead for this frame (planAhead) count only if the match is exactly as they took it to be, ledge
+      // holders and all, and they aim at the same ledge and gap corner.
+      const ahead = this.ahead;
+      this.ahead = null;
+      const work =
+        ahead?.frame === state.frame &&
+        sameState(ahead.start, planStart(state, me, control)) &&
+        sameState(ahead.work.aims, planAims(info, k, me))
+          ? ahead.work
+          : null;
+      this.recovery = work
+        ? choosePlan(work, state.frame, this.lv, this.rng)
+        : planRecovery(state, me, control, info, k, this.lv, this.rng);
       this.recoveryDrive = recoveryDriver(info, k, this.recovery.params);
       return this.recoveryDrive(0, me);
     }
@@ -1127,6 +1218,23 @@ function techPress(
   const end = path.at(-1)?.action;
   if (end !== 'techInPlace' && end !== 'techRoll') return null;
   return dodged ? 'dodge' : 'tech';
+}
+
+/** Simulated frames a frame of hitstun spends on plans worked out ahead (planAhead). */
+const PLAN_AHEAD_FRAMES = 300;
+/** How far ahead planAhead predicts the end of hitstun, and how often it predicts again after straying. */
+const PREDICT_FRAMES = 240;
+const PREDICT_EVERY = 8;
+
+/** An input as the CPU hands it over: sticks rounded into -100..100. */
+function quantize(i: InputFrame): InputFrame {
+  const q = (v: number) => Math.max(-100, Math.min(100, Math.round(v))) || 0;
+  return { x: q(i.x), y: q(i.y), cx: q(i.cx), cy: q(i.cy), buttons: i.buttons };
+}
+
+/** Where a fighter is and what it is doing, exactly, to tell when it strays from a prediction. */
+function motion(f: Readonly<FighterState>): string {
+  return [f.pos.x, f.pos.y, f.vel.x, f.vel.y, f.kb.x, f.kb.y, f.action, f.actionFrame, f.hitstun].join();
 }
 
 /** Knocked down, getting up, or in a grab: nothing to input until it ends. */

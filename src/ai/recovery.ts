@@ -7,7 +7,7 @@ import { ledgePresent } from '../sim/stage';
 import { actionable, type FighterKnowledge } from './knowledge';
 import { STICK, press } from './inputs';
 import type { CpuLevel } from './levels';
-import { run, runBranches, soloMatch, type Driver, type Sample } from './look';
+import { branchRun, run, soloMatch, type BranchRun, type Driver, type Sample } from './look';
 import { floorBelow, type StageInfo } from './stage';
 import * as SimMath from '../sim/math';
 
@@ -198,7 +198,12 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
   };
 }
 
-function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterState>): RecoveryParams[] {
+function candidates(
+  info: StageInfo,
+  k: FighterKnowledge,
+  f: Readonly<FighterState>,
+  aims: PlanAims,
+): RecoveryParams[] {
   const specials = (k.hints.recovery ?? ['upB', 'sideB']).filter((s) => k.air[s]);
   const out: RecoveryParams[] = [];
   const none = {
@@ -214,7 +219,7 @@ function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterSta
   // With a jump left, plans also try the special without it (Infinity): from under the stage Fluffy's Point Grapple
   // used at once reaches the ledge, where a double jump first takes him too high and too far out.
   const jumps = canJump ? [Infinity, 1, 8, 16, 26, 38, 52] : [Infinity];
-  const L = targetLedge(info, f.pos.x);
+  const L = aims.ledge;
   const lowSide = L !== null && f.pos.y < L.y;
   const under = lowSide && L.side * (L.x - f.pos.x) > 0;
   for (const jumpAt of jumps) {
@@ -235,8 +240,8 @@ function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterSta
   // In a gap in the ground (Run Tunnel's floor), the nearest ledge can be past the floor on either side, with the
   // floor's underside in the way. When a corner beside the gap is nearer than any ledge, also try rising in the gap and
   // landing on the floor beside it.
-  const gap = gapTarget(info, f.pos.x, k.stats.width);
-  if (gap && (!L || Math.abs(gap.x - f.pos.x) < Math.abs(L.x - f.pos.x)))
+  const gap = aims.gap;
+  if (gap)
     for (const jumpAt of jumps) {
       out.push({ ...none, jumpAt, gap });
       for (const special of specials) {
@@ -258,26 +263,62 @@ function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterSta
 const LIMIT = 260;
 
 /**
- * Every plan in `plans`, played out on a copy of the match (runBranches: plans share the frames on which they press
- * the same inputs, until the double jump or the special parts them): its path, whether it ends on the ledge, on the
- * stage or neither, and how near it came to the ledge.
+ * A recovery plan's work before the choice: every candidate plan for `f`, played out together (branchRun: plans share
+ * the frames on which they press the same inputs, until the double jump or the special parts them) from `start`, the
+ * match planStart makes for `f` on the frame the plan is for. planRecovery does it all at once; the CPU can also do it
+ * a few frames at a time on the frames before it needs the plan (cpu.ts, planAhead).
  */
-function simulate(
+export interface PlanWork {
+  f: Readonly<FighterState>;
+  info: StageInfo;
+  aims: PlanAims;
+  plans: RecoveryParams[];
+  run: BranchRun;
+}
+
+/**
+ * What a recovery plan for `f` aims at, as read from the stage (info): the ledge (targetLedge), and the floor's
+ * corner beside a gap (gapTarget) when that is nearer. planAhead (cpu.ts) uses its plans only when these are the same
+ * on the frame they are for as it predicted.
+ */
+export interface PlanAims {
+  ledge: Ledge | null;
+  gap: Gap | null;
+}
+
+export function planAims(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterState>): PlanAims {
+  const ledge = targetLedge(info, f.pos.x);
+  const gap = gapTarget(info, f.pos.x, k.stats.width);
+  const nearer = gap && (!ledge || Math.abs(gap.x - f.pos.x) < Math.abs(ledge.x - f.pos.x));
+  return { ledge, gap: nearer ? gap : null };
+}
+
+/**
+ * The match recovery plans for `f` play out on: a solo match of it (soloMatch) with whoever holds a ledge, as they
+ * are and with no input. A tether doesn't latch onto a held ledge (tether.ts), so Fluffy's Quick Grapple under one
+ * fails there as in the match, and a plain grab trumps them as in the match.
+ */
+export function planStart(
   state: Readonly<MatchState>,
   f: Readonly<FighterState>,
   control: Readonly<ControlState>,
-  info: StageInfo,
-  k: FighterKnowledge,
-  plans: readonly RecoveryParams[],
-): { path: Sample[]; outcome: RecoveryPlan['outcome']; miss: number }[] {
-  // Whoever holds a ledge comes too, standing still: a tether doesn't latch onto a held ledge (tether.ts), so Fluffy's
-  // Quick Grapple under one fails there as in the match, and a plain grab trumps them as in the match.
+): MatchState {
   const holders = state.fighters.filter(
     (o) => o.port !== f.port && o.ledge >= 0 && (o.action === 'ledgeCatch' || o.action === 'ledgeHang'),
   );
-  const m = soloMatch(state, f, control, holders);
-  const paths = runBranches(
-    m,
+  return soloMatch(state, f, control, holders);
+}
+
+export function planWork(
+  start: MatchState,
+  f: Readonly<FighterState>,
+  info: StageInfo,
+  k: FighterKnowledge,
+): PlanWork {
+  const aims = planAims(info, k, f);
+  const plans = candidates(info, k, f, aims);
+  const run = branchRun(
+    start,
     LIMIT,
     plans.map((params) => {
       // A plan from an entity's platform starts on the ground, and ends when the fighter comes down after leaving it.
@@ -295,32 +336,28 @@ function simulate(
       };
     }),
   );
-  const ledge = targetLedge(info, f.pos.x);
-  return paths.map((path, i) => {
+  return { f, info, aims, plans, run };
+}
+
+/**
+ * Finish `work` and choose from its plans: each one's path, whether it ends on the ledge, on the stage or neither,
+ * and how near it came to what it aimed for decide, with the level's mistakes (rng). `frame` is the match frame it is
+ * for.
+ */
+export function choosePlan(work: PlanWork, frame: number, lv: CpuLevel, rng: { rng: number }): RecoveryPlan {
+  work.run.advance(Infinity);
+  const { info } = work;
+  const tried = work.plans.map((params, i) => {
+    const path = work.run.paths[i]!;
     const end = path.at(-1);
     let outcome: RecoveryPlan['outcome'] = 'fail';
     if (end?.action === 'ledgeCatch') outcome = 'ledge';
     else if (end?.grounded && floorBelow(info, end.x, end.y + 0.1) !== null) outcome = 'land';
     // How near the plan came to what it aimed for: its gap's corner, or the ledge.
-    const L = plans[i]!.gap ?? ledge;
+    const L = params.gap ?? work.aims.ledge;
     const miss = L ? Math.min(...path.map((s) => SimMath.hypot(s.x - L.x, s.y - L.y))) : 0;
-    return { path, outcome, miss };
+    return { params, path, outcome, miss };
   });
-}
-
-/** Plan a recovery from the CPU's current state. */
-export function planRecovery(
-  state: Readonly<MatchState>,
-  f: Readonly<FighterState>,
-  control: Readonly<ControlState>,
-  info: StageInfo,
-  k: FighterKnowledge,
-  lv: CpuLevel,
-  rng: { rng: number },
-): RecoveryPlan {
-  const plans = candidates(info, k, f);
-  const sims = simulate(state, f, control, info, k, plans);
-  const tried = plans.map((params, i) => ({ params, ...sims[i]! }));
   const pick = (list: typeof tried) => list[Math.floor(nextRandom(rng) * list.length)]!;
   let chosen: (typeof tried)[number];
   const ok = tried.filter((c) => c.outcome !== 'fail');
@@ -335,7 +372,20 @@ export function planRecovery(
   } else {
     chosen = tried.reduce((a, b) => (b.miss < a.miss ? b : a));
   }
-  return { params: chosen.params, start: state.frame, path: chosen.path, outcome: chosen.outcome };
+  return { params: chosen.params, start: frame, path: chosen.path, outcome: chosen.outcome };
+}
+
+/** Plan a recovery from the CPU's current state. */
+export function planRecovery(
+  state: Readonly<MatchState>,
+  f: Readonly<FighterState>,
+  control: Readonly<ControlState>,
+  info: StageInfo,
+  k: FighterKnowledge,
+  lv: CpuLevel,
+  rng: { rng: number },
+): RecoveryPlan {
+  return choosePlan(planWork(planStart(state, f, control), f, info, k), state.frame, lv, rng);
 }
 
 /**
