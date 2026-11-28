@@ -7,6 +7,9 @@ import { wave } from './finalSmash';
  * 12 frames, gravity 0.17, falling speed 3. Charge adds up to 55 BKB; hitboxes are fixed data, so each eighth of a
  * full charge gets its own kind, `pump0` (uncharged) to `pump8` (full).
  *
+ * SmashWiki's hitbox table marks the water reflectable but not absorbable (`absorbable` left at the table's default
+ * of no), so pumps opt out of absorbers.
+ *
  * A pump has no `pierce`, so it is used up on the first fighter or shield it reaches. SmashWiki and
  * ultimateframedata.com don't say whether F.L.U.D.D.'s water does that in Ultimate or carries on through. If it
  * carries on, set `pierce`; if it is used up, the art could splash where it ends (an `entityDestroy` with reason `hit`).
@@ -27,6 +30,7 @@ function pump(tier: number): EntityDef {
   return {
     radius,
     lifetime: PUMP.lifetime,
+    absorbable: false,
     gravity: 0.17,
     maxFall: 3,
     hits: [
