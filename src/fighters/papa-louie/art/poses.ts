@@ -1,6 +1,8 @@
 import { reach, type Pose } from '../../../render/rig/author';
+import { flattenPath } from '../../../render/rig/geometry';
+import { floorContact } from '../../../render/rig/keys';
 import { worldTransforms, type BoneTransform } from '../../../render/rig/sample';
-import type { Key } from '../../../render/rig/types';
+import type { AnimClip, Key } from '../../../render/rig/types';
 import { FOOT, HAND, rig } from './rig';
 
 /**
@@ -92,6 +94,46 @@ export function twoHanded(pose: Pose, grip: Pt, deg: number): Pose {
   const back: Pt = [grip[0] - Math.sin(r) * -0.9, grip[1] + Math.cos(r) * -0.9];
   return swing(hands(pose, back, grip), deg);
 }
+
+/** The apron's waistband, in hip space: `tuckApron` shortens the apron about it. */
+const WAIST = -0.7;
+
+/**
+ * Shortens the apron (drawn as `symbols` has it) about its waistband until its hem rests on the floor, as it would
+ * bunch against it in a deep crouch.
+ */
+export function tuckApron(pose: Pose, symbols: Record<string, string | null>): Pose {
+  const shapes = symbols.apron ? rig.symbols[symbols.apron] : undefined;
+  if (!Array.isArray(shapes)) return pose;
+  let p = pose;
+  for (let i = 0; i < 3; i++) {
+    const m = worldTransforms(rig, locals(p)).apron!;
+    let [hem, depth] = [-Infinity, 0];
+    for (const shape of shapes)
+      for (const pts of flattenPath(shape.d, 4))
+        for (let j = 0; j < pts.length; j += 2) {
+          const y = m.b * pts[j]! + m.d * pts[j + 1]! + m.ty;
+          if (y > hem) [hem, depth] = [y, pts[j + 1]! - WAIST];
+        }
+    // How far the hem rises per unit the apron is shortened: under 0 it hangs upside down and can't be tucked.
+    const was = p.apron?.sy ?? 1;
+    const rise = (m.d / was) * depth;
+    if (hem <= 0.01 || rise <= 0) break;
+    const s = Math.max(0.5, was - hem / rise);
+    p = mix(p, { apron: { sy: s, y: WAIST * (1 - s) } });
+  }
+  return p;
+}
+
+/** Effects and the back hand's prop, placed in rig space or out of reach of the floor: `onFloor` leaves them out. */
+const LOOSE = new Set(['fxBack', 'fx1', 'fx2', 'prop']);
+
+/**
+ * `clip` baked on whole frames with the apron tucked up (`tuckApron`) where a crouch would sink its hem, and his
+ * body lifted on any frame where something else would still dip below the floor.
+ */
+export const onFloor = (clip: AnimClip): AnimClip =>
+  floorContact(rig, clip, { bone: 'body', adjust: tuckApron, skip: (slot) => LOOSE.has(slot) });
 
 /** Standing: feet apart under the hips, the paddle held upright at his side like a chef on parade. */
 export const STAND: Pose = swing(
