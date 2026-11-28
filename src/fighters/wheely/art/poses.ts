@@ -178,7 +178,9 @@ export function blurFast(clip: AnimClip): AnimClip {
     }
     if (blur[f]!.length)
       swaps = { ...swaps, ...Object.fromEntries(blur[f]!.map((slot) => [slot, 'wheelBlur'])) };
-    return key(f, pose, { ease: 'linear', ...(swaps ? { swaps } : {}), ...(z ? { z } : {}) });
+    // Every key states its swaps, an empty map where the clip has none, since a key without them keeps the last
+    // key's: a blur would otherwise hold until the clip's next authored swap.
+    return key(f, pose, { ease: 'linear', swaps: swaps ?? {}, ...(z ? { z } : {}) });
   });
   return { ...clip, keys };
 }

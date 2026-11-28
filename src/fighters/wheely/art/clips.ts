@@ -718,7 +718,8 @@ export const authored: Record<string, AnimClip> = {
 };
 
 const baked = Object.fromEntries(Object.entries(authored).map(([name, clip]) => [name, holdEffects(clip)]));
-const timed: Record<string, AnimClip> = {
+/** Every clip as authored and timed, before `blurFast` blurs its fast-turning wheels. */
+export const timed: Record<string, AnimClip> = {
   ...baked,
   /** The same flip, spread over the getup roll's 35 frames while the sim slides him sideways. */
   getupRoll: retimeClip(baked.getupStand!, 35),
