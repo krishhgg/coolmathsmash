@@ -7,7 +7,7 @@ import { ledgePresent } from '../sim/stage';
 import { actionable, type FighterKnowledge } from './knowledge';
 import { STICK, press } from './inputs';
 import type { CpuLevel } from './levels';
-import { run, soloMatch, type Driver, type Sample } from './look';
+import { run, runBranches, soloMatch, type Driver, type Sample } from './look';
 import { floorBelow, type StageInfo } from './stage';
 import * as SimMath from '../sim/math';
 
@@ -296,37 +296,55 @@ function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterSta
 
 const LIMIT = 260;
 
+/**
+ * Every plan in `plans`, played out on a copy of the match (runBranches: plans share the frames on which they press
+ * the same inputs, until the double jump or the special parts them): its path, whether it ends on the ledge, on the
+ * stage or neither, and how near it came to the ledge.
+ */
 function simulate(
   state: Readonly<MatchState>,
   f: Readonly<FighterState>,
   control: Readonly<ControlState>,
   info: StageInfo,
   k: FighterKnowledge,
-  params: RecoveryParams,
-): { path: Sample[]; outcome: RecoveryPlan['outcome']; miss: number } {
+  plans: readonly RecoveryParams[],
+): { path: Sample[]; outcome: RecoveryPlan['outcome']; miss: number }[] {
   // Whoever holds a ledge comes too, standing still: a tether doesn't latch onto a held ledge (tether.ts), so Fluffy's
   // Quick Grapple under one fails there as in the match, and a plain grab trumps them as in the match.
   const holders = state.fighters.filter(
     (o) => o.port !== f.port && o.ledge >= 0 && (o.action === 'ledgeCatch' || o.action === 'ledgeHang'),
   );
   const m = soloMatch(state, f, control, holders);
-  // A plan from an entity's platform starts on the ground, and ends when the fighter comes down after leaving it.
-  let left = f.ground === null;
-  const path = run(m, LIMIT, recoveryDriver(info, k, params), (g) => {
-    left ||= g.ground === null;
-    if (g.action === 'ledgeCatch') return true;
-    if (g.ground !== null) return left;
-    // The bottom blast line itself, where the sim KOs (blastZones.ts): Fluffy's Quick Grapple from 90 under the
-    // stage's middle fires 9 units above it and still reels him to the ledge.
-    return g.pos.y <= info.blast.bottom;
+  const paths = runBranches(
+    m,
+    LIMIT,
+    plans.map((params) => {
+      // A plan from an entity's platform starts on the ground, and ends when the fighter comes down after leaving it.
+      let left = f.ground === null;
+      return {
+        drive: recoveryDriver(info, k, params),
+        until: (g: Readonly<FighterState>) => {
+          left ||= g.ground === null;
+          if (g.action === 'ledgeCatch') return true;
+          if (g.ground !== null) return left;
+          // The bottom blast line itself, where the sim KOs (blastZones.ts): Fluffy's Quick Grapple from 90 under the
+          // stage's middle fires 9 units above it and still reels him to the ledge.
+          return g.pos.y <= info.blast.bottom;
+        },
+      };
+    }),
+  );
+  const ledge = targetLedge(info, f.pos.x);
+  return paths.map((path, i) => {
+    const end = path.at(-1);
+    let outcome: RecoveryPlan['outcome'] = 'fail';
+    if (end?.action === 'ledgeCatch') outcome = 'ledge';
+    else if (end?.grounded && floorBelow(info, end.x, end.y + 0.1) !== null) outcome = 'land';
+    // How near the plan came to what it aimed for: its gap's corner, or the ledge.
+    const L = plans[i]!.gap ?? ledge;
+    const miss = L ? Math.min(...path.map((s) => SimMath.hypot(s.x - L.x, s.y - L.y))) : 0;
+    return { path, outcome, miss };
   });
-  const end = path.at(-1);
-  let outcome: RecoveryPlan['outcome'] = 'fail';
-  if (end?.action === 'ledgeCatch') outcome = 'ledge';
-  else if (end?.grounded && floorBelow(info, end.x, end.y + 0.1) !== null) outcome = 'land';
-  const L = params.gap ?? targetLedge(info, f.pos.x);
-  const miss = L ? Math.min(...path.map((s) => SimMath.hypot(s.x - L.x, s.y - L.y))) : 0;
-  return { path, outcome, miss };
 }
 
 /** Plan a recovery from the CPU's current state. */
@@ -339,10 +357,9 @@ export function planRecovery(
   lv: CpuLevel,
   rng: { rng: number },
 ): RecoveryPlan {
-  const tried = candidates(info, k, f).map((params) => ({
-    params,
-    ...simulate(state, f, control, info, k, params),
-  }));
+  const plans = candidates(info, k, f);
+  const sims = simulate(state, f, control, info, k, plans);
+  const tried = plans.map((params, i) => ({ params, ...sims[i]! }));
   const pick = (list: typeof tried) => list[Math.floor(nextRandom(rng) * list.length)]!;
   let chosen: (typeof tried)[number];
   const ok = tried.filter((c) => c.outcome !== 'fail');

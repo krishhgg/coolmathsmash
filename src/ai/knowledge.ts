@@ -140,6 +140,17 @@ export interface MoveProbe {
   charged?: MoveProbe;
   /** Frames of charge this probe fired the move with (it is another probe's `charged`). */
   held?: number;
+  /**
+   * Grounded moves: how much further forward the move ends when the fighter is already moving as it starts, by the
+   * speed along its facing at the input (carriedSamples). The first sample is the probe's own start (0 standing, the
+   * dash's speed for a dash move) with nothing further. Empty for air probes.
+   */
+  carried: { v: number; dx: number }[];
+  /**
+   * The fighter stays on the ground through the whole move, standing or moving, so the sim stops it at the end of the
+   * ground it is on rather than letting it off.
+   */
+  grounded: boolean;
 }
 
 export interface FighterKnowledge {
@@ -204,6 +215,25 @@ export function actionable(f: { action: string; hitstun: number }): boolean {
   return ACTIONABLE.has(f.action) || (f.action === 'tumble' && f.hitstun <= 0);
 }
 
+/**
+ * Probe every move of `fighters` on `stageId` now, and of every form they can turn into in a match (a move's
+ * `transform`, or CpuHints.forms), so a CPU's first frame, or its first frame in a new form, doesn't stop for it. The
+ * probes are cached, so a match plays the same whether they were made here or on the frame a CPU first needs them.
+ * Returns the knowledge made, one per fighter and form.
+ */
+export function warmKnowledge(fighters: readonly string[], stageId: string): FighterKnowledge[] {
+  const ids: string[] = [];
+  const add = (id: string) => {
+    if (ids.includes(id)) return;
+    ids.push(id);
+    const def = getFighter(id);
+    for (const m of Object.values(def.moves ?? {})) if (m.transform) add(m.transform.into);
+    for (const form of hintsFor(id).forms ?? []) add(form);
+  };
+  for (const id of fighters) add(id);
+  return ids.map((id) => knowledge(id, stageId));
+}
+
 export function knowledge(fighterId: string, stageId: string): FighterKnowledge {
   const key = `${fighterId}@${stageId}`;
   let k = cache.get(key);
@@ -220,12 +250,12 @@ export function knowledge(fighterId: string, stageId: string): FighterKnowledge 
     if (!p || p === 'out') continue;
     const hold = chargeHold(moves[name]);
     const charged = hold > 0 ? probe(def, stageId, name, 'ground', hold) : null;
-    ground[name] = charged && charged !== 'out' ? { ...p, charged } : p;
+    ground[name] = withCarry(def, p, charged && charged !== 'out' ? withCarry(def, charged) : undefined);
   }
   for (const name of Object.keys(DASH_INPUTS)) {
     if (!moves[name] || avoid.has(name)) continue;
     const p = probe(def, stageId, name, 'dash');
-    if (p && p !== 'out') ground[name] = p;
+    if (p && p !== 'out') ground[name] = withCarry(def, p);
   }
   for (const name of [...AERIALS, ...SPECIALS]) {
     if (!moves[name] || avoid.has(name)) continue;
@@ -368,6 +398,7 @@ function probe(
   const active: ProbeFrame[] = [];
   let busy = PROBE_LIMIT;
   let helpless = false;
+  let leftGround = false;
   /** Where the fighter was on the first frame the move no longer played, if it was still in the match. */
   let left: { x: number; y: number } | null = null;
   for (let t = 0; t < PROBE_LIMIT; t++) {
@@ -375,6 +406,7 @@ function probe(
     if (!left && f.move !== plays && !out(f)) left = { x: f.pos.x, y: f.pos.y };
     shots.see(t, f.move === plays, x0, y0);
     if (f.action === 'helpless') helpless = true;
+    if (f.ground === null) leftGround = true;
     const boxes = f.move === plays ? activeHitboxes(f) : [];
     if (boxes.length) {
       active.push({
@@ -427,7 +459,105 @@ function probe(
     spawns: shots.spawns,
     shot: shots.reach(),
     ...(hold > 0 && { held: hold }),
+    carried: [],
+    grounded: start !== 'air' && !leftGround,
   };
+}
+
+/** Where carriedSamples plays moves: Battlefield has the room every fighter's longest move out of a run needs. */
+const CARRY_STAGE = 'battlefield';
+/** Frames into a run before the input, so the fighter is at its run speed. */
+const RUN_LEAD = 8;
+/** Frames of walking before the input, so the fighter is at its walk speed. */
+const WALK_LEAD = 15;
+
+type Carry = Pick<MoveProbe, 'carried' | 'grounded'>;
+const carries = new Map<string, Carry>();
+
+/** Probe `p` with where it ends started moving (carriedSamples), and with `charged` as its charged probe. */
+function withCarry(def: FighterDef, p: MoveProbe, charged?: MoveProbe): MoveProbe {
+  const c = carriedSamples(def, p.move, p.start === 'dash' ? 'dash' : 'ground', p.held ?? 0);
+  return { ...p, carried: c.carried, grounded: p.grounded && c.grounded, ...(charged && { charged }) };
+}
+
+/**
+ * How much further a grounded move ends when the fighter is already moving as it starts: out of a walk, a dash
+ * (DASH_LEAD frames in, as the dash probe starts) and a run (RUN_LEAD frames in). The sim carries the speed into the
+ * move under the fighter's ground friction, and the move's script can keep it, replace it or scale it, so each start
+ * is played out rather than worked out. A sample is the speed along the facing at the input and how much further
+ * forward the move ended than from its own start (standing still, or the dash for a dash move). A start that plays
+ * another move gives none: Attack out of a dash is a dash attack. Played on CARRY_STAGE from near its left end
+ * running right, the same whatever stage the knowledge is for, and cached per fighter. Also whether the fighter
+ * stayed on the ground through the move from every start.
+ */
+function carriedSamples(def: FighterDef, move: string, start: 'ground' | 'dash', hold: number): Carry {
+  const key = `${def.id} ${move} ${start} ${hold}`;
+  let c = carries.get(key);
+  if (c) return c;
+  const base = playFrom(def, move, start === 'dash' ? 'dash' : 'stand', hold);
+  c = { carried: [], grounded: false };
+  if (base) {
+    const carried = [{ v: base.v, dx: 0 }];
+    let grounded = base.grounded;
+    for (const from of start === 'dash' ? (['run'] as const) : (['walk', 'dash', 'run'] as const)) {
+      const r = playFrom(def, move, from, hold);
+      if (!r) continue;
+      grounded &&= r.grounded;
+      if (carried.every((s) => Math.abs(s.v - r.v) > 0.01)) carried.push({ v: r.v, dx: r.dx - base.dx });
+    }
+    c = { carried: carried.sort((a, b) => a.v - b.v), grounded };
+  }
+  carries.set(key, c);
+  return c;
+}
+
+/**
+ * Play `move` on CARRY_STAGE from near its left end facing right, standing still or out of a walk, dash or run:
+ * the speed along the facing at the input, how far it went by the time the fighter could act again on the ground,
+ * and whether it stayed on the ground. Null when that start plays another move, the fighter can't get into it, or
+ * the move ran into the stage's far end or off it.
+ */
+function playFrom(
+  def: FighterDef,
+  move: string,
+  from: 'stand' | 'walk' | 'dash' | 'run',
+  hold: number,
+): { v: number; dx: number; grounded: boolean } | null {
+  const m = settle(def, CARRY_STAGE);
+  const f = m.fighters[0]!;
+  const info = staticStage(CARRY_STAGE);
+  const x = info.left + 6;
+  Object.assign(f, { pos: { x, y: f.pos.y }, prevPos: { x, y: f.pos.y }, facing: 1 });
+  const step = (i: InputFrame) => stepMatch(m, [i]);
+  step(neutralInput());
+  if (from === 'walk') for (let i = 0; i < WALK_LEAD; i++) step(press({ x: STICK.walkMax }));
+  if (from === 'dash') for (let i = 0; i < DASH_LEAD; i++) step(press({ x: STICK.full }));
+  if (from === 'run') {
+    let running = 0;
+    for (let i = 0; i < 120 && running < RUN_LEAD; i++) {
+      step(press({ x: STICK.full }));
+      if (f.action === 'run') running++;
+    }
+  }
+  const want = { stand: ['idle'], walk: ['walk'], dash: ['dash', 'run'], run: ['run'] }[from];
+  if (!want.includes(f.action) || f.ground === null) return null;
+  // Back to the start, still moving, so the move has the whole stage: Runner's side special runs 95 units out of a run.
+  Object.assign(f, { pos: { x, y: f.pos.y }, prevPos: { x, y: f.pos.y } });
+  const v = f.vel.x;
+  const x0 = f.pos.x;
+  const input = DASH_INPUTS[move] ? { x: STICK.full, ...DASH_INPUTS[move] } : GROUND_INPUTS[move];
+  if (!input) return null;
+  step(press(input));
+  if (f.move !== move) return null;
+  let grounded = true;
+  for (let t = 1; t < PROBE_LIMIT; t++) {
+    step((f.move === move && chargeInput(f, input.buttons ?? 0, hold)) || neutralInput());
+    if (out(f)) return null;
+    if (f.ground === null) grounded = false;
+    if (f.move !== move && actionable(f) && f.ground !== null) break;
+  }
+  if (f.pos.x > info.right - 1) return null;
+  return { v, dx: f.pos.x - x0, grounded };
 }
 
 /**

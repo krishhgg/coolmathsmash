@@ -14,8 +14,11 @@ import {
   SHOUT,
   SIDE,
   WIDE,
+  between,
+  FLOOR_DECALS,
   continuous,
   feet,
+  floorContact,
   floor,
   fx,
   hands,
@@ -88,15 +91,17 @@ function crouch(air: boolean, coil: number): Pose {
         thighB: { rot: -55 },
         shinB: { rot: 100 },
       })
-    : feet(
+    : // Both knees forward and the tiptoe back ankle lifted, so the toe rests on the floor; shallow enough, the back
+      // foot far enough back, that his belly and back knee stay off it when he coils.
+      feet(
         {
           body: { rot: 14 - coil * 18, x: -0.2 - coil * 0.8 },
-          hip: { y: 1.8 + coil * 0.4 },
+          hip: { y: 1.3 + coil * 0.4 },
           neck: { rot: -12 + coil * 6 },
         },
-        floor(-2.3 - coil * 0.4),
+        floor(-3.0 - coil * 0.4, -0.63),
         floor(2.1),
-        true,
+        false,
         [25, 0],
       );
   return hands(swing(body, [-0.4 - coil * 0.6, -7.0 + coil * 0.4], -150 - coil * 15), [1.6, -4.4], null);
@@ -164,19 +169,22 @@ function lightsOut(air: boolean, length: number): AnimClip {
       z: {},
     }),
     key(52, mix(crouch(air, 0.2), pool(air, 1)), { ease: 'inOut' }),
-    key(60, mix(crouch(air, 0.1), pool(air, 1.05)), { ease: 'in' }),
-    key(from - 1, mix(crouch(air, 1), pool(air, 1.1)), { ease: 'linear' }),
+    key(60, mix(crouch(air, 1), pool(air, 1.05)), { ease: 'in' }),
+    // Springing out of the coil, halfway to the dash: from the full coil, the baton would turn 165 degrees and
+    // the arms and legs up to 139 in the one frame into it.
+    key(from - 1, mix(between(crouch(air, 1), dash(air), 0.5), pool(air, 1.1)), { ease: 'linear' }),
     // Out of the shadow it goes "poof" behind him as he goes.
-    key(from, mix(dash(air), { fx4: fx(-3.4, 0.4, 0, 0.9) }), {
+    key(from, mix(dash(air), { fx4: fx(-3.4, -0.2, 0, 0.9) }), {
       ease: 'out',
       swaps: { ...SHOUT, ...BATON, fxBack: 'shadowBurst' },
     }),
-    key(from + 3, mix(dash(air, 1), { fx4: fx(-5.6, 0.6, 0, 1.25) }), { ease: 'linear' }),
-    key(from + 5, mix(dash(air, 1), { fx4: fx(-6.4, 0.6, 0, 0.3) }), {
+    key(from + 3, mix(dash(air, 1), { fx4: fx(-5.6, -0.2, 0, 1.25) }), { ease: 'linear' }),
+    key(from + 5, mix(dash(air, 1), { fx4: fx(-6.4, -0.2, 0, 0.3) }), {
       ease: 'inOut',
       swaps: { ...SHOUT, ...BATON },
     }),
-    key(to, dash(air, 0.6), { ease: 'out' }),
+    // Evenly into the skid: eased, the back forearm would turn 66 degrees in its first frame.
+    key(to, dash(air, 0.6), { ease: 'linear' }),
     key(to + 4, skid(air, 0), { ease: 'out', swaps: { ...WIDE, ...BATON } }),
     key(to + 12, skid(air, 3), { ease: 'inOut' }),
   ];
@@ -196,10 +204,19 @@ function lightsOut(air: boolean, length: number): AnimClip {
         swaps: { ...SIDE, ...BATON, face: 'face3qBlink' },
       }),
       key(to + 33, undefined, { swaps: { ...SIDE, ...BATON } }),
-      key(length - 6, swing(READY, [2.6, -5.0], 40), { ease: 'inOut', swaps: SIDE }),
+      // The baton held down at his side, its tip clear of the floor.
+      key(length - 6, swing(READY, [2.6, -5.0], 30), { ease: 'inOut', swaps: SIDE }),
       key(length, settle),
     );
-  return { length, active: [[from, to]], swaps: SIDE, keys: continuous(keys) };
+  const clip: AnimClip = {
+    length,
+    active: [[from, to]],
+    swaps: SIDE,
+    keys: continuous(keys, { onScreen: true }),
+  };
+  // On the ground, tweens between planted poses can still dip a toe: lift him where they do. The pool lies across
+  // the floor line and stays where it is.
+  return air ? clip : floorContact(clip, false, FLOOR_DECALS);
 }
 
 // The cinematic --------------------------------------------------------------------------------------------------

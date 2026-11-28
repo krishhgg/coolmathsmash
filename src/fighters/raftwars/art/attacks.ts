@@ -32,6 +32,7 @@ import {
   aim,
   aloft,
   at,
+  between,
   feet,
   fx,
   grip,
@@ -185,23 +186,6 @@ function behind(to: Pt, deg: number, back = 1): Pt {
 function spawnOf(move: string, i = 0): { at: Pt; deg: number; frame: number } {
   const s = SPAWNS[move]![i]!;
   return { at: [s.x, -s.y], deg: Math.atan2(-s.vy, s.vx) * DEG, frame: s.frame };
-}
-
-/** The pose `u` of the way from `a` to `b`, every bone field tweened linearly, as the sampler does. */
-function between(a: Pose, b: Pose, u: number): Pose {
-  const out: Pose = {};
-  for (const bone of new Set([...Object.keys(a), ...Object.keys(b)])) {
-    const [p, q] = [a[bone] ?? {}, b[bone] ?? {}];
-    const lerp = (from = 0, to = 0) => round(from + (to - from) * u);
-    out[bone] = {
-      x: lerp(p.x, q.x),
-      y: lerp(p.y, q.y),
-      rot: lerp(p.rot, q.rot),
-      sx: lerp(p.sx ?? 1, q.sx ?? 1),
-      sy: lerp(p.sy ?? 1, q.sy ?? 1),
-    };
-  }
-  return out;
 }
 
 /** Puts hands (mitten centres) on rig points, stretching an arm that can't reach. */
@@ -496,8 +480,16 @@ function mirror(pose: Pose): Pose {
     const p = pose[bone] ?? {};
     return { x: -(p.x ?? 0), rot: -(p.rot ?? 0), sx: -(p.sx ?? 1) * sx };
   };
+  /**
+   * A free bone's mirror image drawn as the same bone turned to 180 minus its angle and flipped top to bottom: the
+   * same drawing, but its angle stays near the unmirrored one, so a prop doesn't spin half round as the pair turns.
+   */
+  const turn = (bone: string): BonePose => {
+    const p = pose[bone] ?? {};
+    return { x: -(p.x ?? 0), rot: round(180 - (p.rot ?? 0)), sy: -(p.sy ?? 1) };
+  };
   const free = ['rocket', 'fx1', 'fx2', 'fx3', 'hit1', 'hit2'].filter((bone) => pose[bone]);
-  return mix(pose, { body: flip('body') }, Object.fromEntries(free.map((bone) => [bone, flip(bone)])));
+  return mix(pose, { body: flip('body') }, Object.fromEntries(free.map((bone) => [bone, turn(bone)])));
 }
 const BAIR = spawnOf('bair');
 const BAIR_AT = behind(BAIR.at, 180, 1.1);
@@ -633,7 +625,7 @@ function bonk(lean: number, deg: number, dx: number, dy: number): Pose {
   const swung = mix(body, { gun: { rot: round(deg - rotOf(body, 'torso')), x: dx, y: dy } });
   return grab(swung, [4.3, -6.2], at(swung, 'gun', ...GRIP_REAR));
 }
-const BONK_UP = bonk(-2, -100, -0.6, -2.6);
+const BONK_UP = bonk(-2, -80, -0.6, -2.6);
 const BONK = bonk(10, 40, 1.8, -3.8);
 
 /** Throws hold the victim at arm's length in front; these poses act on that spot. */
@@ -893,7 +885,7 @@ const USMASH_AIM = shoot(
 );
 const USMASH_FIRE = mix(
   shoot(
-    braced({ body: { rot: -6, y: 1.2 }, neck: { rot: -18 }, ...bro(-12, -26, -160, 0, -30) }),
+    braced({ body: { rot: -6, y: 1.2 }, neck: { rot: -18 }, ...bro(-12, -26, -148, 0, -30) }),
     -90,
     [2.0, -11.3],
   ),
@@ -928,7 +920,7 @@ export const attacks: Record<string, AnimClip> = {
     shortTurns([
       key(0, STAND, { ease: 'out' }),
       key(5, FTILT_AIM, { ease: 'in', swaps: { face: 'faceGrit', broFace: 'broBlink' } }),
-      key(FTILT.frame, FTILT_FIRE, { ease: 'out', swaps: { ...SHOUT, broFace: 'broScared', ...POP } }),
+      key(FTILT.frame, FTILT_FIRE, { ease: 'linear', swaps: { ...SHOUT, broFace: 'broScared', ...POP } }),
       key(FTILT.frame + 3, FTILT_KICK, { ease: 'inOut', swaps: { ...SHOUT, broFace: 'broScared' } }),
       key(18, mix(FTILT_AIM, { body: { rot: 4 } }), { ease: 'inOut', swaps: HAPPY }),
       key(24, undefined, { swaps: {} }),
@@ -954,7 +946,7 @@ export const attacks: Record<string, AnimClip> = {
     shortTurns([
       key(0, CROUCH, { ease: 'out' }),
       key(5, DTILT_AIM, { ease: 'in' }),
-      key(DTILT.frame, DTILT_FIRE, { ease: 'out', swaps: { ...SHOUT, ...POP } }),
+      key(DTILT.frame, DTILT_FIRE, { ease: 'linear', swaps: { ...SHOUT, ...POP } }),
       key(DTILT.frame + 3, DTILT_KICK, { ease: 'inOut', swaps: SHOUT }),
       key(19, DTILT_AIM, { ease: 'inOut', swaps: {} }),
       key(27, CROUCH),
@@ -1017,7 +1009,7 @@ export const attacks: Record<string, AnimClip> = {
       [19, 22],
     ],
     shortTurns([
-      key(0, STAND, { ease: 'out' }),
+      key(0, STAND, { ease: 'linear' }),
       key(4, mix(USMASH_AIM, bottle(2.0, LOADED, 0.2), place('fx2', 2.0, LOADED + 0.3, 0.3)), {
         ease: 'out',
         swaps: { ...LOOK_UP, broFace: 'broBlink', rocket: 'rocket', fx2: 'fxSpark' },
@@ -1050,7 +1042,7 @@ export const attacks: Record<string, AnimClip> = {
     'dsmash',
     [[10, 12]],
     shortTurns([
-      key(0, STAND, { ease: 'out' }),
+      key(0, STAND, { ease: 'linear' }),
       key(4, SPLASH_UP, { ease: 'in', swaps: { ...GRIT } }),
       key(
         8,
@@ -1119,14 +1111,14 @@ export const attacks: Record<string, AnimClip> = {
     ],
     shortTurns([
       key(0, DOWN, { ease: 'out', swaps: { ...GRIT } }),
-      key(8, grounded(mix(SQUAT, { body: { rot: -30, x: 0.6 } })), { ease: 'inOut' }),
+      key(8, grounded(mix(SQUAT, { body: { rot: -30, x: 0.6 } })), { ease: 'linear' }),
       key(12, GETUP_OVER, { ease: 'in', swaps: { ...SHOUT, broFace: 'broScared' } }),
       key(16, mix(GETUP_FRONT, place('fx1', 4.6, -6.0, 0.6, 30)), {
         ease: 'linear',
         swaps: { ...SHOUT, broFace: 'broScared', fx1: 'fxSpeed' },
       }),
       key(17, mix(GETUP_FRONT, place('fx1', 4.4, -6.4, 0.9, 30)), { ease: 'linear' }),
-      key(18, mix(GETUP_FRONT, place('fx1', 4.0, -6.8, 0.6, 30)), { ease: 'inOut' }),
+      key(18, mix(GETUP_FRONT, place('fx1', 4.0, -6.8, 0.6, 30)), { ease: 'linear' }),
       key(19, undefined, { swaps: { ...SHOUT, broFace: 'broScared' } }),
       key(21, GETUP_OVER, { ease: 'in' }),
       key(24, mix(GETUP_BACK, place('fx1', -4.6, -6.0, -0.6, -30, 0.6)), {
@@ -1144,7 +1136,8 @@ export const attacks: Record<string, AnimClip> = {
     'nair',
     [[8, 8]],
     [
-      key(0, aloft(APEX), { ease: 'out' }),
+      key(0, aloft(APEX), { ease: 'linear' }),
+      key(1, aloft(between(aloft(APEX), nairSpin(0), 0.5)), { ease: 'linear' }),
       key(2, nairSpin(0), { ease: 'linear', swaps: { ...SHOUT, broFace: 'broScared' } }),
       ...[60, 120, 180, 240, 300].map((deg, i) => key(3 + i, nairSpin(deg), { ease: 'linear' })),
       key(8, NAIR_FIRE, {
@@ -1177,12 +1170,16 @@ export const attacks: Record<string, AnimClip> = {
         ease: 'step',
         swaps: { face: 'faceBlink', broFace: 'broScared' },
       }),
-      key(4, mix(BAIR_AIM, { body: { sx: -0.25 } }), { ease: 'out', swaps: { ...GRIT } }),
+      // Squashed edge-on, the drawing flips with its limbs where they were, then turns into the aim.
+      key(4, mix(between(aloft(APEX), BAIR_AIM, 0.4), { body: { sx: -0.25 } }), {
+        ease: 'out',
+        swaps: { ...GRIT },
+      }),
       key(7, BAIR_AIM, { ease: 'in' }),
       key(BAIR.frame, BAIR_FIRE, { ease: 'out', swaps: { ...SHOUT, broFace: 'broCheer', ...POP } }),
       key(BAIR.frame + 3, BAIR_KICK, { ease: 'inOut', swaps: { ...SHOUT, broFace: 'broCheer' } }),
       key(20, BAIR_AIM, { ease: 'in', swaps: GRIT }),
-      key(24, mix(BAIR_AIM, { body: { sx: -0.25 } }), {
+      key(24, mix(between(BAIR_AIM, aloft(APEX), 0.5), { body: { sx: -0.25 } }), {
         ease: 'step',
         swaps: { face: 'faceBlink', broFace: 'broBlink' },
       }),
@@ -1195,7 +1192,7 @@ export const attacks: Record<string, AnimClip> = {
     'uair',
     [[UAIR.frame, UAIR.frame]],
     shortTurns([
-      key(0, aloft(APEX), { ease: 'out' }),
+      key(0, aloft(APEX), { ease: 'linear' }),
       key(5, UAIR_AIM, { ease: 'in', swaps: LOOK_UP }),
       key(UAIR.frame, UAIR_FIRE, { ease: 'out', swaps: { ...LOOK_UP, broFace: 'broCheer', ...POP } }),
       key(UAIR.frame + 3, UAIR_KICK, { ease: 'inOut', swaps: { ...LOOK_UP, broFace: 'broCheer' } }),
@@ -1260,7 +1257,11 @@ export const attacks: Record<string, AnimClip> = {
         ease: 'step',
         swaps: { face: 'faceBlink', broFace: 'broBlink' },
       }),
-      key(5, mix(GRAB_MISS, { body: { sx: 0.25 } }), { ease: 'out', swaps: { ...GRIT, ...OPEN } }),
+      // Squashed edge-on, the drawing flips with its limbs where they were, then turns into the grab.
+      key(5, mix(between(STAND, GRAB_MISS, 0.4), { body: { sx: 0.25 } }), {
+        ease: 'out',
+        swaps: { ...GRIT, ...OPEN },
+      }),
       key(8, mix(GRAB_MISS, { body: { rot: 10 } }), { ease: 'in' }),
       key(10, PIVOT_REACH, { ease: 'linear', swaps: { ...SHOUT, ...OPEN } }),
       key(12, PIVOT_REACH, { ease: 'inOut' }),
@@ -1324,14 +1325,14 @@ export const attacks: Record<string, AnimClip> = {
         swaps: { ...SHOUT, broFace: 'broCheer', rocket: 'rocket', fxBack: 'fxFlame' },
       }),
       key(16, mix(TOSS_SPIN, { body: { sx: 0.3 } }, flameAt(TOSS_SPIN, 0.8, 'fx3')), { ease: 'step' }),
-      key(17, mix(tossFling(0.9), { body: { sx: -0.3 } }), { ease: 'out' }),
+      key(17, mix(between(TOSS_SPIN, tossFling(0.9), 0.5), { body: { sx: -0.3 } }), { ease: 'out' }),
       key(20, tossFling(1.0), { ease: 'linear' }),
       key(22, mix(tossFling(1.0), place('fx1', -7.4, -8.0, 1.0), place('fx2', -3.0, -10.0, 0.4)), {
         ease: 'out',
         swaps: { ...SHOUT, broFace: 'broCheer', fx1: 'fxSpark', fxBack: 'fxFlame', rocket: 'rocket' },
       }),
       key(25, undefined, { swaps: { ...HAPPY, fx2: 'fxPuff' } }),
-      key(28, mix(tossFling(0.6), place('fx2', -3.4, -11.0, 0.8)), { ease: 'in', z: {} }),
+      key(28, mix(tossFling(0.6), place('fx2', -3.4, -11.0, 0.8)), { ease: 'linear', z: {} }),
       key(31, mix(STAND, { body: { sx: -0.25 } }, place('fx2', -3.8, -12.0, 0.4)), {
         ease: 'step',
         swaps: { face: 'faceBlink', broFace: 'broBlink' },
@@ -1352,13 +1353,19 @@ export const attacks: Record<string, AnimClip> = {
         ease: 'linear',
         swaps: { ...SHOUT, broFace: 'broCheer' },
       }),
-      key(20, mix(SIT_DROP, place('fx1', 1.0, -0.6, 0.9), place('fx2', 9.6, -0.6, 0.9)), {
+      key(20, mix(SIT_DROP, place('fx1', 1.0, -0.9, 0.9), place('fx2', 9.6, -0.9, 0.9)), {
         ease: 'out',
         swaps: { ...SHOUT, broFace: 'broCheer', fx1: 'fxPuff', fx2: 'fxPuff' },
       }),
       key(24, mix(SIT_DROP, place('fx1', 0.2, -1.0, 0.4), place('fx2', 10.4, -1.0, 0.4)), { ease: 'in' }),
       key(25, undefined, { swaps: HAPPY }),
-      key(30, aloft(air({ body: { rot: -6, x: 1.4, y: -1.6 }, ...BRO_CHEER }, -20, 0.6)), { ease: 'in' }),
+      key(
+        30,
+        aloft(air({ body: { rot: -6, x: 1.4, y: -1.6 }, ...bro(4, -8, -120, 0, -20, 0.2) }, -20, 0.6)),
+        {
+          ease: 'linear',
+        },
+      ),
       key(33, SQUAT, { ease: 'out', swaps: {} }),
       key(37, STAND),
     ]),

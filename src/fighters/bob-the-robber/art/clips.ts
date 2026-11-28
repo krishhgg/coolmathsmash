@@ -27,6 +27,7 @@ import {
   feet,
   floor,
   floorContact,
+  between,
   fx,
   grounded,
   hands,
@@ -146,9 +147,9 @@ const hangStep = (bone: string) => {
 /** Hip and feet relative to the ledge, then lean and knee lift. Front ankle clears the wall before crossing it. */
 const CLIMB_BEATS = [
   [0, -4.51, 6.88, -3, ...hangStep('footB'), ...hangStep('footF')],
-  [3, -3.1, 5.6, 5, -4.2, -6.9, 26, -2.95, -5.7, 32],
-  [6, -1.95, 2.75, 15, -3.1, -4.3, 27, -2.3, -2.45, -18],
-  [8, -1.25, 0.4, 18, -2.85, -2.5, 31, -1.73, 0.12, -16],
+  [3, -3.1, 4.5, 5, -4.2, -6.9, 26, -2.95, -5.7, 32],
+  [6, -1.95, 2.3, 15, -3.1, -4.3, 27, -2.3, -2.45, -18],
+  [8, -1.25, 0.6, 18, -2.85, -2.5, 31, -1.73, 0.12, -16],
   [9, 0.25, 0.25, 18, -1.75, -1.8, 28, 2.5, 0, 2],
   [11, 1.35, -1.32, 18, -1.65, 0.27, -13, 2.75, 0, 0],
   [12, 2.15, -1.82, 17, 0.5, 0, 22, 3.25, 0, 0],
@@ -157,15 +158,57 @@ const CLIMB_BEATS = [
   [26, 6.15, -2.65, 4, 4.65, 0, 0, 7.65, 0, 0],
 ] as const;
 
-/** Climb drawing before and after the feet are on top. Grip targets follow the engine's moving corner. */
-function climb(frame: number, moveEnd: number, inward: number, phase = frame): Pose {
-  const [cx, cy] = corner(frame, moveEnd, inward);
+/** The phase from which both feet are on top and the legs are fitted to their steps. */
+const ON_TOP = 12;
+/** Phases the back hand takes to reach up to the corner from the hang, and so when it grips. */
+const REACH = 6;
+/** Phases the hands take to let go of the corner and come down to his sides once he is on top. */
+const LET_GO = 6;
+
+const LEGS = ['thighB', 'shinB', 'footB', 'thighF', 'shinF', 'footF'] as const;
+const ARMS = ['armB', 'foreB', 'handB', 'armF', 'foreF', 'handF'] as const;
+
+/**
+ * Leg turns while he pulls himself up, before both feet are on top (thigh, shin and foot, back then front), by
+ * phase: from the hang, the knees come up against the wall and the front one up to the top, then ease into the
+ * crouch on top. Fitted to the beats' foot targets instead, the legs folded up in two or three frames and a knee
+ * flipped round as its foot passed the hip, turning a leg up to 156 degrees a frame.
+ */
+const CLIMB_LEGS: [number, number[]][] = [
+  [0, LEGS.map((bone) => HANG[bone]?.rot ?? 0)],
+  [4, [-15, 75, -40, -60, 95, -20]],
+  [8, [-30, 110, -70, -90, 125, -45]],
+];
+
+/** The legs at `phase` before he is on top, easing from CLIMB_LEGS into `onTop`, the legs fitted on top. */
+function climbLegs(phase: number, onTop: Pose): Pose {
+  const table: [number, number[]][] = [...CLIMB_LEGS, [ON_TOP, LEGS.map((bone) => onTop[bone]?.rot ?? 0)]];
+  const i = table.findIndex(([p]) => p > phase);
+  const [[p0, a], [p1, b]] = [table[i - 1]!, table[i]!];
+  const t = (phase - p0) / (p1 - p0);
+  const stretch = (bone: string) =>
+    1 + ((onTop[bone]?.sy ?? 1) - 1) * Math.max(0, (phase - 8) / (ON_TOP - 8));
+  return Object.fromEntries(
+    LEGS.map((bone, j) => {
+      const d = b[j]! - a[j]!;
+      return [bone, { rot: a[j]! + (d - 360 * Math.round(d / 360)) * t, sy: stretch(bone) }];
+    }),
+  );
+}
+
+/** The beats at `phase`, between the two around it. */
+function beatAt(phase: number): (typeof CLIMB_BEATS)[number] {
   const i = CLIMB_BEATS.findIndex(([f]) => f > phase);
   const a = CLIMB_BEATS[i - 1] ?? CLIMB_BEATS.at(-1)!;
   const b = CLIMB_BEATS[i] ?? a;
   const t = a === b ? 0 : (phase - a[0]) / (b[0] - a[0]);
-  const [, dx, dy, rot, bx, by, bt, x, y, tilt] = a.map((v, j) => v + (b[j]! - v) * t) as unknown as typeof a;
-  const base = stance(
+  return a.map((v, j) => v + (b[j]! - v) * t) as unknown as typeof a;
+}
+
+/** The body and legs at `phase` from the beats, the feet fitted to their steps, beside the corner at (cx, cy). */
+function climbStance(phase: number, cx: number, cy: number): Pose {
+  const [, dx, dy, rot, bx, by, bt, x, y, tilt] = beatAt(phase);
+  return stance(
     {
       body: { x: cx + dx + 2.65 * Math.sin(rad(rot)), y: cy + dy + 5.5 - 2.65 * Math.cos(rad(rot)), rot },
       neck: {
@@ -179,15 +222,45 @@ function climb(frame: number, moveEnd: number, inward: number, phase = frame): P
     { x: cx + bx, up: by - cy, tilt: bt },
     { x: cx + x, up: y - cy, tilt },
   );
-  if (phase <= 12) {
-    const push = Math.max(0, (phase - 9) / 3);
+}
+
+/** Climb drawing before and after the feet are on top. Grip targets follow the engine's moving corner. */
+function climb(frame: number, moveEnd: number, inward: number, phase = frame): Pose {
+  const [cx, cy] = corner(frame, moveEnd, inward);
+  const fitted = climbStance(phase, cx, cy);
+  const base = phase < ON_TOP ? mix(fitted, climbLegs(phase, climbStance(ON_TOP, cx, cy))) : fitted;
+  const grip = (at: number) => {
+    const push = Math.max(0, (Math.min(at, ON_TOP) - 9) / 3);
     const front: Pt = [cx - 0.35 + 2 * push, cy - 0.84];
     const [wx, wy] = pointOf(rig, base, 'handB');
-    const approach = smooth(Math.min(1, phase / 3));
+    const approach = smooth(Math.min(1, at / REACH));
     const back: Pt = [wx + (cx + 0.66 - 0.3 * push - wx) * approach, wy + (cy - 0.75 - wy) * approach];
     return gripHands(base, front, back, -30 + 20 * push);
+  };
+  if (phase < REACH) {
+    // The back arm swings up from the hang to its grip: slid straight to the corner, the hand passed the shoulder
+    // and the arm turned up to 115 degrees in a frame.
+    const reached = grip(REACH);
+    const t = phase / REACH;
+    const backArm = Object.fromEntries(
+      (['armB', 'foreB', 'handB'] as const).map((bone) => {
+        const [a, b] = [HANG[bone]?.rot ?? 0, reached[bone]?.rot ?? 0];
+        const d = b - a;
+        const [sa, sb] = [HANG[bone]?.sy ?? 1, reached[bone]?.sy ?? 1];
+        return [bone, { rot: a + (d - 360 * Math.round(d / 360)) * t, sy: sa + (sb - sa) * t }];
+      }),
+    );
+    return mix(grip(phase), backArm);
   }
-  return hands(base, [cx + dx - 1.7, cy + dy - 0.95], [cx + dx + 2.5, cy + dy - 2.4], -1);
+  if (phase <= ON_TOP) return grip(phase);
+  const [, dx, dy] = beatAt(phase);
+  // The front fist comes off the corner to his hip rather than up to his chest: the forearm turns 75 degrees
+  // instead of half a turn, which could go either way round. READY raises it after the climb.
+  const stood = hands(base, [cx + dx - 1.7, cy + dy - 0.95], [cx + dx + 2.3, cy + dy - 1.0], -1);
+  if (phase >= ON_TOP + LET_GO) return stood;
+  // Letting go of the corner evenly over a few phases: at once, the forearms turned up to 107 degrees in a frame.
+  const blend = between(grip(phase), stood, (phase - ON_TOP) / LET_GO);
+  return mix(stood, Object.fromEntries(ARMS.map((bone) => [bone, blend[bone] ?? {}])));
 }
 
 /**
@@ -196,6 +269,13 @@ function climb(frame: number, moveEnd: number, inward: number, phase = frame): P
  * knee; the head rocks a few degrees on every step.
  */
 const WALK_LENGTH = 16;
+/**
+ * Walk frames drawn by the tween from the frames either side rather than fitted: on them the swinging foot passes
+ * close under its hip, and the short folded leg's thigh flipped up to 85 degrees in a frame (the front shin turns
+ * 127 degrees from frame 12 to 14, so it needs four frames).
+ */
+const WALK_TWEENED = [3, 12, 13, 14];
+
 function sneak(frame: number): Pose {
   const half = WALK_LENGTH / 2;
   const t = (frame % half) / half;
@@ -338,33 +418,15 @@ const BALL = (() => {
 const flip = (rot: number, y = 0): Pose => mix(BALL, { body: { rot, y } });
 const roll = (rot: number): Pose => grounded(flip(rot));
 
-/**
- * `a` moved `t` of the way to `b`. Each bone turns the short way round on screen (its own turn plus its parents'),
- * as `continuous` with `onScreen` tweens it, so a limb whose parts each turn the short way can't swing round the
- * long way as a whole.
- */
-function between(a: Pose, b: Pose, t: number): Pose {
-  const out: Pose = {};
-  /** Each bone's angle on screen in `a`, in `b` (taken the short way from `a`) and blended. */
-  const screen: Record<string, [number, number, number]> = {};
-  const at = (u: number, v: number) => u + (v - u) * t;
-  for (const { name, parent } of rig.bones) {
-    const [p, q] = [a[name] ?? {}, b[name] ?? {}];
-    const [fromAbove, toAbove, nowAbove] = parent ? screen[parent]! : [0, 0, 0];
-    const from = fromAbove + (p.rot ?? 0);
-    let to = toAbove + (q.rot ?? 0);
-    to -= 360 * Math.round((to - from) / 360);
-    const now = at(from, to);
-    screen[name] = [from, to, now];
-    out[name] = {
-      x: at(p.x ?? 0, q.x ?? 0),
-      y: at(p.y ?? 0, q.y ?? 0),
-      rot: now - nowAbove,
-      sx: at(p.sx ?? 1, q.sx ?? 1),
-      sy: at(p.sy ?? 1, q.sy ?? 1),
-    };
-  }
-  return out;
+/** The legs and arms of `pose` moved `t` of the way to the ball's, each turn the short way round. */
+function tucked(pose: Pose, t: number): Pose {
+  return Object.fromEntries(
+    [...LEGS, 'armB', 'foreB', 'armF', 'foreF'].map((bone) => {
+      const [a, b] = [pose[bone]?.rot ?? 0, BALL[bone]?.rot ?? 0];
+      const d = b - a;
+      return [bone, { ...pose[bone], rot: a + (d - 360 * Math.round(d / 360)) * t }];
+    }),
+  );
 }
 
 /**
@@ -462,7 +524,7 @@ function climbKeys(moveEnd: number, inward: number, lastFrame: number, phaseScal
       const phase = frame * phaseScale;
       const prevPhase = (frame - 1) * phaseScale;
       const release = prevPhase <= 12 && phase > 12;
-      const swaps = prevPhase < 3 && phase >= 3 ? TWO_GRIPS : release ? RELEASE : undefined;
+      const swaps = prevPhase < REACH && phase >= REACH ? TWO_GRIPS : release ? RELEASE : undefined;
       const z = prevPhase < 8 && phase >= 8 ? KNEE_ON_TOP : release ? {} : undefined;
       return key(frame, climb(frame, moveEnd, inward, phase), { ease: 'linear', swaps, z });
     }),
@@ -523,14 +585,18 @@ export const clips: Record<string, AnimClip> = {
       key(75, undefined, { swaps: {} }),
     ],
   },
-  walk: {
+  // Settled on the floor every frame: the tweened frames would let the planted foot dip.
+  walk: floorContact({
     length: WALK_LENGTH,
     loop: true,
     swaps: SIDE,
     keys: continuous(
-      Array.from({ length: WALK_LENGTH + 1 }, (_, f) => key(f, sneak(f % WALK_LENGTH), { ease: 'linear' })),
+      Array.from({ length: WALK_LENGTH + 1 }, (_, f) => f)
+        .filter((f) => !WALK_TWEENED.includes(f))
+        .map((f) => key(f, sneak(f % WALK_LENGTH), { ease: 'linear' })),
+      { onScreen: true },
     ),
-  },
+  }),
   dash: {
     length: 10,
     swaps: RUN_LOOK,
@@ -566,8 +632,15 @@ export const clips: Record<string, AnimClip> = {
     length: STRIDE_LENGTH,
     loop: true,
     swaps: RUN_LOOK,
-    keys: Array.from({ length: STRIDE_LENGTH }, (_, f) =>
-      key(f, stride(f), { ease: 'linear', ...(f === 0 ? { z: CARRY_ORDER } : {}) }),
+    // Keyed every other frame, as the walk is: the trailing knee snapped through up to 74 degrees in a frame.
+    keys: continuous(
+      Array.from({ length: STRIDE_LENGTH / 2 + 1 }, (_, i) =>
+        key(2 * i, stride((2 * i) % STRIDE_LENGTH), {
+          ease: 'linear',
+          ...(i === 0 ? { z: CARRY_ORDER } : {}),
+        }),
+      ),
+      { onScreen: true },
     ),
   },
   runBrake: {
@@ -608,8 +681,10 @@ export const clips: Record<string, AnimClip> = {
           swaps: RUN_LOOK,
         },
       ),
-      key(9, carry(READY, 39, 0.82, 0.8), { ease: 'in' }),
-      key(13, carry(READY, 5, 0.02, 0), { ease: 'out' }),
+      key(9, carry(READY, 39, 0.82, 0.8), { ease: 'linear' }),
+      // The back arm is back where READY holds it as the sack shrinks away: carried to the last frame, it swung
+      // 92 degrees into READY in one.
+      key(13, mix(READY, { sackH: carry(READY, 5, 0.02, 0).sackH! }), { ease: 'out' }),
       key(14, READY, { swaps: { sack: null, handB: 'handOpen' } }),
     ],
   },
@@ -659,14 +734,18 @@ export const clips: Record<string, AnimClip> = {
     {
       length: 30,
       swaps: SIDE,
-      keys: [
-        key(0, mix(RISE, { body: { sy: 1.05 } }), { ease: 'out' }),
-        key(4, flip(70, -1.1), { ease: 'linear', swaps: BLINK }),
-        key(9, flip(190, -1.4), { ease: 'linear' }),
-        key(15, flip(310, -0.8), { ease: 'out' }),
-        key(21, mix(AIR, { body: { rot: 360 } }), { swaps: {} }),
-        key(30, mix(APEX, { body: { rot: 360 } })),
-      ],
+      keys: continuous(
+        [
+          // Evenly into the flip: eased, the forearm would turn 77 degrees in the first frame.
+          key(0, mix(RISE, { body: { sy: 1.05 } }), { ease: 'linear' }),
+          key(4, flip(70, -1.1), { ease: 'linear', swaps: BLINK }),
+          key(9, flip(190, -1.4), { ease: 'linear' }),
+          key(15, flip(310, -0.8), { ease: 'out' }),
+          key(21, mix(AIR, { body: { rot: 360 } }), { swaps: {} }),
+          key(30, mix(APEX, { body: { rot: 360 } })),
+        ],
+        { onScreen: true },
+      ),
     },
     false,
   ),
@@ -741,13 +820,17 @@ export const clips: Record<string, AnimClip> = {
   airDodge: {
     length: 49,
     swaps: BLINK,
-    keys: [
-      key(0, AIR, { ease: 'out' }),
-      key(4, mix(TUCK, { body: { rot: -20, sx: 0.92, sy: 1.06 } })),
-      key(30, mix(TUCK, { body: { rot: -30 } }), { ease: 'inOut' }),
-      key(34, undefined, { swaps: SIDE }),
-      key(49, AIR),
-    ],
+    keys: continuous(
+      [
+        // Evenly into the tuck: eased, the back forearm would turn 70 degrees in the first frame.
+        key(0, AIR, { ease: 'linear' }),
+        key(4, mix(TUCK, { body: { rot: -20, sx: 0.92, sy: 1.06 } })),
+        key(30, mix(TUCK, { body: { rot: -30 } }), { ease: 'inOut' }),
+        key(34, undefined, { swaps: SIDE }),
+        key(49, AIR),
+      ],
+      { onScreen: true },
+    ),
   },
   ledgeCatch: {
     length: 19,
@@ -791,55 +874,82 @@ export const clips: Record<string, AnimClip> = {
   ledgeClimb: {
     length: 34,
     swaps: GRIP,
-    keys: continuous([...climbKeys(30, LEDGE_INWARD, 30), key(34, READY, { z: {} })]),
+    keys: continuous([...climbKeys(30, LEDGE_INWARD, 30), key(34, READY, { z: {} })], { onScreen: true }),
   },
-  ledgeRoll: {
-    length: 45,
-    swaps: GRIP,
-    keys: continuous([
-      ...climbKeys(40, 25, 9, 12 / 9),
-      ...rollKeys(10, 34, 1).map((k) => {
-        const [cx, cy] = corner(k.frame, 40, 25);
-        return {
-          ...k,
-          pose: mix(lift(k.pose!, -cy), { body: { x: Math.max(0, cx + 4.2) } }),
-          ...(k.frame === 10
-            ? { swaps: { ...RELEASE, ...BLINK }, z: {} }
-            : k.frame === 34
-              ? { swaps: RELEASE }
-              : {}),
-        };
-      }),
-      key(39, mix(grounded(CROUCH), { body: { rot: 368 } }), { ease: 'out' }),
-      key(45, mix(READY, { body: { rot: 364 } })),
-    ]),
-  },
+  // Lifted where unfolding out of the ball onto his feet would dip into the floor.
+  ledgeRoll: floorContact(
+    {
+      length: 45,
+      swaps: GRIP,
+      keys: continuous(
+        [
+          // Tucking towards the ball on the climb's last two frames: from the crouch on top, the legs folded into it
+          // in one frame.
+          ...climbKeys(40, 25, 9, 12 / 9).map((k) =>
+            k.frame < 8 ? k : { ...k, pose: mix(k.pose!, tucked(k.pose!, (k.frame - 7) / 3)) },
+          ),
+          ...rollKeys(10, 34, 1).map((k) => {
+            const [cx, cy] = corner(k.frame, 40, 25);
+            return {
+              ...k,
+              pose: mix(lift(k.pose!, -cy), { body: { x: Math.max(0, cx + 4.2) } }),
+              ...(k.frame === 10
+                ? { swaps: { ...RELEASE, ...BLINK }, z: {} }
+                : k.frame === 34
+                  ? { swaps: RELEASE }
+                  : {}),
+            };
+          }),
+          key(39, mix(grounded(CROUCH), { body: { rot: 368 } }), { ease: 'out' }),
+          key(45, mix(READY, { body: { rot: 364 } })),
+        ],
+        { onScreen: true },
+      ),
+    },
+    false,
+  ),
   ledgeJump: {
     length: 20,
     swaps: GRIP,
-    keys: continuous([
-      key(0, HANG, { ease: 'linear', z: GRIP_ORDER }),
-      ...[1, 2].map((frame) => {
-        const t = smooth(frame / 6);
-        const cx = GX - (GX + 4.25) * t;
-        const cy = GY + (1 - GY) * t;
-        const pop = mix(HANG, {
-          body: { x: 0.1 + cx - GX + 4.7 * t, y: -2.6 + cy - GY - 8.8 * t, rot: 8 },
-          thighF: { rot: -75 },
-          shinF: { rot: 95 },
-          thighB: { rot: -36 },
-          shinB: { rot: 65 },
-        });
-        return key(frame, gripHands(pop, [cx - 0.35, cy - 0.84], null), { ease: 'linear' });
-      }),
-      key(3, mix(AIR, { body: { y: -2.5, rot: 8 }, thighF: { rot: -67 }, shinF: { rot: 89 } }), {
-        swaps: RELEASE,
-        z: {},
-        ease: 'out',
-      }),
-      key(6, RISE, { ease: 'out' }),
-      key(20, mix(AIR, { body: { sy: 1.02 } })),
-    ]),
+    keys: continuous(
+      [
+        key(0, HANG, { ease: 'linear', z: GRIP_ORDER }),
+        ...[1, 2].map((frame) => {
+          const t = smooth(frame / 6);
+          const cx = GX - (GX + 4.25) * t;
+          const cy = GY + (1 - GY) * t;
+          const pop = mix(HANG, {
+            body: { x: 0.1 + cx - GX + 4.7 * t, y: -2.6 + cy - GY - 8.8 * t, rot: 8 },
+            thighF: { rot: -75 },
+            shinF: { rot: 95 },
+            thighB: { rot: -36 },
+            shinB: { rot: 65 },
+          });
+          return key(frame, gripHands(pop, [cx - 0.35, cy - 0.84], null), { ease: 'linear' });
+        }),
+        // Letting go with the gripping arm still up, as it is for the rise, and the open hand still turned up from
+        // the grip: dropped here, the arm would swing down 100 degrees in a frame and come back up by 6. The back
+        // arm still hangs, and both come up evenly to the rise.
+        key(
+          3,
+          aim(
+            mix(RISE, {
+              body: { y: -2.5, rot: 8, sx: 1, sy: 1 },
+              thighF: { rot: -67 },
+              shinF: { rot: 89 },
+              armB: HANG.armB!,
+              foreB: HANG.foreB!,
+            }),
+            'handF',
+            -60,
+          ),
+          { swaps: RELEASE, z: {}, ease: 'linear' },
+        ),
+        key(6, RISE, { ease: 'out' }),
+        key(20, mix(AIR, { body: { sy: 1.02 } })),
+      ],
+      { onScreen: true },
+    ),
   },
   ledgeAttack: floorContact(
     {
@@ -936,7 +1046,8 @@ export const clips: Record<string, AnimClip> = {
       key(20, mix(HIT, { body: { rot: -8, y: -0.6 }, hat: {} })),
     ],
   },
-  grabRelease: {
+  // On the floor all through: the reeling first pose sank his back shoe 0.84 into it.
+  grabRelease: floorContact({
     length: 29,
     swaps: WIDE,
     keys: [
@@ -947,7 +1058,7 @@ export const clips: Record<string, AnimClip> = {
       }),
       key(29, READY),
     ],
-  },
+  }),
   respawn: {
     length: 60,
     loop: true,
