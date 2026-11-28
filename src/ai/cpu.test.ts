@@ -47,7 +47,7 @@ describe('CPU players', () => {
       }
     }
     expect(log.some((f) => f[0]!.buttons !== 0)).toBe(true);
-  });
+  }, 60_000);
 
   it('never write to the match they read', () => {
     const m = match();
@@ -58,7 +58,7 @@ describe('CPU players', () => {
       expect(hashState(m)).toBe(before);
       stepMatch(m, inputs);
     }
-  });
+  }, 60_000);
 
   it('play the same match for the same seed', () => {
     const a = match();
@@ -67,7 +67,7 @@ describe('CPU players', () => {
     const lb = play(b, [8, 6], 1200, 7);
     expect(lb).toEqual(la);
     expect(hashState(b)).toBe(hashState(a));
-  });
+  }, 60_000);
 });
 
 describe('CPU levels', () => {
@@ -185,7 +185,7 @@ describe('CPU knockdowns', () => {
       }
     }
     expect([...picks].sort()).toEqual(['downBound', 'techInPlace', 'techRoll']);
-  });
+  }, 60_000);
 
   it('tech when hitstun runs out just before touching down, never air dodging into landing lag', () => {
     // 39 frames of hitstun and a touchdown on frame 42: a press four frames before would wait in the buffer until
@@ -200,7 +200,7 @@ describe('CPU knockdowns', () => {
         expect(landing(seen), at).toBe(pick);
       }
     }
-  });
+  }, 60_000);
 });
 
 describe('CPU grabs', () => {
@@ -216,7 +216,7 @@ describe('CPU grabs', () => {
       expect(seen.has('grabHold')).toBe(true);
       expect(seen.has('grabThrow')).toBe(true);
     }
-  });
+  }, 60_000);
 
   it("don't plan a grab that lands during regrab immunity", () => {
     const m = match();

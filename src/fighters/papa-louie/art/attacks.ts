@@ -163,7 +163,7 @@ export function unwrap(clip: AnimClip): AnimClip {
 const lerp = (a: number, b: number, k: number): number => a + (b - a) * k;
 
 /** Every bone of two poses mixed by `k` (0 = a, 1 = b), the way the sampler tweens them. */
-function lerpPose(a: Pose, b: Pose, k: number): Pose {
+export function lerpPose(a: Pose, b: Pose, k: number): Pose {
   const out: Pose = {};
   for (const bone of new Set([...Object.keys(a), ...Object.keys(b)])) {
     const p = a[bone] ?? {};
@@ -268,7 +268,7 @@ export const BACK_ARM_FRONT = {
 
 // --- Jabs -------------------------------------------------------------------------------------------------
 
-const JAB_WIND = grip(stance(-0.3, 0.45, -6, -1.1, 1.3), [0.4, -7.0], -82, [-2.3, -4.4]);
+const JAB_WIND = grip(stance(-0.3, 0.45, -6, -1.1, 1.3), [1.0, -6.4], -82, [-2.3, -4.4]);
 const JAB_POKE = grip(
   stance(0.6, 0.6, 14, -1.0, 1.5),
   [3.0, -6.9],
@@ -277,7 +277,7 @@ const JAB_POKE = grip(
 );
 const JAB_REC = grip(stance(0.3, 0.5, 6, -1.1, 1.4), [2.9, -6.7], -97, [-2.3, -4.6]);
 
-const JAB2_WIND = grip(stance(0.1, 0.55, 2, -1.1, 1.4), [1.0, -5.5], -68, [-1.9, -5.4]);
+const JAB2_WIND = grip(stance(0.1, 0.55, 2, -1.1, 1.4), [1.6, -6.2], -68, [-1.9, -5.4]);
 const JAB2_POKE = grip(
   stance(0.8, 0.65, 16, -0.9, 1.6),
   [3.0, -6.7],
@@ -889,9 +889,9 @@ const clips: Record<string, AnimClip> = {
     length: 35,
     active: [[5, 6]],
     keys: [
-      key(0, STAND, { ease: 'out' }),
+      key(0, STAND, { ease: 'linear' }),
       key(3, DEFLECT_WIND, { ease: 'in', swaps: GRIT }),
-      ...strike(4, 6, mix(DEFLECT_HIT, { fx1: smear(wristF(DEFLECT_HIT), -129, false, 0.66) }), {
+      ...strike(4, 6, mix(DEFLECT_HIT, { fx1: smear(wristF(DEFLECT_HIT), -129, false, 0.56) }), {
         ...GRIT,
         fx1: 'swoosh',
       }),
@@ -931,7 +931,7 @@ const clips: Record<string, AnimClip> = {
     active: [[4, 5]],
     swaps: ANGRY,
     keys: [
-      key(0, STAND, { ease: 'out' }),
+      key(0, STAND, { ease: 'linear' }),
       key(2, JAB_WIND, { ease: 'in', swaps: GRIT }),
       key(3, mix(JAB_POKE, { paddle: { sy: 1.08 } }), { ease: 'linear', swaps: SHOUT }),
       ...strike(4, 5, JAB_POKE, SHOUT),
@@ -944,7 +944,7 @@ const clips: Record<string, AnimClip> = {
     active: [[4, 5]],
     swaps: ANGRY,
     keys: [
-      key(0, JAB_REC, { ease: 'out' }),
+      key(0, JAB_REC, { ease: 'linear' }),
       key(2, JAB2_WIND, { ease: 'in', swaps: GRIT }),
       key(3, mix(JAB2_POKE, { paddle: { sy: 1.08 } }), { ease: 'linear', swaps: SHOUT }),
       ...strike(4, 5, JAB2_POKE, SHOUT),
@@ -1066,7 +1066,7 @@ const clips: Record<string, AnimClip> = {
       key(0, STAND, { ease: 'inOut' }),
       key(1, undefined, { z: PADDLE_BEHIND }),
       key(5, FS_WIND, { ease: 'out', swaps: { ...GRIT, handB: 'fist' } }),
-      key(10, FS_COIL, { ease: 'in' }),
+      key(10, FS_COIL, { ease: 'linear' }),
       key(12, mix(FS_SWING, { fx1: smear(wristF(FS_SWING), -150, true) }), {
         ease: 'linear',
         swaps: { ...SHOUT, fx1: 'swoosh' },
@@ -1287,7 +1287,7 @@ const clips: Record<string, AnimClip> = {
     ],
     swaps: { ...ANGRY, fx1: 'boxes' },
     keys: [
-      key(0, mix(AIR, { fx1: stack(1, -1) }), { ease: 'out', swaps: { fx1: null } }),
+      key(0, mix(AIR, { fx1: stack(1, -1) }), { ease: 'linear', swaps: { fx1: null } }),
       key(3, mix(STOMP(0.6), { fx1: { ...stack(1), sx: 0.3, sy: 0.3 } }), { ease: 'outBack', swaps: GRIT }),
       key(6, mix(STOMP(1), { fx1: stack(1) }), { ease: 'in' }),
       key(8, mix(STOMP(0, 0.25), { fx1: stack(0.88) }), { ease: 'out', swaps: SHOUT }),
@@ -1375,7 +1375,7 @@ const clips: Record<string, AnimClip> = {
         swaps: { ...SHOUT, fx1: 'swoosh' },
       }),
       key(12, undefined, { swaps: SHOUT }),
-      key(13, FT_SHOVE, { ease: 'in' }),
+      key(13, FT_SHOVE, { ease: 'linear' }),
       key(17, FT_YANK, { ease: 'out', swaps: GRIT }),
       key(29, STAND, { swaps: {} }),
     ],
@@ -1411,7 +1411,7 @@ const clips: Record<string, AnimClip> = {
     swaps: ANGRY,
     keys: [
       key(0, HOLD, { ease: 'inOut' }),
-      key(5, UT_LOWER, { ease: 'inOut', swaps: GRIT }),
+      key(5, UT_LOWER, { ease: 'linear', swaps: GRIT }),
       key(9, UT_HEAVE, { ease: 'out', swaps: { ...GRIT, handB: 'fist' } }),
       key(11, mix(utSpin(1, -150), { fx1: smear([3.2, -10.0], -150, true, 0.8) }), {
         ease: 'linear',
@@ -1459,5 +1459,5 @@ const clips: Record<string, AnimClip> = {
 };
 
 export const attacks: Record<string, AnimClip> = Object.fromEntries(
-  Object.entries(clips).map(([name, clip]) => [name, plant(unwrap(clip))]),
+  Object.entries(clips).map(([name, clip]) => [name, unwrap(plant(unwrap(clip)))]),
 );

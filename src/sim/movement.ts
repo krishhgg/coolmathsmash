@@ -327,8 +327,11 @@ export function passesPlatforms(x: Ctx): boolean {
 function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
   const { f, stage } = x;
   const movingDown = f.vel.y + f.kb.y <= 0;
+  // A solid floor catches a fighter that crosses it from above whichever way it moves: one rising more slowly than a
+  // slope ahead rises still goes from above the slope to below it, into the ground (Duck's Running Ram, nearly level,
+  // into the side of Forest Temple's dip). Soft platforms catch only a falling fighter, so jumps pass up through them.
   for (const e of stage.edges) {
-    if (e.kind !== 'floor' || !movingDown || !stage.present.solids[e.solid]) continue;
+    if (e.kind !== 'floor' || !stage.present.solids[e.solid]) continue;
     if (f.pos.x < edgeMinX(e) - EPS || f.pos.x > edgeMaxX(e) + EPS) continue;
     const yNow = floorY(e, f.pos.x);
     const yPrev = floorY(e, Math.min(Math.max(prev.x, edgeMinX(e)), edgeMaxX(e)));
@@ -447,12 +450,13 @@ export function pushOffCorner(f: FighterState, prev: { x: number; y: number }, e
   if (!side) return false;
   f.pos.x -= side.x * (depth + EPS);
   f.pos.y -= side.y * (depth + EPS);
+  // Sideways speed into the corner stops, as against a wall, and the rest is left as it was: the push moves the box
+  // round the corner. The box's sides are slanted, so taking off the part of the speed along the side's normal would
+  // turn a straight fall past a ledge corner into speed away from the stage, and a fall the fighter keeps re-setting
+  // (a fast fall, a scripted plunge) would build it up frame after frame: Snail Bob's down air left Battlefield's
+  // ledge at 2.7 units a frame.
   const into = (v: Vec) => {
-    const d = v.x * side.x + v.y * side.y;
-    if (d > 0) {
-      v.x -= d * side.x;
-      v.y -= d * side.y;
-    }
+    if (v.x * side.x > 0) v.x = 0;
   };
   into(f.vel);
   into(f.kb);
@@ -522,12 +526,13 @@ export function tryLedgeGrab(x: Ctx): void {
   if (rule === true && f.vel.y + f.kb.y > 0) return;
   if (stickY(c) <= -0.5) return;
   const reach = s.width / 2 + 4;
+  const behind = f.move && getFighter(f.fighter).moves?.[f.move]?.ledgeBehind ? reach : reach * 0.6;
   for (let i = 0; i < stage.geo.ledges.length; i++) {
     const L = stage.geo.ledges[i]!;
     if (!ledgePresent(stage, i) || (f.pos.x - L.x) * L.side < -1) continue;
     const rx = (L.x - f.pos.x) * f.facing;
     const ry = L.y - f.pos.y;
-    const frontReach = rx >= 0 ? reach : reach * 0.6;
+    const frontReach = rx >= 0 ? reach : behind;
     if (Math.abs(rx) > frontReach || ry < s.height * 0.4 || ry > s.height * 1.15) continue;
     const holder = ledgeHolder(m, i, f);
     if (holder) trump(holder, L.side);

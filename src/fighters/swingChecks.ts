@@ -7,8 +7,6 @@ import {
   type SwingChecks,
 } from '../render/rig/swingChecks';
 import { LEDGE_ATTACK, LEDGE_CLIMB, LEDGE_ROLL } from '../sim/constants';
-import { swingChecks as bob } from './bob-the-robber/art/swings';
-import { swingChecks as duck } from './duck/art/swings';
 import { allFighters } from './registry';
 import type { FighterDef } from './types';
 
@@ -58,8 +56,16 @@ const LEDGE_LANDS: Record<string, number> = {
 const inAir = (def: FighterDef, clip: string) =>
   AIR.has(clip) || def.moves?.[clip]?.kind === 'aerial' || /Air/.test(clip);
 
-/** Fighters' own lists and allowances, which win over the defaults above for the clips they name. */
-const OWN: Record<string, SwingChecks> = { 'bob-the-robber': bob, duck };
+/**
+ * Fighters' own lists and allowances, which win over the defaults above for the clips they name. Each fighter keeps
+ * them in its own `src/fighters/<id>/art/swings.ts`, exporting `swingChecks`, so adding one touches no shared line.
+ * A fighter that shares another's art re-exports that fighter's checks from its own folder.
+ */
+const OWN: Record<string, SwingChecks> = Object.fromEntries(
+  Object.entries(import.meta.glob<{ swingChecks: SwingChecks }>('./*/art/swings.ts', { eager: true })).map(
+    ([path, module]) => [path.split('/')[1]!, module.swingChecks],
+  ),
+);
 
 /** The swing checks for one fighter: every clip it has, on the ground or in the air. */
 export function swingChecksFor(id: string, def: FighterDef): SwingChecks {

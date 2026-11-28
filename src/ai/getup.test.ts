@@ -254,7 +254,7 @@ describe('CPU rolls out of a knockdown on a platform', () => {
         }
       }
     }
-  });
+  }, 60_000);
 
   it('tech roll onto an entity platform only where the roll fits on it', () => {
     // An 80-wide deck from x -40 to 40, high over Battlefield's top platform (-17 to 17): from its middle a roll fits

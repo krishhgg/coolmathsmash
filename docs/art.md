@@ -185,7 +185,8 @@ with the same checks as its nearest shared action.
   are checked against the floor from there (`groundFrom`).
 - No drawn part turns more than 60 degrees from one frame to the next, or 120 from two frames before a hit window
   until it closes. A part's turn is measured on screen: under a mirrored parent, such as a body flipped with sx -1,
-  its own rotation counts the other way round. On a frame where its parent flips to face the other way, a part may
+  its own rotation counts the other way round. A `localScale` bone keeps its flip to itself, as it keeps its scale,
+  so the parts on it aren't mirrored by it. On a frame where its parent flips to face the other way, a part may
   either keep its angle on screen or flip with its parent, and the check counts the smaller turn.
 - A held prop doesn't change draw order against a part it covers on both frames.
 - With a face check set, a prop drawn over the head stays off the face.
@@ -195,8 +196,10 @@ A Final Smash cut scene counts as ground: it plays over the stage with the floor
 Effects that cover the screen or sit across the floor line on purpose go in its `decals`.
 There are four kinds:
 
-- `decals` names drawings that lie on the floor in perspective, across the floor line, and leaves them out of the
-  floor check. Bob's shadow pool is one.
+- `decals` names effect drawings meant to sit at or through the floor line and leaves them out of the floor check:
+  ones lying on the floor in perspective, such as Bob's shadow pool or a bounce's shockwave ring, and ones whose
+  base or lower edge crosses it by design, such as dust puffs or a burst of rays round a fighter standing on the
+  floor. Name each drawing with a line on why it crosses; never a body part.
 - `spins` names bones meant to spin, such as a wheel, a shell, a rolling block or a spin effect, and leaves them out of
   the turn check. The floor, draw-order and face checks still apply to them. Each entry is one bone with a line on
   why it spins, and `clips` limits it to the clips it spins in. A bone or clip that doesn't exist is an error.
