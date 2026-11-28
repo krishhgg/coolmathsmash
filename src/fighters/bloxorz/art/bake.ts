@@ -100,6 +100,12 @@ export function centre(p: Place): [number, number] {
   return [p.px + p.ox * Math.cos(r) - p.oy * Math.sin(r), p.py + p.ox * Math.sin(r) + p.oy * Math.cos(r)];
 }
 
+/**
+ * The block turned half a lap about its own centre. Its drawing is the same half a lap round (symbols.ts), so a
+ * block that has just turned over to 180 carries on from there instead of jumping back to 0.
+ */
+export const half = (p: Place): Place => ({ ...p, base: p.base + 180 });
+
 /** Moves the whole place. */
 export const shift = (p: Place, dx: number, dy = 0): Place => ({ ...p, px: p.px + dx, py: p.py + dy });
 

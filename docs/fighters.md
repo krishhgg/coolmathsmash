@@ -128,6 +128,10 @@ fsmash: {
 - **Direction.** A hit launches along the attacker's facing unless its box sets `direction`: `'back'` for boxes
   behind him (back aerials, the rear hit of a down smash) and `'away'` for boxes around his body (spins, up
   attacks), which send the target away from his centre.
+- **Boxes that can't clank.** `transcendent: true` on a move's box is Ultimate's clang=f (SmashWiki's hitbox tables):
+  a projectile touching it is neither cancelled by it nor cancels it, though it still hits hittable entities. Papa
+  Louie's Final Smash pushboxes are the example, on House of Boom's. A projectile that never clanks sets
+  `EntityDef.transcendent` instead.
 - **Ground and air targets.** A box with `targets: 'ground'` hits only fighters standing on the ground, and one
   with `targets: 'air'` hits only airborne fighters. A fighter hanging on a ledge counts as airborne. Unset, or
   `'both'`, hits either, as most Ultimate hitboxes do (SmashWiki "Hitbox", groundedness/airness). Kirby's Stone
@@ -963,7 +967,8 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   7 times is destroyed by the next reflector (Ultimate).
 - **Absorbers.** A move's `absorbers` bubbles eat absorbable projectiles and heal the fighter by their damage x
   `heal`. Defaults are Ness's PSI Magnet in Ultimate: x1.6, up to 30% (SmashWiki, Absorption). Projectiles are
-  `reflectable` and `absorbable` unless they opt out; hittable entities are neither.
+  `reflectable` and `absorbable` unless they opt out; hittable entities are neither. Watergirl's pumps opt out of
+  absorption, as F.L.U.D.D.'s water isn't absorbable in Ultimate.
 - **Clanks.** Ultimate's 9% rule (SmashWiki, Priority), simplified: a fighter's attack destroys a projectile unless
   the projectile deals more than 9% more, in which case it passes through the attack (and usually hits). The
   attacker is never interrupted (there is no rebound yet). Two projectiles of different owners clank and each is

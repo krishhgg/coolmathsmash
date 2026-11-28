@@ -16,6 +16,7 @@ import {
   isReflectable,
   sweepEntities,
 } from './entities';
+import type { HitboxDef } from '../../fighters/types';
 import type { AbsorberDef, EntityState, ReflectorDef } from './types';
 
 /** Ultimate: a projectile can be reflected 7 times; touching an 8th reflector destroys it (SmashWiki, Reflection). */
@@ -126,8 +127,12 @@ function reflectOrAbsorb(m: MatchState, f: FighterState, e: EntityState): boolea
  */
 function attackEntity(m: MatchState, f: FighterState, e: EntityState): number {
   if (f.hitEntities.includes(e.id)) return 0;
+  // A box that can't clank (`transcendent`) still hits a hittable entity, but passes a projectile by.
+  const clankable = (box: HitboxDef) => !box.transcendent || isHittable(entityDef(e.kind));
   const hit = activeHitboxes(f)
-    .filter((h) => !h.box.grab && !h.box.pushOnly && touchesBody(e, h.x, h.y, h.box.radius))
+    .filter(
+      (h) => !h.box.grab && !h.box.pushOnly && clankable(h.box) && touchesBody(e, h.x, h.y, h.box.radius),
+    )
     .sort((p, q) => p.box.id - q.box.id)[0];
   if (!hit) return 0;
   f.hitEntities.push(e.id);
