@@ -1,0 +1,320 @@
+:root {
+  font-family: 'Arial', sans-serif;
+  color: #f3f8f7;
+  background: #172b34;
+  color-scheme: dark;
+  --signal: #a8faed;
+  --edge: clamp(20px, 4.4vw, 76px);
+  --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+[hidden] {
+  display: none !important;
+}
+body {
+  margin: 0;
+}
+#game {
+  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+#scene,
+.vignette {
+  position: absolute;
+  inset: 0;
+}
+#scene canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.vignette {
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, #07191dd4 0%, #07191d54 42%, transparent 67%),
+    linear-gradient(0deg, #08181edb 0%, transparent 27%, transparent 76%, #0c1b246b 100%);
+}
+.top {
+  position: absolute;
+  inset: max(26px, env(safe-area-inset-top)) var(--edge) auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
+  color: inherit;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-decoration: none;
+}
+.wordmark::before {
+  content: '';
+  width: 18px;
+  height: 11px;
+  background: repeating-linear-gradient(115deg, var(--signal) 0 2px, transparent 3px 5px);
+  clip-path: polygon(24% 0%, 100% 0%, 76% 100%, 0% 100%);
+}
+button {
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 5px;
+}
+#sound {
+  padding: 10px 12px;
+  font: 11px var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: #10252bb8;
+  border: 1px solid #bdece750;
+}
+.brief {
+  position: absolute;
+  left: var(--edge);
+  top: 50%;
+  transform: translateY(-47%);
+}
+.eyebrow {
+  color: var(--signal);
+  font: 700 12px var(--mono);
+  letter-spacing: 0.25em;
+  margin: 0 0 17px;
+}
+h1 {
+  margin: 0;
+  font-size: clamp(64px, 9.4vw, 156px);
+  line-height: 0.82;
+  font-weight: 800;
+  letter-spacing: -0.079em;
+}
+h1.result {
+  font: 700 clamp(46px, 8vw, 110px) / 0.94 var(--mono);
+  letter-spacing: -0.09em;
+}
+#intro {
+  margin: 29px 0 24px;
+  width: min(320px, 80vw);
+  font-size: 15px;
+  line-height: 1.5;
+  color: #e2eeed;
+}
+#launch {
+  display: inline-flex;
+  align-items: center;
+  gap: 36px;
+  padding: 12px 14px 12px 20px;
+  border: 1px solid transparent;
+  background: var(--signal);
+  color: #0c2a29;
+  font-weight: 800;
+  transition:
+    background 150ms ease,
+    transform 150ms ease;
+}
+#launch:hover:enabled {
+  background: #ddfff9;
+  transform: translateY(-2px);
+}
+kbd {
+  display: inline-block;
+  padding: 4px 6px;
+  border: 1px solid currentColor;
+  font: 11px var(--mono);
+}
+.controls {
+  position: absolute;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  left: var(--edge);
+  right: var(--edge);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 13px 24px;
+  color: #ebf3f2;
+  font-size: 12px;
+}
+.controls span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.controls kbd {
+  color: var(--signal);
+  border-color: #bdecdf6c;
+  background: #13272c85;
+}
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font: 11px var(--mono);
+  color: #eafffa;
+  letter-spacing: 0.1em;
+  text-shadow:
+    0 1px 4px #041313,
+    0 0 12px #061517;
+}
+.split {
+  position: absolute;
+  top: clamp(66px, 10vh, 110px);
+  right: var(--edge);
+  display: grid;
+  justify-items: end;
+  gap: 7px;
+}
+.split strong {
+  font-size: clamp(25px, 4vw, 46px);
+  letter-spacing: -0.075em;
+  font-variant-numeric: tabular-nums;
+}
+.split span,
+.instruments span {
+  color: var(--signal);
+}
+.instruments {
+  position: absolute;
+  right: var(--edge);
+  bottom: 116px;
+  display: grid;
+  gap: 17px;
+}
+.instruments div {
+  display: grid;
+  width: 132px;
+  grid-template-columns: 1fr auto;
+  border-top: 1px solid #b2e7da91;
+  align-items: baseline;
+  padding: 7px 0 0;
+}
+.instruments div > :first-child {
+  grid-column: 1 / -1;
+}
+.instruments strong {
+  font: 700 31px / 1.18 var(--mono);
+  letter-spacing: -0.06em;
+}
+#marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 11px;
+  justify-items: center;
+  text-align: center;
+}
+#marker-arrow {
+  width: 8px;
+  height: 8px;
+  border: 1px solid #c5fff5;
+  transform: rotate(45deg);
+  box-shadow: 0 0 9px #6ed9dd91;
+}
+#marker.offscreen #marker-arrow {
+  background: #b9fae9;
+  border: 0;
+  width: 11px;
+  height: 10px;
+  clip-path: polygon(50% 0, 100% 100%, 50% 74%, 0 100%);
+  transform: none;
+}
+#meters {
+  white-space: nowrap;
+  background: #0f2b30c4;
+  padding: 4px 7px;
+  letter-spacing: 0.02em;
+}
+#notice {
+  position: absolute;
+  bottom: 93px;
+  left: var(--edge);
+  margin: 0;
+  color: #e9fffc;
+  text-transform: uppercase;
+}
+.touch {
+  position: absolute;
+  inset: auto max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom))
+    max(14px, env(safe-area-inset-left));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  touch-action: none;
+}
+.touch div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.touch button {
+  min-width: 44px;
+  min-height: 44px;
+  background: #122a30ee;
+  border: 1px solid #a8faed82;
+  font: 11px var(--mono);
+  padding: 4px 7px;
+  user-select: none;
+  touch-action: none;
+}
+.touch button:active {
+  background: #316762;
+}
+
+@media (pointer: coarse) {
+  .controls {
+    display: none;
+  }
+  .instruments {
+    bottom: 124px;
+  }
+  #notice {
+    bottom: 120px;
+    max-width: 48%;
+  }
+}
+@media (max-height: 510px) {
+  h1 {
+    font-size: clamp(40px, 12vh, 70px);
+  }
+  .eyebrow {
+    margin-bottom: 10px;
+  }
+  #intro {
+    margin: 14px 0;
+  }
+  .instruments {
+    bottom: 76px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #launch {
+    transition: none;
+  }
+}
+
+.in-flight .vignette {
+  background: linear-gradient(0deg, #08181ec4 0%, transparent 24%, transparent 82%, #0c1b2459 100%);
+}
+
+@media (pointer: coarse) {
+  #launch kbd {
+    display: none;
+  }
+}

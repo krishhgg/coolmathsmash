@@ -7,7 +7,7 @@ export default defineConfig({
     target: 'es2022',
     sourcemap: true,
     chunkSizeWarningLimit: 2000,
-    rollupOptions: { input: { main: 'index.html', lab: 'lab.html' } },
+    rollupOptions: { input: { main: 'index.html', lab: 'lab.html', flight: 'flight.html' } },
   },
   server: { port: 5173 },
   preview: { port: 4173 },
