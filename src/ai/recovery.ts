@@ -48,6 +48,21 @@ export interface RecoveryParams {
    * which the planner's timings missed.
    */
   holdUp?: true;
+  /** Recover to this floor corner beside a gap (gapTarget) instead of the nearest ledge, landing on the floor. */
+  gap?: Gap;
+}
+
+/**
+ * A floor's end beside a gap in the ground with nothing under it, where there is no ledge (Run Tunnel's floor has two
+ * such gaps, 16 units wide). Nothing catches it, but a fighter that rises beside it can land on the floor. `column`
+ * is where to rise: the middle of the gap when the floor across it is near, else where the fighter would hang if it
+ * were a ledge.
+ */
+export interface Gap {
+  x: number;
+  y: number;
+  side: -1 | 1;
+  column: number;
 }
 
 export interface RecoveryPlan {
@@ -69,16 +84,53 @@ export function targetLedge(info: StageInfo, x: number): Ledge | null {
   return best;
 }
 
-/** Where a fighter `width` wide hangs from ledge L (the sim's hangPos). */
-function hangX(L: Ledge, width: number): number {
-  return L.x + L.side * (width / 2 + 0.5);
+/**
+ * The floor corner beside a gap (Gap) nearest x horizontally, for a fighter `width` wide, or null when the stage has
+ * none. Only ground that stays there counts (StageInfo.steady), and a corner with a ledge is the ledge's.
+ */
+export function gapTarget(info: StageInfo, x: number, width: number): Gap | null {
+  const ends: Omit<Gap, 'column'>[] = [];
+  for (const e of info.c.edges) {
+    if (e.kind !== 'floor' || !info.steady.solids[e.solid]) continue;
+    const [lo, hi] = e.a.x < e.b.x ? [e.a, e.b] : [e.b, e.a];
+    for (const [p, side] of [
+      [lo, -1],
+      [hi, 1],
+    ] as const) {
+      if (info.c.geo.ledges.some((l) => Math.abs(l.x - p.x) < 0.5 && Math.abs(l.y - p.y) < 0.5)) continue;
+      // The floor goes on (another edge of the top), or there is ground under the drop: not a gap.
+      if (floorBelow(info, p.x + side * 2, p.y + 0.1, true, true) !== null) continue;
+      ends.push({ x: p.x, y: p.y, side });
+    }
+  }
+  let best: Omit<Gap, 'column'> | null = null;
+  for (const g of ends) if (!best || Math.abs(g.x - x) < Math.abs(best.x - x)) best = g;
+  if (!best) return null;
+  const g = best;
+  let across: number | null = null;
+  for (const o of ends)
+    if (o.side === -g.side && g.side * (o.x - g.x) > 0 && Math.abs(o.y - g.y) < 2)
+      if (across === null || Math.abs(o.x - g.x) < Math.abs(across - g.x)) across = o.x;
+  const narrow = across !== null && Math.abs(across - g.x) < width + 8;
+  return { ...g, column: narrow ? (g.x + across!) / 2 : g.x + g.side * (width / 2 + 0.5) };
+}
+
+/** Where a fighter `width` wide hangs from ledge L (the sim's hangPos), or rises past gap corner L. */
+function hangX(L: Ledge | Gap, width: number): number {
+  return 'column' in L ? L.column : L.x + L.side * (width / 2 + 0.5);
 }
 
 /**
  * Where to steer: onto the stage once level with the ledge, else to where the fighter would hang from it, or `out`
  * units past that.
  */
-function steerX(info: StageInfo, L: Ledge | null, f: Readonly<FighterState>, width: number, out = 0): number {
+function steerX(
+  info: StageInfo,
+  L: Ledge | Gap | null,
+  f: Readonly<FighterState>,
+  width: number,
+  out = 0,
+): number {
   if (!L) return info.centerX;
   if (f.pos.y >= L.y - 1) return L.x - L.side * 12;
   return hangX(L, width) + L.side * out;
@@ -90,7 +142,7 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
   let dodged = false;
   let holding = false;
   return (t, f) => {
-    const L = targetLedge(info, f.pos.x);
+    const L = p.gap ?? targetLedge(info, f.pos.x);
     const out = p.special && !special && p.reach < 0 ? -p.reach : 0;
     const d = steerX(info, L, f, k.stats.width) - f.pos.x;
     const ds = out ? steerX(info, L, f, k.stats.width, out) - f.pos.x : d;
@@ -146,7 +198,12 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
   };
 }
 
-function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterState>): RecoveryParams[] {
+function candidates(
+  info: StageInfo,
+  k: FighterKnowledge,
+  f: Readonly<FighterState>,
+  aims: PlanAims,
+): RecoveryParams[] {
   const specials = (k.hints.recovery ?? ['upB', 'sideB']).filter((s) => k.air[s]);
   const out: RecoveryParams[] = [];
   const none = {
@@ -162,7 +219,7 @@ function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterSta
   // With a jump left, plans also try the special without it (Infinity): from under the stage Fluffy's Point Grapple
   // used at once reaches the ledge, where a double jump first takes him too high and too far out.
   const jumps = canJump ? [Infinity, 1, 8, 16, 26, 38, 52] : [Infinity];
-  const L = targetLedge(info, f.pos.x);
+  const L = aims.ledge;
   const lowSide = L !== null && f.pos.y < L.y;
   const under = lowSide && L.side * (L.x - f.pos.x) > 0;
   for (const jumpAt of jumps) {
@@ -180,6 +237,24 @@ function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterSta
       if (jumpAt === Infinity) for (const at of [1, 10]) out.push({ ...none, special, specialAt: at });
     }
   }
+  // In a gap in the ground (Run Tunnel's floor), the nearest ledge can be past the floor on either side, with the
+  // floor's underside in the way. When a corner beside the gap is nearer than any ledge, also try rising in the gap and
+  // landing on the floor beside it.
+  const gap = aims.gap;
+  if (gap)
+    for (const jumpAt of jumps) {
+      out.push({ ...none, jumpAt, gap });
+      for (const special of specials) {
+        // Held straight up, Fluffy's Quick Grapple out of a gap latches onto the platform over it and reels him up.
+        for (const holdUp of special === 'upB' ? [false, true] : [false]) {
+          const hold = holdUp ? { holdUp: true as const } : {};
+          for (const below of [-24, -12, -4, 4, 12, 20, 30])
+            out.push({ ...none, jumpAt, special, below, gap, ...hold });
+          if (jumpAt === Infinity)
+            for (const at of [1, 10]) out.push({ ...none, special, specialAt: at, gap, ...hold });
+        }
+      }
+    }
   if (!f.airDodgeUsed)
     for (const dodgeAt of [1, 12]) out.push({ ...none, jumpAt: canJump ? 1 : Infinity, dodgeAt });
   return out;
@@ -189,15 +264,49 @@ const LIMIT = 260;
 
 /**
  * A recovery plan's work before the choice: every candidate plan for `f`, played out together (branchRun: plans share
- * the frames on which they press the same inputs, until the double jump or the special parts them) from `start`, a
- * solo match of `f` (soloMatch) on the frame the plan is for. planRecovery does it all at once; the CPU can also do it
+ * the frames on which they press the same inputs, until the double jump or the special parts them) from `start`, the
+ * match planStart makes for `f` on the frame the plan is for. planRecovery does it all at once; the CPU can also do it
  * a few frames at a time on the frames before it needs the plan (cpu.ts, planAhead).
  */
 export interface PlanWork {
   f: Readonly<FighterState>;
   info: StageInfo;
+  aims: PlanAims;
   plans: RecoveryParams[];
   run: BranchRun;
+}
+
+/**
+ * What a recovery plan for `f` aims at, as read from the stage (info): the ledge (targetLedge), and the floor's
+ * corner beside a gap (gapTarget) when that is nearer. planAhead (cpu.ts) uses its plans only when these are the same
+ * on the frame they are for as it predicted.
+ */
+export interface PlanAims {
+  ledge: Ledge | null;
+  gap: Gap | null;
+}
+
+export function planAims(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterState>): PlanAims {
+  const ledge = targetLedge(info, f.pos.x);
+  const gap = gapTarget(info, f.pos.x, k.stats.width);
+  const nearer = gap && (!ledge || Math.abs(gap.x - f.pos.x) < Math.abs(ledge.x - f.pos.x));
+  return { ledge, gap: nearer ? gap : null };
+}
+
+/**
+ * The match recovery plans for `f` play out on: a solo match of it (soloMatch) with whoever holds a ledge, as they
+ * are and with no input. A tether doesn't latch onto a held ledge (tether.ts), so Fluffy's Quick Grapple under one
+ * fails there as in the match, and a plain grab trumps them as in the match.
+ */
+export function planStart(
+  state: Readonly<MatchState>,
+  f: Readonly<FighterState>,
+  control: Readonly<ControlState>,
+): MatchState {
+  const holders = state.fighters.filter(
+    (o) => o.port !== f.port && o.ledge >= 0 && (o.action === 'ledgeCatch' || o.action === 'ledgeHang'),
+  );
+  return soloMatch(state, f, control, holders);
 }
 
 export function planWork(
@@ -206,7 +315,8 @@ export function planWork(
   info: StageInfo,
   k: FighterKnowledge,
 ): PlanWork {
-  const plans = candidates(info, k, f);
+  const aims = planAims(info, k, f);
+  const plans = candidates(info, k, f, aims);
   const run = branchRun(
     start,
     LIMIT,
@@ -226,23 +336,25 @@ export function planWork(
       };
     }),
   );
-  return { f, info, plans, run };
+  return { f, info, aims, plans, run };
 }
 
 /**
  * Finish `work` and choose from its plans: each one's path, whether it ends on the ledge, on the stage or neither,
- * and how near it came to the ledge decide, with the level's mistakes (rng). `frame` is the match frame it is for.
+ * and how near it came to what it aimed for decide, with the level's mistakes (rng). `frame` is the match frame it is
+ * for.
  */
 export function choosePlan(work: PlanWork, frame: number, lv: CpuLevel, rng: { rng: number }): RecoveryPlan {
   work.run.advance(Infinity);
-  const { info, f } = work;
-  const L = targetLedge(info, f.pos.x);
+  const { info } = work;
   const tried = work.plans.map((params, i) => {
     const path = work.run.paths[i]!;
     const end = path.at(-1);
     let outcome: RecoveryPlan['outcome'] = 'fail';
     if (end?.action === 'ledgeCatch') outcome = 'ledge';
     else if (end?.grounded && floorBelow(info, end.x, end.y + 0.1) !== null) outcome = 'land';
+    // How near the plan came to what it aimed for: its gap's corner, or the ledge.
+    const L = params.gap ?? work.aims.ledge;
     const miss = L ? Math.min(...path.map((s) => SimMath.hypot(s.x - L.x, s.y - L.y))) : 0;
     return { params, path, outcome, miss };
   });
@@ -273,7 +385,7 @@ export function planRecovery(
   lv: CpuLevel,
   rng: { rng: number },
 ): RecoveryPlan {
-  return choosePlan(planWork(soloMatch(state, f, control), f, info, k), state.frame, lv, rng);
+  return choosePlan(planWork(planStart(state, f, control), f, info, k), state.frame, lv, rng);
 }
 
 /**

@@ -62,17 +62,25 @@ const ABSENT = OWNER + 1;
  * would in the match. `f`'s own are port 0's, as `f` is, so one it put down in the air catches it as in the match
  * (collide). Anyone else's go under a port the copy doesn't hold (ABSENT + their port), so `f`'s hits and shots still
  * land on them.
+ *
+ * `others` come too, as they are, on ports 1 and up, and get no input: the recovery planner keeps whoever holds a
+ * ledge, so the ledge is taken there as in the match. A copy with others doesn't go through setEntities, whose OWNER
+ * port would be one of them; their entities' ports are pushed past theirs.
  */
 export function soloMatch(
   state: Readonly<MatchState>,
   f: Readonly<FighterState>,
   control?: Readonly<ControlState>,
+  others: readonly Readonly<FighterState>[] = [],
 ): MatchState {
   const m = createMatch({
     seed: 1,
     stage: state.config.stage,
     stocks: Math.max(1, f.stocks),
-    ports: [{ fighter: f.fighter, tapJump: state.players[f.port]?.tapJump ?? true }],
+    ports: [
+      { fighter: f.fighter, tapJump: state.players[f.port]?.tapJump ?? true },
+      ...others.map((o) => ({ fighter: o.fighter })),
+    ],
     hazards: state.config.hazards,
     oneVOne: oneVOne(state),
   });
@@ -80,8 +88,11 @@ export function soloMatch(
   m.stage = state.stage;
   m.stageFrame = state.stageFrame;
   m.fighters[0] = { ...structuredClone(f as FighterState), port: 0 };
+  others.forEach((o, i) => (m.fighters[i + 1] = { ...structuredClone(o as FighterState), port: i + 1 }));
   if (control) m.players[0]!.control = structuredClone(control as ControlState);
-  const port = (p: number) => (p === f.port ? 0 : p < 0 ? p : ABSENT + p);
+  const kept = (p: number) => others.findIndex((o) => o.port === p);
+  const port = (p: number) =>
+    p === f.port ? 0 : kept(p) >= 0 ? kept(p) + 1 : p < 0 ? p : ABSENT + others.length + p;
   for (const e of state.entities) {
     if (e.dead || !entityDef(e.kind).platform) continue;
     m.entities.push({
