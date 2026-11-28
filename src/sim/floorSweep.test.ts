@@ -56,4 +56,22 @@ describe('falling past the top of a slope, where it meets the main floor', () =>
     expect(f.pos.x).toBeGreaterThan(28.33);
     expect(f.pos.y).toBeCloseTo(-6, 6);
   });
+
+  it.each(['wheely', marioReference.id])(
+    "doesn't put %s back on the upper floor of Johnny's Upgrade Boss step when its path dips below it just inside its end",
+    (fighter) => {
+      // The upper and lower floors are one solid, but a wall joins them: they don't meet at the same height. This frame
+      // is one sub-step from (27.8, 0.2) to about (28.8, -1.3), crossing the upper floor's line at x 27.93, inside its
+      // end at x 28.33. As on main, the fighter isn't landed there but goes on down to the lower floor.
+      const m = on('johnny-upgrade-boss', fighter);
+      const f = placeInAir(m, 27.8, 0.2);
+      f.vel = { x: 1, y: -1.5 };
+      run(m, 1);
+      expect(f.ground).toBeNull();
+      expect(f.pos.x).toBeGreaterThan(28.33);
+      run(m, 10);
+      expect(f.ground?.kind).toBe('solid');
+      expect(f.pos.y).toBeCloseTo(-6, 6);
+    },
+  );
 });

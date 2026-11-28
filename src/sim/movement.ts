@@ -71,13 +71,32 @@ function connectedFloor(stage: CompiledStage, g: GroundRef, x: number): GroundRe
     const e = stage.edges[i]!;
     if (i === g.index || e.kind !== 'floor' || !stage.present.solids[e.solid]) continue;
     if (x < edgeMinX(e) - EPS || x > edgeMaxX(e) + EPS) continue;
-    const meets =
-      end >= edgeMinX(e) - EPS &&
-      end <= edgeMaxX(e) + EPS &&
-      Math.abs(floorY(e, end) - floorY(from, end)) < EPS;
-    if (e.solid === from.solid || meets) return { kind: 'solid', index: i };
+    if (e.solid === from.solid || meetsEnd(from, e, end)) return { kind: 'solid', index: i };
   }
   return null;
+}
+
+/** Whether floor `e` reaches `from`'s end at x `end` at the same height, so the two floors meet there. */
+function meetsEnd(from: Edge, e: Edge, end: number): boolean {
+  return (
+    end >= edgeMinX(e) - EPS && end <= edgeMaxX(e) + EPS && Math.abs(floorY(e, end) - floorY(from, end)) < EPS
+  );
+}
+
+/**
+ * Whether a floor that meets edge `index`'s end at the same height continues it past `x`: a real join, as where Forest
+ * Temple's slopes run into the main floor. Stricter than connectedFloor, which also takes any floor of the same solid,
+ * such as the lower floor past the wall of Johnny's Upgrade Boss step.
+ */
+function joinedFloor(stage: CompiledStage, index: number, x: number): boolean {
+  const from = stage.edges[index]!;
+  const end = x < edgeMinX(from) ? edgeMinX(from) : edgeMaxX(from);
+  for (let i = 0; i < stage.edges.length; i++) {
+    const e = stage.edges[i]!;
+    if (i === index || e.kind !== 'floor' || !stage.present.solids[e.solid]) continue;
+    if (x >= edgeMinX(e) - EPS && x <= edgeMaxX(e) + EPS && meetsEnd(from, e, end)) return true;
+  }
+  return false;
 }
 
 /**
@@ -340,15 +359,16 @@ function collide(x: Ctx, prev: { x: number; y: number }): GroundRef | null {
       if (crossing(prev.y - yPrev, f.pos.y - yNow)) return { kind: 'solid', index: stage.edges.indexOf(e) };
       continue;
     }
-    // The step ends past the floor's end, over a floor that continues it (connectedFloor): it still lands if its path
-    // went down through this floor on the way (a swept test). Without this, a fall past the top of a slope slipped
-    // under the corner where the slope meets the next floor: neither floor holds the step's end above and below it
-    // (Forest Temple's dip). The fighter lands where its path crossed. Only where two floors meet: a floor that ends at
-    // a wall or a ledge is left to the walls and pushOffCorner as before. A step that starts on the floor and leaves
-    // past its end (running off the top of a slope onto the flatter floor beyond) doesn't pass through it: the path
-    // must start above the floor's line and cross it inside its ends.
+    // The step ends past the floor's end, over a floor that meets that end at the same height (joinedFloor): it still
+    // lands if its path went down through this floor on the way (a swept test). Without this, a fall past the top of a
+    // slope slipped under the corner where the slope meets the next floor: neither floor holds the step's end above and
+    // below it (Forest Temple's dip). The fighter lands where its path crossed. Only where two floors meet: a floor that
+    // ends at a wall or a ledge is left to the walls and pushOffCorner as before, even when the floor past the wall is
+    // part of the same solid (Johnny's Upgrade Boss step). A step that starts on the floor and leaves past its end
+    // (running off the top of a slope onto the flatter floor beyond) doesn't pass through it: the path must start above
+    // the floor's line and cross it inside its ends.
     const ref: GroundRef = { kind: 'solid', index: stage.edges.indexOf(e) };
-    if (!connectedFloor(stage, ref, f.pos.x)) continue;
+    if (!joinedFloor(stage, ref.index, f.pos.x)) continue;
     const dPrev = prev.y - floorY(e, prev.x);
     const dNow = f.pos.y - floorY(e, f.pos.x);
     if (dPrev <= EPS || dNow >= 0) continue;
