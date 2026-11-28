@@ -112,8 +112,18 @@ function inAir(x: Ctx, drop: number, late: number, stall: boolean): void {
   if (f.actionFrame > late) f.actionFrame = late;
 }
 
-/** The airborne parts' shared flags: their own physics, a ledge grab from the drop, and landing into `downBLand`. */
-const airborne = { continuesOnLanding: true, drift: false, gravity: false, fallThrough: false } as const;
+/**
+ * The airborne parts' shared flags: their own physics, a ledge grab from the drop that catches a ledge behind him as
+ * well as in front (Bowser Bomb "can be used to snap to ledge, regardless if Bowser is facing the ledge"), and landing
+ * into `downBLand`.
+ */
+const airborne = {
+  continuesOnLanding: true,
+  drift: false,
+  gravity: false,
+  fallThrough: false,
+  ledgeBehind: true,
+} as const;
 
 export const shellPound: Record<string, MoveDef> = {
   /**

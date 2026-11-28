@@ -7,7 +7,7 @@ import { ledgePresent } from '../sim/stage';
 import { actionable, type FighterKnowledge } from './knowledge';
 import { STICK, press } from './inputs';
 import type { CpuLevel } from './levels';
-import { run, soloMatch, type Driver, type Sample } from './look';
+import { branchRun, run, soloMatch, type BranchRun, type Driver, type Sample } from './look';
 import { floorBelow, type StageInfo } from './stage';
 import * as SimMath from '../sim/math';
 
@@ -35,6 +35,19 @@ export interface RecoveryParams {
   reach: number;
   /** Frame to air dodge toward the ledge, or Infinity. */
   dodgeAt: number;
+  /**
+   * The special may come before the double jump, as soon as it is due. The CPU's own plans keep their order; this is
+   * how it pictures an opponent recovering (assumedInput in cpu.ts): one already low under the ledge uses its special
+   * at once, and one higher double jumps first.
+   */
+  specialFirst?: true;
+  /**
+   * Hold the stick straight up while the special plays, until the fighter can act or falls helpless, instead of
+   * steering toward the ledge. Fluffy's Quick Grapple, which the stick bends up to 30 degrees, then flies straight up
+   * past the ledge from under the stage. Steering, it passes the ledge only when fired in windows of about 3 frames,
+   * which the planner's timings missed.
+   */
+  holdUp?: true;
 }
 
 export interface RecoveryPlan {
@@ -98,6 +111,11 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
       i.buttons = Btn.Jump;
       return i;
     }
+    if (p.holdUp && special && f.ground === null && !actionable(f) && f.action !== 'helpless') {
+      i.x = 0;
+      i.y = STICK.special;
+      return i;
+    }
     if (f.ground !== null || !actionable(f) || f.action === 'helpless') return i;
     const dir = (Math.sign(d) || 1) as 1 | -1;
     if (!jumped && !held && t >= p.jumpAt && f.jumpsUsed < k.stats.jumps) {
@@ -108,7 +126,11 @@ export function recoveryDriver(info: StageInfo, k: FighterKnowledge, p: Recovery
     const low = L ? f.pos.y < L.y - p.below : false;
     const near = !L || L.side * (hangX(L, k.stats.width) - f.pos.x) <= p.reach + 1;
     const due = t >= p.specialAt || (p.specialAt === Infinity && low && f.vel.y <= 0.5);
-    if (!special && p.special && due && near) {
+    // A plan with a double jump uses its special after it, never before: a fighter that starts low enough would
+    // otherwise use it on the first frame and keep the jump for nothing (Wheely 35 units beside Battlefield's ledge and
+    // 50 under it Ramp Jumps into the stage's side, where a double jump first gets him back).
+    const jumpDone = p.specialFirst || jumped || p.jumpAt === Infinity || f.jumpsUsed >= k.stats.jumps;
+    if (!special && p.special && due && near && jumpDone) {
       special = true;
       if (p.special === 'upB') return press({ x: 40 * dir, y: STICK.special, buttons: Btn.Special });
       if (p.special === 'sideB') return press({ x: STICK.special * dir, buttons: Btn.Special });
@@ -137,16 +159,24 @@ function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterSta
   };
   out.push(none);
   const canJump = f.jumpsUsed < k.stats.jumps;
-  const jumps = canJump ? [1, 8, 16, 26, 38, 52] : [Infinity];
+  // With a jump left, plans also try the special without it (Infinity): from under the stage Fluffy's Point Grapple
+  // used at once reaches the ledge, where a double jump first takes him too high and too far out.
+  const jumps = canJump ? [Infinity, 1, 8, 16, 26, 38, 52] : [Infinity];
   const L = targetLedge(info, f.pos.x);
-  const under = L !== null && L.side * (L.x - f.pos.x) > 0 && f.pos.y < L.y;
+  const lowSide = L !== null && f.pos.y < L.y;
+  const under = lowSide && L.side * (L.x - f.pos.x) > 0;
   for (const jumpAt of jumps) {
     if (jumpAt !== Infinity) out.push({ ...none, jumpAt });
     for (const special of specials) {
       for (const below of [-24, -12, -4, 4, 12, 20, 30]) out.push({ ...none, jumpAt, special, below });
-      // From under the stage an up special used at once rises into the underside, so also try drifting out first.
-      if (under && special === 'upB')
-        for (const reach of [-8, 0, 12, 24, 36]) out.push({ ...none, jumpAt, special, below: -24, reach });
+      // From under the stage an up special used at once rises into the underside, so also try drifting out first, with
+      // the stick steering or held straight up while the special plays. Just beside the stage, below the ledge,
+      // drifting further out first gives Ramp Jump room to come back up over it (Wheely 12 units out and 50 under).
+      if (special === 'upB' && lowSide)
+        for (const reach of under ? [-8, 0, 12, 24, 36] : [-16, -8]) {
+          out.push({ ...none, jumpAt, special, below: -24, reach });
+          out.push({ ...none, jumpAt, special, below: -24, reach, holdUp: true });
+        }
       if (jumpAt === Infinity) for (const at of [1, 10]) out.push({ ...none, special, specialAt: at });
     }
   }
@@ -157,46 +187,65 @@ function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterSta
 
 const LIMIT = 260;
 
-function simulate(
-  state: Readonly<MatchState>,
-  f: Readonly<FighterState>,
-  control: Readonly<ControlState>,
-  info: StageInfo,
-  k: FighterKnowledge,
-  params: RecoveryParams,
-): { path: Sample[]; outcome: RecoveryPlan['outcome']; miss: number } {
-  const m = soloMatch(state, f, control);
-  // A plan from an entity's platform starts on the ground, and ends when the fighter comes down after leaving it.
-  let left = f.ground === null;
-  const path = run(m, LIMIT, recoveryDriver(info, k, params), (g) => {
-    left ||= g.ground === null;
-    if (g.action === 'ledgeCatch') return true;
-    if (g.ground !== null) return left;
-    return g.pos.y < info.blast.bottom + 10;
-  });
-  const end = path.at(-1);
-  let outcome: RecoveryPlan['outcome'] = 'fail';
-  if (end?.action === 'ledgeCatch') outcome = 'ledge';
-  else if (end?.grounded && floorBelow(info, end.x, end.y + 0.1) !== null) outcome = 'land';
-  const L = targetLedge(info, f.pos.x);
-  const miss = L ? Math.min(...path.map((s) => SimMath.hypot(s.x - L.x, s.y - L.y))) : 0;
-  return { path, outcome, miss };
+/**
+ * A recovery plan's work before the choice: every candidate plan for `f`, played out together (branchRun: plans share
+ * the frames on which they press the same inputs, until the double jump or the special parts them) from `start`, a
+ * solo match of `f` (soloMatch) on the frame the plan is for. planRecovery does it all at once; the CPU can also do it
+ * a few frames at a time on the frames before it needs the plan (cpu.ts, planAhead).
+ */
+export interface PlanWork {
+  f: Readonly<FighterState>;
+  info: StageInfo;
+  plans: RecoveryParams[];
+  run: BranchRun;
 }
 
-/** Plan a recovery from the CPU's current state. */
-export function planRecovery(
-  state: Readonly<MatchState>,
+export function planWork(
+  start: MatchState,
   f: Readonly<FighterState>,
-  control: Readonly<ControlState>,
   info: StageInfo,
   k: FighterKnowledge,
-  lv: CpuLevel,
-  rng: { rng: number },
-): RecoveryPlan {
-  const tried = candidates(info, k, f).map((params) => ({
-    params,
-    ...simulate(state, f, control, info, k, params),
-  }));
+): PlanWork {
+  const plans = candidates(info, k, f);
+  const run = branchRun(
+    start,
+    LIMIT,
+    plans.map((params) => {
+      // A plan from an entity's platform starts on the ground, and ends when the fighter comes down after leaving it.
+      let left = f.ground === null;
+      return {
+        drive: recoveryDriver(info, k, params),
+        until: (g: Readonly<FighterState>) => {
+          left ||= g.ground === null;
+          if (g.action === 'ledgeCatch') return true;
+          if (g.ground !== null) return left;
+          // The bottom blast line itself, where the sim KOs (blastZones.ts): Fluffy's Quick Grapple from 90 under the
+          // stage's middle fires 9 units above it and still reels him to the ledge.
+          return g.pos.y <= info.blast.bottom;
+        },
+      };
+    }),
+  );
+  return { f, info, plans, run };
+}
+
+/**
+ * Finish `work` and choose from its plans: each one's path, whether it ends on the ledge, on the stage or neither,
+ * and how near it came to the ledge decide, with the level's mistakes (rng). `frame` is the match frame it is for.
+ */
+export function choosePlan(work: PlanWork, frame: number, lv: CpuLevel, rng: { rng: number }): RecoveryPlan {
+  work.run.advance(Infinity);
+  const { info, f } = work;
+  const L = targetLedge(info, f.pos.x);
+  const tried = work.plans.map((params, i) => {
+    const path = work.run.paths[i]!;
+    const end = path.at(-1);
+    let outcome: RecoveryPlan['outcome'] = 'fail';
+    if (end?.action === 'ledgeCatch') outcome = 'ledge';
+    else if (end?.grounded && floorBelow(info, end.x, end.y + 0.1) !== null) outcome = 'land';
+    const miss = L ? Math.min(...path.map((s) => SimMath.hypot(s.x - L.x, s.y - L.y))) : 0;
+    return { params, path, outcome, miss };
+  });
   const pick = (list: typeof tried) => list[Math.floor(nextRandom(rng) * list.length)]!;
   let chosen: (typeof tried)[number];
   const ok = tried.filter((c) => c.outcome !== 'fail');
@@ -211,7 +260,20 @@ export function planRecovery(
   } else {
     chosen = tried.reduce((a, b) => (b.miss < a.miss ? b : a));
   }
-  return { params: chosen.params, start: state.frame, path: chosen.path, outcome: chosen.outcome };
+  return { params: chosen.params, start: frame, path: chosen.path, outcome: chosen.outcome };
+}
+
+/** Plan a recovery from the CPU's current state. */
+export function planRecovery(
+  state: Readonly<MatchState>,
+  f: Readonly<FighterState>,
+  control: Readonly<ControlState>,
+  info: StageInfo,
+  k: FighterKnowledge,
+  lv: CpuLevel,
+  rng: { rng: number },
+): RecoveryPlan {
+  return choosePlan(planWork(soloMatch(state, f, control), f, info, k), state.frame, lv, rng);
 }
 
 /**
