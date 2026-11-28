@@ -16,7 +16,8 @@ import type { HitboxDef, MoveDef } from '../types';
  * - Timing: piston pushbox 25-44, launcher 45-48, throw 45, animation length 119 (so FAF 120).
  * - Pushbox: 0%, angle 40, BK 0, KS 100, FKV 75 (grounded only) or FKV 70 (aerial only), radius 13, offset 11 up and
  *   16 forward, hitlag x0.0; and 0%, angle 361, BK 0, KS 100, FKV 10, radius 8, stretched from 16 to 44 forward at 11
- *   up, hitlag x2.0, hitting both.
+ *   up, hitlag x2.0, hitting both. None of them can clang or rebound (clang=f, rebound=f), so projectiles pass
+ *   through the belt's jolt (`transcendent`).
  * - Launcher: radius 13, stretched from 16 to 47 forward at 11 up: the catch here.
  * - Throws: "Throw into the house" 15% (hitlag x0.0) and "Final hit" 45%, angle 35, BK 60, KS 34, hitlag x0.0, flame.
  *   The trapped foe takes 15% + 45% = 60%.
@@ -71,7 +72,12 @@ function stretched(
 const joltBoxes: HitboxDef[] = [
   { id: 0, x: CONVEYOR.from, y: CONVEYOR.y, radius: 13, damage: 0, angle: 40, kbg: 100, bkb: 0, wbkb: 75 },
   { id: 1, x: CONVEYOR.from, y: CONVEYOR.y, radius: 13, damage: 0, angle: 40, kbg: 100, bkb: 0, wbkb: 70 },
-].map((b, i) => ({ ...b, hitlag: 0, targets: i ? ('air' as const) : ('ground' as const) }));
+].map((b, i) => ({
+  ...b,
+  hitlag: 0,
+  targets: i ? ('air' as const) : ('ground' as const),
+  transcendent: true,
+}));
 joltBoxes.push(
   ...stretched(2, CONVEYOR.from, CONVEYOR.joltTo, 8, {
     damage: 0,
@@ -80,6 +86,7 @@ joltBoxes.push(
     bkb: 0,
     wbkb: 10,
     hitlag: 2,
+    transcendent: true,
   }),
 );
 

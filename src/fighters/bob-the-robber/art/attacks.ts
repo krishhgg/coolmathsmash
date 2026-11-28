@@ -18,6 +18,7 @@ import {
   SIDE,
   TUCK,
   aim,
+  between,
   continuous,
   feet,
   floor,
@@ -592,8 +593,10 @@ export const attacks: Record<string, AnimClip> = {
           key(4, DSMASH_WIND, { ease: 'in' }),
           strikeKey(7, trail(DSMASH_HIT), { ...SHOUT, ...BATON, smear: 'smear90' }),
           key(8, trail(DSMASH_HIT), { ease: 'inOut' }),
-          key(10, DSMASH_HIT, { ease: 'in', swaps: { ...ANGRY, ...BATON } }),
-          key(13, mix(DSMASH_WIND, { body: { sx: -0.2 } }), { ease: 'out' }),
+          // Evenly round the turn, winding only halfway back: measured on screen through the flip, the eased arm
+          // swung 67 degrees in one frame into the full wind-up and 128 out of it.
+          key(10, DSMASH_HIT, { ease: 'linear', swaps: { ...ANGRY, ...BATON } }),
+          key(13, mix(between(DSMASH_HIT, DSMASH_WIND, 0.5), { body: { sx: -0.2 } }), { ease: 'linear' }),
           strikeKey(15, turned(trail(DSMASH_HIT)), { ...SHOUT, ...BATON, smear: 'smear90' }),
           key(16, turned(trail(DSMASH_HIT)), { ease: 'inOut' }),
           key(20, turned(DSMASH_HIT), { ease: 'inOut', swaps: { ...ANGRY, ...BATON } }),
@@ -622,7 +625,11 @@ export const attacks: Record<string, AnimClip> = {
           strikeKey(17, trail(swing(LOW, [4.0, -3.2], 10, -1)), { ...SHOUT, ...BATON, smear: 'smear90' }),
           // Evenly into the turn: eased, the forearm would swing 96 degrees in one frame.
           key(18, trail(swing(LOW, [4.0, -3.2], 10, -1)), { ease: 'linear' }),
-          key(21, mix(DSMASH_WIND, { body: { sx: -0.2 } }), { ease: 'out', swaps: { ...ANGRY, ...BATON } }),
+          // Evenly out of the turn: eased, the forearm swung 73 degrees in its first frame, measured on screen.
+          key(21, mix(DSMASH_WIND, { body: { sx: -0.2 } }), {
+            ease: 'linear',
+            swaps: { ...ANGRY, ...BATON },
+          }),
           strikeKey(25, turned(trail(swing(LOW, [4.0, -3.2], 10, -1))), {
             ...SHOUT,
             ...BATON,
