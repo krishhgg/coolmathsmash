@@ -150,13 +150,22 @@ function tumbling(form: Form, a: number, { start, frames, count }: typeof TUMBLE
   const moved = done ? 0 : u >= frames - 2 ? tipOffset(u, frames) - 18 : tipOffset(u, frames);
   const finishing = done || t >= total - frames;
   const [cx, cy] = centre(block);
+  // Roll's sweep trails the block's top corner round its centre, and shrinks as the centre comes down to land.
+  const reach = Math.min(1, -cy / 13);
   const skid = !rolling && age >= -1 && age <= 2 ? { sym: 'skid', x: form.hw + 1 - moved, y: 0 } : undefined;
   const speed =
     done || u < 2 || u > 8
       ? undefined
       : rolling
-        ? { sym: 'sweep', x: cx + 1, y: cy, rot: -26 + u * 6, sx: finishing ? 1.35 : 1.15, sy: 1.05 }
-        : { sym: 'streak', x: -form.hw + 2, y: -1.5, sx: 1, sy: 0.62 };
+        ? {
+            sym: 'sweep',
+            x: cx + 1,
+            y: cy,
+            rot: -26 + u * 6,
+            sx: (finishing ? 1.35 : 1.15) * reach,
+            sy: 1.05 * reach,
+          }
+        : { sym: 'streak', x: -form.hw + 2, y: -3.6, sx: 1, sy: 0.62 };
   if (age < -1 || age > 2) return { block, fx: { back: speed } };
   const strikeX = form.hw + 2.2 - moved;
   return {

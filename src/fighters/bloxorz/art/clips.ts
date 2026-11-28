@@ -28,6 +28,7 @@ import {
   centre,
   edge,
   ground,
+  half,
   landing,
   other,
   puff,
@@ -43,7 +44,7 @@ import {
   type Frame,
   type Place,
 } from './bake';
-import { HALF_W } from './symbols';
+import { BURST, HALF_W } from './symbols';
 
 /** Smooth step, as the engine eases ledge getups. */
 const smooth = (t: number) => t * t * (3 - 2 * t);
@@ -135,7 +136,10 @@ function getup(place: Place, frame: number, moveEnd: number, to: [number, number
   return shift(place, -to[0] * s, -to[1] * Math.min(1, rise * s));
 }
 
-/** Flipping up over the ledge corner: `deg` from 0 (hanging) to 180 (on the stage, the corner under its back edge). */
+/**
+ * Flipping up over the ledge corner: `deg` from 0 (hanging) to 180 (on the stage, the corner under its back edge).
+ * The getups draw the block on the stage after it with `half`, so its turn carries on from 180.
+ */
 const flipUp = (form: Form, deg: number) => {
   const [gx, gy] = grip(form);
   return about(hang(form, 0), gx, gy, deg);
@@ -147,16 +151,20 @@ const onStage = (form: Form, dx: number, h = 1, v = 1) => {
   return shift(rest(form, squash(form, h, v)), gx + dx, gy);
 };
 
-/** Two small stars circling above the block (dizzy, knocked down). */
+/**
+ * Two small stars circling above the block (dizzy, knocked down), each turning once a lap. A looping clip lasts a
+ * whole number of laps, so its last frame leads into its first.
+ */
 function stars(f: number, top: number, period = 40, r = 5): Frame['fx'] {
   const a = (2 * Math.PI * f) / period;
+  const spin = (360 * f) / period;
   return {
-    starA: { sym: 'star', x: Math.cos(a) * r, y: top + Math.sin(a) * r * 0.3, rot: f * 6 },
+    starA: { sym: 'star', x: Math.cos(a) * r, y: top + Math.sin(a) * r * 0.3, rot: spin },
     starB: {
       sym: 'star',
       x: -Math.cos(a) * r,
       y: top - Math.sin(a) * r * 0.3,
-      rot: -f * 6,
+      rot: -spin,
       sx: 0.8,
       sy: 0.8,
     },
@@ -365,7 +373,7 @@ export function actionClips(form: Form): Record<string, AnimClip> {
     }),
     dizzy: bake(60, true, (f) => ({
       block: rock(F, 7 * Math.sin((2 * Math.PI * f) / 60)),
-      fx: stars(f, top - 3.5, 40, 5),
+      fx: stars(f, top - 3.5, 60, 5),
     })),
     /** Flops onto its side as the intangibility starts, holds there through it, and stands back up. */
     spotDodge: bake(SPOT_DODGE.faf - 1, false, (f) => {
@@ -448,13 +456,15 @@ export function actionClips(form: Form): Record<string, AnimClip> {
       const place =
         land < 0
           ? flipUp(F, deg)
-          : onStage(
-              F,
-              tl(f, [
-                [20, F.hw],
-                [30, F.hw + 2, 'inOut'],
-              ]),
-              ...hv(land),
+          : half(
+              onStage(
+                F,
+                tl(f, [
+                  [20, F.hw],
+                  [30, F.hw + 2, 'inOut'],
+                ]),
+                ...hv(land),
+              ),
             );
       return {
         block: getup(place, f, moveEnd, target, 1.6),
@@ -481,28 +491,30 @@ export function actionClips(form: Form): Record<string, AnimClip> {
           [19, 0, 'in'],
           [29, 90],
         ]);
-        place = shift(edge(F, 1, t), gx + F.hw, gy);
+        place = half(shift(edge(F, 1, t), gx + F.hw, gy));
       } else if (f < 42) {
         const end = gx + distance;
         const from = gx + 2 * F.hw + O.hw;
-        place = shift(
-          turnIn(
-            F,
-            tl(f, [
-              [30, 90, 'inOut'],
-              [41, 0],
-            ]),
-            1,
-            1,
-            tl(f, [
-              [30, from],
-              [41, end],
-            ]),
+        place = half(
+          shift(
+            turnIn(
+              F,
+              tl(f, [
+                [30, 90, 'inOut'],
+                [41, 0],
+              ]),
+              1,
+              1,
+              tl(f, [
+                [30, from],
+                [41, end],
+              ]),
+            ),
+            0,
+            gy,
           ),
-          0,
-          gy,
         );
-      } else place = shift(settle(F, f - 42), target[0], gy);
+      } else place = half(shift(settle(F, f - 42), target[0], gy));
       return { block: getup(place, f, moveEnd, target, 1.6) };
     }),
     ledgeJump: bake(20, false, (f) => {
@@ -568,7 +580,7 @@ export function actionClips(form: Form): Record<string, AnimClip> {
                 [23, 0, 'in'],
                 [42, 0],
               ]);
-        place = shift(rock(F, deg), x, gy);
+        place = half(shift(rock(F, deg), x, gy));
       }
       return { block: getup(place, f, moveEnd, target, 1.6) };
     }),
@@ -779,13 +791,13 @@ export function actionClips(form: Form): Record<string, AnimClip> {
     if (f < 9 || f >= 50) {
       const shake = f < 9 ? 1.6 * Math.sin(f * 2.4) * (f / 9) : 0;
       const p = f < 9 ? rock(F, shake) : settle(F, f - 50, {}, 1.2);
+      // The rejoin's flash on the block's middle: once it would reach the floor it only grows wider.
+      const s = 0.4 + (f - 50) * 0.2;
       return {
         block: p,
         fx:
           f >= 50 && f < 56
-            ? {
-                starA: { sym: 'burst', x: 0, y: top / 2, sx: 0.4 + (f - 50) * 0.2, sy: 0.4 + (f - 50) * 0.2 },
-              }
+            ? { starA: { sym: 'burst', x: 0, y: top / 2, sx: s, sy: Math.min(s, F.hh / BURST) } }
             : {},
       };
     }
