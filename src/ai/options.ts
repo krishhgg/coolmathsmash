@@ -296,13 +296,17 @@ function aerialHits(
   for (const name of AERIALS) {
     const p: MoveProbe | undefined = k.air[name];
     if (!p || (p.first < 0 && !(me.state && p.shot))) continue;
+    // An aerial that turns the stick's drift off sets its own sideways speed, and the one that does, Shell Plunge,
+    // stops it on its first frame (Toon Link's down air): from the input on he stays at the x he had.
+    const held = p.def.drift === false ? (inputAt > 0 ? a.x[inputAt - 1]! : f.pos.x) : undefined;
+    const xAt = (t: number) => (held !== undefined && t >= inputAt ? held : a.x[t]!);
     const struck =
       p.first < 0
         ? null
         : firstHit(
             p.active,
             inputAt,
-            (_pf, t) => (t < land && t < a.x.length ? { x: a.x[t]!, y: a.y[t]! } : null),
+            (_pf, t) => (t < land && t < a.x.length ? { x: xAt(t), y: a.y[t]! } : null),
             f.facing,
             target,
           );
@@ -311,7 +315,7 @@ function aerialHits(
       p,
       inputAt,
       f.facing,
-      (s, t) => (t < land && t < a.x.length ? { x: a.x[t]! + s.ox * f.facing, y: a.y[t]! + s.oy } : null),
+      (s, t) => (t < land && t < a.x.length ? { x: xAt(t) + s.ox * f.facing, y: a.y[t]! + s.oy } : null),
       target,
     );
     const hit = earlier(struck, shot);
@@ -328,9 +332,9 @@ function aerialHits(
       tHit: hit.t,
       box: hit.box,
       busy: Math.min(land, inputAt + p.def.faf) + lag,
-      endX: a.x[end]!,
+      endX: xAt(end),
       endY: a.y[end]!,
-      landX: a.x[Math.min(land, a.x.length - 1)]!,
+      landX: xAt(Math.min(land, a.x.length - 1)),
       ...(hit.shot && { shot: shotOut(hit.shot) }),
       score: 0,
     });
