@@ -56,6 +56,35 @@ export function continuous(keys: Key[], { onScreen = false } = {}): Key[] {
   });
 }
 
+/**
+ * `a` moved `t` of the way to `b`. Each bone turns the short way round on screen (its own turn plus its parents'),
+ * as `continuous` with `onScreen` tweens it, so a limb whose parts each turn the short way can't swing round the
+ * long way as a whole.
+ */
+export function between(a: Pose, b: Pose, t: number): Pose {
+  const out: Pose = {};
+  /** Each bone's angle on screen in `a`, in `b` (taken the short way from `a`) and blended. */
+  const screen: Record<string, [number, number, number]> = {};
+  const at = (u: number, v: number) => u + (v - u) * t;
+  for (const { name, parent } of rig.bones) {
+    const [p, q] = [a[name] ?? {}, b[name] ?? {}];
+    const [fromAbove, toAbove, nowAbove] = parent ? screen[parent]! : [0, 0, 0];
+    const from = fromAbove + (p.rot ?? 0);
+    let to = toAbove + (q.rot ?? 0);
+    to -= 360 * Math.round((to - from) / 360);
+    const now = at(from, to);
+    screen[name] = [from, to, now];
+    out[name] = {
+      x: at(p.x ?? 0, q.x ?? 0),
+      y: at(p.y ?? 0, q.y ?? 0),
+      rot: now - nowAbove,
+      sx: at(p.sx ?? 1, q.sx ?? 1),
+      sy: at(p.sy ?? 1, q.sy ?? 1),
+    };
+  }
+  return out;
+}
+
 /** Merges poses bone by bone (later wins per field). */
 export function mix(...poses: Pose[]): Pose {
   const out: Pose = {};
