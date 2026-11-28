@@ -1,5 +1,6 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
-import type { AnimClip, BonePose, Key } from '../../../render/rig/types';
+import { samplePose } from '../../../render/rig/sample';
+import type { AnimClip, BonePose, FighterArt, Key } from '../../../render/rig/types';
 import { BODY, EXHAUST, HORN, WHEEL_R, WHEEL_X, WHEEL_Y, type Pt } from './parts';
 import { rig } from './rig';
 
@@ -126,6 +127,62 @@ export const honk = (pose: Pose, s: number) => fxOn(pose, 'fx1', [HORN[0] + 0.5,
  */
 export function trail(cx: number, cy: number, r: number, head: number, clockwise = true): BonePose {
   return clockwise ? at(cx, cy, r, -(head + 20)) : at(cx, cy, r, -(head - 20), -r);
+}
+
+/**
+ * The most a wheel drawn plain may turn in a frame. Its five bolts repeat every 72 degrees, so past half that the eye
+ * reads the wheel turning the other way.
+ */
+export const PLAIN_TURN = 36;
+
+/** Each wheel's slot, under its spin bone. */
+const WHEELS = [
+  ['wheelB', 'spinB'],
+  ['wheelF', 'spinF'],
+] as const;
+
+/**
+ * Draws a wheel blurred (wheelBlur) on any frame it turns more than PLAIN_TURN degrees from the frame before, as the
+ * clips do for driving. A clip that needs it is baked to a key a frame; the rest are returned as they are.
+ */
+export function blurFast(clip: AnimClip): AnimClip {
+  const art = { rig, clips: { c: clip }, palettes: { default: {} }, height: 0, icon: '' } as FighterArt;
+  const last = clip.loop ? clip.length - 1 : clip.length;
+  const poses = Array.from({ length: last + 1 }, (_, f) => samplePose(art, 'c', f, f));
+  const turn = (f: number, bone: string) => {
+    let deg = 0;
+    for (let b: string | undefined = bone; b; b = rig.bones.find((x) => x.name === b)!.parent)
+      deg += poses[f]!.local[b]!.rot;
+    return deg;
+  };
+  const blur = poses.map((p, f) =>
+    WHEELS.filter(
+      ([slot, bone]) =>
+        f > 0 && p.symbols[slot] === 'wheel' && Math.abs(turn(f, bone) - turn(f - 1, bone)) > PLAIN_TURN,
+    ).map(([slot]) => slot),
+  );
+  if (blur.every((b) => !b.length)) return clip;
+  const keys = poses.map((p, f) => {
+    const pose: Pose = Object.fromEntries(
+      rig.bones.map(({ name, x, y, rot = 0, sx = 1, sy = 1 }) => {
+        const b = p.local[name]!;
+        return [name, { x: b.x - x, y: b.y - y, rot: b.rot - rot, sx: b.sx / sx, sy: b.sy / sy }];
+      }),
+    );
+    let swaps: Key['swaps'];
+    let z: Key['z'];
+    for (const k of clip.keys) {
+      if (k.frame > f) break;
+      if (k.swaps) swaps = k.swaps;
+      if (k.z) z = k.z;
+    }
+    if (blur[f]!.length)
+      swaps = { ...swaps, ...Object.fromEntries(blur[f]!.map((slot) => [slot, 'wheelBlur'])) };
+    // Every key states its swaps, an empty map where the clip has none, since a key without them keeps the last
+    // key's: a blur would otherwise hold until the clip's next authored swap.
+    return key(f, pose, { ease: 'linear', swaps: swaps ?? {}, ...(z ? { z } : {}) });
+  });
+  return { ...clip, keys };
 }
 
 const EFFECT_BONES = ['fx1', 'fx2', 'fx3', 'fx4', 'prop'];

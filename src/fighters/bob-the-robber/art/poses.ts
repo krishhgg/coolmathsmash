@@ -23,33 +23,48 @@ export function key(frame: number, pose?: Pose, extra: Omit<Key, 'frame' | 'pose
  *
  * Short turns can still add up along a limb: the upper arm, forearm and baton can each turn the short way while
  * the baton goes most of the way round on screen. With `onScreen`, each bone instead takes the whole turns that
- * leave its angle on screen (its own turn plus its parents') nearest the last key's. The body is never wrapped,
- * so a flip still spins and carries the rest with it.
+ * leave its angle on screen nearest the last key's. On screen, a bone's own turn adds to its parent's, the other way
+ * round under a mirrored parent (an odd number of its ancestors flipped with a negative scale, such as a body turned
+ * round with sx -1). Where its parent flips between the keys, it flips with it, keeping its own turn nearest the last
+ * key's. The body is never wrapped, so a flip still spins and carries the rest with it.
  */
 export function continuous(keys: Key[], { onScreen = false } = {}): Key[] {
+  /** Each bone's angle on screen and its own turn at the last posed key. */
   const last: Record<string, number> = {};
+  const own: Record<string, number> = {};
+  /** Whether each bone's parent drew mirrored at the last posed key. */
+  const wasUnder: Record<string, boolean> = {};
   let body: number | undefined;
   return keys.map((k) => {
     if (!k.pose) return k;
     const pose = { ...k.pose };
     const now: Record<string, number> = {};
-    for (const { name, parent } of rig.bones) {
+    /** Whether each bone draws mirrored in this key: its own scale's sign times its parent's. */
+    const flipped: Record<string, boolean> = {};
+    for (const { name, parent, sx = 1, sy = 1 } of rig.bones) {
+      const p = pose[name];
+      const under = parent ? flipped[parent]! : false;
+      flipped[name] = under !== sx * (p?.sx ?? 1) * sy * (p?.sy ?? 1) < 0;
+      /** Which way this bone's own turn goes on screen. */
+      const way = under ? -1 : 1;
       const above = parent ? now[parent]! : 0;
-      let r = pose[name]?.rot ?? 0;
+      let r = p?.rot ?? 0;
       if (name === 'body') {
         // Only the body's lean since the last key counts against what it carries, not its whole turns (a flip).
         const lean = body === undefined ? 0 : r - body - 360 * Math.round((r - body) / 360);
-        now[name] = body === undefined ? above + r : last[name]! + lean;
+        now[name] = body === undefined ? above + way * r : last[name]! + way * lean;
         body = r;
         continue;
       }
-      const was = last[name];
-      if (was !== undefined) {
-        const [from, to] = onScreen ? [was, above + r] : [was - (parent ? last[parent]! : 0), r];
-        r += 360 * Math.round((from - to) / 360);
-      }
-      if (r !== 0 || pose[name]?.rot !== undefined) pose[name] = { ...pose[name], rot: r };
-      now[name] = above + r;
+      if (last[name] !== undefined)
+        r +=
+          onScreen && wasUnder[name] === under
+            ? 360 * way * Math.round((last[name] - (above + way * r)) / 360)
+            : 360 * Math.round((own[name]! - r) / 360);
+      wasUnder[name] = under;
+      if (r !== 0 || p?.rot !== undefined) pose[name] = { ...p, rot: r };
+      now[name] = above + way * r;
+      own[name] = r;
     }
     Object.assign(last, now);
     return { ...k, pose };

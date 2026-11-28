@@ -9,6 +9,7 @@ import {
   GRAB,
   INPUT_BUFFER_FRAMES,
   SHIELD_DROP_FRAMES,
+  SPECIAL_REVERSE,
   TECH_WINDOW,
 } from '../sim/constants';
 import { buffered, type ControlState } from '../sim/control';
@@ -974,15 +975,106 @@ export class Cpu {
     const ff =
       this.rand() < this.lv.fastFall && floorBelow(info, pick.endX, pick.endY + 1, true, true) !== null;
     if (pick.kind === 'ground') {
+      const facing = TURNING_MOVES.has(pick.move) ? pick.facing : me.facing;
+      const ground = () => groundMove(pick.move, facing, pick.held ?? 0);
       this.start(
-        groundMove(pick.move, TURNING_MOVES.has(pick.move) ? pick.facing : me.facing, pick.held ?? 0),
+        (this.takesOff(state, me, pick.move) ? this.steerAttack(state, me, ground, pick.move) : ground)(),
       );
       return true;
     }
-    const make = () => (pick.kind === 'jump' ? jumpAerial(pick, ff, info) : airAerial(pick, ff, info));
+    const aerial = () => (pick.kind === 'jump' ? jumpAerial(pick, ff, info) : airAerial(pick, ff, info));
+    const make = this.steerAttack(state, me, aerial, pick.move);
     if (!info.calm && !this.landsClear(state, me, make())) return false;
     this.start(make());
     return true;
+  }
+
+  /**
+   * Whether grounded move `move` takes the CPU into the air: it takes off or ends helpless (MoveDef), or its probe
+   * hops or rises.
+   */
+  private takesOff(state: Readonly<MatchState>, me: Readonly<FighterState>, move: string): boolean {
+    const def = getFighter(me.fighter).moves?.[move];
+    if (def?.leavesGround || def?.helpless) return true;
+    const p = this.knowledge(state, me).ground[move];
+    return (
+      p !== undefined && (!p.endsGrounded || Math.abs(p.endDy) > 0.5 || p.active.some((a) => a.dy > 0.5))
+    );
+  }
+
+  /**
+   * A chosen attack whose move takes the CPU into the air, played out on a copy of the match first (playOut). One that
+   * comes down on the stage without leaving it is left as it is. Otherwise, when holding the stick toward the stage
+   * while in the air brings it down there, the program holds it from the latest step that does: from just after the
+   * move's last active hitbox frame or shot when that is enough, so the hit plays as chosen, else as late as still lands,
+   * giving up where the rest of the hit goes to stay on the stage. A move that locks drift, or one no steering saves,
+   * is left as it is. `make` builds the program, fresh for each play, as programs keep state; the result does too.
+   */
+  private steerAttack(
+    state: Readonly<MatchState>,
+    me: Readonly<FighterState>,
+    make: () => Program,
+    move: string,
+  ): () => Program {
+    const base = this.playOut(state, me, make());
+    if (base.end === 'stage') return make;
+    // The move's last active hitbox frame, or the frame it puts out its last shot: steering after it can't move them.
+    const def = getFighter(me.fighter).moves?.[move];
+    const last = Math.max(
+      0,
+      ...(def?.hits ?? []).map((h) => h.frames[1]),
+      ...(def?.spawn ?? []).map((s) => s.frame),
+    );
+    // Never inside a special's B-reverse window, where the stick behind turns the move round instead of drifting it.
+    const air = base.steps.findIndex((s) => s.move === move && s.air && s.frame >= SPECIAL_REVERSE.window[1]);
+    if (air < 0) return make;
+    const after = base.steps.findIndex((s, t) => t >= air && (s.move !== move || s.frame >= last));
+    const latest = after < 0 ? base.steps.length - 1 : after;
+    const info = stageInfo(state);
+    for (let from = latest; from >= air; from -= STEER_STEP) {
+      const dir = Math.sign(info.centerX - base.steps[from]!.x) || -me.facing;
+      const steered = () => steerFrom(make(), from, dir);
+      if (this.playOut(state, me, steered()).end === 'stage') return steered;
+    }
+    return make;
+  }
+
+  /**
+   * Play `program` out on a copy of the match, then let it fall as airIdle steers (idleStick), until the CPU comes
+   * down: 'stage' when it lands somewhere it can stand without having left the stage, 'off' when it goes out over no
+   * ground first (where the real CPU drops the program for its recovery) or doesn't come down, 'ko' when it is KO'd.
+   * `steps` is the fighter before each step: its move and frame, x, and whether it was in the air.
+   */
+  private playOut(
+    state: Readonly<MatchState>,
+    me: Readonly<FighterState>,
+    program: Program,
+  ): {
+    end: 'stage' | 'off' | 'ko';
+    steps: { move: string | null; frame: number; x: number; air: boolean }[];
+  } {
+    const m = soloMatch(state, me, state.players[this.port]!.control);
+    const g = m.fighters[0]!;
+    const steps: { move: string | null; frame: number; x: number; air: boolean }[] = [];
+    let running = true;
+    let flew = false;
+    for (let t = 0; t < ATTACK_PLAYOUT; t++) {
+      const info = stageInfo(m);
+      steps.push({ move: g.move, frame: g.actionFrame, x: g.pos.x, air: g.ground === null });
+      const i: InputFrame | null = running ? program.step(t, g, info) : null;
+      running &&= i !== null;
+      stepMatch(m, [i ?? (g.ground === null ? press({ x: idleStick(g, info) }) : NEUTRAL)]);
+      if (g.action === 'ko' || g.action === 'out') return { end: 'ko', steps };
+      const after = stageInfo(m);
+      if (g.ground === null) {
+        flew = true;
+        if (floorBelow(after, g.pos.x, g.pos.y) === null && !g.action.startsWith('ledge'))
+          return { end: 'off', steps };
+      } else if (flew || !running) {
+        return { end: standSafe(after, g.fighter, g.pos.x, g.pos.y) ? 'stage' : 'off', steps };
+      }
+    }
+    return { end: 'off', steps };
   }
 
   /**
@@ -1170,13 +1262,38 @@ export class Cpu {
       if (me.airFrames <= 1) this.wantFastFall = this.rand() < this.lv.fastFall * 0.5;
     }
     this.fastFallAir = me.airFrames;
-    const toward =
-      me.pos.x < info.left + 10 || me.pos.x > info.right - 10 ? Math.sign(info.centerX - me.pos.x) * 100 : 0;
-    const back = me.action === 'helpless' || actionable(me) ? driftBack(info, me) : null;
-    const x = back ?? (info.calm ? toward : steer(me, info, toward));
     const ff = this.wantFastFall && actionable(me) && canFastFall(me, info) && this.last.y > -30;
-    return press({ x, y: ff ? -100 : 0 });
+    return press({ x: idleStick(me, info), y: ff ? -100 : 0 });
   }
+}
+
+/**
+ * Stick x for a CPU in the air with nothing else to do (airIdle): steer a helpless or free fall back over the stage
+ * when it would come down past an edge (driftBack), else push toward the middle within 10 units of the stage's ends
+ * (and round damage zones on a stage with hazards).
+ */
+function idleStick(me: Readonly<FighterState>, info: StageInfo): number {
+  const toward =
+    me.pos.x < info.left + 10 || me.pos.x > info.right - 10 ? Math.sign(info.centerX - me.pos.x) * 100 : 0;
+  const back = me.action === 'helpless' || actionable(me) ? driftBack(info, me) : null;
+  return back ?? (info.calm ? toward : steer(me, info, toward));
+}
+
+/** Frames steerAttack plays an attack out for: long enough for a helpless fall from a high up special to land. */
+const ATTACK_PLAYOUT = 240;
+/** Steps between the steering starts steerAttack tries, from the latest back. */
+const STEER_STEP = 2;
+
+/** `program`, holding the stick full toward `dir` (-1 or 1) from its step `from` on while the fighter is in the air. */
+function steerFrom(program: Program, from: number, dir: number): Program {
+  return {
+    ...program,
+    step(t, f, stage) {
+      const i = program.step(t, f, stage);
+      if (!i || t < from || f.ground !== null) return i;
+      return { ...i, x: dir * STICK.full };
+    },
+  };
 }
 
 type LedgeOption = 'climb' | 'jump' | 'roll' | 'attack' | 'drop';
