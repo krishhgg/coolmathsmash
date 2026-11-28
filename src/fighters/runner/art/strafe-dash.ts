@@ -2,7 +2,7 @@ import type { Pose } from '../../../render/rig/author';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import { STRAFE_DASH } from '../timing';
 import { AIR, READY, TUCK } from './clips';
-import { ANGRY, FACE, HAPPY, SHOUT, P, key, mix } from './poses';
+import { ANGRY, FACE, HAPPY, SHOUT, P, key, mix, passing } from './poses';
 
 const { dash, active, end, groundFaf, airFaf } = STRAFE_DASH;
 
@@ -75,6 +75,8 @@ const BRAKE = P({
 });
 
 const DUST: Pose = { fx2: { x: 6.0, y: -0.1, sx: 1.7, sy: 1.3 } };
+/** The brake a few frames on, the dust spreading. */
+const BRAKE_DUST = mix(BRAKE, { fx2: { x: 7.4, y: -0.1, sx: 2.4, sy: 0.7 } });
 
 /** Sliding out of it on both feet, settling. */
 const SLIDE = P({
@@ -147,9 +149,9 @@ export const strafeDashClips: Record<string, AnimClip> = {
       key(18, coil(0.4), { ease: 'in' }),
       key(dash[0] - 1, coil(1), { ease: 'step' }),
       ...burst(BURST, mix(BRAKE, DUST), { fx2: 'dust' }),
-      key(end + 4, mix(BRAKE, { fx2: { x: 7.4, y: -0.1, sx: 2.4, sy: 0.7 } }), {
-        swaps: { ...SHOUT, fx2: 'dust' },
-      }),
+      key(end + 4, BRAKE_DUST, { ease: 'linear', swaps: { ...SHOUT, fx2: 'dust' } }),
+      // The far foot slides in over the floor as she settles.
+      key(end + 7, passing(BRAKE_DUST, SLIDE, 0.5, 'B'), { ease: 'linear' }),
       key(end + 10, SLIDE, { swaps: FACE }),
       key(groundFaf - 1, READY, { swaps: FACE }),
     ],

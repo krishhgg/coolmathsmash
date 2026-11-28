@@ -50,7 +50,7 @@ export const boxDropClips: Record<string, AnimClip> = {
     active: [[impact, airEnd]],
     keys: [
       key(0, AIR),
-      key(impact - 5, mix(TUCK, { body: { rot: -75 } }), { ease: 'out' }),
+      key(impact - 5, mix(TUCK, { body: { rot: -75 } }), { ease: 'linear' }),
       key(
         impact - 1,
         { fx1: { sy: 0.88 }, fx3: { y: -6.8, sx: 1.35, sy: 1.4 } },
