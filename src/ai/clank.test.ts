@@ -147,6 +147,33 @@ describe("CPUs and their opponent's shots", () => {
     expect(threat!.until).toBeGreaterThan(threat!.t);
   });
 
+  it("see an opponent's shot as a threat when it crosses the opponent's own raft, as the match has it", () => {
+    // A shot passes over its own fighter's Duck Raft in the match. In the CPU's copy the raft has to stay that
+    // fighter's too, or the shot is used up on it.
+    const m = createMatch({
+      seed: 1,
+      stage: STAGE,
+      stocks: 3,
+      ports: [{ fighter: 'fireboy' }, { fighter: 'raftwars' }],
+    });
+    for (let i = 0; i < 30; i++) stepMatch(m, [neutralInput(), neutralInput()]);
+    Object.assign(m.fighters[0]!, { pos: { x: -40, y: 0 }, prevPos: { x: -40, y: 0 }, facing: 1 });
+    Object.assign(m.fighters[1]!, { pos: { x: 40, y: 0 }, prevPos: { x: 40, y: 0 }, facing: -1 });
+    spawnEntity(m, { kind: 'raftwars/duckRaft', owner: 1, pos: { x: -20, y: 5 } });
+    const s = knowledge('raftwars', STAGE).ground.ftilt!.spawns[0]!;
+    const shot = spawnEntity(m, { kind: s.kind, owner: 1, pos: { x: 0, y: 5 } });
+    Object.assign(shot, { age: 1, vel: { x: -s.vx, y: s.vy }, facing: -1, lifetime: s.lifetime });
+    const me = m.fighters[0]!;
+    const threat = shotThreat(m, me, seenShots(m, me, 0), [], 36);
+    expect(threat).not.toBeNull();
+    let hitAt = -1;
+    for (let t = 0; t < 36 && hitAt < 0; t++) {
+      stepMatch(m, [neutralInput(), neutralInput()]);
+      if (m.events.some((e) => e.type === 'hit' && e.victim === 0)) hitAt = t;
+    }
+    expect(hitAt).toBe(threat!.t);
+  });
+
   it("see no threat in two opponents' shots that clank with each other first (three players)", () => {
     // Port 0 at x -60; port 1's Fireball heads for it from x -15, close enough to hit it within the CPU's 36 frames of
     // look-ahead, and port 2's comes the other way from x -45: the two meet at about x -30. In the CPU's copy each

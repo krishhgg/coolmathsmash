@@ -104,9 +104,11 @@ export function soloMatch(
  * of play (as with no stocks left), so nothing hits, grabs or pushes it; each call sets it to `owner` as given. It
  * gives the entities what they read from their owner: its rage, its stale queue, and where it is for one that flies
  * home. The copies keep their ids and their hits so far, those on other fighters under ports the look-ahead doesn't
- * hold (ABSENT). With `keep`, the owner's entities already in `m` stay and these join them. `standIn` is the port
- * that stands in for the owner (OWNER and the STAND_INS - 1 after it): several owners need one each, or their
- * entities, all under one port, would let each other through where they clank in the match.
+ * hold (ABSENT). With `keep`, the owner's entities already in `m` stay and these join them, and the owner's platforms
+ * soloMatch copied in (under ABSENT + its port) move to the stand-in with them: a fighter's shot passes over its own
+ * raft in the match, and would hit it here under two owners. `standIn` is the port that stands in for the owner
+ * (OWNER and the STAND_INS - 1 after it): several owners need one each, or their entities, all under one port, would
+ * let each other through where they clank in the match.
  */
 export function setEntities(
   m: MatchState,
@@ -127,6 +129,7 @@ export function setEntities(
       m.fighters.push({ ...createFighter(port, owner.fighter, [0, 0, 1], 0), action: 'out' });
     }
   }
+  if (keep) for (const e of m.entities) if (e.owner === ABSENT + owner.port) e.owner = standIn;
   Object.assign(m.fighters[standIn]!, {
     pos: { ...owner.pos },
     prevPos: { ...owner.pos },
