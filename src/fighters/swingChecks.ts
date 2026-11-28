@@ -1,0 +1,113 @@
+import { fighterArt } from '../render/fighterView';
+import {
+  allFindings,
+  worstByClip,
+  type Check,
+  type Finding,
+  type SwingChecks,
+} from '../render/rig/swingChecks';
+import { LEDGE_ATTACK, LEDGE_CLIMB, LEDGE_ROLL } from '../sim/constants';
+import { allFighters } from './registry';
+import type { FighterDef } from './types';
+
+/**
+ * Which of each fighter's clips the swing checks (`src/render/rig/swingChecks.ts`) treat as on the ground and which
+ * as in the air, with each fighter's allowances. The shared test and `scripts/swing-survey.ts` both read it.
+ */
+
+/**
+ * Clips with no floor under them: jumps, falls and tumbling, the air dodge, the up special (a recovery), hanging
+ * from a ledge and the climb, roll and attack that start from the hang, the respawn platform, being held and the
+ * shield-break launch. Aerials (move kind `aerial`) and clips with "Air" in their name are in the air too. A Final
+ * Smash cut scene plays over the stage with its floor drawn, so it is on the ground.
+ */
+const AIR = new Set([
+  'jump',
+  'doubleJump',
+  'fall',
+  'helpless',
+  'tumble',
+  'hitstun',
+  'airDodge',
+  'ledgeJump',
+  'upB',
+  'glide',
+  'tetherPull',
+  'ledgeCatch',
+  'ledgeHang',
+  'ledgeClimb',
+  'ledgeRoll',
+  'ledgeAttack',
+  'respawn',
+  'grabbed',
+  'shieldBreak',
+]);
+
+/**
+ * The ledge getups stand on the stage from the frame the engine finishes moving them there (src/sim/actions/ledge.ts),
+ * so the floor check runs on them from that frame.
+ */
+const LEDGE_LANDS: Record<string, number> = {
+  ledgeClimb: LEDGE_CLIMB.moveEnd,
+  ledgeRoll: LEDGE_ROLL.moveEnd,
+  ledgeAttack: LEDGE_ATTACK.moveEnd,
+};
+
+const inAir = (def: FighterDef, clip: string) =>
+  AIR.has(clip) || def.moves?.[clip]?.kind === 'aerial' || /Air/.test(clip);
+
+/**
+ * Fighters' own lists and allowances, which win over the defaults above for the clips they name. Each fighter keeps
+ * them in its own `src/fighters/<id>/art/swings.ts`, exporting `swingChecks`, so adding one touches no shared line.
+ * A fighter that shares another's art re-exports that fighter's checks from its own folder.
+ */
+const OWN: Record<string, SwingChecks> = Object.fromEntries(
+  Object.entries(import.meta.glob<{ swingChecks: SwingChecks }>('./*/art/swings.ts', { eager: true })).map(
+    ([path, module]) => [path.split('/')[1]!, module.swingChecks],
+  ),
+);
+
+/** The swing checks for one fighter: every clip it has, on the ground or in the air. */
+export function swingChecksFor(id: string, def: FighterDef): SwingChecks {
+  const art = fighterArt(def);
+  const own = OWN[id];
+  const named = new Set([...(own?.ground ?? []), ...(own?.air ?? [])]);
+  const rest = Object.keys(art?.clips ?? {}).filter((clip) => !named.has(clip));
+  const air = [...(own?.air ?? []), ...rest.filter((clip) => inAir(def, clip))];
+  const lands = Object.entries(LEDGE_LANDS).filter(([clip]) => air.includes(clip));
+  return {
+    ...own,
+    ground: [...(own?.ground ?? []), ...rest.filter((clip) => !inAir(def, clip))],
+    air,
+    groundFrom: { ...Object.fromEntries(lands), ...own?.groundFrom },
+  };
+}
+
+/** Fighters with art, by id. */
+export function drawnFighters(): [string, FighterDef][] {
+  return Object.entries(allFighters()).filter(([, def]) => fighterArt(def));
+}
+
+/** One failing clip's worst finding per check, for the survey. */
+export interface SurveyRow {
+  fighter: string;
+  clip: string;
+  air: boolean;
+  worst: Partial<Record<Check, Finding & { frames: number }>>;
+}
+
+/** Every fighter's failing clips, in clip order. */
+export function surveySwings(): SurveyRow[] {
+  return drawnFighters().flatMap(([id, def]) => {
+    const checks = swingChecksFor(id, def);
+    const worst = worstByClip(allFindings(fighterArt(def)!, checks));
+    return [...checks.ground, ...checks.air]
+      .filter((clip) => worst.has(clip))
+      .map((clip) => ({
+        fighter: id,
+        clip,
+        air: checks.air.includes(clip),
+        worst: Object.fromEntries(worst.get(clip)!),
+      }));
+  });
+}

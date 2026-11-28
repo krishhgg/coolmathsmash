@@ -7,7 +7,7 @@ import { ledgePresent } from '../sim/stage';
 import { actionable, type FighterKnowledge } from './knowledge';
 import { STICK, press } from './inputs';
 import type { CpuLevel } from './levels';
-import { run, soloMatch, type Driver, type Sample } from './look';
+import { branchRun, run, soloMatch, type BranchRun, type Driver, type Sample } from './look';
 import { floorBelow, type StageInfo } from './stage';
 import * as SimMath from '../sim/math';
 
@@ -187,48 +187,65 @@ function candidates(info: StageInfo, k: FighterKnowledge, f: Readonly<FighterSta
 
 const LIMIT = 260;
 
-function simulate(
-  state: Readonly<MatchState>,
-  f: Readonly<FighterState>,
-  control: Readonly<ControlState>,
-  info: StageInfo,
-  k: FighterKnowledge,
-  params: RecoveryParams,
-): { path: Sample[]; outcome: RecoveryPlan['outcome']; miss: number } {
-  const m = soloMatch(state, f, control);
-  // A plan from an entity's platform starts on the ground, and ends when the fighter comes down after leaving it.
-  let left = f.ground === null;
-  const path = run(m, LIMIT, recoveryDriver(info, k, params), (g) => {
-    left ||= g.ground === null;
-    if (g.action === 'ledgeCatch') return true;
-    if (g.ground !== null) return left;
-    // The bottom blast line itself, where the sim KOs (blastZones.ts): Fluffy's Quick Grapple from 90 under the
-    // stage's middle fires 9 units above it and still reels him to the ledge.
-    return g.pos.y <= info.blast.bottom;
-  });
-  const end = path.at(-1);
-  let outcome: RecoveryPlan['outcome'] = 'fail';
-  if (end?.action === 'ledgeCatch') outcome = 'ledge';
-  else if (end?.grounded && floorBelow(info, end.x, end.y + 0.1) !== null) outcome = 'land';
-  const L = targetLedge(info, f.pos.x);
-  const miss = L ? Math.min(...path.map((s) => SimMath.hypot(s.x - L.x, s.y - L.y))) : 0;
-  return { path, outcome, miss };
+/**
+ * A recovery plan's work before the choice: every candidate plan for `f`, played out together (branchRun: plans share
+ * the frames on which they press the same inputs, until the double jump or the special parts them) from `start`, a
+ * solo match of `f` (soloMatch) on the frame the plan is for. planRecovery does it all at once; the CPU can also do it
+ * a few frames at a time on the frames before it needs the plan (cpu.ts, planAhead).
+ */
+export interface PlanWork {
+  f: Readonly<FighterState>;
+  info: StageInfo;
+  plans: RecoveryParams[];
+  run: BranchRun;
 }
 
-/** Plan a recovery from the CPU's current state. */
-export function planRecovery(
-  state: Readonly<MatchState>,
+export function planWork(
+  start: MatchState,
   f: Readonly<FighterState>,
-  control: Readonly<ControlState>,
   info: StageInfo,
   k: FighterKnowledge,
-  lv: CpuLevel,
-  rng: { rng: number },
-): RecoveryPlan {
-  const tried = candidates(info, k, f).map((params) => ({
-    params,
-    ...simulate(state, f, control, info, k, params),
-  }));
+): PlanWork {
+  const plans = candidates(info, k, f);
+  const run = branchRun(
+    start,
+    LIMIT,
+    plans.map((params) => {
+      // A plan from an entity's platform starts on the ground, and ends when the fighter comes down after leaving it.
+      let left = f.ground === null;
+      return {
+        drive: recoveryDriver(info, k, params),
+        until: (g: Readonly<FighterState>) => {
+          left ||= g.ground === null;
+          if (g.action === 'ledgeCatch') return true;
+          if (g.ground !== null) return left;
+          // The bottom blast line itself, where the sim KOs (blastZones.ts): Fluffy's Quick Grapple from 90 under the
+          // stage's middle fires 9 units above it and still reels him to the ledge.
+          return g.pos.y <= info.blast.bottom;
+        },
+      };
+    }),
+  );
+  return { f, info, plans, run };
+}
+
+/**
+ * Finish `work` and choose from its plans: each one's path, whether it ends on the ledge, on the stage or neither,
+ * and how near it came to the ledge decide, with the level's mistakes (rng). `frame` is the match frame it is for.
+ */
+export function choosePlan(work: PlanWork, frame: number, lv: CpuLevel, rng: { rng: number }): RecoveryPlan {
+  work.run.advance(Infinity);
+  const { info, f } = work;
+  const L = targetLedge(info, f.pos.x);
+  const tried = work.plans.map((params, i) => {
+    const path = work.run.paths[i]!;
+    const end = path.at(-1);
+    let outcome: RecoveryPlan['outcome'] = 'fail';
+    if (end?.action === 'ledgeCatch') outcome = 'ledge';
+    else if (end?.grounded && floorBelow(info, end.x, end.y + 0.1) !== null) outcome = 'land';
+    const miss = L ? Math.min(...path.map((s) => SimMath.hypot(s.x - L.x, s.y - L.y))) : 0;
+    return { params, path, outcome, miss };
+  });
   const pick = (list: typeof tried) => list[Math.floor(nextRandom(rng) * list.length)]!;
   let chosen: (typeof tried)[number];
   const ok = tried.filter((c) => c.outcome !== 'fail');
@@ -243,7 +260,20 @@ export function planRecovery(
   } else {
     chosen = tried.reduce((a, b) => (b.miss < a.miss ? b : a));
   }
-  return { params: chosen.params, start: state.frame, path: chosen.path, outcome: chosen.outcome };
+  return { params: chosen.params, start: frame, path: chosen.path, outcome: chosen.outcome };
+}
+
+/** Plan a recovery from the CPU's current state. */
+export function planRecovery(
+  state: Readonly<MatchState>,
+  f: Readonly<FighterState>,
+  control: Readonly<ControlState>,
+  info: StageInfo,
+  k: FighterKnowledge,
+  lv: CpuLevel,
+  rng: { rng: number },
+): RecoveryPlan {
+  return choosePlan(planWork(soloMatch(state, f, control), f, info, k), state.frame, lv, rng);
 }
 
 /**
