@@ -92,6 +92,7 @@ const KNOWN: Record<string, string[]> = {
     'uthrow',
     'walk',
   ],
+  'bob-the-robber': ['dsmash', 'getupAttack', 'turn'],
   duck: [
     'airDodge',
     'bair',
@@ -117,6 +118,7 @@ const KNOWN: Record<string, string[]> = {
     'jab2',
     'jab3',
     'ledgeAttack',
+    'ledgeClimb',
     'ledgeJump',
     'ledgeRoll',
     'nair',
@@ -296,6 +298,7 @@ const KNOWN: Record<string, string[]> = {
     'usmash',
     'utilt',
   ],
+  raftwars: ['ledgeAttack'],
   redball: [
     'airDodge',
     'chargeRoll1',
