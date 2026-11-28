@@ -50,8 +50,14 @@ const REV_AIR: Pose = mix(AIR, tilt(-6, BODY));
 /** Gravel flung back off the rear tyre (fx1), mirrored to fly behind him. */
 const spray = (s: number): Pose => ({ fx1: at(-WHEEL_X - 0.3, 0, -s, 0, s) });
 
-/** A flame (fxFlame) of size `s` blasting back out of the exhaust on `fx`. */
-const backfire = (pose: Pose, s: number, fx = 'fx2') => fxOn(pose, fx, EXHAUST, s);
+/**
+ * A flame (fxFlame) of size `s` blasting back out of the exhaust on `fx`. With `flat`, it blasts straight back along
+ * the floor at that share of its height, for a pipe brought down near the floor.
+ */
+const backfire = (pose: Pose, s: number, fx = 'fx2', flat?: number) =>
+  flat === undefined
+    ? fxOn(pose, fx, EXHAUST, s)
+    : fxOn(pose, fx, EXHAUST, s, -(pose.body?.rot ?? 0), s * flat);
 
 /**
  * One frame of the rev at `revs` frames charged. The shell shakes on the suspension every other frame (the wheels
@@ -146,8 +152,12 @@ function blastClip(air: boolean): AnimClip {
       key(REV_UP.charge, burn(-3.5, 120, 0.7), { ease: 'out', swaps: burnSwaps }),
       key(11, burn(-7, 900, 1.15), { ease: 'inOut' }),
       key(14, burn(-9, 1400, 1.3), { ease: 'in' }),
-      key(15, backfire(burn(-9.5, 1550, 1.3), 1.2), { ease: 'in', swaps: { ...burnSwaps, fx2: 'fxFlame' } }),
-      key(go - 1, backfire(burn(-8, SPUN, 1.2), 1.6), { ease: 'linear' }),
+      // Reared nose-up, the pipe is a unit off the floor: the flame flattens along it rather than into it.
+      key(15, backfire(burn(-9.5, 1550, 1.3), 1.2, 'fx2', 0.75), {
+        ease: 'in',
+        swaps: { ...burnSwaps, fx2: 'fxFlame' },
+      }),
+      key(go - 1, backfire(burn(-8, SPUN, 1.2), 1.6, 'fx2', 0.65), { ease: 'linear' }),
       key(go, drive(2, 1.6, SPUN + 150, 2, 1.1), { ease: 'linear', swaps: driveSwaps }),
       key(REV_UP.hit[0] + 1, drive(1.5, 2.2, SPUN + 500, 1.8, 1.3), { ease: 'linear' }),
       key(end, drive(1, 2, DRIVEN, 1.1, 1.2), { ease: 'out' }),
