@@ -248,6 +248,32 @@ describe('reflectors', () => {
 });
 
 describe('absorbers', () => {
+  /**
+   * Watergirl's pumps are F.L.U.D.D.'s water, which SmashWiki's Ultimate hitbox table (Mario (SSBU)/Down special) marks
+   * reflectable but not absorbable (`absorbable` unset, the table's default of no).
+   */
+  it("don't eat Watergirl's water: a pump goes past an absorber and pushes the fighter holding it", () => {
+    const { m, v } = duel('test-gadgets', 'test-gadgets', -40, 0);
+    attack(m, 1, 'absorb');
+    const pump = spawnEntity(m, {
+      kind: 'watergirl/pump8',
+      owner: 0,
+      pos: { x: -14, y: 8 },
+      vel: { x: 2, y: 0 },
+    });
+    const seen: string[] = [];
+    for (let i = 0; i < 12 && !pump.dead; i++) {
+      step(m, 1);
+      for (const e of m.events)
+        if (e.type === 'absorb' || e.type === 'entityDestroy')
+          seen.push(e.type === 'absorb' ? 'absorb' : e.reason);
+    }
+    expect(seen).not.toContain('absorb');
+    expect(seen).not.toContain('absorbed');
+    expect(seen).toContain('hit');
+    expect(v.damage).toBe(0);
+  });
+
   it("eat an absorbable projectile and heal by PSI Magnet's 1.6x; one over 30% hits instead", () => {
     const absorb = (kind: string) => {
       const { m, v } = duel('test-gadgets', 'test-gadgets', -40, 0);
