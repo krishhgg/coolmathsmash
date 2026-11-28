@@ -692,7 +692,8 @@ export const clips: Record<string, AnimClip> = {
     length: 8,
     swaps: SIDE,
     keys: continuous([
-      key(0, mix(READY, { body: { sx: -1 } }), { ease: 'out' }),
+      // Evenly into the pivot: eased, the back arm swung 61 degrees in the first frame.
+      key(0, mix(READY, { body: { sx: -1 } }), { ease: 'linear' }),
       key(3, mix(PIVOT, { body: { sx: -1 } }), { ease: 'step', swaps: FRONT_BLINK }),
       key(4, PIVOT, { ease: 'out', swaps: FRONT }),
       key(5, undefined, { swaps: {} }),

@@ -102,6 +102,11 @@ export interface HitboxDef {
   /** Windbox: apply knockback without damage, hitlag or hitstun. Shields ignore it. */
   pushOnly?: boolean;
   /**
+   * Never clanks (SmashWiki's Ultimate hitbox tables: clang=f): a projectile touching it is neither cancelled by it nor
+   * cancels it. For a projectile that never clanks, set EntityDef.transcendent instead.
+   */
+  transcendent?: boolean;
+  /**
    * Which way the hit launches (Ultimate's LR check): along the attacker's facing (default), against it for hits
    * behind him, or away from his centre for hits that surround him.
    */

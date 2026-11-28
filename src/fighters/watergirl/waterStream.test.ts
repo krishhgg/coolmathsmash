@@ -121,6 +121,13 @@ describe('Watergirl Water Stream (neutral special, F.L.U.D.D. in Ultimate)', () 
     expect(box(PUMP.tiers)).toMatchObject({ bkb: 55, radius: 4.8 });
   });
 
+  it("can be reflected but not absorbed, as F.L.U.D.D.'s water (SmashWiki: reflectable, absorbable unset)", () => {
+    for (let tier = 0; tier <= PUMP.tiers; tier++) {
+      expect(entities[`pump${tier}`]!.reflectable, `pump${tier}`).toBeUndefined();
+      expect(entities[`pump${tier}`]!.absorbable, `pump${tier}`).toBe(false);
+    }
+  });
+
   it('pushes Fireboy back without damage or hitstun, a full-charge pump with 55 more BKB', () => {
     const pushed = (hold: number) => {
       const { m, v } = duel(18);
