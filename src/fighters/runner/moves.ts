@@ -134,12 +134,12 @@ export const moves: Record<string, MoveDef> = {
       ...RAPID_JAB.kicks.map((frame): MoveDef['hits'][number] => ({
         frames: [frame, frame],
         rehit: true,
-        boxes: [box(0, 6.5, 5, 4, { damage: 0.3, angle: 361, kbg: 35, bkb: 7 })],
+        boxes: [box(0, 6.5, 5, 4, { damage: 0.3, angle: 361, kbg: 35, bkb: 7, transcendent: true })],
       })),
       {
         frames: RAPID_JAB.shove,
         rehit: true,
-        boxes: [box(0, 7, 6.5, 4, { damage: 3, angle: 361, kbg: 115, bkb: 70 })],
+        boxes: [box(0, 7, 6.5, 4, { damage: 3, angle: 361, kbg: 115, bkb: 70, transcendent: true })],
       },
     ],
   },
@@ -177,8 +177,14 @@ export const moves: Record<string, MoveDef> = {
     kind: 'other',
     faf: 38,
     hits: [
-      { frames: [7, 12], boxes: [box(0, 6, 5, 4.5, { damage: 9, angle: 46, kbg: 66, bkb: 82 })] },
-      { frames: [13, 20], boxes: [box(0, 5, 4, 4, { damage: 6, angle: 76, kbg: 50, bkb: 80 })] },
+      {
+        frames: [7, 12],
+        boxes: [box(0, 6, 5, 4.5, { damage: 9, angle: 46, kbg: 66, bkb: 82, transcendent: true })],
+      },
+      {
+        frames: [13, 20],
+        boxes: [box(0, 5, 4, 4, { damage: 6, angle: 76, kbg: 50, bkb: 80, transcendent: true })],
+      },
     ],
   },
   /** Running Dropkick: a two-footed flying kick, her main horizontal finisher. Charges on frame 8. */
@@ -252,8 +258,8 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [16, 21],
         boxes: [
-          box(0, 8, 3, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80 }),
-          box(1, -8, 3, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80, direction: 'back' }),
+          box(0, 8, 3, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80, transcendent: true }),
+          box(1, -8, 3, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80, direction: 'back', transcendent: true }),
         ],
       },
     ],

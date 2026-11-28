@@ -65,7 +65,7 @@ const box = (
  * Set weight on the rising hit and the grounded clean fall isn't modelled (the engine has no set-weight flag); for
  * Mario's 98 it changes their knockback by about 1%. SDI multipliers aren't modelled either.
  */
-const RISE = { damage: 4, kbg: 100, bkb: 0, wbkb: 60, direction: 'away' } as const;
+const RISE = { damage: 4, kbg: 100, bkb: 0, wbkb: 60, direction: 'away', transcendent: true } as const;
 const CLEAN = { damage: 20, angle: 290, kbg: 65, bkb: 13, shieldDamage: 5 } as const;
 const LATE = { damage: 20, angle: 76, kbg: 75, bkb: 45, shieldDamage: 5 } as const;
 /** The landing hit hits only grounded foes (ground_or_air: collision_situation_mask_g). */

@@ -155,8 +155,15 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [12, 15],
         boxes: [
-          box(0, 0, 15, 6.5, { damage: 14, angle: 80, kbg: 98, bkb: 40, direction: 'away' }),
-          box(1, 0, 7, 6, { damage: 13, angle: 85, kbg: 98, bkb: 40, direction: 'away' }),
+          box(0, 0, 15, 6.5, {
+            damage: 14,
+            angle: 80,
+            kbg: 98,
+            bkb: 40,
+            direction: 'away',
+            transcendent: true,
+          }),
+          box(1, 0, 7, 6, { damage: 13, angle: 85, kbg: 98, bkb: 40, direction: 'away', transcendent: true }),
         ],
       },
     ],
@@ -186,10 +193,22 @@ export const moves: Record<string, MoveDef> = {
     faf: 46,
     intangible: [1, 26],
     hits: [
-      { frames: [17, 18], boxes: [box(0, 9, 4, 5.5, { damage: 7, angle: 48, kbg: 48, bkb: 80 })] },
+      {
+        frames: [17, 18],
+        boxes: [box(0, 9, 4, 5.5, { damage: 7, angle: 48, kbg: 48, bkb: 80, transcendent: true })],
+      },
       {
         frames: [25, 26],
-        boxes: [box(0, -9, 4, 5.5, { damage: 7, angle: 48, kbg: 48, bkb: 80, direction: 'back' })],
+        boxes: [
+          box(0, -9, 4, 5.5, {
+            damage: 7,
+            angle: 48,
+            kbg: 48,
+            bkb: 80,
+            direction: 'back',
+            transcendent: true,
+          }),
+        ],
       },
     ],
   },
@@ -244,11 +263,29 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [9, 11],
-        boxes: [box(0, -9, 6, 6, { damage: 13, angle: 35, kbg: 83, bkb: 35, direction: 'back' })],
+        boxes: [
+          box(0, -9, 6, 6, {
+            damage: 13,
+            angle: 35,
+            kbg: 83,
+            bkb: 35,
+            direction: 'back',
+            transcendent: true,
+          }),
+        ],
       },
       {
         frames: [12, 16],
-        boxes: [box(0, -8, 6, 5, { damage: 7.5, angle: 35, kbg: 74, bkb: 35, direction: 'back' })],
+        boxes: [
+          box(0, -8, 6, 5, {
+            damage: 7.5,
+            angle: 35,
+            kbg: 74,
+            bkb: 35,
+            direction: 'back',
+            transcendent: true,
+          }),
+        ],
       },
     ],
   },
@@ -314,8 +351,15 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [1, 3],
         boxes: [
-          box(0, 8, 2, 5, { damage: 5, angle: 30, kbg: 100, bkb: 20 }),
-          box(1, -8, 2, 5, { damage: 5, angle: 30, kbg: 100, bkb: 20, direction: 'back' }),
+          box(0, 8, 2, 5, { damage: 5, angle: 30, kbg: 100, bkb: 20, transcendent: true }),
+          box(1, -8, 2, 5, {
+            damage: 5,
+            angle: 30,
+            kbg: 100,
+            bkb: 20,
+            direction: 'back',
+            transcendent: true,
+          }),
         ],
       },
     ],

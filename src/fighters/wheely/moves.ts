@@ -176,7 +176,7 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [16, 18],
         boxes: [
-          box(0, 12, 5, 5.5, { damage: 17, angle: 361, kbg: 99, bkb: 25 }),
+          box(0, 12, 5, 5.5, { damage: 17, angle: 361, kbg: 99, bkb: 25, transcendent: true }),
           box(1, 5, 5, 5, { damage: 15, angle: 361, kbg: 105, bkb: 25 }),
         ],
       },
@@ -223,10 +223,22 @@ export const moves: Record<string, MoveDef> = {
     faf: 46,
     intangible: [1, 26],
     hits: [
-      { frames: [17, 18], boxes: [box(0, 10, 3, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80 })] },
+      {
+        frames: [17, 18],
+        boxes: [box(0, 10, 3, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80, transcendent: true })],
+      },
       {
         frames: [25, 26],
-        boxes: [box(0, -10, 3, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80, direction: 'back' })],
+        boxes: [
+          box(0, -10, 3, 5, {
+            damage: 7,
+            angle: 48,
+            kbg: 48,
+            bkb: 80,
+            direction: 'back',
+            transcendent: true,
+          }),
+        ],
       },
     ],
   },
@@ -375,7 +387,7 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [14, 28],
-        boxes: [box(0, 3, 5, 7, { damage: 7, angle: 361, kbg: 70, bkb: 60 })],
+        boxes: [box(0, 3, 5, 7, { damage: 7, angle: 361, kbg: 70, bkb: 60, transcendent: true })],
       },
     ],
     script(x) {
@@ -403,8 +415,14 @@ export const moves: Record<string, MoveDef> = {
     ledgeFrom: 16,
     landingLag: 24,
     hits: [
-      { frames: [10, 14], boxes: [box(0, 4, 5, 6.5, { damage: 6, angle: 70, kbg: 100, bkb: 30 })] },
-      { frames: [15, 24], boxes: [box(0, 3, 5, 5.5, { damage: 3, angle: 70, kbg: 100, bkb: 30 })] },
+      {
+        frames: [10, 14],
+        boxes: [box(0, 4, 5, 6.5, { damage: 6, angle: 70, kbg: 100, bkb: 30, transcendent: true })],
+      },
+      {
+        frames: [15, 24],
+        boxes: [box(0, 3, 5, 5.5, { damage: 3, angle: 70, kbg: 100, bkb: 30, transcendent: true })],
+      },
     ],
     script(x) {
       const { f, c } = x;

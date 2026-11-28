@@ -31,8 +31,30 @@ export const boxDropMoves: Record<string, MoveDef> = {
       {
         frames: [IMPACT, IMPACT],
         boxes: [
-          { id: 0, x: 6, y: 4, radius: 6, damage: 14, angle: 25, bkb: 86, kbg: 30, direction: 'away' },
-          { id: 1, x: -6, y: 4, radius: 6, damage: 14, angle: 25, bkb: 86, kbg: 30, direction: 'away' },
+          {
+            id: 0,
+            x: 6,
+            y: 4,
+            radius: 6,
+            damage: 14,
+            angle: 25,
+            bkb: 86,
+            kbg: 30,
+            direction: 'away',
+            transcendent: true,
+          },
+          {
+            id: 1,
+            x: -6,
+            y: 4,
+            radius: 6,
+            damage: 14,
+            angle: 25,
+            bkb: 86,
+            kbg: 30,
+            direction: 'away',
+            transcendent: true,
+          },
         ],
       },
     ],
@@ -51,7 +73,20 @@ export const boxDropMoves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [IMPACT, BOX_DROP.airEnd],
-        boxes: [{ id: 0, x: 0, y: 2, radius: 6.5, damage: 15, angle: 270, bkb: 69, kbg: 76, hitlag: 0.7 }],
+        boxes: [
+          {
+            id: 0,
+            x: 0,
+            y: 2,
+            radius: 6.5,
+            damage: 15,
+            angle: 270,
+            bkb: 69,
+            kbg: 76,
+            hitlag: 0.7,
+            transcendent: true,
+          },
+        ],
       },
     ],
     script({ f }) {

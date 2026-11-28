@@ -141,7 +141,7 @@ export const moves: Record<string, MoveDef> = {
       {
         frames: [15, 17],
         boxes: [
-          box(0, 14, 8.5, 6, { damage: 17.8, angle: 361, kbg: 99, bkb: 25 }),
+          box(0, 14, 8.5, 6, { damage: 17.8, angle: 361, kbg: 99, bkb: 25, transcendent: true }),
           box(1, 7, 8.5, 3.5, { damage: 14.7, angle: 361, kbg: 105, bkb: 25 }),
         ],
       },
@@ -192,9 +192,21 @@ export const moves: Record<string, MoveDef> = {
     hits: [
       {
         frames: [16, 17],
-        boxes: [box(0, -8.5, 4, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80, direction: 'back' })],
+        boxes: [
+          box(0, -8.5, 4, 5, {
+            damage: 7,
+            angle: 48,
+            kbg: 48,
+            bkb: 80,
+            direction: 'back',
+            transcendent: true,
+          }),
+        ],
       },
-      { frames: [21, 22], boxes: [box(0, 8.5, 4, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80 })] },
+      {
+        frames: [21, 22],
+        boxes: [box(0, 8.5, 4, 5, { damage: 7, angle: 48, kbg: 48, bkb: 80, transcendent: true })],
+      },
     ],
   },
   /** Twirl Kick: Mario's neutral aerial, a sex kick that is strong early and lingers weakly. */

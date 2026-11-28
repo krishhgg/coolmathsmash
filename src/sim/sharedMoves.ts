@@ -15,7 +15,17 @@ const LEDGE_ATTACK_MOVE: MoveDef = {
   hits: [
     {
       frames: [LEDGE_ATTACK.intangible[1] - 2, LEDGE_ATTACK.intangible[1]],
-      boxes: [2, 7, 12].map((x, id) => ({ id, x, y: 5, radius: 5, damage: 9, angle: 45, kbg: 20, bkb: 90 })),
+      boxes: [2, 7, 12].map((x, id) => ({
+        id,
+        x,
+        y: 5,
+        radius: 5,
+        damage: 9,
+        angle: 45,
+        kbg: 20,
+        bkb: 90,
+        transcendent: true,
+      })),
     },
   ],
 };

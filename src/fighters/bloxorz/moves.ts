@@ -206,10 +206,22 @@ export const moves: Record<string, MoveDef> = {
     faf: 50,
     intangible: [1, 26],
     hits: [
-      { frames: [17, 18], boxes: [box(0, 12, 4, 6, { damage: 7, angle: 361, kbg: 48, bkb: 80 })] },
+      {
+        frames: [17, 18],
+        boxes: [box(0, 12, 4, 6, { damage: 7, angle: 361, kbg: 48, bkb: 80, transcendent: true })],
+      },
       {
         frames: [25, 26],
-        boxes: [box(0, -12, 4, 6, { damage: 7, angle: 361, kbg: 48, bkb: 80, direction: 'back' })],
+        boxes: [
+          box(0, -12, 4, 6, {
+            damage: 7,
+            angle: 361,
+            kbg: 48,
+            bkb: 80,
+            direction: 'back',
+            transcendent: true,
+          }),
+        ],
       },
     ],
   },
