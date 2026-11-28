@@ -17,6 +17,7 @@ import {
   body,
   fx,
   ground,
+  stood,
   key,
   lick,
   lickAt,
@@ -129,7 +130,18 @@ function chargeRoll(
         },
       ),
       key(frames + 1, undefined, { swaps: {} }),
-      key(frames + 8, mix(ground(1.06, 0.95, 0.4), roll(end))),
+      // The effects, hidden from frames + 1, stay where they were drawn rather than easing back to the origin.
+      key(
+        frames + 8,
+        mix(
+          ground(1.06, 0.95, 0.4),
+          roll(end),
+          speed(-3.5),
+          swirl(0.8),
+          fx('fx1', -6.5, -0.7, 1),
+          fx('fx2', 0, -R, 1),
+        ),
+      ),
       key(length, mix(ground(), roll(end)), { swaps: DETERMINED }),
     ],
   };
@@ -142,7 +154,7 @@ export const attacks = {
     active: [[3, 4]],
     keys: [
       key(0, body()),
-      key(1, mix(body(0.9, 1.08, -0.7), roll(-8)), { swaps: GRIT, ease: 'out' }),
+      key(1, mix(stood(0.9, 1.08, -0.7), roll(-8)), { swaps: GRIT, ease: 'out' }),
       key(2, mix(body(1.2, 0.86, 2.8), roll(8))),
       key(4, mix(body(1.18, 0.88, 3.0), roll(8))),
       key(9, mix(body(0.97, 1.03, 0.4), roll(0))),
@@ -156,7 +168,7 @@ export const attacks = {
     active: [[3, 4]],
     keys: [
       key(0, body(1, 1, 0.3)),
-      key(1, mix(body(0.92, 1.06, -0.3), roll(-6)), { swaps: GRIT, ease: 'out' }),
+      key(1, mix(stood(0.92, 1.06, -0.3), roll(-6)), { swaps: GRIT, ease: 'out' }),
       key(2, mix(body(1.24, 0.84, 3.2), roll(12))),
       key(4, mix(body(1.22, 0.85, 3.4), roll(12))),
       key(10, mix(body(0.98, 1.02, 0.5), roll(0))),
@@ -170,7 +182,7 @@ export const attacks = {
     active: [[4, 6]],
     keys: [
       key(0, body()),
-      key(2, mix(body(0.92, 1.06, -0.6), roll(-10)), { swaps: MOUTH_OPEN, ease: 'out' }),
+      key(2, mix(stood(0.92, 1.06, -0.6), roll(-10)), { swaps: MOUTH_OPEN, ease: 'out' }),
       key(3, lash(1.6, [10.6, -5.0], 1.08, 0.95), { swaps: LICK }),
       key(6, lash(1.8, [11.0, -5.2], 1.08, 0.95)),
       key(10, lash(1.0, [6.5, -5.0], 1.02, 0.98)),
@@ -186,11 +198,11 @@ export const attacks = {
     swaps: GRIT,
     keys: [
       key(0, body(), { swaps: DETERMINED }),
-      key(3, mix(body(0.9, 1.08, -1.2), roll(-14)), { swaps: {}, ease: 'in' }),
+      key(3, mix(stood(0.9, 1.08, -1.2), roll(-14)), { swaps: {}, ease: 'in' }),
       key(5, mix(body(1.28, 0.84, 3.4), roll(12), speed(-1.5)), { swaps: { fxBack: 'speed' }, ease: 'out' }),
       key(8, mix(body(1.25, 0.85, 3.6), roll(12), speed(-1.2))),
       key(10, undefined, { swaps: {} }),
-      key(14, mix(body(0.96, 1.04, 0.6), roll(-2))),
+      key(14, mix(stood(0.96, 1.04, 0.6), roll(-2))),
       key(16, undefined, { swaps: DETERMINED }),
       key(20, body(1.02, 0.98, 0.2)),
       key(28, body()),
@@ -271,15 +283,15 @@ export const attacks = {
       key(13, mix(ground(1.06, 0.95, -1.2), roll(560), fx('fx1', -6.4, -0.6, 0.7), swirl(-1.2)), {
         ease: 'out',
       }),
-      key(14, mix(body(1.46, 0.76, 4.6), roll(720), speed(0.4), fx('fx2', 0.6, -R, 1.05)), {
+      key(14, mix(body(1.46, 0.76, 4.6), roll(720), speed(0.4), fx('fx2', 0.6, -R, 1.05, 0, 0.85)), {
         swaps: { ...SHOUT, fxBack: 'speed', fx2: 'after' },
         z: BACK_FX2,
         ease: 'out',
       }),
-      key(18, mix(body(1.44, 0.77, 5.0), roll(725), speed(0.8), fx('fx2', 1.0, -R, 1.15))),
+      key(18, mix(body(1.44, 0.77, 5.0), roll(725), speed(0.8), fx('fx2', 1.0, -R, 1.15, 0, 0.9))),
       key(19, undefined, { swaps: {} }),
       key(22, mix(body(1.15, 0.9, 3.6), roll(732))),
-      key(30, mix(body(0.94, 1.05, 1.0), roll(724))),
+      key(30, mix(stood(0.94, 1.05, 1.0), roll(724))),
       key(34, undefined, { swaps: DETERMINED }),
       key(38, mix(ground(1.06, 0.95), roll(720))),
       key(51, mix(ground(), roll(720))),
@@ -466,7 +478,7 @@ export const attacks = {
     active: [[10, 11]],
     keys: [
       key(0, body()),
-      key(4, mix(body(0.94, 1.05, -0.8), roll(-10)), { swaps: MOUTH_OPEN }),
+      key(4, mix(stood(0.94, 1.05, -0.8), roll(-10)), { swaps: MOUTH_OPEN }),
       key(8, mix(body(1, 1, 0.4), roll(0)), { ease: 'out' }),
       key(9, lash(1.0, [9.6, -5.5]), { swaps: LICK_AIM }),
       key(11, lash(1.1, [10.0, -5.6])),
@@ -525,11 +537,11 @@ export const attacks = {
     active: [],
     keys: [
       key(0, HOLD, { swaps: LICK_AIM }),
-      key(4, lick(mix(body(0.95, 1.05, -0.5), roll(-10)), [4.2, -4.8])),
-      key(7, mix(body(1.16, 1.1, -0.6), roll(-14), TONGUE_IN), {
+      key(4, lick(mix(stood(0.95, 1.05, -0.5), roll(-10)), [4.2, -4.8])),
+      key(7, mix(stood(1.16, 1.1, -0.6), roll(-14), TONGUE_IN), {
         swaps: { eyes: 'eyesHurt', brow: 'browAngry', mouth: 'mouthSpit' },
       }),
-      key(10, mix(body(1.18, 1.1, -0.7), roll(-16)), { ease: 'out' }),
+      key(10, mix(stood(1.18, 1.1, -0.7), roll(-16)), { ease: 'out' }),
       key(11, mix(body(1.2, 0.86, 2.0), roll(10), fx('fx1', 7.0, -5.6, 0.5)), {
         swaps: { ...SPIT, fx1: 'pop' },
       }),
@@ -609,19 +621,22 @@ export const attacks = {
     active: [[15, 17]],
     keys: [
       key(0, body()),
-      key(4, mix(body(0.95, 1.05, -0.5), roll(-8)), { swaps: MOUTH_OPEN }),
-      key(10, mix(body(0.88, 1.13, -1.5), roll(-16)), { ease: 'out' }),
+      key(4, mix(stood(0.95, 1.05, -0.5), roll(-8)), { swaps: MOUTH_OPEN }),
+      key(10, mix(stood(0.88, 1.13, -1.5), roll(-16)), { ease: 'out' }),
       key(12, mix(body(1.04, 0.97, 0.4), roll(-3), TONGUE_IN), { swaps: LICK_AIM }),
       key(13, mix(lickAt(LASH_LEAN, [16, -5.1]), lashLines(14, 0.8)), {
         swaps: { ...LICK_AIM, fxBack: 'speed' },
       }),
       key(14, mix(lickAt(LASH_LEAN, LASH_TIP), lashLines(25, 1.1))),
-      key(15, lickAt(mix(body(1.14, 0.9, 1.6), roll(1)), LASH_TIP), { swaps: LICK_AIM }),
+      // The speed lines, hidden from 15, stay where they were drawn rather than easing back to the origin.
+      key(15, mix(lickAt(mix(body(1.14, 0.9, 1.6), roll(1)), LASH_TIP), lashLines(25, 1.1)), {
+        swaps: LICK_AIM,
+      }),
       key(17, lickAt(LASH_LEAN, LASH_TIP)),
       key(21, lash(1.0, [15.5, -5.2])),
       key(25, lash(0.7, [7.5, -4.6], 1.02, 0.98)),
       key(28, mix(body(1, 1, 0.4), TONGUE_IN), { swaps: MOUTH_OPEN }),
-      key(33, body(0.98, 1.02, 0.2), { swaps: DETERMINED }),
+      key(33, stood(0.98, 1.02, 0.2), { swaps: DETERMINED }),
       key(47, body()),
     ],
   },
