@@ -1,6 +1,6 @@
 import { reach, type Pose } from '../../../render/rig/author';
 import { flattenPath } from '../../../render/rig/geometry';
-import { floorContact } from '../../../render/rig/keys';
+import { between as blend, floorContact } from '../../../render/rig/keys';
 import { worldTransforms, type BoneTransform } from '../../../render/rig/sample';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import { FOOT, HAND, rig } from './rig';
@@ -19,6 +19,9 @@ const DEG = 180 / Math.PI;
 export function key(frame: number, pose?: Pose, extra: Omit<Key, 'frame' | 'pose'> = {}): Key {
   return pose ? { frame, pose, ...extra } : { frame, ...extra };
 }
+
+/** `a` moved `t` of the way to `b`, each bone turning the short way round on screen (keys.ts `between`). */
+export const between = (a: Pose, b: Pose, t: number): Pose => blend(rig, a, b, t);
 
 /** Merges poses bone by bone (later wins per field). */
 export function mix(...poses: Pose[]): Pose {

@@ -28,9 +28,11 @@ export const clips: Record<string, AnimClip> = {
 
 /**
  * Clips whose crouches would sink the apron's hem below the floor, baked with it tucked up against the floor
- * (`onFloor`), and the back rolls, where his toque or a shoe would dip below it as he rolls.
+ * (`onFloor`), and the back rolls, where his toque or a shoe would dip below it as he rolls. The Final Smash cut
+ * scene plays over the stage too.
  */
 for (const name of [
+  'turn',
   'spotDodge',
   'dtilt',
   'dashAttack',
@@ -45,6 +47,7 @@ for (const name of [
   'uthrow',
   'dthrow',
   'finalSmash',
+  'finalSmashCinematic',
   'techRollBack',
   'getupRollBack',
 ])

@@ -188,7 +188,9 @@ with the same checks as its nearest shared action.
   its own rotation counts the other way round. A `localScale` bone keeps its flip to itself, as it keeps its scale,
   so the parts on it aren't mirrored by it. On a frame where its parent flips to face the other way, a part may
   either keep its angle on screen or flip with its parent, and the check counts the smaller turn.
-- A held prop doesn't change draw order against a part it covers on both frames.
+- A held prop doesn't change draw order against a part it covers on both frames. Only overlap in sight counts: a
+  spot that a slot drawn over both hides under its opaque fills, such as the grip of a paddle and the end of the
+  forearm under the fist holding it, doesn't.
 - With a face check set, a prop drawn over the head stays off the face.
 
 `src/fighters/swingChecks.ts` sorts each fighter's clips into ground and air and holds each fighter's allowances.
@@ -219,6 +221,11 @@ A cut or cover on a clip, slot or frame the art doesn't have is an error. Bob's 
 the iris shuts on frame 23 and one where the spotlight comes on at 320, and the fight cloud (`fx2`, frames 90 to 292)
 covering his arm while it swings in the flurry. The baton and the sparks show over the cloud, so they are still
 checked.
+
+`src/render/rig/keys.ts` has helpers for fixing a clip on any rig. `continuous(rig, keys, { onScreen: true })`
+takes each part the short way round on screen between keys. `between(rig, a, b, t)` blends two poses on screen,
+for an in-between key that spreads a big turn over more frames. `floorContact(rig, clip, ...)` bakes a clip so
+nothing it draws dips below the floor.
 
 Allow a part only when it is meant to look that way, and fix the art otherwise. `src/fighters/swingChecks.test.ts`
 lists the clips that fail today, per fighter, and the list must be exact: fix a clip and take it out.

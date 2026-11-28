@@ -24,8 +24,9 @@ export const TURN = 60;
 export const STRIKE = 120;
 
 /**
- * How much of a part a held prop may overlap, in square units, on both sides of a change in their draw order. A
- * prop can pass the edge of a part at a key, but one that moves from over a body to behind it is seen to jump.
+ * How much of a part a held prop may overlap where it can be seen, in square units, on both sides of a change in
+ * their draw order. A prop can pass the edge of a part at a key, but one that moves from over a body to behind it is
+ * seen to jump.
  */
 export const OVERLAP = 0.25;
 
@@ -279,10 +280,6 @@ function context(art: FighterArt) {
     return false;
   };
 
-  /** Whether the drawings in slots `a` and `b` overlap by more than OVERLAP in `pose`. */
-  const overlaps = (pose: RigPose, a: string, b: string) =>
-    overlapsRegion(pose, a, bounds(pose, b), (x, y) => covers(pose, b, x, y));
-
   /** Each slot's place in the draw order, back to front. */
   const layers = (pose: RigPose): Record<string, number> => {
     const order = art.rig.slots
@@ -332,20 +329,52 @@ function context(art: FighterArt) {
   };
 
   /**
-   * Whether `cover` hides every drawing on `bone` on frame `f` of `clip`, posed as `pose`. Each one lies inside the
-   * cover's bounds, is drawn under it, and has every point of its bounds, on a CELL grid, under the cover's opaque
-   * fills (flat colours, or gradients whose stops are all opaque). A cover keyed to a loop runs on the match clock,
-   * so any frame of the loop can be up: it must hide the part in each of them.
+   * The opaque fills (flat colours, or gradients whose stops are all opaque) of each drawing `slot` can show on
+   * frame `f` of `clip`. A slot keyed to a loop runs on the match clock, so any frame of the loop can be up then.
+   * Empty when the slot shows nothing, or when one of its drawings has no opaque fill and so hides nothing.
    */
-  const hides = (clip: string, f: number, pose: RigPose, cover: string, bone: string): boolean => {
-    const keyed = samplePose(unlooped, clip, f, f).symbols[cover];
-    const solid = drawings(keyed).map((shapes) =>
+  const solid = (clip: string, f: number, slot: string): PathShape[][] => {
+    const fills = drawings(samplePose(unlooped, clip, f, f).symbols[slot]).map((shapes) =>
       shapes.filter(
         ({ fill }) =>
           fill !== undefined && (typeof fill === 'string' || fill.stops.every((s) => (s.alpha ?? 1) >= 1)),
       ),
     );
-    if (!solid.length || solid.some((shapes) => !shapes.length)) return false;
+    return fills.some((shapes) => !shapes.length) ? [] : fills;
+  };
+
+  /**
+   * Whether slots `a` and `b` overlap by more than OVERLAP where it can be seen on frame `f` of `clip`, posed as
+   * `pose`. A cell that a slot drawn over both of them hides under its opaque fills, in each drawing it can show,
+   * doesn't count: a prop's grip under the fist that holds it, say.
+   */
+  const overlapsInSight = (clip: string, f: number, pose: RigPose, a: string, b: string): boolean => {
+    const order = layers(pose);
+    const top = Math.max(order[a]!, order[b]!);
+    const over = art.rig.slots
+      .filter((s) => order[s.name]! > top && drawing(pose, s.name))
+      .map((s) => ({ m: pose.world[s.bone]!, box: bounds(pose, s.name), fills: solid(clip, f, s.name) }))
+      .filter(({ fills }) => fills.length);
+    const hidden = (x: number, y: number) =>
+      over.some(
+        ({ m, box, fills }) =>
+          x >= box[0] &&
+          y >= box[1] &&
+          x <= box[2] &&
+          y <= box[3] &&
+          fills.every((shapes) => within(shapes, m, x, y)),
+      );
+    return overlapsRegion(pose, a, bounds(pose, b), (x, y) => covers(pose, b, x, y) && !hidden(x, y));
+  };
+
+  /**
+   * Whether `cover` hides every drawing on `bone` on frame `f` of `clip`, posed as `pose`. Each one lies inside the
+   * cover's bounds, is drawn under it, and has every point of its bounds, on a CELL grid, under the cover's opaque
+   * fills in each drawing the cover can show.
+   */
+  const hides = (clip: string, f: number, pose: RigPose, cover: string, bone: string): boolean => {
+    const fills = solid(clip, f, cover);
+    if (!fills.length) return false;
     const order = layers(pose);
     const [c0, c1, c2, c3] = bounds(pose, cover);
     const m = pose.world[slots[cover]!.bone]!;
@@ -357,12 +386,12 @@ function context(art: FighterArt) {
         if (x0 < c0 || y0 < c1 || x1 > c2 || y1 > c3) return false;
         for (let x = x0; x < x1 + CELL; x += CELL)
           for (let y = y0; y < y1 + CELL; y += CELL)
-            if (!solid.every((shapes) => within(shapes, m, Math.min(x, x1), Math.min(y, y1)))) return false;
+            if (!fills.every((shapes) => within(shapes, m, Math.min(x, x1), Math.min(y, y1)))) return false;
         return true;
       });
   };
 
-  return { slots, turned, drawing, bounds, covers, overlapsRegion, overlaps, layers, drawn, hides };
+  return { slots, turned, drawing, bounds, covers, overlapsRegion, overlapsInSight, layers, drawn, hides };
 }
 
 const sample = (art: FighterArt, clip: string, f: number) => samplePose(art, clip, f, f);
@@ -486,11 +515,13 @@ export function turnFindings(art: FighterArt, checks: SwingChecks): Finding[] {
 }
 
 /**
- * Frames where a held prop moves in front of or behind a part it covers by more than OVERLAP on both frames. The
- * step into a frame in `cuts` is skipped.
+ * Frames where a held prop moves in front of or behind a part it covers by more than OVERLAP on both frames. Only
+ * overlap in sight counts: where a slot drawn over both hides them under its opaque fills, as a fist hides the grip
+ * of the paddle it holds and the end of the forearm, the change can't be seen. The step into a frame in `cuts` is
+ * skipped.
  */
 export function orderFindings(art: FighterArt, checks: SwingChecks): Finding[] {
-  const { drawing, layers, overlaps } = context(art);
+  const { drawing, layers, overlapsInSight } = context(art);
   const props = checks.props ?? heldProps(art);
   const out: Finding[] = [];
   for (const [clip, start, length] of frames(art, [...checks.ground, ...checks.air], checks.from)) {
@@ -505,7 +536,7 @@ export function orderFindings(art: FighterArt, checks: SwingChecks): Finding[] {
           if (part === prop || decor || !drawing(prev, part) || !drawing(pose, part)) continue;
           const over = now[prop]! > now[part]!;
           if (over === was[prop]! > was[part]!) continue;
-          if (overlaps(prev, prop, part) && overlaps(pose, prop, part))
+          if (overlapsInSight(clip, f - 1, prev, prop, part) && overlapsInSight(clip, f, pose, prop, part))
             out.push({
               clip,
               frame: f,
