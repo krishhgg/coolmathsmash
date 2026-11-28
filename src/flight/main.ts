@@ -95,7 +95,7 @@ function boot() {
     display.hidden = false;
     touch.hidden = !coarsePointer.matches;
     updateChase(chase, flight, 0, blend);
-    suit.update(flight, 0, 0, 0);
+    suit.update(flight, 0, 0, 0, 1 - blend);
   }
 
   function finish() {
@@ -260,7 +260,7 @@ function boot() {
       9,
       dt,
     );
-    suit.update(flight, ms * 0.001, dt, power);
+    suit.update(flight, ms * 0.001, dt, power, (1 - blend) ** 2);
     updateChase(chase, flight, dt, blend);
     camera.position.copy(chase.position);
     camera.lookAt(chase.look);

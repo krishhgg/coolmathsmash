@@ -30,7 +30,7 @@ export function updateChase(camera: ReturnType<typeof makeChase>, flight: Flight
     .clone()
     .addScaledVector(forward, 0.23 + ease * 12)
     .addScaledVector(side, 1.22 - ease * 1.15);
-  target.y += 0.49 - 0.65 * ease + flight.velocity.y * 0.11 * ease;
+  target.y += 0.01 - 0.17 * ease + flight.velocity.y * 0.11 * ease;
   const strength = dt === 0 ? 1 : 1 - Math.exp(-8.8 * dt);
   camera.position.lerp(position, strength);
   camera.look.lerp(target, strength);
