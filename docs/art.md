@@ -185,7 +185,8 @@ with the same checks as its nearest shared action.
   are checked against the floor from there (`groundFrom`).
 - No drawn part turns more than 60 degrees from one frame to the next, or 120 from two frames before a hit window
   until it closes. A part's turn is measured on screen: under a mirrored parent, such as a body flipped with sx -1,
-  its own rotation counts the other way round. On a frame where its parent flips to face the other way, a part may
+  its own rotation counts the other way round. A `localScale` bone keeps its flip to itself, as it keeps its scale,
+  so the parts on it aren't mirrored by it. On a frame where its parent flips to face the other way, a part may
   either keep its angle on screen or flip with its parent, and the check counts the smaller turn.
 - A held prop doesn't change draw order against a part it covers on both frames.
 - With a face check set, a prop drawn over the head stays off the face.
