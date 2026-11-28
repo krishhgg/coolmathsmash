@@ -18,6 +18,7 @@ import {
   aim,
   aloft,
   at,
+  between,
   feet,
   fx,
   grip,
@@ -410,6 +411,13 @@ function hang(hx = GX, hy = GY, extra: Pose = {}, lift = 0, swing = 0, shift = 0
   return sole(sole(hands(pose, [hx - 0.1, hy + 0.15], [hx - 0.75, hy + 0.2]), 'B', 50), 'F', 40);
 }
 const HANG = hang();
+/** The launcher and the brother: on the ledge jump they swing round from the hang to the tuck over five frames. */
+const SWING = ['gun', 'bro', 'broHead', 'broArmB', 'broArmF', 'broLeg'];
+/** `pose` with the launcher and the brother `t` of the way from the hang to the tuck. */
+const swungTo = (pose: Pose, t: number): Pose => {
+  const swung = between(HANG, TUCK, t);
+  return mix(pose, Object.fromEntries(SWING.map((bone) => [bone, swung[bone]!])));
+};
 
 /** The hang swinging by `rot`, the legs paddling at the wall. */
 function paddle(rot: number, kick: number): Pose {
@@ -576,7 +584,7 @@ export const clips: Record<string, AnimClip> = {
           fx1: fx(4.2, -1.1, 0.35),
         }),
       ),
-      key(9, undefined, { swaps: {} }),
+      key(9, undefined, { swaps: { fx1: null } }),
       key(14, STAND),
     ],
   },
@@ -702,10 +710,11 @@ export const clips: Record<string, AnimClip> = {
     swaps: { ...DIZZY, ...OPEN, fx1: 'fxStar', fx2: 'fxStar' },
     keys: [
       key(0, mix(sway(-7), { fx1: fx(-1.6, -13.2, 0.5, 0), fx2: fx(2.6, -12.4, 0.4, 0) })),
-      key(15, mix(sway(0), { fx1: fx(0.4, -13.8, 0.4, 45), fx2: fx(0.6, -12.0, 0.5, 45) })),
-      key(30, mix(sway(7), { fx1: fx(2.6, -13.2, 0.5, 90), fx2: fx(-1.4, -12.4, 0.4, 90) })),
-      key(45, mix(sway(0), { fx1: fx(0.6, -12.6, 0.4, 135), fx2: fx(0.4, -13.8, 0.5, 135) })),
-      key(60, mix(sway(-7), { fx1: fx(-1.6, -13.2, 0.5, 180), fx2: fx(2.6, -12.4, 0.4, 180) })),
+      key(15, mix(sway(0), { fx1: fx(0.4, -13.8, 0.4, 90), fx2: fx(0.6, -12.0, 0.5, 90) })),
+      key(30, mix(sway(7), { fx1: fx(2.6, -13.2, 0.5, 180), fx2: fx(-1.4, -12.4, 0.4, 180) })),
+      key(45, mix(sway(0), { fx1: fx(0.6, -12.6, 0.4, 270), fx2: fx(0.4, -13.8, 0.5, 270) })),
+      // A whole turn by the loop's end, so the stars come back round to frame 0 without a jump.
+      key(60, mix(sway(-7), { fx1: fx(-1.6, -13.2, 0.5, 360), fx2: fx(2.6, -12.4, 0.4, 360) })),
     ],
   },
   spotDodge: {
@@ -732,7 +741,7 @@ export const clips: Record<string, AnimClip> = {
   rollBack: {
     length: 31,
     keys: [
-      key(0, CROUCH, { ease: 'in', swaps: BLINK }),
+      key(0, CROUCH, { ease: 'linear', swaps: BLINK }),
       ...spin(2, 22, -20, -380, ball, 30, { ...BLINK, broFace: 'broScared' }),
       key(24, undefined, { swaps: {} }),
       key(26, mix(CROUCH, { body: { rot: -364, y: 1.5 } }), { ease: 'out' }),
@@ -799,13 +808,14 @@ export const clips: Record<string, AnimClip> = {
       keys: [
         key(0, HANG, { ease: 'linear' }),
         key(6, pull(corner(6, LEDGE_ROLL.moveEnd, LEDGE_ROLL.distance), 1, 0, 0.5), { ease: 'linear' }),
+        // The ball turns on to 630 by frame 34, so the last quarter turn as he uncurls is as quick as the roll.
         ...spin(
           10,
           34,
           120,
-          540,
+          630,
           (deg) =>
-            mix(ball(deg), { root: { y: corner(10 + ((deg - 120) * 24) / 420, LEDGE_ROLL.moveEnd, 0)[1] } }),
+            mix(ball(deg), { root: { y: corner(10 + ((deg - 120) * 24) / 510, LEDGE_ROLL.moveEnd, 0)[1] } }),
           30,
           {
             ...BLINK,
@@ -823,9 +833,9 @@ export const clips: Record<string, AnimClip> = {
     length: 20,
     swaps: { ...SHOUT, ...OPEN },
     keys: [
-      key(0, HANG, { ease: 'in' }),
-      key(2, pull(jumpCorner(2), 3, 0, 1), { ease: 'out' }),
-      key(3, mix(TUCK, { root: { y: round(jumpCorner(3)[1] - 0.3) } }), { ease: 'out' }),
+      key(0, HANG, { ease: 'linear' }),
+      key(2, swungTo(pull(jumpCorner(2), 3, 0, 1), 0.57), { ease: 'out' }),
+      key(3, swungTo(mix(TUCK, { root: { y: round(jumpCorner(3)[1] - 0.3) } }), 0.85), { ease: 'out' }),
       key(5, TUCK, { ease: 'out' }),
       key(8, aloft(RISE), { ease: 'out', swaps: { ...LOOK_UP, broFace: 'broCheer' } }),
       key(20, aloft(mix(RISE, { body: { sy: 1.0 } }))),
@@ -838,7 +848,7 @@ export const clips: Record<string, AnimClip> = {
       key(0, HANG, { ease: 'linear' }),
       key(4, pull(corner(4, LEDGE_ATTACK.moveEnd, CLIMB_TO), 2.5, 0.6, 0.9), { ease: 'out' }),
       key(7, onLip(CLIMB, 7, LEDGE_ATTACK.moveEnd), { ease: 'linear' }),
-      key(14, CLIMB, { ease: 'out', swaps: GRIT }),
+      key(14, CLIMB, { ease: 'linear', swaps: GRIT }),
       key(17, stand({ body: { rot: 2, y: 0.7 }, ...bro(0, -4, -80, 0, -4) }, -40, [1.0, 0], [-0.9, 0]), {
         ease: 'linear',
       }),

@@ -8,6 +8,7 @@ import { fullArsenalClips, fullArsenalProps } from './fullArsenal';
 import { LEDGE_GRIP, clips } from './clips';
 import { hat, head } from './parts';
 import { palettes } from './palettes';
+import { onFloor, shortTurns } from './poses';
 import { rig } from './rig';
 
 /** Square viewBox around the head and bucket hat, for the HUD icon. */
@@ -49,11 +50,43 @@ const projectiles: Record<string, PropArt> = Object.fromEntries(
   }),
 );
 
+/**
+ * Ground clips whose tweens between planted poses dip a sneaker or a knee into the floor: keyed on every frame and
+ * lifted there (poses.ts `onFloor`).
+ */
+const FLOORED = new Set([
+  'run',
+  'spotDodge',
+  'rollBack',
+  'getupStand',
+  'grabHold',
+  'techRollBack',
+  'getupRollBack',
+  'dtilt',
+  'dashAttack',
+  'fsmash',
+  'getupAttack',
+  'pivotGrab',
+  'pummel',
+  'uthrow',
+  'runBrake',
+]);
+
+/** Every clip turns each part the short way; the floored ones are lifted out of the floor. */
+const drawn = Object.fromEntries(
+  Object.entries({ ...clips, ...attacks, ...aimedShotClips, ...duckRaftClips, ...fullArsenalClips }).map(
+    ([name, clip]) => {
+      const short = { ...clip, keys: shortTurns(clip.keys) };
+      return [name, FLOORED.has(name) ? onFloor(short) : short];
+    },
+  ),
+);
+
 /** The Raft Wars kids, two kids of our own design drawn by hand in a Flash cartoon style. Plain data. */
 export const art: FighterArt = {
   height: 13,
   rig,
-  clips: { ...clips, ...attacks, ...aimedShotClips, ...duckRaftClips, ...fullArsenalClips },
+  clips: drawn,
   palettes,
   ledgeGrip: LEDGE_GRIP,
   projectiles: {

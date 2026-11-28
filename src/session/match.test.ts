@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type * as Ai from '../ai';
 import { neutralInput } from '../input/types';
 import { INFINITE_STOCKS } from '../sim/constants';
 import type { SimEvent } from '../sim/events';
@@ -11,7 +12,19 @@ import {
   countdownLabel,
   formatClock,
 } from './match';
-import { defaultSetup, pickFighter, resolveMatch } from './setup';
+import { defaultSetup, humanSlot, pickFighter, resolveMatch } from './setup';
+
+const warmed = vi.hoisted(() => [] as [string[], string][]);
+vi.mock('../ai', async (orig) => {
+  const m = await orig<typeof Ai>();
+  return {
+    ...m,
+    warmKnowledge: (fighters: readonly string[], stage: string) => {
+      warmed.push([[...fighters], stage]);
+      return m.warmKnowledge(fighters, stage);
+    },
+  };
+});
 
 const hit: SimEvent = {
   type: 'hit',
@@ -155,6 +168,22 @@ describe('match session', () => {
       [1, 2, 3],
       [2, 0, 2],
     ]);
+  });
+});
+
+describe('CPU move probes', () => {
+  it('are made for every fighter in the match while it loads, when a CPU plays, and not when only people do', () => {
+    warmed.length = 0;
+    const { match } = start();
+    expect(warmed).toEqual([[match.config.ports.map((p) => p.fighter), match.config.stage]]);
+
+    warmed.length = 0;
+    const setup = defaultSetup();
+    setup.slots = [humanSlot('kb1'), humanSlot('kb2')];
+    pickFighter(setup, 0, 'fireboy');
+    pickFighter(setup, 1, 'wheely');
+    new MatchSession(resolveMatch(setup, 42, false), setup.rules);
+    expect(warmed).toEqual([]);
   });
 });
 

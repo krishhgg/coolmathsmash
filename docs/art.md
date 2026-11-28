@@ -180,20 +180,43 @@ with the same checks as its nearest shared action.
 
 `src/render/rig/swingChecks.ts` checks every frame of a clip:
 
-- On the ground, nothing drawn reaches more than 0.2 under the floor.
+- On the ground, nothing drawn reaches more than 0.2 under the floor. The ledge getups (`ledgeClimb`, `ledgeRoll`,
+  `ledgeAttack`) count as in the air until the engine has them standing on the stage, on their `moveEnd` frame, and
+  are checked against the floor from there (`groundFrom`).
 - No drawn part turns more than 60 degrees from one frame to the next, or 120 from two frames before a hit window
-  until it closes.
+  until it closes. A part's turn is measured on screen: under a mirrored parent, such as a body flipped with sx -1,
+  its own rotation counts the other way round. A `localScale` bone keeps its flip to itself, as it keeps its scale,
+  so the parts on it aren't mirrored by it. On a frame where its parent flips to face the other way, a part may
+  either keep its angle on screen or flip with its parent, and the check counts the smaller turn.
 - A held prop doesn't change draw order against a part it covers on both frames.
 - With a face check set, a prop drawn over the head stays off the face.
 
 `src/fighters/swingChecks.ts` sorts each fighter's clips into ground and air and holds each fighter's allowances.
-There are two kinds:
+A Final Smash cut scene counts as ground: it plays over the stage with the floor drawn, so the floor check applies.
+Effects that cover the screen or sit across the floor line on purpose go in its `decals`.
+There are four kinds:
 
 - `decals` names drawings that lie on the floor in perspective, across the floor line, and leaves them out of the
   floor check. Bob's shadow pool is one.
 - `spins` names bones meant to spin, such as a wheel, a shell, a rolling block or a spin effect, and leaves them out of
   the turn check. The floor, draw-order and face checks still apply to them. Each entry is one bone with a line on
   why it spins, and `clips` limits it to the clips it spins in. A bone or clip that doesn't exist is an error.
+- `cuts` names frames on which a clip cuts to a new shot, such as the lights going out or a spotlight coming on.
+  Each entry is one clip and frame with a line on what the new shot is. The turn and draw-order checks skip the
+  step into that frame and check every other step.
+- `covered` names a part drawn over the fighter on some of a clip's frames, such as a fight cloud. Each entry is a
+  clip, the covering slot, the first and last frames it covers, and a line on what it is. On those frames the turn
+  check leaves out a part the cover hides, and the check works that out per frame. The part's drawn bounds must
+  lie inside the cover's, the cover must be drawn over it, and every point of the part's bounds (on a 0.1 grid)
+  must lie under the cover's opaque fills: flat colours, or gradients with every stop opaque. A cover that loops on
+  the match clock must hide the part in every drawing of its loop, since any of them can be up on that frame. A hole
+  in the cover, a see-through cover such as Bob's dark, or a part drawn over the cover leaves the part checked. So
+  does a part coming out from under the cover at a new angle, since the check looks at the frame the part turns into.
+
+A cut or cover on a clip, slot or frame the art doesn't have is an error. Bob's Lights Out uses both: a cut where
+the iris shuts on frame 23 and one where the spotlight comes on at 320, and the fight cloud (`fx2`, frames 90 to 292)
+covering his arm while it swings in the flurry. The baton and the sparks show over the cloud, so they are still
+checked.
 
 Allow a part only when it is meant to look that way, and fix the art otherwise. `src/fighters/swingChecks.test.ts`
 lists the clips that fail today, per fighter, and the list must be exact: fix a clip and take it out.

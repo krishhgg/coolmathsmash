@@ -1,4 +1,4 @@
-import { createCpu, type CpuPlayer } from '../ai';
+import { createCpu, warmKnowledge, type CpuPlayer } from '../ai';
 import { neutralInput, type InputFrame } from '../input/types';
 import { INFINITE_STOCKS } from '../sim/constants';
 import type { MatchState } from '../sim/match';
@@ -156,6 +156,13 @@ export class MatchSession {
         ? createCpu({ port, level: c.level, seed: (match.config.seed ^ ((port + 1) * 0x9e3779b1)) | 0 })
         : null,
     );
+    // The CPUs' move probes for every fighter here, made now while the match loads rather than on GO!, where the first
+    // CPU frame would stop 0.2 to 0.6 s for each fighter it hadn't met on this stage yet.
+    if (this.cpus.some((c) => c !== null))
+      warmKnowledge(
+        match.config.ports.map((p) => p.fighter),
+        match.config.stage,
+      );
   }
 
   /** Frames left on the clock, or null without a time limit. */
