@@ -3,8 +3,9 @@ import { attack, placeInAir, run, testMatch, type Hold } from '../../../sim/test
 import { clipFor } from '../../../render/fighterView';
 import { flattenPath, poseBounds, slotsCovering } from '../../../render/rig/geometry';
 import { samplePose, type RigPose } from '../../../render/rig/sample';
+import { STRIKE, TURN } from '../../../render/rig/swingChecks';
 import { moveClipFrame } from '../../../render/rig/timing';
-import type { FighterArt } from '../../../render/rig/types';
+import type { FighterArt, PathShape } from '../../../render/rig/types';
 import {
   AIR_DODGE_NEUTRAL,
   DOUBLE_JUMP_FRAMES,
@@ -30,6 +31,8 @@ import { getFighter } from '../../registry';
 import { stats } from '../stats';
 import { DASH, LYING, RUN, STANDING, WALK } from '../tip';
 import { art, lyingArt } from '.';
+import { LIE, STAND, bake, half, spin } from './bake';
+import { TIPS } from './swings';
 import { DEPTH } from './symbols';
 
 const FORMS: [string, FighterArt][] = [
@@ -284,6 +287,89 @@ describe('bloxorz block art', () => {
     },
     SLOW,
   );
+
+  it(
+    `turns the block at most ${TURN} degrees a frame (${STRIKE} as it strikes) through its tips as the simulation plays them, across each change of form`,
+    () => {
+      // The swing checks let the block turn freely in these clips (swings.ts): each clip's frames either side of a
+      // change of form are drawn by the two forms in turn. The block draws the same half a lap round (the next
+      // test), so a turn is taken the short way round modulo 180.
+      const errors: string[] = [];
+      const seen = new Set<string>();
+      const drawnTurn = (f: FighterState) => {
+        const [name, frame] = drawn(f);
+        const pose = samplePose(artOf(f), name, frame, f.actionFrame);
+        return { name, frame, deg: pose.local.pivot!.rot + pose.local.block!.rot };
+      };
+      const play = (label: string, m: MatchState, frames: number, hold: Hold = {}) => {
+        let last = drawnTurn(m.fighters[0]!);
+        step(
+          m,
+          frames,
+          (f) => {
+            const now = drawnTurn(f);
+            seen.add(now.name);
+            const d = now.deg - last.deg;
+            const short = d - 180 * Math.round(d / 180);
+            const active = artOf(f).clips[now.name]!.active ?? [];
+            const limit = active.some(([a, b]) => now.frame >= a - 2 && now.frame <= b) ? STRIKE : TURN;
+            if (Math.abs(short) > limit)
+              errors.push(`${label} ${f.fighter} ${now.name}@${now.frame}: ${short.toFixed(0)}`);
+            last = now;
+          },
+          hold,
+        );
+      };
+      for (const [form] of FORMS) {
+        play('walk', block(form), 70, { x: 50 });
+        play('run', block(form), 60, { x: 100 });
+        for (const move of ['dashAttack', 'sideB']) {
+          const m = block(form);
+          attack(m, 0, move);
+          play(move, m, getFighter(form).moves![move]!.faf);
+        }
+      }
+      expect(TIPS.filter((clip) => !seen.has(clip))).toEqual([]);
+      expect(errors).toEqual([]);
+    },
+    SLOW,
+  );
+
+  it('draws the block the same turned half a lap round', () => {
+    /** Every shape the block draws: its paint, and its points (and a gradient's centre) in rig space. */
+    const drawing = (place: Parameters<typeof half>[0]) => {
+      const pose = samplePose({ ...art, clips: { p: bake(0, false, () => ({ block: place })) } }, 'p', 0, 0);
+      const m = pose.world.block!;
+      const at = (x: number, y: number) => [m.a * x + m.c * y + m.tx, m.b * x + m.d * y + m.ty] as const;
+      return ['bevel', 'face'].flatMap((slot) =>
+        (art.rig.symbols[pose.symbols[slot]!] as PathShape[]).map(({ d, fill, stroke }) => {
+          const radial = typeof fill === 'object' && fill.type === 'radial' ? fill : undefined;
+          return {
+            paint: JSON.stringify([radial ? { ...radial, cx: 0, cy: 0 } : fill, stroke]),
+            points: [
+              ...flattenPath(d).flatMap((p) =>
+                p.filter((_, i) => i % 2 === 0).map((x, i) => at(x, p[2 * i + 1]!)),
+              ),
+              ...(radial ? [at(radial.cx, radial.cy)] : []),
+            ],
+          };
+        }),
+      );
+    };
+    type Shape = ReturnType<typeof drawing>[number];
+    // Points are rounded to 0.001 in the symbols, so a point and its mirror image can differ by that much.
+    const same = (a: Shape, b: Shape) =>
+      a.paint === b.paint &&
+      a.points.length === b.points.length &&
+      a.points.every(([x, y]) => b.points.some(([u, v]) => Math.hypot(x - u, y - v) < 0.01));
+    for (const form of [STAND, LIE])
+      for (const deg of [0, 21, 45, 72, 90, 135]) {
+        const p = spin(form, 0, -20, deg);
+        const [turned, upright] = [drawing(half(p)), drawing(p)];
+        expect(turned.length, `${form.base} ${deg}`).toBe(upright.length);
+        expect(turned.filter((a) => !upright.some((b) => same(a, b))).length, `${form.base} ${deg}`).toBe(0);
+      }
+  });
 
   it('stands 24 units tall and 12 wide on its front face (the bevel adds the 3/4 depth), lying 24 by 12, feet on the ground', () => {
     const [x0, y0, x1, y1] = poseBounds(art, samplePose(art, 'idle', 0, 0));
