@@ -4,7 +4,7 @@
  * small caption naming each port's CPU level and damage. Writes <name>.mp4 (H.264, for PR uploads), <name>.gif
  * (640 wide, for Drive), <name>.png (the last frame) and <name>.json (the replay).
  *
- *   npm run capture:ai -- [--levels 9,3] [--seed 1] [--fighters fireboy,fireboy] [--stocks 3]
+ *   npm run capture:ai -- [--levels 9,3] [--seed 1] [--fighters fireboy,fireboy] [--stage battlefield] [--stocks 3]
  *                         [--from <frame>] [--frames 480] [--every 2] [--out captures/ai] [--name cpu-9-vs-3] [--build]
  *                         [--replay <file.json>] [--labels 'P1 · you,P2 · CPU Lv 9']
  *
@@ -29,6 +29,7 @@ const { values: args } = parseArgs({
     levels: { type: 'string', default: '9,3' },
     seed: { type: 'string', default: '1' },
     fighters: { type: 'string', default: 'fireboy,fireboy' },
+    stage: { type: 'string', default: 'battlefield' },
     stocks: { type: 'string', default: '3' },
     from: { type: 'string' },
     frames: { type: 'string', default: '480' },
@@ -56,6 +57,7 @@ const result = args.replay
       seed,
       levels,
       fighters: args.fighters.split(','),
+      stage: args.stage,
       stocks: Number(args.stocks),
       record: true,
     });
