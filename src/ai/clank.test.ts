@@ -75,6 +75,34 @@ describe("CPUs and their opponent's shots", () => {
     expect(struck).toBe(false);
   });
 
+  it("count a Fireball as a hit when its own Fireball already out clanks the opponent's first, as the match has it", () => {
+    // Port 0's Fireball just out at x -34 heads right, port 1's at x -4 heads left: they meet first, and a new
+    // Fireball from port 0 then flies clear.
+    const m = duel();
+    const s = knowledge('fireboy', STAGE).ground.neutralB!.spawns[0]!;
+    for (const [owner, x, dir] of [
+      [0, -34, 1],
+      [1, -4, -1],
+    ] as const) {
+      const e = spawnEntity(m, { kind: s.kind, owner, pos: { x, y: s.oy } });
+      Object.assign(e, { age: 1, vel: { x: s.vx * dir, y: s.vy }, facing: dir, lifetime: s.lifetime });
+    }
+    const hit = fireball(m);
+    expect(hit).not.toBeNull();
+    // In the match the first two clank, and the new Fireball hits port 1 on the frame the CPU predicted.
+    let clankAt = -1;
+    let hitAt = -1;
+    for (let i = 0; i < 110 && hitAt < 0; i++) {
+      stepMatch(m, [i === 0 ? press({ buttons: Btn.Special }) : neutralInput(), neutralInput()]);
+      if (clankAt < 0 && m.events.some((e) => e.type === 'entityDestroy' && e.reason === 'clank'))
+        clankAt = i;
+      if (m.events.some((e) => e.type === 'hit' && e.victim === 1)) hitAt = i;
+    }
+    expect(clankAt).toBeGreaterThanOrEqual(0);
+    expect(clankAt).toBeLessThan(hitAt);
+    expect(hitAt).toBe(hit!.t);
+  });
+
   it("see the opponent's Fireball coming as a threat, on the frame it would hit", () => {
     expect(shotThreat(duel(), duel().fighters[0]!, [], [], 36)).toBeNull();
     // Port 1 fires; 40 frames later its Fireball is about 40 units from port 0.

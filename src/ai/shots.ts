@@ -82,21 +82,31 @@ export function shotHit(
   for (const e of state.entities)
     if (e.owner === me.port && !e.dead) out.set(e.kind, (out.get(e.kind) ?? 0) + 1);
   const m = soloMatch(state, me);
+  joinOwn(m, state, me);
   joinFoes(m, state, me, target.seen ?? []);
   // The other fighters' shots only have to meet this one: the CPU's fighter in the copy lets them through untouched,
   // so they keep their own hit history (Johnny's upgraded laser bursts on the first fighter it hits).
   m.fighters[0]!.intangible = Number.MAX_SAFE_INTEGER;
   const coming = target.shots ?? [];
   let nextFoe = 0;
-  // The CPU's entities from here on are the move's (and what they spawn); those before are the platforms soloMatch
-  // copied.
+  // The CPU's entities from here on are the move's and what they turn into, except what its shots already out turn
+  // into: a grenade out bursts where it was destroyed, and the burst is not this move's to score. Those shots are in
+  // the copy to meet the other fighters' shots, so an incoming one they clank first no longer stops this one.
   const from = m.nextEntityId;
+  const older = new Set(m.entities.filter((e) => e.owner === 0).map((e) => e.id));
   const end = target.path.length;
   const struck = new Set<number>();
   let hit: ShotHit | null = null;
   let next = 0;
   for (let t = 0; t < end; t++) {
     stepMatch(m, NEUTRAL);
+    for (const e of m.entities) {
+      if (e.owner !== 0 || e.id < from || older.has(e.id)) continue;
+      const fromOlder = m.events.some(
+        (v) => v.type === 'entityDestroy' && older.has(v.id) && v.x === e.pos.x && v.y === e.pos.y,
+      );
+      if (fromOlder) older.add(e.id);
+    }
     const appear: EntityState[] = [];
     for (; nextFoe < coming.length && coming[nextFoe]!.t <= t; nextFoe++) {
       if (coming[nextFoe]!.t === t)
@@ -119,7 +129,9 @@ export function shotHit(
         data: { ...s.data },
       });
     }
-    const live = m.entities.filter((e) => e.owner === 0 && e.id >= from && !struck.has(e.id));
+    const live = m.entities.filter(
+      (e) => e.owner === 0 && e.id >= from && !older.has(e.id) && !struck.has(e.id),
+    );
     if (!live.length) {
       if (next >= p.spawns.length) break;
       continue;
@@ -220,8 +232,9 @@ function joinFoes(
 
 /**
  * Add the shots `me` has out to `m`, a soloMatch of it, as its own (port 0): they meet the other fighters' shots there
- * as in the match. They keep their ids and their hits so far, those on other fighters under ports the copy doesn't
- * hold.
+ * as in the match, so a shot of the CPU's already out can clank an incoming one before it hits the CPU (shotThreat) or
+ * meets the CPU's next shot (shotHit). They keep their ids and their hits so far, those on other fighters under ports
+ * the copy doesn't hold.
  */
 function joinOwn(m: MatchState, state: Readonly<MatchState>, me: Readonly<FighterState>): void {
   for (const e of state.entities) {
