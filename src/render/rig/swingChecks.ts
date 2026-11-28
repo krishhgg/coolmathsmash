@@ -1,4 +1,4 @@
-import { flattenPath, poseBounds, shapesContain } from './geometry';
+import { flattenPath } from './geometry';
 import { samplePose, toLocal, type RigPose } from './sample';
 import type { FighterArt, PathShape } from './types';
 
@@ -99,6 +99,52 @@ export function heldProps(art: FighterArt): string[] {
     .map((s) => s.name);
 }
 
+/**
+ * Path data flattened once per drawing and step count. The checks measure the same drawings on every frame, and
+ * parsing their paths again each time was most of what they cost. The polygons are flattenPath's own, so every
+ * result is the same.
+ */
+const flattened = new Map<string, number[][]>();
+function polygons(d: string, steps = 8): number[][] {
+  const key = `${steps} ${d}`;
+  let polys = flattened.get(key);
+  if (!polys) flattened.set(key, (polys = flattenPath(d, steps)));
+  return polys;
+}
+
+/** shapesContain (geometry.ts) on the cached polygons: an even-odd test over every subpath of every filled path. */
+function contains(shapes: PathShape[], x: number, y: number): boolean {
+  return shapes.some((shape) => {
+    if (shape.fill === undefined) return false;
+    let inside = false;
+    for (const p of polygons(shape.d)) {
+      for (let i = 0, j = p.length - 2; i < p.length; j = i, i += 2) {
+        const xi = p[i]!;
+        const yi = p[i + 1]!;
+        const xj = p[j]!;
+        const yj = p[j + 1]!;
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+      }
+    }
+    return inside;
+  });
+}
+
+/** The lowest rig y of everything drawn in `slots` in `pose`, as poseBounds (geometry.ts) measures it. */
+function lowest(art: FighterArt, pose: RigPose, slots: FighterArt['rig']['slots']): number {
+  let bottom = -Infinity;
+  for (const slot of slots) {
+    const name = pose.symbols[slot.name];
+    const sym = name ? art.rig.symbols[name] : undefined;
+    if (!Array.isArray(sym)) continue;
+    const m = pose.world[slot.bone]!;
+    for (const shape of sym)
+      for (const p of polygons(shape.d, 4))
+        for (let i = 0; i < p.length; i += 2) bottom = Math.max(bottom, m.b * p[i]! + m.d * p[i + 1]! + m.ty);
+  }
+  return bottom;
+}
+
 /** Everything one fighter's checks need, worked out once from its rig. */
 function context(art: FighterArt) {
   const parents = Object.fromEntries(art.rig.bones.map((b) => [b.name, b.parent]));
@@ -123,7 +169,7 @@ function context(art: FighterArt) {
     const m = pose.world[slots[slot]!.bone]!;
     const b: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity];
     for (const shape of drawing(pose, slot) ?? [])
-      for (const p of flattenPath(shape.d))
+      for (const p of polygons(shape.d))
         for (let i = 0; i < p.length; i += 2) {
           const x = m.a * p[i]! + m.c * p[i + 1]! + m.tx;
           const y = m.b * p[i]! + m.d * p[i + 1]! + m.ty;
@@ -137,7 +183,7 @@ function context(art: FighterArt) {
 
   /** Whether `slot`'s drawing covers rig point (x, y) in `pose`. */
   const covers = (pose: RigPose, slot: string, x: number, y: number) =>
-    shapesContain(drawing(pose, slot)!, ...toLocal(pose.world[slots[slot]!.bone]!, x, y));
+    contains(drawing(pose, slot)!, ...toLocal(pose.world[slots[slot]!.bone]!, x, y));
 
   /**
    * Whether `slot`'s drawing covers more than OVERLAP of the rig points inside `box` that pass `inside`, in
@@ -195,7 +241,7 @@ export function floorFindings(art: FighterArt, checks: SwingChecks): Finding[] {
     for (let f = start; f <= length; f++) {
       const pose = sample(art, clip, f);
       const shown = art.rig.slots.filter((s) => !decal(pose.symbols[s.name]));
-      const bottom = poseBounds({ ...art, rig: { ...art.rig, slots: shown } }, pose)[3];
+      const bottom = lowest(art, pose, shown);
       let tip = -Infinity;
       let tipSlot = '';
       for (const [slot, along] of Object.entries(checks.tips ?? {})) {
