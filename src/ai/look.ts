@@ -200,6 +200,67 @@ export function run(
   return out;
 }
 
+/** One of runBranches' runs: its driver, and when it stops (as `run`'s `until`). */
+export interface Branch {
+  drive: Driver;
+  until?: (f: Readonly<FighterState>, t: number) => boolean;
+}
+
+/**
+ * `run` for several drivers from the same start (`m`, a solo match) at once, each getting the samples `run` would give
+ * it. Drivers that have pressed the same inputs so far share a copy of the match, so the frames they have in common
+ * are simulated once; where their inputs part, the copy is cloned for each new input before it steps. Drivers that
+ * agree share sample objects (read them, don't change them). The sim is deterministic, so a shared frame comes out as
+ * it would have alone.
+ */
+export function runBranches(m: MatchState, frames: number, branches: readonly Branch[]): Sample[][] {
+  const out: Sample[][] = branches.map(() => []);
+  let live: { m: MatchState; members: number[]; path: Sample[] }[] = [
+    { m, members: branches.map((_, i) => i), path: [] },
+  ];
+  const inputs = [neutralInput()];
+  for (let t = 0; t < frames && live.length; t++) {
+    const next: typeof live = [];
+    for (const b of live) {
+      const f = b.m.fighters[0]!;
+      const parts: { input: InputFrame; members: number[] }[] = [];
+      for (const i of b.members) {
+        const input = branches[i]!.drive(t, f);
+        const same = parts.find((p) => sameInput(p.input, input));
+        if (same) same.members.push(i);
+        else parts.push({ input, members: [i] });
+      }
+      // Copy the match and the path so far for each new input, before the first copy steps on.
+      const copies = parts.map((_, k) => (k === 0 ? b.m : structuredClone(b.m)));
+      const paths = parts.map((_, k) => (k === 0 ? b.path : b.path.slice()));
+      parts.forEach((p, k) => {
+        const pm = copies[k]!;
+        const path = paths[k]!;
+        inputs[0] = p.input;
+        stepMatch(pm, inputs);
+        const g = pm.fighters[0]!;
+        path.push(sample(g, getFighter(g.fighter).stats));
+        const over = g.action === 'ko' || g.action === 'out';
+        const going: number[] = [];
+        const stopped: number[] = [];
+        for (const i of p.members) (over || branches[i]!.until?.(g, t) ? stopped : going).push(i);
+        // Drivers that stop here keep the path as it is now; the rest go on adding to it.
+        const kept = going.length ? path.slice() : path;
+        for (const i of stopped) out[i] = kept;
+        if (going.length) next.push({ m: pm, members: going, path });
+      });
+    }
+    live = next;
+  }
+  // Drivers still going when the frames run out.
+  for (const b of live) for (const i of b.members) out[i] = b.path;
+  return out;
+}
+
+function sameInput(a: InputFrame, b: InputFrame): boolean {
+  return a.x === b.x && a.y === b.y && a.cx === b.cx && a.cy === b.cy && a.buttons === b.buttons;
+}
+
 /** Air motion without collisions, the way airMove integrates it: drift, then move, decay, gravity. */
 export interface Arc {
   x: number[];

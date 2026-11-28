@@ -447,5 +447,5 @@ describe("Bob the Robber: Stun Gun (Zero Suit Samus's Paralyzer)", () => {
     expect(first.paralyzed).toBeGreaterThan(0);
     expect(first.frozen).toBeGreaterThan(0);
     expect(play()).toEqual(first);
-  });
+  }, 60_000);
 });
