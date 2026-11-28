@@ -7,6 +7,7 @@ import {
   DETERMINED,
   FIERCE,
   FIST_B,
+  FLAT_WIDE,
   FIST_F,
   HANDS,
   HAPPY,
@@ -64,6 +65,14 @@ const READY: Pose = mix(
   stalks(-6, 4, -4, 6),
 );
 
+/** Just the arms of `pose`, to hold them as they were while the rest moves on. */
+const arms = (pose: Pose): Pose => ({
+  armB: pose.armB!,
+  foreB: pose.foreB!,
+  armF: pose.armF!,
+  foreF: pose.foreF!,
+});
+
 /* ---------------------------------------------------------------- jabs */
 
 /**
@@ -113,14 +122,17 @@ const jab2: AnimClip = {
       swaps: { ...DETERMINED, ...FIST_F, ...FIST_B },
     }),
     ...strike(2, 4, mix(JAB2, POW(9.3, -5.9, 1.05)), { ...FIERCE, ...FIST_F, ...FIST_B, fx1: 'pow' }, 'out'),
-    key(8, JAB2, { ease: 'inOut', swaps: { ...DETERMINED, ...FIST_F, ...FIST_B } }),
+    key(8, mix(JAB2, POW(9.5, -6.0, 0.3)), { ease: 'inOut', swaps: { ...DETERMINED, ...FIST_F, ...FIST_B } }),
     done(15),
     key(20, STAND),
   ],
 };
 
 /** Third hit: the shell shove (he spins to put his shell forward). */
+/** Speed lines along the floor behind the whirl (jab 3, ftilt, fthrow), their lowest line just above it. */
+const TRAIL: Pose = { fx2: at(0, -1.0) };
 const SHOVE = mix(
+  TRAIL,
   { body: { sx: -1, x: 4.6 }, shell: { sx: 1.12, sy: 0.96, rot: -6 } },
   stalks(-10, -6, -8, -6),
   look(-0.25, 0),
@@ -144,6 +156,7 @@ const jab3: AnimClip = {
 
 /** Shell Bump: whirls round to put the shell in front and rams with it. */
 const BUMP = mix(
+  TRAIL,
   { body: { sx: -1, x: 5.0, y: 0.2 }, shell: { sx: 1.16, sy: 0.95, rot: -8 }, neck: { rot: -14 } },
   stalks(-20, -10, -16, -8),
   look(-0.3, 0),
@@ -194,7 +207,7 @@ const SLITHER = mix(
   {
     foot: { sx: 1.16, x: 0.9 },
     shell: { y: 1.0, rot: 8, x: 0.6 },
-    neck: { rot: 62, sy: 0.9 },
+    neck: { rot: 60, sy: 0.9 },
     head: { rot: -50 },
   },
   stalks(-40, 16, -34, 16, 0.8),
@@ -364,7 +377,7 @@ const spinAt = (deg: number, side: 1 | -1 | 0, reach = 4.6): Pose =>
   mix(
     SHELL_DOWN,
     { shell: { x: 1.0 + 0.6 * side, rot: deg } },
-    side ? { fx1: at(reach * side - 0.3 + 0.6 * side, -4.4, side > 0 ? 0 : 180) } : {},
+    side ? { fx1: at(reach * side - 0.3 + 0.6 * side, -5.0, side > 0 ? 0 : 180) } : {},
   );
 
 const dsmash: AnimClip = {
@@ -380,26 +393,18 @@ const dsmash: AnimClip = {
     key(5, spinAt(-40, 0), { ease: 'linear', swaps: SPINNING }),
     key(8, spinAt(80, 0), { ease: 'linear' }),
     ...strike(9, 11, spinAt(200, 1), { ...SPINNING, fx1: 'sideSmear' }),
+    key(12, undefined, { swaps: SPINNING }),
     key(13, spinAt(400, -1), { ease: 'linear', swaps: { ...SPINNING, fx1: 'sideSmear' } }),
     key(15, spinAt(520, -1), { ease: 'out' }),
     key(16, undefined, { swaps: SPINNING }),
     key(28, spinAt(720, 0), { ease: 'out', swaps: IN_SHELL }),
-    key(34, CROUCH, { ease: 'inOut', swaps: HAPPY }),
-    key(47, STAND),
+    key(34, mix(CROUCH, { shell: { rot: 720 } }), { ease: 'inOut', swaps: HAPPY }),
+    key(47, { shell: { rot: 720 } }),
   ],
 };
 
 /* ---------------------------------------------------------------- getup attack */
 
-const FLAT_START: Pose = mix(
-  {
-    body: { rot: -14, y: 0.6 },
-    shell: { rot: -40, x: -0.8, y: 0.9 },
-    neck: { rot: 50, sy: 0.8 },
-    head: { rot: 30 },
-  },
-  stalks(60, 18, 52, 20, 0.9),
-);
 const getupAttack: AnimClip = {
   length: 45,
   active: [
@@ -408,7 +413,7 @@ const getupAttack: AnimClip = {
   ],
   swaps: DETERMINED,
   keys: [
-    key(0, FLAT_START, { ease: 'inOut', swaps: HURT }),
+    key(0, FLAT_WIDE, { ease: 'inOut', swaps: HURT }),
     key(6, spinAt(-60, 0), { ease: 'linear', swaps: SPINNING }),
     key(15, spinAt(120, 0), { ease: 'linear' }),
     ...strike(16, 18, spinAt(200, 1), { ...SPINNING, fx1: 'sideSmear' }),
@@ -417,8 +422,8 @@ const getupAttack: AnimClip = {
     key(26, spinAt(520, -1), { ease: 'out' }),
     key(27, undefined, { swaps: SPINNING }),
     key(34, spinAt(720, 0), { ease: 'out', swaps: IN_SHELL }),
-    key(38, CROUCH, { ease: 'inOut', swaps: HAPPY }),
-    key(45, STAND),
+    key(38, mix(CROUCH, { shell: { rot: 720 } }), { ease: 'inOut', swaps: HAPPY }),
+    key(45, { shell: { rot: 720 } }),
   ],
 };
 
@@ -441,7 +446,7 @@ const nair: AnimClip = {
     key(9, mix(ball(240), { fx1: at(0, -4.5, 120, 1.05) }), { ease: 'linear' }),
     key(24, mix(ball(960), { fx1: at(0, -4.5, 480, 1.0) }), { ease: 'out' }),
     key(26, undefined, { swaps: SPINNING }),
-    key(32, ball(1080), { ease: 'out', swaps: IN_SHELL }),
+    key(32, mix(ball(1080), { fx1: at(0, -4.5, 480, 1.0) }), { ease: 'out', swaps: IN_SHELL }),
     key(34, mix(AIR, { body: { rot: 1080 } }), { ease: 'inOut', swaps: HAPPY }),
     key(41, mix(AIR, { body: { rot: 1080 } })),
   ],
@@ -589,8 +594,8 @@ const grab: AnimClip = {
   active: [[9, 10]],
   swaps: DETERMINED,
   keys: [
-    key(0, READY, { ease: 'out', swaps: { ...DETERMINED, ...HANDS } }),
-    key(6, hands(READY, [3.6, -3.2], [4.2, -3.4]), { ease: 'in' }),
+    key(0, READY, { ease: 'out' }),
+    key(6, hands(READY, [3.6, -3.2], [4.2, -3.4]), { ease: 'in', swaps: { ...DETERMINED, ...HANDS } }),
     ...strike(8, 10, REACH(7.6), { ...FIERCE, ...HANDS }, 'out'),
     key(16, REACH(6.4), { ease: 'inOut', swaps: { ...DETERMINED, ...HANDS } }),
     key(24, hands(READY, [3.6, -3.2], [4.2, -3.4]), { ease: 'inOut' }),
@@ -604,8 +609,11 @@ const dashGrab: AnimClip = {
   active: [[11, 12]],
   swaps: DETERMINED,
   keys: [
-    key(0, mix(CROUCH, { shell: { rot: 8 } }), { ease: 'out', swaps: { ...DETERMINED, ...HANDS } }),
-    key(7, hands(mix(READY, { foot: { sx: 1.1 } }), [3.6, -3.2], [4.2, -3.4]), { ease: 'in' }),
+    key(0, mix(CROUCH, { shell: { rot: 8 } }), { ease: 'out' }),
+    key(7, hands(mix(READY, { foot: { sx: 1.1 } }), [3.6, -3.2], [4.2, -3.4]), {
+      ease: 'in',
+      swaps: { ...DETERMINED, ...HANDS },
+    }),
     ...strike(
       10,
       12,
@@ -626,10 +634,10 @@ const pivotGrab: AnimClip = {
   active: [[12, 13]],
   swaps: DETERMINED,
   keys: [
-    key(0, mix(READY, { body: { sx: -1 } }), { ease: 'out', swaps: { ...DETERMINED, ...HANDS } }),
+    key(0, mix(READY, { body: { sx: -1 } }), { ease: 'out' }),
     key(5, mix(WIND_UP, { body: { sx: -1, sy: 0.94 } }), { ease: 'step' }),
     key(6, mix(READY, COME_ROUND), { ease: 'out' }),
-    key(8, READY, { ease: 'out' }),
+    key(8, hands(READY, [3.6, -3.2], [4.2, -3.4]), { ease: 'out', swaps: { ...DETERMINED, ...HANDS } }),
     ...strike(11, 13, REACH(9.2), { ...FIERCE, ...HANDS }, 'out'),
     key(20, REACH(7.0), { ease: 'inOut', swaps: { ...DETERMINED, ...HANDS } }),
     key(32, hands(READY, [3.6, -3.2], [4.2, -3.4]), { ease: 'inOut' }),
@@ -658,7 +666,7 @@ const pummel: AnimClip = {
     ),
     key(3, mix(HOLD, { fx3: at(7.0, -6.0, 10, 0.7) }), { ease: 'inOut' }),
     key(5, undefined, { swaps: { ...DETERMINED, ...HANDS } }),
-    key(6, HOLD),
+    key(6, mix(HOLD, { fx3: at(7.0, -6.0, 10, 0.5) })),
   ],
 };
 
@@ -694,7 +702,7 @@ const bthrow: AnimClip = {
       ease: 'out',
       swaps: { ...SPINNING, fx1: 'sideSmear' },
     }),
-    key(28, ball(-360, 0, 0), { ease: 'out', swaps: IN_SHELL }),
+    key(28, mix(ball(-360, 0, 0), { fx1: at(-4.0, -6.0, 180, 1) }), { ease: 'out', swaps: IN_SHELL }),
     key(32, mix(CROUCH, { body: { rot: -360 } }), { ease: 'inOut', swaps: HAPPY }),
     key(45, mix(STAND, { body: { rot: -360 } })),
   ],
@@ -729,7 +737,7 @@ const dthrow: AnimClip = {
   swaps: DETERMINED,
   keys: [
     key(0, HOLD, { ease: 'out', swaps: { ...DETERMINED, ...HANDS } }),
-    key(6, mix(CROUCH, stalks(-30, 20, -20, 20, 0.5)), { ease: 'in', swaps: DETERMINED }),
+    key(6, mix(CROUCH, stalks(-30, 20, -20, 20, 0.5), arms(HOLD)), { ease: 'in', swaps: DETERMINED }),
     key(8, ball(0, 0.5, -1.5), { ease: 'out', swaps: IN_SHELL }),
     key(14, ball(20, 5.0, -9.5), { ease: 'in' }),
     key(19, ball(0, 6.6, -5.0, [1.12, 0.9]), { ease: 'linear' }),

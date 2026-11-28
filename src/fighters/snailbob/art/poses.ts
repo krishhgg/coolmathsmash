@@ -1,5 +1,7 @@
 import { pointOf, reach, type Pose } from '../../../render/rig/author';
-import type { BonePose, Key } from '../../../render/rig/types';
+import { poseBounds } from '../../../render/rig/geometry';
+import { samplePose } from '../../../render/rig/sample';
+import type { AnimClip, BonePose, FighterArt, Key } from '../../../render/rig/types';
 import { FORE_ARM } from './parts';
 import { rig } from './rig';
 import type { Pt } from './shapes';
@@ -154,6 +156,88 @@ export const AIR: Pose = mix(
   { foot: { rot: -8 }, shell: { rot: -4 }, neck: { rot: -6 } },
   stalks(-12, -10, -8, -8),
 );
+
+/**
+ * Knocked flat: tipped back with the shell on the floor, the foot splayed and the stalks limp on the ground, both
+ * eyes resting on it.
+ */
+export const FLAT: Pose = mix(
+  {
+    body: { rot: -14, y: -1.1 },
+    shell: { rot: -40, x: -0.8, y: 1.9 },
+    neck: { rot: 50, sy: 0.8 },
+    head: { rot: 30 },
+  },
+  stalks(60, 18, 25, 20, 0.9),
+);
+
+/** FLAT with the stalks a little higher, so wide-eyed faces (whose eyes and lids are drawn bigger) rest on the floor. */
+export const FLAT_WIDE: Pose = mix(FLAT, stalks(50, 10, 25, 10, 0.9));
+
+/** `pose` lifted `dy` (its body moved up), with `extra` on top. */
+export const lifted = (pose: Pose, dy: number, extra: Pose = {}): Pose =>
+  mix(pose, { body: { ...pose.body, y: (pose.body?.y ?? 0) - dy } }, extra);
+
+/**
+ * Turns each arm bone the short way from the key before (an unset turn counts as 0), so an IK solution that wraps
+ * past 180 degrees doesn't spin the arm round between keys.
+ */
+export function armsShortWay(keys: Key[]): Key[] {
+  const last: Record<string, number> = {};
+  return keys.map((k) => {
+    if (!k.pose) return k;
+    const pose = { ...k.pose };
+    for (const bone of ['armB', 'foreB', 'armF', 'foreF']) {
+      const r = pose[bone]?.rot ?? 0;
+      const was = last[bone];
+      const rot = was === undefined ? r : r + 360 * Math.round((was - r) / 360);
+      pose[bone] = { ...pose[bone], rot };
+      last[bone] = rot;
+    }
+    return { ...k, pose };
+  });
+}
+
+/** Bones the body carries: everything but the free effect bones. */
+const CARRIED = new Set(
+  rig.bones
+    .filter(function carried(b): boolean {
+      return b.name === 'body' || (!!b.parent && carried(rig.bones.find((p) => p.name === b.parent)!));
+    })
+    .map((b) => b.name),
+);
+
+/**
+ * Bakes a key on every frame and lifts the snail (his `body`) on any frame from `from` where something he carries
+ * reaches below the floor: a shell turning on its rim, a stretched foot, a tween through a low pose. Effects on the
+ * free bones stay where they are, and frames already clear of the floor are unchanged. A ledge getup passes the frame
+ * the engine sets him on the stage, as before it the floor is the ledge's, not his.
+ */
+export function offFloor(clip: AnimClip, from = 0): AnimClip {
+  const art = { rig, clips: { c: clip }, palettes: { default: {} }, height: 0, icon: '' } as FighterArt;
+  const slots = rig.slots.filter((s) => CARRIED.has(s.bone));
+  const keys: Key[] = [];
+  for (let f = 0; f <= clip.length; f++) {
+    const p = samplePose(art, 'c', f, f);
+    const low = poseBounds({ ...art, rig: { ...rig, slots } }, p)[3];
+    const pose: Pose = Object.fromEntries(
+      rig.bones.map(({ name, x, y, rot = 0, sx = 1, sy = 1 }) => {
+        const b = p.local[name]!;
+        return [name, { x: b.x - x, y: b.y - y, rot: b.rot - rot, sx: b.sx / sx, sy: b.sy / sy }];
+      }),
+    );
+    if (low > 0 && f >= from) pose.body = { ...pose.body, y: pose.body!.y! - low };
+    let swaps: Key['swaps'];
+    let z: Key['z'];
+    for (const k of clip.keys) {
+      if (k.frame > f) break;
+      if (k.swaps) swaps = k.swaps;
+      if (k.z) z = k.z;
+    }
+    keys.push(key(f, pose, { ease: 'linear', ...(swaps ? { swaps } : {}), ...(z ? { z } : {}) }));
+  }
+  return { ...clip, keys };
+}
 
 /** Merges a pose for spinning: the whole snail turns around its middle by `deg`. */
 export const turned = (pose: Pose, deg: number): Pose => mix(pose, { body: { ...pose.body, rot: deg } });

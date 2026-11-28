@@ -1,5 +1,6 @@
 import { pointOf, type Pose } from '../../../render/rig/author';
 import { retimeClip } from '../../../render/rig/timing';
+import { LEDGE_ATTACK } from '../../../sim/constants';
 import type { AnimClip, Key } from '../../../render/rig/types';
 import {
   AIR,
@@ -8,6 +9,8 @@ import {
   CROUCH,
   DAZED,
   DETERMINED,
+  FLAT,
+  FLAT_WIDE,
   HANDS,
   HAPPY,
   HURT,
@@ -18,7 +21,10 @@ import {
   STARTLED,
   WIDE,
   add,
+  armsShortWay,
   at,
+  lifted,
+  offFloor,
   hands,
   key,
   look,
@@ -347,9 +353,12 @@ const spotDodge: AnimClip = {
   ],
 };
 
-/** Rolls in the shell: tucks in, the shell turns over `turns` x 360 degrees, then he pops out (`flip`: facing back). */
+/**
+ * Rolls in the shell: tucks in, the shell turns over once, then he pops out (`flip`: facing back) with the shell
+ * keeping its whole turn.
+ */
 function roll(length: number, dir: 1 | -1, flip: boolean): AnimClip {
-  const out: Pose = flip ? { body: { sx: -1 } } : {};
+  const out: Pose = mix(flip ? { body: { sx: -1 } } : {}, { shell: { rot: 360 * dir } });
   return {
     length,
     swaps: STARTLED,
@@ -436,6 +445,9 @@ function climbOffset(frame: number, moveEnd: number, distance: number): Pt {
 /** The body's turn while climbing: from flat on the wall (-90) to upright on the floor. */
 const climbRot = (frame: number, moveEnd: number) => -90 * (1 - Math.min(1, (frame / moveEnd) * 1.4));
 
+/** Frames 0 to `n`: a key on each while the hands hold the corner, so they stay on it as the body swings up. */
+const upTo = (n: number) => Array.from({ length: n + 1 }, (_, f) => f);
+
 /** Crawls up over the lip as the engine lifts him: the body swings from the wall onto the floor. */
 function climb(
   moveEnd: number,
@@ -470,7 +482,11 @@ function climb(
 const ledgeClimb: AnimClip = {
   length: 33,
   swaps: HAPPY,
-  keys: [...climb(30, 8, [0, 6, 12, 18, 24], { ...DETERMINED, ...HANDS }), key(33, STAND)],
+  // A key on 30, where the engine sets him on the stage, so the climb's offsets reach 0 as his feet do.
+  keys: armsShortWay([
+    ...climb(30, 8, [...upTo(12), 18, 24, 30], { ...DETERMINED, ...HANDS }),
+    key(33, STAND),
+  ]),
 };
 
 /**
@@ -501,37 +517,50 @@ const LEDGE_ROLL_SPIN = [11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 28, 32, 36].map
 const ledgeRoll: AnimClip = {
   length: 45,
   swaps: HAPPY,
-  keys: [
-    ...climb(40, 25, [0, 5, 10], { ...DETERMINED, ...HANDS }),
+  keys: armsShortWay([
+    ...climb(40, 25, upTo(10), { ...DETERMINED, ...HANDS }),
     ...LEDGE_ROLL_SPIN,
     key(38, mix(SHRINK, { body: { rot: 720 } }), { ease: 'out', swaps: HAPPY }),
     key(45, mix(STAND, { body: { rot: 720 } })),
-  ],
+  ]),
 };
 
 const ledgeJump: AnimClip = {
   length: 20,
   swaps: DETERMINED,
-  keys: [
-    key(0, HANG, { ease: 'in', swaps: { ...DETERMINED, ...HANDS } }),
+  keys: armsShortWay([
+    key(0, HANG, { ease: 'linear', swaps: { ...DETERMINED, ...HANDS } }),
+    // Pushing off, eased in: the hands stay on the corner each frame until they let go on 3.
+    ...[1, 2].map((f) => {
+      const u = (f / 3) ** 2;
+      return key(f, cling(GX, GY + 2 * u, { body: { rot: -90 + 30 * u } }), { ease: 'linear' });
+    }),
     key(3, cling(GX, GY + 2, { body: { rot: -60 } }), { ease: 'out', swaps: HAPPY }),
     key(6, STRETCH, { ease: 'out' }),
     key(20, APEX),
-  ],
+  ]),
 };
 
 const ledgeAttack: AnimClip = {
   length: 55,
   swaps: DETERMINED,
-  keys: [
-    ...climb(20, 8, [0, 5, 10], { ...DETERMINED, ...HANDS }),
+  keys: armsShortWay([
+    ...climb(20, 8, upTo(10), { ...DETERMINED, ...HANDS }),
+    key(11, undefined, { swaps: DETERMINED }),
     key(12, mix(BALL, { body: { rot: 0 } }), { ease: 'in', swaps: SPINNING }),
-    key(16, mix(BALL, { body: { rot: 180 } }), { ease: 'linear', swaps: { ...SPINNING, fx1: 'sideSmear' } }),
-    key(24, mix(BALL, { body: { rot: 720 }, fx1: at(2, -4.5, 0, 1.1) }), { ease: 'out' }),
+    // The smear sits on the ball from the frame it shows until it goes, not tweened up from his feet or back to them.
+    key(16, mix(BALL, { body: { rot: 180 }, fx1: at(2, -5.2, 0, 1.0) }), {
+      ease: 'linear',
+      swaps: { ...SPINNING, fx1: 'sideSmear' },
+    }),
+    key(24, mix(BALL, { body: { rot: 720 }, fx1: at(2, -5.2, 0, 1.0) }), { ease: 'out' }),
     key(28, undefined, { swaps: SPINNING }),
-    key(30, mix(SHRINK, { body: { rot: 720 } }), { ease: 'out', swaps: DETERMINED }),
+    key(30, mix(SHRINK, { body: { rot: 720 }, fx1: at(2, -5.2, 0, 1.0) }), {
+      ease: 'out',
+      swaps: DETERMINED,
+    }),
     key(55, mix(STAND, { body: { rot: 720 } })),
-  ],
+  ]),
 };
 
 /* ---------------------------------------------------------------- hurt */
@@ -551,44 +580,30 @@ const hitstun: AnimClip = {
   ],
 };
 
-/** Tumbling end over end, limp. */
-const tumble = wave(
-  40,
-  8,
-  (t) =>
-    add(
-      mix(HIT, { body: { rot: -360 * t } }),
-      {
-        foot: { rot: 14 * sin(t * 2), sx: 1 + 0.1 * sin(t * 2 + 0.25), sy: 1 - 0.08 * sin(t * 2 + 0.25) },
-        neck: { rot: 18 * sin(t * 2 - 0.15) },
-        head: { rot: 10 * sin(t * 2 - 0.3) },
-      },
-      sway(t * 2, 22),
-    ),
-  { swaps: HURT },
-);
-tumble.keys.push(key(40, mix(HIT, { body: { rot: -360 } }), { ease: 'linear' }));
+/** Tumbling end over end, limp. The last key is the first a turn on, stalks and all, so the loop closes. */
+const tumbling = (t: number): Pose =>
+  add(
+    mix(HIT, { body: { rot: -360 * t } }),
+    {
+      foot: { rot: 14 * sin(t * 2), sx: 1 + 0.1 * sin(t * 2 + 0.25), sy: 1 - 0.08 * sin(t * 2 + 0.25) },
+      neck: { rot: 18 * sin(t * 2 - 0.15) },
+      head: { rot: 10 * sin(t * 2 - 0.3) },
+    },
+    sway(t * 2, 22),
+  );
+const tumble = wave(40, 8, tumbling, { swaps: HURT });
+tumble.keys.push(key(40, tumbling(1), { ease: 'linear' }));
 
-/** Knocked flat: the shell tipped back on the floor, the body splayed and the stalks limp on the ground. */
-const FLAT: Pose = mix(
-  {
-    body: { rot: -14, y: 0.6 },
-    shell: { rot: -40, x: -0.8, y: 0.9 },
-    neck: { rot: 50, sy: 0.8 },
-    head: { rot: 30 },
-  },
-  stalks(60, 18, 52, 20, 0.9),
-);
 const down = wave(40, 4, (t) => add(FLAT, sway(t, 3), { shell: { rot: 2 * sin(t) } }), { swaps: DAZED });
 
 const downBound: AnimClip = {
   length: 26,
   swaps: HURT,
   keys: [
-    key(0, mix(FLAT, { body: { y: -0.2 } }), { ease: 'out' }),
-    key(5, mix(FLAT, { body: { y: -1.8, rot: -24 } }), { ease: 'in' }),
-    key(11, FLAT, { ease: 'out' }),
-    key(15, mix(FLAT, { body: { y: -0.4 } }), { ease: 'in' }),
+    key(0, lifted(FLAT_WIDE, 0.8), { ease: 'out' }),
+    key(5, lifted(FLAT_WIDE, 2.4, { body: { y: FLAT.body!.y! - 2.4, rot: -24 } }), { ease: 'in' }),
+    key(11, FLAT_WIDE, { ease: 'out' }),
+    key(15, lifted(FLAT_WIDE, 1.0), { ease: 'in' }),
     key(19, FLAT, { ease: 'out', swaps: DAZED }),
     key(26, FLAT),
   ],
@@ -605,25 +620,26 @@ const getupStand: AnimClip = {
   ],
 };
 
-/** Spins up in the shell where he lands (tech in place, tech and getup rolls). */
+/** Spins up in the shell where he lands (tech in place, tech and getup rolls), the shell keeping its whole turns. */
 function shellSpin(length: number, from: Pose, turns: number): AnimClip {
   const pop = Math.round(length * 0.7);
+  const spun = { shell: { rot: -360 * turns } };
   return {
     length,
     swaps: STARTLED,
     keys: [
-      key(0, from, { ease: 'linear' }),
+      key(0, from, { ease: 'in' }),
       key(2, HIDE, { ease: 'linear', swaps: SPINNING }),
       key(pop, mix(HIDE, { shell: { ...HIDE.shell, rot: -360 * turns } }), { ease: 'out' }),
-      key(pop + 1, SHRINK, { ease: 'out', swaps: HAPPY }),
-      key(length, STAND),
+      key(pop + 1, mix(SHRINK, spun), { ease: 'out', swaps: HAPPY }),
+      key(length, spun),
     ],
   };
 }
 
 const techInPlace = shellSpin(26, HIT, 1);
 const techRoll = shellSpin(40, HIT, 2);
-const getupRoll = shellSpin(35, FLAT, 2);
+const getupRoll = shellSpin(35, FLAT_WIDE, 2);
 
 const respawn = wave(60, 4, (t) => add({ shell: { y: -0.1 * sin(t) } }, sway(t, 3)), { swaps: HAPPY });
 
@@ -648,7 +664,7 @@ const taunt: AnimClip = {
     key(30, wave1(1.2), { ease: 'inOut' }),
     key(38, wave1(-0.6), { ease: 'inOut', swaps: { ...BLINK, ...HANDS } }),
     key(42, undefined, { swaps: { ...HAPPY, ...HANDS } }),
-    key(48, TALL, { ease: 'inOut', swaps: HAPPY }),
+    key(48, hands(TALL, [3.8, -3.4], [4.6, -3.2]), { ease: 'inOut', swaps: HAPPY }),
     key(60, STAND),
   ],
 };
@@ -725,3 +741,30 @@ clips.spotDodge = retimeClip(clips.spotDodge!, 25, [[17, 17]]);
 clips.rollForward = retimeClip(clips.rollForward!, 29, [[20, 20]]);
 clips.rollBack = retimeClip(clips.rollBack!, 34, [[20, 20]]);
 clips.airDodge = retimeClip(clips.airDodge!, 52, [[29, 29]]);
+
+/**
+ * Ground clips where a turning shell, a stretched foot or a tween reaches below the floor: lifted off it on those
+ * frames (`offFloor`), the rest unchanged.
+ */
+for (const name of [
+  'rollForward',
+  'rollBack',
+  'techInPlace',
+  'techRoll',
+  'getupRoll',
+  'techRollBack',
+  'getupRollBack',
+  'getupStand',
+  'taunt',
+  'ftilt',
+  'dashAttack',
+  'fsmash',
+  'dsmash',
+  'getupAttack',
+  'dairLand',
+  'fthrow',
+  'downB',
+  'finalSmashCinematic',
+])
+  clips[name] = offFloor(clips[name]!);
+clips.ledgeAttack = offFloor(clips.ledgeAttack!, LEDGE_ATTACK.moveEnd);
