@@ -57,7 +57,7 @@ function toss(extra: Pose, hand: Pt, gun: number, back: Pt, front: Pt): Pose {
 /** The folded raft swung back low behind him for an underhand toss, his brother peering down at it. */
 const PULL = toss(
   { body: { rot: -6, x: -0.3, y: 0.4 }, neck: { rot: 4 }, ...bro(-4, 12, -60, -10, -10) },
-  [-3.6, -6.0],
+  [-3.0, -4.6],
   40,
   [1.4, 0],
   [-1.6, 0],
@@ -100,7 +100,7 @@ export const duckRaftClips: Record<string, AnimClip> = {
     active: [[DUCK_RAFT.place, DUCK_RAFT.place]],
     swaps: GRIN,
     keys: shortTurns([
-      key(0, STAND, { ease: 'out' }),
+      key(0, STAND, { ease: 'linear' }),
       key(2, PULL, { ease: 'in', swaps: { ...GRIT, held: 'raftBundle' } }),
       key(DUCK_RAFT.place - 1, SLING, { ease: 'linear', swaps: { ...SHOUT, held: 'raftBundle' } }),
       key(DUCK_RAFT.place, mix(LET_GO, puffs([13.0, -6.0, 1.6], [1.0, -1.0, 0.9])), {

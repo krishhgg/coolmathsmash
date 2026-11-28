@@ -74,6 +74,8 @@ export const rig: Rig = {
     { name: 'body', parent: 'root', x: 0, y: -5 },
     { name: 'hip', parent: 'body', x: 0, y: 5 + HIP_Y },
     { name: 'torso', parent: 'hip', x: 0, y: 0 },
+    /** The apron, at the hips: `onFloor` shortens it about its waistband when a deep crouch would sink its hem. */
+    { name: 'apron', parent: 'hip', x: 0, y: 0 },
     { name: 'neck', parent: 'torso', x: 0.15, y: -4.7 },
     { name: 'head', parent: 'neck', x: 0.05, y: -2.55 },
     { name: 'face', parent: 'head', x: 0, y: 0 },
@@ -107,7 +109,7 @@ export const rig: Rig = {
     ...limbSlots('thighF', 'shinF', 'thigh', 'shin'),
     { name: 'footF', bone: 'footF', symbol: 'shoe' },
     { name: 'torso', bone: 'torso', symbol: 'torso' },
-    { name: 'apron', bone: 'hip', symbol: 'apron' },
+    { name: 'apron', bone: 'apron', symbol: 'apron' },
     ...limbSlots('armF', 'foreF', 'upperArm', 'foreArm'),
     { name: 'paddle', bone: 'paddle', symbol: 'paddle' },
     { name: 'handF', bone: 'handF', symbol: 'fist' },

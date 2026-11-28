@@ -106,9 +106,10 @@ const seeds = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
 describe('CPU air dodges near the ledge', () => {
   // Bench match seed 4, Raft Wars against Wheely, frame 3381, as it played before #326 changed that match: Wheely
   // short hops toward the right ledge to edgeguard, neutral air dodges at (76.4, 12.5) the next frame, falls under the
-  // ledge to (105.3, -56.0) by the time the dodge ends, and can't get back. In this setup main does that, and is KO'd,
-  // at every seed.
-  it('a level 9 Wheely short hopping toward the ledge dodges toward the stage and gets back', () => {
+  // ledge to (105.3, -56.0) by the time the dodge ends, and can't get back. Before #328 he did that, and was KO'd, at
+  // every seed. From there he can now drift further out and Ramp Jump with the stick held up (src/ai/recovery.ts), so
+  // the neutral dodge passes the CPU's check (airReturns in cpu.ts): he dodges, double jumps and catches the ledge.
+  it('a level 9 Wheely short hopping toward the ledge dodges and gets back', () => {
     const hop: Air = {
       fighter: 'wheely',
       at: { x: 75.6, y: 12.5 },
@@ -119,7 +120,7 @@ describe('CPU air dodges near the ledge', () => {
     };
     const runs = seeds(10).map((seed) => ({ seed, ...fromAir(hop, seed) }));
     expect(runs.filter((r) => r.dodge).length).toBeGreaterThan(5);
-    expect(runs.filter((r) => r.end === 'ko' || r.dodge === 'neutral').map((r) => r.seed)).toEqual([]);
+    expect(runs.filter((r) => r.end === 'ko').map((r) => r.seed)).toEqual([]);
   }, 60_000);
 
   // #318's bench, seed 18, Bloxorz against Wheely: the block tips off the end of the right side platform in its lying
