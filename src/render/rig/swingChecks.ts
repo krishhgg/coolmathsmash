@@ -1,0 +1,398 @@
+import { flattenPath } from './geometry';
+import { samplePose, toLocal, type RigPose } from './sample';
+import type { FighterArt, PathShape } from './types';
+
+/**
+ * Frame-by-frame checks on a fighter's clips, as Bob's swing checks first ran them (#287, #315, #325): nothing
+ * drawn sinks into the floor, no part turns too far between frames, no held prop jumps in front of or behind a
+ * part it covers, and a prop drawn over the head stays off the face. Tests and the survey script share them.
+ */
+
+/** How far a drawn part may reach below the floor (rig y 0), as in Fireboy's rolls and Runner's getup attack. */
+export const SINK = 0.2;
+
+/**
+ * The most a drawn part may turn from one frame to the next, in degrees. Past 180 the eye reads a turn as going
+ * backwards; a tween that goes the long way round between keys peaks well above this.
+ */
+export const TURN = 60;
+
+/**
+ * The most a part may turn per frame while a move strikes, from two frames before a hit window opens until it
+ * closes. Anything under half a turn still reads the right way.
+ */
+export const STRIKE = 120;
+
+/**
+ * How much of a part a held prop may overlap, in square units, on both sides of a change in their draw order. A
+ * prop can pass the edge of a part at a key, but one that moves from over a body to behind it is seen to jump.
+ */
+export const OVERLAP = 0.25;
+
+/** Grid spacing for measuring overlaps. */
+const CELL = 0.1;
+
+/** The face check: `prop` drawn over the head may not cover more than OVERLAP of the face below the hat. */
+export interface FaceCheck {
+  prop: string;
+  clips: string[];
+  /** Slots: the head, the features drawn on it and the hat whose bottom edge the face starts below. */
+  head: string;
+  features: string;
+  hat: string;
+}
+
+/**
+ * A bone meant to spin (a wheel, a shell, a rolling block, a spin effect), which the turn check leaves out. The
+ * other checks still apply to it.
+ */
+export interface Spin {
+  bone: string;
+  /** Why it spins, in a line. */
+  why: string;
+  /** The clips it spins in; every clip when not given. */
+  clips?: string[];
+}
+
+/** Which of a fighter's clips the checks run on, and its allowances. */
+export interface SwingChecks {
+  /** Clips on the ground: every check. */
+  ground: string[];
+  /** Clips in the air: every check but the floor. */
+  air: string[];
+  /** The frame a clip's checks start from (0 when not listed). */
+  from?: Record<string, number>;
+  /** Held props, whose draw order against the parts they cover is checked. Found from the rig when not given. */
+  props?: string[];
+  /** Points along a prop's bone (distance from its origin) that must stay above the floor while it is drawn. */
+  tips?: Record<string, number>;
+  /** Symbol name prefixes of drawings that lie on the floor in perspective, left out of the floor check. */
+  decals?: string[];
+  /** Bones meant to spin, left out of the turn check. */
+  spins?: Spin[];
+  face?: FaceCheck;
+}
+
+export type Check = 'floor' | 'turn' | 'order' | 'face';
+
+/** One failing frame. `value` is how far it fails: depth under the floor, degrees turned, or 1 for a jump. */
+export interface Finding {
+  clip: string;
+  frame: number;
+  check: Check;
+  part: string;
+  value: number;
+  /** The frame as Bob's checks print it. */
+  text: string;
+}
+
+/**
+ * Slots carried by a forearm or a hand (or a bone hanging from one) that aren't part of the arm itself: a baton,
+ * a sack, a paddle, a cane.
+ */
+export function heldProps(art: FighterArt): string[] {
+  const parent = Object.fromEntries(art.rig.bones.map((b) => [b.name, b.parent]));
+  const carried = (bone: string | undefined): boolean =>
+    !!bone && (/^(fore|hand)/.test(bone) || carried(parent[bone]));
+  return art.rig.slots
+    .filter((s) => !s.decor && carried(s.bone) && !/^(arm|fore|hand)/.test(s.name) && !/Line$/.test(s.name))
+    .map((s) => s.name);
+}
+
+/**
+ * Path data flattened once per drawing and step count. The checks measure the same drawings on every frame, and
+ * parsing their paths again each time was most of what they cost. The polygons are flattenPath's own, so every
+ * result is the same.
+ */
+const flattened = new Map<string, number[][]>();
+function polygons(d: string, steps = 8): number[][] {
+  const key = `${steps} ${d}`;
+  let polys = flattened.get(key);
+  if (!polys) flattened.set(key, (polys = flattenPath(d, steps)));
+  return polys;
+}
+
+/** shapesContain (geometry.ts) on the cached polygons: an even-odd test over every subpath of every filled path. */
+function contains(shapes: PathShape[], x: number, y: number): boolean {
+  return shapes.some((shape) => {
+    if (shape.fill === undefined) return false;
+    let inside = false;
+    for (const p of polygons(shape.d)) {
+      for (let i = 0, j = p.length - 2; i < p.length; j = i, i += 2) {
+        const xi = p[i]!;
+        const yi = p[i + 1]!;
+        const xj = p[j]!;
+        const yj = p[j + 1]!;
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+      }
+    }
+    return inside;
+  });
+}
+
+/** The lowest rig y of everything drawn in `slots` in `pose`, as poseBounds (geometry.ts) measures it. */
+function lowest(art: FighterArt, pose: RigPose, slots: FighterArt['rig']['slots']): number {
+  let bottom = -Infinity;
+  for (const slot of slots) {
+    const name = pose.symbols[slot.name];
+    const sym = name ? art.rig.symbols[name] : undefined;
+    if (!Array.isArray(sym)) continue;
+    const m = pose.world[slot.bone]!;
+    for (const shape of sym)
+      for (const p of polygons(shape.d, 4))
+        for (let i = 0; i < p.length; i += 2) bottom = Math.max(bottom, m.b * p[i]! + m.d * p[i + 1]! + m.ty);
+  }
+  return bottom;
+}
+
+/** Everything one fighter's checks need, worked out once from its rig. */
+function context(art: FighterArt) {
+  const parents = Object.fromEntries(art.rig.bones.map((b) => [b.name, b.parent]));
+  const slots = Object.fromEntries(art.rig.slots.map((s) => [s.name, s]));
+
+  /** A bone's rotation in rig space, unwrapped (its own turn plus its parents'), so a full spin counts 360. */
+  const turn = (pose: RigPose, bone: string): number => {
+    let deg = 0;
+    for (let b: string | undefined = bone; b; b = parents[b]) deg += pose.local[b]!.rot;
+    return deg;
+  };
+
+  /** The drawing in `slot` in `pose`, if it has one. */
+  const drawing = (pose: RigPose, slot: string): PathShape[] | undefined => {
+    const name = pose.symbols[slot];
+    const sym = name ? art.rig.symbols[name] : undefined;
+    return Array.isArray(sym) ? sym : undefined;
+  };
+
+  /** Rig-space [minX, minY, maxX, maxY] of `slot`'s drawing in `pose`. */
+  const bounds = (pose: RigPose, slot: string): [number, number, number, number] => {
+    const m = pose.world[slots[slot]!.bone]!;
+    const b: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const shape of drawing(pose, slot) ?? [])
+      for (const p of polygons(shape.d))
+        for (let i = 0; i < p.length; i += 2) {
+          const x = m.a * p[i]! + m.c * p[i + 1]! + m.tx;
+          const y = m.b * p[i]! + m.d * p[i + 1]! + m.ty;
+          b[0] = Math.min(b[0], x);
+          b[1] = Math.min(b[1], y);
+          b[2] = Math.max(b[2], x);
+          b[3] = Math.max(b[3], y);
+        }
+    return b;
+  };
+
+  /** Whether `slot`'s drawing covers rig point (x, y) in `pose`. */
+  const covers = (pose: RigPose, slot: string, x: number, y: number) =>
+    contains(drawing(pose, slot)!, ...toLocal(pose.world[slots[slot]!.bone]!, x, y));
+
+  /**
+   * Whether `slot`'s drawing covers more than OVERLAP of the rig points inside `box` that pass `inside`, in
+   * `pose`, measured on a CELL grid.
+   */
+  const overlapsRegion = (
+    pose: RigPose,
+    slot: string,
+    box: [number, number, number, number],
+    inside: (x: number, y: number) => boolean,
+  ): boolean => {
+    const [a0, a1, a2, a3] = bounds(pose, slot);
+    let cells = 0;
+    for (let x = Math.max(a0, box[0]) + CELL / 2; x < Math.min(a2, box[2]); x += CELL)
+      for (let y = Math.max(a1, box[1]) + CELL / 2; y < Math.min(a3, box[3]); y += CELL)
+        if (covers(pose, slot, x, y) && inside(x, y) && ++cells * CELL * CELL > OVERLAP) return true;
+    return false;
+  };
+
+  /** Whether the drawings in slots `a` and `b` overlap by more than OVERLAP in `pose`. */
+  const overlaps = (pose: RigPose, a: string, b: string) =>
+    overlapsRegion(pose, a, bounds(pose, b), (x, y) => covers(pose, b, x, y));
+
+  /** Each slot's place in the draw order, back to front. */
+  const layers = (pose: RigPose): Record<string, number> => {
+    const order = art.rig.slots
+      .map((s, i) => ({ name: s.name, z: pose.z[s.name] ?? i, i }))
+      .sort((a, b) => a.z - b.z || a.i - b.i);
+    return Object.fromEntries(order.map((s, k) => [s.name, k]));
+  };
+
+  /** Bones that carry a drawing in `pose`. */
+  const drawn = (pose: RigPose) =>
+    new Set(art.rig.slots.filter((s) => pose.symbols[s.name] !== null).map((s) => s.bone));
+
+  return { slots, turn, drawing, bounds, covers, overlapsRegion, overlaps, layers, drawn };
+}
+
+const sample = (art: FighterArt, clip: string, f: number) => samplePose(art, clip, f, f);
+
+/** Each clip's frames from its first checked frame to its last, as [clip, from, length]. */
+function frames(art: FighterArt, clips: string[], from: Record<string, number> = {}) {
+  return clips
+    .filter((name) => art.clips[name])
+    .map((name) => [name, from[name] ?? 0, art.clips[name]!.length] as const);
+}
+
+/** Frames where a drawn part, or a prop's tip while the prop is drawn, reaches more than SINK below the floor. */
+export function floorFindings(art: FighterArt, checks: SwingChecks): Finding[] {
+  const { slots, bounds, drawing } = context(art);
+  const decal = (name: string | null | undefined) =>
+    !!name && (checks.decals ?? []).some((d) => name.startsWith(d));
+  const out: Finding[] = [];
+  for (const [clip, start, length] of frames(art, checks.ground, checks.from))
+    for (let f = start; f <= length; f++) {
+      const pose = sample(art, clip, f);
+      const shown = art.rig.slots.filter((s) => !decal(pose.symbols[s.name]));
+      const bottom = lowest(art, pose, shown);
+      let tip = -Infinity;
+      let tipSlot = '';
+      for (const [slot, along] of Object.entries(checks.tips ?? {})) {
+        if (!pose.symbols[slot]) continue;
+        const m = pose.world[slots[slot]!.bone]!;
+        if (m.b * along + m.ty > tip) [tip, tipSlot] = [m.b * along + m.ty, slot];
+      }
+      if (bottom <= SINK && tip <= SINK) continue;
+      const deepest = shown
+        .filter((s) => drawing(pose, s.name))
+        .reduce((a, s) => (bounds(pose, s.name)[3] > bounds(pose, a)[3] ? s.name : a), shown[0]!.name);
+      out.push({
+        clip,
+        frame: f,
+        check: 'floor',
+        part: tip > bottom ? `${tipSlot} tip` : deepest,
+        value: Math.max(bottom, tip),
+        text: `${clip}@${f} ${bottom.toFixed(2)}${tip > SINK ? ` (tip ${tip.toFixed(2)})` : ''}`,
+      });
+    }
+  return out;
+}
+
+/** The bones `spins` lets turn freely in `clip`. Throws on a bone or clip the art doesn't have. */
+function spinning(art: FighterArt, spins: Spin[], clip: string): Set<string> {
+  for (const spin of spins) {
+    if (!art.rig.bones.some((b) => b.name === spin.bone)) throw new Error(`spin: no bone ${spin.bone}`);
+    for (const name of spin.clips ?? [])
+      if (!art.clips[name]) throw new Error(`spin: ${spin.bone} lists a clip the art doesn't have, ${name}`);
+  }
+  return new Set(spins.filter((s) => !s.clips || s.clips.includes(clip)).map((s) => s.bone));
+}
+
+/**
+ * Frames where a drawn part turns more than TURN degrees from the frame before, or STRIKE from two frames before a
+ * hit window opens until it closes. A loop's last frame draws its first again, a whole number of turns round from
+ * where it started, so that frame's turn is taken the short way. Bones in `spins` are left out in their clips.
+ */
+export function turnFindings(art: FighterArt, checks: SwingChecks): Finding[] {
+  const { turn, drawn } = context(art);
+  const out: Finding[] = [];
+  for (const [clip, start, length] of frames(art, [...checks.ground, ...checks.air], checks.from)) {
+    const free = spinning(art, checks.spins ?? [], clip);
+    const { active = [], loop } = art.clips[clip]!;
+    const striking = (f: number) => active.some(([a, b]) => f >= a - 2 && f <= b);
+    let prev = sample(art, clip, start);
+    for (let f = start + 1; f <= length; f++) {
+      const pose = sample(art, clip, f);
+      const before = drawn(prev);
+      const limit = striking(f) ? STRIKE : TURN;
+      for (const bone of drawn(pose)) {
+        if (free.has(bone)) continue;
+        let deg = turn(pose, bone) - turn(prev, bone);
+        if (loop && f === length) deg -= 360 * Math.round(deg / 360);
+        if (before.has(bone) && Math.abs(deg) > limit)
+          out.push({
+            clip,
+            frame: f,
+            check: 'turn',
+            part: bone,
+            value: Math.abs(deg),
+            text: `${clip}@${f} ${bone} ${deg.toFixed(0)}`,
+          });
+      }
+      prev = pose;
+    }
+  }
+  return out;
+}
+
+/** Frames where a held prop moves in front of or behind a part it covers by more than OVERLAP on both frames. */
+export function orderFindings(art: FighterArt, checks: SwingChecks): Finding[] {
+  const { drawing, layers, overlaps } = context(art);
+  const props = checks.props ?? heldProps(art);
+  const out: Finding[] = [];
+  for (const [clip, start, length] of frames(art, [...checks.ground, ...checks.air], checks.from)) {
+    let prev = sample(art, clip, start);
+    for (let f = start + 1; f <= length; f++) {
+      const pose = sample(art, clip, f);
+      const [was, now] = [layers(prev), layers(pose)];
+      for (const prop of props.filter((p) => drawing(prev, p) && drawing(pose, p)))
+        for (const { name: part, decor } of art.rig.slots) {
+          if (part === prop || decor || !drawing(prev, part) || !drawing(pose, part)) continue;
+          const over = now[prop]! > now[part]!;
+          if (over === was[prop]! > was[part]!) continue;
+          if (overlaps(prev, prop, part) && overlaps(pose, prop, part))
+            out.push({
+              clip,
+              frame: f,
+              check: 'order',
+              part: `${prop} ${over ? 'over' : 'under'} ${part}`,
+              value: 1,
+              text: `${clip}@${f} ${prop} ${over ? 'over' : 'under'} ${part}`,
+            });
+        }
+      prev = pose;
+    }
+  }
+  return out;
+}
+
+/** Frames where the face check's prop, drawn over the head, covers more than OVERLAP of the face below the hat. */
+export function faceFindings(art: FighterArt, checks: SwingChecks): Finding[] {
+  const { face } = checks;
+  if (!face) return [];
+  const { drawing, layers, bounds, covers, overlapsRegion } = context(art);
+  const out: Finding[] = [];
+  for (const clip of face.clips.filter((c) => art.clips[c]))
+    for (let f = 0; f <= art.clips[clip]!.length; f++) {
+      const pose = sample(art, clip, f);
+      const order = layers(pose);
+      if (!drawing(pose, face.prop) || order[face.prop]! < order[face.head]!) continue;
+      const [x0, , x1, y1] = bounds(pose, face.head);
+      const onFace = (x: number, y: number) =>
+        covers(pose, face.head, x, y) || covers(pose, face.features, x, y);
+      if (overlapsRegion(pose, face.prop, [x0, bounds(pose, face.hat)[3], x1, y1], onFace))
+        out.push({
+          clip,
+          frame: f,
+          check: 'face',
+          part: `${face.prop} over face`,
+          value: 1,
+          text: `${clip}@${f}`,
+        });
+    }
+  return out;
+}
+
+/** Every check's findings for one fighter. */
+export const allFindings = (art: FighterArt, checks: SwingChecks): Finding[] => [
+  ...floorFindings(art, checks),
+  ...turnFindings(art, checks),
+  ...orderFindings(art, checks),
+  ...faceFindings(art, checks),
+];
+
+/**
+ * Each failing clip's worst finding per check (the deepest frame, the biggest turn, the first jump), with how many
+ * frames fail that check.
+ */
+export function worstByClip(found: Finding[]): Map<string, Map<Check, Finding & { frames: number }>> {
+  const out = new Map<string, Map<Check, Finding & { frames: number }>>();
+  const seen = new Set<string>();
+  for (const f of found) {
+    const clip = out.get(f.clip) ?? new Map<Check, Finding & { frames: number }>();
+    const had = clip.get(f.check);
+    const frame = `${f.clip} ${f.check} ${f.frame}`;
+    const frames = (had?.frames ?? 0) + (seen.has(frame) ? 0 : 1);
+    seen.add(frame);
+    clip.set(f.check, had && had.value >= f.value ? { ...had, frames } : { ...f, frames });
+    out.set(f.clip, clip);
+  }
+  return out;
+}
