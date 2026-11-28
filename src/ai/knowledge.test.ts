@@ -160,11 +160,9 @@ describe('ground probes', () => {
       }
     }
     // Wheely's Ramp Jump drifts out of the blast zone in its helpless fall from any stage's middle, which drops a ground
-    // move (#326). Bob the Robber's up special carries him 34 units ahead, off Run Tunnel's 64-wide middle block. Duck's
-    // side special on Forest Temple was dropped before the ground start moved too.
+    // move (#326). Bob the Robber's up special carries him 34 units ahead, off Run Tunnel's 64-wide middle block.
     expect(missing.sort()).toEqual([
       'bob-the-robber upB on run-tunnel',
-      'duck sideB on forest-temple',
       ...Object.keys(STAGES)
         .map((stage) => `wheely upB on ${stage}`)
         .sort(),
