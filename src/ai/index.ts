@@ -4,6 +4,7 @@ import { Cpu } from './cpu';
 
 export { CPU_LEVELS, MAX_LEVEL, MIN_LEVEL, cpuLevel, type CpuLevel } from './levels';
 export type { CpuHints } from './hints';
+export { warmKnowledge } from './knowledge';
 
 /**
  * A computer player for one port. Call `input` once per frame, before `stepMatch`, with the current match; it

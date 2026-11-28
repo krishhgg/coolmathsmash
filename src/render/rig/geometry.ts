@@ -4,11 +4,37 @@ import type { FighterArt } from './types';
 
 const PATH_TOKENS = /[MLHVQCZmlhvqcz]|-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/g;
 
+/** Flattened path data by step count, then path data: each worked out once (flattenPath). */
+const FLATTENED = new Map<number, Map<string, number[][]>>();
+/** Paths kept before the cache starts over, so path data made on the fly can't grow it without end. */
+const FLATTENED_MAX = 50_000;
+let flattenedCount = 0;
+
 /**
  * Flattens SVG path data (M L H V Q C Z, absolute or relative) into polygons, one per subpath. Curves are
  * sampled, which is plenty for hit tests, bounds and coverage checks.
+ *
+ * The result depends only on `d` and `steps`, and a pose's bounds, the swing checks and the fighters' floor bakes
+ * flatten the same symbols on every frame they look at, so each is worked out once and shared. The polygons are
+ * frozen: read them, copy them to change them.
  */
 export function flattenPath(d: string, steps = 8): number[][] {
+  let byPath = FLATTENED.get(steps);
+  let polys = byPath?.get(d);
+  if (polys) return polys;
+  if (flattenedCount >= FLATTENED_MAX) {
+    FLATTENED.clear();
+    flattenedCount = 0;
+    byPath = undefined;
+  }
+  if (!byPath) FLATTENED.set(steps, (byPath = new Map<string, number[][]>()));
+  polys = Object.freeze(flatten(d, steps).map((p) => Object.freeze(p))) as number[][];
+  byPath.set(d, polys);
+  flattenedCount++;
+  return polys;
+}
+
+function flatten(d: string, steps: number): number[][] {
   const tokens = d.match(PATH_TOKENS) ?? [];
   const polys: number[][] = [];
   let poly: number[] = [];

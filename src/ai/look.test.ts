@@ -7,7 +7,7 @@ import { entityPlatform, spawnEntity } from '../sim/entities/entities';
 import { createMatch, stepMatch, type MatchState } from '../sim/match';
 import { input, run as play, testMatch } from '../sim/testing/sim';
 import { STICK, press } from './inputs';
-import { run, runAmong, sample, setEntities, soloMatch, type OwnFrame } from './look';
+import { run, runAmong, runBranches, sample, setEntities, soloMatch, type OwnFrame } from './look';
 
 /** Raft Wars at x, facing a Red Ball at x + d, and `others` more Red Balls standing far off, on Battlefield. */
 function facingOff(x: number, d: number, others = 0): MatchState {
@@ -245,4 +245,52 @@ describe('look-ahead', () => {
     expect(m.fighters[1]!.damage).toBeGreaterThan(0);
     expect(solo.fighters[0]!.damage).toBe(m.fighters[1]!.damage);
   });
+
+  it.each([
+    ['battlefield', 'fireboy', 100, 10],
+    ['testbed', 'wheely', 0, 60],
+  ] as const)(
+    'runs several drivers at once on %s as each would run alone, sharing the frames they press alike',
+    (stage, fighter, x, y) => {
+      // Drivers that agree for a while and then part: a double jump on frame 3, the same jump and an up special on
+      // frame 10, the jump on frame 8, nothing, the stick held back, and one that stops on frame 15. Each stops once it
+      // lands or catches a ledge.
+      const m = testMatch({ fighter, stage });
+      play(m, 300);
+      const f = m.fighters[0]!;
+      Object.assign(f, {
+        pos: { x, y },
+        prevPos: { x, y },
+        vel: { x: 0, y: 0 },
+        ground: null,
+        action: 'fall',
+        actionFrame: 1,
+        jumpsUsed: 1,
+        facing: -1,
+      });
+      const at =
+        (t: number, buttons: number, y = 0) =>
+        (u: number) =>
+          u === t ? press({ y, buttons }) : null;
+      const plans: ((t: number) => ReturnType<typeof press> | null)[][] = [
+        [at(3, Btn.Jump)],
+        [at(3, Btn.Jump), at(10, Btn.Special, STICK.special)],
+        [at(8, Btn.Jump)],
+        [],
+        [() => press({ x: STICK.full })],
+      ];
+      const drivers = () => [
+        ...plans.map((p) => ({
+          drive: (t: number) => p.map((q) => q(t)).find((i) => i !== null) ?? neutralInput(),
+          until: (g: Readonly<FighterState>) => g.ground !== null || g.action === 'ledgeCatch',
+        })),
+        { drive: () => neutralInput(), until: (_g: Readonly<FighterState>, t: number) => t >= 15 },
+      ];
+      const alone = drivers().map((d) => run(soloMatch(m, f), 150, d.drive, d.until));
+      const together = runBranches(soloMatch(m, f), 150, drivers());
+      expect(together).toEqual(alone);
+      // The drivers do part: their runs end in different places.
+      expect(new Set(alone.map((a) => JSON.stringify(a.at(-1)))).size).toBeGreaterThan(3);
+    },
+  );
 });
