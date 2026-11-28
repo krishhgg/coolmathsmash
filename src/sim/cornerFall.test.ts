@@ -55,14 +55,20 @@ function fall(m: MatchState, f: FighterState, frames: number, first: Partial<Inp
 
 describe('a fall past a ledge corner', () => {
   it.each([1, -1] as const)(
-    "Snail Bob's down air over the %d ledge, drifting out at his air speed, falls beside the wall instead of off the stage",
+    "Snail Bob's down air just past the %d ledge plunges straight down beside the wall instead of off the stage",
     (side) => {
-      const { m, f } = inAir('snailbob', side, LEDGE - 1.1, 23.4, 0.86);
-      const fastest = fall(m, f, 40, { cy: -100 });
-      expect(f.move).toBe('dair');
-      expect(fastest).toBeLessThanOrEqual(0.86);
-      expect(side * f.pos.x).toBeLessThan(LEDGE + 8);
-      expect(f.pos.y).toBeLessThan(-40);
+      // Shell Plunge stops his air speed on its first frame and the stick can't drift him (Toon Link's down air), so
+      // it is started over the gap, just past the corner, and the plunge, which re-sets his fall speed every frame,
+      // goes straight down past it.
+      for (const dx of [1.1, 2, 4]) {
+        const { m, f } = inAir('snailbob', side, LEDGE + dx, 23.4, 0);
+        const fastest = fall(m, f, 40, { cy: -100 });
+        const at = `${dx} out`;
+        expect(f.move, at).toBe('dair');
+        expect(fastest, at).toBe(0);
+        expect(side * f.pos.x, at).toBeLessThan(LEDGE + 8);
+        expect(f.pos.y, at).toBeLessThan(-40);
+      }
     },
   );
 

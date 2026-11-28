@@ -251,7 +251,7 @@ describe('CPU projectiles', () => {
   it("drop Snail Bob's crate onto an opponent over the stage that stood 60 or 80 units away", () => {
     // Crate Drop is 10% since #257. Without his CPU's 1.2 preference his down air outscores it, and at 60 units he
     // never drops it. The crate has to land on the Red Ball while it is over the stage: at 60 units it catches the Red
-    // Ball his side special launched (frame 86), at 80 units a standing one (frames 200 and 202). At 90 units his
+    // Ball his side special launched (frame 86), at 80 units a standing one (frames 155 and 154). At 90 units his
     // other hits knock the Red Ball off the stage first, and on seeds 1 to 4 every crate he drops in 600 frames falls
     // past the ledge at it about 119 units below.
     for (const d of [60, 80]) {
