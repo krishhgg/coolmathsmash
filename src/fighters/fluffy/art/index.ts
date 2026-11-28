@@ -6,6 +6,7 @@ import { LOCOMOTION } from './clips';
 import { FINAL_SMASH } from './finalSmash';
 import { palettes } from './palettes';
 import { FACE, eyes, pupils } from './parts';
+import { onFloor } from './poses';
 import { rig } from './rig';
 import { SPECIALS, TARGET } from './specials';
 import { LEDGE_GRIP, STATES } from './states';
@@ -24,6 +25,31 @@ function iconBox(): [number, number, number, number] {
 }
 
 const clips: Record<string, AnimClip> = { ...LOCOMOTION, ...ATTACKS, ...STATES, ...SPECIALS, ...FINAL_SMASH };
+
+/**
+ * Clips where the puffed, squashed or turning fur would dip below the floor, baked so the ball rests on its lowest
+ * tuft (`onFloor`). Fuzz Frenzy's swell lifts its halo with him.
+ */
+for (const name of [
+  'jab',
+  'jab2',
+  'dashAttack',
+  'pummel',
+  'rollForward',
+  'rollBack',
+  'techInPlace',
+  'techRoll',
+  'getupRoll',
+  'techRollBack',
+  'getupRollBack',
+  'neutralB',
+  'downB',
+])
+  clips[name] = onFloor(clips[name]!);
+clips.finalSmash = onFloor(clips.finalSmash!, 'root');
+// The cut scene plays over the stage: the ball is lifted onto the floor where its fur would dip through it. Only the
+// ball moves; the grabber, the coil and the flashes stay where they are drawn.
+clips.finalSmashCinematic = onFloor(clips.finalSmashCinematic!);
 
 /** Fluffy (IQ Ball, Coolmath 2011; Catch the Candy, FedoIT 2011), drawn by hand in their style. Plain data. */
 export const art: FighterArt = {

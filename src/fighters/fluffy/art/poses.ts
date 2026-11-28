@@ -1,7 +1,8 @@
 import type { Pose } from '../../../render/rig/author';
-import type { BonePose, Key } from '../../../render/rig/types';
+import { continuous, floorContact } from '../../../render/rig/keys';
+import type { AnimClip, BonePose, Key } from '../../../render/rig/types';
 import { FACE } from './parts';
-import { CENTRE } from './rig';
+import { CENTRE, rig } from './rig';
 
 /**
  * Authoring vocabulary for Fluffy's clips. Rig space: y down, feet (the bottom of the ball) at the origin, facing
@@ -86,6 +87,24 @@ export function ball(b: Ball = {}): Pose {
 export function key(frame: number, pose?: Pose, extra: Omit<Key, 'frame' | 'pose'> = {}): Key {
   return pose ? { frame, pose, ...extra } : { frame, ...extra };
 }
+
+/**
+ * Tweens each part the short way round on screen. The ball and the fur keep their whole turns, so rolls and spins
+ * still go round.
+ */
+export const smooth = (keys: Key[]): Key[] =>
+  continuous(rig, keys, { onScreen: true, keep: ['body', 'fur'] });
+
+/** The grabber and the effects: placed in rig space, so lifting the ball doesn't help them. */
+const LOOSE = new Set(['grabLine', 'tip', 'prop', 'fx', 'fxBack', 'burst']);
+
+/**
+ * `clip` baked on whole frames with the ball lifted on any frame where a tuft of fur would dip below the floor, so
+ * it rests on its lowest tuft. `bone` is what is lifted: the ball (`body`), or everything (`root`) when effects are
+ * placed round it.
+ */
+export const onFloor = (clip: AnimClip, bone: 'body' | 'root' = 'body'): AnimClip =>
+  floorContact(rig, clip, { bone, skip: (slot) => LOOSE.has(slot) });
 
 /** Face offset that turns the eyes to look behind him (the face mirrored across the ball). */
 export const LOOK_BACK: BonePose = { x: -2 * FACE[0], sx: -1 };

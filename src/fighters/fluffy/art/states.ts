@@ -22,6 +22,7 @@ import {
   ball,
   centreOf,
   key,
+  smooth,
   type Ball,
   type Pt,
 } from './poses';
@@ -205,7 +206,7 @@ export const STATES: Record<string, AnimClip> = {
   ledgeClimb: {
     length: 33,
     swaps: { ...EFFORT, ...GRAB },
-    keys: [
+    keys: smooth([
       key(0, hang(0), { ease: 'in' }),
       key(
         6,
@@ -245,7 +246,7 @@ export const STATES: Record<string, AnimClip> = {
           tilt: 12,
           look: [-0.1, 0.1],
         }),
-        { ease: 'out' },
+        { ease: 'linear' },
       ),
       key(19, ball({ y: -1.7, sx: 0.97, sy: 1.04, tilt: 15, look: [0.3, 0.2] }), {
         ease: 'in',
@@ -257,7 +258,7 @@ export const STATES: Record<string, AnimClip> = {
       }),
       key(31, ball({ fx3: at(0, 0, 0.3) }), { swaps: { grabLine: null, tip: null } }),
       key(33, ball(STAND)),
-    ],
+    ]),
   },
   ledgeRoll: {
     length: 45,
@@ -319,14 +320,14 @@ export const STATES: Record<string, AnimClip> = {
   ledgeJump: {
     length: 20,
     swaps: { ...EFFORT, ...GRAB },
-    keys: [
-      key(0, hang(0), { ease: 'in' }),
+    keys: smooth([
+      key(0, hang(0), { ease: 'linear' }),
       key(4, ball(onCorner({ y: -1, sx: 0.82, sy: 1.25, tilt: 8, look: [0.3, -0.6] }, [GX - 4, GY + 6])), {
         ease: 'out',
       }),
       key(7, ball({ sx: 0.85, sy: 1.2, float: true, look: [0.3, -0.5] }), { ease: 'inOut', swaps: FALL_FUR }),
       key(20, ball({ float: true, look: [0.35, -0.1] }), { swaps: {} }),
-    ],
+    ]),
   },
   hitstun: {
     length: 20,
@@ -398,7 +399,7 @@ export const STATES: Record<string, AnimClip> = {
     length: 26,
     swaps: { ...BLINK, ...PUFF },
     keys: [
-      key(0, ball({ sx: 1.3, sy: 0.65 }), { ease: 'out' }),
+      key(0, ball({ sx: 1.3, sy: 0.65 }), { ease: 'linear' }),
       key(5, ball({ y: -1.4, sx: 0.9, sy: 1.12, spin: 180 }), { ease: 'inOut' }),
       key(12, ball({ sx: 1.1, sy: 0.9, spin: 360 }), { ease: 'inOut', swaps: FOCUS }),
       key(26, ball({ spin: 360 }), { swaps: FOCUS }),
