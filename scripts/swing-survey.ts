@@ -5,15 +5,18 @@
  *
  *   node scripts/swing-survey.ts            a markdown table
  *   node scripts/swing-survey.ts --json     the rows as JSON
+ *
+ * The game modules are bundled in one pass (lib/bundle.ts) rather than loaded one by one through Vite's dev server,
+ * which on a loaded machine took minutes.
  */
 import { parseArgs } from 'node:util';
 import type * as SurveyModule from '../src/fighters/swingChecks.ts';
 import type { SurveyRow } from '../src/fighters/swingChecks.ts';
-import { loadSource } from './lib/ssr.ts';
+import { bundleSource } from './lib/bundle.ts';
 
 const { values } = parseArgs({ options: { json: { type: 'boolean', default: false } } });
 
-const { mod, close } = await loadSource<typeof SurveyModule>('/src/fighters/swingChecks.ts');
+const { mod, close } = await bundleSource<typeof SurveyModule>('/src/fighters/swingChecks.ts');
 const rows = mod.surveySwings();
 await close();
 

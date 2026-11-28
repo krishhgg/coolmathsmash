@@ -68,11 +68,10 @@ const LENGTHS: Record<string, number | 'loop' | 'hold'> = {
 };
 
 /**
- * Grounded frames whose drawing still reaches below the floor, found when poseBounds started counting decoration
- * slots: the run brake's dust puff (fx1) stays on after its last key and tweens back to the feet at full size.
- * Their floor check is expected to fail; take a frame off this list once its drawing clears the floor.
+ * Grounded frames whose drawing still reaches below the floor. Their floor check is expected to fail; take a frame
+ * off this list once its drawing clears the floor. The run brake's dust puff was the last: it now goes out on frame 9.
  */
-const SINKING = ['runBrake@12', 'runBrake@13', 'runBrake@14'];
+const SINKING: string[] = [];
 
 /**
  * Down air frames whose drawing reaches more than 0.6 below the feet, found the same way: the launcher's muzzle
