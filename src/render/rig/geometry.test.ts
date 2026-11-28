@@ -3,6 +3,19 @@ import { flattenPath, poseBounds, slotsCovering, transformPath } from './geometr
 import { samplePose } from './sample';
 import type { FighterArt } from './types';
 
+describe('flattenPath', () => {
+  const d = 'M0 0Q1 1 2 0C3 0 3 1 2 2ZM5 5L6 5L6 6Z';
+
+  it('works each path out once per step count, sharing the polygons frozen', () => {
+    const first = flattenPath(d, 4);
+    expect(flattenPath(d, 4)).toBe(first);
+    expect(flattenPath(d, 8)).not.toBe(first);
+    expect(flattenPath(d, 8)[0]!.length).toBeGreaterThan(first[0]!.length);
+    expect(Object.isFrozen(first) && first.every((poly) => Object.isFrozen(poly))).toBe(true);
+    expect(() => first[0]!.push(1)).toThrow();
+  });
+});
+
 describe('transformPath', () => {
   // Every command, absolute and relative, with a relative move after a close (relative to the subpath start).
   const d = 'M1 2L3 2H4V5l-1 1h-1v-2Q0 3 1 2Zm2 0q1 1 2 0C6 -1 7 1 8 0c1 1 2 1 3 0Z';
