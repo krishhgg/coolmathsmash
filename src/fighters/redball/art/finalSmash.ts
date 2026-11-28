@@ -47,7 +47,8 @@ function keys() {
     key(17, mix(spring[2]!.pose, UP, fx('fx1', 0, 0, 1.9)), { swaps: CALL }),
     key(21, mix(ground(0.95, 1.06, 0, 1.2), roll(-12)), { ease: 'in' }),
     key(24, mix(ground(1.32, 0.72), roll(-6)), { swaps: GRIT, ease: 'out' }),
-    key(27, flare(flash[0]!, 0.72, 1.42, 1.6), {
+    // The first flare is drawn a little less tall than the ball, so it glows round him without reaching the floor.
+    key(27, flare(flash[0]!, 0.72, 1.2, 1.6), {
       swaps: { ...CALL, fx2: 'flash', fxBack: 'pop' },
       z: BEHIND,
       ease: 'out',
