@@ -23,6 +23,7 @@ import {
   fx,
   ground,
   key,
+  stood,
   lick,
   lickAt,
   look,
@@ -221,7 +222,10 @@ export const clips: Record<string, AnimClip> = {
     keys: [
       key(0, mix(ground(1.12, 0.9), look(-2.5, 0, 0.45), roll(-28), fx('fx1', -5.0, -0.3, 0.5))),
       key(4, mix(ground(1.06, 0.95), look(-0.9, 0, 0.8), roll(-18), fx('fx1', -6.6, -0.7, 0.9))),
-      key(8, mix(ground(1.03, 0.97), roll(-6)), { swaps: { ...DETERMINED, fx1: null } }),
+      // The dust settles where it is (a bone a key leaves out would slide back under him).
+      key(8, mix(ground(1.03, 0.97), roll(-6), fx('fx1', -7.2, -0.8, 1)), {
+        swaps: { ...DETERMINED, fx1: null },
+      }),
       key(12, ground()),
     ],
   },
@@ -492,10 +496,11 @@ export const clips: Record<string, AnimClip> = {
       [7, [-1.5, -3.5], mix(body(0.86, 1.16), roll(60)), GRIT],
       [12, [3.5, -5.0], mix(body(1.12, 0.9), roll(300))],
       [17, [7, -5.25], roll(360)],
-      [21, [7, -5.25], mix(body(0.92, 1.06, -0.8), roll(350))],
+      // Standing on the stage from here: a stretch lifts the ball so it doesn't sink into the floor (stood).
+      [21, [7, -5.25], mix(stood(0.92, 1.06, -0.8), roll(350))],
       [25, [7, -5.25], mix(body(1.24, 0.86, 3.0), roll(370))],
       [31, [7, -5.25], mix(body(1.2, 0.88, 3.2), roll(370))],
-      [42, [7, -5.25], mix(body(0.98, 1.02, 0.4), roll(360)), DETERMINED],
+      [42, [7, -5.25], mix(stood(0.98, 1.02, 0.4), roll(360)), DETERMINED],
       [55, [7, -5.25], roll(360)],
     ]),
   },
