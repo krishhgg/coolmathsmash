@@ -51,7 +51,7 @@ const swell = (w: number, h: number): Pose => ({ fx4: { x: 0, y: 0, sx: w, sy: w
 function lifting(r: number, stretch: number): Pose {
   const column = (x: number, k: number, tilt: number) => {
     const sy = ((r * k) / BALL) * stretch;
-    return flame(x, -3 * sy + 0.3, r * k, -90 + tilt, stretch);
+    return flame(x, -3 * sy + 0.15, r * k, -90 + tilt, stretch);
   };
   return { fx2: column(-4.7, 1, -6), fx3: column(4.9, 0.9, 6) };
 }
@@ -117,17 +117,19 @@ function tidalWave(air: boolean, length: number): AnimClip {
   for (let f = 11, i = 0; f <= 35; f += 6, i++)
     keys.push(key(f, call(0.55 + i * 0.12, 0.9 + (i % 2) * 0.25), { ease: 'inOut' }));
   keys.push(
-    key(40, call(1.2, 1.1), { ease: 'in', swaps: { ...CALL, face: 'faceFrontShout' } }),
+    key(40, call(1.2, 1.1), { ease: 'linear', swaps: { ...CALL, face: 'faceFrontShout' } }),
     key(44, lift(1.2, 0.6, 1.2, -4), { ease: 'out', swaps: lifted(air), z: BEHIND }),
     key(52, lift(1.15, 1.3, 2.2, -10), { ease: 'inOut' }),
-    key(RELEASE - 4, lift(1.05, 1.6, 2.8, -14), { ease: 'in' }),
+    // The sweep from the lift into the push takes three even frames (the arms turn about 50 degrees in each).
+    key(RELEASE - 6, lift(1.05, 1.6, 2.8, -14), { ease: 'linear' }),
     key(RELEASE - 3, mix(push(6, 0.2), forming(4.2, 0.3)), {
       ease: 'linear',
       swaps: FORMING,
       z: { ...ARMS_IN_FRONT, fx1: 0.5 },
     }),
     key(RELEASE - 1, mix(push(12, 0.4), forming(5.2, 0.62)), { ease: 'linear' }),
-    key(RELEASE, push(16, 1.3), { ease: 'out', swaps: PUSH, z: ARMS_IN_FRONT }),
+    // The forming wave grows on where it is into the frame the rolling wave takes over (it isn't drawn from here).
+    key(RELEASE, mix(push(16, 1.3), forming(5.7, 0.8)), { ease: 'out', swaps: PUSH, z: ARMS_IN_FRONT }),
     key(RELEASE + 6, push(9, 1.6), { ease: 'inOut' }),
   );
   // Holding the push while the wave rolls away: a slow rock, the water running off her palms.
