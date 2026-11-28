@@ -47,6 +47,14 @@ export interface StatusDef {
    */
   endOnHit?: boolean;
   /**
+   * Once it has gone on, the fighter can't get it again until it is free of the hit: it lands, grabs a ledge or can
+   * act (no launch waiting and no hitstun left). A hit that would apply it before then still deals its damage and
+   * knockback, as in Ultimate, where a paralyzed fighter hit by another paralyzing attack "takes knockback alongside
+   * the damage, merely without being paralyzed" (SmashWiki, "Paralyze (effect)"). Without it, back-to-back
+   * paralyzing hits can hold a fighter for good.
+   */
+  immuneUntilFree?: boolean;
+  /**
    * A coat that builds up and wears off, like Inkling's ink (SmashWiki, "Ink (status)"). Each application adds `add` to
    * the status's `level` (or the `level` applyStatus is given), up to `max`, and sets its length to `frames` + level /
    * `decay`: the level holds for `frames` frames, then drops `decay` a frame, and the status ends as it reaches 0.
@@ -148,6 +156,9 @@ export function applyStatus(
   const length = opts.frames === undefined ? statusLength(def, opts) : Math.min(max, opts.frames);
   if (length < 1) return null;
   const on = statusOf(f, kind);
+  // Immune until free of the hit; one that went on this frame still takes the longer length, in any port order.
+  if (def.immuneUntilFree && f.statusImmune.includes(kind) && on?.since !== m.frame) return on ?? null;
+  if (def.immuneUntilFree && !f.statusImmune.includes(kind)) f.statusImmune.push(kind);
   if (on) {
     on.frames = def.stack === 'add' ? Math.min(max, on.frames + length) : Math.max(on.frames, length);
     if (opts.source !== undefined) on.source = opts.source;
@@ -199,9 +210,10 @@ export function endStatusesOnHit(m: MatchState, f: FighterState): string[] {
   return ended.map((s) => s.kind);
 }
 
-/** A KO clears every status. */
+/** A KO clears every status, and any immunity to one (StatusDef.immuneUntilFree). */
 export function clearStatusesOnKo(m: MatchState, f: FighterState): void {
   for (const s of [...f.statuses]) end(m, f, s, 'ko');
+  f.statusImmune = [];
 }
 
 function end(m: MatchState, f: FighterState, s: StatusState, reason: StatusEndReason): void {
@@ -215,6 +227,10 @@ function end(m: MatchState, f: FighterState, s: StatusState, reason: StatusEndRe
  * on frames the fighter acts, from the frame after the status went on.
  */
 export function tickStatuses(x: Ctx): void {
+  const { f } = x;
+  // Free of the hit once it can act: no launch waiting, no hitstun left, not held. Landing and a ledge grab free it
+  // too (movement.ts).
+  if (f.statusImmune.length && !f.launch && f.hitstun <= 0 && f.action !== 'grabbed') f.statusImmune = [];
   tick(x, false);
 }
 
