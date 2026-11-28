@@ -2,6 +2,7 @@ import type { InputFrame } from '../input/types';
 import { createMatch, stepMatch, type MatchConfig, type MatchState } from '../sim/match';
 import type { Replay } from '../sim/replay';
 import { createCpu } from './index';
+import { warmKnowledge } from './knowledge';
 import { staticStage } from './stage';
 
 /**
@@ -55,6 +56,10 @@ export function runCpuMatch(o: CpuMatchOptions): CpuMatchResult {
     ports: Array.from({ length: n }, (_, i) => ({ fighter: o.fighters?.[i] ?? 'fireboy' })),
   };
   const state = createMatch(config);
+  warmKnowledge(
+    config.ports.map((p) => p.fighter),
+    config.stage,
+  );
   const cpus = o.levels.map((level, port) => createCpu({ port, level, seed: o.seed * 7919 + port }));
   const maxFrames = o.maxFrames ?? 8 * 60 * 60;
   const safe = new Array<boolean>(n).fill(true);

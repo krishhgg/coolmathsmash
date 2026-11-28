@@ -215,6 +215,25 @@ export function actionable(f: { action: string; hitstun: number }): boolean {
   return ACTIONABLE.has(f.action) || (f.action === 'tumble' && f.hitstun <= 0);
 }
 
+/**
+ * Probe every move of `fighters` on `stageId` now, and of every form they can turn into in a match (a move's
+ * `transform`, or CpuHints.forms), so a CPU's first frame, or its first frame in a new form, doesn't stop for it. The
+ * probes are cached, so a match plays the same whether they were made here or on the frame a CPU first needs them.
+ * Returns the knowledge made, one per fighter and form.
+ */
+export function warmKnowledge(fighters: readonly string[], stageId: string): FighterKnowledge[] {
+  const ids: string[] = [];
+  const add = (id: string) => {
+    if (ids.includes(id)) return;
+    ids.push(id);
+    const def = getFighter(id);
+    for (const m of Object.values(def.moves ?? {})) if (m.transform) add(m.transform.into);
+    for (const form of hintsFor(id).forms ?? []) add(form);
+  };
+  for (const id of fighters) add(id);
+  return ids.map((id) => knowledge(id, stageId));
+}
+
 export function knowledge(fighterId: string, stageId: string): FighterKnowledge {
   const key = `${fighterId}@${stageId}`;
   let k = cache.get(key);
