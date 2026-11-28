@@ -1081,7 +1081,7 @@ const raw: Record<string, AnimClip> = {
     length: stats.dashFrames,
     swaps: DETERMINED,
     keys: [
-      ...settle(DASH[0], DASH[1], 0, 2, 'out', { swaps: ANGRY }),
+      ...settle(DASH[0], DASH[1], 0, 2, 'linear', { swaps: ANGRY }),
       ...settle(DASH[1], DASH[2], 2, 5, 'linear', { swaps: DETERMINED }),
       key(5, DASH[2], { ease: 'in' }),
       key(8, DASH[3], { ease: 'out' }),
@@ -1096,7 +1096,7 @@ const raw: Record<string, AnimClip> = {
     swaps: STRAIN,
     keys: [
       key(0, skid(0), { ease: 'out' }),
-      key(6, skid(1), { ease: 'inOut' }),
+      key(6, skid(1), { ease: 'linear' }),
       key(
         8,
         build({
@@ -1204,7 +1204,7 @@ const raw: Record<string, AnimClip> = {
   airDodge: {
     length: 46,
     keys: [
-      key(0, FALL[0], { ease: 'out' }),
+      key(0, FALL[0], { ease: 'linear' }),
       key(3, dodge(0), { ease: 'inOut', swaps: SQUINT, z: HAND_ON_HAT }),
       key(27, dodge(6), { ease: 'inOut' }),
       key(32, undefined, { swaps: WORRIED, z: {} }),
