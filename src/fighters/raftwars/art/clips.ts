@@ -86,6 +86,9 @@ export function stand(extra: Pose, gun = -6, back: Pt = FAR_FOOT, front: Pt = NE
 
 /** Standing: feet apart, the launcher held level across the ring. */
 export const STAND = stand({});
+/** The ledge attack's wind-up on the lip, the launcher drawn back, and its swing, stepping in. */
+const LEDGE_WIND = stand({ body: { rot: -10 }, ...bro(-6, -10, -120, 0, -10) }, -80, [0.4, 0], [-1.2, 0]);
+const LEDGE_SWING = stand({ body: { rot: 14 }, ...bro(12, 8, -40, 0, 20) }, 40, [2.4, 0], [-0.8, 0]);
 /** The idle breath: shoulders sink, the head nods and the brother leans in. */
 const BREATHE = stand(
   { body: { y: 0.12 }, neck: { rot: 3 }, torso: { rot: 1.5 }, ...bro(4, 5, 6, 3, 8) },
@@ -852,13 +855,12 @@ export const clips: Record<string, AnimClip> = {
       key(17, stand({ body: { rot: 2, y: 0.7 }, ...bro(0, -4, -80, 0, -4) }, -40, [1.0, 0], [-0.9, 0]), {
         ease: 'linear',
       }),
-      key(20, stand({ body: { rot: -10 }, ...bro(-6, -10, -120, 0, -10) }, -80, [0.4, 0], [-1.2, 0]), {
-        ease: 'in',
-        swaps: SHOUT,
+      key(20, LEDGE_WIND, { ease: 'in', swaps: SHOUT }),
+      // The far sneaker steps forward over the floor into the swing.
+      key(24, plant(plant(between(LEDGE_WIND, LEDGE_SWING, 0.6), 'B', 1.7, 0.35), 'F', -0.96, 0.05), {
+        ease: 'linear',
       }),
-      key(26, stand({ body: { rot: 14 }, ...bro(12, 8, -40, 0, 20) }, 40, [2.4, 0], [-0.8, 0]), {
-        ease: 'out',
-      }),
+      key(26, LEDGE_SWING, { ease: 'out' }),
       key(32, undefined, { swaps: GRIN }),
       key(55, STAND),
     ]),
