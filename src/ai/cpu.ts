@@ -57,7 +57,9 @@ import {
 import {
   chooseDI,
   choosePlan,
+  planAims,
   planRecovery,
+  planStart,
   planWork,
   recoveryDriver,
   targetLedge,
@@ -146,8 +148,8 @@ export class Cpu {
   /** The CPU holds its shots until this frame, after one of them clanked (noteClanks). */
   private holdShotsUntil = -1;
   /**
-   * A recovery plan worked out ahead, during hitstun (planAhead): the frame it is for, the solo match it starts from
-   * then as predicted, the plans played so far, and the fighter as predicted on each frame until then.
+   * A recovery plan worked out ahead, during hitstun (planAhead): the frame it is for, the match it starts from then
+   * as predicted (planStart), the plans played so far, and the fighter as predicted on each frame until then.
    */
   private ahead: { frame: number; start: MatchState; work: PlanWork; path: Map<number, string> } | null =
     null;
@@ -194,7 +196,8 @@ export class Cpu {
 
   /** planAhead's prediction: step a copy with this frame's input, then the DI while launched and nothing after. */
   private predictPlan(state: Readonly<MatchState>, me: Readonly<FighterState>): typeof this.ahead {
-    const m = soloMatch(state, me, state.players[this.port]!.control);
+    // Whoever holds a ledge comes too, with no input, as the planner has them (planStart).
+    const m = planStart(state, me, state.players[this.port]!.control);
     const di = this.diStick ? quantize(this.diStick) : NEUTRAL;
     const path = new Map<number, string>();
     let input: InputFrame = this.last;
@@ -215,7 +218,7 @@ export class Cpu {
       // The first frame the CPU acts for itself again: act() plans a recovery then if the fighter is off the stage.
       const info = stageInfo(m);
       if (g.action.startsWith('ledge') || floorBelow(info, g.pos.x, g.pos.y) !== null) return null;
-      const start = soloMatch(m, g, m.players[0]!.control);
+      const start = planStart(m, g, m.players[0]!.control);
       const k = knowledge(g.fighter, m.config.stage);
       return { frame: m.frame, start: structuredClone(start), work: planWork(start, g, info, k), path };
     }
@@ -652,11 +655,14 @@ export class Cpu {
       if (me.action !== 'helpless' && !actionable(me) && plan) return this.recoveryDrive!(t, me);
       const control = state.players[this.port]!.control;
       this.recoveryBusy = !free;
-      // Plans worked out ahead for this frame (planAhead) count only if the match is exactly as they took it to be.
+      // Plans worked out ahead for this frame (planAhead) count only if the match is exactly as they took it to be, ledge
+      // holders and all, and they aim at the same ledge and gap corner.
       const ahead = this.ahead;
       this.ahead = null;
       const work =
-        ahead?.frame === state.frame && sameState(ahead.start, soloMatch(state, me, control))
+        ahead?.frame === state.frame &&
+        sameState(ahead.start, planStart(state, me, control)) &&
+        sameState(ahead.work.aims, planAims(info, k, me))
           ? ahead.work
           : null;
       this.recovery = work

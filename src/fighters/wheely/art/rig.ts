@@ -130,7 +130,8 @@ export const rig: Rig = {
     fxBeep: beep(2),
     fxHonkBlast: beep(4),
     fxSwoosh: swoosh(170),
-    fxSwipe: swoosh(80),
+    /** The up tilt's smear, as long as the bumper's swing up from the floor (54 to 58 degrees). */
+    fxSwipe: swoosh(56),
     fxGravel: gravel,
     ...Object.fromEntries([0, 1, 2, 3, 4].map((i) => [`fxPuff${i}`, puff(i)])),
     fxSmoke: { loop: ['fxPuff1', 'fxPuff2', 'fxPuff3', 'fxPuff2'], fps: 12 },

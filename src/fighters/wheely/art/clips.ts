@@ -34,6 +34,7 @@ import {
   bob,
   flip,
   fxOn,
+  blurFast,
   holdEffects,
   honk,
   key,
@@ -306,11 +307,15 @@ export const authored: Record<string, AnimClip> = {
         }),
         { ease: 'in', swaps: { ...BACK, fx2: 'fxPuff3' } },
       ),
-      key(TURN_FLIP - 1, mix(bob(-0.3), spin(-60), { body: { sx: 0.4, sy: 1.04 }, eyes: { x: -1 } }), {
-        ease: 'linear',
-        swaps: { ...BACK, ...BLUR },
-      }),
-      key(TURN_FLIP, mix(bob(-0.3), spin(-60), { body: { sx: 0.4, sy: 1.04 }, eyes: { x: 1 } }), {
+      key(
+        TURN_FLIP - 1,
+        mix(bob(-0.3), spin(-60), { body: { sx: 0.4, sy: 1.04, y: -0.22 }, eyes: { x: -1 } }),
+        {
+          ease: 'linear',
+          swaps: { ...BACK, ...BLUR },
+        },
+      ),
+      key(TURN_FLIP, mix(bob(-0.3), spin(-60), { body: { sx: 0.4, sy: 1.04, y: -0.22 }, eyes: { x: 1 } }), {
         ease: 'out',
         swaps: { ...ANGRY, ...BLUR },
       }),
@@ -657,9 +662,8 @@ export const authored: Record<string, AnimClip> = {
     swaps: CLOSED,
     keys: [
       key(0, mix(SQUAT, tilt(-12, REAR)), { ease: 'out' }),
-      key(5, flip(70), { ease: 'linear' }),
-      key(10, flip(160), { ease: 'linear' }),
-      key(15, flip(250), { ease: 'linear' }),
+      // A key a frame so `flip` lifts the car clear of the floor at every angle of the roll.
+      ...Array.from({ length: 15 }, (_, i) => key(5 + i, flip(70 + 18 * i), { ease: 'linear' })),
       key(20, flip(340), { ease: 'out' }),
       key(24, mix(flip(360), SQUAT), { ease: 'out', swaps: ANGRY }),
       key(32, flip(360), { ease: 'inOut' }),
@@ -714,7 +718,8 @@ export const authored: Record<string, AnimClip> = {
 };
 
 const baked = Object.fromEntries(Object.entries(authored).map(([name, clip]) => [name, holdEffects(clip)]));
-export const clips: Record<string, AnimClip> = {
+/** Every clip as authored and timed, before `blurFast` blurs its fast-turning wheels. */
+export const timed: Record<string, AnimClip> = {
   ...baked,
   /** The same flip, spread over the getup roll's 35 frames while the sim slides him sideways. */
   getupRoll: retimeClip(baked.getupStand!, 35),
@@ -729,3 +734,8 @@ export const clips: Record<string, AnimClip> = {
    */
   airDodge: retimeClip(baked.airDodge!, 52, [[29, 29]]),
 };
+
+/** Every clip, with a wheel turning too fast to read drawn blurred on those frames (`blurFast`). */
+export const clips: Record<string, AnimClip> = Object.fromEntries(
+  Object.entries(timed).map(([name, clip]) => [name, blurFast(clip)]),
+);

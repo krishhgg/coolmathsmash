@@ -115,7 +115,7 @@ export const attacks: Record<string, AnimClip> = {
       key(6, mix(tilt(2.5, FRONT, 0.7), { fx1: at(12.3, -5.5, 5.2), fx2: at(9.8, -3.6, 1.2) }), {
         ease: 'inOut',
       }),
-      key(9, mix(tilt(1, FRONT, 0.4), { fx1: at(12.8, -5.5, 6), fx2: at(10, -3.6, 1.4) }), {
+      key(9, mix(tilt(1, FRONT, 0.4), { fx1: at(12.8, -5.8, 6), fx2: at(10, -3.6, 1.4) }), {
         ease: 'inOut',
         swaps: SHOUT,
       }),

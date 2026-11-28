@@ -17,7 +17,8 @@ import {
 } from '../../../sim/constants';
 import { moves } from '../moves';
 import { stats, TURN_FLIP, TURN_FRAMES } from '../stats';
-import { authored } from './clips';
+import { authored, timed } from './clips';
+import { PLAIN_TURN } from './poses';
 import { art } from '.';
 
 /** Canonical clip lengths (loops: any length). */
@@ -176,6 +177,73 @@ describe('wheely art', () => {
         if (y1 > 0.3) sunk.push(`${name}@${f} ${y1.toFixed(2)}`);
       }
     expect(sunk).toEqual([]);
+  });
+
+  it(`draws a wheel blurred on any frame it turns more than ${PLAIN_TURN} degrees, past which its bolts read backwards`, () => {
+    // The swing checks let the wheels turn freely (swings.ts); this is what keeps every turn readable instead.
+    const parent = Object.fromEntries(art.rig.bones.map((b) => [b.name, b.parent]));
+    const turn = (pose: ReturnType<typeof samplePose>, bone: string) => {
+      let deg = 0;
+      for (let b: string | undefined = bone; b; b = parent[b]) deg += pose.local[b]!.rot;
+      return deg;
+    };
+    const backwards: string[] = [];
+    for (const [name, clip] of Object.entries(art.clips)) {
+      let prev = samplePose(art, name, 0, 0);
+      for (let f = 1; f <= clip.length; f++) {
+        const pose = samplePose(art, name, f, f);
+        for (const [slot, bone] of [
+          ['wheelB', 'spinB'],
+          ['wheelF', 'spinF'],
+        ] as const) {
+          let deg = turn(pose, bone) - turn(prev, bone);
+          if (clip.loop && f === clip.length) deg -= 360 * Math.round(deg / 360);
+          if (pose.symbols[slot] === 'wheel' && prev.symbols[slot] === 'wheel' && Math.abs(deg) > PLAIN_TURN)
+            backwards.push(`${name}@${f} ${slot} ${deg.toFixed(0)}`);
+        }
+        prev = pose;
+      }
+    }
+    expect(backwards).toEqual([]);
+  });
+
+  it('blurs a wheel only on the frames it turns that fast, or where the clip blurs it itself', () => {
+    const parent = Object.fromEntries(art.rig.bones.map((b) => [b.name, b.parent]));
+    const turn = (pose: ReturnType<typeof samplePose>, bone: string) => {
+      let deg = 0;
+      for (let b: string | undefined = bone; b; b = parent[b]) deg += pose.local[b]!.rot;
+      return deg;
+    };
+    const held: string[] = [];
+    for (const [name, clip] of Object.entries(art.clips)) {
+      const source = { ...art, clips: { [name]: timed[name]! } };
+      for (let f = 1; f <= clip.length; f++) {
+        const [pose, prev] = [samplePose(art, name, f, f), samplePose(art, name, f - 1, f - 1)];
+        const own = samplePose(source, name, f, f);
+        for (const [slot, bone] of [
+          ['wheelB', 'spinB'],
+          ['wheelF', 'spinF'],
+        ] as const) {
+          let deg = turn(pose, bone) - turn(prev, bone);
+          if (clip.loop && f === clip.length) deg -= 360 * Math.round(deg / 360);
+          if (
+            pose.symbols[slot] === 'wheelBlur' &&
+            own.symbols[slot] !== 'wheelBlur' &&
+            Math.abs(deg) <= PLAIN_TURN
+          )
+            held.push(`${name}@${f} ${slot} ${deg.toFixed(1)}`);
+        }
+      }
+    }
+    expect(held).toEqual([]);
+  });
+
+  it('shows plain wheels on the ledge jump once they slow to a readable turn, from frame 5', () => {
+    // They turn 30.6 degrees on frame 5, 11 on frame 6 and 0.6 a frame from 7, all under PLAIN_TURN.
+    for (let f = 5; f <= art.clips.ledgeJump!.length; f++) {
+      const { symbols } = samplePose(art, 'ledgeJump', f, f);
+      expect([f, symbols.wheelB, symbols.wheelF]).toEqual([f, 'wheel', 'wheel']);
+    }
   });
 
   it('swings round in the turn on the frame the engine faces him the new way', () => {
