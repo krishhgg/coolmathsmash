@@ -186,15 +186,19 @@ function lowest(art: FighterArt, pose: RigPose, slots: FighterArt['rig']['slots'
 function context(art: FighterArt) {
   const parents = Object.fromEntries(art.rig.bones.map((b) => [b.name, b.parent]));
   const slots = Object.fromEntries(art.rig.slots.map((s) => [s.name, s]));
+  /** Bones whose scale stays their own (`localScale`): their children don't inherit it, so nor a flip in it. */
+  const ownScale = new Set(art.rig.bones.filter((b) => b.localScale).map((b) => b.name));
 
   /**
    * Whether `bone`'s parent is drawn mirrored in `pose` (flipped, such as a body with sx -1): an odd number of its
-   * ancestors, the parent included, have a negative sx * sy. A scale passing through 0 counts as unmirrored for
+   * ancestors, the parent included, pass down a negative sx * sy. A bone with `localScale` keeps its scale to itself
+   * (worldTransforms in sample.ts), so its flip doesn't count. A scale passing through 0 counts as unmirrored for
    * every part under it alike.
    */
   const mirrored = (pose: RigPose, bone: string): boolean => {
     let odd = false;
-    for (let b = parents[bone]; b; b = parents[b]) if (pose.local[b]!.sx * pose.local[b]!.sy < 0) odd = !odd;
+    for (let b = parents[bone]; b; b = parents[b])
+      if (!ownScale.has(b) && pose.local[b]!.sx * pose.local[b]!.sy < 0) odd = !odd;
     return odd;
   };
 
