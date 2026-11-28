@@ -9,6 +9,11 @@ export interface CpuHints {
   prefer?: Record<string, number>;
   /** Specials that help recovery, in the order to try them (default: upB, then sideB). */
   recovery?: string[];
+  /**
+   * Other fighters this one turns into during a match without a move's `transform` (Bloxorz tipping over into
+   * bloxorz-lying), so their move probes are made before the match too (warmKnowledge).
+   */
+  forms?: string[];
 }
 
 const modules = import.meta.glob<{ ai: CpuHints }>('../fighters/*/ai.ts', { eager: true });

@@ -3,13 +3,13 @@ import { STUN_GUN } from '../fighters/bob-the-robber/entities';
 import { allFighters, getFighter, registerFighter } from '../fighters/registry';
 import { defineFighter } from '../fighters/types';
 import type { HitboxDef, MoveDef } from '../fighters/types';
-import { neutralInput } from '../input/types';
+import { Btn, neutralInput } from '../input/types';
 import { createMatch, stepMatch } from '../sim/match';
 import { STAGES } from '../stages/registry';
 import { hintsFor } from './hints';
 import { createCpu } from './index';
 import { AERIALS, SPECIALS } from './inputs';
-import { airStarts, knowledge, type MoveProbe } from './knowledge';
+import { airStarts, knowledge, warmKnowledge, type MoveProbe } from './knowledge';
 import { drill } from './testing/recovery';
 import { staticStage } from './stage';
 import { marioReference } from '../sim/testing/reference';
@@ -314,4 +314,31 @@ describe('a recovery that carries the CPU back over the stage', () => {
     },
     60_000,
   );
+});
+
+describe('move probes made ahead of the match', () => {
+  it('cover every fighter and every form it turns into, and are the knowledge the CPU then reads', () => {
+    const warm = warmKnowledge(['bloxorz', 'fireboy'], STAGE);
+    expect(warm.map((k) => k.id)).toEqual(['bloxorz', 'bloxorz-lying', 'fireboy', 'watergirl']);
+    for (const k of warm) expect(knowledge(k.id, STAGE)).toBe(k);
+  });
+
+  it('name the forms a match really turns fighters into: Bloxorz tipping over, Fireboy swapping to Watergirl', () => {
+    // Bloxorz walks by tipping end over end, which makes it bloxorz-lying; Fireboy's down special swaps in Watergirl.
+    for (const [fighter, input] of [
+      ['bloxorz', { ...neutralInput(), x: 100 }],
+      ['fireboy', { ...neutralInput(), y: -100, buttons: Btn.Special }],
+    ] as const) {
+      const m = createMatch({ seed: 1, stage: STAGE, stocks: 3, ports: [{ fighter }] });
+      for (let i = 0; i < 40; i++) stepMatch(m, [neutralInput()]);
+      const seen = new Set<string>();
+      for (let i = 0; i < 90; i++) {
+        stepMatch(m, [i < 30 ? input : neutralInput()]);
+        seen.add(m.fighters[0]!.fighter);
+      }
+      const ids = warmKnowledge([fighter], STAGE).map((k) => k.id);
+      expect(seen.size, fighter).toBeGreaterThan(1);
+      for (const id of seen) expect(ids, fighter).toContain(id);
+    }
+  });
 });
