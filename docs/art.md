@@ -198,8 +198,10 @@ A Final Smash cut scene counts as ground: it plays over the stage with the floor
 Effects that cover the screen or sit across the floor line on purpose go in its `decals`.
 There are four kinds:
 
-- `decals` names drawings that lie on the floor in perspective, across the floor line, and leaves them out of the
-  floor check. Bob's shadow pool is one.
+- `decals` names effect drawings meant to sit at or through the floor line and leaves them out of the floor check:
+  ones lying on the floor in perspective, such as Bob's shadow pool or a bounce's shockwave ring, and ones whose
+  base or lower edge crosses it by design, such as dust puffs or a burst of rays round a fighter standing on the
+  floor. Name each drawing with a line on why it crosses; never a body part.
 - `spins` names bones meant to spin, such as a wheel, a shell, a rolling block or a spin effect, and leaves them out of
   the turn check. The floor, draw-order and face checks still apply to them. Each entry is one bone with a line on
   why it spins, and `clips` limits it to the clips it spins in. A bone or clip that doesn't exist is an error.
