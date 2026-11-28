@@ -2,8 +2,8 @@ import type { SwingChecks } from '../../../render/rig/swingChecks';
 import { FLOOR_DECALS } from './poses';
 
 /**
- * Grounded clips checked frame by frame: his attacks, grabs and throws, specials, dodges, shield and crouch. The
- * ledge climb and the clips in the air are not checked.
+ * Grounded clips checked frame by frame: his attacks, grabs and throws, specials, dodges, shield, crouch and Final
+ * Smash. The clips in the air are listed under AIR.
  */
 export const SWINGS = [
   'jab',
@@ -39,6 +39,7 @@ export const SWINGS = [
   'shield',
   'shieldDrop',
   'crouch',
+  'finalSmash',
 ];
 
 /**
