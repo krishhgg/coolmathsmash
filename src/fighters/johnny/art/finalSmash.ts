@@ -12,12 +12,17 @@ import {
   SHOUT,
   SMIRK,
   STANCE,
+  between,
+  clearLeg,
+  elbows,
   feet,
   fist,
   key,
   leg,
   mix,
+  onFloor,
   shortTurns,
+  stanceWith,
   type Pt,
 } from './poses';
 
@@ -100,12 +105,12 @@ const TOUCHDOWN = fist(
     1,
   ),
   'B',
-  [4.6, -8.0],
+  [5.6, -8.2],
 );
 
 /** Braking: heels dug in, leaning back, the near fist pulled in. */
 const BRAKE = fist(
-  fist(feet({ body: { rot: -12, x: -0.8 }, hip: { y: 1.1 } }, [5.0, 0], [-1.6, 0]), 'B', [5.2, -9.4]),
+  fist(feet({ body: { rot: -12, x: -0.8 }, hip: { y: 1.1 } }, [5.0, 0], [-1.6, 0]), 'B', [6.2, -9.0]),
   'F',
   [1.0, -10.0],
   1,
@@ -115,28 +120,48 @@ const BRAKE = fist(
 function dashClip(): AnimClip {
   const length = MAX_UPGRADE.faf - 1;
   const keys: Key[] = [
-    key(0, STANCE, { ease: 'out' }),
-    at(3, mix(CLENCH, aura(0.35)), { ...SHOUT, ...FISTS, ...AURA }, 'out'),
+    key(0, STANCE, { ease: 'linear' }),
+    at(3, mix(CLENCH, aura(0.35)), { ...SHOUT, ...FISTS, ...AURA }, 'linear'),
   ];
   // Buying it all: the aura swells while he flexes, rocking with each upgrade as it clicks on.
   for (let f = 8, i = 0; f <= 32; f += 6, i++)
-    keys.push(key(f, mix(flex(i % 2 ? 0.55 : 0.2), aura(0.6 + i * 0.1 + (i % 2) * 0.06)), { ease: 'inOut' }));
+    keys.push(
+      key(f, mix(flex(i % 2 ? 0.55 : 0.2), aura(0.6 + i * 0.1 + (i % 2) * 0.06)), {
+        ease: f === 32 ? 'linear' : 'inOut',
+      }),
+    );
   keys.push(
     at(36, mix(LAUNCH, aura(0.7)), { ...GRIT, ...FISTS, ...AURA, ...SMALL_JETS }, 'in'),
-    at(40, mix(LAUNCH, aura(0.25), { body: { rot: 18, x: -0.8 } }), { ...GRIT, ...FISTS, ...JETS }, 'in'),
+    // Lifting off as the boots light: already a third of the way into the flight.
+    at(
+      40,
+      mix(clearLeg(between(mix(LAUNCH, { body: { rot: 18, x: -0.8 } }), flight(0), 0.3), 'F'), aura(0.25)),
+      { ...GRIT, ...FISTS, ...JETS },
+      'in',
+    ),
     at(dash.from - 1, FLIGHT_FX(0), { ...SHOUT, ...FISTS, ...JETS, fxBack: 'smear' }, 'linear'),
   );
   for (let f = dash.from + 3, i = 0; f < dash.to; f += 4, i++)
     keys.push(key(f, FLIGHT_FX(i % 2 ? 2 : -2), { ease: 'inOut' }));
   keys.push(
-    key(dash.to, FLIGHT_FX(0), { ease: 'out' }),
+    key(dash.to, FLIGHT_FX(0), { ease: 'linear' }),
     key(dash.to + 1, undefined, { swaps: { ...SHOUT, ...FISTS, ...JETS } }),
-    at(dash.to + 2, TOUCHDOWN, { ...GRIT, ...FISTS, ...SMALL_JETS }, 'out'),
+    // Swinging his legs down under him over three frames to touch down.
+    at(
+      dash.to + 2,
+      clearLeg(between(flight(0), TOUCHDOWN, 2 / 3), 'B', -0.4),
+      { ...GRIT, ...FISTS, ...SMALL_JETS },
+      'linear',
+    ),
+    key(dash.to + 3, TOUCHDOWN, { ease: 'out' }),
     key(dash.to + 5, BRAKE, { ease: 'out' }),
     at(dash.to + 9, BRAKE, { ...GRIT, ...FISTS }, 'inOut'),
     key(length, STANCE, { swaps: {} }),
   );
-  return { length, active: [[dash.from, dash.to]], swaps: { ...GRIT, ...FISTS }, keys: shortTurns(keys) };
+  return onFloor(
+    { length, active: [[dash.from, dash.to]], swaps: { ...GRIT, ...FISTS }, keys: shortTurns(elbows(keys)) },
+    false,
+  );
 }
 
 // --- finalSmashCinematic: the barrage on the trapped opponent. -----------------------------------------------
@@ -194,6 +219,8 @@ function punch(bob: number, y: number): Pose {
     fx2: star([VICTIM[0], y], 1.5),
   });
 }
+/** The gun drawn as the jets lift him, held low and tilted down. */
+const DRAW = hold(hover(0, 2), [2.2, -7.6], 35);
 /** Between hits: the gun back level, the far fist back. */
 const reset = (bob: number): Pose => gunAt(hover(bob, 3), [5.6, -9.6], -6);
 
@@ -260,10 +287,13 @@ const BLAST = mix(fist(aim(BRACE, [6.2, -9.6]), 'B', [2.8, -8.4]), {
   fx1: { x: 6.2, y: -9.6, sx: 3.0, sy: 2.6 },
   fx2: { x: VICTIM[0] + 1, y: VICTIM[1], sx: 0.62, sy: 0.62 },
 });
-const KICK = mix(fist(aim(mix(BRACE, { body: { rot: -4, x: -0.6 } }), [4.8, -11.2], -26), 'B', [2.2, -8.6]), {
-  fx2: { x: VICTIM[0] + 1.6, y: VICTIM[1], sx: 0.68, sy: 0.68 },
-});
-const LOWER = hold(mix(BRACE, { body: { rot: 1 } }), [1.0, -5.4], 45);
+const KICK = mix(
+  fist(aim(stanceWith(BRACE, { body: { rot: -4, x: -0.6 } }), [4.8, -11.2], -26), 'B', [2.2, -8.6]),
+  {
+    fx2: { x: VICTIM[0] + 1.6, y: VICTIM[1], sx: 0.68, sy: 0.68 },
+  },
+);
+const LOWER = hold(stanceWith(BRACE, { body: { rot: 1 } }), [1.0, -5.4], 45);
 /** Back on the floor after the axe kick, knees bent, the gun coming round. */
 const LANDED = fist(
   gunAt(feet({ body: { rot: 8, x: 0.6 }, hip: { y: 1.6 } }, [3.6, 0], [-2.4, 0]), [5.4, -8.4], 10),
@@ -277,7 +307,7 @@ function cinematicClip(): AnimClip {
   /** A strike held from the frame before hit frame `f` to the frame after; its effects go on `f + 2`. */
   const hit = (f: number, pose: Pose, swaps: Swaps, after: Swaps, z?: Record<string, number>) => [
     key(f - 1, pose, { ease: 'linear', swaps, ...(z ? { z } : {}) }),
-    key(f + 1, pose, { ease: 'out' }),
+    key(f + 1, pose, { ease: 'linear' }),
     key(f + 2, undefined, { swaps: after }),
   ];
   const fists = { ...GRIT, ...FISTS };
@@ -290,27 +320,27 @@ function cinematicClip(): AnimClip {
       fists,
     ),
     key(holds.catch + 3, SHOULDER, { ease: 'inOut' }),
-    key(holds.tackle - 4, DIP, { ease: 'in' }),
+    key(holds.tackle - 4, DIP, { ease: 'linear' }),
     ...hit(
       holds.tackle,
       mix(UPPER, { fx2: star(CHIN, 1.6), fx3: trail([7.4, -5.0], [8.4, -12.4], 1.4) }),
       { ...SHOUT, ...FISTS, fx2: 'impact', fxBack: 'smear' },
       fists,
     ),
-    key(holds.tackle + 4, UPPER, { ease: 'inOut' }),
     // Drawing the gun as the boots light and lift him.
-    at(holds.barrage.from - 6, hold(hover(0, 2), [2.2, -7.6], 35), HOVER_SWAPS, 'out'),
+    key(holds.tackle + 4, between(UPPER, DRAW, 0.3), { ease: 'linear' }),
+    at(holds.barrage.from - 6, DRAW, HOVER_SWAPS, 'out'),
     key(holds.barrage.from - 3, reset(0.4), { ease: 'inOut' }),
   ];
   for (let i = 0; i < 14; i++) {
     const f = holds.barrage.from + i * holds.barrage.every;
     const bob = (i % 3) * 0.3;
-    const y = [-9.6, -11.4, -8.4][i % 3]!;
+    const y = [-9.6, -11.0, -8.4][i % 3]!;
     keys.push(
       ...(i % 2
         ? hit(f, punch(bob, y), PUNCH_SWAPS, HOVER_SWAPS, BACK_ARM_IN_FRONT)
         : hit(f, shot(bob, y), SHOT_SWAPS, HOVER_SWAPS)),
-      key(f + 3, reset(bob), { ease: 'inOut', z: {} }),
+      key(f + 3, reset(bob), { ease: 'linear', z: {} }),
     );
   }
   keys.push(
@@ -322,7 +352,10 @@ function cinematicClip(): AnimClip {
       armed,
       BACK_ARM_IN_FRONT,
     ),
-    key(holds.charge + 3, mix(POWER_PUNCH, { fx2: {}, fx3: {} }), { ease: 'inOut', z: {} }),
+    key(holds.charge + 3, between(mix(POWER_PUNCH, { fx2: {}, fx3: {} }), LEAP, 0.36), {
+      ease: 'linear',
+      z: {},
+    }),
     at(holds.fall - 7, LEAP, { ...SHOUT, ...GUN, ...FIST_B, jetB: 'bootJet' }, 'out'),
     ...hit(
       holds.fall,
@@ -331,7 +364,8 @@ function cinematicClip(): AnimClip {
       armed,
       FRONT_LEG_IN_FRONT,
     ),
-    key(holds.fall + 3, LANDED, { ease: 'out', z: {} }),
+    key(holds.fall + 3, between(AXE, LANDED, 0.65), { ease: 'linear', z: {} }),
+    key(holds.fall + 4, LANDED, { ease: 'out' }),
     at(holds.fall + 7, charge(0.12), { ...armed, ...AURA }, 'out'),
     key(release - 6, charge(0.3), { ease: 'inOut' }),
     key(release - 2, charge(0.42), { ease: 'in' }),
@@ -349,7 +383,7 @@ function cinematicClip(): AnimClip {
     length,
     active: [[release, release]],
     swaps: { ...GRIT, ...FISTS },
-    keys: shortTurns(keys),
+    keys: shortTurns(elbows(keys, ['B'])),
   };
 }
 

@@ -12,6 +12,8 @@ import {
   SMIRK,
   STANCE,
   TUCK,
+  between,
+  elbows,
   feet,
   fist,
   grounded,
@@ -53,7 +55,7 @@ function lying(breath: number, loll: number): Pose {
   );
   return grounded(hands(legs, [-5.6, -1.0], [2.0, -4.4 - 0.3 * breath], 1, 1));
 }
-const DOWN = lying(0, 0);
+export const DOWN = lying(0, 0);
 
 /**
  * The superhero landing: down on the near knee, the far boot planted ahead, the near fist punched into the floor and
@@ -122,16 +124,18 @@ function techRoll(dir: 1 | -1): AnimClip {
   return onFloor({
     length: TECH_ROLL.faf - 1,
     swaps: { ...SHOUT, ...FISTS },
-    keys: shortTurns([
-      key(0, LAND_HIT, { ease: 'out' }),
-      key(2, grounded(mix(TUCK, { body: { rot: -20 * dir } })), {
-        ease: 'linear',
-        swaps: { ...GRIT, ...FISTS },
-      }),
-      ...somersault(4, 24, 0, 360 * dir),
-      key(29, mix(CROUCHED, { body: { rot: 368 * dir } }), { ease: 'inOut' }),
-      key(TECH_ROLL.faf - 1, mix(STANCE, { body: { rot: 360 * dir } }), { swaps: { ...GRIT, ...GUARD } }),
-    ]),
+    keys: shortTurns(
+      elbows([
+        key(0, LAND_HIT, { ease: 'linear' }),
+        key(2, grounded(between(LAND_HIT, mix(TUCK, { body: { rot: -20 * dir } }), 0.6)), {
+          ease: 'linear',
+          swaps: { ...GRIT, ...FISTS },
+        }),
+        ...somersault(4, 24, 0, 360 * dir),
+        key(29, mix(CROUCHED, { body: { rot: 368 * dir } }), { ease: 'inOut' }),
+        key(TECH_ROLL.faf - 1, mix(STANCE, { body: { rot: 360 * dir } }), { swaps: { ...GRIT, ...GUARD } }),
+      ]),
+    ),
   });
 }
 
@@ -146,13 +150,15 @@ export const tech: Record<string, AnimClip> = {
   techInPlace: onFloor({
     length: TECH_IN_PLACE.faf - 1,
     swaps: { ...SHOUT, ...FISTS },
-    keys: [
-      key(0, LAND_HIT, { ease: 'out' }),
-      key(3, landing(4.6, 0.1), { ease: 'inOut' }),
-      key(11, LAND_LOOK, { ease: 'inOut', swaps: { ...SMIRK, ...FISTS } }),
-      key(17, PUSH_UP, { ease: 'out', swaps: { ...GRIT, ...FISTS } }),
-      key(TECH_IN_PLACE.faf - 1, STANCE, { swaps: { ...GRIT, ...GUARD } }),
-    ],
+    keys: shortTurns(
+      elbows([
+        key(0, LAND_HIT, { ease: 'out' }),
+        key(3, landing(4.6, 0.1), { ease: 'inOut' }),
+        key(11, LAND_LOOK, { ease: 'inOut', swaps: { ...SMIRK, ...FISTS } }),
+        key(17, PUSH_UP, { ease: 'out', swaps: { ...GRIT, ...FISTS } }),
+        key(TECH_IN_PLACE.faf - 1, STANCE, { swaps: { ...GRIT, ...GUARD } }),
+      ]),
+    ),
   }),
 
   techRoll: techRoll(1),
@@ -173,13 +179,15 @@ export const tech: Record<string, AnimClip> = {
   getupRoll: onFloor({
     length: GETUP_ROLL.faf - 1,
     swaps: { ...GRIT, ...PALM_F, ...FIST_B },
-    keys: shortTurns([
-      key(0, DOWN, { ease: 'in' }),
-      key(3, grounded(mix(TUCK, { body: { rot: -80 } })), { ease: 'linear', swaps: { ...GRIT, ...FISTS } }),
-      ...somersault(4, 22, -80, 360),
-      key(25, mix(CROUCHED, { body: { rot: 368 } }), { ease: 'inOut' }),
-      key(GETUP_ROLL.faf - 1, mix(STANCE, { body: { rot: 360 } }), { swaps: { ...GRIT, ...GUARD } }),
-    ]),
+    keys: shortTurns(
+      elbows([
+        key(0, DOWN, { ease: 'linear' }),
+        key(3, grounded(mix(TUCK, { body: { rot: -80 } })), { ease: 'linear', swaps: { ...GRIT, ...FISTS } }),
+        ...somersault(4, 22, -80, 360),
+        key(25, mix(CROUCHED, { body: { rot: 368 } }), { ease: 'inOut' }),
+        key(GETUP_ROLL.faf - 1, mix(STANCE, { body: { rot: 360 } }), { swaps: { ...GRIT, ...GUARD } }),
+      ]),
+    ),
   }),
 
   /**
@@ -189,24 +197,30 @@ export const tech: Record<string, AnimClip> = {
   rollBack: onFloor({
     length: ROLL_BACK.faf - 1,
     swaps: { ...GRIT, ...FISTS },
-    keys: shortTurns([
-      key(0, STANCE, { ease: 'in' }),
-      key(3, mix(CROUCHED, { body: { rot: -6 } }), { ease: 'in' }),
-      ...somersault(5, 20, 0, -360),
-      key(24, mix(CROUCHED, { body: { rot: -348 } }), { ease: 'out' }),
-      key(ROLL_BACK.faf - 1, mix(STANCE, { body: { rot: -360 } }), { swaps: { ...GRIT, ...GUARD } }),
-    ]),
+    keys: shortTurns(
+      elbows([
+        // Sitting back into the tuck over three frames.
+        key(0, STANCE, { ease: 'linear' }),
+        key(3, grounded(between(mix(CROUCHED, { body: { rot: -6 } }), TUCK, 0.35)), { ease: 'linear' }),
+        key(4, grounded(between(mix(CROUCHED, { body: { rot: -6 } }), TUCK, 0.68)), { ease: 'linear' }),
+        ...somersault(5, 20, 0, -360),
+        key(24, mix(CROUCHED, { body: { rot: -348 } }), { ease: 'out' }),
+        key(ROLL_BACK.faf - 1, mix(STANCE, { body: { rot: -360 } }), { swaps: { ...GRIT, ...GUARD } }),
+      ]),
+    ),
   }),
 
   getupRollBack: onFloor({
     length: GETUP_ROLL.faf - 1,
     swaps: { ...GRIT, ...PALM_F, ...FIST_B },
-    keys: shortTurns([
-      key(0, DOWN, { ease: 'in' }),
-      key(3, grounded(mix(TUCK, { body: { rot: -90 } })), { ease: 'linear', swaps: { ...GRIT, ...FISTS } }),
-      ...somersault(4, 21, -100, -360),
-      key(25, mix(CROUCHED, { body: { rot: -360 } }), { ease: 'inOut' }),
-      key(GETUP_ROLL.faf - 1, mix(STANCE, { body: { rot: -360 } }), { swaps: { ...GRIT, ...GUARD } }),
-    ]),
+    keys: shortTurns(
+      elbows([
+        key(0, DOWN, { ease: 'linear' }),
+        key(3, grounded(mix(TUCK, { body: { rot: -90 } })), { ease: 'linear', swaps: { ...GRIT, ...FISTS } }),
+        ...somersault(4, 21, -100, -360),
+        key(25, mix(CROUCHED, { body: { rot: -360 } }), { ease: 'inOut' }),
+        key(GETUP_ROLL.faf - 1, mix(STANCE, { body: { rot: -360 } }), { swaps: { ...GRIT, ...GUARD } }),
+      ]),
+    ),
   }),
 };
