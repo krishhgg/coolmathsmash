@@ -165,8 +165,9 @@ describe('look-ahead', () => {
     });
     expect(m.entities.map((e) => e.kind)).toEqual(['raftwars/grenade', 'raftwars/duckRaft']);
     const solo = soloMatch(m, m.fighters[1]!);
-    // Raft Wars' raft, with its id, under a port the look-ahead doesn't hold (2 for port 0).
-    expect(solo.entities.map((e) => [e.kind, e.id, e.owner])).toEqual([['raftwars/duckRaft', raft.id, 2]]);
+    // Raft Wars' raft, with its id, under a port the look-ahead doesn't hold: 4 for port 0, past the stand-in ports
+    // setEntities uses (1 to 3).
+    expect(solo.entities.map((e) => [e.kind, e.id, e.owner])).toEqual([['raftwars/duckRaft', raft.id, 4]]);
     const ahead = run(solo, 100).map((s) => [s.action, s.x, s.y, s.vx, s.vy]);
     const real = played(structuredClone(m), 100);
     expect(real.findIndex(([action]) => action !== 'idle')).toBe(75);

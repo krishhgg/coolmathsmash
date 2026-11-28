@@ -990,7 +990,13 @@ neutralB: { kind: 'other', faf: 50, hits: [], spawn: [{ frame: 17, entity: 'fire
   held, or a tap-charged move pressed again), and the CPU picks either (Bob the Robber's Stun Gun at full charge, Raft Wars' Aimed Shot at 40 of
   its 112 frames). The flight copy keeps a charged entity's damage multiplier. A shot is worth less the longer it leaves the CPU busy after
   the opponent could run in, unless it lands first or would meet the runner before the runner's quickest hit; then
-  it holds the opponent up for its hitstun plus any freezing status (paralysis).
+  it holds the opponent up for its hitstun plus any freezing status (paralysis). The opponent's shots fly in that copy
+  too, as the CPU sees them through its reaction time: the ones that were out then, and the ones its prediction of
+  the opponent puts out since (a Fireball it started before the CPU could see it). A shot that would clank with one
+  of them (`src/sim/entities/contacts.ts`) is no hit, and an opponent's shot that would hit the CPU is a threat it
+  defends against as against an attack, so a CPU doesn't fire into a shot coming at it. Two CPUs that fire within
+  each other's reaction time still clank; after one of its shots clanks, a CPU holds its shots for 0.5 to 1.5 s, so
+  the next one comes out first on one side.
 
 ## Art
 

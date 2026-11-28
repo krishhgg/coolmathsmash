@@ -32,6 +32,7 @@ import {
   type Sample,
 } from './look';
 import { findAttacks, groundEndX, type Attack, type Self, type Target } from './options';
+import { seenShots, shotThreat, type ForeseenShot } from './shots';
 import {
   airAerial,
   airDodge,
@@ -94,6 +95,14 @@ const HISTORY = 64;
 const FINAL_BEHIND = 4;
 const HORIZON = 45;
 /**
+ * Frames before a shot would hit the CPU that it starts to defend against it. A shot is seen coming from much further
+ * out than an attack, and a spot dodge or roll started that early is over before it arrives (a Stun Gun shot 16
+ * frames off hit Fireboy on the frame his spot dodge ended).
+ */
+const SHOT_LEAD = 12;
+/** Frames ahead the CPU looks for an attack or a shot that would hit it where it is. */
+const THREAT_HORIZON = 36;
+/**
  * How far ahead a CPU whose fighter shoots reads the opponent: long enough for a Fireball to cross most of
  * Battlefield (17 frames of startup and 70 of flight) or a Grenade's fuse to run out.
  */
@@ -136,6 +145,8 @@ export class Cpu {
   private rolls = new Map<string, boolean>();
   private fastFallAir = -1;
   private wantFastFall = false;
+  /** The CPU holds its shots until this frame, after one of them clanked (noteClanks). */
+  private holdShotsUntil = -1;
   /**
    * A recovery plan worked out ahead, during hitstun (planAhead): the frame it is for, the match it starts from then
    * as predicted (planStart), the plans played so far, and the fighter as predicted on each frame until then.
@@ -230,6 +241,7 @@ export class Cpu {
   }
 
   private remember(state: Readonly<MatchState>): void {
+    this.noteClanks(state);
     const frame = state.fighters.map(snapshot);
     this.history.push(frame);
     this.ownHistory.push({
@@ -240,6 +252,22 @@ export class Cpu {
       this.history.shift();
       this.ownHistory.shift();
     }
+  }
+
+  /**
+   * Two CPUs that fire at each other within each other's reaction time can't see the other's shot coming, and when
+   * both shots clank they are free again together and fire again: Raft Wars' forward tilts, 3 frames apart, clanked
+   * every 30 frames. After one of its shots clanks, the CPU holds its shots for 30 to 90 frames, drawn at random, so
+   * one fires first and the other sees that shot out and defends instead of meeting it.
+   */
+  private noteClanks(state: Readonly<MatchState>): void {
+    const mine = this.ownHistory.at(-1)?.entities;
+    if (!mine?.length) return;
+    const clank = state.events.some(
+      (e) => e.type === 'entityDestroy' && e.reason === 'clank' && mine.some((x) => x.id === e.id),
+    );
+    if (!clank) return;
+    this.holdShotsUntil = state.frame + 30 + Math.floor(this.rand() * 60);
   }
 
   /** An opponent as the CPU perceives it: `lag` frames old. */
@@ -662,7 +690,7 @@ export class Cpu {
     state: Readonly<MatchState>,
     opp: Readonly<FighterState>,
     horizon = HORIZON,
-  ): { path: Sample[]; far?: Sample[]; snap: FighterState } {
+  ): { path: Sample[]; far?: Sample[]; snap: FighterState; shots: ForeseenShot[] } {
     const lag = Math.min(this.lv.reaction, this.history.length - 1);
     const snap = this.seen(opp.port, lag);
     const m = soloMatch(state, snap);
@@ -670,11 +698,24 @@ export class Cpu {
     m.nextEntityId = state.nextEntityId;
     const info = stageInfo(state);
     const drive = assumedInput(snap, info, state);
-    const samples = runAmong(m, lag + Math.max(horizon, HORIZON) + 1, drive, lag, this.ownHistory, opp.port);
+    // The shots the opponent puts out after the frame the CPU sees it on (a Fireball it started before the CPU could
+    // see it come out): as they are now (t = 0) for those already out by now, and as they appear for the rest.
+    const shots: ForeseenShot[] = [];
+    const seen = new Set<number>();
+    const look = (t: number) => {
+      if (t < lag) return;
+      for (const e of m.entities) {
+        if (e.owner !== 0 || e.dead || e.id < state.nextEntityId || seen.has(e.id)) continue;
+        seen.add(e.id);
+        shots.push({ t: t - lag, e: { ...structuredClone(e), owner: opp.port } });
+      }
+    };
+    const n = lag + Math.max(horizon, HORIZON) + 1;
+    const samples = runAmong(m, n, drive, lag, this.ownHistory, opp.port, look);
     const far = samples.slice(lag);
     while (far.length < Math.max(horizon, HORIZON)) far.push(far.at(-1) ?? samplesFallback(snap));
-    if (horizon <= HORIZON) return { path: far, snap };
-    return { path: far.slice(0, HORIZON), far, snap };
+    if (horizon <= HORIZON) return { path: far, snap, shots };
+    return { path: far.slice(0, HORIZON), far, snap, shots };
   }
 
   private think(state: Readonly<MatchState>, me: Readonly<FighterState>, info: StageInfo): void {
@@ -685,19 +726,29 @@ export class Cpu {
       return;
     }
     const k = this.knowledge(state, me);
-    const { path, far, snap } = this.foresee(state, opp, k.shoots ? SHOT_HORIZON : HORIZON);
+    const { path, far, snap, shots } = this.foresee(state, opp, k.shoots ? SHOT_HORIZON : HORIZON);
+    const seen = seenShots(state, me, Math.min(this.lv.reaction, this.history.length - 1));
     const target: Target = {
       path,
       errX: (this.rand() * 2 - 1) * this.lv.spacingError,
       grabbableIn: snap.grabbableFrom - state.frame,
       ...(far && { far }),
       ...(k.shoots && { rush: rush(far ?? path, me.pos.x, knowledge(snap.fighter, state.config.stage)) }),
+      ...(seen.length && { seen }),
+      ...(shots.length && { shots }),
     };
     const now = path[0]!;
     const dir = (Math.sign(now.x - me.pos.x) || me.facing) as 1 | -1;
     const shielding = me.action === 'shield' || me.action === 'shieldStun';
 
-    const threat = this.threat(me, path);
+    // An opponent's shot that will hit the CPU is a threat like an attack (keyed by the frame it lands), so the CPU
+    // shields, dodges or jumps it instead of firing back a shot that only clanks with it.
+    const struck = this.threat(me, path);
+    const shot = shotThreat(state, me, seen, shots, THREAT_HORIZON);
+    const threat =
+      shot && shot.t <= SHOT_LEAD && (!struck || shot.t < struck.t)
+        ? { ...shot, move: 'shot', frame: -1 }
+        : struck;
     if (threat) {
       const key = `threat:${opp.port}:${threat.move}:${state.frame + threat.t - threat.frame}`;
       if (this.roll(key, this.lv.defense) && this.defend(state, me, k, info, target, threat, dir)) return;
@@ -712,7 +763,9 @@ export class Cpu {
 
     const self: Self = { f: me, k, info, groundDelay: me.ground ? 0 : Infinity, jumpDelay: 0, state };
     const edgeguarding = this.isEdgeguarding(state, me, snap, info);
-    const attacks = this.rank(state, attacksFor(self, target), target, snap, k, info, edgeguarding);
+    const attacks = this.rank(state, attacksFor(self, target), target, snap, k, info, edgeguarding).filter(
+      (a) => !a.shot || state.frame >= this.holdShotsUntil,
+    );
     const chance =
       situation === 'combo' ? this.lv.followUp : situation === 'punish' ? this.lv.punish : this.lv.aggression;
     if (attacks.length && this.rand() < chance && this.startAttack(state, attacks, me, info)) return;
@@ -743,7 +796,7 @@ export class Cpu {
     const h0 = hurtbox(me, getFighter(me.fighter).stats);
     const vx = me.ground ? 0 : me.vel.x + me.kb.x;
     const vy = me.ground ? 0 : me.vel.y + me.kb.y;
-    for (let t = 0; t < Math.min(path.length, 36); t++) {
+    for (let t = 0; t < Math.min(path.length, THREAT_HORIZON); t++) {
       const s = path[t]!;
       if (!s.boxes.length) continue;
       const k = Math.min(t, 6);

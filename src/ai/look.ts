@@ -42,14 +42,16 @@ export type Driver = (t: number, f: Readonly<FighterState>) => InputFrame;
 
 const idle: Driver = () => neutralInput();
 
-/** The port that stands in for the owner of the entities setEntities puts into a look-ahead. */
+/** The port that stands in for the owner of the entities setEntities puts into a look-ahead, by default. */
 const OWNER = 1;
+/** Stand-in ports setEntities may be given: one for each other fighter in a four-player match (OWNER to OWNER + 2). */
+const STAND_INS = 3;
 /**
  * Where setEntities files an entity's hit on a fighter the look-ahead doesn't hold: real port p becomes ABSENT + p,
  * a port no fighter there has, so the hit still counts (an entity that pierces doesn't hit that fighter again, and
  * one that reacts to having hit, like Johnny's upgraded laser bursting, still does) without touching anyone.
  */
-const ABSENT = OWNER + 1;
+const ABSENT = OWNER + STAND_INS;
 
 /**
  * A one-fighter copy of the match holding a clone of `f` (and of its controller, when given), on the same frame of
@@ -113,22 +115,33 @@ export function soloMatch(
  * of play (as with no stocks left), so nothing hits, grabs or pushes it; each call sets it to `owner` as given. It
  * gives the entities what they read from their owner: its rage, its stale queue, and where it is for one that flies
  * home. The copies keep their ids and their hits so far, those on other fighters under ports the look-ahead doesn't
- * hold (ABSENT).
+ * hold (ABSENT). With `keep`, the owner's entities already in `m` stay and these join them, and the owner's platforms
+ * soloMatch copied in (under ABSENT + its port) move to the stand-in with them: a fighter's shot passes over its own
+ * raft in the match, and would hit it here under two owners. `standIn` is the port that stands in for the owner
+ * (OWNER and the STAND_INS - 1 after it): several owners need one each, or their entities, all under one port, would
+ * let each other through where they clank in the match.
  */
 export function setEntities(
   m: MatchState,
   owner: Readonly<FighterState>,
   entities: readonly Readonly<EntityState>[],
   victim: number,
+  keep = false,
+  standIn = OWNER,
 ): void {
-  m.entities = m.entities.filter((e) => e.owner !== OWNER && e.owner !== ABSENT + owner.port);
-  if (m.fighters.length <= OWNER) {
+  if (standIn < OWNER || standIn >= OWNER + STAND_INS) throw new Error(`no stand-in port ${standIn}`);
+  if (!keep) m.entities = m.entities.filter((e) => e.owner !== standIn && e.owner !== ABSENT + owner.port);
+  if (m.fighters.length <= standIn) {
     if (!entities.length) return;
-    m.config.ports.push({ fighter: owner.fighter });
-    m.players.push({ port: OWNER, tapJump: true, control: createControl() });
-    m.fighters.push({ ...createFighter(OWNER, owner.fighter, [0, 0, 1], 0), action: 'out' });
+    while (m.fighters.length <= standIn) {
+      const port = m.fighters.length;
+      m.config.ports.push({ fighter: owner.fighter });
+      m.players.push({ port, tapJump: true, control: createControl() });
+      m.fighters.push({ ...createFighter(port, owner.fighter, [0, 0, 1], 0), action: 'out' });
+    }
   }
-  Object.assign(m.fighters[OWNER]!, {
+  if (keep) for (const e of m.entities) if (e.owner === ABSENT + owner.port) e.owner = standIn;
+  Object.assign(m.fighters[standIn]!, {
     pos: { ...owner.pos },
     prevPos: { ...owner.pos },
     facing: owner.facing,
@@ -137,7 +150,7 @@ export function setEntities(
   });
   for (const e of entities) {
     const hitVictims = e.hitVictims.map((p) => (p === victim ? 0 : ABSENT + p));
-    m.entities.push({ ...structuredClone(e as EntityState), owner: OWNER, hitVictims });
+    m.entities.push({ ...structuredClone(e as EntityState), owner: standIn, hitVictims });
     m.nextEntityId = Math.max(m.nextEntityId, e.id + 1);
   }
 }
@@ -153,7 +166,7 @@ export interface OwnFrame {
  * fighter's entities playing out too, so their hits move it. `mine` holds that fighter's last frames, the latest
  * last. Its entities start as they were `lag` frames ago, with the fighter as it was then standing in as their owner,
  * so one that has hit since still hits, staled and raged as it was. When the run reaches the latest frame, the
- * entities out then replace them and the stand-in takes the fighter as it is.
+ * entities out then replace them and the stand-in takes the fighter as it is. `each` sees `m` after every frame.
  */
 export function runAmong(
   m: MatchState,
@@ -162,12 +175,22 @@ export function runAmong(
   lag: number,
   mine: readonly OwnFrame[],
   victim: number,
+  each?: (t: number) => void,
 ): Sample[] {
   const at = (back: number) => mine[mine.length - 1 - back]!;
-  return run(m, frames, (t, f) => {
-    if (t === 0 || t === lag) setEntities(m, at(lag - t).f, at(lag - t).entities, victim);
-    return drive(t, f);
-  });
+  return run(
+    m,
+    frames,
+    (t, f) => {
+      if (t === 0 || t === lag) setEntities(m, at(lag - t).f, at(lag - t).entities, victim);
+      return drive(t, f);
+    },
+    each &&
+      ((_, t) => {
+        each(t);
+        return false;
+      }),
+  );
 }
 
 export function sample(f: Readonly<FighterState>, stats: FighterStats): Sample {
