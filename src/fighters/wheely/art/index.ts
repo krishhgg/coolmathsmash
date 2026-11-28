@@ -36,4 +36,6 @@ export const art: FighterArt = {
   palettes,
   icon: icon(),
   ledgeGrip: LEDGE_GRIP,
+  /** Landing mid-Rev Up carries the air move on (continuesOnLanding): drawn as the grounded one, wheels on the floor. */
+  landed: { neutralBAir: 'neutralB' },
 };
