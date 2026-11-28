@@ -105,28 +105,31 @@ describe('CPUs and air variants', () => {
     expect(path).toEqual(['aerial:sideBAir', 'tetherPull:sideBAir', 'ledgeCatch', 'ledgeHang']);
   });
 
-  it('play their air side specials in a level 9 match, Red Ball against Runner', () => {
-    // Seed 2 of src/ai/bench.ts. Since recovery plans double jump before their special (src/ai/recovery.ts), Red Ball
-    // uses no special at all in seed 1's match. In seeds 2 to 6 he uses his air side special 1 or 2 times a match, and
-    // Runner 3 to 9 times.
-    const m = createMatch({
-      seed: 2,
-      stage: STAGE,
-      stocks: 3,
-      ports: [{ fighter: 'redball' }, { fighter: 'runner' }],
-    });
-    const cpus = [0, 1].map((port) => createCpu({ port, level: 9, seed: 2 * 7919 + port }));
+  // Whether one match calls for it depends on how that match plays. Since recovery plans double jump before their
+  // special (src/ai/recovery.ts), Red Ball uses no special at all in seed 1's match, and since directional air dodges
+  // slide as far as Ultimate's, he can win a match without it. So the seeds of src/ai/bench.ts play from seed 2 until
+  // both fighters have used it.
+  it('play their air side specials in level 9 matches, Red Ball against Runner', () => {
     const uses = [0, 0];
-    while (m.frame < 8 * 60 * 60 && m.fighters.every((f) => f.stocks > 0)) {
-      stepMatch(
-        m,
-        cpus.map((c) => c.input(m)),
-      );
-      for (const e of m.events) if (e.type === 'move' && e.move === 'sideBAir') uses[e.port]!++;
+    for (let seed = 2; seed <= 4 && uses.includes(0); seed++) {
+      const m = createMatch({
+        seed,
+        stage: STAGE,
+        stocks: 3,
+        ports: [{ fighter: 'redball' }, { fighter: 'runner' }],
+      });
+      const cpus = [0, 1].map((port) => createCpu({ port, level: 9, seed: seed * 7919 + port }));
+      while (m.frame < 8 * 60 * 60 && m.fighters.every((f) => f.stocks > 0)) {
+        stepMatch(
+          m,
+          cpus.map((c) => c.input(m)),
+        );
+        for (const e of m.events) if (e.type === 'move' && e.move === 'sideBAir') uses[e.port]!++;
+      }
     }
     expect(uses[0]).toBeGreaterThan(0);
     expect(uses[1]).toBeGreaterThan(0);
-  }, 60_000);
+  }, 120_000);
 });
 
 describe('air probes of moves that end in a helpless fall', () => {

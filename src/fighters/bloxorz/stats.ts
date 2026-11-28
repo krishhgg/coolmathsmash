@@ -41,5 +41,4 @@ export const stats: FighterStats = {
 
   shieldSize: 15,
   rollDistance: 27,
-  airDodgeSpeed: 2.6,
 };

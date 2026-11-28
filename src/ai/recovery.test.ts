@@ -169,6 +169,7 @@ function recoveryOrder(fighter: string, x: number, y: number, seed: number): str
     stepMatch(m, [cpu.input(m), neutralInput()]);
     if (f.action === 'doubleJump' && !order.includes('J')) order += 'J';
     if (f.move === 'upB' && !order.includes('U')) order += 'U';
+    if (f.action === 'airDodge' && !order.includes('D')) order += 'D';
     if (f.stocks < 3) return `ko ${order}`;
     if (f.ground !== null || f.action === 'ledgeHang') return `back ${order}`;
   }
@@ -208,12 +209,14 @@ describe('recovery plans with a double jump and a special', () => {
 
   // Before, a fighter that started this low used its special on the first frame, before the double jump: Ramp Jump and
   // the block's up special rose into the stage's side, and the CPU was KO'd from all four on every seed. Wheely can
-  // also get back by drifting further out and Ramp Jumping without the double jump, and some seeds pick that.
+  // also get back by drifting further out and Ramp Jumping without the double jump, and some seeds pick that. From
+  // (-140, -50) Bloxorz can get back with a double jump and an air dodge, since a directional air dodge slides as far as
+  // Ultimate's.
   it.each([
     ['wheely', 115, -50, ['back JU', 'back U']],
     ['wheely', -115, -50, ['back JU', 'back U']],
     ['bloxorz', 115, -50, ['back JU']],
-    ['bloxorz', -140, -50, ['back JU']],
+    ['bloxorz', -140, -50, ['back JU', 'back JD']],
   ] as const)(
     'a level 9 %s gets back from (%d, %d) on every seed',
     (fighter, x, y, ok) => {

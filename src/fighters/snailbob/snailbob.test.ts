@@ -682,7 +682,10 @@ describe('Snail Bob: Rocket Hover (up special)', () => {
       attack(m, 1, 'probe');
       for (let i = 0; i < 300 && (a.ground || a.pos.y > -30); i++) runPorts(m, 1, [{}, {}]);
       expect(a.pos.y).toBeLessThan(-30);
+      // No jumps and no air dodge left, so the hover is his only way back: from here a directional air dodge, which
+      // slides as far as Ultimate's, reaches the ledge, and the recovery planner takes it first.
       a.jumpsUsed = stats.jumps;
+      a.airDodgeUsed = true;
       const cpu = createCpu({ port: 0, level, seed: 5 });
       let fuel = a.mobility.hoverFuel;
       let safe = false;

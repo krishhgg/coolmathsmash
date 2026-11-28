@@ -186,6 +186,7 @@ describe('Raft Wars kids: Aimed Shot (neutral special)', () => {
       fighters: ['raftwars', 'raftwars'],
       maxFrames: 60 * 60,
     });
-    expect(r.damage.some((d) => d > 0)).toBe(true);
+    // A KO resets damage, so a fight that ends just after one reads 0% on both sides: count KOs as fighting too.
+    expect(r.kos.length > 0 || r.damage.some((d) => d > 0)).toBe(true);
   }, 60_000);
 });

@@ -580,8 +580,12 @@ describe('dodges', () => {
     expect([grab.actionable, grab.move]).toEqual([total + 1, 'grab']);
   });
 
-  /** Air dodge with the stick held at `stick` on the press frame, high off Battlefield's right edge so it ends airborne. */
-  function airDodge(stick: Hold) {
+  /**
+   * Air dodge with the stick held at `stick` on the press frame and `then` after it, high off the Battlefield edge it
+   * dodges away from (the right one unless the stick points left) so it ends airborne, starting at `vel`. `path[n - 1]` is how far the fighter has moved from where it pressed, at
+   * action frame n. Pressing no `buttons` instead of Shield just falls.
+   */
+  function airDodge(stick: Hold, then: Hold = {}, vel = { x: 0, y: 0 }, buttons: ButtonName[] = ['shield']) {
     const m = createMatch({
       seed: 1,
       stage: 'battlefield',
@@ -590,15 +594,19 @@ describe('dodges', () => {
     });
     settle(m, 10);
     m.players[0]!.tapJump = false;
-    const f = placeInAir(m, 120, 120);
-    stepMatch(m, [input({ ...stick, buttons: ['shield'] })]);
+    const x0 = (stick.x ?? 0) < 0 ? -120 : 120;
+    const f = placeInAir(m, x0, 120);
+    f.vel = { ...vel };
+    stepMatch(m, [input({ ...stick, buttons })]);
     const action = f.action;
     const frames: number[] = [];
     const intangible: number[] = [];
+    const path: { x: number; y: number }[] = [];
     while (f.action === action && frames.length < 200) {
       frames.push(f.actionFrame);
+      path.push({ x: f.pos.x - x0, y: f.pos.y - 120 });
       if (isIntangible(f)) intangible.push(f.actionFrame);
-      stepMatch(m, [input({})]);
+      stepMatch(m, [input(then)]);
     }
     return {
       action,
@@ -606,6 +614,9 @@ describe('dodges', () => {
       intangible: [intangible[0], intangible.at(-1)],
       next: f.action,
       airborne: f.ground === null,
+      path,
+      /** How far the fighter moved on action frame n, along x and y. */
+      step: (n: number) => ({ x: path[n - 1]!.x - path[n - 2]!.x, y: path[n - 1]!.y - path[n - 2]!.y }),
     };
   }
 
@@ -633,6 +644,67 @@ describe('dodges', () => {
       expect(r.actionable, JSON.stringify(stick)).toBe(total + 1);
       expect([r.next, r.airborne], JSON.stringify(stick)).toEqual(['fall', true]);
     }
+  });
+
+  // Ultimate's directional slide (physics-reference section 7): it starts at escape_air_slide_speed 4.2, and the stop
+  // energy brakes it by a constant amount a frame along the dodge, the brake that takes it to escape_air_slide_end_speed
+  // 1.3 in escape_air_slide_distance 20 u. From script frame 14 gravity and air control take over what is left, and
+  // from frame 24 the stick drifts the fighter.
+  const { slide, distance_fresh: slideDistance } = ref.dodges.air_dodge_directional;
+  const slideBrake = (slide.speed_fresh ** 2 - slide.end_speed ** 2) / (2 * slideDistance);
+
+  it('a directional air dodge slides at 4.2 u/f on frame 3 and brakes evenly to 1.3 u/f, the brake that takes 20 u', () => {
+    const r = airDodge({ x: 100 });
+    const speeds = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((n) => r.step(n).x);
+    const expected = speeds.map((_, i) => Math.max(slide.speed_fresh - i * slideBrake, slide.end_speed));
+    expect(slideBrake).toBeCloseTo(0.39875, 10);
+    speeds.forEach((v, i) => expect(v, `frame ${i + 3}`).toBeCloseTo(expected[i]!, 6));
+    for (const v of speeds.slice(-3)) expect(v).toBeCloseTo(slide.end_speed, 6);
+    // No gravity yet: it slides level.
+    expect(r.path.slice(0, 14).map((p) => p.y)).toEqual(new Array(14).fill(0));
+  });
+
+  it("from frame 14 gravity and Mario's air friction take over the 1.3 u/f; the stick drifts again from frame 24", () => {
+    const S = marioReference.stats;
+    expect(S.airFriction).toBe(slide.mario_air_brake_x);
+    const neutral = airDodge({ x: 100 });
+    const held = airDodge({ x: 100 }, { x: 100 });
+    for (const r of [neutral, held]) {
+      // Frame 14's gravity shows in frame 15's step, since the fighter moves before gravity acts on its speed.
+      expect([r.step(14).y, r.step(15).y]).toEqual([0, expect.closeTo(-S.gravity, 6)]);
+      // Air friction slows the slide from frame 14 whether the stick is held forward or not, until frame 24.
+      for (let n = slide.gravity_flag_frame; n < slide.control_flag_frame; n++) {
+        expect(r.step(n).x, `frame ${n}`).toBeCloseTo(slide.end_speed - (n - 13) * S.airFriction, 6);
+      }
+    }
+    // Held forward from frame 24, the stick takes the speed back up to Mario's air speed; let go, friction keeps on.
+    expect(held.step(24).x).toBeCloseTo(S.airSpeed, 6);
+    expect(neutral.step(24).x).toBeCloseTo(slide.end_speed - 11 * S.airFriction, 6);
+  });
+
+  it('a side air dodge covers 34.3 u by frame 20 and 80.2 u by its last frame; a diagonal one 24.1 across, 22.7 up', () => {
+    // Side: the slingshot's -0.7, 22.44 braking on frames 3-10, 1.3 a frame on 11-13 and 8.68 under air friction on
+    // 14-20 (main: 23.1). Then air friction alone carries it 45.9 u more by frame 87, its last (main: 54.4).
+    const side = airDodge({ x: 100 });
+    expect(side.path[19]!.x).toBeCloseTo(34.32, 2);
+    expect(side.path.length).toBe(87);
+    expect(side.path.at(-1)!.x).toBeCloseTo(80.21, 2);
+    // Up and forward: the same slide at 45 degrees, 0.92 u/f left on each axis at frame 14, where gravity takes the
+    // vertical part (main: 16.3 and 16.3). Air friction stops the horizontal part on frame 75, before its last
+    // frame, 102 (main: 43.4 across).
+    const diag = airDodge({ x: 100, y: 100 });
+    expect(diag.path[19]!.x).toBeCloseTo(24.14, 2);
+    expect(diag.path[19]!.y).toBeCloseTo(22.73, 2);
+    expect(diag.path.length).toBe(102);
+    expect(diag.path.at(-1)!.x).toBeCloseTo(45.84, 2);
+  });
+
+  it('a neutral air dodge keeps its momentum: it moves as a fall does, with air friction and gravity', () => {
+    const moving = { x: 1.1, y: 1.2 };
+    const dodge = airDodge({}, {}, moving);
+    const fall = airDodge({}, {}, moving, []);
+    expect([dodge.action, fall.action]).toEqual(['airDodge', 'fall']);
+    expect(dodge.path).toEqual(fall.path.slice(0, dodge.path.length));
   });
 });
 
