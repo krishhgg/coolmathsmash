@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { STUN_GUN } from '../fighters/bob-the-robber/entities';
-import { allFighters, getFighter } from '../fighters/registry';
+import { allFighters, getFighter, registerFighter } from '../fighters/registry';
+import { defineFighter } from '../fighters/types';
 import type { HitboxDef, MoveDef } from '../fighters/types';
-import { neutralInput } from '../input/types';
+import { Btn, neutralInput } from '../input/types';
 import { createMatch, stepMatch } from '../sim/match';
 import { STAGES } from '../stages/registry';
-import { runCpuMatch } from './bench';
 import { hintsFor } from './hints';
 import { createCpu } from './index';
 import { AERIALS, SPECIALS } from './inputs';
-import { knowledge, type MoveProbe } from './knowledge';
+import { airStarts, knowledge, warmKnowledge, type MoveProbe } from './knowledge';
 import { drill } from './testing/recovery';
+import { staticStage } from './stage';
+import { marioReference } from '../sim/testing/reference';
 
 const STAGE = 'battlefield';
 
@@ -104,13 +106,16 @@ describe('CPUs and air variants', () => {
   });
 
   it('play their air side specials in a level 9 match, Red Ball against Runner', () => {
+    // Seed 2 of src/ai/bench.ts. Since recovery plans double jump before their special (src/ai/recovery.ts), Red Ball
+    // uses no special at all in seed 1's match. In seeds 2 to 6 he uses his air side special 1 or 2 times a match, and
+    // Runner 3 to 9 times.
     const m = createMatch({
-      seed: 1,
+      seed: 2,
       stage: STAGE,
       stocks: 3,
       ports: [{ fighter: 'redball' }, { fighter: 'runner' }],
     });
-    const cpus = [0, 1].map((port) => createCpu({ port, level: 9, seed: 7919 + port }));
+    const cpus = [0, 1].map((port) => createCpu({ port, level: 9, seed: 2 * 7919 + port }));
     const uses = [0, 0];
     while (m.frame < 8 * 60 * 60 && m.fighters.every((f) => f.stocks > 0)) {
       stepMatch(
@@ -142,19 +147,66 @@ describe('air probes of moves that end in a helpless fall', () => {
         }
       }
     }
-    // What is still dropped is carried out of the blast zone by the move itself, from where the probe starts it,
-    // 100 above the stage's middle: down specials plunge through the gap in Bloxorz Platform's middle to the bottom,
-    // and Fluffy's up special rises through the top on the three stages whose top blast zone is 180.
-    expect(missing.sort()).toEqual([
-      'bloxorz downB on bloxorz-platform',
-      'bloxorz-lying downB on bloxorz-platform',
-      'fluffy upB on coolmath-planet',
-      'fluffy upB on run-tunnel',
-      'fluffy upB on worlds-hardest-game',
-      'runner downB on bloxorz-platform',
-      'snailbob downB on bloxorz-platform',
-    ]);
+    // Down specials that plunge through the hole in Bloxorz Platform's middle, and Fluffy's up special, which rises past
+    // the top on the three stages whose top blast zone is 180, are probed from the next start (airStarts).
+    expect(missing).toEqual([]);
   }, 60_000);
+
+  it('start air probes 100 above the middle, then over the nearest solid floor, then 50 above it', () => {
+    expect(airStarts(staticStage('battlefield'))).toEqual([
+      { x: 0, y: 100 },
+      { x: 0, y: 50 },
+    ]);
+    expect(airStarts(staticStage('coolmath-planet'))).toEqual([
+      { x: 0, y: 100 },
+      { x: 0, y: 50 },
+    ]);
+    // Bloxorz Platform's middle is a 16-wide hole between two 80-wide boards: the right one, ahead of the probe, at 48.
+    expect(airStarts(staticStage('bloxorz-platform'))).toEqual([
+      { x: 0, y: 100 },
+      { x: 48, y: 100 },
+      { x: 48, y: 50 },
+    ]);
+  });
+
+  it.each([
+    ['bloxorz', 'downB', 'bloxorz-platform'],
+    ['bloxorz-lying', 'downB', 'bloxorz-platform'],
+    ['runner', 'downB', 'bloxorz-platform'],
+    ['snailbob', 'downB', 'bloxorz-platform'],
+    ['fluffy', 'upB', 'coolmath-planet'],
+    ['fluffy', 'upB', 'run-tunnel'],
+    ['fluffy', 'upB', 'worlds-hardest-game'],
+  ] as const)("keep %s's air %s on %s, probed where the move plays out and lands", (id, move, stage) => {
+    const p = knowledge(id, stage).air[move];
+    expect(p).toBeDefined();
+    expect(p!.endsGrounded).toBe(true);
+    // Each lands from a later start: on the right board's bridge tile (y 26) from 100 up, or on the floor from 50 up.
+    expect(p!.endDy).toBe(move === 'downB' ? -74 : -50);
+  });
+
+  it('still drop an air move that carries its user out of the blast zone from every start', () => {
+    // A test fighter whose up special rises 8 units a frame for 60 frames: out of the top from any of the starts.
+    const rocket = defineFighter({
+      ...marioReference,
+      id: 'test-probe-rocket',
+      selectable: false,
+      moves: {
+        ...marioReference.moves,
+        upB: {
+          kind: 'other',
+          faf: 61,
+          hits: [],
+          script({ f }) {
+            f.vel.y = 8;
+          },
+        },
+      },
+    });
+    registerFighter(rocket);
+    for (const stage of ['battlefield', 'bloxorz-platform', 'coolmath-planet'])
+      expect(knowledge(rocket.id, stage).air.upB, stage).toBeUndefined();
+  });
 
   it("keep Wheely's Ramp Jump in the air: where it carries him, and helpless after it", () => {
     const k = knowledge('wheely', STAGE);
@@ -170,40 +222,123 @@ describe('air probes of moves that end in a helpless fall', () => {
   });
 
   // 60 units beside either ledge, 20 and 50 under it, with the double jump left (src/ai/testing/recovery.ts). Before,
-  // a level 9 Wheely was KO'd from all four on every seed.
+  // a level 9 Wheely was KO'd from all four on every seed. From 50 under he needs Ramp Jump; from 20 under, now that
+  // recovery plans double jump before their special (src/ai/recovery.ts), a double jump alone gets him back on some
+  // seeds.
   it.each([
-    [-140, -20],
-    [-140, -50],
-    [140, -20],
-    [140, -50],
-  ])('a level 9 Wheely Ramp Jumps back to the stage from (%d, %d) on every seed', (x, y) => {
-    const ends: string[] = [];
-    for (let seed = 1; seed <= 5; seed++) {
-      const m = drill(STAGE, x, y, 'wheely');
-      const f = m.fighters[0]!;
-      const cpu = createCpu({ port: 0, level: 9, seed });
-      let ramp = false;
-      let end = 'stuck';
-      for (let i = 0; i < 600; i++) {
-        stepMatch(m, [cpu.input(m), neutralInput()]);
-        if (f.move === 'upB') ramp = true;
-        if (f.stocks < 3) end = 'ko';
-        else if (f.ground !== null || f.action === 'ledgeHang') end = 'back';
-        if (end !== 'stuck') break;
+    [-140, -20, false],
+    [-140, -50, true],
+    [140, -20, false],
+    [140, -50, true],
+  ])(
+    'a level 9 Wheely gets back to the stage from (%d, %d) on every seed, with Ramp Jump: %s',
+    (x, y, needs) => {
+      const ends: string[] = [];
+      for (let seed = 1; seed <= 5; seed++) {
+        const m = drill(STAGE, x, y, 'wheely');
+        const f = m.fighters[0]!;
+        const cpu = createCpu({ port: 0, level: 9, seed });
+        let ramp = false;
+        let end = 'stuck';
+        for (let i = 0; i < 600; i++) {
+          stepMatch(m, [cpu.input(m), neutralInput()]);
+          if (f.move === 'upB') ramp = true;
+          if (f.stocks < 3) end = 'ko';
+          else if (f.ground !== null || f.action === 'ledgeHang') end = 'back';
+          if (end !== 'stuck') break;
+        }
+        ends.push(`seed ${seed}: ${end}${ramp ? ' with Ramp Jump' : ''}`);
       }
-      ends.push(`seed ${seed}: ${end}${ramp ? ' with Ramp Jump' : ''}`);
-    }
-    expect(ends).toEqual([1, 2, 3, 4, 5].map((seed) => `seed ${seed}: back with Ramp Jump`));
-  });
+      const back = ends.map((e) => e.replace(' with Ramp Jump', ''));
+      expect(back).toEqual([1, 2, 3, 4, 5].map((seed) => `seed ${seed}: back`));
+      if (needs) expect(ends).toEqual(back.map((e) => `${e} with Ramp Jump`));
+      else expect(ends.some((e) => e.endsWith('with Ramp Jump'))).toBe(true);
+    },
+    60_000,
+  );
 });
 
 describe('a recovery that carries the CPU back over the stage', () => {
-  // Level 9 against level 9 on Battlefield (src/ai/bench.ts). Wheely drifts past the right edge and Ramp Jumps, which
-  // carries him back over the stage at 2.2 units a frame. The CPU used to drop its recovery plan once there was stage
-  // under him and give no input in the helpless fall over the stage's middle, so he drifted off the left side and
-  // self-destructed on frame 5156. The plan steers through that fall, as the planner checked it.
-  it('keeps steering its helpless fall, so a level 9 Wheely does not self-destruct in seed 1 against Johnny', () => {
-    const r = runCpuMatch({ seed: 1, levels: [9, 9], fighters: ['wheely', 'johnny'], maxFrames: 5156 + 60 });
-    expect(r.kos.filter((k) => k.selfDestruct)).toEqual([]);
-  }, 60_000);
+  // Wheely and Johnny as they were on frame 4983 of the seed 1 level 9 match in src/ai/bench.ts before #326, patched
+  // into a new match: Wheely 0.6 units past Battlefield's right edge, falling with his double jump left, and Johnny in
+  // his double jump above the stage. There Wheely Ramp Jumped on the next frame and self-destructed on frame 5156. On
+  // these CPU seeds he Ramp Jumps too, which carries him back over the stage at 2 units a frame and leaves him
+  // helpless. The CPU used to drop its recovery plan once there was stage under him and give no input over the middle,
+  // so he drifted off the left side; the plan steers that fall, as the planner checked it.
+  it.each([11, 24, 31, 76])(
+    'keeps steering the helpless fall after Ramp Jump onto the stage (CPU seed %d)',
+    (seed) => {
+      const m = createMatch({
+        seed: 1,
+        stage: STAGE,
+        stocks: 3,
+        ports: [{ fighter: 'wheely' }, { fighter: 'johnny' }],
+      });
+      for (let i = 0; i < 30; i++) stepMatch(m, [neutralInput(), neutralInput()]);
+      const [w, j] = m.fighters;
+      Object.assign(w!, {
+        pos: { x: 80.64, y: 23.71 },
+        prevPos: { x: 80.26, y: 24.39 },
+        vel: { x: 0.381, y: -0.802 },
+        ground: null,
+        action: 'fall',
+        actionFrame: 6,
+        facing: 1,
+        jumpsUsed: 1,
+        airFrames: 27,
+        damage: 48.7,
+      });
+      Object.assign(j!, {
+        pos: { x: 62.59, y: 64.38 },
+        prevPos: { x: 62.84, y: 64.45 },
+        vel: { x: -0.252, y: -0.068 },
+        ground: null,
+        action: 'doubleJump',
+        actionFrame: 25,
+        facing: -1,
+        jumpsUsed: 2,
+        damage: 62.8,
+      });
+      const cpu = createCpu({ port: 0, level: 9, seed });
+      let ramp = false;
+      let end = 'stuck';
+      for (let i = 0; i < 400 && end === 'stuck'; i++) {
+        stepMatch(m, [cpu.input(m), neutralInput()]);
+        if (w!.move === 'upB') ramp = true;
+        if (w!.stocks < 3) end = 'ko';
+        else if (w!.ground !== null || w!.action === 'ledgeHang') end = 'back';
+      }
+      expect(ramp).toBe(true);
+      expect(end).toBe('back');
+      expect(Math.abs(w!.pos.x)).toBeLessThan(30);
+    },
+    60_000,
+  );
+});
+
+describe('move probes made ahead of the match', () => {
+  it('cover every fighter and every form it turns into, and are the knowledge the CPU then reads', () => {
+    const warm = warmKnowledge(['bloxorz', 'fireboy'], STAGE);
+    expect(warm.map((k) => k.id)).toEqual(['bloxorz', 'bloxorz-lying', 'fireboy', 'watergirl']);
+    for (const k of warm) expect(knowledge(k.id, STAGE)).toBe(k);
+  });
+
+  it('name the forms a match really turns fighters into: Bloxorz tipping over, Fireboy swapping to Watergirl', () => {
+    // Bloxorz walks by tipping end over end, which makes it bloxorz-lying; Fireboy's down special swaps in Watergirl.
+    for (const [fighter, input] of [
+      ['bloxorz', { ...neutralInput(), x: 100 }],
+      ['fireboy', { ...neutralInput(), y: -100, buttons: Btn.Special }],
+    ] as const) {
+      const m = createMatch({ seed: 1, stage: STAGE, stocks: 3, ports: [{ fighter }] });
+      for (let i = 0; i < 40; i++) stepMatch(m, [neutralInput()]);
+      const seen = new Set<string>();
+      for (let i = 0; i < 90; i++) {
+        stepMatch(m, [i < 30 ? input : neutralInput()]);
+        seen.add(m.fighters[0]!.fighter);
+      }
+      const ids = warmKnowledge([fighter], STAGE).map((k) => k.id);
+      expect(seen.size, fighter).toBeGreaterThan(1);
+      for (const id of seen) expect(ids, fighter).toContain(id);
+    }
+  });
 });

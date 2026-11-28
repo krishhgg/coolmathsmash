@@ -247,6 +247,43 @@ describe('the turn check under a mirrored parent', () => {
     const [found] = turnFindings(art, { ground: [], air: ['mirroredSwing'] });
     expect(found?.text).toBe('mirroredSwing@1 arm -70');
   });
+
+  /**
+   * A limb mirrored with sx -1, it and the part on it each turning 0 to 40 degrees. With `localScale` the limb keeps
+   * its flip to itself (worldTransforms in sample.ts), so the part turns 40 + 40 on screen; without it the flip
+   * carries down and the part's own 40 turns the other way, back to where it was.
+   */
+  const limb = (localScale: boolean): FighterArt => ({
+    ...art,
+    rig: {
+      bones: [
+        { name: 'root', x: 0, y: 0 },
+        { name: 'limb', parent: 'root', x: 0, y: -2, localScale },
+        { name: 'hand', parent: 'limb', x: 0, y: 1 },
+      ],
+      slots: [
+        { name: 'limb', bone: 'limb', symbol: 'box' },
+        { name: 'hand', bone: 'hand', symbol: 'box' },
+      ],
+      symbols: { box: box(0.2) },
+    },
+    clips: {
+      bend: {
+        length: 1,
+        keys: [
+          { frame: 0, pose: { limb: { sx: -1 } }, ease: 'linear' },
+          { frame: 1, pose: { limb: { sx: -1, rot: 40 }, hand: { rot: 40 } } },
+        ],
+      },
+    },
+  });
+
+  it("doesn't count a mirror a parent keeps to itself", () => {
+    const found = (localScale: boolean) =>
+      turnFindings(limb(localScale), { ground: [], air: ['bend'] }).map((f) => f.text);
+    expect(found(true)).toEqual(['bend@1 hand 80']);
+    expect(found(false)).toEqual([]);
+  });
 });
 
 describe('a cut', () => {

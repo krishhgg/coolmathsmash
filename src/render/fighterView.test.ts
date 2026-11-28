@@ -239,6 +239,39 @@ describe('clipFor while a move charges', () => {
     expect(seen()).toEqual(['sideB', 13]);
   });
 
+  it("draws Wheely's air Rev Up as the grounded one once he lands mid-charge, the sim keeping the air move", () => {
+    const wheely = getFighter('wheely');
+    const m = testMatch({ fighter: 'wheely' });
+    const f = placeInAir(m, 0, 30);
+    const seen = () => clipFor(wheely, fighterArt(wheely)!, f);
+    runPorts(m, 1, [{ buttons: ['special'] }]);
+    expect(f.move).toBe('neutralBAir');
+    until(m, (g) => g.charge > 0, { buttons: ['special'] }, 30);
+    expect(f.ground).toBeNull();
+    expect(seen()[0]).toBe('neutralBAirCharge');
+    until(m, (g) => g.ground !== null, { buttons: ['special'] }, 120);
+    runPorts(m, 1, [{ buttons: ['special'] }]);
+    expect(f.move).toBe('neutralBAir');
+    expect(f.charge).toBeGreaterThan(0);
+    expect(seen()).toEqual(['neutralBCharge', f.charge]);
+    // A second press lets the revs go (Giant Punch's input model): the blast plays the grounded clip.
+    runPorts(m, 1, [{}]);
+    runPorts(m, 1, [{ buttons: ['special'] }]);
+    until(m, () => seen()[0] !== 'neutralBCharge', {}, 20);
+    expect(f.move).toBe('neutralBAir');
+    expect(seen()[0]).toBe('neutralB');
+  });
+
+  it('maps a landed air move only to a ground move with clips, for air moves that carry on after landing', () => {
+    for (const def of Object.values(allFighters())) {
+      const art = fighterArt(def);
+      for (const [air, ground] of Object.entries(art?.landed ?? {})) {
+        expect(def.moves?.[air]?.continuesOnLanding, `${def.id} ${air}`).toBe(true);
+        expect(art!.clips[ground], `${def.id} ${ground}`).toBeDefined();
+      }
+    }
+  });
+
   it('holds the move clip on its charge frame when the art has no charge clip', () => {
     const fireboy = getFighter('fireboy');
     const m = testMatch({ fighter: 'fireboy' });

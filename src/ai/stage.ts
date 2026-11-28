@@ -3,6 +3,7 @@ import { compiledStage, posedStage } from '../sim/context';
 import type { FighterState, GroundRef } from '../sim/fighter';
 import { zoneAt } from '../sim/hazards';
 import type { MatchState } from '../sim/match';
+import { HELPLESS_AIR_SPEED } from '../sim/constants';
 import { hazardsOn, scheduledOn } from '../sim/movingStage';
 import {
   edgeMaxX,
@@ -360,4 +361,79 @@ export function landingX(info: StageInfo, f: Readonly<FighterState>, x: number, 
     }
   }
   return x;
+}
+
+/**
+ * The end of a fall's path: where it comes down on the stage (`ground`), or its last point before a blast zone. `drop`
+ * is the x where the path first falls below the stage's top (StageInfo.top), or the end's x if it never does.
+ */
+export interface FallEnd {
+  x: number;
+  y: number;
+  ground: boolean;
+  drop: number;
+}
+
+/**
+ * Where airborne `f` comes down if it holds the stick at `stick` (-1..1, world x) from now on, worked out from its
+ * speed, gravity and air drift (arc), with a helpless fall's slower drift (HELPLESS_AIR_SPEED) when it is helpless:
+ * the first floor or platform there this frame that the path falls onto. The path ignores the stage's walls and
+ * underside, so a fall past an edge carries on down beside the stage until it leaves through a blast zone, or until
+ * `frames` frames have passed.
+ */
+export function fallEnd(info: StageInfo, f: Readonly<FighterState>, stick: number, frames = 360): FallEnd {
+  const s = getFighter(f.fighter).stats;
+  const stats = f.action === 'helpless' ? { ...s, airSpeed: s.airSpeed * HELPLESS_AIR_SPEED } : s;
+  const start = { x: f.pos.x, y: f.pos.y, vx: f.vel.x, vy: f.vel.y, kbx: f.kb.x, kby: f.kb.y };
+  const a = arc(stats, start, stick, frames, f.fastFalling ? 0 : Infinity);
+  const b = info.blast;
+  let x = f.pos.x;
+  let y = f.pos.y;
+  let drop: number | null = y < info.top ? x : null;
+  for (let t = 0; t < a.x.length; t++) {
+    const prev = y;
+    x = a.x[t]!;
+    y = a.y[t]!;
+    if (y < prev) {
+      const fy = floorBelow(info, x, prev);
+      if (fy !== null && fy >= y) return { x, y: fy, ground: true, drop: drop ?? x };
+    }
+    if (drop === null && y < info.top) drop = x;
+    if (x <= b.left || x >= b.right || y <= b.bottom) break;
+  }
+  return { x, y, ground: false, drop: drop ?? x };
+}
+
+/** Units of ground a fall steered back onto the stage (driftBack) leaves on both sides of where it comes down. */
+const LAND_ROOM = 6;
+
+/** Ground that stays under x at height y or below, and LAND_ROOM units either side of it. */
+function roomyFall(info: StageInfo, x: number, y: number): boolean {
+  return [0, -LAND_ROOM, LAND_ROOM].every((d) => floorBelow(info, x + d, y, true, true) !== null);
+}
+
+/** A fall that comes down on ground with LAND_ROOM units of it to either side. */
+function landsRoomy(info: StageInfo, end: FallEnd): boolean {
+  return end.ground && roomyFall(info, end.x, end.y + SAME);
+}
+
+/**
+ * Stick x that steers airborne `f` back over the stage when, with no input, its fall would come down past an edge or
+ * into a gap (or within LAND_ROOM units of one), or carry it into a blast zone. Full stick toward the side where
+ * holding it all the way down lands with room. When both sides do (a gap ahead it could clear) or neither does, back
+ * toward the ground: away from the edge the idle fall lands near, or toward where `f` is from where the idle fall
+ * drops below the stage's top, which stops short of a gap rather than crossing it. Null when the fall lands with room
+ * by itself, so the caller's own drift stands. Called every frame, it lets go as soon as the fall lands with room,
+ * which brings the CPU down about LAND_ROOM units inside the edge.
+ */
+export function driftBack(info: StageInfo, f: Readonly<FighterState>): number | null {
+  const idle = fallEnd(info, f, 0);
+  if (landsRoomy(info, idle)) return null;
+  const left = landsRoomy(info, fallEnd(info, f, -1));
+  const right = landsRoomy(info, fallEnd(info, f, 1));
+  if (left !== right) return left ? -100 : 100;
+  const ground = (d: number) => floorBelow(info, idle.x + d, idle.y + SAME, true, true) !== null;
+  const near = idle.ground && ground(-LAND_ROOM) !== ground(LAND_ROOM);
+  const dir = near ? (ground(-LAND_ROOM) ? -1 : 1) : Math.sign(f.pos.x - idle.drop);
+  return (dir || Math.sign(info.centerX - f.pos.x) || 1) * 100;
 }
