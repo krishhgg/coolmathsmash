@@ -197,6 +197,13 @@ function climb(frame: number, moveEnd: number, inward: number, phase = frame): P
  * knee; the head rocks a few degrees on every step.
  */
 const WALK_LENGTH = 16;
+/**
+ * Walk frames drawn by the tween from the frames either side rather than fitted: on them the swinging foot passes
+ * close under its hip, and the short folded leg's thigh flipped up to 85 degrees in a frame (the front shin turns
+ * 127 degrees from frame 12 to 14, so it needs four frames).
+ */
+const WALK_TWEENED = [3, 12, 13, 14];
+
 function sneak(frame: number): Pose {
   const half = WALK_LENGTH / 2;
   const t = (frame % half) / half;
@@ -495,14 +502,18 @@ export const clips: Record<string, AnimClip> = {
       key(75, undefined, { swaps: {} }),
     ],
   },
-  walk: {
+  // Settled on the floor every frame: the tweened frames would let the planted foot dip.
+  walk: floorContact({
     length: WALK_LENGTH,
     loop: true,
     swaps: SIDE,
     keys: continuous(
-      Array.from({ length: WALK_LENGTH + 1 }, (_, f) => key(f, sneak(f % WALK_LENGTH), { ease: 'linear' })),
+      Array.from({ length: WALK_LENGTH + 1 }, (_, f) => f)
+        .filter((f) => !WALK_TWEENED.includes(f))
+        .map((f) => key(f, sneak(f % WALK_LENGTH), { ease: 'linear' })),
+      { onScreen: true },
     ),
-  },
+  }),
   dash: {
     length: 10,
     swaps: RUN_LOOK,
@@ -538,8 +549,15 @@ export const clips: Record<string, AnimClip> = {
     length: STRIDE_LENGTH,
     loop: true,
     swaps: RUN_LOOK,
-    keys: Array.from({ length: STRIDE_LENGTH }, (_, f) =>
-      key(f, stride(f), { ease: 'linear', ...(f === 0 ? { z: CARRY_ORDER } : {}) }),
+    // Keyed every other frame, as the walk is: the trailing knee snapped through up to 74 degrees in a frame.
+    keys: continuous(
+      Array.from({ length: STRIDE_LENGTH / 2 + 1 }, (_, i) =>
+        key(2 * i, stride((2 * i) % STRIDE_LENGTH), {
+          ease: 'linear',
+          ...(i === 0 ? { z: CARRY_ORDER } : {}),
+        }),
+      ),
+      { onScreen: true },
     ),
   },
   runBrake: {
@@ -580,8 +598,10 @@ export const clips: Record<string, AnimClip> = {
           swaps: RUN_LOOK,
         },
       ),
-      key(9, carry(READY, 39, 0.82, 0.8), { ease: 'in' }),
-      key(13, carry(READY, 5, 0.02, 0), { ease: 'out' }),
+      key(9, carry(READY, 39, 0.82, 0.8), { ease: 'linear' }),
+      // The back arm is back where READY holds it as the sack shrinks away: carried to the last frame, it swung
+      // 92 degrees into READY in one.
+      key(13, mix(READY, { sackH: carry(READY, 5, 0.02, 0).sackH! }), { ease: 'out' }),
       key(14, READY, { swaps: { sack: null, handB: 'handOpen' } }),
     ],
   },
@@ -932,7 +952,8 @@ export const clips: Record<string, AnimClip> = {
       key(20, mix(HIT, { body: { rot: -8, y: -0.6 }, hat: {} })),
     ],
   },
-  grabRelease: {
+  // On the floor all through: the reeling first pose sank his back shoe 0.84 into it.
+  grabRelease: floorContact({
     length: 29,
     swaps: WIDE,
     keys: [
@@ -943,7 +964,7 @@ export const clips: Record<string, AnimClip> = {
       }),
       key(29, READY),
     ],
-  },
+  }),
   respawn: {
     length: 60,
     loop: true,
