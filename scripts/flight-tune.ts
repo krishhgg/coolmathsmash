@@ -89,17 +89,24 @@ const report = (pass: string) => {
 report('Baseline');
 
 for (const scale of [1, 0.65, 0.36, 0.18]) {
-  for (const [key, step, low, high] of candidates) {
-    for (const direction of [-1, 1]) {
-      const candidate = { ...selected, [key]: Number((selected[key] + step * scale * direction).toFixed(4)) };
-      if (candidate[key] < low || candidate[key] > high) continue;
-      const result = score(candidate);
-      if (result < penalty) {
-        selected = candidate;
-        penalty = result;
+  let beforeSweep: number;
+  do {
+    beforeSweep = penalty;
+    for (const [key, step, low, high] of candidates) {
+      for (const direction of [-1, 1]) {
+        const candidate = {
+          ...selected,
+          [key]: Number((selected[key] + step * scale * direction).toFixed(4)),
+        };
+        if (candidate[key] < low || candidate[key] > high) continue;
+        const result = score(candidate);
+        if (result < penalty) {
+          selected = candidate;
+          penalty = result;
+        }
       }
     }
-  }
+  } while (penalty < beforeSweep);
   report(`Pass ${scale}`);
 }
 console.log('Selected', selected);

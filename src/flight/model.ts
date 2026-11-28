@@ -12,7 +12,7 @@ export const baseline = {
   bank: 0.36,
 };
 export type Tune = typeof baseline;
-export const tune: Tune = { motor: 2.4628, stop: 4.095, steering: 6.6425, joint: 12.409, bank: 0.4408 };
+export const tune: Tune = { motor: 2.4096, stop: 4.265, steering: 9.23, joint: 14.015, bank: 0.47 };
 
 export interface Spring {
   angle: number;

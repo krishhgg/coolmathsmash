@@ -36,8 +36,8 @@ describe('Harbor flight', () => {
     let ticks = 0;
     let input = neutralInput;
     let peakJointSpeed = 0;
-    while (gate < gates.length && ticks < 120 * 32) {
-      const target = gates[gate]!.position;
+    while (gate < gates.length && ticks < 120 * 24) {
+      const target = gates[gate]!.position.clone().addScaledVector(normals[gate]!, 12);
       if (ticks % 4 === 0) {
         const dx = target.x - flight.position.x - flight.velocity.x * 0.26;
         const dz = target.z - flight.position.z - flight.velocity.z * 0.26;
@@ -67,7 +67,7 @@ describe('Harbor flight', () => {
       ticks++;
     }
     expect(gate).toBe(gates.length);
-    expect(ticks * stepTime).toBeLessThan(31);
+    expect(ticks * stepTime).toBeLessThan(24);
     expect(peakJointSpeed).toBeLessThan(3.3);
   });
 });
