@@ -73,6 +73,15 @@ describe('duck art', () => {
       expect(art.clips[name]?.length, name).toBe(move.faf - 1);
   });
 
+  it("repeats each move's hit windows, or its throw or pummel frame, as its clip's active windows", () => {
+    for (const [name, move] of Object.entries(moves)) {
+      const impact = move.throw?.frame ?? move.pummel?.frame;
+      const windows =
+        move.hits.length || impact === undefined ? move.hits.map((h) => h.frames) : [[impact, impact]];
+      if (windows.length) expect(art.clips[name]!.active, name).toEqual(windows);
+    }
+  });
+
   it("draws Running Ram's charge with a clip one frame per charge frame, up to a full charge", () => {
     expect(art.clips.sideBCharge!.length).toBe(moves.sideB!.chargeFrames);
     expect(art.clips.sideBCharge!.loop).toBeFalsy();

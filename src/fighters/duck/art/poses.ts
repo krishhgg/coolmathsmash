@@ -1,6 +1,8 @@
 import type { Pose } from '../../../render/rig/author';
+import { flattenPath } from '../../../render/rig/geometry';
+import { continuous, floorContact } from '../../../render/rig/keys';
 import { toLocal, worldTransforms, type Affine, type BoneTransform } from '../../../render/rig/sample';
-import type { BonePose, Key } from '../../../render/rig/types';
+import type { AnimClip, BonePose, Key } from '../../../render/rig/types';
 import { LEG, WING } from './parts';
 import { rig } from './rig';
 
@@ -124,6 +126,64 @@ export function at(pose: Pose, bone: string, x = 0, y = 0): [number, number] {
 export function fx(x: number, y: number, s: number, rot = 0, sy = s): BonePose {
   return { x, y, rot, sx: s, sy };
 }
+
+/**
+ * Tweens each part the short way round on screen. The base and the belly keep their whole turns, so rolls, flips and
+ * the getup's sit-up still spin and carry the rest with them.
+ */
+export const smooth = (keys: Key[]): Key[] =>
+  continuous(rig, keys, { onScreen: true, keep: ['base', 'body'] });
+
+/** Effect slots, placed in rig space: `onFloor` doesn't lift him for them. */
+const FX_SLOTS = new Set(['fx1', 'fx2', 'fxBack']);
+
+/** The lowest rig y of drawing `symbol` on `bone` in `pose`. */
+function lowest(pose: Pose, bone: string, symbol: string | null | undefined): number {
+  const shapes = symbol ? rig.symbols[symbol] : undefined;
+  if (!Array.isArray(shapes)) return -Infinity;
+  const m = world(pose)[bone]!;
+  let y = -Infinity;
+  for (const shape of shapes)
+    for (const p of flattenPath(shape.d, 4))
+      for (let i = 0; i < p.length; i += 2) y = Math.max(y, m.b * p[i]! + m.d * p[i + 1]! + m.ty);
+  return y;
+}
+
+/**
+ * Raises any leg whose foot (drawn as `symbols` has it) would dip below the floor until it rests on it, the leg
+ * shortening to reach and the foot keeping its angle. It works on the duck at his own size, facing right: the base
+ * only grows, squashes or mirrors him about his feet, which keeps the floor where it is.
+ */
+export function plantFeet(pose: Pose, symbols: Record<string, string | null>): Pose {
+  const { sx = 1, sy = 1 } = pose.base ?? {};
+  let p = mix(pose, { base: { sx: 1, sy: 1 } });
+  for (const side of ['B', 'F'] as const)
+    for (let i = 0; i < 3; i++) {
+      const dip = Math.max(
+        lowest(p, `foot${side}`, symbols[`foot${side}`]),
+        lowest(p, `leg${side}`, symbols[`leg${side}`]),
+      );
+      if (dip <= 0.01) break;
+      const [x, y] = at(p, `foot${side}`);
+      p = leg(p, side, [x, y - dip], angle(world(p)[`foot${side}`]!));
+    }
+  return mix(p, { base: { sx, sy } });
+}
+
+/**
+ * `clip` baked on whole frames with the whole duck lifted on any frame where something would dip below the floor;
+ * with `feet`, a foot that dips is first raised onto the floor (`plantFeet`) instead. `settle` also lowers frames
+ * where he floats. `from` leaves the frames before it as they are, for a ledge getup that only stands on the stage
+ * once the engine has moved it there.
+ */
+export const onFloor = (clip: AnimClip, { feet = false, settle = false, from = 0 } = {}): AnimClip =>
+  floorContact(rig, clip, {
+    bone: 'base',
+    settle,
+    from,
+    skip: (slot) => FX_SLOTS.has(slot),
+    ...(feet && { adjust: plantFeet }),
+  });
 
 /** Swap sets: faces, wings and feet. */
 export const ANGRY = { face: 'faceAngry' };

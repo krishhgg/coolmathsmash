@@ -89,6 +89,11 @@ export interface Contact {
   skip?: (slot: string, symbol: string) => boolean;
   /** Runs on each frame's pose before it is measured, given the symbol each slot draws: to re-plant a foot, say. */
   adjust?: (pose: Pose, symbols: Record<string, string | null>) => Pose;
+  /**
+   * The first frame that stands on the floor (default 0). Frames before it are baked as they are, neither adjusted
+   * nor moved: a ledge getup, say, before the engine has moved it onto the stage.
+   */
+  from?: number;
 }
 
 /**
@@ -98,7 +103,7 @@ export interface Contact {
 export function floorContact(
   rig: Rig,
   clip: AnimClip,
-  { bone, settle = false, skip, adjust }: Contact,
+  { bone, settle = false, skip, adjust, from = 0 }: Contact,
 ): AnimClip {
   const art: FighterArt = { rig, clips: { contact: clip }, palettes: { default: {} }, height: 0, icon: '' };
   // Each frame's ease, swaps and draw order, as the sampler reads them when several keys share a frame: the ease of
@@ -126,10 +131,11 @@ export function floorContact(
           return [name, { x: p.x - x, y: p.y - y, rot: p.rot - rot, sx: p.sx / sx, sy: p.sy / sy }];
         }),
       );
-      if (adjust) pose = adjust(pose, sampled.symbols);
-      const measured = adjust ? posed(rig, pose, sampled.symbols) : sampled;
+      const standing = frame >= from;
+      if (adjust && standing) pose = adjust(pose, sampled.symbols);
+      const measured = adjust && standing ? posed(rig, pose, sampled.symbols) : sampled;
       const bottom = poseBounds({ ...art, rig: { ...rig, slots: drawn } }, measured)[3];
-      const dy = drawn.length ? (settle ? bottom : Math.max(0, bottom)) : 0;
+      const dy = drawn.length && standing ? (settle ? bottom : Math.max(0, bottom)) : 0;
       pose[bone] = { ...pose[bone], y: (pose[bone]?.y ?? 0) - dy };
       const { ease, swaps, z } = keys.get(frame) ?? {};
       const out: Key = { frame, pose, ease: ease === 'step' ? 'step' : 'linear' };

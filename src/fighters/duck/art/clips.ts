@@ -1,6 +1,7 @@
 import type { Pose } from '../../../render/rig/author';
 import { retimeClip } from '../../../render/rig/timing';
 import type { AnimClip } from '../../../render/rig/types';
+import { LEDGE_ATTACK, LEDGE_CLIMB } from '../../../sim/constants';
 import { attacks } from './attacks';
 import { finalSmashAirClip, finalSmashClip } from './finalSmash';
 import {
@@ -23,6 +24,8 @@ import {
   key,
   leg,
   mix,
+  onFloor,
+  smooth,
   tucked,
   wing,
   wingTo,
@@ -245,10 +248,13 @@ export const clips: Record<string, AnimClip> = {
   dash: {
     length: 10,
     keys: [
-      key(0, feet({ body: { rot: 18, sy: 0.9, y: 0.35 }, head: { rot: -12, x: 0.3 } }, -2.0, 0.6, -10), {
-        ease: 'out',
-        swaps: { fx1: 'fxPuff' },
-      }),
+      key(
+        0,
+        mix(feet({ body: { rot: 18, sy: 0.9, y: 0.35 }, head: { rot: -12, x: 0.3 } }, -2.0, 0.6, -10), {
+          fx1: fx(-1.8, -0.5, 0.4),
+        }),
+        { ease: 'out', swaps: { fx1: 'fxPuff' } },
+      ),
       key(4, mix(RUN[0], { body: { rot: 16, y: -0.2 }, fx1: fx(-2.4, -0.7, 0.8) }), { ease: 'linear' }),
       key(10, mix(RUN[1], { fx1: fx(-3.4, -1.0, 0.3) })),
     ],
@@ -272,7 +278,7 @@ export const clips: Record<string, AnimClip> = {
         mix(feet({ body: { rot: -6, y: 0.1 }, head: { rot: 4 } }, -0.5, 1.2), { fx1: fx(3.4, -1.0, 0.35) }),
       ),
       key(9, undefined, { swaps: {} }),
-      key(14, STAND),
+      key(14, mix(STAND, { fx1: fx(3.8, -1.1, 0) })),
     ],
   },
   turn: {
@@ -418,8 +424,8 @@ export const clips: Record<string, AnimClip> = {
   spotDodge: {
     length: 25,
     swaps: { ...BLINK, ...WINGS },
-    keys: [
-      key(0, STAND, { ease: 'out' }),
+    keys: smooth([
+      key(0, STAND, { ease: 'linear' }),
       key(
         3,
         wing(
@@ -453,11 +459,11 @@ export const clips: Record<string, AnimClip> = {
       ),
       key(20, undefined, { swaps: { wingF: null, wingB: null } }),
       key(25, STAND),
-    ],
+    ]),
   },
   rollForward: {
     length: 29,
-    keys: [
+    keys: smooth([
       key(0, CROUCH, { ease: 'in', swaps: BLINK }),
       key(4, ball(90), { ease: 'linear', swaps: { ...BLINK, ...WINGS } }),
       key(10, ball(200), { ease: 'linear' }),
@@ -466,11 +472,11 @@ export const clips: Record<string, AnimClip> = {
       key(24, undefined, { swaps: {} }),
       key(25, mix(CROUCH, { body: { rot: 360 } }), { ease: 'out' }),
       key(29, mix(STAND, { body: { rot: 360 } })),
-    ],
+    ]),
   },
   rollBack: {
     length: 34,
-    keys: [
+    keys: smooth([
       key(0, CROUCH, { ease: 'in', swaps: BLINK }),
       key(4, ball(-90), { ease: 'linear', swaps: { ...BLINK, ...WINGS } }),
       key(10, ball(-200), { ease: 'linear' }),
@@ -479,18 +485,18 @@ export const clips: Record<string, AnimClip> = {
       key(25, undefined, { swaps: {} }),
       key(27, mix(CROUCH, { body: { rot: -360 } }), { ease: 'out' }),
       key(34, mix(STAND, { body: { rot: -360 } })),
-    ],
+    ]),
   },
   airDodge: {
     length: 49,
     swaps: { ...BLINK, ...WINGS },
-    keys: [
+    keys: smooth([
       key(0, APEX, { ease: 'out' }),
       key(4, wing(wing(tucked({ body: { rot: -20 } }), 'F', 160, 0.85), 'B', 200, 0.85), { ease: 'inOut' }),
       key(30, wing(wing(tucked({ body: { rot: -10 } }), 'F', 150, 0.85), 'B', 190, 0.85), { ease: 'inOut' }),
       key(36, undefined, { swaps: {} }),
       key(49, FALL),
-    ],
+    ]),
   },
   ledgeCatch: {
     length: 19,
@@ -551,7 +557,7 @@ export const clips: Record<string, AnimClip> = {
   ledgeRoll: {
     length: 45,
     swaps: { ...ANGRY, ...WINGS },
-    keys: [
+    keys: smooth([
       key(0, HANG, { ease: 'linear' }),
       key(6, pull(6, 40, 0.6), { ease: 'linear' }),
       key(10, mix(ball(120), { base: { y: -belowFloor(10, 40) } }), {
@@ -560,21 +566,21 @@ export const clips: Record<string, AnimClip> = {
       }),
       key(18, mix(ball(260), { base: { y: -belowFloor(18, 40) } }), { ease: 'linear' }),
       key(26, mix(ball(400), { base: { y: -belowFloor(26, 40) } }), { ease: 'linear' }),
-      key(34, ball(540), { ease: 'out' }),
+      key(34, ball(540), { ease: 'linear' }),
       key(37, mix(CROUCH, { body: { rot: 720 } }), { ease: 'out', swaps: {} }),
       key(45, mix(STAND, { body: { rot: 720 } })),
-    ],
+    ]),
   },
   ledgeJump: {
     length: 20,
     swaps: { ...SHOUT, ...WINGS },
-    keys: [
-      key(0, HANG, { ease: 'in' }),
+    keys: smooth([
+      key(0, HANG, { ease: 'linear' }),
       key(3, mix(CROUCH, { body: { rot: -6 } }), { ease: 'out', swaps: { ...SHOUT, ...WINGS } }),
       key(6, flap(110, 70), { ease: 'out' }),
       key(12, undefined, { swaps: LOOK_UP }),
       key(20, RISE),
-    ],
+    ]),
   },
   ledgeAttack: attacks.ledgeAttack!,
   hitstun: {
@@ -606,7 +612,7 @@ export const clips: Record<string, AnimClip> = {
   getupStand: {
     length: 29,
     swaps: { ...BLINK, ...WINGS },
-    keys: [
+    keys: smooth([
       key(0, DOWN, { ease: 'inOut' }),
       key(10, wing(wing(mix(CROUCH, { base: { rot: -30, x: 1.2, y: -0.4 } }), 'F', 150), 'B', 210), {
         ease: 'out',
@@ -614,29 +620,29 @@ export const clips: Record<string, AnimClip> = {
       }),
       key(18, mix(CROUCH, { body: { rot: 6 } }), { ease: 'inOut', swaps: ANGRY }),
       key(29, STAND),
-    ],
+    ]),
   },
   techInPlace: {
     length: 26,
     swaps: BLINK,
-    keys: [
+    keys: smooth([
       key(0, ball(-60), { ease: 'out', swaps: { ...BLINK, ...WINGS } }),
       key(8, mix(CROUCH, { body: { sy: 0.72, y: 1.2 } }), { ease: 'out', swaps: { ...ANGRY, ...WINGS } }),
       key(14, wing(wing(STAND, 'F', -60), 'B', -120), { swaps: ANGRY }),
       key(20, undefined, { swaps: {} }),
       key(26, STAND),
-    ],
+    ]),
   },
   techRoll: {
     length: 40,
-    keys: [
+    keys: smooth([
       key(0, ball(-60), { ease: 'linear', swaps: { ...BLINK, ...WINGS } }),
       key(8, ball(60), { ease: 'linear' }),
       key(16, ball(180), { ease: 'linear' }),
       key(24, ball(300), { ease: 'out' }),
       key(28, mix(CROUCH, { body: { rot: 360 } }), { ease: 'out', swaps: ANGRY }),
       key(40, mix(STAND, { body: { rot: 360 } })),
-    ],
+    ]),
   },
   grabHold: {
     length: 30,
@@ -658,7 +664,7 @@ export const clips: Record<string, AnimClip> = {
   },
   taunt: {
     length: 60,
-    keys: [
+    keys: smooth([
       key(0, STAND, { ease: 'out' }),
       key(6, mix(CROUCH, { body: { rot: 10 } }), { ease: 'out', swaps: { face: 'faceHappy' } }),
       ...Array.from({ length: 6 }, (_, i) => {
@@ -671,7 +677,7 @@ export const clips: Record<string, AnimClip> = {
       }),
       key(52, undefined, { swaps: {}, z: {} }),
       key(60, STAND),
-    ],
+    ]),
   },
   respawn: {
     length: 60,
@@ -710,3 +716,50 @@ clips.getupRollBack = retimeClip(clips.rollBack!, 35, [
  * stay put and only the recovery after it stretches. A directional dodge plays the same clip over its own length.
  */
 clips.airDodge = retimeClip(clips.airDodge!, 52, [[29, 29]]);
+
+/**
+ * Grounded clips baked so nothing dips below the floor (`onFloor`), after the rolls above are retimed. Rolling,
+ * lying and getting up lift the whole duck, since a ball or a body on its back rests on its lowest point; the rest
+ * raise a foot that would dip onto the floor.
+ */
+for (const name of [
+  'rollForward',
+  'rollBack',
+  'techRoll',
+  'getupRoll',
+  'techRollBack',
+  'getupRollBack',
+  'down',
+  'getupStand',
+  'usmash',
+  'downB',
+  'sideB',
+])
+  clips[name] = onFloor(clips[name]!);
+for (const name of [
+  'walk',
+  'run',
+  'spotDodge',
+  'taunt',
+  'jab2',
+  'jab3',
+  'ftilt',
+  'dtilt',
+  'dashAttack',
+  'fsmash',
+  'grab',
+  'dashGrab',
+  'pivotGrab',
+  'fthrow',
+  'dthrow',
+  'getupAttack',
+  'neutralB',
+  'finalSmash',
+])
+  clips[name] = onFloor(clips[name]!, { feet: true });
+/**
+ * The ledge climb and ledge attack stand on the stage from the frame the engine finishes moving him there
+ * (`moveEnd`): from then on a foot that would dip is raised onto the floor. Before it he is still at the ledge.
+ */
+clips.ledgeClimb = onFloor(clips.ledgeClimb!, { feet: true, from: LEDGE_CLIMB.moveEnd });
+clips.ledgeAttack = onFloor(clips.ledgeAttack!, { feet: true, from: LEDGE_ATTACK.moveEnd });
