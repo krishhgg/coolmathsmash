@@ -4,6 +4,7 @@ import { knockback } from '../../sim/combat/formulas';
 import type { SimEvent } from '../../sim/events';
 import type { FighterState } from '../../sim/fighter';
 import { finalReach, freezeOf } from '../../sim/finalSmash';
+import { spawnEntity } from '../../sim/entities/entities';
 import { createMatch, stepMatch, type MatchState } from '../../sim/match';
 import { koPercent } from '../../sim/testing/ko';
 import { marioReference } from '../../sim/testing/reference';
@@ -84,6 +85,7 @@ describe('Conveyor Oven (Final Smash), on House of Boom', () => {
   });
 
   it("jolts with House of Boom's pushbox: 0% at angle 40 with FKV 75 grounded and 70 aerial, and a 361 FKV 10 stun from 16 to 44", () => {
+    // Every one of them can't clang (SmashWiki, Steve (SSBU)/Final Smash: clang=f, rebound=f): `transcendent`.
     const [ground, air, ...stun] = finalSmash.hits[0]!.boxes;
     for (const [b, wbkb, targets] of [
       [ground!, 75, 'ground'],
@@ -101,14 +103,41 @@ describe('Conveyor Oven (Final Smash), on House of Boom', () => {
         wbkb,
         hitlag: 0,
         targets,
+        transcendent: true,
       });
     expect(stun.map((b) => b.x)).toEqual([16, 23, 30, 37, 44]);
     for (const b of stun) {
-      expect([b.y, b.radius, b.damage, b.angle, b.kbg, b.bkb, b.wbkb, b.hitlag]).toEqual([
-        11, 8, 0, 361, 100, 0, 10, 2,
+      expect([b.y, b.radius, b.damage, b.angle, b.kbg, b.bkb, b.wbkb, b.hitlag, b.transcendent]).toEqual([
+        11,
+        8,
+        0,
+        361,
+        100,
+        0,
+        10,
+        2,
+        true,
       ]);
       expect(b.targets).toBeUndefined();
     }
+  });
+
+  it("lets projectiles through the jolt, as House of Boom's pushboxes can't clang: a 5.5% Fireball isn't cancelled", () => {
+    const { m, a } = conveyorMatch(90);
+    step(m, 1, [SPECIAL]);
+    step(m, 24);
+    expect(a.actionFrame).toBe(CONVEYOR.jolt[0]);
+    // A Fireball from the third fighter, in the belt's reach and flying back along it.
+    const ball = spawnEntity(m, {
+      kind: 'fireboy/fireball',
+      owner: 2,
+      pos: { x: PAPA_X + 30, y: CONVEYOR.y },
+      vel: { x: -1, y: 0 },
+    });
+    const seen = step(m, 6);
+    expect(a.actionFrame).toBeLessThanOrEqual(CONVEYOR.jolt[1]);
+    expect(seen.filter((e) => e.type === 'entityDestroy')).toEqual([]);
+    expect(ball.dead).toBe(false);
   });
 
   it("catches with the launcher's reach, radius 13 from 16 to 47 at 11 up: up to 60 units ahead, from -2 to 24 up", () => {
