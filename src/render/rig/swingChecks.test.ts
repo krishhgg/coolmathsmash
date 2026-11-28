@@ -88,6 +88,39 @@ const art: FighterArt = {
     boilingBrawl: brawl('boilingCloud'),
     thinBrawl: brawl('thinCloud'),
     lowBrawl: brawl('cloud', 2.5),
+    // The body turns round to face the other way in one frame (sx -1 to 1), as a whirl round is drawn. The arm keeps
+    // its angle on screen: under the mirrored body its -40 points where 40 does after the flip.
+    whirl: {
+      length: 1,
+      keys: [
+        { frame: 0, pose: { body: { sx: -1 }, arm: { rot: -40 } }, ease: 'step' },
+        { frame: 1, pose: { arm: { rot: 40 } } },
+      ],
+    },
+    // The same flip with the arm's own turn left at 40: it flips with the body, a cel turning him round.
+    whirlFlip: {
+      length: 1,
+      keys: [
+        { frame: 0, pose: { body: { sx: -1 }, arm: { rot: 40 } }, ease: 'step' },
+        { frame: 1, pose: { arm: { rot: 40 } } },
+      ],
+    },
+    // The same flip with the arm swinging from 0 to 80: 80 degrees on screen, and 80 against the body.
+    whirlSwing: {
+      length: 1,
+      keys: [
+        { frame: 0, pose: { body: { sx: -1 }, arm: { rot: 0 } }, ease: 'step' },
+        { frame: 1, pose: { arm: { rot: 80 } } },
+      ],
+    },
+    // Mirrored throughout, the arm turning 70 degrees in a frame: as far on screen as unmirrored.
+    mirroredSwing: {
+      length: 1,
+      keys: [
+        { frame: 0, pose: { body: { sx: -1 }, arm: { rot: 0 } }, ease: 'linear' },
+        { frame: 1, pose: { body: { sx: -1 }, arm: { rot: 70 } } },
+      ],
+    },
   },
 };
 
@@ -137,6 +170,71 @@ describe('the swing checks', () => {
         spins: [{ bone: 'wheel', why: 'typo', clips: ['rol'] }],
       }),
     ).toThrow('rol');
+  });
+});
+
+describe('a clip in the air that lands', () => {
+  it('gets the floor check from the frame it is listed as standing on the floor', () => {
+    const sunk = (checks: Partial<SwingChecks>) =>
+      floorFindings(art, { ground: [], air: ['sink'], ...checks }).map((f) => f.frame);
+    expect(sunk({})).toEqual([]);
+    expect(sunk({ groundFrom: { sink: 3 } })).toEqual([3, 4]);
+  });
+});
+
+describe('the turn check under a mirrored parent', () => {
+  it('passes a part that keeps its angle on screen as its parent flips to face the other way', () => {
+    expect(failing('whirl')).toEqual({});
+  });
+
+  it('passes a part that flips with its parent', () => {
+    expect(failing('whirlFlip')).toEqual({});
+  });
+
+  it('fails a part that swings too far across the flip either way it is read', () => {
+    expect(failing('whirlSwing')).toEqual({ arm: [1] });
+  });
+
+  it('measures a turn under a parent mirrored on both frames as it is drawn, the other way round', () => {
+    const [found] = turnFindings(art, { ground: [], air: ['mirroredSwing'] });
+    expect(found?.text).toBe('mirroredSwing@1 arm -70');
+  });
+
+  /**
+   * A limb mirrored with sx -1, it and the part on it each turning 0 to 40 degrees. With `localScale` the limb keeps
+   * its flip to itself (worldTransforms in sample.ts), so the part turns 40 + 40 on screen; without it the flip
+   * carries down and the part's own 40 turns the other way, back to where it was.
+   */
+  const limb = (localScale: boolean): FighterArt => ({
+    ...art,
+    rig: {
+      bones: [
+        { name: 'root', x: 0, y: 0 },
+        { name: 'limb', parent: 'root', x: 0, y: -2, localScale },
+        { name: 'hand', parent: 'limb', x: 0, y: 1 },
+      ],
+      slots: [
+        { name: 'limb', bone: 'limb', symbol: 'box' },
+        { name: 'hand', bone: 'hand', symbol: 'box' },
+      ],
+      symbols: { box: box(0.2) },
+    },
+    clips: {
+      bend: {
+        length: 1,
+        keys: [
+          { frame: 0, pose: { limb: { sx: -1 } }, ease: 'linear' },
+          { frame: 1, pose: { limb: { sx: -1, rot: 40 }, hand: { rot: 40 } } },
+        ],
+      },
+    },
+  });
+
+  it("doesn't count a mirror a parent keeps to itself", () => {
+    const found = (localScale: boolean) =>
+      turnFindings(limb(localScale), { ground: [], air: ['bend'] }).map((f) => f.text);
+    expect(found(true)).toEqual(['bend@1 hand 80']);
+    expect(found(false)).toEqual([]);
   });
 });
 

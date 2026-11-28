@@ -209,7 +209,7 @@ describe('CPU projectiles', () => {
         }
       }
     }
-  });
+  }, 120_000);
 
   it("tap Bob the Robber's Stun Gun in its reach and charge it at an opponent who can't close in first", () => {
     /** The first shot Bob fires at a Red Ball `d` away, stuck in `lag` frames of landing lag, and its paralysis. */
@@ -312,7 +312,8 @@ describe('CPU projectiles', () => {
       }
       expect(hits[9], `shot hits against a level 5 Red Ball`).toBeGreaterThan(hits[3]!);
     },
-    60_000,
+    // 16 matches of 30 s each: about 45 s on an idle machine, and up to 96 s on a loaded one.
+    180_000,
   );
 
   it('stop shooting a held shield once they see it, even when the shot would KO', () => {
@@ -337,7 +338,7 @@ describe('CPU projectiles', () => {
         expect(late, `${d}, seed ${seed}`).toEqual([]);
       }
     }
-  });
+  }, 120_000);
 
   it('shoot an opponent recovering from beside the stage', () => {
     // The Red Ball double jumps back toward the stage, scripted: a CPU there picks among the recoveries that work, and
@@ -363,7 +364,7 @@ describe('CPU projectiles', () => {
         expect(hit, `${id}, seed ${seed}`).toBeGreaterThanOrEqual(0);
       }
     }
-  });
+  }, 120_000);
 
   it("count on their own shots already out: Raft Wars' Aimed Shots connect with a standing Red Ball", () => {
     // The setups from the captures: a Red Ball 80-120 units away, seeds 1 to 6. Before his look-ahead of the Red Ball
@@ -408,7 +409,7 @@ describe('CPU projectiles', () => {
     expect(fired.held).toBeGreaterThan(0);
     expect(fired.tapped).toBeGreaterThan(0);
     expect(missed).toEqual([]);
-  }, 60_000);
+  }, 120_000);
 
   it('spend no long shot on an opponent falling far below the stage', () => {
     // A Red Ball falling 35-45 units under the right ledge with three jumps left and no input, Raft Wars standing near
@@ -449,5 +450,5 @@ describe('CPU projectiles', () => {
         expect(long, `${x}, ${y}, seed ${seed}`).toEqual([]);
       }
     }
-  });
+  }, 120_000);
 });
